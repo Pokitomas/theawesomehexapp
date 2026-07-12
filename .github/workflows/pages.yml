@@ -121,7 +121,7 @@ jobs:
           test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.social > 150")" = "true"
           test "$(node -p "require('./dist/data/manifest.json').profileSystem.schema")" = "2"
           test "$(node -p "require('./dist/data/manifest.json').profileSystem.localFirst")" = "true"
-          test "$(node -p "require('./dist/data/manifest.json').profileSystem.generatedAssets")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').profileSystem.authorProfiles > 0")" = "true"
           test "$(find dist/data -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9].json' | wc -l)" = "977"
           test -n "$(find dist/data/content -type f -name '*.json' -print -quit)"
           test -f dist/data/author-index.json
@@ -129,7 +129,7 @@ jobs:
           test -f dist/profile.css
           test -f dist/assets/sideways-mark.svg
           test -f dist/assets/sideways-mask.svg
-          test -f dist/site.webmanifest
+          test -f dist/assets/site.webmanifest
           node --check dist/app.js
           node --check dist/profile.js
           python - <<'PY'
@@ -147,10 +147,12 @@ jobs:
           assert any(row.get('tx') or row.get('m') for row in by_type[2]), 'social content missing'
           assert all(row.get('u') for row in rows), 'canonical source URL missing'
           assert sum(bool(row.get('x')) for row in rows) > len(rows)*0.7, 'source provenance too sparse'
-          assert len(authors) == manifest['profileSystem']['authors'], 'author index count mismatch'
+          profile=manifest['profileSystem']
+          assert len(authors) == profile['authorProfiles'], 'author index count mismatch'
           assert all(a.get('id') and a.get('records') for a in authors), 'author profile record ownership missing'
-          assert {'themes','layouts','generatedAssets','imageUploads','collections','following','profileExport'} <= set(manifest['profileSystem']['capabilities']), 'profile capabilities incomplete'
-          print(manifest['profileSystem'])
+          required={'identity','generated-avatar','generated-cover','image-upload','theme','density','layout','badges','pinned-records','collections','following','export-import'}
+          assert required <= set(profile['customization']), 'profile customization surface incomplete'
+          print(profile)
           PY
 
       - name: Configure Pages
