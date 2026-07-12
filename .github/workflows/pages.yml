@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Extract source package
+        id: extract
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
@@ -29,25 +30,54 @@ jobs:
         with:
           node-version: 22
       - name: Generate one million sample posts
+        id: generate
         env:
           POST_COUNT: 1000000
           CHUNK_SIZE: 1024
           CORPUS_SEED: 20260711
         run: node scripts/build.mjs
       - name: Verify generated corpus
+        id: verify
         run: |
           test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
           test "$(find dist/data -name '*.json' | wc -l)" = "978"
       - name: Configure Pages
+        id: configure
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
         with:
           enablement: true
       - name: Upload Pages artifact
+        id: upload
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+      - name: Report build status
+        if: always() && github.event_name == 'push'
+        uses: actions/github-script@v7
+        env:
+          EXTRACT: ${{ steps.extract.outcome }}
+          GENERATE: ${{ steps.generate.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+          CONFIGURE: ${{ steps.configure.outcome }}
+          UPLOAD: ${{ steps.upload.outcome }}
+        with:
+          script: |
+            const body = [
+              `COMMIT=${context.sha}`,
+              `EXTRACT=${process.env.EXTRACT}`,
+              `GENERATE=${process.env.GENERATE}`,
+              `VERIFY=${process.env.VERIFY}`,
+              `CONFIGURE=${process.env.CONFIGURE}`,
+              `UPLOAD=${process.env.UPLOAD}`
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Pages build status',
+              body
+            });
 
   deploy:
     if: github.event_name == 'push'
