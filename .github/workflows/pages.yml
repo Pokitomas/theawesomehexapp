@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract product layers
+      - name: Extract base product layers
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
@@ -33,11 +33,22 @@ jobs:
           cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
           tar -xJf profile-overlay.tar.xz
           python profile/patch.py
+
+      - name: Assemble manual overlay text
+        run: |
           cat manual-overlay.b64.part.* > manual-overlay.b64
           test "$(wc -c < manual-overlay.b64)" = "44760"
-          echo "0d45c1ed47cdf73667f554e45c60c76f4fabd799fe7b4a0523dfa5adc58651d5  manual-overlay.b64" | sha256sum -c -
+
+      - name: Check manual overlay text
+        run: echo "0d45c1ed47cdf73667f554e45c60c76f4fabd799fe7b4a0523dfa5adc58651d5  manual-overlay.b64" | sha256sum -c -
+
+      - name: Decode manual overlay archive
+        run: |
           base64 -d manual-overlay.b64 > manual-overlay.tar.xz
           echo "b18d2e3ca6dc53efb8286f3162aae6c8d6320875a8699346886c8621022c00af  manual-overlay.tar.xz" | sha256sum -c -
+
+      - name: Extract manual product layer
+        run: |
           tar -xJf manual-overlay.tar.xz
           python manual/patch.py
 
