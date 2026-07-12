@@ -30,18 +30,9 @@ jobs:
           cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
           tar -xJf general-overlay.tar.xz
           python general/patch.py
-
-      - name: Package current product source
-        if: github.event_name == 'pull_request'
-        run: tar --exclude='./.git' --exclude='./source.xz.part.*' --exclude='./general-overlay.part.*' --exclude='./source.tar.xz' --exclude='./general-overlay.tar.xz' --exclude='./corpus' --exclude='./dist' -czf /tmp/current-product-source.tar.gz .
-
-      - name: Upload current product source
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: current-product-source
-          path: /tmp/current-product-source.tar.gz
-          retention-days: 1
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
 
       - uses: actions/setup-node@v4
         with:
@@ -115,9 +106,10 @@ jobs:
           CORPUS_FILE: corpus/general-media.jsonl.gz
         run: node scripts/build.mjs
 
-      - name: Verify general content model
+      - name: Verify content, profiles, and visual assets
         run: |
           test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
+          test "$(node -p "require('./dist/data/manifest.json').version")" = "6"
           test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "general-content-model"
           test "$(node -p "require('./dist/data/manifest.json').corpus.categories")" = "false"
           test "$(node -p "require('./dist/data/manifest.json').corpus.actualSources")" = "true"
@@ -127,12 +119,23 @@ jobs:
           test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.article > 500")" = "true"
           test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.forum > 300")" = "true"
           test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.social > 150")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').profileSystem.schema")" = "2"
+          test "$(node -p "require('./dist/data/manifest.json').profileSystem.localFirst")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').profileSystem.generatedAssets")" = "true"
           test "$(find dist/data -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9].json' | wc -l)" = "977"
           test -n "$(find dist/data/content -type f -name '*.json' -print -quit)"
+          test -f dist/data/author-index.json
+          test -f dist/profile.js
+          test -f dist/profile.css
+          test -f dist/assets/sideways-mark.svg
+          test -f dist/assets/sideways-mask.svg
+          test -f dist/site.webmanifest
           node --check dist/app.js
+          node --check dist/profile.js
           python - <<'PY'
           import json,glob
           manifest=json.load(open('dist/data/manifest.json'))
+          authors=json.load(open('dist/data/author-index.json'))
           rows=[]
           for path in sorted(glob.glob('dist/data/content/*.json')):
               rows.extend(json.load(open(path)))
@@ -144,7 +147,10 @@ jobs:
           assert any(row.get('tx') or row.get('m') for row in by_type[2]), 'social content missing'
           assert all(row.get('u') for row in rows), 'canonical source URL missing'
           assert sum(bool(row.get('x')) for row in rows) > len(rows)*0.7, 'source provenance too sparse'
-          print(manifest['corpus'])
+          assert len(authors) == manifest['profileSystem']['authors'], 'author index count mismatch'
+          assert all(a.get('id') and a.get('records') for a in authors), 'author profile record ownership missing'
+          assert {'themes','layouts','generatedAssets','imageUploads','collections','following','profileExport'} <= set(manifest['profileSystem']['capabilities']), 'profile capabilities incomplete'
+          print(manifest['profileSystem'])
           PY
 
       - name: Configure Pages
@@ -178,14 +184,16 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'General article forum social feed deployed',
+              title: 'Profile and visual identity system deployed',
               body: [
                 `DEPLOYED_URL=${process.env.DEPLOYED_URL}`,
                 `COMMIT=${context.sha}`,
-                'MODEL=article/forum/social',
-                'CANDIDATES=1000000',
-                'CATEGORIES=false',
-                'ACTUAL_SOURCES=true',
-                'MEDIA=compressed card and full variants with original provenance'
+                'PROFILE_SCHEMA=2',
+                'PROFILE_MODE=local-first',
+                'AUTHOR_PROFILES=true',
+                'CUSTOMIZATION=themes/layouts/density/badges/avatar/cover',
+                'ASSETS=generated SVG plus compressed local WebP uploads',
+                'PORTABILITY=profile JSON import/export plus SVG profile card',
+                'BACKEND_AUTH_SYNC=false'
               ].join('\n')
             });
