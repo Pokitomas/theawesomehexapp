@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: pages-${{ github.event_name }}-${{ github.ref }}
@@ -77,3 +78,15 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Publish deployment receipt
+        uses: actions/github-script@v7
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Archive feed deployment complete',
+              body: `DEPLOYED_URL=${process.env.DEPLOYED_URL}\nCOMMIT=${context.sha}\nCORPUS=English Wikinews through 2017\nCANDIDATES=1000000`
+            });
