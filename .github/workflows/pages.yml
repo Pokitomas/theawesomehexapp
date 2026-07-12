@@ -124,10 +124,11 @@ jobs:
           CORPUS_FILE: corpus/general-media.jsonl.gz
         run: node scripts/build.mjs
 
-      - name: Verify content profiles and visual assets
-        run: |
-          python verify-profile-build.py
-          python manual/verify.py
+      - name: Verify root product
+        run: python verify-profile-build.py
+
+      - name: Verify empty manual edition
+        run: python manual/verify.py
 
       - name: Configure Pages
         if: github.event_name == 'push'
