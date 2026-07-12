@@ -2,21 +2,35 @@
 
 A remotely chunked session-state recommender built on one general content model: **article, forum, and social**.
 
+Live: `https://pokitomas.github.io/theawesomehexapp/`
+
+Debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
+
 ## Product behavior
 
 - One million deterministic candidate instances, distributed article 333,334 / forum 333,333 / social 333,333.
 - Automatic saturation phase transition with no visible good-path/bad-path choice.
 - Type filters replace topic categories: ALL, SOCIAL, FORUM, ARTICLE.
-- Working deep routes for candidates, source records, saved items, and content details.
+- Working deep routes for candidates, source records, saved items, content details, author profiles, the local account profile, and collections.
 - Article pages render full bodies and source citations.
 - Forum pages render the linked submission, discussion record, and retrieved reply excerpts.
 - Social pages render original text, author identity, engagement metadata, and media.
 - Images use compressed card and full-display WebP variants while preserving the original media URL and provenance.
-- The full image viewer uses containment rather than destructive cropping.
 
-Live: `https://pokitomas.github.io/theawesomehexapp/`
+## Profile system
 
-Debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
+The profile layer is an owned product surface rather than a decorative card.
+
+- editable display name, handle, pronouns, biography, location, website, status, and up to three profile badges
+- deterministic avatar and cover generation using monogram, grid, orbit, signal, cutout, ledger, wave, and stamp motifs
+- image uploads compressed client-side to WebP and stored as blobs in IndexedDB
+- themes, profile layouts, feed-density controls, and visibility controls for engagement, activity, following, and saved records
+- persistent follows, saved records, pinned records, collections, and local activity history
+- author profiles generated from retrieved source ownership, including record/type/source statistics, original profile links, and unique record lists
+- portable JSON profile packages that include preferences, collections, follows, and uploaded visual assets
+- downloadable SVG profile cards, a generated application mark, a maskable icon, and a web-app manifest
+
+The local state schema is versioned. Default state is persisted immediately, imports are validated before replacement, and uploaded assets are separated from structured settings so larger blobs do not inflate every localStorage write.
 
 ## General content model
 
@@ -59,4 +73,4 @@ Append `?debug=1` to expose raw session measurements, decayed loads, thresholds,
 
 ## Capability boundary
 
-This is a real traversable corpus and interface, not a production social network. It does not authenticate users, continuously ingest every platform, infer psychological state, or establish causal wellbeing outcomes.
+This is a production-shaped local-first interface, not a completed production social platform. It has no account service, server database, authentication, moderation backend, multi-device synchronization, upload CDN, or transactional guarantees. Profile ownership and customization are real within the browser: they persist locally, survive reloads, can be exported with their assets, and operate across the app's real routes and records.
