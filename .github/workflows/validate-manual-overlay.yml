@@ -1,0 +1,24 @@
+name: Validate manual overlay shards
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parts 000 to 004
+        run: cat manual-overlay.b64.part.00{0,1,2,3,4} | sha256sum | grep -q '^65847d83817b58a1a7d90d8738eff7708063c3e401ff5b471cae1e52346cc406 '
+      - name: Parts 005 to 009
+        run: cat manual-overlay.b64.part.00{5,6,7,8,9} | sha256sum | grep -q '^7e92005f1e4c3f71a8348dd8f7b8e365cada2763707a71b658ef72983fc51bb5 '
+      - name: Parts 010 to 014
+        run: cat manual-overlay.b64.part.01{0,1,2,3,4} | sha256sum | grep -q '^823067b4b97fb8036c5c18cd60236e0c1f1ad442f18b3936bf5cba9726586c6a '
+      - name: Parts 015 to 019
+        run: cat manual-overlay.b64.part.01{5,6,7,8,9} | sha256sum | grep -q '^72a84401c9f8257b72c54bc6be8e4ce22ed5faca0fe895b1157c6df9cd291687 '
+      - name: Parts 020 to 022
+        run: cat manual-overlay.b64.part.0{20,21,22} | sha256sum | grep -q '^e7484851d21b53940e0bd11a74add4bc59e5f4b0bccde204989943c22a9d0347 '
