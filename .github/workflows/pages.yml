@@ -32,8 +32,10 @@ jobs:
           python general/patch.py
           cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
           tar -xJf profile-overlay.tar.xz
-          python profile/patch.py
-          cat manual-overlay.part.* | base64 -d > manual-overlay.tar.xz
+          : > manual-overlay.tar.xz
+          for part in manual-overlay.b64.part.*; do
+            base64 -d "$part" >> manual-overlay.tar.xz
+          done
           tar -xJf manual-overlay.tar.xz
           python manual/patch.py
 
