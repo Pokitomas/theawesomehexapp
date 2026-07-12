@@ -1,4 +1,4 @@
-name: Build and deploy archive-backed feed
+name: Build and deploy 2010s archive-social feed
 
 on:
   push:
@@ -24,46 +24,46 @@ jobs:
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
-      - name: Package extracted source for inspection
-        if: github.event_name == 'pull_request'
-        run: |
-          tar --exclude='./.git' --exclude='./source.xz.part.*' --exclude='./source.tar.xz' -czf /tmp/extracted-source.tar.gz .
-      - name: Upload extracted source
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: extracted-source
-          path: /tmp/extracted-source.tar.gz
-          retention-days: 1
+      - name: Patch product for mixed corpus
+        run: python social/patch.py
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Cache Wikinews mirror
+      - name: Cache corpus mirrors
         uses: actions/cache@v4
         with:
           path: |
             .cache/wikinews
-            corpus/wikinews-2017.jsonl.gz
-            corpus/wikinews-2017.jsonl.meta.json
-          key: enwikinews-through-2017-v2
-      - name: Mirror English Wikinews through 2017
-        run: python scripts/fetch_wikinews.py
+            corpus/wikinews-2019.jsonl.gz
+            corpus/hn-2010s.jsonl.gz
+            corpus/mixed-2010s.jsonl.gz
+            corpus/mixed-2010s.jsonl.gz.meta.json
+          key: 2010s-wikinews-hn-v1
+      - name: Mirror English Wikinews 2010–2019
+        run: python scripts/fetch_wikinews.py --min-date 2010-01-01 --cutoff 2019-12-31 --output corpus/wikinews-2019.jsonl.gz
+      - name: Mirror public social records 2010–2019
+        run: python social/fetch_social.py --output corpus/hn-2010s.jsonl.gz
+      - name: Build balanced revival corpus
+        run: python social/merge.py --articles corpus/wikinews-2019.jsonl.gz --social corpus/hn-2010s.jsonl.gz --output corpus/mixed-2010s.jsonl.gz
       - name: Generate one million candidate instances
         env:
           POST_COUNT: 1000000
           CHUNK_SIZE: 1024
           ARTICLE_CHUNK_SIZE: 128
           CORPUS_SEED: 20260711
-          CORPUS_FILE: corpus/wikinews-2017.jsonl.gz
+          CORPUS_FILE: corpus/mixed-2010s.jsonl.gz
         run: node scripts/build.mjs
-      - name: Verify archive-backed build
+      - name: Verify balanced archive-social build
         run: |
           test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "wikinews-archive"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.articles > 1000")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "2010s-archive-social"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.archiveArticles > 1000")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.socialRecords > 500")" = "true"
+          test "$(node -p "require('./dist/data/mix.json').articleCandidates")" = "500000"
+          test "$(node -p "require('./dist/data/mix.json').socialCandidates")" = "500000"
           test "$(find dist/data -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9].json' | wc -l)" = "977"
           test -f dist/data/source-index.json
           test -n "$(find dist/data/articles -type f -name '*.json' -print -quit)"
