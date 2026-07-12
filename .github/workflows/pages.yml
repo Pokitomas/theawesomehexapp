@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: pages-${{ github.event_name }}-${{ github.ref }}
@@ -88,3 +89,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Record successful corpus deployment
+        uses: actions/github-script@v7
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '2010s archive-social feed deployed',
+              body: [
+                `DEPLOYED_URL=${process.env.DEPLOYED_URL}`,
+                `COMMIT=${context.sha}`,
+                'CANDIDATES=1000000',
+                'ARCHIVE_CANDIDATES=500000',
+                'SOCIAL_CANDIDATES=500000',
+                'DATE_RANGE=2010-01-01..2019-12-31'
+              ].join('\n')
+            });
