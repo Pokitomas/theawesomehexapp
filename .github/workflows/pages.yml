@@ -59,7 +59,7 @@ jobs:
           python general/normalize_articles.py \
             --input corpus/wikinews-current.jsonl.gz \
             --output corpus/articles.jsonl.gz \
-            --max-records 2600
+            --max-records 1800
 
       - name: Retrieve forum source records
         run: |
@@ -67,15 +67,15 @@ jobs:
             --output corpus/forum.jsonl.gz \
             --min-year 2007 \
             --max-year "$(date -u +%Y)" \
-            --max-records 1200 \
-            --detail-records 420
+            --max-records 800 \
+            --detail-records 240
 
       - name: Retrieve social source records
         run: |
           python general/fetch_social.py \
             --output corpus/social.jsonl.gz \
-            --pages 6 \
-            --max-records 1200
+            --pages 4 \
+            --max-records 800
 
       - name: Normalize article forum social model
         run: |
@@ -91,8 +91,8 @@ jobs:
             --input corpus/general.jsonl.gz \
             --output corpus/general-media.jsonl.gz \
             --media-dir corpus/media \
-            --max-media 600 \
-            --discover-forum 260
+            --max-media 240 \
+            --discover-forum 100
 
       - name: Generate one million candidate instances
         env:
