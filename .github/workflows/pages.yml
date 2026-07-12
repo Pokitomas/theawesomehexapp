@@ -45,8 +45,6 @@ jobs:
         id: configure
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - name: Upload Pages artifact
         id: upload
         if: github.event_name == 'push'
