@@ -1,4 +1,4 @@
-name: Build and deploy million-post feed
+name: Build and deploy archive-backed feed
 
 on:
   push:
@@ -10,7 +10,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  issues: write
 
 concurrency:
   group: pages-${{ github.event_name }}-${{ github.ref }}
@@ -21,61 +20,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract source package
-        id: extract
+      - name: Extract product source
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Generate one million sample posts
-        id: generate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cache Wikinews mirror
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/wikinews
+            corpus/wikinews-2017.jsonl.gz
+            corpus/wikinews-2017.jsonl.meta.json
+          key: enwikinews-through-2017-v2
+      - name: Mirror English Wikinews through 2017
+        run: python scripts/fetch_wikinews.py
+      - name: Generate one million candidate instances
         env:
           POST_COUNT: 1000000
           CHUNK_SIZE: 1024
+          ARTICLE_CHUNK_SIZE: 128
           CORPUS_SEED: 20260711
+          CORPUS_FILE: corpus/wikinews-2017.jsonl.gz
         run: node scripts/build.mjs
-      - name: Verify generated corpus
-        id: verify
+      - name: Verify archive-backed build
         run: |
           test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
-          test "$(find dist/data -name '*.json' | wc -l)" = "978"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "wikinews-archive"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.articles > 1000")" = "true"
+          test "$(find dist/data -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9].json' | wc -l)" = "977"
+          test -f dist/data/source-index.json
+          test -n "$(find dist/data/articles -type f -name '*.json' -print -quit)"
+          node --check dist/app.js
       - name: Configure Pages
-        id: configure
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
-        id: upload
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - name: Report build status
-        if: always() && github.event_name == 'push'
-        uses: actions/github-script@v7
-        env:
-          EXTRACT: ${{ steps.extract.outcome }}
-          GENERATE: ${{ steps.generate.outcome }}
-          VERIFY: ${{ steps.verify.outcome }}
-          CONFIGURE: ${{ steps.configure.outcome }}
-          UPLOAD: ${{ steps.upload.outcome }}
-        with:
-          script: |
-            const body = [
-              `COMMIT=${context.sha}`,
-              `EXTRACT=${process.env.EXTRACT}`,
-              `GENERATE=${process.env.GENERATE}`,
-              `VERIFY=${process.env.VERIFY}`,
-              `CONFIGURE=${process.env.CONFIGURE}`,
-              `UPLOAD=${process.env.UPLOAD}`
-            ].join('\n');
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: 'Pages build status',
-              body
-            });
 
   deploy:
     if: github.event_name == 'push'
@@ -88,17 +77,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Report deployed URL
-        uses: actions/github-script@v7
-        env:
-          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
-        with:
-          script: |
-            const title = 'Pages deployment complete';
-            const body = `DEPLOYED_URL=${process.env.DEPLOYED_URL}\nCOMMIT=${context.sha}`;
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body
-            });
