@@ -12,6 +12,10 @@ A fully traversable synthetic product built around a session-state recommender.
 - Share uses the native share sheet or copies a direct candidate URL.
 - Article pages contain archived text, attribution, cited-source records, categories, related archive stories, and the prototype ranking metadata attached to the candidate.
 
+Live: `https://pokitomas.github.io/theawesomehexapp/`
+
+Debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
+
 ## Corpus
 
 The build mirrors the official English Wikinews XML dump and extracts articles published from September 25, 2005 through December 31, 2017. That range is licensed CC BY 2.5 and attributed to Wikinews.
