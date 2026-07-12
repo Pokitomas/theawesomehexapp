@@ -33,6 +33,9 @@ jobs:
           cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
           tar -xJf profile-overlay.tar.xz
           python profile/patch.py
+          cat manual-overlay.part.* | base64 -d > manual-overlay.tar.xz
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
 
       - uses: actions/setup-node@v4
         with:
@@ -107,7 +110,9 @@ jobs:
         run: node scripts/build.mjs
 
       - name: Verify content profiles and visual assets
-        run: python verify-profile-build.py
+        run: |
+          python verify-profile-build.py
+          python manual/verify.py
 
       - name: Configure Pages
         if: github.event_name == 'push'
@@ -140,16 +145,16 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'Profile and visual identity system deployed',
+              title: 'Manual corpus edition deployed',
               body: [
-                `DEPLOYED_URL=${process.env.DEPLOYED_URL}`,
+                `ROOT_URL=${process.env.DEPLOYED_URL}`,
+                `MANUAL_URL=${process.env.DEPLOYED_URL}manual/`,
                 `COMMIT=${context.sha}`,
-                'PROFILE_SCHEMA=2',
-                'PROFILE_MODE=local-first',
-                'AUTHOR_PROFILES=true',
-                'CUSTOMIZATION=themes/layouts/density/badges/avatar/cover',
-                'ASSETS=generated SVG plus compressed local WebP uploads',
-                'PORTABILITY=profile JSON import/export plus SVG profile card',
-                'BACKEND_AUTH_SYNC=false'
+                'ROOT_PRODUCT=unchanged',
+                'MANUAL_CORPUS=empty',
+                'MANUAL_STORAGE=browser-local IndexedDB',
+                'UPLOADS=files/folders/paste/links/JSON/CSV/ZIP/PDF/Office/media',
+                'PACKS=portable JSON with local assets',
+                'BUTTON_LANGUAGE=WALL-E'
               ].join('\n')
             });
