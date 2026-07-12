@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: pages-${{ github.event_name }}-${{ github.ref }}
@@ -59,3 +60,17 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Report deployed URL
+        uses: actions/github-script@v7
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            const title = 'Pages deployment complete';
+            const body = `DEPLOYED_URL=${process.env.DEPLOYED_URL}\nCOMMIT=${context.sha}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body
+            });
