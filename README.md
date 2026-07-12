@@ -4,7 +4,27 @@ A remotely chunked session-state recommender built on one general content model:
 
 Live: `https://pokitomas.github.io/theawesomehexapp/`
 
+Manual empty edition: `https://pokitomas.github.io/theawesomehexapp/manual/`
+
 Debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
+
+## Parallel manual corpus edition
+
+`/manual/` is a separate empty product surface. The normal one-million-candidate feed remains intact at the root URL.
+
+The manual edition ships with zero records, zero candidate chunks, and zero mirrored corpus media. The browser becomes the ingestion system:
+
+- FILES accepts individual uploads
+- FOLDER accepts directory trees
+- PASTE creates a record from words
+- LINK creates a source-linked record
+- OPEN PACK restores a portable corpus package
+- SAVE PACK exports records and local assets together
+- drag and drop stages files before PUT IN commits them
+
+Supported ingestion includes plain text and code, Markdown, HTML, CSS, JavaScript, TypeScript, Python, SQL, YAML, XML, JSON, JSONL, CSV, TSV, images, audio, video, PDF, ZIP, DOCX, PPTX, and XLSX. ZIP and Office documents are unpacked in the browser. Images and other binary assets are stored as blobs in IndexedDB. SHA-256 hashes prevent duplicate file ingestion.
+
+The manual corpus, saved records, source index, author index, collections, and portable packs are all built from what the user adds. No external corpus is silently mixed in. Every primary control uses short action language such as ADD, FILES, FOLDER, PASTE, LINK, PUT IN, KEEP, BOX, SEND, FIX, DONE, and THROW OUT.
 
 ## Product behavior
 
@@ -73,4 +93,4 @@ Append `?debug=1` to expose raw session measurements, decayed loads, thresholds,
 
 ## Capability boundary
 
-This is a production-shaped local-first interface, not a completed production social platform. It has no account service, server database, authentication, moderation backend, multi-device synchronization, upload CDN, or transactional guarantees. Profile ownership and customization are real within the browser: they persist locally, survive reloads, can be exported with their assets, and operate across the app's real routes and records.
+The root and manual editions are production-shaped local-first interfaces, not completed production social platforms. They have no account service, server database, authentication, moderation backend, multi-device synchronization, upload CDN, or transactional guarantees. Manual-edition files remain in that browser unless the user exports a pack. Profile ownership and customization persist locally, survive reloads, and operate across the real routes and records.

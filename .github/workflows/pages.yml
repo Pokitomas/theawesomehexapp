@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract product layers
+      - name: Extract base product layers
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
@@ -33,6 +33,24 @@ jobs:
           cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
           tar -xJf profile-overlay.tar.xz
           python profile/patch.py
+
+      - name: Assemble manual overlay text
+        run: |
+          cat manual-overlay.b64.part.* > manual-overlay.b64
+          test "$(wc -c < manual-overlay.b64)" = "44760"
+
+      - name: Check manual overlay text
+        run: echo "0d45c1ed47cdf73667f554e45c60c76f4fabd799fe7b4a0523dfa5adc58651d5  manual-overlay.b64" | sha256sum -c -
+
+      - name: Decode manual overlay archive
+        run: |
+          base64 -d manual-overlay.b64 > manual-overlay.tar.xz
+          echo "b18d2e3ca6dc53efb8286f3162aae6c8d6320875a8699346886c8621022c00af  manual-overlay.tar.xz" | sha256sum -c -
+
+      - name: Extract manual product layer
+        run: |
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
 
       - uses: actions/setup-node@v4
         with:
@@ -106,8 +124,11 @@ jobs:
           CORPUS_FILE: corpus/general-media.jsonl.gz
         run: node scripts/build.mjs
 
-      - name: Verify content profiles and visual assets
+      - name: Verify root product
         run: python verify-profile-build.py
+
+      - name: Verify empty manual edition
+        run: python verify-manual-edition.py
 
       - name: Configure Pages
         if: github.event_name == 'push'
@@ -140,16 +161,16 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'Profile and visual identity system deployed',
+              title: 'Manual corpus edition deployed',
               body: [
-                `DEPLOYED_URL=${process.env.DEPLOYED_URL}`,
+                `ROOT_URL=${process.env.DEPLOYED_URL}`,
+                `MANUAL_URL=${process.env.DEPLOYED_URL}manual/`,
                 `COMMIT=${context.sha}`,
-                'PROFILE_SCHEMA=2',
-                'PROFILE_MODE=local-first',
-                'AUTHOR_PROFILES=true',
-                'CUSTOMIZATION=themes/layouts/density/badges/avatar/cover',
-                'ASSETS=generated SVG plus compressed local WebP uploads',
-                'PORTABILITY=profile JSON import/export plus SVG profile card',
-                'BACKEND_AUTH_SYNC=false'
+                'ROOT_PRODUCT=unchanged',
+                'MANUAL_CORPUS=empty',
+                'MANUAL_STORAGE=browser-local IndexedDB',
+                'UPLOADS=files/folders/paste/links/JSON/CSV/ZIP/PDF/Office/media',
+                'PACKS=portable JSON with local assets',
+                'BUTTON_LANGUAGE=WALL-E'
               ].join('\n')
             });
