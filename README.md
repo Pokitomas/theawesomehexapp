@@ -1,42 +1,62 @@
 # Saturation auto feed
 
-A remote, traversable session-state recommender prototype with a 2010s archive/social corpus.
+A remotely chunked session-state recommender built on one general content model: **article, forum, and social**.
 
-## Live product behavior
+## Product behavior
 
-- Infinite remote feed backed by one million candidate instances.
-- Exact base-corpus split: 500,000 archive-journalism candidates and 500,000 social-native candidates.
-- Automatic saturation phase transition; no visible good-path/bad-path choice.
-- Real hash routes for feed, article, archive article, source, and saved views.
-- Deep links survive refresh; saved state persists locally; share uses the native share sheet or copies a direct URL.
+- One million deterministic candidate instances, distributed article 333,334 / forum 333,333 / social 333,333.
+- Automatic saturation phase transition with no visible good-path/bad-path choice.
+- Type filters replace topic categories: ALL, SOCIAL, FORUM, ARTICLE.
+- Working deep routes for candidates, source records, saved items, and content details.
+- Article pages render full bodies and source citations.
+- Forum pages render the linked submission, discussion record, and retrieved reply excerpts.
+- Social pages render original text, author identity, engagement metadata, and media.
+- Images use compressed card and full-display WebP variants while preserving the original media URL and provenance.
+- The full image viewer uses containment rather than destructive cropping.
 
 Live: `https://pokitomas.github.io/theawesomehexapp/`
 
 Debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
 
-## Corpus
+## General content model
 
-The build combines:
+Every record shares the same outer schema:
 
-- English Wikinews articles published from 2010 through 2019, weighted toward technology, music, film, games, fashion, youth economics, labor, internet culture, urban life, and consumer systems;
-- public Hacker News story-level records from 2010 through 2019, including original-poster labels, archived points/comments, dates, and outbound links where available;
-- a small explicitly labeled prototype bridge layer connecting archived 2010s artifacts to present-day revival motives. Generated bridge records are never attributed to real users.
+- `type`: article, forum, or social
+- source and canonical URL
+- author identity and profile URL
+- original publication time
+- title, summary, text, or article body
+- engagement tuple appropriate to the source type
+- media records with original, card, and full-display locations
+- all retrieved canonical, citation, outbound, profile, comment, and media source links
+- forum replies where available
 
-Every resurfaced record keeps its original publication date and a separate resurfacing date. The candidate count is not presented as one million unique records. Wikinews text remains CC BY 2.5; Hacker News metadata is public, while linked content retains its original rights.
+There are no topic-category fields in the corpus or interface. Organization happens through source metadata, content type, author, date, format, media geometry, and the recommender's synthetic retrieval features.
 
-```bash
-python scripts/fetch_wikinews.py --min-date 2010-01-01 --cutoff 2019-12-31 --output corpus/wikinews-2019.jsonl.gz
-python social/fetch_social.py --output corpus/hn-2010s.jsonl.gz
-python social/merge.py --articles corpus/wikinews-2019.jsonl.gz --social corpus/hn-2010s.jsonl.gz --output corpus/mixed-2010s.jsonl.gz
-POST_COUNT=1000000 CHUNK_SIZE=1024 CORPUS_FILE=corpus/mixed-2010s.jsonl.gz node scripts/build.mjs
-```
+## Actual sources
 
-The 50/50 split describes the generated candidate repository. Served slates may depart from it as the automatic saturation policy changes retrieval geometry.
+The reproducible deployment retrieves:
+
+- English Wikinews article records from 2010 through the current build date, including article bodies, canonical pages, MediaWiki page images, and up to sixty parsed citations per article;
+- Hacker News submission/discussion records, outbound links, authors, archived engagement, and retrieved comment excerpts;
+- public Mastodon statuses from multiple instances, including original post/profile links, linked pages, engagement, content warnings, and original media URLs.
+
+Displayed source text, authors, links, replies, and media provenance come from those records. Original creators retain their applicable rights. Recommendation features such as viewpoint, arousal, graphic intensity, context value, and latent retrieval family remain deterministic prototype metadata.
+
+## Media pipeline
+
+Remote images are validated, orientation-corrected, and encoded as:
+
+- card display: maximum 1280×900 WebP
+- full display: maximum 2200×1800 WebP
+
+Records without a mirrored image retain the original remote URL. The frontend uses stored width, height, and aspect ratio to reserve space and fit media without UI overflow.
 
 ## Diagnostics
 
-Append `?debug=1` to expose raw session measurements, decayed loads, thresholds, posterior state, automatic gate, event history count, and ranking components.
+Append `?debug=1` to expose raw session measurements, decayed loads, thresholds, posterior state, automatic gate, event-history count, and ranking components.
 
 ## Capability boundary
 
-The archive text and source attribution are real. Viewpoint, graphic intensity, valence, arousal, predicted engagement, context, mechanism, and latent retrieval-family fields are deterministic prototype metadata. The site does not claim to infer psychological state, read a production platform candidate pool, or prove wellbeing outcomes.
+This is a real traversable corpus and interface, not a production social network. It does not authenticate users, continuously ingest every platform, infer psychological state, or establish causal wellbeing outcomes.

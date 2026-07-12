@@ -1,4 +1,4 @@
-name: Build and deploy 2010s archive-social feed
+name: Build and deploy general content feed
 
 on:
   push:
@@ -19,59 +19,126 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+
       - name: Extract product source
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
-      - name: Patch product for mixed corpus
-        run: python social/patch.py
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Cache corpus mirrors
+
+      - name: Install media tooling
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Cache source mirror and compressed media
         uses: actions/cache@v4
         with:
           path: |
             .cache/wikinews
-            corpus/wikinews-2019.jsonl.gz
-            corpus/hn-2010s.jsonl.gz
-            corpus/mixed-2010s.jsonl.gz
-            corpus/mixed-2010s.jsonl.gz.meta.json
-          key: 2010s-wikinews-hn-v1
-      - name: Mirror English Wikinews 2010–2019
-        run: python scripts/fetch_wikinews.py --min-date 2010-01-01 --cutoff 2019-12-31 --output corpus/wikinews-2019.jsonl.gz
-      - name: Mirror public social records 2010–2019
-        run: python social/fetch_social.py --output corpus/hn-2010s.jsonl.gz
-      - name: Build balanced revival corpus
-        run: python social/merge.py --articles corpus/wikinews-2019.jsonl.gz --social corpus/hn-2010s.jsonl.gz --output corpus/mixed-2010s.jsonl.gz
+            corpus/media
+          key: general-content-media-v1-${{ runner.os }}
+
+      - name: Retrieve article source records
+        run: |
+          python scripts/fetch_wikinews.py \
+            --min-date 2010-01-01 \
+            --cutoff "$(date -u +%F)" \
+            --output corpus/wikinews-current.jsonl.gz
+          python general/normalize_articles.py \
+            --input corpus/wikinews-current.jsonl.gz \
+            --output corpus/articles.jsonl.gz \
+            --max-records 1800
+
+      - name: Retrieve forum source records
+        run: |
+          python general/fetch_forum.py \
+            --output corpus/forum.jsonl.gz \
+            --min-year 2007 \
+            --max-year "$(date -u +%Y)" \
+            --max-records 800 \
+            --detail-records 240
+
+      - name: Retrieve social source records
+        run: |
+          python general/fetch_social.py \
+            --output corpus/social.jsonl.gz \
+            --pages 4 \
+            --max-records 800
+
+      - name: Normalize article forum social model
+        run: |
+          python general/merge.py \
+            --articles corpus/articles.jsonl.gz \
+            --forums corpus/forum.jsonl.gz \
+            --social corpus/social.jsonl.gz \
+            --output corpus/general.jsonl.gz
+
+      - name: Retrieve and compress display media
+        run: |
+          python general/media.py \
+            --input corpus/general.jsonl.gz \
+            --output corpus/general-media.jsonl.gz \
+            --media-dir corpus/media \
+            --max-media 240 \
+            --discover-forum 100
+
       - name: Generate one million candidate instances
         env:
           POST_COUNT: 1000000
           CHUNK_SIZE: 1024
-          ARTICLE_CHUNK_SIZE: 128
-          CORPUS_SEED: 20260711
-          CORPUS_FILE: corpus/mixed-2010s.jsonl.gz
+          CONTENT_CHUNK_SIZE: 128
+          CORPUS_SEED: 20260712
+          CORPUS_FILE: corpus/general-media.jsonl.gz
         run: node scripts/build.mjs
-      - name: Verify balanced archive-social build
+
+      - name: Verify general content model
         run: |
           test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "2010s-archive-social"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.archiveArticles > 1000")" = "true"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.socialRecords > 500")" = "true"
-          test "$(node -p "require('./dist/data/mix.json').articleCandidates")" = "500000"
-          test "$(node -p "require('./dist/data/mix.json').socialCandidates")" = "500000"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "general-content-model"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.categories")" = "false"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.actualSources")" = "true"
+          test "$(node -p "require('./dist/data/mix.json').candidateByType.article")" = "333334"
+          test "$(node -p "require('./dist/data/mix.json').candidateByType.forum")" = "333333"
+          test "$(node -p "require('./dist/data/mix.json').candidateByType.social")" = "333333"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.article > 500")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.forum > 300")" = "true"
+          test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.social > 150")" = "true"
           test "$(find dist/data -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9].json' | wc -l)" = "977"
-          test -f dist/data/source-index.json
-          test -n "$(find dist/data/articles -type f -name '*.json' -print -quit)"
+          test -n "$(find dist/data/content -type f -name '*.json' -print -quit)"
           node --check dist/app.js
+          python - <<'PY'
+          import json,glob
+          manifest=json.load(open('dist/data/manifest.json'))
+          rows=[]
+          for path in sorted(glob.glob('dist/data/content/*.json')):
+              rows.extend(json.load(open(path)))
+          assert all('c' not in row for row in rows), 'category field leaked into content model'
+          by_type={0:[],1:[],2:[]}
+          for row in rows: by_type[row['ty']].append(row)
+          assert any(row.get('b') for row in by_type[0]), 'article bodies missing'
+          assert any(row.get('r') for row in by_type[1]), 'forum replies missing'
+          assert any(row.get('tx') or row.get('m') for row in by_type[2]), 'social content missing'
+          assert all(row.get('u') for row in rows), 'canonical source URL missing'
+          assert sum(bool(row.get('x')) for row in rows) > len(rows)*0.7, 'source provenance too sparse'
+          print(manifest['corpus'])
+          PY
+
       - name: Configure Pages
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
+
       - name: Upload Pages artifact
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
@@ -89,7 +156,8 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Record successful corpus deployment
+
+      - name: Record successful deployment
         uses: actions/github-script@v7
         env:
           DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
@@ -98,13 +166,14 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '2010s archive-social feed deployed',
+              title: 'General article forum social feed deployed',
               body: [
                 `DEPLOYED_URL=${process.env.DEPLOYED_URL}`,
                 `COMMIT=${context.sha}`,
+                'MODEL=article/forum/social',
                 'CANDIDATES=1000000',
-                'ARCHIVE_CANDIDATES=500000',
-                'SOCIAL_CANDIDATES=500000',
-                'DATE_RANGE=2010-01-01..2019-12-31'
+                'CATEGORIES=false',
+                'ACTUAL_SOURCES=true',
+                'MEDIA=compressed card and full variants with original provenance'
               ].join('\n')
             });
