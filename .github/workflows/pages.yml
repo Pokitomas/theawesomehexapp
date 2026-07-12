@@ -31,6 +31,18 @@ jobs:
           tar -xJf general-overlay.tar.xz
           python general/patch.py
 
+      - name: Package current product source
+        if: github.event_name == 'pull_request'
+        run: tar --exclude='./.git' --exclude='./source.xz.part.*' --exclude='./general-overlay.part.*' --exclude='./source.tar.xz' --exclude='./general-overlay.tar.xz' --exclude='./corpus' --exclude='./dist' -czf /tmp/current-product-source.tar.gz .
+
+      - name: Upload current product source
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-product-source
+          path: /tmp/current-product-source.tar.gz
+          retention-days: 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
