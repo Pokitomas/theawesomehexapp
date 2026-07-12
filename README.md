@@ -1,37 +1,39 @@
 # Saturation auto feed
 
-A remote, scrollable session-state recommender prototype.
+A fully traversable synthetic product built around a session-state recommender.
 
-The deployment build materializes **1,000,000 deterministic sample posts** into chunked JSON. The browser fetches repository segments only as needed, keeps a bounded chunk cache, virtualizes the DOM, measures exposure, crosses a hysteretic phase boundary, and automatically changes the ranking mixture. There is no user-facing “healthy path / slop path” choice.
+## Live product behavior
 
-## Deployment status
-
-The full build is verified in GitHub Actions: source extraction, generation of exactly 1,000,000 posts, and corpus-count checks all pass. The repository is currently private, and GitHub rejected automatic Pages configuration. Make the repository public or enable GitHub Pages for private repositories; the next push to `main` will deploy automatically.
-
-Planned URL:
-
-`https://pokitomas.github.io/theawesomehexapp/`
-
-Diagnostics after deployment:
-
-`https://pokitomas.github.io/theawesomehexapp/?debug=1`
+- Infinite remote feed backed by one million candidate instances.
+- Automatic saturation phase transition; no visible good-path/bad-path choice.
+- Real hash routes for feed, article, archive article, source, and saved views.
+- Deep links survive refresh.
+- Save state persists locally.
+- Share uses the native share sheet or copies a direct candidate URL.
+- Article pages contain archived text, attribution, cited-source records, categories, related archive stories, and the prototype ranking metadata attached to the candidate.
 
 ## Corpus
 
-The repository stores a compressed deterministic source package rather than committing hundreds of megabytes of generated JSON. GitHub Actions extracts it and runs:
+The build mirrors the official English Wikinews XML dump and extracts articles published from September 25, 2005 through December 31, 2017. That range is licensed CC BY 2.5 and attributed to Wikinews.
+
+The build deliberately distinguishes:
+
+- **archive articles** — unique historical Wikinews records with body text and metadata;
+- **candidate instances** — one million deterministic recommender candidates derived from those records with simulated ranking/classifier features.
+
+The candidate count is not presented as one million unique articles.
 
 ```bash
-POST_COUNT=1000000 CHUNK_SIZE=1024 node scripts/build.mjs
+python scripts/fetch_wikinews.py
+POST_COUNT=1000000 CHUNK_SIZE=1024 CORPUS_FILE=corpus/wikinews-2017.jsonl.gz node scripts/build.mjs
 ```
 
-The generated site contains a manifest plus 977 remotely served data chunks. Every sample has a stable ID, headline, dek, source/ownership cluster, topic vector, stance coordinate, graphic/valence/arousal scores, duplicate family, informational-axis tags, predicted engagement, relevance, context, and mechanism scores.
+The site fetches only the post and article chunks needed for the current route.
 
-## Automatic policy
+## Diagnostics
 
-The phase boundary does not expose two buttons. A continuous gate mixes ordinary exploitation with same-motive/different-axis retrieval. The gate is driven by normalized session load and Thompson-sampled posterior reward. Ordinary scrolling, opens, saves, shares, dwell, and rapid skips update that posterior.
-
-Append `?debug=1` to expose raw measurements, decayed loads, high/low thresholds, the posterior, gate value, and ranking components.
+Append `?debug=1` to expose raw session measurements, decayed loads, thresholds, posterior state, automatic gate, event history count, and ranking components.
 
 ## Capability boundary
 
-This demonstrates remote chunk retrieval, million-item corpus mechanics, state measurement, time decay, hysteresis, and ranking-mixture adaptation. It does not read a real platform candidate pool, infer reliable ideology, detect regret, or establish causal wellbeing effects.
+The article corpus and attribution are real. Viewpoint, graphic intensity, valence, arousal, predicted engagement, context, mechanism, and latent retrieval-family fields are deterministic prototype metadata. The site does not claim to infer psychological state, read a production platform candidate pool, or prove wellbeing outcomes.
