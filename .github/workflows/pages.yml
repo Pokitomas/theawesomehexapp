@@ -24,6 +24,17 @@ jobs:
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
+      - name: Package extracted source for inspection
+        if: github.event_name == 'pull_request'
+        run: |
+          tar --exclude='.git' --exclude='source.xz.part.*' --exclude='source.tar.xz' -czf extracted-source.tar.gz .
+      - name: Upload extracted source
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted-source
+          path: extracted-source.tar.gz
+          retention-days: 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
