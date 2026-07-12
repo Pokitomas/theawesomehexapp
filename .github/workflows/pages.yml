@@ -1,4 +1,4 @@
-name: Build and deploy general content feed
+name: Build and deploy profile content feed
 
 on:
   push:
@@ -23,13 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract product source
+      - name: Extract product layers
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
           cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
           tar -xJf general-overlay.tar.xz
           python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
 
       - uses: actions/setup-node@v4
         with:
@@ -103,37 +106,8 @@ jobs:
           CORPUS_FILE: corpus/general-media.jsonl.gz
         run: node scripts/build.mjs
 
-      - name: Verify general content model
-        run: |
-          test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.mode")" = "general-content-model"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.categories")" = "false"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.actualSources")" = "true"
-          test "$(node -p "require('./dist/data/mix.json').candidateByType.article")" = "333334"
-          test "$(node -p "require('./dist/data/mix.json').candidateByType.forum")" = "333333"
-          test "$(node -p "require('./dist/data/mix.json').candidateByType.social")" = "333333"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.article > 500")" = "true"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.forum > 300")" = "true"
-          test "$(node -p "require('./dist/data/manifest.json').corpus.uniqueByType.social > 150")" = "true"
-          test "$(find dist/data -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9].json' | wc -l)" = "977"
-          test -n "$(find dist/data/content -type f -name '*.json' -print -quit)"
-          node --check dist/app.js
-          python - <<'PY'
-          import json,glob
-          manifest=json.load(open('dist/data/manifest.json'))
-          rows=[]
-          for path in sorted(glob.glob('dist/data/content/*.json')):
-              rows.extend(json.load(open(path)))
-          assert all('c' not in row for row in rows), 'category field leaked into content model'
-          by_type={0:[],1:[],2:[]}
-          for row in rows: by_type[row['ty']].append(row)
-          assert any(row.get('b') for row in by_type[0]), 'article bodies missing'
-          assert any(row.get('r') for row in by_type[1]), 'forum replies missing'
-          assert any(row.get('tx') or row.get('m') for row in by_type[2]), 'social content missing'
-          assert all(row.get('u') for row in rows), 'canonical source URL missing'
-          assert sum(bool(row.get('x')) for row in rows) > len(rows)*0.7, 'source provenance too sparse'
-          print(manifest['corpus'])
-          PY
+      - name: Verify content profiles and visual assets
+        run: python verify-profile-build.py
 
       - name: Configure Pages
         if: github.event_name == 'push'
@@ -166,14 +140,16 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'General article forum social feed deployed',
+              title: 'Profile and visual identity system deployed',
               body: [
                 `DEPLOYED_URL=${process.env.DEPLOYED_URL}`,
                 `COMMIT=${context.sha}`,
-                'MODEL=article/forum/social',
-                'CANDIDATES=1000000',
-                'CATEGORIES=false',
-                'ACTUAL_SOURCES=true',
-                'MEDIA=compressed card and full variants with original provenance'
+                'PROFILE_SCHEMA=2',
+                'PROFILE_MODE=local-first',
+                'AUTHOR_PROFILES=true',
+                'CUSTOMIZATION=themes/layouts/density/badges/avatar/cover',
+                'ASSETS=generated SVG plus compressed local WebP uploads',
+                'PORTABILITY=profile JSON import/export plus SVG profile card',
+                'BACKEND_AUTH_SYNC=false'
               ].join('\n')
             });
