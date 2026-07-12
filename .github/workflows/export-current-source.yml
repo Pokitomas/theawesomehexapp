@@ -1,0 +1,46 @@
+name: Export current product source
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract current product
+        run: |
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
+
+      - name: Package editable source
+        run: |
+          tar \
+            --exclude='./.git' \
+            --exclude='./source.xz.part.*' \
+            --exclude='./general-overlay.part.*' \
+            --exclude='./profile-overlay.part.*' \
+            --exclude='./source.tar.xz' \
+            --exclude='./general-overlay.tar.xz' \
+            --exclude='./profile-overlay.tar.xz' \
+            --exclude='./corpus' \
+            --exclude='./dist' \
+            -czf /tmp/current-product-source.tar.gz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current-product-source-manual
+          path: /tmp/current-product-source.tar.gz
+          retention-days: 1
