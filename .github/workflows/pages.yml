@@ -128,7 +128,7 @@ jobs:
         run: python verify-profile-build.py
 
       - name: Verify empty manual edition
-        run: python manual/verify.py
+        run: python verify-manual-edition.py
 
       - name: Configure Pages
         if: github.event_name == 'push'
