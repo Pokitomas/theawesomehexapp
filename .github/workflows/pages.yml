@@ -3,6 +3,7 @@ name: Build and deploy million-post feed
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,16 +33,23 @@ jobs:
           CHUNK_SIZE: 1024
           CORPUS_SEED: 20260711
         run: node scripts/build.mjs
+      - name: Verify generated corpus
+        run: |
+          test "$(node -p "require('./dist/data/manifest.json').count")" = "1000000"
+          test "$(find dist/data -name '*.json' | wc -l)" = "978"
       - name: Configure Pages
+        if: github.event_name == 'push'
         uses: actions/configure-pages@v5
         with:
           enablement: true
       - name: Upload Pages artifact
+        if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
+    if: github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
