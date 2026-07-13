@@ -32,30 +32,11 @@ function routeTo(hash) {
   else location.hash = hash;
 }
 
-function proofRow() {
-  const row = element('div', 'studio-proof-row');
-  row.append(element('span', '', COPY.privacy));
-  return row;
-}
-
 function actionButton(label, className, action) {
   const node = element('button', className, label);
   node.type = 'button';
   node.addEventListener('click', action);
   return node;
-}
-
-function introCard() {
-  const card = element('section', 'studio-intro');
-  card.dataset.studioIntro = 'true';
-  const header = element('div', 'studio-intro-copy');
-  header.append(
-    element('span', 'studio-step-label', COPY.kicker),
-    element('h1', '', COPY.importTitle),
-    element('p', '', COPY.importBody)
-  );
-  card.append(header, proofRow());
-  return card;
 }
 
 function emptyCard() {
@@ -100,12 +81,6 @@ function enhanceBrand() {
   setAttribute(document.getElementById('navFeed'), 'aria-label', `${COPY.brand}: feed`);
   if (document.title !== PRODUCT_TITLE) document.title = PRODUCT_TITLE;
   setAttribute(document.querySelector('meta[name="theme-color"]'), 'content', PRODUCT_THEME);
-}
-
-function enhanceAddView() {
-  const addView = document.getElementById('addView');
-  if (!addView || addView.hidden || addView.querySelector('[data-studio-intro]')) return;
-  addView.prepend(introCard());
 }
 
 function enhanceFeed() {
@@ -153,7 +128,6 @@ function enhance() {
     return;
   }
 
-  enhanceAddView();
   enhanceFeed();
   enhanceViews();
 }
