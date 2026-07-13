@@ -48,11 +48,11 @@ function routeTo(hash) {
 
 function cloneNav(node, actionId, iconName, label, route, ariaLabel = label) {
   if (!node) return null;
-  if (node.dataset.workspaceNav === actionId) return node;
+  if (node.dataset.workspaceNavAction === actionId) return node;
   const replacement = node.cloneNode(false);
   replacement.id = node.id;
   replacement.className = `${node.className || ''} workspace-nav-button`.trim();
-  replacement.dataset.workspaceNav = actionId;
+  replacement.dataset.workspaceNavAction = actionId;
   replacement.dataset.route = route;
   replacement.removeAttribute('href');
   replacement.replaceChildren(icon(iconName), el('span', 'workspace-button-label', label));
@@ -67,7 +67,8 @@ function cloneNav(node, actionId, iconName, label, route, ariaLabel = label) {
 function installNavigation() {
   const top = document.querySelector('.topline');
   if (!top) return;
-  let nav = top.querySelector('[data-workspace-nav]');
+  const chromeScope = document.querySelector('.topbar') || document;
+  let nav = chromeScope.querySelector('nav[data-workspace-nav="true"]');
   if (!nav) {
     nav = el('nav', 'workspace-nav');
     nav.dataset.workspaceNav = 'true';
@@ -81,6 +82,7 @@ function installNavigation() {
   if (!navPlaces) {
     navPlaces = actionWithIcon('nav.places', 'pin', () => routeTo('#/places'), { className: 'workspace-nav-button', label: COPY.places, payload: { route: '#/places' } });
     navPlaces.id = 'navPlaces';
+    navPlaces.dataset.workspaceNavAction = 'nav.places';
   }
 
   const navSaved = document.getElementById('navSaved');
@@ -90,14 +92,13 @@ function installNavigation() {
     navSaved.tabIndex = -1;
   }
 
-  let newButton = top.querySelector('[data-workspace-new]');
+  let newButton = chromeScope.querySelector('[data-workspace-new]');
   if (!newButton) {
     newButton = actionWithIcon('feed.post', 'compose', () => window.SidewaysWorkspaceUI?.openComposer?.(), { className: 'workspace-new-button', label: 'New' });
     newButton.dataset.workspaceNew = 'true';
   }
 
-  const navProfile = document.getElementById('navProfile');
-  for (const node of [navFeed, navPlaces, navAdd, navProfile].filter(Boolean)) nav.append(node);
+  for (const node of [navFeed, navPlaces, navAdd].filter(Boolean)) nav.append(node);
   if (!newButton.isConnected) top.insertBefore(newButton, nav);
 
   const active = location.hash || '#/feed';

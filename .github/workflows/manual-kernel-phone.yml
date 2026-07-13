@@ -72,7 +72,7 @@ jobs:
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
       - name: Prove exact kernel in twenty records
         run: node manual-kernel/verify-kernel.mjs
-      - name: Prove gate import canonical posting places and persistence at 390 by 844
+      - name: Prove gate import command chrome deletion and persistence at 390 by 844
         run: |
           python -m http.server 4173 --directory dist >/tmp/manual-http.log 2>&1 &
           server=$!
@@ -83,13 +83,16 @@ jobs:
           phone_status=$?
           node studio/manual/tests/onboarding-clickthrough.mjs http://127.0.0.1:4173/manual/ >touch-check.log 2>&1
           touch_status=$?
+          node studio/manual/tests/chrome-contract.mjs http://127.0.0.1:4173/manual/ >chrome-check.log 2>&1
+          chrome_status=$?
           node studio/manual/tests/workspace-clickthrough.mjs http://127.0.0.1:4173/manual/ >workspace-check.log 2>&1
           workspace_status=$?
           set -e
           cat phone-check.log
           cat touch-check.log
+          cat chrome-check.log
           cat workspace-check.log
-          if [ "$phone_status" -ne 0 ] || [ "$touch_status" -ne 0 ] || [ "$workspace_status" -ne 0 ]; then
+          if [ "$phone_status" -ne 0 ] || [ "$touch_status" -ne 0 ] || [ "$chrome_status" -ne 0 ] || [ "$workspace_status" -ne 0 ]; then
             exit 1
           fi
       - name: Upload phone proof and diagnostic
@@ -101,9 +104,12 @@ jobs:
             manual-phone-gate.png
             manual-onboarding-phone.png
             manual-onboarding-touch.png
+            manual-chrome-contract.png
+            manual-workspace-populated.png
             manual-workspace-phone.png
             phone-check.log
             touch-check.log
+            chrome-check.log
             workspace-check.log
             /tmp/manual-http.log
           if-no-files-found: warn
