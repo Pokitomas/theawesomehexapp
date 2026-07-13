@@ -154,6 +154,15 @@ async function capacityFor(files) {
   return { requested, usage: Number(estimate.usage || 0), quota: Number(estimate.quota || 0), remaining };
 }
 
+function requestPersistentStorage() {
+  try {
+    const result = navigator.storage?.persist?.();
+    if (result?.catch) result.catch(() => false);
+  } catch {
+    // Persistence is an optimization; importing must never wait on it.
+  }
+}
+
 function nextFrame() {
   return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
@@ -201,7 +210,7 @@ export class ImportRuntime extends EventTarget {
 
     const capacity = await capacityFor(list);
     if (capacity.quota && capacity.remaining < capacity.requested * 1.15) throw new Error('NOT ENOUGH BROWSER SPACE');
-    if (options.persist !== false) await navigator.storage?.persist?.().catch(() => false);
+    if (options.persist !== false) requestPersistentStorage();
 
     const controller = new AbortController();
     this.controller = controller;
