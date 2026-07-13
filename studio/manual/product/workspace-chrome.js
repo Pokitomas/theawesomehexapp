@@ -28,7 +28,13 @@ function normalizeStatus(status) {
   if (!status) return;
   const match = String(status.textContent || '').match(/\d[\d,]*/);
   const count = match?.[0] || '0';
-  status.textContent = count;
+  const number = document.createElement('span');
+  number.className = 'future-status-number';
+  number.textContent = count;
+  const contract = document.createElement('span');
+  contract.className = 'future-status-contract';
+  contract.textContent = ' THINGS';
+  status.replaceChildren(number, contract);
   status.dataset.count = count.replace(/,/g, '');
   status.setAttribute('aria-label', `${count} items`);
 }
