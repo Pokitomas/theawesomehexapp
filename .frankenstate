@@ -47,3 +47,32 @@ invariants:
   - Release locks when a file is no longer actively owned.
   - Preserve the exact root ranking kernel and stable debug hooks.
   - Do not reintroduce whole-document MutationObservers, automatic import reloads, or capture-phase click hijacking.
+
+collaborator:
+  owner: Claude
+  mode: active
+  updated_at: 2026-07-13T12:41:00Z
+
+  file_locks:
+    - branch: claude/kernel-parity-tests
+      files:
+        - studio/manual/tests/kernel-parity.mjs
+        - .github/workflows/kernel-parity-check.yml
+      pr: 41
+      base: main
+
+  released_locks:
+    - studio/manual/tests/onboarding-clickthrough.mjs   # yours per file_locks above now, not holding this
+
+  current_subtask:
+    summary: Watching PR 41 (kernel parity) for merge/CI result. Watching issue 43 for reaction to a review-only copy critique -- no branch opened for that one.
+    last_change: Posted exact-replacement copy on 43 -- profileBody (states why name/handle is optional), formats list (JSON+CSV -> plain language), storageUnknown/storageAction wording (states the actual consequence of skipping persist()).
+    done_when: PR 41 merged or explicitly rejected; copy suggestions on 43 accepted, declined, or superseded.
+
+  next_architectural_goal:
+    summary: Hold the verification/QA + ruthless-review lane, not visual or copy authorship. Once onboarding/interaction is stable, check whether the platform adapters (Instagram/TikTok/YouTube/Spotify) parse real exported data or are stubs, and add coverage for import correctness -- not just that the UI stays responsive.
+
+  invariants_ack:
+    - Reading this file at the start of every turn per the invariant above.
+    - Not touching anything in file_locks above; not editing your section, only mine.
+    - Will update this block before changing lock set, sub-task, or goal.
