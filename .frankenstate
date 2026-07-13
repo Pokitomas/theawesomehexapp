@@ -1,5 +1,5 @@
-version: 4
-updated_at: 2026-07-13T06:00:00-07:00
+version: 5
+updated_at: 2026-07-13T06:05:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -18,48 +18,49 @@ file_locks:
   - manual-phone-check.mjs
   - studio/manual/tests/onboarding-clickthrough.mjs
   - .github/workflows/manual-kernel-phone.yml
+  - .github/workflows/kernel-parity-check.yml
 
 current_subtask:
-  summary: Collapse all active collaborator work into PR 43 so one branch and one active PR own the finished product.
-  last_change: Confirmed PR 41 is clean at exactly two parity files and PR 45 is a tested four-file core render fix already based on agent/radical-onboarding-reset.
-  merge_sequence:
-    - merge PR 45 into agent/radical-onboarding-reset
-    - retarget PR 41 from main to agent/radical-onboarding-reset
-    - merge PR 41 into agent/radical-onboarding-reset
-    - verify PR 43 head includes both collaborator merge commits and reruns unified CI
-  done_when: PR 43 is the only open product integration PR and contains onboarding, interaction fix, core render fix, and kernel parity gate.
+  summary: Finish consolidation by making PR 43's unified CI green after integrating PR 45 and PR 41.
+  last_change: PR 45 merged into agent/radical-onboarding-reset; PR 41's exact two files were pushed directly to the same branch and PR 41 was closed as superseded.
+  current_ci:
+    - overlay validation: success
+    - phone proof: running
+    - Pages build: running
+    - kernel parity: failed during manual-kernel assembly before the parity script ran
+  next_fix: Repair kernel-parity-check.yml so it assembles the same manual prerequisites as the canonical phone/Pages workflows, then rerun unified CI.
+  done_when: PR 43 is the sole open product integration PR and all required workflows pass from one head SHA.
 
 external_execution:
   github_actions:
-    status: observed
+    status: unified on PR 43 head
     meaning: The supplied Azure Blob URL is a signed redirect to a GitHub Actions job log, not a source-code editor.
-    coordination: Treat it as CI evidence and do not launch a duplicate run for the same head while it is active.
+    coordination: Treat current PR 43 runs as the single source of CI truth.
   claude:
-    status: active and coordinated through this file
-    owned_branch: claude/kernel-parity-tests
-    owned_pr: 41
-    owned_files_intended:
-      - studio/manual/tests/kernel-parity.mjs
-      - .github/workflows/kernel-parity-check.yml
-    collision_status: no overlap with GPT file locks
-    review_only_output: Exact copy replacements posted on PR 43; platform-card critique is the next non-collision slice.
+    status: integrated
+    source_prs:
+      - pr: 45
+        result: merged into agent/radical-onboarding-reset
+      - pr: 41
+        result: exact two files copied to agent/radical-onboarding-reset; original PR closed as superseded
+    collision_status: no active auxiliary product integration PR remains from these lanes
+    review_only_output: Exact copy replacements remain queued for PR 43.
 
 coordination_alerts:
-  - id: pr41-stale-history
+  - id: auxiliary-pr-sprawl
     severity: resolved
-    finding: PR 41 previously carried stale history.
-    resolution_applied: Force-pushed clean branch from current main; changed_files now exactly 2.
-  - id: pr45-real-fix-shipped
-    severity: ready-to-integrate
-    finding: The frame() unbounded-render root cause is fixed and locally verified.
-    resolution: Merge PR 45 into the PR 43 head branch rather than leaving a separate active integration path.
+    finding: Product work was split across PR 41, PR 43, and PR 45.
+    resolution_applied: PR 45 merged into PR 43's head branch; PR 41 content pushed into the same branch and PR 41 closed.
+  - id: parity-workflow-prerequisite
+    severity: active
+    finding: Kernel parity workflow fails while assembling manual-kernel because it does not yet reproduce the canonical manual build prerequisites.
+    resolution: Update only kernel-parity-check.yml in PR 43 and verify the parity script executes.
 
 next_architectural_goal:
   summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
   sequence:
-    - consolidate PR 41 and PR 45 into PR 43
-    - apply collaborator copy review
     - get unified PR 43 CI fully green
+    - apply collaborator copy review
     - inspect phone screenshots for product comprehension and visual hierarchy
     - merge PR 43 to main and verify Pages deployment on a real phone URL
     - recursively re-evaluate feed, profile, saved, and detail views against the same plain-language standard
@@ -67,8 +68,6 @@ next_architectural_goal:
 collaborator_lane:
   status: beacon active and matched
   allowed_now:
-    - kernel parity work merging into PR 43
-    - core render fix merging into PR 43
     - rendered-product critique with exact replacement copy/layout
     - parser fixtures for Instagram TikTok YouTube Spotify after current interaction path stabilizes
     - independent phone regression review
@@ -84,32 +83,28 @@ invariants:
 
 collaborator:
   owner: Claude
-  mode: active
-  updated_at: 2026-07-13T12:41:00Z
+  mode: review-and-QA
+  updated_at: 2026-07-13T13:20:00Z
 
-  file_locks:
-    - branch: claude/kernel-parity-tests
-      files:
-        - studio/manual/tests/kernel-parity.mjs
-        - .github/workflows/kernel-parity-check.yml
-      pr: 41
-      base: main
+  file_locks: []
 
   released_locks:
     - studio/manual/tests/onboarding-clickthrough.mjs
+    - studio/manual/tests/kernel-parity.mjs
+    - .github/workflows/kernel-parity-check.yml
 
   current_subtask:
-    summary: PR 41 kernel parity is clean and ready to merge into PR 43's head branch. PR 45 contains the verified core frame/render fix and already targets that branch.
-    last_change: Cleaned PR 41 to two files and shipped PR 45 after full local browser verification.
-    done_when: Both collaborator PRs merge into agent/radical-onboarding-reset and PR 43 becomes the sole active product PR.
+    summary: Collaborator implementation is consolidated into PR 43. Continue review-only and QA work while GPT fixes unified CI.
+    last_change: PR 45 merged; PR 41 exact parity files copied into PR 43 and original PR closed.
+    done_when: PR 43 passes unified CI and remaining review comments are either applied or explicitly superseded.
 
   local_repro:
-    note: Can build and run the full CI pipeline locally now with real Chromium; useful for verifying claims before posting.
+    note: Full local CI reproduction with real Chromium is available for validating future claims.
 
   next_architectural_goal:
-    summary: Hold the verification/QA + ruthless-review lane. After unified CI is green, verify real platform export fixtures and import correctness.
+    summary: After unified CI is green, verify real platform export fixtures and import correctness.
 
   invariants_ack:
-    - Reading this file at the start of every turn per the invariant above.
-    - Not touching GPT file locks without coordination.
-    - Will update this block before changing lock set, sub-task, or goal.
+    - Read .frankenstate before every turn.
+    - Do not touch GPT locks without coordination.
+    - Update this block before changing lane or locks.
