@@ -1,0 +1,49 @@
+version: 1
+updated_at: 2026-07-13T05:31:00-07:00
+repository: Pokitomas/theawesomehexapp
+branch: agent/radical-onboarding-reset
+active_pr: 43
+beacon_issue: 40
+
+owner: GPT-5.6 Thinking
+mode: active
+
+file_locks:
+  - studio/manual/product/import-studio.js
+  - studio/manual/product/import-studio.css
+  - studio/manual/product/import-phone.js
+  - studio/manual/product/studio.js
+  - studio/manual/product/studio-reset.css
+  - studio/manual/verify.py
+  - manual-phone-check.mjs
+  - studio/manual/tests/onboarding-clickthrough.mjs
+  - .github/workflows/manual-kernel-phone.yml
+
+current_subtask:
+  summary: Make the real iPhone journey pass after replacing the file-picker handoff and removing the duplicate legacy ADD surface.
+  last_change: Native label-backed platform file controls, ADD-route preservation after file selection, visible legacy surface reset, raw touchscreen regression tests.
+  done_when: Phone workflow proves profile -> platform picker -> Reddit file -> import complete, with zero unexpected reloads and no visible legacy ADD UI.
+
+next_architectural_goal:
+  summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
+  sequence:
+    - get PR 43 fully green
+    - inspect phone screenshots for product comprehension and visual hierarchy
+    - integrate exact collaborator review changes from beacon issue 40
+    - merge to main and verify Pages deployment on a real phone URL
+    - recursively re-evaluate feed, profile, saved, and detail views against the same plain-language standard
+
+collaborator_lane:
+  status: beacon active
+  allowed_now:
+    - rendered-product critique with exact replacement copy/layout
+    - parser fixtures for Instagram TikTok YouTube Spotify
+    - independent phone regression review
+  collision_rule: Do not edit currently locked files without first updating this ledger and commenting on issue 40.
+
+invariants:
+  - Read this file at the start of every coding turn.
+  - Update it before changing sub-task, lock set, branch, PR, or architectural goal.
+  - Release locks when a file is no longer actively owned.
+  - Preserve the exact root ranking kernel and stable debug hooks.
+  - Do not reintroduce whole-document MutationObservers, automatic import reloads, or capture-phase click hijacking.
