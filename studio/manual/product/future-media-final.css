@@ -1,0 +1,89 @@
+html.workspace-chrome .future-status-contract {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+html.workspace-chrome,
+html.workspace-chrome body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+html.workspace-chrome #feed:has(.studio-empty-hero) {
+  width: 100vw;
+  max-width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  display: block;
+  background: var(--future-black);
+}
+
+html.workspace-chrome .studio-empty-hero {
+  width: 100%;
+  max-width: none;
+  min-height: calc(var(--future-visual-height) - var(--future-chrome-height));
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--future-black) !important;
+}
+
+html.workspace-chrome .workspace-empty-mark {
+  width: 100%;
+  max-width: none;
+  min-height: min(62dvh, 620px);
+  box-sizing: border-box;
+}
+
+html.workspace-chrome .studio-empty-copy,
+html.workspace-chrome .studio-launch-actions {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+html.workspace-chrome .studio-launch-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+html.workspace-chrome .studio-launch-button {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+html[data-feed-mode="grid"] #feed:has(.studio-empty-hero) {
+  display: block;
+}
+
+html[data-feed-mode="grid"] #feed:has(.studio-empty-hero) .studio-empty-hero {
+  cursor: default;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .post-head {
+  display: none;
+}
+
+html.workspace-chrome .universal-file-surface.is-pdf .universal-file-code {
+  background: var(--future-danger);
+}
+
+@media (max-width: 520px) {
+  html.workspace-chrome .workspace-empty-mark {
+    min-height: 55dvh;
+  }
+
+  html.workspace-chrome .studio-launch-button {
+    min-height: 56px;
+    font-size: .66rem;
+  }
+}

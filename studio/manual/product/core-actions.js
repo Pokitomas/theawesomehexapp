@@ -1,4 +1,5 @@
-import { bindAction } from './actions.js';
+import { actionButton, bindAction } from './actions.js';
+import { deleteEntry, getRecord } from './workspace-records.js';
 
 const CORE_CONTROLS = Object.freeze([
   ['.source-link', 'record.source'],
@@ -11,7 +12,24 @@ const CORE_CONTROLS = Object.freeze([
 
 let scheduled = false;
 
-function contractCard(card) {
+function installDelete(card, recordId) {
+  if (!recordId || card.querySelector('[data-action-id="post.delete"]')) return;
+  const actions = card.querySelector('.actions');
+  if (!actions) return;
+  const button = actionButton('post.delete', async () => {
+    if (!confirm('Delete this item from this device?')) return { cancelled: true };
+    await deleteEntry(recordId);
+    return { recordId };
+  }, {
+    className: 'workspace-core-delete',
+    label: 'DEL',
+    ariaLabel: 'Delete item',
+    payload: { recordId }
+  });
+  actions.append(button);
+}
+
+async function contractCard(card) {
   const recordId = Number(card.dataset.id || 0) || 0;
   for (const [selector, actionId] of CORE_CONTROLS) {
     const node = card.querySelector(selector);
@@ -19,18 +37,22 @@ function contractCard(card) {
     const ariaLabel = node.getAttribute('aria-label') || node.textContent.trim();
     bindAction(node, actionId, () => null, { payload: { recordId }, ariaLabel });
   }
+  if (!recordId) return;
+  const record = await getRecord(recordId);
+  const workspaceOwned = String(record?.nativeId || '').startsWith('sideways:');
+  if (!workspaceOwned) installDelete(card, recordId);
 }
 
-function contractCoreControls() {
-  for (const card of document.querySelectorAll('#feed .post')) contractCard(card);
+async function contractCoreControls() {
+  await Promise.all([...document.querySelectorAll('#feed .post')].map(contractCard));
 }
 
 function schedule() {
   if (scheduled) return;
   scheduled = true;
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     scheduled = false;
-    contractCoreControls();
+    await contractCoreControls();
   });
 }
 

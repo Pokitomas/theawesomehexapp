@@ -17,6 +17,10 @@ export const ACTIONS = Object.freeze({
   'feed.post': define('feed.post', 'New', 'feed', 'open_composer'),
   'feed.import': define('feed.import', 'Import', 'feed', 'navigate', { route: '#/add' }),
 
+  'view.flow': define('view.flow', 'Flow', 'view', 'set_feed_mode', { mode: 'flow' }),
+  'view.stage': define('view.stage', 'Stage', 'view', 'set_feed_mode', { mode: 'stage' }),
+  'view.grid': define('view.grid', 'Grid', 'view', 'set_feed_mode', { mode: 'grid' }),
+
   'profile.open': define('profile.open', 'You', 'profile', 'open_profile'),
   'profile.save': define('profile.save', 'Save changes', 'profile', 'save_profile', { fields: ['name', 'handle', 'bio', 'accent'] }),
   'profile.close': define('profile.close', 'Close', 'profile', 'close_profile'),
