@@ -32,11 +32,21 @@ page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
 async function touch(locator) {
-  await locator.waitFor({ state: 'visible', timeout: 12000 });
-  await locator.scrollIntoViewIfNeeded();
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('touch target has no bounding box');
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  let lastError;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      await locator.waitFor({ state: 'visible', timeout: 12000 });
+      await locator.scrollIntoViewIfNeeded();
+      const box = await locator.boundingBox();
+      if (!box) throw new Error('touch target has no bounding box');
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await page.waitForTimeout(120);
+    }
+  }
+  throw lastError;
 }
 
 await page.goto(url, { waitUntil: 'networkidle' });
