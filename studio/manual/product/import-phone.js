@@ -16,21 +16,17 @@ function patchPhonePicker() {
   const folder = terminals.find(node => node.querySelector('strong')?.textContent === 'PICK FOLDER'
     || node.dataset.phonePicker === 'true');
   if (!folder) return false;
-
-  folder.dataset.phonePicker = 'true';
-  const label = folder.querySelector('strong');
-  const help = folder.querySelector('span');
-  if (label && label.textContent !== 'PICK MORE FILES') label.textContent = 'PICK MORE FILES';
-  if (help && help.textContent !== 'Choose several files on this device.') {
-    help.textContent = 'Choose several files on this device.';
-  }
   if (folder.dataset.phoneBound === 'true') return true;
-  folder.dataset.phoneBound = 'true';
-  folder.addEventListener('click', event => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    importerFileInput()?.click();
-  }, true);
+
+  const replacement = folder.cloneNode(true);
+  replacement.dataset.phonePicker = 'true';
+  replacement.dataset.phoneBound = 'true';
+  const label = replacement.querySelector('strong');
+  const help = replacement.querySelector('span');
+  if (label) label.textContent = 'PICK MORE FILES';
+  if (help) help.textContent = 'Choose several files on this device.';
+  replacement.addEventListener('click', () => importerFileInput()?.click());
+  folder.replaceWith(replacement);
   return true;
 }
 
