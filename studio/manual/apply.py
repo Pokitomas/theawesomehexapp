@@ -16,10 +16,13 @@ WORKSPACE_STYLE_MARKER = '<link rel="stylesheet" href="./workspace.css" data-wor
 CARD_LAYOUT_STYLE_MARKER = '<link rel="stylesheet" href="./card-layout.css" data-card-layout>'
 CHROME_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome.css" data-workspace-chrome>'
 CHROME_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome-polish.css" data-workspace-chrome-polish>'
+FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" data-future-media>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
 CHROME_SCRIPT_MARKER = '<script type="module" src="./workspace-chrome.js" data-workspace-chrome></script>'
+UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js" data-universal-media></script>'
+MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -74,6 +77,7 @@ def main() -> None:
         "card-layout.css",
         "workspace-chrome.css",
         "workspace-chrome-polish.css",
+        "future-media.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -86,6 +90,8 @@ def main() -> None:
         "workspace-ui.js",
         "core-actions.js",
         "workspace-chrome.js",
+        "universal-media.js",
+        "media-modes.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
@@ -104,10 +110,13 @@ def main() -> None:
     text = inject_once(text, CARD_LAYOUT_STYLE_MARKER, "</head>")
     text = inject_once(text, CHROME_STYLE_MARKER, "</head>")
     text = inject_once(text, CHROME_POLISH_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CHROME_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, UNIVERSAL_MEDIA_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
@@ -116,7 +125,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied lived workspace, canonical posting, places, action contract, readable card layout, remembered-Windows chrome, polished tabs, and core refresh bridge")
+    print("applied universal media ingestion, adaptive surfaces, Flow Stage Grid physics, aggressive future-media chrome, and core refresh bridge")
 
 
 if __name__ == "__main__":
