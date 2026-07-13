@@ -78,9 +78,16 @@ def main() -> None:
     for contract in ("requestAnimationFrame", "setText", "shouldAutoOpenApps", "routeTo('#/add')"):
         if contract not in studio_source:
             raise AssertionError(f"consumer first-run contract missing: {contract}")
-    for forbidden in ("studio-profile-setup", "PROFILE_KEY", "storageCard(", "navigator.storage"):
+    for forbidden in (
+        "studio-profile-setup",
+        "PROFILE_KEY",
+        "storageCard(",
+        "navigator.storage",
+        "introCard(",
+        "data-studio-intro",
+    ):
         if forbidden in studio_source:
-            raise AssertionError(f"first run reintroduced setup machinery: {forbidden}")
+            raise AssertionError(f"first run reintroduced setup or duplicate intro machinery: {forbidden}")
 
     for relative in ("studio.js", "import-studio.js", "import-phone.js"):
         source = assert_clean_text(HERE / "product" / relative)
@@ -113,12 +120,21 @@ def main() -> None:
         "sideways:corpusrefresh",
         "await refreshed",
         "studio-add-modern",
+        "host.replaceChildren(statusPanel() || importCard())",
     ):
         if contract not in import_source:
             raise AssertionError(f"one-tap platform contract missing: {contract}")
-    for forbidden in ("I HAVE THE FILES", "ADD TO MY FEED", "CHOOSE DIFFERENT FILES", "import-file-list", "import-queue-panel", "PICK FOLDER"):
+    for forbidden in (
+        "I HAVE THE FILES",
+        "ADD TO MY FEED",
+        "CHOOSE DIFFERENT FILES",
+        "import-file-list",
+        "import-queue-panel",
+        "PICK FOLDER",
+        "const children = [importCard()]",
+    ):
         if forbidden in import_source:
-            raise AssertionError(f"consumer import reintroduced file-workbench UI: {forbidden}")
+            raise AssertionError(f"consumer import reintroduced file-workbench or buried status UI: {forbidden}")
 
     import_css = assert_clean_text(HERE / "product" / "import-studio.css")
     for contract in (".source-import", ".source-help", ".import-progress-panel", ".import-complete-panel"):
@@ -129,9 +145,11 @@ def main() -> None:
             raise AssertionError(f"legacy workbench styling returned: {forbidden}")
 
     reset_source = assert_clean_text(HERE / "product" / "studio-reset.css")
-    for contract in ("studio-add-modern", "#importWorkbenchHost", "[data-studio-intro]"):
+    for contract in ("studio-add-modern", "#importWorkbenchHost"):
         if contract not in reset_source:
             raise AssertionError(f"legacy-surface reset missing: {contract}")
+    if "data-studio-intro" in reset_source:
+        raise AssertionError("reset stylesheet still preserves the removed duplicate intro")
 
     phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
     for contract in ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"):
