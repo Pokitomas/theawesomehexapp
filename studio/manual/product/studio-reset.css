@@ -1,0 +1,18 @@
+/* The canonical ADD engine stays underneath for parsing and compatibility.
+   The rebuilt product exposes one import experience instead of stacking both UIs. */
+html.studio-product #addView.studio-add-modern > :not([data-studio-intro]):not(#importWorkbenchHost) {
+  display: none !important;
+}
+
+html.studio-product #addView.studio-add-modern {
+  display: block;
+}
+
+html.studio-product #addView.studio-add-modern > [data-studio-intro],
+html.studio-product #addView.studio-add-modern > #importWorkbenchHost {
+  display: block;
+}
+
+html.studio-product #addView.studio-add-modern .import-workbench {
+  margin-top: 0;
+}
