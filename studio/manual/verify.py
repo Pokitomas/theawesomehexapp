@@ -64,6 +64,16 @@ def main() -> None:
         if contract not in kernel_prepare:
             raise AssertionError(f"kernel compatibility contract missing: {contract}")
 
+    apply_source = assert_clean_text(HERE / "apply.py")
+    for contract in (
+        "CORE_REFRESH_BRIDGE",
+        "sideways:importcomplete",
+        "sideways:corpusrefresh",
+        "await rebuildState()",
+    ):
+        if contract not in apply_source:
+            raise AssertionError(f"core refresh bridge contract missing: {contract}")
+
     studio_source = assert_clean_text(HERE / "product" / "studio.js")
     for contract in ("requestAnimationFrame", "setText", "shouldAutoOpenApps", "routeTo('#/add')"):
         if contract not in studio_source:
@@ -99,6 +109,9 @@ def main() -> None:
         "NEED YOUR DOWNLOAD?",
         "runtime.import(chosen)",
         "IMPORT ${platform.name.toUpperCase()}",
+        "waitForCoreRefresh",
+        "sideways:corpusrefresh",
+        "await refreshed",
         "studio-add-modern",
     ):
         if contract not in import_source:
@@ -147,11 +160,17 @@ def main() -> None:
         assert_clean_text(path)
         node_check(path)
 
+    app_text = assert_clean_text(MANUAL / "app.js")
+    if app_text.count("sideways:corpusrefresh") != 1:
+        raise AssertionError("generated core must contain exactly one import refresh bridge")
+    if "await rebuildState()" not in app_text:
+        raise AssertionError("generated core refresh bridge must rebuild the live corpus")
+
     index = assert_clean_text(MANUAL / "index.html")
     for hook in ("corpusStatus", "debugPolicy", "debugState", "debugPanel"):
         if f'id="{hook}"' not in index:
             raise AssertionError(f"stable DOM hook missing: {hook}")
-    corpus = index + (MANUAL / "app.js").read_text(encoding="utf-8")
+    corpus = index + app_text
     for label in ("ADD", "KEEP", "READ", "SEND", "FILES +"):
         if label not in corpus:
             raise AssertionError(f"stable phone-test label missing: {label}")
