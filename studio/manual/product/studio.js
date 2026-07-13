@@ -97,15 +97,21 @@ function profileSetup() {
   handleLabel.append(handle);
   fields.append(nameLabel, handleLabel);
 
+  const persistDraft = () => writeProfile({ name: name.value, handle: handle.value });
+  name.addEventListener('input', persistDraft);
+  handle.addEventListener('input', persistDraft);
+  form.addEventListener('change', persistDraft);
+
   const actions = element('div', 'studio-hero-actions');
-  const submit = actionButton(COPY.profileSave, 'studio-primary-action', () => {});
+  const submit = actionButton(COPY.profileSave, 'studio-primary-action', () => persistDraft());
   submit.type = 'submit';
+  submit.dataset.onboardingStart = 'true';
   const skip = actionButton(COPY.profileSkip, 'studio-secondary-action', () => routeTo('#/add'));
   actions.append(submit, skip);
 
   form.addEventListener('submit', event => {
     event.preventDefault();
-    writeProfile({ name: name.value, handle: handle.value });
+    persistDraft();
     routeTo('#/add');
   });
 
