@@ -4,6 +4,7 @@ const DB_NAME = 'sideways-manual-corpus-v1';
 const DB_VERSION = 1;
 const RECORD_STORE = 'records';
 const BLOB_STORE = 'blobs';
+const PROFILE_KEY = 'sideways-local-profile-v1';
 const MAX_SINGLE_FILE = 350 * 1024 * 1024;
 const DEFAULT_CHUNK = 75;
 
@@ -71,8 +72,22 @@ function clean(value = '') {
   return String(value).replace(/\u0000/g, '').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{4,}/g, '\n\n\n').trim();
 }
 
+function localProfile() {
+  try {
+    const value = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+    return {
+      displayName: clean(value.name || 'Me').slice(0, 80) || 'Me',
+      handle: value.handle ? `@${clean(value.handle).replace(/^@/, '').slice(0, 47)}` : ''
+    };
+  } catch {
+    return { displayName: 'Me', handle: '' };
+  }
+}
+
 function currentProfile() {
-  return window.SidewaysProfiles?.profile || { displayName: 'Me', handle: '@me' };
+  const core = window.SidewaysProfiles?.profile;
+  if (core?.displayName && core.displayName !== 'Me') return core;
+  return localProfile();
 }
 
 function normalize(input, file, digest) {
