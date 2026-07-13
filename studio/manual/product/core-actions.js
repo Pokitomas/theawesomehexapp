@@ -1,5 +1,5 @@
 import { actionButton, bindAction } from './actions.js';
-import { deleteEntry } from './workspace-records.js';
+import { deleteEntry, getRecord } from './workspace-records.js';
 
 const CORE_CONTROLS = Object.freeze([
   ['.source-link', 'record.source'],
@@ -29,7 +29,7 @@ function installDelete(card, recordId) {
   actions.append(button);
 }
 
-function contractCard(card) {
+async function contractCard(card) {
   const recordId = Number(card.dataset.id || 0) || 0;
   for (const [selector, actionId] of CORE_CONTROLS) {
     const node = card.querySelector(selector);
@@ -37,19 +37,22 @@ function contractCard(card) {
     const ariaLabel = node.getAttribute('aria-label') || node.textContent.trim();
     bindAction(node, actionId, () => null, { payload: { recordId }, ariaLabel });
   }
-  installDelete(card, recordId);
+  if (!recordId) return;
+  const record = await getRecord(recordId);
+  const workspaceOwned = String(record?.nativeId || '').startsWith('sideways:');
+  if (!workspaceOwned) installDelete(card, recordId);
 }
 
-function contractCoreControls() {
-  for (const card of document.querySelectorAll('#feed .post')) contractCard(card);
+async function contractCoreControls() {
+  await Promise.all([...document.querySelectorAll('#feed .post')].map(contractCard));
 }
 
 function schedule() {
   if (scheduled) return;
   scheduled = true;
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     scheduled = false;
-    contractCoreControls();
+    await contractCoreControls();
   });
 }
 
