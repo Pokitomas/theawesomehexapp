@@ -1,5 +1,5 @@
-version: 6
-updated_at: 2026-07-13T06:10:00-07:00
+version: 7
+updated_at: 2026-07-13T06:14:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -15,32 +15,32 @@ file_locks:
   - studio/manual/product/studio.js
   - studio/manual/product/studio-reset.css
   - studio/manual/verify.py
+  - studio/manual/prepare-kernel.py
   - manual-phone-check.mjs
   - studio/manual/tests/onboarding-clickthrough.mjs
   - .github/workflows/manual-kernel-phone.yml
   - .github/workflows/kernel-parity-check.yml
   - .github/workflows/pages.yml
-  - manual-kernel-overlay.b64.part.000
-  - manual-kernel-overlay.b64.part.001
-  - manual-kernel-overlay.b64.part.002
 
 current_subtask:
-  summary: Finish consolidation by making PR 43 the only active integration path and reconciling PR 46 with the already-merged PR 45 overlay changes.
-  last_change: PR 45 merged; PR 41 parity files pushed directly; PR 41 closed; kernel parity workflow prerequisites repaired on PR 43.
+  summary: Finish consolidation by integrating PR 46's logical fix into readable source on PR 43 and closing every auxiliary PR.
+  last_change: Confirmed PR 45's render guard and PR 46's extraction regex are the only logical differences; current phone proof is green on PR 43.
   current_ci:
-    - overlay validation: success on prior unified head
-    - phone proof: rerunning from current head
-    - Pages build: rerunning from current head
-    - kernel parity: workflow assembly fixed; new run pending
+    - overlay validation: success
+    - phone proof: success on head 061ddd0
+    - Pages build: running
+    - kernel parity: running after prerequisite repair
   active_auxiliary_pr:
     pr: 46
     purpose: whitespace-tolerant kernel extraction regex
-    overlap: Same hash-pinned overlay chunks and pages.yml already changed by PR 45
-    integration_rule: Preserve both PR 45's bounded feed-render guard and PR 46's extraction-regex fix; never overwrite one with the other.
+    integration_decision: Do not repack or overwrite the PR 45 overlay. Add an idempotent readable pre-build compatibility step in studio/manual/prepare-kernel.py and invoke it before every manual-kernel/patch.py run.
+    preservation:
+      - PR 45 bounded feed-render guard remains inside the existing packed overlay untouched
+      - PR 46 extraction regex is applied after extraction and before execution in every canonical workflow
   user_approval:
     quote: "true merge is fine js make sure it pushes and make everything in one place not different pr"
-    interpretation: Explicit approval to merge auxiliary collaborator fixes into PR 43's head branch and close duplicate PR paths.
-  done_when: PR 46 is integrated or superseded, PR 36 is closed, PR 43 is the only open product PR, and unified CI passes from one head SHA.
+    interpretation: Explicit approval to consolidate auxiliary fixes into PR 43 and close duplicate PR paths.
+  done_when: PR 46 is closed as integrated, PR 36 is closed as obsolete, PR 43 is the only open product PR, and unified CI passes from one head SHA.
 
 external_execution:
   github_actions:
@@ -48,30 +48,30 @@ external_execution:
     meaning: The supplied Azure Blob URL is a signed redirect to a GitHub Actions job log, not a source-code editor.
     coordination: Treat current PR 43 runs as the single source of CI truth.
   claude:
-    status: integrated with one new auxiliary fix awaiting reconciliation
+    status: integrated
     source_prs:
       - pr: 45
         result: merged into agent/radical-onboarding-reset
       - pr: 41
         result: exact two files copied to agent/radical-onboarding-reset; original PR closed as superseded
       - pr: 46
-        result: open; user explicitly approved integration into PR 43
+        result: logical fix moving into readable PR 43 compatibility source; original PR will close as superseded
     review_only_output: Exact copy replacements remain queued for PR 43.
 
 coordination_alerts:
   - id: auxiliary-pr-sprawl
     severity: active
-    finding: PR 46 and obsolete probe PR 36 remain open after initial consolidation.
-    resolution: Integrate or supersede PR 46 into PR 43 and close PR 36.
+    finding: PR 46 and obsolete probe PR 36 remain open.
+    resolution: Integrate PR 46 logically into readable source on PR 43, then close PR 46 and PR 36.
   - id: packed-overlay-overlap
-    severity: block-blind-merge
+    severity: resolved-by-design
     finding: PR 45 and PR 46 both repack the same compressed overlay files.
-    resolution: Retarget and merge only if GitHub produces a clean merge; otherwise reconcile both logical changes in one regenerated overlay before closing PR 46.
+    resolution_applied: Keep PR 45's known-good overlay; apply PR 46's non-semantic extraction compatibility after extraction through readable source.
 
 next_architectural_goal:
   summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
   sequence:
-    - reconcile PR 46 into PR 43 and close auxiliary PRs
+    - integrate readable kernel compatibility and close auxiliary PRs
     - get unified PR 43 CI fully green
     - apply collaborator copy review
     - inspect phone screenshots for product comprehension and visual hierarchy
@@ -93,6 +93,7 @@ invariants:
   - Preserve the exact root ranking kernel and stable debug hooks.
   - Do not reintroduce whole-document MutationObservers, automatic import reloads, or capture-phase click hijacking.
   - Keep all active product integration in PR 43; auxiliary PRs must merge into its head branch or close.
+  - Prefer readable compatibility source over another opaque packed-overlay mutation when semantics are unchanged.
 
 collaborator:
   owner: Claude
@@ -107,9 +108,9 @@ collaborator:
     - .github/workflows/kernel-parity-check.yml
 
   current_subtask:
-    summary: Implementation is consolidating into PR 43. PR 46's extraction fix is awaiting reconciliation with PR 45's packed overlay changes.
+    summary: Implementation is consolidated into PR 43. PR 46's extraction compatibility is being moved into readable source without losing PR 45's render guard.
     last_change: Shipped PR 46 after finding real formatting drift in kernel extraction.
-    done_when: PR 46's logical fix exists in PR 43 without losing the render guard; unified CI passes.
+    done_when: PR 46's logical fix exists in PR 43, auxiliary PRs are closed, and unified CI passes.
 
   local_repro:
     note: Full local CI reproduction with real Chromium is available for validating future claims.
@@ -123,7 +124,7 @@ collaborator:
     - Update this block before changing lane or locks.
 
   merge_policy:
-    rule: Merging is a termination decision, not just a status update -- going forward, not unilateral on Claude's side even once CI is green. Request explicit approval first.
+    rule: Merging is a termination decision; request explicit approval first.
     approval_received: User explicitly approved true merging and directed all work into one PR.
     still_open_for_integration:
       - pr: 46
