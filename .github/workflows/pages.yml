@@ -161,6 +161,7 @@ jobs:
           grep -q 'data-studio-product' dist/manual/index.html
           test -f dist/manual/kernel.js
           test -f dist/manual/studio.css
+          test -f dist/manual/studio-components.css
           test -f dist/manual/studio.js
           test -f dist/manual/copy.js
 
