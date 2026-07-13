@@ -9,7 +9,7 @@ on:
       - 'general-overlay.part.*'
       - 'profile-overlay.part.*'
       - 'manual-overlay.b64.part.*'
-      - 'manual-kernel.tar.xz.b64.part.*'
+      - 'manual-kernel.b64.part.*'
       - 'verify-manual-edition.py'
   workflow_dispatch:
 
@@ -36,14 +36,21 @@ jobs:
           cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
           tar -xJf profile-overlay.tar.xz
           python profile/patch.py
-          cat manual-overlay.b64.part.* | base64 -d > manual-overlay.tar.xz
+          cat manual-overlay.b64.part.* > manual-overlay.b64
+          test "$(wc -c < manual-overlay.b64)" = "44760"
+          echo "0d45c1ed47cdf73667f554e45c60c76f4fabd799fe7b4a0523dfa5adc58651d5  manual-overlay.b64" | sha256sum -c -
+          base64 -d manual-overlay.b64 > manual-overlay.tar.xz
+          echo "b18d2e3ca6dc53efb8286f3162aae6c8d6320875a8699346886c8621022c00af  manual-overlay.tar.xz" | sha256sum -c -
           tar -xJf manual-overlay.tar.xz
           python manual/patch.py
 
-      - name: Install exact root kernel in manual edition
+      - name: Install exact shared root kernel
         run: |
-          cat manual-kernel.tar.xz.b64.part.* | base64 -d > manual-kernel.tar.xz
-          echo "1be2d8e725fb87959a0a09f84291b955c1796da9b233d74b5119d069f1816c70  manual-kernel.tar.xz" | sha256sum -c -
+          cat manual-kernel.b64.part.* > manual-kernel.b64
+          test "$(wc -c < manual-kernel.b64)" = "22272"
+          echo "05db8297d3857a1d9a0036df2cde8642d72f74b1fe21b09c54d7313c20e48985  manual-kernel.b64" | sha256sum -c -
+          base64 -d manual-kernel.b64 > manual-kernel.tar.xz
+          echo "25a52fcf821c15fc06e659203a019b9a60339cc81b7cf1309b7a5fec510fb136  manual-kernel.tar.xz" | sha256sum -c -
           tar -xJf manual-kernel.tar.xz
           python manual-kernel/patch.py
 
