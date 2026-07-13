@@ -1,5 +1,5 @@
-version: 11
-updated_at: 2026-07-13T07:12:00-07:00
+version: 12
+updated_at: 2026-07-13T07:20:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -17,6 +17,7 @@ file_locks:
   - studio/manual/product/studio-components.css
   - studio/manual/product/studio-reset.css
   - studio/manual/README.md
+  - studio/manual/apply.py
   - studio/manual/verify.py
   - studio/manual/prepare-kernel.py
   - manual-phone-check.mjs
@@ -26,18 +27,22 @@ file_locks:
   - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Fix the one-tap import completion race found by the real phone workflow.
-  root_cause: The picker change handler calls routeTo('#/add') even though the consumer is already on ADD; the core can rebuild the view and detach #importWorkbenchHost before completion renders.
-  current_ci:
-    - overlay validation: success on head c280c04
-    - kernel parity: success on head c280c04
-    - phone onboarding/import: failed waiting for the Reddit completion panel
-    - Pages build: in progress on head c280c04
+  summary: Refresh the core feed in place after a successful one-tap import, with no page reload.
+  findings:
+    - Reddit import now completes successfully.
+    - Independent touch/quiescence proof is green with zero automatic loads.
+    - OPEN MY FEED changes only the hash, so the previous test incorrectly waited for a full load event.
+    - The core app reads IndexedDB during rebuildState(), but that function is private and currently runs only at boot.
   fix:
-    - remove the redundant route from importChosen
-    - keep the existing mounted workbench alive throughout import
-    - make both phone tests surface error-panel text immediately instead of timing out invisibly
-  done_when: Both real iPhone journeys reach Reddit completion, remain quiescent, and the deliberate OPEN MY FEED transition loads the imported record.
+    - inject one idempotent sideways:importcomplete listener into generated manual-app/app.js from readable studio/manual/apply.py
+    - listener awaits rebuildState() and renders the feed only if the feed route is active
+    - update the phone proof to wait for #/feed and a nonzero corpus count, while asserting total page loads remain zero
+  current_ci:
+    - overlay validation: success on head b17bef9
+    - kernel parity: success on head b17bef9
+    - touch import completion/quiescence: success on head b17bef9
+    - phone proof: failed only because it expected a load event after OPEN MY FEED
+  done_when: OPEN MY FEED displays the imported Reddit record through an in-place core refresh, with no reload and no stale feed state.
 
 external_execution:
   github_actions:
@@ -47,10 +52,10 @@ external_execution:
     status: implementation integrated; no file locks
 
 coordination_alerts:
-  - id: redundant-add-route
+  - id: core-import-refresh
     severity: active
-    finding: Re-routing an already-visible ADD view can detach the consumer workbench during import.
-    resolution: Import in place; only route when opening the importer from another view.
+    finding: Import runtime and core share IndexedDB, but the core does not refresh its in-memory state after external runtime writes.
+    resolution: Add a readable generated-app event bridge during studio apply.
   - id: exposed-user-token
     severity: security
     finding: A GitHub personal access token was pasted into chat.
@@ -59,7 +64,7 @@ coordination_alerts:
 next_architectural_goal:
   summary: Ship the completed consumer-facing Sideways app from main.
   sequence:
-    - fix and prove one-tap completion
+    - prove live in-place imported-feed refresh
     - inspect fresh phone artifacts
     - merge PR 43 to main
     - verify Pages deployment and live phone URLs
@@ -84,7 +89,7 @@ invariants:
 collaborator:
   owner: Claude
   mode: integrated
-  updated_at: 2026-07-13T14:12:00Z
+  updated_at: 2026-07-13T14:20:00Z
   file_locks: []
   current_subtask:
     summary: No active implementation lane. All accepted work is consolidated into PR 43.
