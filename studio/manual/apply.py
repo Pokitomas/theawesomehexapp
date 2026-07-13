@@ -13,6 +13,7 @@ STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
 RESET_STYLE_MARKER = '<link rel="stylesheet" href="./studio-reset.css" data-studio-reset>'
 SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social.css" data-social-product>'
+INTERACTION_STYLE_MARKER = '<link rel="stylesheet" href="./interaction.css" data-interaction-product>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace.js" data-workspace-product></script>'
 SHELL_SCRIPT_MARKER = '<script type="module" src="./shell.js" data-shell-product></script>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
@@ -57,6 +58,7 @@ def main() -> None:
         "studio-components.css",
         "studio-reset.css",
         "social.css",
+        "interaction.css",
         "icons.js",
         "actions.js",
         "shell.js",
@@ -77,6 +79,7 @@ def main() -> None:
     text = inject_once(text, COMPONENT_STYLE_MARKER, "</head>")
     text = inject_once(text, RESET_STYLE_MARKER, "</head>")
     text = inject_once(text, SOCIAL_STYLE_MARKER, "</head>")
+    text = inject_once(text, INTERACTION_STYLE_MARKER, "</head>")
     if workspace_source.is_file():
         text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, SHELL_SCRIPT_MARKER, "</body>")
