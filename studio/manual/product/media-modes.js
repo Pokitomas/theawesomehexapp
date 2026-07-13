@@ -4,7 +4,6 @@ const STORAGE_KEY = 'sideways-feed-mode-v1';
 const MODES = Object.freeze(['flow', 'stage', 'grid']);
 let scheduled = false;
 let resizeObserver;
-let lastAnchor = '';
 
 function currentMode() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -55,9 +54,9 @@ function modeButton(mode) {
 }
 
 function installModeRail() {
-  const commandbar = document.querySelector('[data-workspace-commandbar]');
-  if (!commandbar) return;
-  let rail = commandbar.querySelector('[data-feed-mode-rail]');
+  const host = document.querySelector('.type-nav') || document.querySelector('[data-workspace-commandbar]');
+  if (!host) return;
+  let rail = document.querySelector('[data-feed-mode-rail]');
   if (!rail) {
     rail = document.createElement('div');
     rail.className = 'future-mode-rail';
@@ -65,8 +64,8 @@ function installModeRail() {
     rail.setAttribute('role', 'group');
     rail.setAttribute('aria-label', 'Feed layout');
     rail.append(...MODES.map(modeButton));
-    commandbar.append(rail);
   }
+  if (rail.parentElement !== host) host.append(rail);
   setMode(currentMode(), { persist: false, preserve: false });
 }
 
