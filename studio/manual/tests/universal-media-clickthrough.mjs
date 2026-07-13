@@ -16,6 +16,21 @@ if (!executablePath) throw new Error('no Chromium found');
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const unknown = Buffer.from([0, 255, 1, 2, 3, 0, 127, 128, 129, 13, 10, 0, 4, 5, 6, 7]);
+const mp4 = Buffer.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0, 0x69, 0x73, 0x6f, 0x6d, 0x6d, 0x70, 0x34, 0x31]);
+const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF', 'utf8');
+const wav = Buffer.alloc(44);
+wav.write('RIFF', 0, 'ascii');
+wav.writeUInt32LE(36, 4);
+wav.write('WAVEfmt ', 8, 'ascii');
+wav.writeUInt32LE(16, 16);
+wav.writeUInt16LE(1, 20);
+wav.writeUInt16LE(1, 22);
+wav.writeUInt32LE(8000, 24);
+wav.writeUInt32LE(8000, 28);
+wav.writeUInt16LE(1, 32);
+wav.writeUInt16LE(8, 34);
+wav.write('data', 36, 'ascii');
+wav.writeUInt32LE(0, 40);
 
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({
@@ -63,6 +78,10 @@ async function deleteCard(card) {
   await card.waitFor({ state: 'detached', timeout: 15000 });
 }
 
+function recordByName(records, name) {
+  return records.find(record => record.originalName === name);
+}
+
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
 await page.waitForFunction(() => document.documentElement.dataset.workspaceChrome === 'ready', { timeout: 15000 });
@@ -71,33 +90,54 @@ await page.waitForFunction(() => document.documentElement.dataset.mediaModes ===
 const importInput = page.locator('#sidewaysImportFiles');
 await importInput.setInputFiles([
   { name: 'red-circle.png', mimeType: '', buffer: png },
+  { name: 'portrait-clip.mp4', mimeType: '', buffer: mp4 },
+  { name: 'tone.wav', mimeType: '', buffer: wav },
+  { name: 'document.pdf', mimeType: '', buffer: pdf },
   { name: 'unknown-no-extension', mimeType: '', buffer: unknown }
 ]);
-await page.waitForFunction(() => window.SidewaysCore?.state?.records?.length === 2, { timeout: 20000 });
+await page.waitForFunction(() => window.SidewaysCore?.state?.records?.length === 5, { timeout: 30000 });
 await page.evaluate(() => window.SidewaysCore.routeTo('#/feed'));
 await page.waitForURL(/#\/feed$/, { timeout: 10000 });
 
 const imageCard = page.locator('#feed .post').filter({ hasText: 'red-circle.png' });
+const videoCard = page.locator('#feed .post').filter({ hasText: 'portrait-clip.mp4' });
+const audioCard = page.locator('#feed .post').filter({ hasText: 'tone.wav' });
+const pdfCard = page.locator('#feed .post').filter({ hasText: 'document.pdf' });
 const binaryCard = page.locator('#feed .post').filter({ hasText: 'unknown-no-extension' });
-await imageCard.waitFor({ state: 'visible', timeout: 15000 });
-await binaryCard.waitFor({ state: 'visible', timeout: 15000 });
+for (const card of [imageCard, videoCard, audioCard, pdfCard, binaryCard]) await card.waitFor({ state: 'attached', timeout: 15000 });
+
 const image = imageCard.locator('.universal-image');
 await image.waitFor({ state: 'visible', timeout: 15000 });
 await page.waitForFunction(() => document.querySelector('.universal-image')?.naturalWidth > 0, { timeout: 10000 });
-await binaryCard.locator('.universal-file-surface').waitFor({ state: 'visible', timeout: 15000 });
+if (await videoCard.locator('.universal-video').count() !== 1) throw new Error('video did not receive a video surface');
+if (await audioCard.locator('.universal-audio audio').count() !== 1) throw new Error('audio did not receive an audio surface');
+if (await pdfCard.locator('.universal-pdf').count() !== 1) throw new Error('PDF did not receive a PDF surface');
+await binaryCard.locator('.universal-file-surface').waitFor({ state: 'attached', timeout: 15000 });
 
 const records = await readAll('records');
-const imageRecord = records.find(record => record.originalName === 'red-circle.png');
-const binaryRecord = records.find(record => record.originalName === 'unknown-no-extension');
+const imageRecord = recordByName(records, 'red-circle.png');
+const videoRecord = recordByName(records, 'portrait-clip.mp4');
+const audioRecord = recordByName(records, 'tone.wav');
+const pdfRecord = recordByName(records, 'document.pdf');
+const binaryRecord = recordByName(records, 'unknown-no-extension');
 if (!imageRecord || imageRecord.mediaKind !== 'image' || imageRecord.mime !== 'image/png' || !imageRecord.assetKey || imageRecord.text || !(imageRecord.width > 0) || !(imageRecord.height > 0)) {
   throw new Error(`MIME-less PNG was not normalized as image media: ${JSON.stringify(imageRecord)}`);
+}
+if (!videoRecord || videoRecord.mediaKind !== 'video' || videoRecord.mime !== 'video/mp4' || !videoRecord.assetKey || videoRecord.text) {
+  throw new Error(`MIME-less MP4 was not normalized as video media: ${JSON.stringify(videoRecord)}`);
+}
+if (!audioRecord || audioRecord.mediaKind !== 'audio' || audioRecord.mime !== 'audio/wav' || !audioRecord.assetKey || audioRecord.text) {
+  throw new Error(`MIME-less WAV was not normalized as audio media: ${JSON.stringify(audioRecord)}`);
+}
+if (!pdfRecord || pdfRecord.mediaKind !== 'pdf' || pdfRecord.mime !== 'application/pdf' || !pdfRecord.assetKey || pdfRecord.text) {
+  throw new Error(`MIME-less PDF was not normalized as PDF media: ${JSON.stringify(pdfRecord)}`);
 }
 if (!binaryRecord || binaryRecord.mediaKind !== 'binary' || binaryRecord.mime !== 'application/octet-stream' || !binaryRecord.assetKey || binaryRecord.text) {
   throw new Error(`unknown binary was not preserved honestly: ${JSON.stringify(binaryRecord)}`);
 }
 
 let blobs = await readAll('blobs');
-if (blobs.length !== 2) throw new Error(`expected two stored binary assets, found ${blobs.length}`);
+if (blobs.length !== 5) throw new Error(`expected five stored media assets, found ${blobs.length}`);
 const feedText = await page.locator('#feed').innerText();
 for (const poison of ['IHDR', 'gAMA', 'cHRM', '�', '\u0000']) {
   if (feedText.includes(poison)) throw new Error(`binary gibberish reached the feed: ${poison}`);
@@ -106,7 +146,8 @@ for (const poison of ['IHDR', 'gAMA', 'cHRM', '�', '\u0000']) {
 const modes = page.locator('[data-feed-mode-rail]');
 await modes.waitFor({ state: 'visible', timeout: 10000 });
 if (await modes.locator('[data-feed-mode-button]').count() !== 3) throw new Error('Flow Stage Grid rail is incomplete');
-if (!(await page.locator('.type-nav').evaluate((nav, rail) => nav.contains(rail), await modes.elementHandle()))) throw new Error('feed modes escaped the filter strip');
+const railInFilters = await page.evaluate(() => document.querySelector('.type-nav')?.contains(document.querySelector('[data-feed-mode-rail]')) || false);
+if (!railInFilters) throw new Error('feed modes escaped the filter strip');
 
 await touch(modes.locator('[data-feed-mode-button="stage"]'));
 await page.waitForFunction(() => document.documentElement.dataset.feedMode === 'stage');
@@ -127,14 +168,13 @@ await page.waitForFunction(() => document.documentElement.dataset.mediaModes ===
 if (await page.evaluate(() => document.documentElement.dataset.feedMode) !== 'grid') throw new Error('feed mode did not persist across reload');
 
 await page.screenshot({ path: 'manual-universal-media-grid.png', fullPage: true });
-const imageCardReloaded = page.locator('#feed .post').filter({ hasText: 'red-circle.png' });
-await deleteCard(imageCardReloaded);
-blobs = await readAll('blobs');
-if (blobs.some(blob => blob.key === imageRecord.assetKey)) throw new Error('deleted imported image left its blob behind');
-
-const binaryCardReloaded = page.locator('#feed .post').filter({ hasText: 'unknown-no-extension' });
-await deleteCard(binaryCardReloaded);
-await page.waitForFunction(() => window.SidewaysCore?.state?.records?.length === 0, { timeout: 15000 });
+const deleteOrder = ['red-circle.png', 'portrait-clip.mp4', 'tone.wav', 'document.pdf', 'unknown-no-extension'];
+for (let index = 0; index < deleteOrder.length; index += 1) {
+  const name = deleteOrder[index];
+  const card = page.locator('#feed .post').filter({ hasText: name });
+  await deleteCard(card);
+  await page.waitForFunction(expected => window.SidewaysCore?.state?.records?.length === expected, deleteOrder.length - index - 1, { timeout: 15000 });
+}
 blobs = await readAll('blobs');
 if (blobs.length) throw new Error(`deleted imported files left ${blobs.length} blobs behind`);
 
@@ -145,8 +185,13 @@ if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-universal-media-empty.png', fullPage: true });
 console.log(JSON.stringify({
-  mimeLessPng: { mediaKind: imageRecord.mediaKind, mime: imageRecord.mime, width: imageRecord.width, height: imageRecord.height },
-  unknownBinary: { mediaKind: binaryRecord.mediaKind, mime: binaryRecord.mime },
+  media: {
+    image: { mime: imageRecord.mime, width: imageRecord.width, height: imageRecord.height },
+    video: { mime: videoRecord.mime },
+    audio: { mime: audioRecord.mime },
+    pdf: { mime: pdfRecord.mime },
+    binary: { mime: binaryRecord.mime }
+  },
   stage,
   gridPersisted: true,
   importedDelete: true,
