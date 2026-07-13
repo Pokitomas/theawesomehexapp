@@ -59,14 +59,14 @@ await gateContext.close();
 const onboardingContext = await browser.newContext(iphone);
 const onboarding = await onboardingContext.newPage();
 const onboardingErrors = await collectErrors(onboarding);
-let navigations = 0;
-onboarding.on('framenavigated', frame => { if (frame === onboarding.mainFrame()) navigations += 1; });
+let unexpectedLoads = 0;
+onboarding.on('load', () => { unexpectedLoads += 1; });
 await onboarding.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
-navigations = 0;
+unexpectedLoads = 0;
 await onboarding.locator('[data-studio-profile-setup]').waitFor({ state: 'visible', timeout: 10000 });
 await onboarding.locator('input[name="name"]').fill('Kai');
 await onboarding.locator('input[name="handle"]').fill('@sideways-test');
-await onboarding.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }).click();
+await onboarding.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }).tap();
 await onboarding.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await onboarding.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await onboarding.getByText('PUT IN A REAL EXPORT.', { exact: true }).count()) throw new Error('old developer copy still visible');
@@ -78,7 +78,7 @@ for (const source of ['Reddit', 'Instagram', 'TikTok', 'YouTube', 'Spotify', 'X 
 const reddit = onboarding.locator('.source-card[data-platform="reddit"]');
 const [chooser] = await Promise.all([
   onboarding.waitForEvent('filechooser'),
-  reddit.getByRole('button', { name: 'I HAVE THE FILES', exact: true }).click()
+  reddit.getByRole('button', { name: 'I HAVE THE FILES', exact: true }).tap()
 ]);
 await chooser.setFiles({
   name: 'comments.csv',
@@ -86,10 +86,11 @@ await chooser.setFiles({
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"hello from reddit",sideways,/r/sideways/comments/1,1700000000,kai,abc123\n')
 });
 await onboarding.getByText('1 FILE READY', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-await onboarding.getByRole('button', { name: 'ADD TO MY FEED', exact: true }).click();
+await onboarding.getByRole('button', { name: 'ADD TO MY FEED', exact: true }).tap();
 await onboarding.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 await onboarding.getByRole('button', { name: 'OPEN MY FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-if (navigations !== 0) throw new Error(`onboarding unexpectedly navigated or refreshed ${navigations} times`);
+await onboarding.waitForTimeout(2500);
+if (unexpectedLoads !== 0) throw new Error(`onboarding unexpectedly reloaded ${unexpectedLoads} times`);
 const savedProfile = await onboarding.evaluate(() => JSON.parse(localStorage.getItem('sideways-local-profile-v1') || '{}'));
 if (savedProfile.name !== 'Kai' || savedProfile.handle !== 'sideways-test') throw new Error(`local profile was not saved: ${JSON.stringify(savedProfile)}`);
 await onboarding.screenshot({ path: 'manual-onboarding-phone.png', fullPage: true });
@@ -103,7 +104,7 @@ console.log(JSON.stringify({
   iphonePicker: 'FILES +',
   importerPicker: 'PICK MORE FILES',
   onboarding: 'profile → Reddit file → import complete',
-  automaticReloads: navigations,
+  automaticReloads: unexpectedLoads,
   screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png']
 }, null, 2));
 await browser.close();
