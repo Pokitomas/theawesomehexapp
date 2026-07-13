@@ -162,7 +162,11 @@ def main() -> None:
     forbid(component_css, (".studio-profile-", ".studio-storage-", ".drop-zone", ".queue li", ".studio-format-grid"), "dead prototype component styling")
 
     social_css = source_text[PRODUCT / "social.css"]
-    require(social_css, (".social-top-post", ".social-post-card", ".social-profile-dialog", ".social-composer-dialog", ".social-option-grid", ".social-post-actions"), "social product styling")
+    require(
+        social_css,
+        (".social-top-post", ".social-post-card", ".social-dialog", ".social-composer-text", ".social-option-grid", ".social-post-actions"),
+        "social product styling",
+    )
 
     phone_source = source_text[PRODUCT / "import-phone.js"]
     require(phone_source, ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"), "native phone importer")
