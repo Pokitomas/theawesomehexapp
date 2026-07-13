@@ -1,5 +1,5 @@
-version: 1
-updated_at: 2026-07-13T05:31:00-07:00
+version: 2
+updated_at: 2026-07-13T05:49:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -20,26 +20,44 @@ file_locks:
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Make the real iPhone journey pass after replacing the file-picker handoff and removing the duplicate legacy ADD surface.
-  last_change: Native label-backed platform file controls, ADD-route preservation after file selection, visible legacy surface reset, raw touchscreen regression tests.
-  done_when: Phone workflow proves profile -> platform picker -> Reddit file -> import complete, with zero unexpected reloads and no visible legacy ADD UI.
+  summary: Mesh with Claude's active QA lane and the GitHub Actions runner while isolating PR 43's remaining iPhone import-path failure.
+  last_change: Native label-backed platform file controls, ADD-route preservation after file selection, visible legacy-surface reset, raw touchscreen tests, and explicit shared-state coordination.
+  current_ci: PR 43 phone job 86817866977 failed only in the combined real-tap/import/quiescence step; build and exact-kernel steps passed.
+  done_when: Phone workflow proves profile -> platform picker -> Reddit file -> import complete, zero unexpected reloads, and no visible legacy ADD UI.
+
+external_execution:
+  github_actions:
+    status: observed
+    meaning: The supplied Azure Blob URL is a signed redirect to a GitHub Actions job log, not a source-code editor.
+    coordination: Treat it as CI evidence and do not launch a duplicate run for the same head while it is active.
+  claude:
+    status: active and coordinated through this file
+    owned_branch: claude/kernel-parity-tests
+    owned_pr: 41
+    owned_files:
+      - studio/manual/tests/kernel-parity.mjs
+      - .github/workflows/kernel-parity-check.yml
+    collision_status: no overlap with GPT file locks
+    review_only_output: Exact copy replacements posted on PR 43; platform-card critique is the next non-collision slice.
 
 next_architectural_goal:
   summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
   sequence:
+    - resolve the current iPhone file-picker/import completion failure
+    - apply collaborator copy review after the interaction path is stable
     - get PR 43 fully green
     - inspect phone screenshots for product comprehension and visual hierarchy
-    - integrate exact collaborator review changes from beacon issue 40
     - merge to main and verify Pages deployment on a real phone URL
     - recursively re-evaluate feed, profile, saved, and detail views against the same plain-language standard
 
 collaborator_lane:
-  status: beacon active
+  status: beacon active and matched
   allowed_now:
+    - PR 41 kernel parity work in Claude-owned files
     - rendered-product critique with exact replacement copy/layout
-    - parser fixtures for Instagram TikTok YouTube Spotify
+    - parser fixtures for Instagram TikTok YouTube Spotify after current interaction path stabilizes
     - independent phone regression review
-  collision_rule: Do not edit currently locked files without first updating this ledger and commenting on issue 40.
+  collision_rule: Do not edit another owner's locked files without first updating this ledger and commenting on issue 40.
 
 invariants:
   - Read this file at the start of every coding turn.
