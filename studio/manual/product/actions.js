@@ -8,7 +8,7 @@ const define = (id, label, surface, intent, payload = {}) => Object.freeze({
 
 export const ACTIONS = Object.freeze({
   'nav.feed': define('nav.feed', 'FEED', 'nav', 'navigate', { route: '#/feed' }),
-  'nav.import': define('nav.import', 'IMPORT', 'nav', 'navigate', { route: '#/add' }),
+  'nav.import': define('nav.import', 'ADD', 'nav', 'navigate', { route: '#/add' }),
   'nav.saved': define('nav.saved', 'SAVED', 'nav', 'navigate', { route: '#/saved' }),
   'nav.profile': define('nav.profile', 'ME', 'nav', 'open_profile'),
   'feed.post': define('feed.post', 'POST', 'feed', 'open_composer'),
