@@ -4,12 +4,18 @@ This is the editable product layer for `/manual/`.
 
 The large ingestion and ranking core is assembled from the repository's verified overlays. Do not hand-edit generated or packed shards. Product work belongs here:
 
-- `product/copy.js` — every visible product phrase, onboarding message, and storage label.
-- `product/studio.css` — visual tokens, card language, navigation, and the bold base skin.
-- `product/studio-components.css` — onboarding, imports, storage, progress states, accessibility, and responsive components.
-- `product/studio.js` — idempotent product behavior layered over the canonical application.
+- `product/copy.js` — visible onboarding, profile, feed, import, completion, and storage language.
+- `product/studio.css` — visual tokens, navigation, feed cards, blank state, and the core responsive skin.
+- `product/studio-components.css` — local-profile form, storage, progress, accessibility, and responsive components.
+- `product/studio.js` — additive product behavior and the browser-local profile flow.
+- `product/import-studio.js` — platform chooser, file handoff, import queue, progress, and completion flow.
+- `product/import-studio.css` — source-card visuals and import layout.
+- `product/import-phone.js` — iPhone-safe replacement for unsupported folder picking.
+- `imports/registry.js` — structured export adapters.
+- `imports/runtime.js` — inspection, dedupe, chunked IndexedDB writes, cancellation, quota checks, and profile attribution.
 - `apply.py` — installs the editable layer into the assembled `manual-app/` without duplicating tags.
-- `verify.py` — rejects malformed UTF-8, binary bytes, syntax errors, render-loop regressions, missing assets, and broken phone-test contracts.
+- `verify.py` — rejects malformed UTF-8, binary bytes, syntax errors, render-loop regressions, missing assets, automatic import reloads, event hijacking, and broken phone-test contracts.
+- `tests/onboarding-clickthrough.mjs` — real iPhone touch and post-interaction quiescence proof contributed through the #40 collaboration beacon.
 
 ## Build contract
 
@@ -22,11 +28,52 @@ python studio/manual/verify.py
 
 The Pages and phone-proof workflows run both commands before copying, testing, or deploying the manual product.
 
+## First-run product contract
+
+A new user should be able to understand the product without knowing what an “archive,” “corpus,” “kernel,” or “data dump” is:
+
+1. Enter a local name and optional handle, or skip.
+2. Choose a recognizable app.
+3. Open that app's official data-download page when needed.
+4. Choose the downloaded files.
+5. Review what Sideways recognized.
+6. Add it to the feed.
+7. Explicitly open the feed after the completion screen.
+
+The UI must never pretend that static GitHub Pages can perform OAuth or silently retrieve account data. “Connect” means guiding the user through the platform's official export and then importing locally.
+
+## Supported structured sources
+
+The editable adapter registry recognizes:
+
+- X / Twitter archives
+- Reddit posts and comments
+- Instagram account exports
+- TikTok user-data exports
+- YouTube / Google Takeout history
+- Spotify listening history
+- Mastodon outbox files
+- browser bookmarks
+- RSS / Atom
+- JSON / JSONL / NDJSON
+- CSV
+- plain text, Markdown, and HTML
+
+The canonical ADD engine continues to handle PDF, Office, ZIP, images, audio, video, links, and pasted material.
+
+## Interaction contract
+
+Do not install a whole-document `MutationObserver` to keep the product layer mounted. The product uses real route/application events plus a bounded setup retry window. The interface must become quiescent after that window so taps are never competing with endless remount work.
+
+Imports must not automatically reload or navigate. Completion shows a deliberate `OPEN MY FEED` action. Persistent-storage approval is best-effort and must never block importing.
+
+On iPhone, unsupported folder selection is replaced by a cloned `PICK MORE FILES` control. Do not use capture-phase `stopImmediatePropagation()` to steal clicks from other behavior.
+
 ## Editing the product
 
-Change language in `copy.js`. Change the shared palette, borders, shadows, navigation, and cards in `studio.css`. Change onboarding/import/storage/mobile components in `studio-components.css`. Change additive product behavior in `studio.js`.
+Change language in `copy.js`. Change the shared palette, borders, shadows, navigation, and feed cards in `studio.css`. Change profile/storage/progress/mobile components in `studio-components.css`. Change platform onboarding in `import-studio.js` and `import-studio.css`. Add or improve parsers in `imports/registry.js`.
 
-Keep enhancements idempotent: check whether text, attributes, or components already match before writing to the DOM. The verifier enforces the scheduled enhancement contract because an unbounded mutation loop can block the feed's animation and ranking loop.
+Every pass should re-evaluate whether a phrase, screen, or component deserves to exist. Do not preserve developer-shaped language or aesthetic decoration solely because it is already implemented.
 
 ## Compatibility contract
 
