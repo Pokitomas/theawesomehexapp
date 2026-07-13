@@ -20,6 +20,7 @@ TEXT_FILES = [
     HERE / "imports" / "runtime.js",
     HERE / "imports" / "apply.py",
     HERE / "imports" / "verify.mjs",
+    HERE / "prepare-kernel.py",
     HERE / "apply.py",
 ]
 
@@ -53,6 +54,15 @@ def main() -> None:
         HERE / "imports" / "verify.mjs",
     ):
         node_check(path)
+
+    kernel_prepare = assert_clean_text(HERE / "prepare-kernel.py")
+    for contract in (
+        "\\s*=.*$",
+        "state.records.length&&!els.feedView.hidden",
+        "refusing a blind compatibility patch",
+    ):
+        if contract not in kernel_prepare:
+            raise AssertionError(f"kernel compatibility contract missing: {contract}")
 
     studio_source = assert_clean_text(HERE / "product" / "studio.js")
     if "requestAnimationFrame" not in studio_source or "setText" not in studio_source:
