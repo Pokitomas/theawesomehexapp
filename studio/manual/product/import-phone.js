@@ -5,8 +5,9 @@ const IOS_PICKER = /iPad|iPhone|iPod/.test(navigator.userAgent)
 let scheduled = false;
 
 function importerFileInput() {
-  return [...document.querySelectorAll('body > input[type="file"][hidden]')]
-    .find(input => !input.id && !input.hasAttribute('webkitdirectory'))
+  return document.getElementById('sidewaysImportFiles')
+    || [...document.querySelectorAll('body > input[type="file"][hidden]')]
+      .find(input => !input.hasAttribute('webkitdirectory'))
     || document.getElementById('filePicker');
 }
 
