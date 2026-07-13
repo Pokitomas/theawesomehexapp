@@ -11,11 +11,11 @@ function importerFileInput() {
 }
 
 function patchPhonePicker() {
-  if (!IOS_PICKER) return;
+  if (!IOS_PICKER) return false;
   const terminals = [...document.querySelectorAll('#importWorkbenchHost .import-terminal')];
   const folder = terminals.find(node => node.querySelector('strong')?.textContent === 'PICK FOLDER'
     || node.dataset.phonePicker === 'true');
-  if (!folder) return;
+  if (!folder) return false;
 
   folder.dataset.phonePicker = 'true';
   const label = folder.querySelector('strong');
@@ -24,13 +24,14 @@ function patchPhonePicker() {
   if (help && help.textContent !== 'Choose several files on this device.') {
     help.textContent = 'Choose several files on this device.';
   }
-  if (folder.dataset.phoneBound === 'true') return;
+  if (folder.dataset.phoneBound === 'true') return true;
   folder.dataset.phoneBound = 'true';
   folder.addEventListener('click', event => {
     event.preventDefault();
     event.stopImmediatePropagation();
     importerFileInput()?.click();
   }, true);
+  return true;
 }
 
 function schedule() {
@@ -42,15 +43,15 @@ function schedule() {
   });
 }
 
-new MutationObserver(schedule).observe(document.body || document.documentElement, {
-  childList: true,
-  subtree: true,
-  attributes: true,
-  attributeFilter: ['hidden']
-});
-window.addEventListener('hashchange', schedule);
-window.addEventListener('sideways:ready', schedule);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
-else schedule();
+function boot() {
+  schedule();
+  for (const delay of [100, 320, 900, 1800]) setTimeout(schedule, delay);
+}
+
+for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:importworkbench']) {
+  window.addEventListener(eventName, schedule);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+else boot();
 
 window.SidewaysImportPhone = Object.freeze({ patch: patchPhonePicker, isPhoneFallback: IOS_PICKER });
