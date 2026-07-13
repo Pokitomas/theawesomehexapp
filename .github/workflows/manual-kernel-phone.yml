@@ -128,9 +128,22 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         with:
           script: |
-            await github.rest.issues.createComment({
+            const markerStart = '<!-- BRANCH_PROOF_START -->';
+            const markerEnd = '<!-- BRANCH_PROOF_END -->';
+            const block = `${markerStart}\nBRANCH_PROOF run=${context.runId} sha=${context.sha} result=${process.env.JOB_STATUS}\n${markerEnd}`;
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 52
+            });
+            const body = issue.data.body || '';
+            const pattern = new RegExp(`${markerStart}[\\s\\S]*?${markerEnd}`);
+            const nextBody = pattern.test(body)
+              ? body.replace(pattern, block)
+              : `${body.trim()}\n\n${block}`;
+            await github.rest.issues.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: 52,
-              body: `BRANCH_PROOF run=${context.runId} sha=${context.sha} result=${process.env.JOB_STATUS}`
+              body: nextBody
             });
