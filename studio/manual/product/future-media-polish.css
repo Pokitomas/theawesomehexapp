@@ -1,0 +1,195 @@
+html.workspace-chrome #navProfile .workspace-button-label {
+  display: none !important;
+}
+
+html.workspace-chrome .type-nav {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+html.workspace-chrome .type-nav > button {
+  min-width: 0;
+}
+
+html.workspace-chrome .type-nav .future-mode-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(42px, 1fr));
+  align-self: stretch;
+  margin: 0;
+  border-left: 1px solid var(--future-blue);
+  background: var(--future-black);
+}
+
+html.workspace-chrome .type-nav .future-mode-button {
+  min-width: 42px;
+  min-height: 34px;
+  padding: 0 .42rem;
+  border: 0;
+  border-right: 1px solid var(--future-line);
+  background: var(--future-black);
+  color: var(--future-muted);
+  font-size: .56rem;
+  letter-spacing: .06em;
+}
+
+html.workspace-chrome .type-nav .future-mode-button.is-active {
+  background: var(--future-blue);
+  color: white;
+  box-shadow: inset 0 3px 0 var(--future-toxic);
+}
+
+html.workspace-chrome .studio-empty-hero {
+  min-height: calc(var(--future-visual-height) - var(--future-chrome-height));
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--future-black);
+}
+
+html.workspace-chrome .workspace-empty-mark {
+  width: 100%;
+  min-height: 54dvh;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(135deg, transparent 0 49.6%, var(--future-blue) 49.6% 50.4%, transparent 50.4%),
+    var(--future-white);
+}
+
+html.workspace-chrome .workspace-empty-symbol {
+  width: min(34vw, 190px);
+  height: min(34vw, 190px);
+  stroke: var(--future-blue);
+  stroke-width: .9;
+}
+
+html.workspace-chrome .studio-empty-copy {
+  display: block;
+  padding: 0;
+}
+
+html.workspace-chrome .studio-empty-copy h1,
+html.workspace-chrome .studio-empty-copy > p {
+  display: none !important;
+}
+
+html.workspace-chrome .studio-launch-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0;
+  background: var(--future-line);
+}
+
+html.workspace-chrome .studio-launch-button {
+  min-height: 58px;
+  border: 0;
+  background: var(--future-black);
+}
+
+html.workspace-chrome .studio-launch-button.is-post {
+  background: var(--future-blue);
+  color: white;
+}
+
+html[data-feed-mode="grid"] #feed .post.has-universal-media:not(.is-grid-focus) .post-copy {
+  display: none;
+}
+
+html[data-feed-mode="grid"] #feed .post.has-universal-media:not(.is-grid-focus) .universal-media-shell {
+  position: relative;
+}
+
+html[data-feed-mode="grid"] #feed .post.has-universal-media:not(.is-grid-focus) .universal-media-shell::after {
+  content: attr(data-media-title);
+  position: absolute;
+  inset: auto 0 0;
+  padding: .52rem .6rem .58rem;
+  border-top: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(transparent, rgba(0,0,0,.92) 52%);
+  color: white;
+  font: 820 .82rem/.92 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .universal-file-surface {
+  min-height: 0;
+  height: 100%;
+  grid-template-columns: 58px 1fr;
+  grid-template-rows: 1fr auto;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .universal-file-code {
+  font-size: 1.05rem;
+  letter-spacing: -.04em;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .universal-file-name {
+  align-self: end;
+  display: -webkit-box;
+  padding: .7rem .65rem .32rem;
+  overflow: hidden;
+  font-size: 1.05rem;
+  line-height: .92;
+  letter-spacing: -.035em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .universal-file-meta {
+  padding: .32rem .65rem .65rem;
+  font-size: .58rem;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .actions [data-action-id="record.save"],
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .actions [data-action-id="record.collect"] {
+  display: none;
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .actions > button {
+  min-height: 38px;
+}
+
+html[data-feed-mode="grid"] #feed .post.is-grid-focus .post-copy {
+  display: block;
+}
+
+@media (max-width: 520px) {
+  html.workspace-chrome .type-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) 126px;
+  }
+
+  html.workspace-chrome .type-nav button {
+    padding-inline: .18rem;
+    font-size: .58rem;
+  }
+
+  html.workspace-chrome .type-nav .future-mode-button {
+    font-size: .49rem;
+  }
+
+  html.workspace-chrome .workspace-commandbar {
+    justify-content: stretch;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav {
+    flex: 1 0 auto;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav-button,
+  html.workspace-chrome .workspace-commandbar .workspace-new-button {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+}
