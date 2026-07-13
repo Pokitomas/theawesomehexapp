@@ -35,6 +35,13 @@ async function touch(page, locator) {
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+async function waitForImportOutcome(page) {
+  await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
+  const error = page.locator('.import-error-panel');
+  if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
+  await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+}
+
 const gateContext = await browser.newContext(iphone);
 const gatePage = await gateContext.newPage();
 const gateErrors = collectErrors(gatePage);
@@ -91,7 +98,7 @@ await chooser.setFiles({
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"hello from reddit",sideways,/r/sideways/comments/1,1700000000,kai,abc123\n')
 });
 
-await consumer.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 15000 });
+await waitForImportOutcome(consumer);
 await consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 await consumer.waitForTimeout(2500);
 if (loads !== 0) throw new Error(`import triggered ${loads} automatic page load(s)`);
