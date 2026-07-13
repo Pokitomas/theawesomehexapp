@@ -28,9 +28,9 @@ export async function prepareImage(file) {
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.getContext('2d', { alpha: false }).drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await canvasBlob(canvas, 'image/webp', .86) || await canvasBlob(canvas, 'image/jpeg', .86) || file;
-    return { blob, width: canvas.width, height: canvas.height, mime: blob.type || file.type || 'image/jpeg' };
+    canvas.getContext('2d', { alpha: true }).drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await canvasBlob(canvas, 'image/webp', .86) || await canvasBlob(canvas, 'image/png') || file;
+    return { blob, width: canvas.width, height: canvas.height, mime: blob.type || file.type || 'image/png' };
   } finally {
     URL.revokeObjectURL(url);
   }
