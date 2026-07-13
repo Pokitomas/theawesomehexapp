@@ -38,12 +38,21 @@ jobs:
               verify.write_text(text.replace(old, new, 1), encoding='utf-8')
           elif new not in text:
               raise SystemExit('expected action dataset verifier expression not found')
+
+          workspace = Path('studio/manual/product/workspace.js')
+          text = workspace.read_text(encoding='utf-8')
+          old = "async function listEntities({ placeId = 'everything', archived = False } = {})"
+          new = "async function listEntities({ placeId = 'everything', archived = false } = {})"
+          if old in text:
+              workspace.write_text(text.replace(old, new, 1), encoding='utf-8')
+          elif new not in text:
+              raise SystemExit('expected workspace archived default expression not found')
           PY
       - name: Push exact patches
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add studio/manual/product/social.js studio/manual/verify.py
+          git add studio/manual/product/social.js studio/manual/verify.py studio/manual/product/workspace.js
           git commit -m "Correct OS source and verifier contracts"
           git push origin HEAD:agent/fun-posting-system
