@@ -38,7 +38,7 @@ function makeWav() {
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const unknown = Buffer.from([0, 255, 1, 2, 3, 0, 127, 128, 129, 13, 10, 0, 4, 5, 6, 7]);
-const mp4 = Buffer.from(fs.readFileSync(new URL('./fixtures/future-video.mp4.base64', import.meta.url), 'utf8').trim(), 'base64');
+const webm = Buffer.from(fs.readFileSync(new URL('./fixtures/future-video.webm.base64', import.meta.url), 'utf8').trim(), 'base64');
 const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF', 'utf8');
 const wav = makeWav();
 
@@ -100,7 +100,7 @@ await page.waitForFunction(() => document.documentElement.dataset.mediaModes ===
 const importInput = page.locator('#sidewaysImportFiles');
 await importInput.setInputFiles([
   { name: 'red-circle.png', mimeType: '', buffer: png },
-  { name: 'portrait-clip.mp4', mimeType: '', buffer: mp4 },
+  { name: 'portrait-clip.webm', mimeType: '', buffer: webm },
   { name: 'tone.wav', mimeType: '', buffer: wav },
   { name: 'document.pdf', mimeType: '', buffer: pdf },
   { name: 'unknown-no-extension', mimeType: '', buffer: unknown }
@@ -110,7 +110,7 @@ await page.evaluate(() => window.SidewaysCore.routeTo('#/feed'));
 await page.waitForURL(/#\/feed$/, { timeout: 10000 });
 
 const imageCard = page.locator('#feed .post').filter({ hasText: 'red-circle.png' });
-const videoCard = page.locator('#feed .post').filter({ hasText: 'portrait-clip.mp4' });
+const videoCard = page.locator('#feed .post').filter({ hasText: 'portrait-clip.webm' });
 const audioCard = page.locator('#feed .post').filter({ hasText: 'tone.wav' });
 const pdfCard = page.locator('#feed .post').filter({ hasText: 'document.pdf' });
 const binaryCard = page.locator('#feed .post').filter({ hasText: 'unknown-no-extension' });
@@ -119,7 +119,9 @@ for (const card of [imageCard, videoCard, audioCard, pdfCard, binaryCard]) await
 const image = imageCard.locator('.universal-image');
 await image.waitFor({ state: 'visible', timeout: 15000 });
 await page.waitForFunction(() => document.querySelector('.universal-image')?.naturalWidth > 0, { timeout: 10000 });
-if (await videoCard.locator('.universal-video').count() !== 1) throw new Error('video did not receive a video surface');
+const video = videoCard.locator('.universal-video');
+if (await video.count() !== 1) throw new Error('video did not receive a video surface');
+await page.waitForFunction(() => document.querySelector('.universal-video')?.readyState >= 1, { timeout: 10000 });
 if (await audioCard.locator('.universal-audio audio').count() !== 1) throw new Error('audio did not receive an audio surface');
 const pdfSurface = pdfCard.locator('.universal-file-surface.is-pdf');
 if (await pdfSurface.count() !== 1 || !(await pdfSurface.getAttribute('href'))?.startsWith('blob:')) throw new Error('PDF did not receive an openable document surface');
@@ -127,15 +129,15 @@ await binaryCard.locator('.universal-file-surface').waitFor({ state: 'attached',
 
 const records = await readAll('records');
 const imageRecord = recordByName(records, 'red-circle.png');
-const videoRecord = recordByName(records, 'portrait-clip.mp4');
+const videoRecord = recordByName(records, 'portrait-clip.webm');
 const audioRecord = recordByName(records, 'tone.wav');
 const pdfRecord = recordByName(records, 'document.pdf');
 const binaryRecord = recordByName(records, 'unknown-no-extension');
 if (!imageRecord || imageRecord.mediaKind !== 'image' || imageRecord.mime !== 'image/png' || !imageRecord.assetKey || imageRecord.text || !(imageRecord.width > 0) || !(imageRecord.height > 0)) {
   throw new Error(`MIME-less PNG was not normalized as image media: ${JSON.stringify(imageRecord)}`);
 }
-if (!videoRecord || videoRecord.mediaKind !== 'video' || videoRecord.mime !== 'video/mp4' || !videoRecord.assetKey || videoRecord.text || videoRecord.width !== 90 || videoRecord.height !== 160 || !(videoRecord.duration > 0)) {
-  throw new Error(`MIME-less MP4 was not normalized as portrait video: ${JSON.stringify(videoRecord)}`);
+if (!videoRecord || videoRecord.mediaKind !== 'video' || videoRecord.mime !== 'video/webm' || !videoRecord.assetKey || videoRecord.text || videoRecord.width !== 90 || videoRecord.height !== 160 || !(videoRecord.duration > 0)) {
+  throw new Error(`MIME-less WebM was not normalized as portrait video: ${JSON.stringify(videoRecord)}`);
 }
 if (!audioRecord || audioRecord.mediaKind !== 'audio' || audioRecord.mime !== 'audio/wav' || !audioRecord.assetKey || audioRecord.text || !(audioRecord.duration > 0)) {
   throw new Error(`MIME-less WAV was not normalized as playable audio: ${JSON.stringify(audioRecord)}`);
@@ -177,9 +179,10 @@ if (gridDisplay !== 'grid') throw new Error(`Grid mode did not become a grid: ${
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.mediaModes === 'ready', { timeout: 15000 });
 if (await page.evaluate(() => document.documentElement.dataset.feedMode) !== 'grid') throw new Error('feed mode did not persist across reload');
+await page.waitForFunction(() => document.querySelector('.universal-video')?.readyState >= 1, { timeout: 10000 });
 
 await page.screenshot({ path: 'manual-universal-media-grid.png', fullPage: true });
-const deleteOrder = ['red-circle.png', 'portrait-clip.mp4', 'tone.wav', 'document.pdf', 'unknown-no-extension'];
+const deleteOrder = ['red-circle.png', 'portrait-clip.webm', 'tone.wav', 'document.pdf', 'unknown-no-extension'];
 for (let index = 0; index < deleteOrder.length; index += 1) {
   const name = deleteOrder[index];
   const card = page.locator('#feed .post').filter({ hasText: name });
@@ -198,7 +201,7 @@ await page.screenshot({ path: 'manual-universal-media-empty.png', fullPage: true
 console.log(JSON.stringify({
   media: {
     image: { mime: imageRecord.mime, width: imageRecord.width, height: imageRecord.height },
-    video: { mime: videoRecord.mime, width: videoRecord.width, height: videoRecord.height, duration: videoRecord.duration },
+    video: { mime: videoRecord.mime, width: videoRecord.width, height: videoRecord.height, duration: videoRecord.duration, playback: true },
     audio: { mime: audioRecord.mime, duration: audioRecord.duration },
     pdf: { mime: pdfRecord.mime, surface: 'document-link' },
     binary: { mime: binaryRecord.mime }
