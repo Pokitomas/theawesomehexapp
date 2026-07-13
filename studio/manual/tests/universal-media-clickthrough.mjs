@@ -14,23 +14,33 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
+function makeWav() {
+  const sampleRate = 8000;
+  const samples = Math.round(sampleRate * .25);
+  const buffer = Buffer.alloc(44 + samples);
+  buffer.write('RIFF', 0, 'ascii');
+  buffer.writeUInt32LE(36 + samples, 4);
+  buffer.write('WAVEfmt ', 8, 'ascii');
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate, 28);
+  buffer.writeUInt16LE(1, 32);
+  buffer.writeUInt16LE(8, 34);
+  buffer.write('data', 36, 'ascii');
+  buffer.writeUInt32LE(samples, 40);
+  for (let index = 0; index < samples; index += 1) {
+    buffer[44 + index] = Math.round(128 + Math.sin(index / sampleRate * Math.PI * 2 * 440) * 72);
+  }
+  return buffer;
+}
+
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const unknown = Buffer.from([0, 255, 1, 2, 3, 0, 127, 128, 129, 13, 10, 0, 4, 5, 6, 7]);
-const mp4 = Buffer.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0, 0x69, 0x73, 0x6f, 0x6d, 0x6d, 0x70, 0x34, 0x31]);
+const mp4 = Buffer.from(fs.readFileSync(new URL('./fixtures/future-video.mp4.base64', import.meta.url), 'utf8').trim(), 'base64');
 const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF', 'utf8');
-const wav = Buffer.alloc(44);
-wav.write('RIFF', 0, 'ascii');
-wav.writeUInt32LE(36, 4);
-wav.write('WAVEfmt ', 8, 'ascii');
-wav.writeUInt32LE(16, 16);
-wav.writeUInt16LE(1, 20);
-wav.writeUInt16LE(1, 22);
-wav.writeUInt32LE(8000, 24);
-wav.writeUInt32LE(8000, 28);
-wav.writeUInt16LE(1, 32);
-wav.writeUInt16LE(8, 34);
-wav.write('data', 36, 'ascii');
-wav.writeUInt32LE(0, 40);
+const wav = makeWav();
 
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({
@@ -111,7 +121,8 @@ await image.waitFor({ state: 'visible', timeout: 15000 });
 await page.waitForFunction(() => document.querySelector('.universal-image')?.naturalWidth > 0, { timeout: 10000 });
 if (await videoCard.locator('.universal-video').count() !== 1) throw new Error('video did not receive a video surface');
 if (await audioCard.locator('.universal-audio audio').count() !== 1) throw new Error('audio did not receive an audio surface');
-if (await pdfCard.locator('.universal-pdf').count() !== 1) throw new Error('PDF did not receive a PDF surface');
+const pdfSurface = pdfCard.locator('.universal-file-surface.is-pdf');
+if (await pdfSurface.count() !== 1 || !(await pdfSurface.getAttribute('href'))?.startsWith('blob:')) throw new Error('PDF did not receive an openable document surface');
 await binaryCard.locator('.universal-file-surface').waitFor({ state: 'attached', timeout: 15000 });
 
 const records = await readAll('records');
@@ -123,11 +134,11 @@ const binaryRecord = recordByName(records, 'unknown-no-extension');
 if (!imageRecord || imageRecord.mediaKind !== 'image' || imageRecord.mime !== 'image/png' || !imageRecord.assetKey || imageRecord.text || !(imageRecord.width > 0) || !(imageRecord.height > 0)) {
   throw new Error(`MIME-less PNG was not normalized as image media: ${JSON.stringify(imageRecord)}`);
 }
-if (!videoRecord || videoRecord.mediaKind !== 'video' || videoRecord.mime !== 'video/mp4' || !videoRecord.assetKey || videoRecord.text) {
-  throw new Error(`MIME-less MP4 was not normalized as video media: ${JSON.stringify(videoRecord)}`);
+if (!videoRecord || videoRecord.mediaKind !== 'video' || videoRecord.mime !== 'video/mp4' || !videoRecord.assetKey || videoRecord.text || videoRecord.width !== 90 || videoRecord.height !== 160 || !(videoRecord.duration > 0)) {
+  throw new Error(`MIME-less MP4 was not normalized as portrait video: ${JSON.stringify(videoRecord)}`);
 }
-if (!audioRecord || audioRecord.mediaKind !== 'audio' || audioRecord.mime !== 'audio/wav' || !audioRecord.assetKey || audioRecord.text) {
-  throw new Error(`MIME-less WAV was not normalized as audio media: ${JSON.stringify(audioRecord)}`);
+if (!audioRecord || audioRecord.mediaKind !== 'audio' || audioRecord.mime !== 'audio/wav' || !audioRecord.assetKey || audioRecord.text || !(audioRecord.duration > 0)) {
+  throw new Error(`MIME-less WAV was not normalized as playable audio: ${JSON.stringify(audioRecord)}`);
 }
 if (!pdfRecord || pdfRecord.mediaKind !== 'pdf' || pdfRecord.mime !== 'application/pdf' || !pdfRecord.assetKey || pdfRecord.text) {
   throw new Error(`MIME-less PDF was not normalized as PDF media: ${JSON.stringify(pdfRecord)}`);
@@ -187,9 +198,9 @@ await page.screenshot({ path: 'manual-universal-media-empty.png', fullPage: true
 console.log(JSON.stringify({
   media: {
     image: { mime: imageRecord.mime, width: imageRecord.width, height: imageRecord.height },
-    video: { mime: videoRecord.mime },
-    audio: { mime: audioRecord.mime },
-    pdf: { mime: pdfRecord.mime },
+    video: { mime: videoRecord.mime, width: videoRecord.width, height: videoRecord.height, duration: videoRecord.duration },
+    audio: { mime: audioRecord.mime, duration: audioRecord.duration },
+    pdf: { mime: pdfRecord.mime, surface: 'document-link' },
     binary: { mime: binaryRecord.mime }
   },
   stage,
