@@ -1,4 +1,13 @@
 @media (max-width: 760px) {
+  html.workspace-chrome .topbar {
+    transform: none !important;
+    filter: none !important;
+    contain: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(8, 8, 13, .96) !important;
+  }
+
   html.workspace-chrome .workspace-commandbar {
     position: fixed !important;
     inset: auto 0 0 0 !important;
