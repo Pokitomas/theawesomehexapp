@@ -18,34 +18,42 @@ function checkJS(path) {
   assert.equal(result.status, 0, `${path}\n${result.stderr}`);
 }
 
-for (const relative of [
+const sourceFiles = [
+  'shared/corpus-db.js',
   'imports/registry.js',
   'imports/runtime.js',
+  'imports/file-hash.js',
+  'imports/hash-worker.js',
+  'imports/corpus-writer.js',
+  'imports/record-normalizer.js',
   'imports/apply.py',
   'product/import-studio.js',
   'product/import-studio.css',
   'product/import-phone.js'
-]) assert.equal(await exists(resolve(source, relative)), true, `missing source: ${relative}`);
+];
+for (const relative of sourceFiles) {
+  assert.equal(await exists(resolve(source, relative)), true, `missing source: ${relative}`);
+}
 
-for (const relative of [
+const builtFiles = [
+  'shared/corpus-db.js',
   'imports/registry.js',
   'imports/runtime.js',
+  'imports/file-hash.js',
+  'imports/hash-worker.js',
+  'imports/corpus-writer.js',
+  'imports/record-normalizer.js',
   'import-studio.js',
   'import-studio.css',
   'import-phone.js',
   'index.html'
-]) assert.equal(await exists(resolve(manual, relative)), true, `missing built file: ${relative}`);
+];
+for (const relative of builtFiles) {
+  assert.equal(await exists(resolve(manual, relative)), true, `missing built file: ${relative}`);
+}
 
-for (const path of [
-  resolve(source, 'imports/registry.js'),
-  resolve(source, 'imports/runtime.js'),
-  resolve(source, 'product/import-studio.js'),
-  resolve(source, 'product/import-phone.js'),
-  resolve(manual, 'imports/registry.js'),
-  resolve(manual, 'imports/runtime.js'),
-  resolve(manual, 'import-studio.js'),
-  resolve(manual, 'import-phone.js')
-]) checkJS(path);
+for (const relative of sourceFiles.filter(path => /\.(m?js)$/.test(path))) checkJS(resolve(source, relative));
+for (const relative of builtFiles.filter(path => /\.(m?js)$/.test(path))) checkJS(resolve(manual, relative));
 
 const html = await readFile(resolve(manual, 'index.html'), 'utf8');
 assert.match(html, /data-import-workbench/);
@@ -56,15 +64,41 @@ assert.equal((html.match(/import-phone\.js/g) || []).length, 1, 'phone script in
 
 const runtimeText = await readFile(resolve(source, 'imports/runtime.js'), 'utf8');
 for (const contract of [
-  "const DB_NAME = 'sideways-manual-corpus-v1'",
-  "const RECORD_STORE = 'records'",
-  "const PROFILE_KEY = 'sideways-local-profile-v1'",
   'new AbortController()',
-  'navigator.storage?.estimate',
-  'navigator.storage?.persist',
+  'storageDurability',
+  'digestFile',
+  'existingKeys',
+  'addMediaRecord',
   'this.chunkSize',
   "window.dispatchEvent(new CustomEvent('sideways:import-complete'"
 ]) assert.ok(runtimeText.includes(contract), `runtime contract missing: ${contract}`);
+
+const dbText = await readFile(resolve(source, 'shared/corpus-db.js'), 'utf8');
+for (const contract of [
+  "CORPUS_DB = 'sideways-manual-corpus-v1'",
+  'CORPUS_VERSION = 2',
+  "RECORD_STORE = 'records'",
+  "BLOB_STORE = 'blobs'",
+  "LEDGER_STORE = 'ledger'",
+  "createIndex('assetKey'",
+  'storage.persisted',
+  'storage.persist'
+]) assert.ok(dbText.includes(contract), `corpus contract missing: ${contract}`);
+
+const hashText = await readFile(resolve(source, 'imports/file-hash.js'), 'utf8');
+for (const contract of ['FULL_HASH_MAX', 'new Worker', 'sha256-worker', 'sha256-sampled']) {
+  assert.ok(hashText.includes(contract), `hash contract missing: ${contract}`);
+}
+
+const writerText = await readFile(resolve(source, 'imports/corpus-writer.js'), 'utf8');
+for (const contract of ['LEDGER_STORE', 'record.import', 'addMediaRecord', 'addRecords']) {
+  assert.ok(writerText.includes(contract), `writer contract missing: ${contract}`);
+}
+
+const normalizerText = await readFile(resolve(source, 'imports/record-normalizer.js'), 'utf8');
+for (const contract of ['normalizeRecord', 'compatibility', 'sourceMime', 'canonicalMime']) {
+  assert.ok(normalizerText.includes(contract), `normalizer contract missing: ${contract}`);
+}
 
 for (const forbidden of ['riskFloor', 'deep_saturation', 'scoreCandidate', 'updateLoads', 'diversifiedRank']) {
   assert.equal(runtimeText.includes(forbidden), false, `import runtime duplicated kernel logic: ${forbidden}`);
@@ -107,8 +141,11 @@ assert.equal(registry.find(fake('records.jsonl')).id, 'json-lines');
 assert.equal(registry.find(fake('records.csv', 'text/csv')).id, 'csv');
 assert.equal(registry.find(fake('notes.txt', 'text/plain')).id, 'plain-text');
 
-console.log(JSON.stringify({ adapters: ids, indexedDB: DBContract(runtimeText), workbench: true, observerFree: true }, null, 2));
-
-function DBContract(text) {
-  return text.includes('sideways-manual-corpus-v1') && text.includes("RECORD_STORE = 'records'");
-}
+console.log(JSON.stringify({
+  adapters: ids,
+  corpusVersion: 2,
+  ledger: true,
+  workerHashing: true,
+  workbench: true,
+  observerFree: true
+}, null, 2));

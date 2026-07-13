@@ -78,6 +78,13 @@ async function touch(locator) {
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+async function hydrate(card, selector, state = 'attached') {
+  await card.scrollIntoViewIfNeeded();
+  const surface = card.locator(selector);
+  await surface.waitFor({ state, timeout: 15000 });
+  return surface;
+}
+
 async function deleteCard(card) {
   const dialogPromise = page.waitForEvent('dialog');
   const tapPromise = touch(card.locator('[data-action-id="post.delete"]'));
@@ -116,16 +123,16 @@ const pdfCard = page.locator('#feed .post').filter({ hasText: 'document.pdf' });
 const binaryCard = page.locator('#feed .post').filter({ hasText: 'unknown-no-extension' });
 for (const card of [imageCard, videoCard, audioCard, pdfCard, binaryCard]) await card.waitFor({ state: 'attached', timeout: 15000 });
 
-const image = imageCard.locator('.universal-image');
-await image.waitFor({ state: 'visible', timeout: 15000 });
+const image = await hydrate(imageCard, '.universal-image', 'visible');
 await page.waitForFunction(() => document.querySelector('.universal-image')?.naturalWidth > 0, { timeout: 10000 });
-const video = videoCard.locator('.universal-video');
+const video = await hydrate(videoCard, '.universal-video');
 if (await video.count() !== 1) throw new Error('video did not receive a video surface');
 await page.waitForFunction(() => document.querySelector('.universal-video')?.readyState >= 1, { timeout: 10000 });
-if (await audioCard.locator('.universal-audio audio').count() !== 1) throw new Error('audio did not receive an audio surface');
-const pdfSurface = pdfCard.locator('.universal-file-surface.is-pdf');
-if (await pdfSurface.count() !== 1 || !(await pdfSurface.getAttribute('href'))?.startsWith('blob:')) throw new Error('PDF did not receive an openable document surface');
-await binaryCard.locator('.universal-file-surface').waitFor({ state: 'attached', timeout: 15000 });
+const audio = await hydrate(audioCard, '.universal-audio audio');
+if (await audio.count() !== 1) throw new Error('audio did not receive an audio surface');
+const pdfSurface = await hydrate(pdfCard, '.universal-file-surface.is-pdf');
+if (!(await pdfSurface.getAttribute('href'))?.startsWith('blob:')) throw new Error('PDF did not receive an openable document surface');
+await hydrate(binaryCard, '.universal-file-surface');
 
 const records = await readAll('records');
 const imageRecord = recordByName(records, 'red-circle.png');
@@ -179,6 +186,8 @@ if (gridDisplay !== 'grid') throw new Error(`Grid mode did not become a grid: ${
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.mediaModes === 'ready', { timeout: 15000 });
 if (await page.evaluate(() => document.documentElement.dataset.feedMode) !== 'grid') throw new Error('feed mode did not persist across reload');
+await videoCard.scrollIntoViewIfNeeded();
+await videoCard.locator('.universal-video').waitFor({ state: 'attached', timeout: 15000 });
 await page.waitForFunction(() => document.querySelector('.universal-video')?.readyState >= 1, { timeout: 10000 });
 
 await page.screenshot({ path: 'manual-universal-media-grid.png', fullPage: true });
@@ -208,6 +217,7 @@ console.log(JSON.stringify({
   },
   stage,
   gridPersisted: true,
+  viewportHydration: true,
   importedDelete: true,
   blobsAfterDelete: 0,
   binaryGibberishVisible: false,

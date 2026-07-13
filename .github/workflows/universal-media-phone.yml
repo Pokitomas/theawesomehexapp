@@ -52,7 +52,20 @@ jobs:
           server=$!
           trap 'kill $server || true' EXIT
           sleep 2
-          node studio/manual/tests/universal-media-clickthrough.mjs http://127.0.0.1:4173/manual/ | tee universal-media-check.log
+
+          run_proof() {
+            log="$1"
+            shift
+            set +e
+            "$@" >"$log" 2>&1
+            status=$?
+            set -e
+            cat "$log"
+            return "$status"
+          }
+
+          run_proof universal-media-check.log node studio/manual/tests/universal-media-clickthrough.mjs http://127.0.0.1:4173/manual/
+          run_proof runtime-hardening-check.log node studio/manual/tests/runtime-hardening-clickthrough.mjs http://127.0.0.1:4173/manual/
       - name: Upload media lab proof
         if: always()
         uses: actions/upload-artifact@v4
@@ -62,6 +75,7 @@ jobs:
             manual-universal-media-grid.png
             manual-universal-media-empty.png
             universal-media-check.log
+            runtime-hardening-check.log
             /tmp/universal-media-http.log
           if-no-files-found: warn
           retention-days: 5
