@@ -19,6 +19,14 @@ replace_once(
     "CREATE proof selector",
 )
 
+touch = Path("studio/manual/tests/onboarding-clickthrough.mjs")
+replace_once(
+    touch,
+    'await touch(page.locator(`[data-action-id="${actionId}"]`));',
+    'await touch(page.locator(`[data-os-dock] [data-action-id="${actionId}"]`));',
+    "touch proof dock selector",
+)
+
 shell = Path("studio/manual/product/shell.js")
 text = shell.read_text(encoding="utf-8")
 if "let placesRenderToken = 0;" not in text:
