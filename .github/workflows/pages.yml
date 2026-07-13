@@ -57,10 +57,10 @@ jobs:
         run: |
           set -euo pipefail
           cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
-          test "$(wc -c < manual-kernel-overlay.b64)" = "13264"
-          echo "f5e47fe3724e2193cdab1199e811250af99d2a552294afbc96367566bc8a60a9  manual-kernel-overlay.b64" | sha256sum -c -
+          test "$(wc -c < manual-kernel-overlay.b64)" = "13724"
+          echo "d22c6b2b2cca69f1c6da08e0dcd7d8088d880aec1f0d030fb52bcac41a5df8d4  manual-kernel-overlay.b64" | sha256sum -c -
           base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
-          echo "26d1602bc9a1f9bb381c8b819d923fb14bc692588715623ef9214ba8c134ef2c  manual-kernel-overlay.tar.xz" | sha256sum -c -
+          echo "ecfd092ff68c5562eca2e8228c3eed62e2089af79006bac991b15b79c23bf1ce  manual-kernel-overlay.tar.xz" | sha256sum -c -
           tar -xJf manual-kernel-overlay.tar.xz
           python studio/manual/prepare-kernel.py
           python manual-kernel/patch.py
