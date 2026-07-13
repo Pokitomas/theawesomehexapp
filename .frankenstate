@@ -1,10 +1,10 @@
 version: 24
-updated_at: 2026-07-13T16:06:00-07:00
+updated_at: 2026-07-13T16:10:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/runtime-hardening-ledger
-active_pr: pending
+active_pr: 68 open
 deployment_receipt: 67
-supersedes_pr: 66
+supersedes_pr: 66 closed
 
 owner: GPT-5.6 Thinking
 mode: implementation complete; awaiting external proof
