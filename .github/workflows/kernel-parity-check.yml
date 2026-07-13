@@ -37,6 +37,7 @@ jobs:
           cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
           base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
           tar -xJf manual-kernel-overlay.tar.xz
+          python studio/manual/prepare-kernel.py
           python manual-kernel/patch.py
 
       - uses: actions/setup-node@v4
