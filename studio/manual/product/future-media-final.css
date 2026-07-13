@@ -69,6 +69,14 @@ html[data-feed-mode="grid"] #feed:has(.studio-empty-hero) .studio-empty-hero {
   cursor: default;
 }
 
+html[data-feed-mode="grid"] #feed .post:not(.is-grid-focus) .post-head {
+  display: none;
+}
+
+html.workspace-chrome .universal-file-surface.is-pdf .universal-file-code {
+  background: var(--future-danger);
+}
+
 @media (max-width: 520px) {
   html.workspace-chrome .workspace-empty-mark {
     min-height: 55dvh;
