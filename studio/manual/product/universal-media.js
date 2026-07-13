@@ -164,7 +164,12 @@ async function renderCard(card) {
   if (!kind && !record.assetKey) return;
   clearURL(recordId);
   const asset = record.assetKey ? await getAsset(record.assetKey) : null;
-  const url = asset?.blob ? URL.createObjectURL(asset.blob) : '';
+  const storedBlob = asset?.blob || null;
+  const declaredMime = asset?.mime || record.mime || '';
+  const renderBlob = storedBlob && !storedBlob.type && declaredMime
+    ? new Blob([storedBlob], { type: declaredMime })
+    : storedBlob;
+  const url = renderBlob ? URL.createObjectURL(renderBlob) : '';
   if (url) liveURLs.set(recordId, url);
 
   const shell = mediaShell(card);
