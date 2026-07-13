@@ -1,5 +1,5 @@
-version: 20
-updated_at: 2026-07-13T12:32:00-07:00
+version: 21
+updated_at: 2026-07-13T12:48:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/fun-posting-system
 active_pr: 54
@@ -33,7 +33,15 @@ file_locks:
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Integrate and prove the Sideways personal operating system in replacement PR 54 after PR 48 was merged prematurely.
+  summary: Drive replacement PR 54 through direct branch proof, then repair ancestry and deploy the Sideways personal operating system.
+  current_head: b67e6ce0465b19c42b03a304001e79e93ae99c17
+  proof_mode: Temporary non-deploying branch trigger posts BRANCH_PROOF run IDs to issue 52 because PR conflict prevents GitHub from creating a merge ref.
+  fixes_since_first_proof:
+    - replaced brittle verifier assertions with structural OS contracts
+    - corrected composer Place-selection precedence
+    - installed interaction.css in generated assets and verifier
+    - completed workspace reorder, Archive listing, typed post-transaction events, reversible Place deletion, and full snapshot restoration
+    - expanded workspace proof while retaining the co-agent social-module smoke check
   premature_merge:
     pr: 48
     deployed_commit: 4cd8a828f99d6150b061b95103edae56fc3fd1a7
@@ -54,14 +62,16 @@ current_subtask:
   backend:
     source_pr: 53
     merge_commit: 3ae091975c84f6a645ad0baecb8bcd0f27f2a8f8
-    status: integrated into agent/fun-posting-system
+    status: integrated and extended to the full declared contract
     capabilities:
-      - transaction-complete places, drafts, entities, moves, archive, restore, delete, undo
+      - transaction-complete places, reorder, drafts, entities, moves, archive, restore, delete, and undo
       - atomic draft publishing
       - active-place persistence
-      - snapshot import/export
+      - full posts/drafts/Places snapshot import and export
       - migration from deployed sideways-social-v1 records
-  done_when: PR 54 is ancestry-clean, all generated/model/phone checks pass, mobile and desktop screenshots survive visual review, main deploys the exact head, and the live assets are verified.
+      - typed sideways:workspacechange events only after durable writes
+  ancestry_plan: After a green tree, create one commit whose parent is current main and whose tree is the exact green integration branch, then force-with-lease the same PR branch.
+  done_when: PR 54 is ancestry-clean, all generated/model/phone checks pass, mobile and desktop screenshots survive visual review, main deploys the exact head, and live assets are verified.
 
 co_agent:
   owner: Claude
@@ -75,17 +85,18 @@ co_agent:
   audit_findings_applied:
     - self-reactions deleted
     - Later treated honestly as generalized Saved
-    - remix attribution remains a product follow-up unless jump-to-original lands in this pass
+    - workspace methods expanded to match the real shell and social adapter
 
 next_architectural_goal:
   summary: Let durable workspace outcomes shape the visible operating system instead of adding fake social metrics.
   sequence:
-    - reconcile branch ancestry with main once
-    - fix generated source and backend interface mismatches
-    - prove workspace model tests
-    - prove CREATE to Import with zero reloads
-    - prove profile to Place to autosaved draft to photo post to Later to edit/remix/archive/undo/reload
+    - clear direct branch source verification
+    - clear workspace transaction and migration proof
+    - clear CREATE to Import with zero reloads
+    - clear profile to Place to autosaved draft to photo post to Later to edit/remix/archive/undo/reload
     - inspect real 390x844 and desktop screenshots for spacing, hierarchy, and motion
+    - reconcile branch ancestry with main once
+    - remove temporary branch proof and one-shot patch workflows
     - merge PR 54 and verify bounded Pages deployment
 
 invariants:
