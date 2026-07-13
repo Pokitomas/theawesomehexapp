@@ -1,6 +1,8 @@
 name: Prove manual gate on phone
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
