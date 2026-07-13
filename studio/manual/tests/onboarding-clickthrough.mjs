@@ -1,6 +1,5 @@
-// Proves the consumer first run on a real iPhone viewport:
-// one chooser appears immediately, a raw touch opens Reddit import, completion
-// replaces the chooser, and the interface becomes quiet without reloading itself.
+// Proves the consumer import path on a real iPhone viewport:
+// launchpad → IMPORT → Reddit picker → completion, with no reload or late DOM churn.
 
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -44,7 +43,9 @@ async function waitForImportOutcome() {
   await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
   const error = page.locator('.import-error-panel');
   if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
-  await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+  const panel = page.locator('.import-complete-panel');
+  await panel.waitFor({ state: 'visible', timeout: 5000 });
+  await panel.locator('.import-workbench-kicker').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
 }
 
 await page.addInitScript(() => {
@@ -68,11 +69,13 @@ page.on('load', () => { unexpectedLoads += 1; });
 
 await page.goto(url, { waitUntil: 'networkidle' });
 unexpectedLoads = 0;
+await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await touch(page.locator('.studio-launch-button.is-import'));
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await page.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
 if (await page.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
-if ((await page.locator('.source-card').count()) !== 8) throw new Error('initial app chooser is incomplete');
+if ((await page.locator('.source-card').count()) !== 8) throw new Error('app chooser is incomplete');
 
 const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
 const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
@@ -96,7 +99,7 @@ if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-onboarding-touch.png', fullPage: true });
 console.log(JSON.stringify({
-  touchJourney: 'IMPORT REDDIT → native picker → completion replaces chooser',
+  touchJourney: 'IMPORT launchpad → Reddit picker → completion',
   profileGate: false,
   duplicateIntro: false,
   chooserBehindCompletion: false,
