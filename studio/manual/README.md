@@ -1,27 +1,23 @@
 # Manual studio
 
-This is the editable consumer product layer for `/manual/`.
+Editable product source for `/manual/`.
 
-The ranking core is assembled from verified overlays. Do not hand-edit generated or packed shards. Product work belongs here:
+## Product files
 
-- `product/copy.js` — visible consumer language.
-- `product/studio.css` — shared visual system, navigation, feed cards, and responsive shell.
-- `product/studio-components.css` — progress, accessibility, and responsive components.
-- `product/studio.js` — product behavior, including opening an empty Sideways directly on the app importer.
-- `product/import-studio.js` — one-tap app imports, progress, error recovery, and completion.
-- `product/import-studio.css` — app-card hierarchy and import states.
-- `product/import-phone.js` — keeps the native multi-item picker reliable on iPhone.
+- `product/actions.js` — canonical action registry. Every product control gets an ID, label, surface, intent, payload contract, lifecycle events, analytics shape, and test hook here.
+- `product/social.js` — profiles, posting, photos, reactions, remixing, saves, sharing, deletion, persistence, and action-result learning.
+- `product/social.css` — profile picker, composer, and user-post visuals.
+- `product/copy.js` — short labels only. No manifesto or editorial layer.
+- `product/studio.js` — FEED / POST / IMPORT / SAVED / ME shell and empty-feed launchpad.
+- `product/import-studio.js` — one-tap app imports generated from the action contract.
+- `product/import-phone.js` — native iPhone multi-item picker compatibility.
 - `imports/registry.js` — source adapters.
 - `imports/runtime.js` — dedupe, chunked IndexedDB writes, cancellation, and quota checks.
-- `prepare-kernel.py` — readable, idempotent compatibility preparation for the extracted kernel builder.
-- `apply.py` — installs the editable layer into `manual-app/` without duplicate assets.
-- `verify.py` — rejects syntax errors, render loops, setup gates, visible file-workbench UI, and broken compatibility contracts.
-- `tests/onboarding-clickthrough.mjs` — real iPhone touch and quiescence proof.
-- `tests/kernel-parity.mjs` — root/manual ranking-kernel parity proof.
+- `apply.py` — installs product assets and the core corpus-refresh bridge.
+- `verify.py` — rejects missing action contracts, editorial copy, reload hacks, observer loops, dead prototype UI, and missing generated assets.
+- `tests/social-clickthrough.mjs` — real 390×844 profile → photo post → reaction → save → remix → reload proof.
 
-## Build contract
-
-After the normal overlays have produced `manual-kernel/` and `manual-app/`:
+## Build
 
 ```bash
 python studio/manual/prepare-kernel.py
@@ -30,44 +26,45 @@ python studio/manual/apply.py
 python studio/manual/verify.py
 ```
 
-Pages, phone proof, and kernel parity use the same path.
+## Action architecture
 
-## Consumer first-run contract
+`actions.js` is the interface between product design and future backend work.
 
-A new user should not need to understand exports, archives, file formats, local storage, or Sideways architecture.
+Each action declares:
 
-1. Empty Sideways opens directly on the app cards.
-2. Instagram and Reddit are the dominant choices.
-3. Tapping `IMPORT REDDIT`, `IMPORT INSTAGRAM`, or another app opens the native system picker.
-4. Choosing the downloaded item starts importing immediately.
-5. No queue, profile form, storage panel, or second import confirmation appears.
-6. Completion offers one action: `OPEN MY FEED`.
-7. `NEED YOUR DOWNLOAD?` is secondary recovery help, not the main flow.
+- stable ID
+- visible label
+- product surface
+- intent
+- payload fields
 
-Static GitHub Pages cannot silently retrieve private account history. The product therefore keeps the browser picker as an operating-system detail while presenting the action as importing an app, not managing files.
+`bindAction()` emits `sideways:action` lifecycle events with `start`, `success`, and `error` phases. The social layer stores those events and maintains local result aggregates. Picker order for moods, styles, avatars, colors, and reactions is generated from those results, so repeated behavior changes the next interface without hard-coding a recommendation service.
 
-## Supported sources
+Future APIs can subscribe to the same event contract instead of reverse-engineering DOM clicks. Tests select controls by `data-action-id`, not fragile copy or layout selectors.
 
-The adapter registry recognizes X/Twitter, Reddit, Instagram, TikTok, YouTube/Google Takeout, Spotify, Mastodon, bookmarks, RSS/Atom, JSON/JSONL, CSV, text, Markdown, and HTML. The canonical ADD engine continues to support PDF, Office, ZIP, images, audio, video, links, and pasted material underneath the consumer layer.
+## Consumer flow
 
-## Interaction contract
+- Empty feed: `POST` or `IMPORT`.
+- Profile: `ME`, then pick a face and color.
+- Composer: say it, optionally add a photo, choose mood/look, `POST IT`.
+- Post: react, remix, save, send, or delete.
+- Import: tap an app; the native picker is an operating-system detail.
+
+No visible setup essay, export tutorial, storage lecture, queue, or second confirmation.
+
+## Persistence
+
+Imported material remains in `sideways-manual-corpus-v1`.
+
+Social profiles, posts, and action events use `sideways-social-v1` plus small local preference/result records. This keeps the social product independent from the canonical import database version and root ranking kernel.
+
+## Invariants
 
 - No whole-document `MutationObserver`.
-- No automatic reload after importing.
+- No automatic reload.
 - No capture-phase click hijacking.
-- No visible legacy ADD surface beside the consumer importer.
-- No profile or storage gate before the app cards.
-- The UI must become quiescent after its bounded startup retries.
-- The core animation loop must not replace feed DOM while the feed is hidden or empty.
-
-## Compatibility contract
-
-Keep these underlying labels stable unless the test changes atomically:
-
-`ADD`, `KEEP`, `READ`, `SEND`, `FILES +`
-
-Keep these DOM hooks stable:
-
-`#corpusStatus`, `#debugPolicy`, `#debugState`, `#debugPanel`
-
-The studio layer may aggressively change the product shell, but it must not duplicate or rewrite the root ranking math.
+- No visible manifesto copy.
+- No custom product button without an action contract.
+- Preserve `ADD`, `KEEP`, `READ`, `SEND`, `FILES +` underneath the shell.
+- Preserve `#corpusStatus`, `#debugPolicy`, `#debugState`, `#debugPanel`.
+- Do not duplicate or rewrite root ranking math.

@@ -39,7 +39,9 @@ async function waitForImportOutcome(page) {
   await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
   const error = page.locator('.import-error-panel');
   if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
-  await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+  const panel = page.locator('.import-complete-panel');
+  await panel.waitFor({ state: 'visible', timeout: 5000 });
+  await panel.locator('.import-workbench-kicker').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
 }
 
 const gateContext = await browser.newContext(iphone);
@@ -57,8 +59,8 @@ if (!/state=(saturation|deep_saturation)/.test(state)) throw new Error(`state di
 for (const label of ['ADD', 'KEEP', 'READ', 'SEND', 'MOVE GATE']) {
   if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing button ${label}`);
 }
-await gatePage.evaluate(() => window.SidewaysCore?.routeTo?.('#/add'));
-await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 5000 });
+await touch(gatePage, gatePage.getByRole('button', { name: 'ADD', exact: true }));
+await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 const coreFilesContract = await gatePage.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
 if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
 await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
@@ -75,7 +77,8 @@ let loads = 0;
 consumer.on('load', () => { loads += 1; });
 await consumer.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
 loads = 0;
-
+await consumer.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await touch(consumer, consumer.locator('.studio-launch-button.is-import'));
 await consumer.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
@@ -103,17 +106,17 @@ await waitForImportOutcome(consumer);
 if (await consumer.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
 const refreshedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
 if (!/^[1-9]\d* THING/.test(refreshedCount)) throw new Error(`core did not refresh after import: ${refreshedCount}`);
-await consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+await consumer.getByRole('button', { name: 'OPEN FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 await consumer.waitForTimeout(2500);
 if (loads !== 0) throw new Error(`import triggered ${loads} automatic page load(s)`);
 await consumer.screenshot({ path: 'manual-onboarding-phone.png', fullPage: true });
 
-await touch(consumer, consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }));
+await touch(consumer, consumer.getByRole('button', { name: 'OPEN FEED', exact: true }));
 await consumer.waitForURL(/#\/feed$/, { timeout: 10000 });
 await consumer.locator('#feed').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.waitForFunction(() => /^[1-9]\d* THING/.test(document.getElementById('corpusStatus')?.textContent || ''), { timeout: 10000 });
 const importedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
-if (loads !== 0) throw new Error(`OPEN MY FEED reloaded the page ${loads} time(s)`);
+if (loads !== 0) throw new Error(`OPEN FEED reloaded the page ${loads} time(s)`);
 if (consumerErrors.length) throw new Error(consumerErrors.join(' | '));
 await consumerContext.close();
 
@@ -124,8 +127,8 @@ console.log(JSON.stringify({
   visibleLegacyAddSurface: false,
   duplicateIntro: false,
   chooserBehindCompletion: false,
-  firstRun: 'app cards immediately visible',
-  consumerJourney: 'IMPORT REDDIT → native picker → automatic import → in-place feed',
+  firstRun: 'POST or IMPORT launchpad',
+  consumerJourney: 'IMPORT launchpad → Reddit picker → automatic import → in-place feed',
   automaticReloads: 0,
   refreshedCount,
   importedCount,
