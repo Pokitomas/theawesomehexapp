@@ -1,5 +1,5 @@
-version: 8
-updated_at: 2026-07-13T06:52:00-07:00
+version: 9
+updated_at: 2026-07-13T06:56:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -15,6 +15,7 @@ file_locks:
   - studio/manual/product/import-phone.js
   - studio/manual/product/studio.js
   - studio/manual/product/studio-reset.css
+  - studio/manual/README.md
   - studio/manual/verify.py
   - studio/manual/prepare-kernel.py
   - manual-phone-check.mjs
@@ -24,19 +25,20 @@ file_locks:
   - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Final solo product pass: remove the remaining inferential/developer language, prove the explicit platform-download journey on iPhone, clear all CI errors, merge PR 43, and verify the deployed app.
-  last_change: PR 45 render guard and PR 46 extraction compatibility are both integrated into readable PR 43 build paths; PR 41, PR 45, PR 46, and probe PR 36 are closed or merged into the single integration branch.
+  summary: Make first run cognitively trivial: cool new app -> pick Instagram or Reddit -> get the download -> choose the files -> feed.
+  last_change: Unified kernel, render, interaction, and collaboration fixes are already in PR 43; user explicitly rejected any remaining explanatory or signup-shaped onboarding.
   current_ci:
     - overlay validation: success on head 957e3f7
     - kernel parity: success on head 957e3f7
     - phone onboarding/import: success on head 957e3f7
     - Pages build: in progress on head 957e3f7
   final_product_changes:
-    - apply plain-language profile and storage review
-    - replace vague GET DATA / I HAVE THE FILES controls with OPEN DOWNLOAD PAGE / CHOOSE DOWNLOADED FILES
-    - update real-touch tests atomically
-    - inspect fresh phone artifacts before merge
-  done_when: One green PR 43 is merged to main, GitHub Pages deploys, and the live manual URL passes the real phone journey without reloads, hidden legacy UI, kernel drift, or unexplained setup language.
+    - remove name/handle as a first-run gate
+    - replace first screen with one PICK AN APP action
+    - label platform actions as 1. GET DOWNLOAD and 2. CHOOSE FILES
+    - remove local-storage and archive jargon from visible copy
+    - update real-touch tests and docs atomically
+  done_when: A brand-new user can reach a completed Reddit import on iPhone without understanding exports, archives, profiles, storage APIs, or Sideways architecture.
 
 external_execution:
   github_actions:
@@ -44,20 +46,12 @@ external_execution:
     coordination: No duplicate workflow branches or auxiliary product PRs remain.
   collaborator:
     status: implementation integrated; no file locks
-    incorporated:
-      - bounded feed-render guard
-      - root/manual kernel parity gate
-      - whitespace-tolerant kernel extraction
-      - plain-language copy review
 
 coordination_alerts:
-  - id: auxiliary-pr-sprawl
-    severity: resolved
-    resolution_applied: PR 41 content copied into PR 43; PR 45 merged into its head; PR 46 logic integrated readably; PR 36, PR 41, and PR 46 closed.
-  - id: final-language-handoff
+  - id: first-run-cognitive-load
     severity: active
-    finding: Platform cards still require users to infer that the first button opens a download page and the second chooses the resulting files.
-    resolution: Make both actions explicit and prove them in the iPhone tests.
+    finding: Existing onboarding still asks for identity and uses controls that require the user to infer the download/import sequence.
+    resolution: Start with app choice; make the two actions numbered and literal; move profile customization out of the critical path.
   - id: exposed-user-token
     severity: security
     finding: A GitHub personal access token was pasted into chat.
@@ -66,8 +60,8 @@ coordination_alerts:
 next_architectural_goal:
   summary: Ship the completed human-first Sideways app from main.
   sequence:
-    - finish copy and platform-action pass
-    - run unified CI and inspect artifacts
+    - land the zero-thinking first-run flow
+    - run unified CI and inspect fresh phone artifacts
     - merge PR 43 to main
     - verify Pages deployment and live phone URLs
     - release all file locks and mark this ledger complete
@@ -91,17 +85,11 @@ invariants:
 collaborator:
   owner: Claude
   mode: integrated
-  updated_at: 2026-07-13T13:52:00Z
+  updated_at: 2026-07-13T13:56:00Z
   file_locks: []
-  released_locks:
-    - studio/manual/tests/onboarding-clickthrough.mjs
-    - studio/manual/tests/kernel-parity.mjs
-    - .github/workflows/kernel-parity-check.yml
   current_subtask:
     summary: No active implementation lane. All accepted work is consolidated into PR 43.
     done_when: PR 43 is green, merged, and deployed.
-  local_repro:
-    note: Full local CI reproduction with real Chromium remains available as a diagnostic reference.
   merge_policy:
     approval_received: User explicitly approved true merging and directed all work into one PR.
     holding: false
