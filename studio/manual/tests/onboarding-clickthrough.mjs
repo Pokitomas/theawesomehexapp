@@ -1,6 +1,6 @@
 // Proves the consumer first run on a real iPhone viewport:
-// cards appear immediately, a raw touch opens Reddit import, the import starts
-// automatically, and the interface becomes quiet without reloading itself.
+// one chooser appears immediately, a raw touch opens Reddit import, completion
+// replaces the chooser, and the interface becomes quiet without reloading itself.
 
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -71,6 +71,8 @@ unexpectedLoads = 0;
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await page.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
+if (await page.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
+if ((await page.locator('.source-card').count()) !== 8) throw new Error('initial app chooser is incomplete');
 
 const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
 const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
@@ -83,6 +85,7 @@ await chooser.setFiles({
 });
 
 await waitForImportOutcome();
+if (await page.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
 const firesBeforeQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
 await page.waitForTimeout(2600);
 const firesAfterQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
@@ -93,8 +96,10 @@ if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-onboarding-touch.png', fullPage: true });
 console.log(JSON.stringify({
-  touchJourney: 'IMPORT REDDIT → native picker → automatic import complete',
+  touchJourney: 'IMPORT REDDIT → native picker → completion replaces chooser',
   profileGate: false,
+  duplicateIntro: false,
+  chooserBehindCompletion: false,
   lateObserverFires,
   unexpectedLoads,
   screenshot: 'manual-onboarding-touch.png'
