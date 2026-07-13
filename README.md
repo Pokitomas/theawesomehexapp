@@ -6,7 +6,11 @@ Live: `https://pokitomas.github.io/theawesomehexapp/`
 
 Manual empty edition: `https://pokitomas.github.io/theawesomehexapp/manual/`
 
-Debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
+Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
+
+Manual debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
+
+Phone gate proof: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
 
 ## Parallel manual corpus edition
 
@@ -26,9 +30,17 @@ Supported ingestion includes plain text and code, Markdown, HTML, CSS, JavaScrip
 
 The manual corpus, saved records, source index, author index, collections, and portable packs are all built from what the user adds. No external corpus is silently mixed in. Every primary control uses short action language such as ADD, FILES, FOLDER, PASTE, LINK, PUT IN, KEEP, BOX, SEND, FIX, DONE, and THROW OUT.
 
+## One kernel
+
+The manual feed does not contain a second approximation of the recommender. During every build, `manual-app/kernel.js` is generated directly from the root `src/app.js` declarations for the axes, thresholds, raw-load calculation, exponential load updates, transition state machine, Thompson gate, scoring terms, and diversified lateral ranking.
+
+Records the user PUTS IN are converted to the root candidate shape, then ranked by that extracted kernel. Optional upload metadata may provide topic vectors or axis values; ordinary uploads receive deterministic features from their own text, source, type, and file metadata. The manual `?debug=1` panel displays the same fast/slow/raw/z axis values, phase state, gate target, Thompson samples, posteriors, and ranking components.
+
+The build includes a twenty-record concentrated-corpus test. At a phone-sized 390×844 viewport, `?debug=1&test=1&autorun=1` must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero before deployment is allowed.
+
 ## Product behavior
 
-- One million deterministic candidate instances, distributed article 333,334 / forum 333,333 / social 333,333.
+- One million deterministic candidate instances in the root product, distributed article 333,334 / forum 333,333 / social 333,333.
 - Automatic saturation phase transition with no visible good-path/bad-path choice.
 - Type filters replace topic categories: ALL, SOCIAL, FORUM, ARTICLE.
 - Working deep routes for candidates, source records, saved items, content details, author profiles, the local account profile, and collections.
@@ -68,9 +80,9 @@ Every record shares the same outer schema:
 
 There are no topic-category fields in the corpus or interface. Organization happens through source metadata, content type, author, date, format, media geometry, and the recommender's synthetic retrieval features.
 
-## Actual sources
+## Actual root sources
 
-The reproducible deployment retrieves:
+The reproducible root deployment retrieves:
 
 - English Wikinews article records from 2010 through the current build date, including article bodies, canonical pages, MediaWiki page images, and up to sixty parsed citations per article;
 - Hacker News submission/discussion records, outbound links, authors, archived engagement, and retrieved comment excerpts;
@@ -89,7 +101,7 @@ Records without a mirrored image retain the original remote URL. The frontend us
 
 ## Diagnostics
 
-Append `?debug=1` to expose raw session measurements, decayed loads, thresholds, posterior state, automatic gate, event-history count, and ranking components.
+Append `?debug=1` to either edition to expose raw session measurements, decayed loads, thresholds, posterior state, automatic gate, event-history count, and ranking components.
 
 ## Capability boundary
 
