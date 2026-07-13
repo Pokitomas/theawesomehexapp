@@ -29,6 +29,7 @@ def main() -> None:
     target.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(HERE / "registry.js", target / "registry.js")
     shutil.copyfile(HERE / "runtime.js", target / "runtime.js")
+    shutil.copyfile(HERE / "media-classifier.js", target / "media-classifier.js")
     shutil.copyfile(PRODUCT / "import-studio.js", MANUAL / "import-studio.js")
     shutil.copyfile(PRODUCT / "import-studio.css", MANUAL / "import-studio.css")
     shutil.copyfile(PRODUCT / "import-phone.js", MANUAL / "import-phone.js")
@@ -39,7 +40,7 @@ def main() -> None:
     html = inject_once(html, SCRIPT, "</body>")
     html = inject_once(html, PHONE_SCRIPT, "</body>")
     index.write_text(html, encoding="utf-8")
-    print("applied manual import workbench")
+    print("applied manual import workbench with byte-first media classification")
 
 
 if __name__ == "__main__":
