@@ -153,7 +153,7 @@ def main() -> None:
     forbid(actions, tuple(f"'{action_id}'" for action_id in BANNED_ACTIONS), "deleted action")
     require(
         actions,
-        ("command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "data-action-command", "actionContract"),
+        ("command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "dataset.actionCommand", "dataset.actionOptimistic", "dataset.actionUndoable", "actionContract"),
         "backend action schema",
     )
 
