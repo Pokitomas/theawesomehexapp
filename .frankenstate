@@ -1,10 +1,11 @@
-version: 22
-updated_at: 2026-07-13T14:04:00-07:00
+version: 23
+updated_at: 2026-07-13T15:25:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 58 merged
-beacon_issue: 59 completed
-deployment_receipt: 60
+active_pr: 65 merged
+lane_issues: 61 62 63 64 completed
+deployment_receipt: 67
+parallel_coordination_pr: 66 open
 
 owner: GPT-5.6 Thinking
 mode: complete
@@ -12,39 +13,41 @@ mode: complete
 file_locks: []
 
 current_subtask:
-  summary: Debugged the destructive user journey and shipped remembered-Windows command chrome.
-  merge_commit: 975130ac59a1c8660dacaa415b528c5cd0a2a188
-  deployment_receipt: 60
+  summary: Shipped Sideways as a byte-first universal future-media desktop.
+  merge_commit: dd111692d2af5c8dd002883b4a1202ae8e58f973
+  deployment_receipt: 67
   production_url: https://pokitomas.github.io/theawesomehexapp/manual/
   completed:
-    - simulated creation edit cancellation and deletion through the real 390x844 product controls
-    - created three authored posts spanning text image and place variants then deleted every authored post
-    - preserved imported library material while authored posts were removed
-    - garbage-collected authored image blobs one-for-one
-    - reduced saved place counts to zero without deleting the place
-    - recorded cancelled destructive actions as cancelled rather than success
-    - separated titlebar identity from Feed navigation
-    - placed New Feed Places and Library in one labeled commandbar
-    - placed corpus status and profile in the titlebar
-    - replaced rounded dashboard chrome with square tabs restrained bevels and pressed states
-    - enforced exactly one New button and one navigation container across rerenders
+    - classify imported files from magic bytes and content before trusting MIME or filenames
+    - preserve image video audio PDF archive and unknown binary blobs in the canonical corpus
+    - prevent MIME-less binary payloads from becoming visible text gibberish
+    - render image playable portrait video audio PDF document and honest binary surfaces
+    - restore canonical MIME when IndexedDB blobs lose their declared type
+    - pause offscreen video without changing record state
+    - make every local record deletable through contracted controls
+    - delete unshared media blobs in the same durable record transaction
+    - ship persistent Flow Stage and Grid feed physics without changing ranking or records
+    - replace rounded dashboard cards with a no-prose future desktop of hard panes media planes electric blue and toxic state
+    - preserve the exact root kernel and legacy phone compatibility contracts
   verification:
-    - all four pull-request workflows passed on exact head cbb46076ab311d79f8f57bd9ae79cd17668c8e69
-    - dedicated command-chrome contract passed at 390x844
-    - titlebar brand profile command placement labels button radii and selected-tab physics passed
-    - destructive journey produced three successful deletes and one truthful cancelled delete
-    - zero authored posts and zero authored blobs remained after reload
-    - Kitchen table remained with zero attached items
-    - imported witness survived every authored-post deletion
-    - zero visible custom controls existed outside the action contract
-    - populated and clean-state generated screenshots were visually reviewed
-    - squash-merged to main as 975130ac59a1c8660dacaa415b528c5cd0a2a188
-    - GitHub Pages deployed that exact commit and recorded issue 60
+    - all five exact-head workflows passed at 10ede2368960ebe5db90b90e030b8938eef08c83
+    - legacy build overlay kernel and 390x844 phone journeys remained green
+    - MIME-less PNG decoded with intrinsic dimensions
+    - 90x160 WebM remained a playable video after reload
+    - WAV rendered as playable audio with measured duration
+    - PDF rendered as an openable document surface
+    - unknown binary rendered as BIN with zero payload text leakage
+    - Stage used visual-viewport-aware y mandatory snapping
+    - Grid persisted through reload and retained ranking order
+    - five imported records deleted to zero records and zero blobs after reload
+    - final Grid and empty-state phone artifacts were visually reviewed
+    - squash-merged to main as dd111692d2af5c8dd002883b4a1202ae8e58f973
+    - GitHub Pages deployed that exact merge and recorded issue 67
   done_when: complete
 
 next_architectural_goal:
-  summary: Use the stable action and record contracts for optional account and sync service without changing local-first behavior.
-  immediate_work: none
+  summary: Fold the open cortical coordination substrate in PR 66 against this deployed product state without overwriting version 23 or changing product runtime by accident.
+  immediate_work: PR 66 must rebase or merge main and preserve this deployment receipt before integration.
 
 invariants:
   - Read this file at the start of every coding turn.
@@ -53,12 +56,20 @@ invariants:
   - Every visible custom product control must come from the action contract.
   - Workspace writes resolve only after IndexedDB transaction completion.
   - Cancelled destructive actions must never be recorded as success.
+  - Magic bytes and content outrank absent or contradictory MIME metadata.
+  - Unknown binary must never be decoded into feed text.
+  - Every local record may be deleted; shared assets may not be removed while referenced.
+  - Stored blobs with empty type must be rendered using canonical record or asset MIME.
+  - Flow Stage and Grid may change layout physics but never ranking records or action semantics.
+  - Offscreen video may pause but must not mutate playback records or ranking state.
   - Titlebar owns product identity profile and status; commandbar owns commands and navigation.
   - Exactly one New action and one navigation container may exist.
+  - No explanatory feed prose rounded SaaS cards or fake retro decoration.
   - Geolocation remains explicit and user initiated.
   - Never use or persist credentials pasted into chat.
 
 collaborator:
-  owner: none
-  mode: closed
+  owner: cortical-field-pr-66
+  mode: open-separate
+  requirement: preserve version 23 and deployment receipt 67 before merge
   file_locks: []
