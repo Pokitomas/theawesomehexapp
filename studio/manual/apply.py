@@ -21,12 +21,14 @@ CHROME_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome-po
 FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" data-future-media>'
 FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-polish.css" data-future-media-polish>'
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
+SURVIVAL_STYLE_MARKER = '<link rel="stylesheet" href="./survival-ledger.css" data-survival-ledger>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
 CHROME_SCRIPT_MARKER = '<script type="module" src="./workspace-chrome.js" data-workspace-chrome></script>'
 UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js" data-universal-media></script>'
 MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
+VAULT_SCRIPT_MARKER = '<script type="module" src="./vault-ui.js" data-survival-ledger></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -106,6 +108,7 @@ def main() -> None:
         "future-media.css",
         "future-media-polish.css",
         "future-media-final.css",
+        "survival-ledger.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -113,12 +116,14 @@ def main() -> None:
         "workspace-profile.js",
         "workspace-records.js",
         "workspace-migration.js",
+        "survival-ledger.js",
         "workspace.js",
         "workspace-ui.js",
         "core-actions.js",
         "workspace-chrome.js",
         "universal-media.js",
         "media-modes.js",
+        "vault-ui.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
@@ -146,12 +151,14 @@ def main() -> None:
     text = inject_once(text, FUTURE_MEDIA_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_POLISH_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_FINAL_STYLE_MARKER, "</head>")
+    text = inject_once(text, SURVIVAL_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CHROME_SCRIPT_MARKER, "</body>")
     text = inject_once(text, UNIVERSAL_MEDIA_SCRIPT_MARKER, "</body>")
     text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, VAULT_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
@@ -161,7 +168,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, universal media surfaces, and Flow Stage Grid physics")
+    print("applied one-owner corpus schema, atomic ledger, off-thread hashing, viewport hydration, OPFS mirror, Ark recovery, universal media surfaces, and Flow Stage Grid physics")
 
 
 if __name__ == "__main__":
