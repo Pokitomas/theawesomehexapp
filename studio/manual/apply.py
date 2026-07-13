@@ -15,6 +15,7 @@ RESET_STYLE_MARKER = '<link rel="stylesheet" href="./studio-reset.css" data-stud
 WORKSPACE_STYLE_MARKER = '<link rel="stylesheet" href="./workspace.css" data-workspace-product>'
 CARD_LAYOUT_STYLE_MARKER = '<link rel="stylesheet" href="./card-layout.css" data-card-layout>'
 CHROME_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome.css" data-workspace-chrome>'
+CHROME_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome-polish.css" data-workspace-chrome-polish>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
@@ -72,6 +73,7 @@ def main() -> None:
         "workspace.css",
         "card-layout.css",
         "workspace-chrome.css",
+        "workspace-chrome-polish.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -101,6 +103,7 @@ def main() -> None:
     text = inject_once(text, WORKSPACE_STYLE_MARKER, "</head>")
     text = inject_once(text, CARD_LAYOUT_STYLE_MARKER, "</head>")
     text = inject_once(text, CHROME_STYLE_MARKER, "</head>")
+    text = inject_once(text, CHROME_POLISH_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
@@ -113,7 +116,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied lived workspace, canonical posting, places, action contract, readable card layout, remembered-Windows chrome, and core refresh bridge")
+    print("applied lived workspace, canonical posting, places, action contract, readable card layout, remembered-Windows chrome, polished tabs, and core refresh bridge")
 
 
 if __name__ == "__main__":
