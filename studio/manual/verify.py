@@ -70,9 +70,11 @@ def main() -> None:
             raise AssertionError(f"platform onboarding contract missing: {contract}")
 
     phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
-    for contract in ("PICK MORE FILES", "webkitdirectory", "stopImmediatePropagation"):
+    for contract in ("PICK MORE FILES", "webkitdirectory", "cloneNode", "replaceWith"):
         if contract not in phone_source:
             raise AssertionError(f"phone importer fallback missing: {contract}")
+    if "stopImmediatePropagation" in phone_source:
+        raise AssertionError("phone importer must not hijack every click listener")
 
     if not MANUAL.exists():
         print("manual studio and importer source layers are clean")
