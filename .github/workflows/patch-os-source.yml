@@ -35,9 +35,17 @@ jobs:
           old = '"command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "data-action-command", "actionContract"'
           new = '"command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "dataset.actionCommand", "dataset.actionOptimistic", "dataset.actionUndoable", "actionContract"'
           if old in text:
-              verify.write_text(text.replace(old, new, 1), encoding='utf-8')
+              text = text.replace(old, new, 1)
           elif new not in text:
               raise SystemExit('expected action dataset verifier expression not found')
+
+          old = '"--os-accent", "--os-window", ".os-titlebar", ".os-dock", ".os-sheet", ".os-create-grid",'
+          new = '"--os-accent", "--os-window", "body > .topbar", ".os-dock", ".os-sheet", ".os-create-grid",'
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('expected titlebar verifier expression not found')
+          verify.write_text(text, encoding='utf-8')
 
           workspace = Path('studio/manual/product/workspace.js')
           text = workspace.read_text(encoding='utf-8')
