@@ -1,9 +1,59 @@
+import { COPY } from './copy.js';
 import { createDefaultRegistry } from './imports/registry.js';
 import { createImportRuntime } from './imports/runtime.js';
 
 const registry = createDefaultRegistry();
 const runtime = createImportRuntime({ registry, chunkSize: 75 });
-const state = { files: [], inspection: null, busy: false };
+const state = { files: [], inspection: null, busy: false, platform: '', result: null };
+
+const PLATFORMS = Object.freeze([
+  {
+    id: 'reddit', name: 'Reddit', mark: 'r/', tone: 'orange',
+    description: 'Posts, comments, saved links, and the communities you actually spent time in.',
+    exportUrl: 'https://www.reddit.com/settings/data-request',
+    action: 'GET REDDIT DATA', accept: '.json,.csv,.zip,text/csv,application/json'
+  },
+  {
+    id: 'instagram', name: 'Instagram', mark: '◎', tone: 'pink',
+    description: 'Saved posts, likes, comments, captions, follows, and your own media history.',
+    exportUrl: 'https://accountscenter.instagram.com/info_and_permissions/dyi/',
+    action: 'GET INSTAGRAM DATA', accept: '.json,.html,.zip,application/json,text/html'
+  },
+  {
+    id: 'tiktok', name: 'TikTok', mark: '♪', tone: 'cyan',
+    description: 'Watch history, likes, favorites, comments, searches, and posted videos.',
+    exportUrl: 'https://www.tiktok.com/setting/download-your-data',
+    action: 'GET TIKTOK DATA', accept: '.json,.txt,.zip,application/json,text/plain'
+  },
+  {
+    id: 'youtube', name: 'YouTube', mark: '▶', tone: 'red',
+    description: 'Watch history, searches, subscriptions, playlists, likes, and comments.',
+    exportUrl: 'https://takeout.google.com/settings/takeout/custom/youtube',
+    action: 'OPEN GOOGLE TAKEOUT', accept: '.json,.html,.csv,.zip,application/json,text/html,text/csv'
+  },
+  {
+    id: 'spotify', name: 'Spotify', mark: '≋', tone: 'green',
+    description: 'Listening history and playlists—the clearest map of your taste outside text.',
+    exportUrl: 'https://www.spotify.com/account/privacy/',
+    action: 'GET SPOTIFY DATA', accept: '.json,.zip,application/json'
+  },
+  {
+    id: 'x', name: 'X / Twitter', mark: 'X', tone: 'black',
+    description: 'Posts, likes, bookmarks, follows, and links from your account archive.',
+    exportUrl: 'https://x.com/settings/download_your_data',
+    action: 'GET X ARCHIVE', accept: '.js,.json,.zip,application/json,text/javascript'
+  },
+  {
+    id: 'browser', name: 'Bookmarks', mark: '★', tone: 'yellow',
+    description: 'The links you deliberately kept across Chrome, Safari, Firefox, or Edge.',
+    exportUrl: '', action: 'EXPORT FROM YOUR BROWSER', accept: '.html,.htm,text/html'
+  },
+  {
+    id: 'anything', name: 'Anything else', mark: '+', tone: 'violet',
+    description: 'PDFs, notes, screenshots, documents, folders, JSON, CSV, RSS, or plain text.',
+    exportUrl: '', action: 'CHOOSE ANY FILES', accept: ''
+  }
+]);
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -41,6 +91,13 @@ function routeTo(hash) {
   else location.hash = hash;
 }
 
+function cleanFeedURL() {
+  const target = new URL(location.href);
+  for (const key of ['test', 'autorun']) target.searchParams.delete(key);
+  target.hash = '#/feed';
+  return target.href;
+}
+
 function makeInput({ directory = false } = {}) {
   const input = el('input');
   input.type = 'file';
@@ -61,9 +118,16 @@ function makeInput({ directory = false } = {}) {
 const filesInput = makeInput();
 const folderInput = makeInput({ directory: true });
 
+function chooseFiles(platform) {
+  state.platform = platform.id;
+  filesInput.accept = platform.accept || '';
+  filesInput.click();
+}
+
 async function setFiles(files) {
   if (state.busy) return;
   state.files = [...files].filter(Boolean);
+  state.result = null;
   state.inspection = state.files.length ? await runtime.inspect(state.files) : null;
   renderPanel();
 }
@@ -76,49 +140,93 @@ function adapterSummary() {
 
 function capacityCopy() {
   const capacity = state.inspection?.capacity;
-  if (!capacity) return 'NO FILES YET';
-  if (!capacity.quota) return `${bytes(capacity.requested)} READY`;
-  return `${bytes(capacity.requested)} READY · ${bytes(Math.max(0, capacity.remaining))} FREE`;
+  if (!capacity) return 'NOTHING SELECTED';
+  if (!capacity.quota) return `${bytes(capacity.requested)} SELECTED`;
+  return `${bytes(capacity.requested)} SELECTED · ${bytes(Math.max(0, capacity.remaining))} FREE`;
 }
 
-function terminal(label, help, action) {
-  const node = button('', 'import-terminal', action);
-  node.append(el('strong', '', label), el('span', '', help));
-  return node;
+function platformCard(platform) {
+  const card = el('article', `source-card source-${platform.tone}${state.platform === platform.id ? ' is-selected' : ''}`);
+  card.dataset.platform = platform.id;
+  const head = el('div', 'source-card-head');
+  head.append(el('span', 'source-mark', platform.mark), el('h3', '', platform.name));
+  const copy = el('p', '', platform.description);
+  const actions = el('div', 'source-card-actions');
+  if (platform.exportUrl) {
+    const exportButton = button(platform.action, 'source-link', () => window.open(platform.exportUrl, '_blank', 'noopener,noreferrer'));
+    exportButton.setAttribute('aria-label', `${platform.action} in a new tab`);
+    actions.append(exportButton);
+  } else if (platform.id === 'browser') {
+    actions.append(el('span', 'source-tip', 'Use your browser’s bookmark export, then choose the HTML file.'));
+  }
+  actions.append(button(platform.id === 'anything' ? 'CHOOSE FILES' : 'I HAVE THE FILES', 'source-choose', () => chooseFiles(platform)));
+  card.append(head, copy, actions);
+  return card;
+}
+
+function sourceChooser() {
+  const section = el('section', 'source-chooser');
+  const intro = el('div', 'source-chooser-copy');
+  intro.append(
+    el('span', 'import-workbench-kicker', 'START WITH ONE'),
+    el('h2', '', COPY.chooseSource),
+    el('p', '', COPY.chooseSourceBody)
+  );
+  const grid = el('div', 'source-card-grid');
+  for (const platform of PLATFORMS) grid.append(platformCard(platform));
+  section.append(intro, grid);
+  return section;
+}
+
+function advancedFiles() {
+  const section = el('section', 'import-advanced');
+  const copy = el('div');
+  copy.append(el('strong', '', 'ALREADY HAVE A FOLDER OR A MIX OF FILES?'), el('span', '', 'Choose them directly. Sideways detects the format automatically.'));
+  const actions = el('div', 'import-advanced-actions');
+  const fileButton = button('', 'import-terminal', () => {
+    state.platform = 'anything';
+    filesInput.accept = '';
+    filesInput.click();
+  });
+  fileButton.append(el('strong', '', 'PICK FILES'), el('span', '', 'One or many files.'));
+  const folderButton = button('', 'import-terminal', () => {
+    state.platform = 'anything';
+    folderInput.click();
+  });
+  folderButton.append(el('strong', '', 'PICK FOLDER'), el('span', '', 'A full export folder.'));
+  actions.append(fileButton, folderButton);
+  section.append(copy, actions);
+  return section;
 }
 
 function importCard() {
   const card = el('section', 'import-workbench-card');
   card.dataset.importWorkbench = 'true';
-  const top = el('div', 'import-workbench-top');
-  top.append(
-    el('span', 'import-workbench-kicker', 'BRING YOUR OWN INTERNET'),
-    el('h2', '', 'PUT IN A REAL EXPORT.'),
-    el('p', '', 'Pick files from X, Reddit, Mastodon, browser bookmarks, RSS, JSON, CSV, or plain text. Sideways reads them here and writes them into the same local library the feed already uses.')
-  );
-
-  const terminals = el('div', 'import-terminal-grid');
-  terminals.append(
-    terminal('PICK FILES', 'One or many files.', () => filesInput.click()),
-    terminal('PICK FOLDER', 'A whole export folder.', () => folderInput.click()),
-    terminal('USE NORMAL ADD', 'PDF, Office, images, audio, video, ZIP packs.', () => routeTo('#/add')),
-    terminal('OPEN SAVED PACK', 'A Sideways pack you made before.', () => document.getElementById('packPicker')?.click())
-  );
-
-  const support = el('div', 'import-support-row');
-  for (const adapter of registry.list()) support.append(el('span', '', adapter.label));
-  card.append(top, terminals, support);
+  card.append(sourceChooser(), advancedFiles());
   return card;
 }
 
+function completionPanel() {
+  const panel = el('section', 'import-complete-panel');
+  const result = state.result || { added: 0, skipped: 0, failed: 0 };
+  panel.append(
+    el('span', 'import-workbench-kicker', 'DONE'),
+    el('h2', '', COPY.importDone),
+    el('p', '', `${result.added} new ${result.added === 1 ? 'item' : 'items'} added${result.skipped ? ` · ${result.skipped} duplicates skipped` : ''}${result.failed ? ` · ${result.failed} files need another look` : ''}.`),
+    button(COPY.importOpen, 'import-primary import-open-feed', () => location.assign(cleanFeedURL()))
+  );
+  return panel;
+}
+
 function queuePanel() {
+  if (state.result) return completionPanel();
   const panel = el('section', 'import-queue-panel');
   const titleRow = el('div', 'import-queue-title');
-  titleRow.append(el('div', '', state.files.length ? `${state.files.length} FILES READY` : 'NO FILES YET'), el('span', '', capacityCopy()));
+  titleRow.append(el('div', '', state.files.length ? `${state.files.length} ${state.files.length === 1 ? 'FILE' : 'FILES'} READY` : 'YOUR SELECTION'), el('span', '', capacityCopy()));
   panel.append(titleRow);
 
   if (!state.files.length) {
-    panel.append(el('p', 'import-empty', 'Pick an export. Nothing is uploaded anywhere.'));
+    panel.append(el('p', 'import-empty', COPY.queueEmpty));
     return panel;
   }
 
@@ -136,11 +244,11 @@ function queuePanel() {
   const found = adapterSummary();
   if (found) panel.append(el('pre', 'import-adapter-summary', found));
 
-  const status = el('div', 'import-live-status', 'READY');
+  const status = el('div', 'import-live-status', COPY.importReady);
   status.id = 'importLiveStatus';
   const actions = el('div', 'import-actions');
-  const clear = button('CLEAR', 'import-secondary', () => setFiles([]));
-  const run = button('PUT THEM IN', 'import-primary', () => startImport(status, clear, run));
+  const clear = button('CHOOSE DIFFERENT FILES', 'import-secondary', () => setFiles([]));
+  const run = button(COPY.importRun, 'import-primary', () => startImport(status, clear, run));
   actions.append(clear, run);
   panel.append(status, actions);
   return panel;
@@ -150,28 +258,28 @@ async function startImport(status, clear, run) {
   if (state.busy || !state.files.length) return;
   state.busy = true;
   clear.disabled = true;
-  run.textContent = 'STOP';
+  run.textContent = 'STOP IMPORT';
   const stop = () => runtime.stop();
   run.addEventListener('click', stop, { once: true });
 
-  const onFile = event => { status.textContent = `READING ${event.detail.file.name} · ${event.detail.adapter.label}`; };
-  const onProgress = event => { status.textContent = `${event.detail.added} IN · ${event.detail.skipped} SAME · ${event.detail.failed} FAILED`; };
-  const onError = event => { status.textContent = `${event.detail.file.name} FAILED · ${event.detail.error.message}`; };
+  const onFile = event => { status.textContent = `READING ${event.detail.file.name}`; };
+  const onProgress = event => { status.textContent = `${event.detail.added} ADDED · ${event.detail.skipped} DUPLICATES · ${event.detail.failed} FAILED`; };
+  const onError = event => { status.textContent = `${event.detail.file.name} COULD NOT BE READ`; };
   runtime.addEventListener('file', onFile);
   runtime.addEventListener('progress', onProgress);
   runtime.addEventListener('fileerror', onError);
 
   try {
-    const result = await runtime.import(state.files);
-    status.textContent = `DONE · ${result.added} IN · ${result.skipped} SAME · ${result.failed} FAILED`;
-    toast(`${result.added} IN${result.skipped ? ` · ${result.skipped} SAME` : ''}`);
+    state.result = await runtime.import(state.files);
     state.files = [];
     state.inspection = null;
-    setTimeout(() => location.reload(), 650);
+    toast(`${state.result.added} ADDED TO YOUR FEED`);
+    window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: state.result }));
+    renderPanel();
   } catch (error) {
     if (error?.name === 'AbortError') {
-      status.textContent = 'STOPPED';
-      toast('STOPPED');
+      status.textContent = 'IMPORT STOPPED';
+      toast('IMPORT STOPPED');
     } else {
       status.textContent = error.message || 'IMPORT FAILED';
       toast(error.message || 'IMPORT FAILED', 'error');
@@ -179,6 +287,7 @@ async function startImport(status, clear, run) {
     state.busy = false;
     renderPanel();
   } finally {
+    state.busy = false;
     runtime.removeEventListener('file', onFile);
     runtime.removeEventListener('progress', onProgress);
     runtime.removeEventListener('fileerror', onError);
@@ -193,25 +302,43 @@ function renderPanel() {
 
 function mount() {
   const addView = document.getElementById('addView');
-  if (!addView || addView.hidden || document.getElementById('importWorkbenchHost')) return;
-  const host = el('div', 'import-workbench');
-  host.id = 'importWorkbenchHost';
-  addView.append(host);
+  if (!addView || addView.hidden) return false;
+  let host = document.getElementById('importWorkbenchHost');
+  if (!host) {
+    host = el('div', 'import-workbench');
+    host.id = 'importWorkbenchHost';
+    addView.append(host);
+  }
   renderPanel();
+  return true;
 }
 
 let scheduled = false;
 function schedule() {
   if (scheduled) return;
   scheduled = true;
-  requestAnimationFrame(() => { scheduled = false; mount(); });
+  requestAnimationFrame(() => {
+    scheduled = false;
+    mount();
+  });
 }
 
-new MutationObserver(schedule).observe(document.body || document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
-window.addEventListener('hashchange', schedule);
-window.addEventListener('sideways:ready', schedule);
-window.addEventListener('sideways:feedrender', schedule);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
-else schedule();
+function bootMount() {
+  schedule();
+  for (const delay of [80, 280, 900, 1800]) setTimeout(schedule, delay);
+}
 
-window.SidewaysImportWorkbench = Object.freeze({ registry, runtime, open: () => routeTo('#/add'), setFiles });
+for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:feedrender']) {
+  window.addEventListener(eventName, schedule);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootMount, { once: true });
+else bootMount();
+
+window.SidewaysImportWorkbench = Object.freeze({
+  registry,
+  runtime,
+  platforms: PLATFORMS,
+  open: () => routeTo('#/add'),
+  setFiles,
+  mount: schedule
+});
