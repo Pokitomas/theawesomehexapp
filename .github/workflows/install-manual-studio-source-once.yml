@@ -1,0 +1,69 @@
+name: Install manual studio source once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/install-manual-studio-source-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: manual-studio-refactor
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Assemble existing product layers
+        run: |
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
+          cat manual-overlay.b64.part.* > manual-overlay.b64
+          base64 -d manual-overlay.b64 > manual-overlay.tar.xz
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
+          cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
+          base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
+          tar -xJf manual-kernel-overlay.tar.xz
+          python manual-kernel/patch.py
+
+      - name: Decode and install editable studio
+        run: |
+          count=$(find studio-bootstrap -maxdepth 1 -type f -name 'source.part.*' | wc -l)
+          test "$count" = "4"
+          cat studio-bootstrap/source.part.* > /tmp/studio-lite.b64
+          test "$(wc -c < /tmp/studio-lite.b64)" = "25216"
+          echo "b7b7e1f8e60e1cafae5996d8b65b67269d9a0392f66c5adac9a44255365e8ef1  /tmp/studio-lite.b64" | sha256sum -c -
+          base64 -d /tmp/studio-lite.b64 > /tmp/studio-lite.tar.xz
+          echo "e5ccfa3e36432b346ca11aea0274272c090373344674b8678b12b5aa72f231d2  /tmp/studio-lite.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/studio-lite.tar.xz
+          npm install --no-save typescript@5.8.3
+          bash bootstrap/install.sh
+          node studio/manual/build.mjs
+          node studio/manual/verify.mjs
+
+      - name: Commit canonical source to refactor branch
+        run: |
+          rm -rf studio-bootstrap bootstrap node_modules
+          rm -f package-lock.json
+          rm -f .github/workflows/install-manual-studio-source.yml
+          rm -f .github/workflows/export-full-manual-source.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Install editable manual studio source"
+          git push origin HEAD:manual-studio-refactor
