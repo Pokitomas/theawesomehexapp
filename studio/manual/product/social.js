@@ -61,14 +61,14 @@ async function storeRequest(storeName, mode, work) {
       const tx = db.transaction(storeName, mode);
       const store = tx.objectStore(storeName);
       let request;
+      let result;
       try { request = work(store); }
       catch (error) { reject(error); return; }
       if (request) {
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = () => { result = request.result; };
         request.onerror = () => reject(request.error);
-      } else {
-        tx.oncomplete = () => resolve();
       }
+      tx.oncomplete = () => resolve(result);
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
     });
