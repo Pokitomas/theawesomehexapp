@@ -16,7 +16,8 @@ function contractCard(card) {
   for (const [selector, actionId] of CORE_CONTROLS) {
     const node = card.querySelector(selector);
     if (!node || node.dataset.actionId) continue;
-    bindAction(node, actionId, () => null, { payload: { recordId } });
+    const ariaLabel = node.getAttribute('aria-label') || node.textContent.trim();
+    bindAction(node, actionId, () => null, { payload: { recordId }, ariaLabel });
   }
 }
 
