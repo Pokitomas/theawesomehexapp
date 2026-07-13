@@ -1,4 +1,4 @@
-name: Build and deploy profile content feed
+name: Build and deploy manual root-kernel feed
 
 on:
   push:
@@ -52,6 +52,17 @@ jobs:
           tar -xJf manual-overlay.tar.xz
           python manual/patch.py
 
+      - name: Reuse the exact root saturation kernel
+        run: |
+          cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
+          test "$(wc -c < manual-kernel-overlay.b64)" = "13240"
+          echo "dbefdc6431dd6359070b43e095e7f5a71f1cd687087cfbd1106fb6faaed7be80  manual-kernel-overlay.b64" | sha256sum -c -
+          base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
+          echo "6222882773e966ad457a2b6f7dd6ca7b4babe8dc2b67f812a84871fe2f19f3fd  manual-kernel-overlay.tar.xz" | sha256sum -c -
+          tar -xJf manual-kernel-overlay.tar.xz
+          python manual-kernel/patch.py
+          cp manual-phone-check.mjs manual-kernel/phone-check.mjs
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -60,8 +71,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install media tooling
-        run: python -m pip install --disable-pip-version-check pillow
+      - name: Install media and phone test tooling
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          npm install --no-save playwright-core@1.55.0
 
       - name: Cache source mirror and compressed media
         uses: actions/cache@v4
@@ -115,7 +128,7 @@ jobs:
             --max-media 240 \
             --discover-forum 100
 
-      - name: Generate one million candidate instances
+      - name: Generate one million root candidates
         env:
           POST_COUNT: 1000000
           CHUNK_SIZE: 1024
@@ -129,6 +142,32 @@ jobs:
 
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
+
+      - name: Verify exact manual saturation kernel
+        run: |
+          node --check manual-app/app.js
+          node --check manual-app/kernel.js
+          node manual-kernel/verify-kernel.mjs
+          grep -q 'FORMULAS ARE THE ROOT FEED FORMULAS' manual-app/kernel.js
+          grep -q 'id="debugPanel"' dist/manual/index.html
+          test -f dist/manual/kernel.js
+
+      - name: Check manual gate on a phone viewport
+        run: |
+          python -m http.server 4173 --directory dist >/tmp/manual-http.log 2>&1 &
+          server=$!
+          trap 'kill $server || true' EXIT
+          sleep 2
+          node manual-kernel/phone-check.mjs
+
+      - name: Upload phone gate proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-phone-gate
+          path: manual-phone-gate.png
+          if-no-files-found: ignore
+          retention-days: 5
 
       - name: Configure Pages
         if: github.event_name == 'push'
@@ -161,16 +200,19 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'Manual corpus edition deployed',
+              title: 'Manual corpus root-kernel edition deployed',
               body: [
                 `ROOT_URL=${process.env.DEPLOYED_URL}`,
                 `MANUAL_URL=${process.env.DEPLOYED_URL}manual/`,
+                `PHONE_TEST_URL=${process.env.DEPLOYED_URL}manual/?debug=1&test=1&autorun=1`,
                 `COMMIT=${context.sha}`,
                 'ROOT_PRODUCT=unchanged',
-                'MANUAL_CORPUS=empty',
+                'MANUAL_CORPUS=empty until user PUTS IN records',
+                'MANUAL_KERNEL=root-exact extracted from src/app.js',
+                'MANUAL_DEBUG=?debug=1 same axes gate and ranking pane',
+                'PHONE_GATE_TEST=20 records and visible gate movement',
+                'IPHONE_FOLDER_FALLBACK=FILES + multi-file picker',
                 'MANUAL_STORAGE=browser-local IndexedDB',
-                'UPLOADS=files/folders/paste/links/JSON/CSV/ZIP/PDF/Office/media',
-                'PACKS=portable JSON with local assets',
                 'BUTTON_LANGUAGE=WALL-E'
               ].join('\n')
             });
