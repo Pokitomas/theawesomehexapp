@@ -48,11 +48,11 @@ function routeTo(hash) {
 
 function cloneNav(node, actionId, iconName, label, route, ariaLabel = label) {
   if (!node) return null;
-  if (node.dataset.workspaceNav === actionId) return node;
+  if (node.dataset.workspaceNavAction === actionId) return node;
   const replacement = node.cloneNode(false);
   replacement.id = node.id;
   replacement.className = `${node.className || ''} workspace-nav-button`.trim();
-  replacement.dataset.workspaceNav = actionId;
+  replacement.dataset.workspaceNavAction = actionId;
   replacement.dataset.route = route;
   replacement.removeAttribute('href');
   replacement.replaceChildren(icon(iconName), el('span', 'workspace-button-label', label));
@@ -68,7 +68,7 @@ function installNavigation() {
   const top = document.querySelector('.topline');
   if (!top) return;
   const chromeScope = document.querySelector('.topbar') || document;
-  let nav = chromeScope.querySelector('[data-workspace-nav]');
+  let nav = chromeScope.querySelector('nav[data-workspace-nav="true"]');
   if (!nav) {
     nav = el('nav', 'workspace-nav');
     nav.dataset.workspaceNav = 'true';
@@ -82,6 +82,7 @@ function installNavigation() {
   if (!navPlaces) {
     navPlaces = actionWithIcon('nav.places', 'pin', () => routeTo('#/places'), { className: 'workspace-nav-button', label: COPY.places, payload: { route: '#/places' } });
     navPlaces.id = 'navPlaces';
+    navPlaces.dataset.workspaceNavAction = 'nav.places';
   }
 
   const navSaved = document.getElementById('navSaved');
