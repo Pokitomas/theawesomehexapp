@@ -54,8 +54,11 @@ jobs:
 
       - name: Install shared manual saturation kernel
         run: |
-          cat manual-kernel.tar.xz.b64.part.* | base64 -d > manual-kernel.tar.xz
-          echo "1be2d8e725fb87959a0a09f84291b955c1796da9b233d74b5119d069f1816c70  manual-kernel.tar.xz" | sha256sum -c -
+          cat manual-kernel.b64.part.* > manual-kernel.b64
+          test "$(wc -c < manual-kernel.b64)" = "22272"
+          echo "05db8297d3857a1d9a0036df2cde8642d72f74b1fe21b09c54d7313c20e48985  manual-kernel.b64" | sha256sum -c -
+          base64 -d manual-kernel.b64 > manual-kernel.tar.xz
+          echo "25a52fcf821c15fc06e659203a019b9a60339cc81b7cf1309b7a5fec510fb136  manual-kernel.tar.xz" | sha256sum -c -
           tar -xJf manual-kernel.tar.xz
           python manual-kernel/patch.py
 
