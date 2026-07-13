@@ -1,4 +1,5 @@
 const HASH_WORKER_URL = new URL('./hash-worker.js', import.meta.url);
+const FULL_HASH_MAX = 32 * 1024 * 1024;
 let worker = null;
 let sequence = 0;
 const pending = new Map();
@@ -44,6 +45,7 @@ async function sampledDigest(file) {
 }
 
 export async function digestFile(file, signal) {
+  if (file.size > FULL_HASH_MAX) return sampledDigest(file);
   const active = ensureWorker();
   if (!active) return sampledDigest(file);
   const id = ++sequence;
