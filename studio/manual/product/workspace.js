@@ -2,6 +2,7 @@ import { ACCENTS, clearDraft, deletePlace, listPlaces, readDraft, readProfile, r
 import { deleteEntry, getAsset, getAssets, getRecord, listRecords, ownedEntries, prepareImage, publishEntry, recordsByPlace, updateEntry } from './workspace-records.js';
 import { readCorpusLedger, storageDurability } from './workspace-db.js';
 import { migrateLegacySocial } from './workspace-migration.js';
+import { Survival } from './survival-ledger.js';
 
 void storageDurability({ request: true })
   .then(detail => window.dispatchEvent(new CustomEvent('sideways:durability', { detail })))
@@ -30,6 +31,7 @@ export const Workspace = Object.freeze({
   recordsByPlace,
   durability: storageDurability,
   ledger: readCorpusLedger,
+  survival: Survival,
   migrateLegacySocial
 });
 
