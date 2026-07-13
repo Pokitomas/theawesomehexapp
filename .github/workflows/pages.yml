@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: pages-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -217,6 +217,6 @@ jobs:
                 'RANKING_KERNEL=root-exact',
                 'DEBUG_ROUTE=manual/?debug=1',
                 'PROOF_ROUTE=manual/?debug=1&fixture=20',
-                'PROOF_GATE=0.000->0.877'
+                'PROOF_GATE=moved'
               ].join('\n')
             });
