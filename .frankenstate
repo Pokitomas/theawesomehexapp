@@ -99,9 +99,12 @@ collaborator:
     - studio/manual/tests/onboarding-clickthrough.mjs   # yours per file_locks above now, not holding this
 
   current_subtask:
-    summary: Watching PR 41 (kernel parity) for merge/CI result. Watching issue 43 for reaction to a review-only copy critique -- no branch opened for that one.
-    last_change: Posted exact-replacement copy on 43 -- profileBody (states why name/handle is optional), formats list (JSON+CSV -> plain language), storageUnknown/storageAction wording (states the actual consequence of skipping persist()).
-    done_when: PR 41 merged or explicitly rejected; copy suggestions on 43 accepted, declined, or superseded.
+    summary: Watching PR 41 (kernel parity) for merge/CI result. Reproduced the phone-check CI failure locally (full build, real Chromium, no logs access needed) and root-caused it -- posted on issue 40, not touching it myself, core/shared file, not in anyone's lock list.
+    last_change: Root cause posted -- frame() in manual-app/app.js runs an unbounded requestAnimationFrame loop that calls renderFeed() (unconditional replaceChildren) whenever gate drift exceeds .08, even with zero records, even off-screen. That's what's destabilizing an unrelated element during the phone-check touch sequence.
+    done_when: PR 41 merged or explicitly rejected; frame()'s render trigger gets bounded or gated on the feed actually being visible/populated; phone-check goes green.
+
+  local_repro:
+    note: Can build and run the full CI pipeline locally now (clone, assemble overlays, python studio/manual/apply.py, node scripts/build.mjs with a tiny synthetic corpus stub + low POST_COUNT, serve dist/, run phone-check.mjs and onboarding-clickthrough.mjs against it with real Chromium). Useful for verifying claims before posting instead of guessing from commit titles or step names.
 
   next_architectural_goal:
     summary: Hold the verification/QA + ruthless-review lane, not visual or copy authorship. Once onboarding/interaction is stable, check whether the platform adapters (Instagram/TikTok/YouTube/Spotify) parse real exported data or are stubs, and add coverage for import correctness -- not just that the UI stays responsive.
