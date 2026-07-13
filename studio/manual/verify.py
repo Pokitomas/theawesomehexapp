@@ -82,6 +82,11 @@ def main() -> None:
         if forbidden in copy_source:
             raise AssertionError(f"visible copy reintroduced implementation language: {forbidden}")
 
+    component_css = assert_clean_text(HERE / "product" / "studio-components.css")
+    for forbidden in (".studio-profile-", ".studio-storage-", ".drop-zone", ".queue li", ".studio-format-grid"):
+        if forbidden in component_css:
+            raise AssertionError(f"dead prototype component styling returned: {forbidden}")
+
     import_source = assert_clean_text(HERE / "product" / "import-studio.js")
     if "location.reload()" in import_source:
         raise AssertionError("imports must not force an automatic page reload")
