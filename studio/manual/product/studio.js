@@ -1,10 +1,10 @@
 import { COPY } from './copy.js';
-import { actionButton, bindAction } from './actions.js';
+import { actionButton } from './actions.js';
 
 const STABLE_LABELS = Object.freeze(['ADD', 'KEEP', 'READ', 'SEND', 'FILES +']);
 const STABLE_IDS = Object.freeze(['corpusStatus', 'debugPolicy', 'debugState', 'debugPanel']);
 const PRODUCT_TITLE = 'Sideways';
-const PRODUCT_THEME = '#ff5a36';
+const PRODUCT_THEME = '#0a84ff';
 let scheduled = false;
 let appReady = Boolean(window.SidewaysCore?.state?.manifest);
 
@@ -15,55 +15,44 @@ function element(tag, className = '', text) {
   return node;
 }
 
-function setText(node, value) {
-  if (node && node.textContent !== value) node.textContent = value;
-}
-
 function setAttribute(node, name, value) {
   if (node && node.getAttribute(name) !== value) node.setAttribute(name, value);
-}
-
-function routeTo(hash) {
-  if (!appReady) {
-    window.addEventListener('sideways:ready', () => routeTo(hash), { once: true });
-    return;
-  }
-  if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo(hash);
-  else location.hash = hash;
 }
 
 function openPost() {
   window.SidewaysSocial?.openComposer?.();
 }
 
-function openProfile() {
-  window.SidewaysSocial?.openProfile?.();
+function openImport() {
+  if (window.SidewaysShell?.showCreate) window.SidewaysShell.showCreate();
+  else if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo('#/add');
+  else location.hash = '#/add';
 }
 
 function emptyCard() {
   const card = element('section', 'studio-empty-hero');
   card.dataset.studioEmpty = 'true';
-  const top = element('div', 'studio-empty-copy');
+  const body = element('div', 'studio-empty-copy');
   const actions = element('div', 'studio-launch-actions');
   actions.append(
-    actionButton('feed.post', openPost, { className: 'studio-launch-button is-post' }),
-    actionButton('feed.import', () => routeTo('#/add'), { className: 'studio-launch-button is-import' })
+    actionButton('create.post', openPost, { className: 'studio-launch-button is-post' }),
+    actionButton('create.import', openImport, { className: 'studio-launch-button is-import' })
   );
-  top.append(element('span', 'studio-local', COPY.ready), element('h1', '', COPY.emptyTitle), actions);
-  card.append(top);
+  body.append(element('span', 'studio-local', COPY.ready), element('h1', '', COPY.emptyTitle), actions);
+  card.append(body);
   return card;
 }
 
 function progressCard(count) {
-  const card = element('section', 'studio-progress-card is-awake');
+  const card = element('section', 'studio-progress-card');
   card.dataset.studioProgress = String(count);
   const actions = element('div', 'studio-progress-actions');
   actions.append(
-    actionButton('feed.post', openPost, { className: 'studio-secondary-action' }),
-    actionButton('feed.import', () => routeTo('#/add'), { className: 'studio-secondary-action' })
+    actionButton('create.post', openPost, { className: 'ui-button', label: 'Post' }),
+    actionButton('nav.places', () => window.SidewaysShell?.openPlaces?.(), { className: 'ui-button', label: 'Places' })
   );
   card.append(
-    element('span', 'studio-progress-count', `${count} ${count === 1 ? 'THING' : 'THINGS'}`),
+    element('span', 'studio-progress-count', `${count} ${count === 1 ? 'item' : 'items'}`),
     element('h2', '', COPY.feedAwake),
     actions
   );
@@ -75,38 +64,24 @@ function recordCount() {
 }
 
 function enhanceBrand() {
-  setText(document.querySelector('.brand-lockup span'), COPY.brand);
-  setAttribute(document.getElementById('navFeed'), 'aria-label', `${COPY.brand}: feed`);
   if (document.title !== PRODUCT_TITLE) document.title = PRODUCT_TITLE;
   setAttribute(document.querySelector('meta[name="theme-color"]'), 'content', PRODUCT_THEME);
-
-  const navFeed = document.getElementById('navFeed');
-  const navAdd = document.getElementById('navAdd');
-  const navSaved = document.getElementById('navSaved');
-  if (navFeed) navFeed.textContent = 'FEED';
-  if (navAdd) navAdd.textContent = 'ADD';
-  if (navSaved) navSaved.textContent = 'SAVED';
-
-  for (const [node, id] of [[navFeed, 'nav.feed'], [navAdd, 'nav.import'], [navSaved, 'nav.saved']]) {
-    if (!node || node.dataset.actionBound === 'true') continue;
-    node.dataset.actionBound = 'true';
-    bindAction(node, id, () => undefined, { payload: { route: node.dataset.route || location.hash } });
-  }
+  setAttribute(document.getElementById('navFeed'), 'aria-label', 'Sideways feed');
 }
 
 function enhanceFeed() {
   const feed = document.getElementById('feed');
   if (!feed) return;
-  const posts = feed.querySelectorAll('.post').length;
+  const corePosts = feed.querySelectorAll('.post').length;
   const socialPosts = feed.querySelectorAll('[data-social-post]').length;
   const nativeEmpty = feed.querySelector('.add-empty, .empty');
   const existingHero = feed.querySelector('[data-studio-empty]');
   const existingProgress = feed.querySelector('[data-studio-progress]');
   const coreTotal = recordCount();
 
-  if (nativeEmpty) nativeEmpty.classList.add('studio-native-empty');
+  nativeEmpty?.classList.add('studio-native-empty');
 
-  if (!posts && !socialPosts && coreTotal === 0 && nativeEmpty) {
+  if (!corePosts && !socialPosts && coreTotal === 0 && nativeEmpty) {
     if (!existingHero) feed.prepend(emptyCard());
     existingProgress?.remove();
     return;
@@ -122,20 +97,12 @@ function enhanceFeed() {
   } else existingProgress?.remove();
 }
 
-function enhanceViews() {
-  const profileView = document.getElementById('profileView');
-  if (profileView && !profileView.hidden) setAttribute(profileView, 'aria-label', COPY.profile);
-  const savedView = document.getElementById('savedView');
-  if (savedView && !savedView.hidden) setAttribute(savedView, 'aria-label', COPY.saved);
-}
-
 function enhance() {
   document.documentElement.classList.add('studio-product');
   document.documentElement.dataset.studioReady = appReady ? 'yes' : 'booting';
   enhanceBrand();
   if (!appReady) return;
   enhanceFeed();
-  enhanceViews();
 }
 
 function scheduleEnhance() {
@@ -162,7 +129,7 @@ function assertCompatibility() {
   }
 }
 
-for (const eventName of ['sideways:feedrender', 'sideways:profilechange', 'hashchange', 'popstate']) {
+for (const eventName of ['sideways:feedrender', 'sideways:profilechange', 'sideways:workspacechange', 'hashchange', 'popstate']) {
   window.addEventListener(eventName, scheduleEnhance);
 }
 window.addEventListener('sideways:importcomplete', bootEnhancers);
@@ -189,5 +156,5 @@ window.SidewaysStudio = Object.freeze({
   stableLabels: STABLE_LABELS,
   stableIds: STABLE_IDS,
   openPost,
-  openProfile
+  openImport
 });
