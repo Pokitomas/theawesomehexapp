@@ -1,0 +1,125 @@
+@media (max-width: 760px) {
+  html.workspace-chrome .workspace-commandbar {
+    display: grid !important;
+    grid-template-columns: 70px minmax(0, 1fr) !important;
+    grid-template-rows: 48px !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-new-button {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    order: 0 !important;
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
+    min-height: 48px !important;
+    margin: 0 !important;
+    padding-inline: .35rem !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: none !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 48px !important;
+    padding-inline: .18rem !important;
+    overflow: hidden;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-button-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  html.workspace-chrome .type-nav {
+    height: auto !important;
+    min-height: 74px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: 32px 32px !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+    overflow: visible !important;
+  }
+
+  html.workspace-chrome .type-nav > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 32px !important;
+    padding-inline: .25rem !important;
+  }
+
+  html.workspace-chrome .type-nav .future-mode-rail {
+    position: static !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-left: 0 !important;
+    background: transparent !important;
+  }
+
+  html.workspace-chrome .type-nav .future-mode-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 32px !important;
+    padding-inline: .3rem !important;
+  }
+
+  html.workspace-chrome .feed,
+  html.workspace-chrome #workspacePlacesView,
+  html.workspace-chrome #addView,
+  html.workspace-chrome #savedView,
+  html.workspace-chrome #feed:has(.studio-empty-hero) {
+    padding-bottom: calc(24px + var(--future-bottom-chrome) + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  html.workspace-chrome .workspace-commandbar {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-new-button {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav-button,
+  html.workspace-chrome .workspace-commandbar .workspace-new-button {
+    font-size: .59rem !important;
+  }
+
+  html.workspace-chrome .type-nav > button,
+  html.workspace-chrome .type-nav .future-mode-button {
+    font-size: .48rem !important;
+    letter-spacing: .07em !important;
+  }
+}
