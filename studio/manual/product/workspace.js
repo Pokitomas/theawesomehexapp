@@ -274,7 +274,7 @@ export function createWorkspaceBackend() {
     return { deleted: true, movedEntities: affected.length };
   }
 
-  async function listEntities({ placeId = 'everything', archived = False } = {}) {
+  async function listEntities({ placeId = 'everything', archived = false } = {}) {
     const posts = await rawPosts();
     return posts.filter(post => {
       if (archived || placeId === 'archive') return Boolean(post.archived);
