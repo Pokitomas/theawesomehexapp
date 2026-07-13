@@ -161,7 +161,7 @@ def main() -> None:
         node_check(path)
 
     app_text = assert_clean_text(MANUAL / "app.js")
-    if app_text.count("sideways:corpusrefresh") != 1:
+    if app_text.count("'sideways:corpusrefresh'") != 1:
         raise AssertionError("generated core must contain exactly one import refresh bridge")
     if "await rebuildState()" not in app_text:
         raise AssertionError("generated core refresh bridge must rebuild the live corpus")
