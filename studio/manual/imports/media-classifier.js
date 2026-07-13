@@ -39,7 +39,7 @@ function magic(bytes) {
   if (ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WAVE') return ['audio', 'audio/wav'];
   if (ascii(bytes, 0, 3) === 'ID3' || starts(bytes, [0xff, 0xfb]) || starts(bytes, [0xff, 0xf3]) || starts(bytes, [0xff, 0xf2])) return ['audio', 'audio/mpeg'];
   if (ascii(bytes, 0, 4) === 'OggS') return ['audio', 'application/ogg'];
-  if (ascii(bytes, 0, 4) === '\u001aE\udf\ua3' || starts(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return ['video', 'video/webm'];
+  if (starts(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return ['video', 'video/webm'];
   if (ascii(bytes, 4, 4) === 'ftyp') {
     const brand = ascii(bytes, 8, 12);
     if (/M4A|M4B|mp4a/.test(brand)) return ['audio', 'audio/mp4'];
