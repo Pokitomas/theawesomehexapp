@@ -57,6 +57,18 @@ def main() -> None:
     if "requestAnimationFrame" not in studio_source or "setText" not in studio_source:
         raise AssertionError("studio enhancer must remain scheduled and idempotent")
 
+    for relative in ("studio.js", "import-studio.js", "import-phone.js"):
+        source = assert_clean_text(HERE / "product" / relative)
+        if "new MutationObserver" in source:
+            raise AssertionError(f"{relative} reintroduced a whole-document mutation observer")
+
+    import_source = assert_clean_text(HERE / "product" / "import-studio.js")
+    if "location.reload()" in import_source:
+        raise AssertionError("imports must not force an automatic page reload")
+    for contract in ("Reddit", "Instagram", "TikTok", "YouTube", "Spotify", "cleanFeedURL"):
+        if contract not in import_source:
+            raise AssertionError(f"platform onboarding contract missing: {contract}")
+
     phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
     for contract in ("PICK MORE FILES", "webkitdirectory", "stopImmediatePropagation"):
         if contract not in phone_source:
