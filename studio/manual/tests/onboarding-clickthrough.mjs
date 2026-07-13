@@ -1,5 +1,5 @@
 // Proves the consumer import path on a real iPhone viewport:
-// launchpad → IMPORT → Reddit picker → completion, with no reload or late DOM churn.
+// CREATE sheet → Import → Reddit picker → completion, with no reload or late DOM churn.
 
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -17,11 +17,7 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
-const browser = await chromium.launch({
-  headless: true,
-  executablePath,
-  args: ['--no-sandbox', '--disable-dev-shm-usage']
-});
+const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 1,
@@ -69,15 +65,24 @@ page.on('load', () => { unexpectedLoads += 1; });
 
 await page.goto(url, { waitUntil: 'networkidle' });
 unexpectedLoads = 0;
-await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
-await touch(page.locator('.studio-launch-button.is-import'));
+await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes' && window.SidewaysShell, { timeout: 15000 });
+
+const dock = page.locator('[data-os-dock]');
+await dock.waitFor({ state: 'visible', timeout: 10000 });
+if ((await dock.locator('[data-action-id]').count()) !== 4) throw new Error('dock is not FEED / PLACES / CREATE / ME');
+
+await touch(dock.locator('[data-action-id="nav.create"]'));
+const createSheet = page.locator('[data-os-create]');
+await createSheet.waitFor({ state: 'visible', timeout: 10000 });
+await touch(createSheet.locator('[data-action-id="create.import"]'));
+
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await page.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
 if (await page.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
 if ((await page.locator('.source-card').count()) !== 8) throw new Error('app chooser is incomplete');
 
-const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
+const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'Reddit' });
 const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
 await touch(picker);
 const chooser = await chooserPromise;
@@ -99,7 +104,8 @@ if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-onboarding-touch.png', fullPage: true });
 console.log(JSON.stringify({
-  touchJourney: 'IMPORT launchpad → Reddit picker → completion',
+  touchJourney: 'CREATE → Import → Reddit picker → completion',
+  dock: ['Feed', 'Places', 'Create', 'Me'],
   profileGate: false,
   duplicateIntro: false,
   chooserBehindCompletion: false,
