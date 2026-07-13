@@ -1,12 +1,12 @@
 import { COPY } from './copy.js';
+import { actionButton, bindAction } from './actions.js';
 
 const STABLE_LABELS = Object.freeze(['ADD', 'KEEP', 'READ', 'SEND', 'FILES +']);
 const STABLE_IDS = Object.freeze(['corpusStatus', 'debugPolicy', 'debugState', 'debugPanel']);
-const PRODUCT_TITLE = 'Sideways — Your stuff, one feed';
+const PRODUCT_TITLE = 'Sideways';
 const PRODUCT_THEME = '#ff5a36';
 let scheduled = false;
 let appReady = Boolean(window.SidewaysCore?.state?.manifest);
-let firstRunRouted = false;
 
 function element(tag, className = '', text) {
   const node = document.createElement(tag);
@@ -32,37 +32,41 @@ function routeTo(hash) {
   else location.hash = hash;
 }
 
-function actionButton(label, className, action) {
-  const node = element('button', className, label);
-  node.type = 'button';
-  node.addEventListener('click', action);
-  return node;
+function openPost() {
+  window.SidewaysSocial?.openComposer?.();
+}
+
+function openProfile() {
+  window.SidewaysSocial?.openProfile?.();
 }
 
 function emptyCard() {
   const card = element('section', 'studio-empty-hero');
   card.dataset.studioEmpty = 'true';
   const top = element('div', 'studio-empty-copy');
-  top.append(
-    element('span', 'studio-local', COPY.ready),
-    element('h1', '', COPY.emptyTitle),
-    element('p', '', COPY.emptyBody),
-    actionButton(COPY.emptyAction, 'studio-primary-action', () => routeTo('#/add'))
+  const actions = element('div', 'studio-launch-actions');
+  actions.append(
+    actionButton('feed.post', openPost, { className: 'studio-launch-button is-post' }),
+    actionButton('feed.import', () => routeTo('#/add'), { className: 'studio-launch-button is-import' })
   );
+  top.append(element('span', 'studio-local', COPY.ready), element('h1', '', COPY.emptyTitle), actions);
   card.append(top);
   return card;
 }
 
 function progressCard(count) {
-  const awake = count >= 8;
-  const card = element('section', `studio-progress-card ${awake ? 'is-awake' : 'is-learning'}`);
+  const card = element('section', 'studio-progress-card is-awake');
   card.dataset.studioProgress = String(count);
+  const actions = element('div', 'studio-progress-actions');
+  actions.append(
+    actionButton('feed.post', openPost, { className: 'studio-secondary-action' }),
+    actionButton('feed.import', () => routeTo('#/add'), { className: 'studio-secondary-action' })
+  );
   card.append(
     element('span', 'studio-progress-count', `${count} ${count === 1 ? 'THING' : 'THINGS'}`),
-    element('h2', '', awake ? COPY.feedAwake : COPY.feedLearning),
-    element('p', '', awake ? COPY.feedAwakeBody : COPY.feedLearningBody)
+    element('h2', '', COPY.feedAwake),
+    actions
   );
-  if (!awake) card.append(actionButton('BRING OVER ANOTHER APP', 'studio-secondary-action', () => routeTo('#/add')));
   return card;
 }
 
@@ -70,28 +74,36 @@ function recordCount() {
   return Number(window.SidewaysCore?.state?.records?.length || document.querySelectorAll('#feed .post').length || 0);
 }
 
-function shouldAutoOpenApps() {
-  if (firstRunRouted || !appReady || recordCount() > 0) return false;
-  if (new URLSearchParams(location.search).has('test')) return false;
-  return !location.hash || location.hash === '#/feed';
-}
-
 function enhanceBrand() {
   setText(document.querySelector('.brand-lockup span'), COPY.brand);
   setAttribute(document.getElementById('navFeed'), 'aria-label', `${COPY.brand}: feed`);
   if (document.title !== PRODUCT_TITLE) document.title = PRODUCT_TITLE;
   setAttribute(document.querySelector('meta[name="theme-color"]'), 'content', PRODUCT_THEME);
+
+  const navFeed = document.getElementById('navFeed');
+  const navAdd = document.getElementById('navAdd');
+  const navSaved = document.getElementById('navSaved');
+  if (navFeed) navFeed.textContent = 'FEED';
+  if (navAdd) navAdd.textContent = 'IMPORT';
+  if (navSaved) navSaved.textContent = 'SAVED';
+
+  for (const [node, id] of [[navFeed, 'nav.feed'], [navAdd, 'nav.import'], [navSaved, 'nav.saved']]) {
+    if (!node || node.dataset.actionBound === 'true') continue;
+    node.dataset.actionBound = 'true';
+    bindAction(node, id, () => undefined, { payload: { route: node.dataset.route || location.hash } });
+  }
 }
 
 function enhanceFeed() {
   const feed = document.getElementById('feed');
   if (!feed) return;
   const posts = feed.querySelectorAll('.post').length;
+  const socialPosts = feed.querySelectorAll('[data-social-post]').length;
   const nativeEmpty = feed.querySelector('.add-empty, .empty');
   const existingHero = feed.querySelector('[data-studio-empty]');
   const existingProgress = feed.querySelector('[data-studio-progress]');
 
-  if (!posts && nativeEmpty) {
+  if (!posts && !socialPosts && nativeEmpty) {
     nativeEmpty.classList.add('studio-native-empty');
     if (!existingHero) feed.prepend(emptyCard());
     existingProgress?.remove();
@@ -100,8 +112,8 @@ function enhanceFeed() {
 
   nativeEmpty?.classList.remove('studio-native-empty');
   existingHero?.remove();
-  const total = recordCount();
-  if (total > 0 && total < 20) {
+  const total = recordCount() + socialPosts;
+  if (total > 0) {
     if (!existingProgress || existingProgress.dataset.studioProgress !== String(total)) {
       existingProgress?.remove();
       feed.prepend(progressCard(total));
@@ -121,13 +133,6 @@ function enhance() {
   document.documentElement.dataset.studioReady = appReady ? 'yes' : 'booting';
   enhanceBrand();
   if (!appReady) return;
-
-  if (shouldAutoOpenApps()) {
-    firstRunRouted = true;
-    routeTo('#/add');
-    return;
-  }
-
   enhanceFeed();
   enhanceViews();
 }
@@ -156,7 +161,7 @@ function assertCompatibility() {
   }
 }
 
-for (const eventName of ['sideways:feedrender', 'hashchange', 'popstate']) {
+for (const eventName of ['sideways:feedrender', 'sideways:profilechange', 'hashchange', 'popstate']) {
   window.addEventListener(eventName, scheduleEnhance);
 }
 window.addEventListener('sideways:importcomplete', bootEnhancers);
@@ -181,5 +186,7 @@ window.SidewaysStudio = Object.freeze({
   copy: COPY,
   enhance: scheduleEnhance,
   stableLabels: STABLE_LABELS,
-  stableIds: STABLE_IDS
+  stableIds: STABLE_IDS,
+  openPost,
+  openProfile
 });
