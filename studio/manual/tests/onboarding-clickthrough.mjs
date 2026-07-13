@@ -68,6 +68,18 @@ async function main() {
   const preBurstFires = () => page.evaluate(() => window.__observerFires);
   const fireCountBefore = await preBurstFires();
 
+  // Track scheduled work directly too: the fix replaced the unbounded MutationObserver
+  // with a fixed retry schedule (immediate + 100/320/900/1800ms). Any observer this test
+  // finds should still be bounded, but the real proof now is quiescence -- nothing should
+  // still be firing well after the longest scheduled delay.
+  await page.evaluate(() => {
+    window.__lastActivityAt = Date.now();
+    const markActivity = () => { window.__lastActivityAt = Date.now(); };
+    window.addEventListener('hashchange', markActivity);
+    window.addEventListener('sideways:ready', markActivity);
+    window.addEventListener('sideways:importworkbench', markActivity);
+  });
+
   for (const step of steps) {
     const tapTarget = page.locator(step.tap).first();
     const count = await tapTarget.count();
@@ -87,10 +99,25 @@ async function main() {
 
   const fireCountAfter = await preBurstFires();
   const burstFires = fireCountAfter - fireCountBefore;
-  console.log(`Observer callback fires during ${steps.length}-tap burst: ${burstFires} (budget: ${OBSERVER_BUDGET})`);
+  console.log(`Observer callback fires during ${steps.length}-tap burst: ${burstFires} (budget: ${OBSERVER_BUDGET}, informational if 0 -- observer-based scheduling may be gone entirely)`);
   if (burstFires > OBSERVER_BUDGET) {
     failures++;
     console.error(`*** Observer fired ${burstFires} times for ${steps.length} taps — debounce likely broken, this is the #40 failure mode.`);
+  }
+
+  // Real proof for the bounded-retry fix: wait past the longest scheduled delay (1800ms)
+  // plus a safety margin, then confirm nothing has scheduled new work since. An app that's
+  // still quietly re-triggering past its own stated retry window is the same bug wearing
+  // a different mechanism.
+  const QUIESCE_WAIT_MS = 1800 + 700;
+  const beforeWait = await page.evaluate(() => window.__lastActivityAt);
+  await page.waitForTimeout(QUIESCE_WAIT_MS);
+  const afterWait = await page.evaluate(() => window.__lastActivityAt);
+  const idleMs = afterWait - beforeWait;
+  console.log(`Activity-tracked events in the ${QUIESCE_WAIT_MS}ms post-burst window: last activity delta ${idleMs}ms`);
+  if (idleMs > 50) {
+    failures++;
+    console.error(`*** Something re-triggered ${idleMs}ms into the quiescence window, after the fix's own longest scheduled delay (1800ms) — retry schedule may not actually be bounded.`);
   }
 
   await browser.close();
