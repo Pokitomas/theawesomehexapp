@@ -14,11 +14,7 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
-const browser = await chromium.launch({
-  headless: true,
-  executablePath,
-  args: ['--no-sandbox', '--disable-dev-shm-usage']
-});
+const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 1,
@@ -43,37 +39,87 @@ async function touch(locator) {
       return;
     } catch (error) {
       lastError = error;
-      if (attempt < 3) await page.waitForTimeout(120);
+      if (attempt < 3) await page.waitForTimeout(150);
     }
   }
   throw lastError;
 }
 
+async function openDock(actionId) {
+  await touch(page.locator(`[data-os-dock] [data-action-id="${actionId}"]`));
+}
+
+async function openCreate(kind) {
+  await openDock('nav.create');
+  const sheet = page.locator('[data-os-create]');
+  await sheet.waitFor({ state: 'visible', timeout: 10000 });
+  await touch(sheet.locator(`[data-action-id="create.${kind}"]`));
+}
+
 await page.goto(url, { waitUntil: 'networkidle' });
-await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes' && window.SidewaysShell && window.SidewaysSocial, { timeout: 15000 });
+await page.waitForFunction(() => window.SidewaysWorkspace && typeof window.SidewaysWorkspace.exportSnapshot === 'function', { timeout: 15000 });
 
 for (const phrase of ['YOUR STUFF. ONE FEED.', 'BRING YOUR INTERNET', 'YOUR STUFF, RECOMPOSED', 'YOUR INTERNET, YOUR WAY']) {
   if ((await page.getByText(phrase, { exact: false }).count()) > 0) throw new Error(`editorial copy returned: ${phrase}`);
 }
 
-const me = page.locator('#navProfile[data-action-id="profile.open"]');
-await touch(me);
+const dock = page.locator('[data-os-dock]');
+const dockIds = await dock.locator('[data-action-id]').evaluateAll(nodes => nodes.map(node => node.dataset.actionId));
+if (dockIds.join('|') !== 'nav.feed|nav.places|nav.create|nav.me') throw new Error(`wrong dock topology: ${dockIds.join('|')}`);
+if (await page.locator('[data-os-dock] [data-action-id="nav.saved"], [data-os-dock] [data-action-id="nav.import"]').count()) throw new Error('deleted top-level tab returned');
+
+const visual = await page.evaluate(() => {
+  const dockStyle = getComputedStyle(document.querySelector('[data-os-dock]'));
+  const mainStyle = getComputedStyle(document.querySelector('main'));
+  return {
+    dockPosition: dockStyle.position,
+    dockBlur: dockStyle.backdropFilter || dockStyle.webkitBackdropFilter,
+    mainBorder: parseFloat(mainStyle.borderTopWidth),
+    oldPaper: getComputedStyle(document.documentElement).getPropertyValue('--studio-paper').trim()
+  };
+});
+if (visual.dockPosition !== 'fixed') throw new Error(`dock is not spatially anchored: ${visual.dockPosition}`);
+if (!visual.dockBlur || visual.dockBlur === 'none') throw new Error('dock has no material physics');
+if (visual.mainBorder > 1.1) throw new Error(`main window border is too heavy: ${visual.mainBorder}`);
+if (visual.oldPaper) throw new Error('old beige visual token still exists');
+
+await openDock('nav.me');
+const meView = page.locator('#osMeView');
+await meView.waitFor({ state: 'visible', timeout: 10000 });
+await touch(meView.locator('[data-action-id="profile.open"]'));
 const profile = page.locator('[data-social-profile]');
 await profile.waitFor({ state: 'visible', timeout: 10000 });
 await profile.locator('input[name="socialName"]').fill('KAI');
 await profile.locator('input[name="socialHandle"]').fill('@sideways');
-await touch(profile.locator('[data-action-id="profile.avatar"][data-value="🪩"]'));
-await touch(profile.locator('[data-action-id="profile.color"][data-value="#9278ff"]'));
+await touch(profile.locator('[data-action-id="profile.avatar"][data-value="✦"]'));
+await touch(profile.locator('[data-action-id="profile.color"][data-value="#7c6df2"]'));
 await touch(profile.locator('[data-action-id="profile.save"]'));
 await profile.waitFor({ state: 'hidden', timeout: 5000 });
 
-await touch(page.locator('.studio-launch-button.is-post'));
-const composer = page.locator('[data-social-composer]');
+await openDock('nav.places');
+const placesView = page.locator('#osPlacesView');
+await placesView.waitFor({ state: 'visible', timeout: 10000 });
+await touch(placesView.locator('[data-action-id="place.create"]'));
+const placeDialog = page.locator('.os-small-sheet[open]');
+await placeDialog.waitFor({ state: 'visible', timeout: 5000 });
+await placeDialog.locator('input[name="placeName"]').fill('Field Notes');
+await touch(placeDialog.locator('[data-action-id="place.create"]'));
+await placeDialog.waitFor({ state: 'hidden', timeout: 5000 });
+const fieldPlace = placesView.locator('[data-place-id]').filter({ hasText: 'Field Notes' });
+await fieldPlace.waitFor({ state: 'visible', timeout: 10000 });
+
+await openCreate('post');
+let composer = page.locator('[data-social-composer]');
 await composer.waitFor({ state: 'visible', timeout: 10000 });
 await composer.locator('.social-composer-author').filter({ hasText: 'KAI' }).waitFor({ state: 'visible', timeout: 5000 });
-await composer.locator('.social-composer-text').fill('HELLO FROM SIDEWAYS');
-await touch(composer.locator('[data-action-id="post.mood"][data-value="LOL"]'));
-await touch(composer.locator('[data-action-id="post.style"][data-value="CHAOS"]'));
+await composer.locator('.social-composer-text').fill('THE WINDOW IS THE PLACE');
+await touch(composer.locator('[data-action-id="post.style"][data-value="MONO"]'));
+await touch(composer.locator('[data-action-id="post.place"]').filter({ hasText: 'Field Notes' }));
+await composer.getByText('Saved', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+
+const draftCount = await page.evaluate(async () => (await window.SidewaysWorkspace.listDrafts()).length);
+if (draftCount !== 1) throw new Error(`draft autosave is not durable: ${draftCount}`);
 
 const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
 await touch(composer.locator('[data-action-id="post.attach"]'));
@@ -87,46 +133,81 @@ await composer.locator('.social-image-preview img').waitFor({ state: 'visible', 
 await touch(composer.locator('[data-action-id="post.publish"]'));
 await composer.waitFor({ state: 'hidden', timeout: 10000 });
 
-const first = page.locator('[data-social-post]').filter({ hasText: 'HELLO FROM SIDEWAYS' });
+let first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW IS THE PLACE' });
 await first.waitFor({ state: 'visible', timeout: 10000 });
 if ((await first.locator('.social-post-image').count()) !== 1) throw new Error('photo post did not render');
 if (!(await first.getByText('KAI', { exact: true }).count())) throw new Error('profile name did not reach the post');
-if (!(await first.getByText('@sideways', { exact: true }).count())) throw new Error('profile handle did not reach the post');
+if (await first.locator('[data-action-id="post.react"], [data-action-id="post.save"]').count()) throw new Error('fake self-social actions returned');
 
-await touch(first.locator('[data-action-id="post.react"]').filter({ hasText: '😂' }));
-await first.getByText('😂 1', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-await touch(first.locator('[data-action-id="post.save"]'));
-await first.getByText('SAVED', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+await touch(first.locator('[data-action-id="post.later"]'));
+await page.locator('[data-os-toast]').filter({ hasText: 'Moved to Later' }).waitFor({ state: 'visible', timeout: 5000 });
+
+await openDock('nav.places');
+const laterPlace = placesView.locator('[data-place-id="later"]');
+await laterPlace.waitFor({ state: 'visible', timeout: 10000 });
+await touch(laterPlace.locator('[data-action-id="place.open"]'));
+first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW IS THE PLACE' });
+await first.waitFor({ state: 'visible', timeout: 10000 });
+if ((await first.getAttribute('data-place-id')) !== 'later') throw new Error('Later did not become a real location');
+
+await touch(first.locator('[data-action-id="post.more"]'));
+let menu = page.locator('.os-small-sheet[open]');
+await menu.waitFor({ state: 'visible', timeout: 5000 });
+await touch(menu.locator('[data-action-id="post.edit"]'));
+composer = page.locator('[data-social-composer]');
+await composer.waitFor({ state: 'visible', timeout: 10000 });
+await composer.locator('.social-composer-text').fill('THE WINDOW BECAME A ROOM');
+await touch(composer.locator('[data-action-id="post.place"]').filter({ hasText: 'Later' }));
+await touch(composer.locator('[data-action-id="post.update"]'));
+await composer.waitFor({ state: 'hidden', timeout: 10000 });
+first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW BECAME A ROOM' });
+await first.waitFor({ state: 'visible', timeout: 10000 });
 
 await touch(first.locator('[data-action-id="post.remix"]'));
+composer = page.locator('[data-social-composer]');
 await composer.waitFor({ state: 'visible', timeout: 10000 });
 await composer.locator('.social-remix-preview').waitFor({ state: 'visible', timeout: 5000 });
-await composer.locator('.social-composer-text').fill('SECOND POST');
+await composer.locator('.social-composer-text').fill('ROOM TWO');
 await touch(composer.locator('[data-action-id="post.publish"]'));
 await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 2, { timeout: 10000 });
 
+first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW BECAME A ROOM' });
+await touch(first.locator('[data-action-id="post.more"]'));
+menu = page.locator('.os-small-sheet[open]');
+await menu.waitFor({ state: 'visible', timeout: 5000 });
+await touch(menu.locator('[data-action-id="post.archive"]'));
+await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 1, { timeout: 10000 });
+const undoToast = page.locator('[data-os-toast]').filter({ hasText: 'Archived' });
+await undoToast.waitFor({ state: 'visible', timeout: 5000 });
+await touch(undoToast.locator('[data-action-id="undo.last"]'));
+await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 2, { timeout: 10000 });
+
 const contract = await page.evaluate(() => window.SidewaysSocial.actionContract());
-if (!Array.isArray(contract) || contract.length < 30) throw new Error(`action contract too small: ${contract?.length}`);
-const ids = new Set(contract.map(item => item.id));
-for (const id of ['profile.save', 'post.publish', 'post.react', 'post.remix', 'post.save', 'post.share', 'post.delete']) {
-  if (!ids.has(id)) throw new Error(`missing action contract: ${id}`);
+if (!Array.isArray(contract) || contract.length < 45) throw new Error(`action contract too small: ${contract?.length}`);
+const byId = new Map(contract.map(item => [item.id, item]));
+for (const id of ['nav.places', 'nav.create', 'post.publish', 'post.update', 'post.move', 'post.later', 'post.archive', 'undo.last']) {
+  if (!byId.has(id)) throw new Error(`missing action contract: ${id}`);
+  if (!byId.get(id).command) throw new Error(`action lacks backend command: ${id}`);
 }
+for (const removed of ['nav.saved', 'nav.import', 'post.react', 'post.save']) {
+  if (byId.has(removed)) throw new Error(`deleted action returned: ${removed}`);
+}
+if (!byId.get('post.move').undoable || !byId.get('post.archive').undoable) throw new Error('durable moves are not declared undoable');
 
 const results = await page.evaluate(() => window.SidewaysSocial.results());
-if (!results['post.mood']?.values?.LOL) throw new Error('action results did not learn the selected mood');
-if (!results['post.style']?.values?.CHAOS) throw new Error('action results did not learn the selected style');
+if (!results['post.style']?.values?.MONO) throw new Error('action results did not learn the selected look');
+
+const snapshot = await page.evaluate(() => window.SidewaysWorkspace.exportSnapshot());
+if (!snapshot || JSON.stringify(snapshot).length < 80) throw new Error('workspace snapshot is empty');
+const draftsAfterPublish = await page.evaluate(async () => (await window.SidewaysWorkspace.listDrafts()).length);
+if (draftsAfterPublish !== 0) throw new Error(`published drafts were not atomically cleared: ${draftsAfterPublish}`);
 
 await page.reload({ waitUntil: 'networkidle' });
-await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 2, { timeout: 15000 });
-await page.locator('#navProfile[data-action-id="profile.open"]').waitFor({ state: 'visible', timeout: 10000 });
-const storedPosts = await page.evaluate(() => window.SidewaysSocial.posts());
-if (storedPosts.length !== 2) throw new Error(`expected two persisted posts, got ${storedPosts.length}`);
-if ((await page.locator('.social-post-text').filter({ hasText: 'HELLO FROM SIDEWAYS' }).count()) !== 1) throw new Error('first post did not persist');
-if ((await page.locator('.social-post-text').filter({ hasText: 'SECOND POST' }).count()) !== 1) throw new Error('remix did not persist');
+await page.waitForFunction(() => window.SidewaysWorkspace && document.querySelectorAll('[data-social-post]').length === 2, { timeout: 15000 });
 const savedProfile = await page.evaluate(() => window.SidewaysSocial.profile());
-if (savedProfile.name !== 'KAI' || savedProfile.handle !== 'sideways' || savedProfile.avatar !== '🪩') {
-  throw new Error(`profile did not persist: ${JSON.stringify(savedProfile)}`);
-}
+if (savedProfile.name !== 'KAI' || savedProfile.handle !== 'sideways' || savedProfile.avatar !== '✦') throw new Error(`profile did not persist: ${JSON.stringify(savedProfile)}`);
+const activePlace = await page.evaluate(() => window.SidewaysWorkspace.getActivePlace());
+if (activePlace !== 'later') throw new Error(`active location did not persist: ${activePlace}`);
 
 const uncontracted = await page.locator('button:not([data-action-id]), [role="button"]:not([data-action-id])').evaluateAll(nodes => nodes
   .filter(node => node.getClientRects().length > 0)
@@ -137,20 +218,26 @@ const uncontracted = await page.locator('button:not([data-action-id]), [role="bu
 if (uncontracted.length) throw new Error(`visible uncontracted product controls: ${uncontracted.join(' | ')}`);
 if (errors.length) throw new Error(errors.join(' | '));
 
-await page.screenshot({ path: 'manual-social-phone.png', fullPage: true });
+await page.screenshot({ path: 'manual-os-phone.png', fullPage: true });
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.waitForTimeout(350);
+await page.screenshot({ path: 'manual-os-desktop.png', fullPage: true });
+
 console.log(JSON.stringify({
+  topology: ['Feed', 'Places', 'Create', 'Me'],
   profile: savedProfile,
-  profileEntry: 'ME top-bar picker',
-  posts: storedPosts.length,
+  customPlace: 'Field Notes',
+  activePlace,
+  draftsAtomic: true,
+  posts: 2,
   photo: true,
-  reaction: '😂 1',
+  edit: true,
   remix: true,
-  persisted: true,
-  visibleUncontractedControls: 0,
+  archiveUndo: true,
+  oldSocialActions: false,
   actionContracts: contract.length,
-  learnedMood: results['post.mood'].values,
-  learnedStyle: results['post.style'].values,
-  screenshot: 'manual-social-phone.png'
+  visual,
+  screenshots: ['manual-os-phone.png', 'manual-os-desktop.png']
 }, null, 2));
 
 await context.close();
