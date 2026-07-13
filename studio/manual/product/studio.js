@@ -67,7 +67,8 @@ function cloneNav(node, actionId, iconName, label, route, ariaLabel = label) {
 function installNavigation() {
   const top = document.querySelector('.topline');
   if (!top) return;
-  let nav = top.querySelector('[data-workspace-nav]');
+  const chromeScope = document.querySelector('.topbar') || document;
+  let nav = chromeScope.querySelector('[data-workspace-nav]');
   if (!nav) {
     nav = el('nav', 'workspace-nav');
     nav.dataset.workspaceNav = 'true';
@@ -90,7 +91,7 @@ function installNavigation() {
     navSaved.tabIndex = -1;
   }
 
-  let newButton = top.querySelector('[data-workspace-new]');
+  let newButton = chromeScope.querySelector('[data-workspace-new]');
   if (!newButton) {
     newButton = actionWithIcon('feed.post', 'compose', () => window.SidewaysWorkspaceUI?.openComposer?.(), { className: 'workspace-new-button', label: 'New' });
     newButton.dataset.workspaceNew = 'true';
