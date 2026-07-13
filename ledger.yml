@@ -1,0 +1,16 @@
+version: 1
+protocol: cas-ledger-v1
+# Fast-forward-only branch. To acquire or release locks: fetch, edit, commit
+# with your Agent trailer, plain push. A rejected push means you lost the
+# race - fetch and retry on the new state. Never force-push this branch.
+agents:
+  sol:
+    trailer: "Agent: sol"
+  claude:
+    trailer: "Agent: claude"
+locks:
+  - owner: claude
+    files:
+      - coordination/enforce_locks.py
+      - coordination/PROTOCOL.md
+      - .github/workflows/lock-enforcer.yml
