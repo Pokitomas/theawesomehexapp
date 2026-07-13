@@ -185,18 +185,21 @@ export async function updateEntry(recordId, input = {}) {
 }
 
 export async function deleteEntry(recordId) {
-  const existing = await getRecord(recordId);
-  if (!existing || !String(existing.nativeId || '').startsWith('sideways:')) throw new Error('This post cannot be deleted here.');
+  const numericId = Number(recordId);
+  const existing = await getRecord(numericId);
+  if (!existing) throw new Error('This item no longer exists.');
+  const allRecords = await listRecords();
+  const assetIsShared = Boolean(existing.assetKey && allRecords.some(record => Number(record.id) !== numericId && record.assetKey === existing.assetKey));
   const db = await openCorpusDB();
   try {
     const transaction = db.transaction([RECORD_STORE, BLOB_STORE], 'readwrite');
-    transaction.objectStore(RECORD_STORE).delete(Number(recordId));
-    if (existing.assetKey) transaction.objectStore(BLOB_STORE).delete(existing.assetKey);
+    transaction.objectStore(RECORD_STORE).delete(numericId);
+    if (existing.assetKey && !assetIsShared) transaction.objectStore(BLOB_STORE).delete(existing.assetKey);
     await transactionDone(transaction);
   } finally {
     db.close();
   }
-  await refreshCorpus({ action: 'delete', recordId: Number(recordId) });
+  await refreshCorpus({ action: 'delete', recordId: numericId, imported: !String(existing.nativeId || '').startsWith('sideways:') });
 }
 
 export async function listRecords() {
