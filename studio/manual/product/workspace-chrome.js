@@ -1,4 +1,5 @@
 let scheduled = false;
+const MOBILE_DOCK = window.matchMedia('(max-width: 760px)');
 
 function icon(name, className = 'workspace-icon') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -65,16 +66,28 @@ function normalizeFeedCommand() {
   feed.setAttribute('aria-label', 'Feed');
 }
 
+function placeCommandbar(commandbar, topbar, topline) {
+  if (MOBILE_DOCK.matches) {
+    if (commandbar.parentElement !== document.body) document.body.append(commandbar);
+    commandbar.dataset.workspaceCommandbarPlacement = 'dock';
+    return;
+  }
+  if (commandbar.parentElement !== topbar || commandbar.previousElementSibling !== topline) {
+    topline.insertAdjacentElement('afterend', commandbar);
+  }
+  commandbar.dataset.workspaceCommandbarPlacement = 'top';
+}
+
 function installCommandbar(topbar, topline) {
-  let commandbar = topbar.querySelector('[data-workspace-commandbar]');
+  let commandbar = document.querySelector('[data-workspace-commandbar]');
   if (!commandbar) {
     commandbar = document.createElement('div');
     commandbar.className = 'workspace-commandbar';
     commandbar.dataset.workspaceCommandbar = 'true';
     commandbar.setAttribute('role', 'toolbar');
     commandbar.setAttribute('aria-label', 'Workspace commands');
-    topline.insertAdjacentElement('afterend', commandbar);
   }
+  placeCommandbar(commandbar, topbar, topline);
 
   normalizeFeedCommand();
   const newButton = document.querySelector('[data-workspace-new]');
@@ -112,9 +125,10 @@ function schedule() {
   });
 }
 
-for (const eventName of ['sideways:ready', 'sideways:feedrender', 'sideways:workspacechange', 'sideways:profilechange', 'hashchange', 'popstate']) {
+for (const eventName of ['sideways:ready', 'sideways:feedrender', 'sideways:workspacechange', 'sideways:profilechange', 'hashchange', 'popstate', 'resize']) {
   window.addEventListener(eventName, schedule);
 }
+MOBILE_DOCK.addEventListener?.('change', schedule);
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
 else schedule();
