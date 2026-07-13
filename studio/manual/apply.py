@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import runpy
 import shutil
 
 ROOT = Path(__file__).resolve().parents[2]
 PRODUCT = Path(__file__).resolve().parent / "product"
 MANUAL = ROOT / "manual-app"
+IMPORT_INSTALLER = Path(__file__).resolve().parent / "imports" / "apply.py"
 
 STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
@@ -33,6 +35,9 @@ def main() -> None:
     text = inject_once(text, COMPONENT_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
+
+    if IMPORT_INSTALLER.is_file():
+        runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
     print("applied editable manual studio product layer")
 
