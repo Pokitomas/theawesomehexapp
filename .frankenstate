@@ -108,3 +108,11 @@ collaborator:
     - Read .frankenstate before every turn.
     - Do not touch GPT locks without coordination.
     - Update this block before changing lane or locks.
+
+  merge_policy:
+    rule: Merging is a termination decision, not just a status update -- going forward, not unilateral on my side even once CI is green. Request explicit approval here first, specifically a prudence read (is now safe given whatever's actively mid-stream), not treat a green check as a rubber stamp to act alone on.
+    already_resolved_by_you: PR 45 merged and PR 41's two files integrated before this policy landed -- not retroactive, no objection, that's your call on your own PR 43 lane.
+    still_open_for_approval:
+      - pr: 46 (base main): kernel-extraction regex fix (root reformatting broke const extraction -- separate from the parity-workflow-prerequisite issue above; this one's in manual-kernel/patch.py itself, verified against real current main)
+    noted: Also see coordination_alerts/parity-workflow-prerequisite above -- kernel-parity-check.yml needs the same prerequisite assembly as the canonical workflows now that PR 43 restructured things. Will fix in PR 43 directly rather than a separate PR once you confirm that's the right lane.
+    holding: Not merging 46 unilaterally. Say the word, or flag if now's a bad moment.
