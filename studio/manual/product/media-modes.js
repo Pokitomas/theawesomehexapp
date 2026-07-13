@@ -2,6 +2,11 @@ import { actionButton } from './actions.js';
 
 const STORAGE_KEY = 'sideways-feed-mode-v1';
 const MODES = Object.freeze(['flow', 'stage', 'grid']);
+const LABELS = Object.freeze({
+  flow: 'RIVER',
+  stage: 'FOCUS',
+  grid: 'FIELD'
+});
 let scheduled = false;
 let resizeObserver;
 
@@ -30,6 +35,7 @@ function setMode(mode, { persist = true, preserve = true } = {}) {
   if (!MODES.includes(mode)) mode = 'flow';
   const anchor = preserve ? visibleAnchor() : '';
   document.documentElement.dataset.feedMode = mode;
+  document.documentElement.dataset.feedModeLabel = LABELS[mode].toLowerCase();
   if (persist) localStorage.setItem(STORAGE_KEY, mode);
   for (const button of document.querySelectorAll('[data-feed-mode-button]')) {
     const active = button.dataset.feedModeButton === mode;
@@ -37,7 +43,7 @@ function setMode(mode, { persist = true, preserve = true } = {}) {
     button.setAttribute('aria-pressed', String(active));
   }
   if (anchor) restoreAnchor(anchor);
-  window.dispatchEvent(new CustomEvent('sideways:viewmode', { detail: { mode } }));
+  window.dispatchEvent(new CustomEvent('sideways:viewmode', { detail: { mode, label: LABELS[mode] } }));
   return mode;
 }
 
@@ -45,10 +51,12 @@ function modeButton(mode) {
   const id = `view.${mode}`;
   const button = actionButton(id, () => setMode(mode), {
     className: 'future-mode-button',
-    label: mode.toUpperCase(),
+    label: LABELS[mode],
+    ariaLabel: `${LABELS[mode]} feed layout`,
     payload: { mode }
   });
   button.dataset.feedModeButton = mode;
+  button.dataset.feedModeLabel = LABELS[mode].toLowerCase();
   button.setAttribute('aria-pressed', 'false');
   return button;
 }
@@ -72,10 +80,16 @@ function installModeRail() {
 function measureChrome() {
   const topbar = document.querySelector('.topbar');
   const typeNav = document.querySelector('.type-nav');
+  const commandbar = document.querySelector('[data-workspace-commandbar]');
   const top = topbar?.getBoundingClientRect();
   const tabs = typeNav?.getBoundingClientRect();
+  const command = commandbar?.getBoundingClientRect();
+  const commandStyle = commandbar ? getComputedStyle(commandbar) : null;
+  const commandIsDock = commandStyle?.position === 'fixed';
   const chromeHeight = Math.max(0, (top?.bottom || 0), (tabs?.bottom || 0));
+  const bottomChrome = commandIsDock ? Math.max(0, innerHeight - (command?.top || innerHeight)) : 0;
   document.documentElement.style.setProperty('--future-chrome-height', `${Math.round(chromeHeight)}px`);
+  document.documentElement.style.setProperty('--future-bottom-chrome', `${Math.round(bottomChrome)}px`);
   const viewport = window.visualViewport;
   document.documentElement.style.setProperty('--future-visual-top', `${Math.max(0, Math.round(viewport?.offsetTop || 0))}px`);
   document.documentElement.style.setProperty('--future-visual-height', `${Math.round(viewport?.height || innerHeight)}px`);
@@ -84,7 +98,7 @@ function measureChrome() {
 function observeChrome() {
   resizeObserver?.disconnect();
   resizeObserver = new ResizeObserver(measureChrome);
-  for (const node of [document.querySelector('.topbar'), document.querySelector('.type-nav')].filter(Boolean)) resizeObserver.observe(node);
+  for (const node of [document.querySelector('.topbar'), document.querySelector('.type-nav'), document.querySelector('[data-workspace-commandbar]')].filter(Boolean)) resizeObserver.observe(node);
   measureChrome();
 }
 
@@ -132,4 +146,4 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else schedule();
 for (const delay of [80, 260, 900]) setTimeout(schedule, delay);
 
-window.SidewaysMediaModes = Object.freeze({ setMode, currentMode, modes: MODES });
+window.SidewaysMediaModes = Object.freeze({ setMode, currentMode, modes: MODES, labels: LABELS });
