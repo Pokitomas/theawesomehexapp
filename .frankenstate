@@ -1,10 +1,10 @@
-version: 21
-updated_at: 2026-07-13T13:13:00-07:00
+version: 22
+updated_at: 2026-07-13T14:04:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 56 merged
-beacon_issue: 55 completed
-deployment_receipt: 57
+active_pr: 58 merged
+beacon_issue: 59 completed
+deployment_receipt: 60
 
 owner: GPT-5.6 Thinking
 mode: complete
@@ -12,30 +12,38 @@ mode: complete
 file_locks: []
 
 current_subtask:
-  summary: Completed merged and deployed the lived workspace rebuild.
-  merge_commit: 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212
-  deployment_receipt: 57
+  summary: Debugged the destructive user journey and shipped remembered-Windows command chrome.
+  merge_commit: 975130ac59a1c8660dacaa415b528c5cd0a2a188
+  deployment_receipt: 60
   production_url: https://pokitomas.github.io/theawesomehexapp/manual/
   completed:
-    - unified authored posts and imports in sideways-manual-corpus-v1
-    - added autosaved drafts places explicit geolocation profile photo posting editing and deletion
-    - added one-time legacy social migration and a sync-ready action outbox
-    - removed the second social post store emoji identity moods styles reactions remixing and acid-paper visuals
-    - shipped Feed Places Library You with New as a global action
-    - contracted every visible feed and workspace control into one action lifecycle
-    - made media cards content-sized and preserved transparent image uploads
+    - simulated creation edit cancellation and deletion through the real 390x844 product controls
+    - created three authored posts spanning text image and place variants then deleted every authored post
+    - preserved imported library material while authored posts were removed
+    - garbage-collected authored image blobs one-for-one
+    - reduced saved place counts to zero without deleting the place
+    - recorded cancelled destructive actions as cancelled rather than success
+    - separated titlebar identity from Feed navigation
+    - placed New Feed Places and Library in one labeled commandbar
+    - placed corpus status and profile in the titlebar
+    - replaced rounded dashboard chrome with square tabs restrained bevels and pressed states
+    - enforced exactly one New button and one navigation container across rerenders
   verification:
-    - all four final pull-request workflows passed on exact head e38a3af5a1789b43055cb48f5397ce02975d9943
-    - real 390x844 profile place geolocation photo post edit and reload journey passed
-    - exact ranking kernel import refresh migration persistence and action outbox passed
-    - zero automatic reloads and zero visible controls outside the action contract
-    - final generated phone artifact was visually reviewed with clean media and copy separation
-    - squash-merged to main as 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212
-    - GitHub Pages deployed merge commit 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212 and recorded issue 57
+    - all four pull-request workflows passed on exact head cbb46076ab311d79f8f57bd9ae79cd17668c8e69
+    - dedicated command-chrome contract passed at 390x844
+    - titlebar brand profile command placement labels button radii and selected-tab physics passed
+    - destructive journey produced three successful deletes and one truthful cancelled delete
+    - zero authored posts and zero authored blobs remained after reload
+    - Kitchen table remained with zero attached items
+    - imported witness survived every authored-post deletion
+    - zero visible custom controls existed outside the action contract
+    - populated and clean-state generated screenshots were visually reviewed
+    - squash-merged to main as 975130ac59a1c8660dacaa415b528c5cd0a2a188
+    - GitHub Pages deployed that exact commit and recorded issue 60
   done_when: complete
 
 next_architectural_goal:
-  summary: Use the stable action and record contracts for an optional account and sync service without changing local-first behavior.
+  summary: Use the stable action and record contracts for optional account and sync service without changing local-first behavior.
   immediate_work: none
 
 invariants:
@@ -44,6 +52,9 @@ invariants:
   - Do not reintroduce whole-document MutationObservers automatic reloads or click hijacking.
   - Every visible custom product control must come from the action contract.
   - Workspace writes resolve only after IndexedDB transaction completion.
+  - Cancelled destructive actions must never be recorded as success.
+  - Titlebar owns product identity profile and status; commandbar owns commands and navigation.
+  - Exactly one New action and one navigation container may exist.
   - Geolocation remains explicit and user initiated.
   - Never use or persist credentials pasted into chat.
 
