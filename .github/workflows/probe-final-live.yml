@@ -1,0 +1,36 @@
+name: Probe final live manual app
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/probe-final-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require final skinned app on Pages
+        run: |
+          set -euo pipefail
+          base='https://pokitomas.github.io/theawesomehexapp/manual'
+          for attempt in $(seq 1 18); do
+            html=$(curl -fsSL --max-time 20 "$base/" || true)
+            phone=$(curl -fsSL --max-time 20 "$base/import-phone.js" || true)
+            studio=$(curl -fsSL --max-time 20 "$base/studio.css" || true)
+            importer=$(curl -fsSL --max-time 20 "$base/import-studio.js" || true)
+            if grep -q 'data-import-phone' <<<"$html" \
+              && grep -q 'PICK MORE FILES' <<<"$phone" \
+              && grep -q 'studio-product' <<<"$studio" \
+              && grep -q 'PUT IN A REAL EXPORT' <<<"$importer"; then
+              echo 'FINAL_LIVE=yes'
+              echo 'MANUAL_URL=https://pokitomas.github.io/theawesomehexapp/manual/'
+              echo 'PHONE_PICKER=PICK MORE FILES'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'final Pages assets not live' >&2
+          exit 1
