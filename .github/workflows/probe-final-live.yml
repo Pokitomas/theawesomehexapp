@@ -13,7 +13,7 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect final main release
+      - name: Extract final release failure
         env:
           GH_TOKEN: ${{ github.token }}
           FINAL_SHA: bea2a5c2dc602d8e272d43b1b7629cd179163f70
@@ -23,25 +23,30 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H 'Accept: application/vnd.github+json' \
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$FINAL_SHA&per_page=20")
-          echo "$runs" | jq '.workflow_runs[] | {id,name,event,status,conclusion,created_at,updated_at,html_url}'
-          push_id=$(echo "$runs" | jq -r '[.workflow_runs[] | select(.event=="push" and .name=="Build and deploy manual root-kernel feed")][0].id // empty')
-          if [ -n "$push_id" ]; then
-            curl -fsSL \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H 'Accept: application/vnd.github+json' \
-              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$push_id/jobs?per_page=100" \
-              | jq '.jobs[] | {id,name,status,conclusion,started_at,completed_at,steps:[.steps[]|{name,status,conclusion}]}'
-          else
-            echo 'NO_MAIN_PUSH_RUN'
-          fi
+          push_id=$(echo "$runs" | jq -r '[.workflow_runs[] | select(.event=="push" and .name=="Build and deploy manual root-kernel feed")][0].id')
+          jobs=$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$push_id/jobs?per_page=100")
+          build_id=$(echo "$jobs" | jq -r '[.jobs[] | select(.name=="build")][0].id')
+          echo "PUSH_RUN=$push_id BUILD_JOB=$build_id"
+          curl -fsSL -L \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/jobs/$build_id/logs" \
+            -o /tmp/build.log
+          echo '--- PHONE FAILURE ---'
+          grep -n -E -A18 -B12 'Check manual gate and importer|Error:|##\[error\]|expected|missing|timeout|PICK MORE|FOLDER|pageerror' /tmp/build.log | tail -160 || true
+          echo '--- LOG TAIL ---'
+          tail -100 /tmp/build.log
 
       - name: Check current Pages assets
         run: |
           set -euo pipefail
           base='https://pokitomas.github.io/theawesomehexapp/manual'
           for path in '' 'studio.css' 'import-studio.js' 'import-phone.js'; do
-            code=$(curl -sS -o "/tmp/${path//\//_}.out" -w '%{http_code}' --max-time 20 "$base/$path" || true)
-            echo "$path HTTP=$code BYTES=$(wc -c < "/tmp/${path//\//_}.out")"
+            safe=${path//\//_}
+            [ -n "$safe" ] || safe=index
+            code=$(curl -sS -o "/tmp/$safe.out" -w '%{http_code}' --max-time 20 "$base/$path" || true)
+            echo "$path HTTP=$code BYTES=$(wc -c < "/tmp/$safe.out")"
           done
-          grep -q 'data-import-phone' /tmp/.out && echo 'HTML_FINAL=yes' || echo 'HTML_FINAL=no'
-          grep -q 'PICK MORE FILES' /tmp/import-phone.js.out && echo 'PHONE_FINAL=yes' || echo 'PHONE_FINAL=no'
