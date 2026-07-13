@@ -1,12 +1,12 @@
-version: 17
-updated_at: 2026-07-13T09:18:00-07:00
+version: 18
+updated_at: 2026-07-13T09:29:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/fun-posting-system
 active_pr: 48
 beacon_issue: none
 
 owner: GPT-5.6 Thinking
-mode: release-candidate
+mode: merge-and-deploy
 
 file_locks:
   - studio/manual/product/copy.js
@@ -26,32 +26,39 @@ file_locks:
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Run the final unified release candidate after all real interaction paths passed and the action audit was narrowed to visible product controls.
+  summary: Merge the fully green fun posting/profile release and verify it on production Pages.
+  release_candidate_sha: 1d4e0c148b2bb780aa674a9d901ffbae93d46b1b
+  checks:
+    - Validate manual overlay shards: success
+    - Kernel parity check: success
+    - Build and deploy manual root-kernel feed (PR verification): success
+    - Prove manual gate on phone: success
   verified_in_browser:
-    - exact root kernel: 20 THINGS, saturation, moved gate
-    - visible ADD compatibility and hidden legacy surface
+    - ME is a visible first-class phone action
+    - profile picker saves name handle face and color
     - POST or IMPORT launchpad
+    - text and photo posts
+    - reactions saves remix send and delete controls
+    - posts profile and interaction state survive reload
+    - action results reorder mood and style choices
     - one-tap Reddit import and in-place feed refresh
-    - zero automatic page reloads
-    - zero late observer callbacks
-    - picker-style profile creation and persistence
-    - text and photo posting
-    - reaction, save, remix, and reload persistence
-    - action result learning for mood and style
-  final_audit:
-    - every visible custom product control must have data-action-id
-    - hidden core compatibility controls are preserved but excluded by visibility and closed-dialog state
-  done_when: all four PR checks pass, the social phone screenshot is visually correct, PR 48 merges, and the Pages deployment is verified live.
+    - exact root kernel and stable ADD KEEP READ SEND FILES+ contracts
+    - zero automatic page reloads and zero visible uncontracted product controls
+  screenshot_review:
+    - mobile top bar is legible with FEED POST ADD SAVED ME
+    - profile identity carries into post headers
+    - remix nesting is immediately readable
+    - legacy empty card is absent under social posts
+  done_when: PR 48 is merged, main production workflows pass, live Pages serves the social assets and phone controls, and all locks are released.
 
 next_architectural_goal:
   summary: Treat interaction results as the app-generation input.
   sequence:
-    - confirm final four green checks
-    - inspect manual-social-phone.png
     - merge PR 48 to main
-    - verify bounded production Pages deployment
-    - verify the live app serves actions.js, social.js, social.css, and the POST/ME controls
-    - release locks and mark this ledger complete
+    - follow strict phone proof and bounded production Pages build on the merge SHA
+    - verify the live app serves actions.js social.js social.css and visible POST/ME controls
+    - record deployment receipt
+    - release all locks and mark this ledger complete
 
 invariants:
   - Read this file at the start of every coding turn.
