@@ -31,6 +31,14 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 
+async function touch(locator) {
+  await locator.waitFor({ state: 'visible', timeout: 10000 });
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('touch target has no bounding box');
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 await page.addInitScript(() => {
   window.__sidewaysObserverFires = 0;
   const NativeObserver = window.MutationObserver;
@@ -57,17 +65,14 @@ const profile = page.locator('[data-studio-profile-setup]');
 await profile.waitFor({ state: 'visible', timeout: 10000 });
 await profile.locator('input[name="name"]').fill('Touch Test');
 await profile.locator('input[name="handle"]').fill('@touch-test');
-await profile.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }).tap({ timeout: 3000 });
+await touch(profile.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }));
 
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
-const reddit = page.locator('.source-card[data-platform="reddit"]');
-await reddit.waitFor({ state: 'visible', timeout: 5000 });
-
-const [chooser] = await Promise.all([
-  page.waitForEvent('filechooser'),
-  reddit.getByRole('button', { name: 'I HAVE THE FILES', exact: true }).tap({ timeout: 3000 })
-]);
+const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'I HAVE THE FILES' });
+const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+await touch(picker);
+const chooser = await chooserPromise;
 await chooser.setFiles({
   name: 'comments.csv',
   mimeType: 'text/csv',
@@ -75,8 +80,9 @@ await chooser.setFiles({
 });
 
 await page.getByText('1 FILE READY', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-await page.getByRole('button', { name: 'ADD TO MY FEED', exact: true }).tap({ timeout: 3000 });
-await page.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+const completion = page.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true });
+await touch(page.getByRole('button', { name: 'ADD TO MY FEED', exact: true }));
+await completion.waitFor({ state: 'visible', timeout: 15000 });
 
 const firesBeforeQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
 await page.waitForTimeout(2600);
