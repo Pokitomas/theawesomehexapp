@@ -1,4 +1,5 @@
-import { bindAction } from './actions.js';
+import { actionButton, bindAction } from './actions.js';
+import { deleteEntry } from './workspace-records.js';
 
 const CORE_CONTROLS = Object.freeze([
   ['.source-link', 'record.source'],
@@ -11,6 +12,23 @@ const CORE_CONTROLS = Object.freeze([
 
 let scheduled = false;
 
+function installDelete(card, recordId) {
+  if (!recordId || card.querySelector('[data-action-id="post.delete"]')) return;
+  const actions = card.querySelector('.actions');
+  if (!actions) return;
+  const button = actionButton('post.delete', async () => {
+    if (!confirm('Delete this item from this device?')) return { cancelled: true };
+    await deleteEntry(recordId);
+    return { recordId };
+  }, {
+    className: 'workspace-core-delete',
+    label: 'DEL',
+    ariaLabel: 'Delete item',
+    payload: { recordId }
+  });
+  actions.append(button);
+}
+
 function contractCard(card) {
   const recordId = Number(card.dataset.id || 0) || 0;
   for (const [selector, actionId] of CORE_CONTROLS) {
@@ -19,6 +37,7 @@ function contractCard(card) {
     const ariaLabel = node.getAttribute('aria-label') || node.textContent.trim();
     bindAction(node, actionId, () => null, { payload: { recordId }, ariaLabel });
   }
+  installDelete(card, recordId);
 }
 
 function contractCoreControls() {
