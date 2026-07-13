@@ -7,6 +7,7 @@ const PRODUCT_TITLE = 'Sideways — Your history, recomposed';
 const PRODUCT_THEME = '#ff5a36';
 let scheduled = false;
 let storagePromise = null;
+let appReady = Boolean(window.SidewaysCore?.state?.manifest);
 
 function element(tag, className = '', text) {
   const node = document.createElement(tag);
@@ -24,6 +25,10 @@ function setAttribute(node, name, value) {
 }
 
 function routeTo(hash) {
+  if (!appReady) {
+    window.addEventListener('sideways:ready', () => routeTo(hash), { once: true });
+    return;
+  }
   if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo(hash);
   else location.hash = hash;
 }
@@ -103,7 +108,7 @@ function profileSetup() {
   form.addEventListener('change', persistDraft);
 
   const actions = element('div', 'studio-hero-actions');
-  const submit = actionButton(COPY.profileSave, 'studio-primary-action', () => persistDraft());
+  const submit = actionButton(COPY.profileSave, 'studio-primary-action', persistDraft);
   submit.type = 'submit';
   submit.dataset.onboardingStart = 'true';
   const skip = actionButton(COPY.profileSkip, 'studio-secondary-action', () => routeTo('#/add'));
@@ -264,8 +269,9 @@ function enhanceViews() {
 
 function enhance() {
   document.documentElement.classList.add('studio-product');
-  document.documentElement.dataset.studioReady = 'yes';
+  document.documentElement.dataset.studioReady = appReady ? 'yes' : 'booting';
   enhanceBrand();
+  if (!appReady) return;
   enhanceAddView();
   enhanceFeed();
   enhanceViews();
@@ -295,14 +301,22 @@ function assertCompatibility() {
   }
 }
 
-for (const eventName of ['sideways:ready', 'sideways:feedrender', 'hashchange', 'popstate']) {
+for (const eventName of ['sideways:feedrender', 'hashchange', 'popstate']) {
   window.addEventListener(eventName, scheduleEnhance);
 }
 window.addEventListener('sideways:importcomplete', bootEnhancers);
-
-function bootStudio() {
+window.addEventListener('sideways:ready', () => {
+  appReady = true;
   bootEnhancers();
   assertCompatibility();
+});
+
+function bootStudio() {
+  scheduleEnhance();
+  if (appReady) {
+    bootEnhancers();
+    assertCompatibility();
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootStudio, { once: true });
