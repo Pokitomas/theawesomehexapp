@@ -56,11 +56,8 @@ for (const phrase of ['YOUR STUFF. ONE FEED.', 'BRING YOUR INTERNET', 'YOUR STUF
   if ((await page.getByText(phrase, { exact: false }).count()) > 0) throw new Error(`editorial copy returned: ${phrase}`);
 }
 
-await touch(page.locator('.studio-launch-button.is-post'));
-const composer = page.locator('[data-social-composer]');
-await composer.waitFor({ state: 'visible', timeout: 10000 });
-await touch(composer.locator('.social-composer-author'));
-
+const me = page.locator('#navProfile[data-action-id="profile.open"]');
+await touch(me);
 const profile = page.locator('[data-social-profile]');
 await profile.waitFor({ state: 'visible', timeout: 10000 });
 await profile.locator('input[name="socialName"]').fill('KAI');
@@ -70,6 +67,10 @@ await touch(profile.locator('[data-action-id="profile.color"][data-value="#9278f
 await touch(profile.locator('[data-action-id="profile.save"]'));
 await profile.waitFor({ state: 'hidden', timeout: 5000 });
 
+await touch(page.locator('.studio-launch-button.is-post'));
+const composer = page.locator('[data-social-composer]');
+await composer.waitFor({ state: 'visible', timeout: 10000 });
+await composer.locator('.social-composer-author').filter({ hasText: 'KAI' }).waitFor({ state: 'visible', timeout: 5000 });
 await composer.locator('.social-composer-text').fill('HELLO FROM SIDEWAYS');
 await touch(composer.locator('[data-action-id="post.mood"][data-value="LOL"]'));
 await touch(composer.locator('[data-action-id="post.style"][data-value="CHAOS"]'));
@@ -117,6 +118,7 @@ if (!results['post.style']?.values?.CHAOS) throw new Error('action results did n
 
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 2, { timeout: 15000 });
+await page.locator('#navProfile[data-action-id="profile.open"]').waitFor({ state: 'visible', timeout: 10000 });
 const storedPosts = await page.evaluate(() => window.SidewaysSocial.posts());
 if (storedPosts.length !== 2) throw new Error(`expected two persisted posts, got ${storedPosts.length}`);
 if ((await page.locator('.social-post-text').filter({ hasText: 'HELLO FROM SIDEWAYS' }).count()) !== 1) throw new Error('first post did not persist');
@@ -138,6 +140,7 @@ if (errors.length) throw new Error(errors.join(' | '));
 await page.screenshot({ path: 'manual-social-phone.png', fullPage: true });
 console.log(JSON.stringify({
   profile: savedProfile,
+  profileEntry: 'ME top-bar picker',
   posts: storedPosts.length,
   photo: true,
   reaction: '😂 1',
