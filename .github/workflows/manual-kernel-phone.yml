@@ -58,12 +58,20 @@ jobs:
           server=$!
           trap 'kill $server || true' EXIT
           sleep 2
-          node manual-kernel/phone-check.mjs
-      - name: Upload phone screenshot
+          set +e
+          node manual-kernel/phone-check.mjs >phone-check.log 2>&1
+          status=$?
+          set -e
+          cat phone-check.log
+          exit $status
+      - name: Upload phone proof and diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: manual-phone-gate-fast
-          path: manual-phone-gate.png
-          if-no-files-found: ignore
+          path: |
+            manual-phone-gate.png
+            phone-check.log
+            /tmp/manual-http.log
+          if-no-files-found: warn
           retention-days: 5
