@@ -17,6 +17,7 @@ CARD_LAYOUT_STYLE_MARKER = '<link rel="stylesheet" href="./card-layout.css" data
 CHROME_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome.css" data-workspace-chrome>'
 CHROME_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome-polish.css" data-workspace-chrome-polish>'
 FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" data-future-media>'
+FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-polish.css" data-future-media-polish>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
@@ -78,6 +79,7 @@ def main() -> None:
         "workspace-chrome.css",
         "workspace-chrome-polish.css",
         "future-media.css",
+        "future-media-polish.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -111,6 +113,7 @@ def main() -> None:
     text = inject_once(text, CHROME_STYLE_MARKER, "</head>")
     text = inject_once(text, CHROME_POLISH_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_POLISH_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
@@ -125,7 +128,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied universal media ingestion, adaptive surfaces, Flow Stage Grid physics, aggressive future-media chrome, and core refresh bridge")
+    print("applied universal media ingestion, adaptive surfaces, Flow Stage Grid physics, aggressive future-media chrome, no-prose polish, and core refresh bridge")
 
 
 if __name__ == "__main__":
