@@ -12,6 +12,7 @@ TEXT_FILES = [
     HERE / "product" / "studio.js",
     HERE / "product" / "studio.css",
     HERE / "product" / "studio-components.css",
+    HERE / "product" / "studio-reset.css",
     HERE / "product" / "import-studio.js",
     HERE / "product" / "import-studio.css",
     HERE / "product" / "import-phone.js",
@@ -65,9 +66,14 @@ def main() -> None:
     import_source = assert_clean_text(HERE / "product" / "import-studio.js")
     if "location.reload()" in import_source:
         raise AssertionError("imports must not force an automatic page reload")
-    for contract in ("Reddit", "Instagram", "TikTok", "YouTube", "Spotify", "cleanFeedURL"):
+    for contract in ("Reddit", "Instagram", "TikTok", "YouTube", "Spotify", "cleanFeedURL", "studio-add-modern"):
         if contract not in import_source:
             raise AssertionError(f"platform onboarding contract missing: {contract}")
+
+    reset_source = assert_clean_text(HERE / "product" / "studio-reset.css")
+    for contract in ("studio-add-modern", "#importWorkbenchHost", "[data-studio-intro]"):
+        if contract not in reset_source:
+            raise AssertionError(f"legacy-surface reset missing: {contract}")
 
     phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
     for contract in ("PICK MORE FILES", "webkitdirectory", "cloneNode", "replaceWith"):
@@ -107,6 +113,7 @@ def main() -> None:
     for asset in (
         "studio.css",
         "studio-components.css",
+        "studio-reset.css",
         "studio.js",
         "copy.js",
         "import-studio.css",
@@ -120,6 +127,8 @@ def main() -> None:
 
     if index.count("data-studio-product") != 3:
         raise AssertionError("product layer must inject exactly two styles and one script")
+    if index.count("data-studio-reset") != 1:
+        raise AssertionError("product reset must inject exactly one stylesheet")
     if index.count("data-import-workbench") != 2:
         raise AssertionError("import workbench must inject exactly one style and one script")
     if index.count("data-import-phone") != 1:
