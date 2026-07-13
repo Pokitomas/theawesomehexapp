@@ -1,5 +1,5 @@
-version: 9
-updated_at: 2026-07-13T06:56:00-07:00
+version: 10
+updated_at: 2026-07-13T07:00:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -25,20 +25,21 @@ file_locks:
   - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Make first run cognitively trivial: cool new app -> pick Instagram or Reddit -> get the download -> choose the files -> feed.
-  last_change: Unified kernel, render, interaction, and collaboration fixes are already in PR 43; user explicitly rejected any remaining explanatory or signup-shaped onboarding.
+  summary: Make first run feel like a normal consumer app: tap Instagram or Reddit and the native picker opens. The product must not expose “files,” “exports,” profiles, or storage as concepts.
+  last_change: User rejected even the simplified two-step download/file wording. Main experience is now one app button per source; technical mechanics stay underneath.
   current_ci:
     - overlay validation: success on head 957e3f7
     - kernel parity: success on head 957e3f7
     - phone onboarding/import: success on head 957e3f7
     - Pages build: in progress on head 957e3f7
   final_product_changes:
-    - remove name/handle as a first-run gate
-    - replace first screen with one PICK AN APP action
-    - label platform actions as 1. GET DOWNLOAD and 2. CHOOSE FILES
-    - remove local-storage and archive jargon from visible copy
+    - remove name/handle from first run entirely
+    - make each platform card a single IMPORT INSTAGRAM / IMPORT REDDIT action
+    - open the native picker directly from that action
+    - keep a tiny NEED YOUR DOWNLOAD? recovery link only for users who do not already have it
+    - remove visible file/export/storage jargon
     - update real-touch tests and docs atomically
-  done_when: A brand-new user can reach a completed Reddit import on iPhone without understanding exports, archives, profiles, storage APIs, or Sideways architecture.
+  done_when: A brand-new user sees a cool app, taps Reddit, chooses the Reddit download from the native system picker, and reaches a feed without learning Sideways architecture.
 
 external_execution:
   github_actions:
@@ -50,17 +51,17 @@ external_execution:
 coordination_alerts:
   - id: first-run-cognitive-load
     severity: active
-    finding: Existing onboarding still asks for identity and uses controls that require the user to infer the download/import sequence.
-    resolution: Start with app choice; make the two actions numbered and literal; move profile customization out of the critical path.
+    finding: Even “get download then choose files” is too implementation-shaped for the main product.
+    resolution: One platform action opens the native picker; recovery help is secondary and optional.
   - id: exposed-user-token
     severity: security
     finding: A GitHub personal access token was pasted into chat.
     resolution: Do not use or store it; user must revoke it after completion.
 
 next_architectural_goal:
-  summary: Ship the completed human-first Sideways app from main.
+  summary: Ship the completed consumer-facing Sideways app from main.
   sequence:
-    - land the zero-thinking first-run flow
+    - land one-tap platform import
     - run unified CI and inspect fresh phone artifacts
     - merge PR 43 to main
     - verify Pages deployment and live phone URLs
@@ -85,7 +86,7 @@ invariants:
 collaborator:
   owner: Claude
   mode: integrated
-  updated_at: 2026-07-13T13:56:00Z
+  updated_at: 2026-07-13T14:00:00Z
   file_locks: []
   current_subtask:
     summary: No active implementation lane. All accepted work is consolidated into PR 43.
