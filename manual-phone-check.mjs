@@ -16,7 +16,10 @@ for(const label of ['ADD','KEEP','READ','SEND','MOVE GATE'])if(!(await page.getB
 await page.getByRole('button',{name:'ADD',exact:true}).click();
 await page.getByRole('button',{name:/^FILES \+/}).waitFor({state:'visible',timeout:5000});
 if(await page.getByRole('button',{name:/^FOLDER\b/}).count())throw new Error('unsupported iPhone folder picker still shown');
+await page.locator('#importWorkbenchHost').waitFor({state:'visible',timeout:5000});
+await page.getByRole('button',{name:/^PICK MORE FILES\b/}).waitFor({state:'visible',timeout:5000});
+if(await page.getByRole('button',{name:/^PICK FOLDER\b/}).count())throw new Error('import workbench exposed unsupported iPhone folder picker');
 await page.screenshot({path:'manual-phone-gate.png',fullPage:true});
 if(errors.length)throw new Error(errors.join(' | '));
-console.log(JSON.stringify({count,gate,state:state.split('\n').find(x=>x.startsWith('state=')),iphonePicker:'FILES +',screenshot:'manual-phone-gate.png'},null,2));
+console.log(JSON.stringify({count,gate,state:state.split('\n').find(x=>x.startsWith('state=')),iphonePicker:'FILES +',importerPicker:'PICK MORE FILES',screenshot:'manual-phone-gate.png'},null,2));
 await browser.close();
