@@ -1,12 +1,12 @@
-version: 15
-updated_at: 2026-07-13T08:05:00-07:00
+version: 16
+updated_at: 2026-07-13T08:49:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/fun-posting-system
-active_pr: pending
+active_pr: 48
 beacon_issue: none
 
 owner: GPT-5.6 Thinking
-mode: solo-product
+mode: solo-integration
 
 file_locks:
   - studio/manual/product/copy.js
@@ -16,33 +16,36 @@ file_locks:
   - studio/manual/product/actions.js
   - studio/manual/product/social.js
   - studio/manual/product/social.css
+  - studio/manual/product/import-studio.js
   - studio/manual/apply.py
   - studio/manual/verify.py
   - studio/manual/README.md
-  - manual-phone-check.mjs
   - studio/manual/tests/social-clickthrough.mjs
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Make Sideways fun instead of editorial by adding profile expression and a one-tap posting system generated from a formal action contract.
-  product_direction:
-    - remove slogan and manifesto prose from visible UI
-    - keep labels short and playful
-    - add a profile maker that feels like choosing an app card, not filling out a form
-    - add posting, image attachment, mood/style choices, remix, react, save, share, and delete-my-post behavior
-    - derive product buttons from one machine-readable action schema used by UI, tests, analytics events, and backend contracts
-  done_when: A fresh phone can make a profile, create a post, see it in the feed, react/remix it, and reload without losing it; all visible copy is labels or direct actions.
+  summary: Drive PR 48 through generated-app verification and repair every integration failure.
+  implemented:
+    - editorial copy removed
+    - formal action contract for navigation, import, profile, composer, and post controls
+    - picker-style persistent profiles
+    - text and photo posts
+    - reactions, remixing, saves, sharing, and deletion
+    - action-result learning that reorders moods, styles, avatars, colors, and reactions
+    - generated asset installer and build verification
+    - full 390x844 social persistence journey
+  validation_limit:
+    - local container cannot resolve github.com, so GitHub Actions is the executable build environment
+  done_when: PR 48 phone workflow proves profile -> photo post -> react -> save -> remix -> reload, all checks pass, screenshots are visually correct, and the app deploys from main.
 
 next_architectural_goal:
   summary: Treat interaction results as the app-generation input.
   sequence:
-    - define every product action once in actions.js
-    - generate profile/post/feed controls from that schema
-    - persist profiles and posts in the existing browser database
-    - emit stable action events for analytics and future backend adapters
-    - use action outcomes to shape feed state and future UI generation
-    - prove the full journey at 390x844
-    - merge and deploy from one PR
+    - fix generated build and social phone failures on PR 48
+    - inspect the rendered profile, composer, and post screenshot
+    - merge PR 48
+    - verify bounded Pages deployment and live social persistence
+    - release locks and mark this ledger complete
 
 invariants:
   - Read this file at the start of every coding turn.
