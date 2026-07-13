@@ -39,10 +39,10 @@ jobs:
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
           python studio/manual/apply.py
           set +e
-          python studio/manual/verify.py >/tmp/social-verify.log 2>&1
+          python studio/manual/verify.py >/tmp/workspace-verify.log 2>&1
           verify_status=$?
           set -e
-          cat /tmp/social-verify.log
+          cat /tmp/workspace-verify.log
           if [ "$verify_status" -ne 0 ]; then exit "$verify_status"; fi
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
@@ -50,8 +50,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: social-verify-log
-          path: /tmp/social-verify.log
+          name: workspace-verify-log
+          path: /tmp/workspace-verify.log
           if-no-files-found: warn
           retention-days: 3
       - name: Package exact built source for diagnosis
@@ -72,7 +72,7 @@ jobs:
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
       - name: Prove exact kernel in twenty records
         run: node manual-kernel/verify-kernel.mjs
-      - name: Prove gate import social posting and persistence at 390 by 844
+      - name: Prove gate import canonical posting places and persistence at 390 by 844
         run: |
           python -m http.server 4173 --directory dist >/tmp/manual-http.log 2>&1 &
           server=$!
@@ -83,28 +83,28 @@ jobs:
           phone_status=$?
           node studio/manual/tests/onboarding-clickthrough.mjs http://127.0.0.1:4173/manual/ >touch-check.log 2>&1
           touch_status=$?
-          node studio/manual/tests/social-clickthrough.mjs http://127.0.0.1:4173/manual/ >social-check.log 2>&1
-          social_status=$?
+          node studio/manual/tests/workspace-clickthrough.mjs http://127.0.0.1:4173/manual/ >workspace-check.log 2>&1
+          workspace_status=$?
           set -e
           cat phone-check.log
           cat touch-check.log
-          cat social-check.log
-          if [ "$phone_status" -ne 0 ] || [ "$touch_status" -ne 0 ] || [ "$social_status" -ne 0 ]; then
+          cat workspace-check.log
+          if [ "$phone_status" -ne 0 ] || [ "$touch_status" -ne 0 ] || [ "$workspace_status" -ne 0 ]; then
             exit 1
           fi
       - name: Upload phone proof and diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: manual-phone-gate-fast
+          name: manual-workspace-phone
           path: |
             manual-phone-gate.png
             manual-onboarding-phone.png
             manual-onboarding-touch.png
-            manual-social-phone.png
+            manual-workspace-phone.png
             phone-check.log
             touch-check.log
-            social-check.log
+            workspace-check.log
             /tmp/manual-http.log
           if-no-files-found: warn
           retention-days: 5

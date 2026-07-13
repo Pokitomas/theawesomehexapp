@@ -64,7 +64,9 @@ await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 })
 const coreFilesContract = await gatePage.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
 if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
 await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
-const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children].filter(child => !child.matches('#importWorkbenchHost') && getComputedStyle(child).display !== 'none').length);
+const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children]
+  .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header]'))
+  .filter(child => getComputedStyle(child).display !== 'none').length);
 if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
 if (gateErrors.length) throw new Error(gateErrors.join(' | '));
 await gatePage.screenshot({ path: 'manual-phone-gate.png', fullPage: true });
@@ -125,10 +127,11 @@ console.log(JSON.stringify({
   gate,
   state: state.split('\n').find(line => line.startsWith('state=')),
   visibleLegacyAddSurface: false,
+  workspaceLibraryHeader: true,
   duplicateIntro: false,
   chooserBehindCompletion: false,
-  firstRun: 'POST or IMPORT launchpad',
-  consumerJourney: 'IMPORT launchpad → Reddit picker → automatic import → in-place feed',
+  firstRun: 'New post or Import',
+  consumerJourney: 'Import → Reddit picker → automatic import → in-place feed',
   automaticReloads: 0,
   refreshedCount,
   importedCount,

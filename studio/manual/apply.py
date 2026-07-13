@@ -12,9 +12,9 @@ IMPORT_INSTALLER = Path(__file__).resolve().parent / "imports" / "apply.py"
 STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
 RESET_STYLE_MARKER = '<link rel="stylesheet" href="./studio-reset.css" data-studio-reset>'
-SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social.css" data-social-product>'
+WORKSPACE_STYLE_MARKER = '<link rel="stylesheet" href="./workspace.css" data-workspace-product>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
-SOCIAL_SCRIPT_MARKER = '<script type="module" src="./social.js" data-social-product></script>'
+WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -27,6 +27,11 @@ CORE_REFRESH_BRIDGE = (
     "console.error(error);"
     "window.dispatchEvent(new CustomEvent('sideways:corpusrefresherror',{detail:{message:error.message}}))"
     "}});"
+)
+
+OLD_SOCIAL_MARKERS = (
+    '<link rel="stylesheet" href="./social.css" data-social-product>',
+    '<script type="module" src="./social.js" data-social-product></script>',
 )
 
 
@@ -46,6 +51,12 @@ def inject_core_refresh(text: str) -> str:
     return text.replace(CORE_ANCHOR, f"{CORE_REFRESH_BRIDGE}\n{CORE_ANCHOR}", 1)
 
 
+def remove_retired_social(text: str) -> str:
+    for marker in OLD_SOCIAL_MARKERS:
+        text = text.replace(f"  {marker}\n", "").replace(marker, "")
+    return text
+
+
 def main() -> None:
     if not MANUAL.exists():
         raise SystemExit("manual-app is missing; assemble the canonical overlays first")
@@ -54,22 +65,34 @@ def main() -> None:
         "studio.css",
         "studio-components.css",
         "studio-reset.css",
-        "social.css",
+        "workspace.css",
         "studio.js",
         "copy.js",
         "actions.js",
-        "social.js",
+        "workspace-db.js",
+        "workspace-profile.js",
+        "workspace-records.js",
+        "workspace-sync.js",
+        "workspace-migration.js",
+        "workspace.js",
+        "workspace-ui.js",
+        "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
+    for retired in ("social.js", "social.css"):
+        path = MANUAL / retired
+        if path.exists():
+            path.unlink()
+
     index = MANUAL / "index.html"
-    text = index.read_text(encoding="utf-8")
+    text = remove_retired_social(index.read_text(encoding="utf-8"))
     text = inject_once(text, STYLE_MARKER, "</head>")
     text = inject_once(text, COMPONENT_STYLE_MARKER, "</head>")
     text = inject_once(text, RESET_STYLE_MARKER, "</head>")
-    text = inject_once(text, SOCIAL_STYLE_MARKER, "</head>")
+    text = inject_once(text, WORKSPACE_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
-    text = inject_once(text, SOCIAL_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
@@ -78,7 +101,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied studio, social product, action contract, and core refresh bridge")
+    print("applied lived workspace, canonical posting, places, action contract, and core refresh bridge")
 
 
 if __name__ == "__main__":
