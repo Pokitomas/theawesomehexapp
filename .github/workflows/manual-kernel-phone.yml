@@ -34,6 +34,15 @@ jobs:
           python manual-kernel/patch.py
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
+      - name: Package exact built source for diagnosis
+        run: |
+          tar -czf /tmp/manual-kernel-built.tar.gz manual-app manual-kernel dist/manual
+      - name: Upload exact built source
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-kernel-built
+          path: /tmp/manual-kernel-built.tar.gz
+          retention-days: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
