@@ -1,99 +1,59 @@
-version: 14
-updated_at: 2026-07-13T07:45:00-07:00
+version: 15
+updated_at: 2026-07-13T08:05:00-07:00
 repository: Pokitomas/theawesomehexapp
-branch: agent/radical-onboarding-reset
-active_pr: 43
-beacon_issue: 40
+branch: agent/fun-posting-system
+active_pr: pending
+beacon_issue: none
 
 owner: GPT-5.6 Thinking
-mode: solo-integration
+mode: solo-product
 
 file_locks:
   - studio/manual/product/copy.js
-  - studio/manual/product/import-studio.js
-  - studio/manual/product/import-studio.css
-  - studio/manual/product/import-phone.js
   - studio/manual/product/studio.js
+  - studio/manual/product/studio.css
   - studio/manual/product/studio-components.css
-  - studio/manual/product/studio-reset.css
-  - studio/manual/README.md
+  - studio/manual/product/actions.js
+  - studio/manual/product/social.js
+  - studio/manual/product/social.css
   - studio/manual/apply.py
   - studio/manual/verify.py
-  - studio/manual/prepare-kernel.py
+  - studio/manual/README.md
   - manual-phone-check.mjs
-  - studio/manual/tests/onboarding-clickthrough.mjs
+  - studio/manual/tests/social-clickthrough.mjs
   - .github/workflows/manual-kernel-phone.yml
-  - .github/workflows/kernel-parity-check.yml
-  - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Make the release pipeline deterministic after the completed app passed all product and phone checks.
-  verified:
-    - one app chooser only; no duplicate intro
-    - completion replaces the chooser and is immediately visible
-    - exact kernel gate: 20 THINGS, gate 0.879, saturation
-    - Reddit one-tap import refreshes the live feed to 1 THING
-    - zero page reloads and zero late observer callbacks
-    - overlay integrity and kernel parity green
-  release_risk:
-    - the PR Pages job is stalled in an external forum fetch unrelated to the manual app
-    - the same unbounded third-party fetch would threaten the main deployment
-  fix:
-    - PR Pages checks assemble and verify the manual product without rebuilding the public root corpus
-    - main pushes still build the full root corpus
-    - public forum, social, and media retrieval on main get explicit time bounds and valid fallbacks
-    - production artifact verification and phone smoke tests remain blocking
-  done_when: PR 43 has four green checks quickly, and the main release cannot be held indefinitely by external content APIs.
-
-external_execution:
-  github_actions:
-    status: current Pages PR run is stalled in Retrieve forum source records; changing pages.yml will cancel and replace it
-    coordination: Phone, parity, and overlay checks are already green on the rendered release candidate.
-  collaborator:
-    status: implementation integrated; no file locks
-
-coordination_alerts:
-  - id: external-content-release-hostage
-    severity: active
-    finding: Unbounded forum retrieval can stall the entire Pages release.
-    resolution: Separate PR product verification from push content generation and add bounded push fallbacks.
-  - id: exposed-user-token
-    severity: security
-    finding: A GitHub personal access token was pasted into chat.
-    resolution: Do not use or store it; user must revoke it after completion.
+  summary: Make Sideways fun instead of editorial by adding profile expression and a one-tap posting system generated from a formal action contract.
+  product_direction:
+    - remove slogan and manifesto prose from visible UI
+    - keep labels short and playful
+    - add a profile maker that feels like choosing an app card, not filling out a form
+    - add posting, image attachment, mood/style choices, remix, react, save, share, and delete-my-post behavior
+    - derive product buttons from one machine-readable action schema used by UI, tests, analytics events, and backend contracts
+  done_when: A fresh phone can make a profile, create a post, see it in the feed, react/remix it, and reload without losing it; all visible copy is labels or direct actions.
 
 next_architectural_goal:
-  summary: Ship the completed consumer-facing Sideways app from main.
+  summary: Treat interaction results as the app-generation input.
   sequence:
-    - prove deterministic PR release checks
-    - merge PR 43 to main
-    - verify bounded full Pages deployment and live phone URLs
-    - release all file locks and mark this ledger complete
-
-collaborator_lane:
-  status: closed for implementation
-  allowed_now:
-    - review-only observations after merge
-  collision_rule: Solo integration owns all listed files until deployment verification completes.
+    - define every product action once in actions.js
+    - generate profile/post/feed controls from that schema
+    - persist profiles and posts in the existing browser database
+    - emit stable action events for analytics and future backend adapters
+    - use action outcomes to shape feed state and future UI generation
+    - prove the full journey at 390x844
+    - merge and deploy from one PR
 
 invariants:
   - Read this file at the start of every coding turn.
   - Update it before changing sub-task, lock set, branch, PR, or architectural goal.
-  - Release locks when a file is no longer actively owned.
   - Preserve the exact root ranking kernel and stable debug hooks.
-  - Do not reintroduce whole-document MutationObservers, automatic import reloads, or capture-phase click hijacking.
-  - Keep all active product integration in PR 43 until it merges to main.
-  - Prefer readable compatibility source over opaque packed-overlay mutations when semantics are unchanged.
+  - Do not reintroduce whole-document MutationObservers, automatic reloads, or click hijacking.
+  - No visible manifesto copy such as your stuff your way, bring your internet, or recomposed.
+  - Buttons must come from the action contract unless they are native core compatibility controls.
   - Never use or persist credentials pasted into chat.
 
 collaborator:
-  owner: Claude
-  mode: integrated
-  updated_at: 2026-07-13T14:45:00Z
+  owner: none
+  mode: solo
   file_locks: []
-  current_subtask:
-    summary: No active implementation lane. All accepted work is consolidated into PR 43.
-    done_when: PR 43 is green, merged, and deployed.
-  merge_policy:
-    approval_received: User explicitly approved true merging and directed all work into one PR.
-    holding: false
