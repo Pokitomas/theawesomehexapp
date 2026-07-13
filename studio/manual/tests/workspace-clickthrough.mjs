@@ -147,7 +147,7 @@ await places.getByText('1 item', { exact: true }).waitFor({ state: 'visible', ti
 
 const contracts = await page.evaluate(() => window.SidewaysActions.actionContract());
 const ids = new Set(contracts.map(item => item.id));
-for (const id of ['nav.places', 'post.publish', 'post.edit', 'post.delete', 'places.save', 'places.locate']) {
+for (const id of ['nav.places', 'post.publish', 'post.edit', 'post.delete', 'record.source', 'record.author', 'record.open', 'record.save', 'record.collect', 'record.share', 'places.save', 'places.locate']) {
   if (!ids.has(id)) throw new Error(`missing workspace action contract: ${id}`);
 }
 for (const id of ['post.mood', 'post.style', 'post.react', 'post.remix', 'profile.random']) {
@@ -176,7 +176,7 @@ const uncontracted = await page.locator('button:not([data-action-id]), [role="bu
   .filter(node => getComputedStyle(node).visibility !== 'hidden')
   .filter(node => !node.closest('[hidden], dialog:not([open])'))
   .filter(node => !node.closest('#debugPanel') && !node.matches('.type-nav button') && !node.matches('.actions > button'))
-  .map(node => node.textContent.trim() || node.getAttribute('aria-label') || node.outerHTML.slice(0, 80)));
+  .map(node => `${node.tagName.toLowerCase()}#${node.id}.${node.className} :: ${node.textContent.trim() || node.getAttribute('aria-label') || node.outerHTML.slice(0, 80)}`));
 if (uncontracted.length) throw new Error(`visible uncontracted workspace controls: ${uncontracted.join(' | ')}`);
 if (errors.length) throw new Error(errors.join(' | '));
 

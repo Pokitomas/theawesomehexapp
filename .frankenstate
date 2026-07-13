@@ -22,6 +22,7 @@ file_locks:
   - studio/manual/product/workspace-migration.js
   - studio/manual/product/workspace.js
   - studio/manual/product/workspace-ui.js
+  - studio/manual/product/core-actions.js
   - studio/manual/product/workspace.css
   - studio/manual/product/system-icons.svg
   - studio/manual/product/import-studio.css

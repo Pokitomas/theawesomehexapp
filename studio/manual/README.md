@@ -12,6 +12,7 @@ Editable product source for `/manual/`.
 - `product/workspace-migration.js` — one-time migration from the retired social store.
 - `product/workspace.js` — a small public facade that weaves those modules into one contract.
 - `product/workspace-ui.js` — profile, composer, place routes and editors, and owned-post edit/delete controls.
+- `product/core-actions.js` — contracts the unchanged core feed source, author, read, save, collect, and share controls.
 - `product/workspace.css` — window, sheet, composer, profile, and place visuals.
 - `product/system-icons.svg` — one restrained icon language shared by the shell and workspace.
 - `product/copy.js` — current sentence-case product copy. No retro narration or manifesto layer.

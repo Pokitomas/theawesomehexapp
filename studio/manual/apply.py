@@ -15,6 +15,7 @@ RESET_STYLE_MARKER = '<link rel="stylesheet" href="./studio-reset.css" data-stud
 WORKSPACE_STYLE_MARKER = '<link rel="stylesheet" href="./workspace.css" data-workspace-product>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
+CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -76,6 +77,7 @@ def main() -> None:
         "workspace-migration.js",
         "workspace.js",
         "workspace-ui.js",
+        "core-actions.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
@@ -93,6 +95,7 @@ def main() -> None:
     text = inject_once(text, WORKSPACE_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"

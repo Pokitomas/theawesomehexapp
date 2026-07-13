@@ -32,6 +32,13 @@ export const ACTIONS = Object.freeze({
   'post.save': define('post.save', 'Save', 'post', 'toggle_save', { recordId: 'number' }),
   'post.share': define('post.share', 'Send', 'post', 'share', { recordId: 'number' }),
 
+  'record.source': define('record.source', 'Open source', 'record', 'open_source', { recordId: 'number' }),
+  'record.author': define('record.author', 'Open author', 'record', 'open_author', { recordId: 'number' }),
+  'record.open': define('record.open', 'Read', 'record', 'open_record', { recordId: 'number' }),
+  'record.save': define('record.save', 'Save', 'record', 'toggle_save', { recordId: 'number' }),
+  'record.collect': define('record.collect', 'Add to collection', 'record', 'collect', { recordId: 'number' }),
+  'record.share': define('record.share', 'Send', 'record', 'share', { recordId: 'number' }),
+
   'composer.place': define('composer.place', 'Add place', 'composer', 'open_place_picker'),
   'composer.clear_place': define('composer.clear_place', 'Remove place', 'composer', 'clear_place'),
 

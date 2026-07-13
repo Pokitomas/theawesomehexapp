@@ -22,6 +22,7 @@ TEXT_FILES = [
     PRODUCT / "workspace-migration.js",
     PRODUCT / "workspace.js",
     PRODUCT / "workspace-ui.js",
+    PRODUCT / "core-actions.js",
     PRODUCT / "workspace.css",
     PRODUCT / "system-icons.svg",
     PRODUCT / "import-studio.js",
@@ -46,6 +47,7 @@ JS_FILES = [
     PRODUCT / "workspace-migration.js",
     PRODUCT / "workspace.js",
     PRODUCT / "workspace-ui.js",
+    PRODUCT / "core-actions.js",
     PRODUCT / "import-studio.js",
     PRODUCT / "import-phone.js",
     HERE / "imports" / "registry.js",
@@ -78,7 +80,9 @@ REQUIRED_ACTIONS = (
     "nav.feed", "nav.places", "nav.library", "nav.import", "nav.saved", "nav.profile",
     "feed.post", "feed.import", "profile.open", "profile.save", "profile.close", "profile.accent",
     "post.open", "post.publish", "post.cancel", "post.attach", "post.remove_attachment",
-    "post.edit", "post.delete", "post.save", "post.share", "composer.place", "composer.clear_place",
+    "post.edit", "post.delete", "post.save", "post.share",
+    "record.source", "record.author", "record.open", "record.save", "record.collect", "record.share",
+    "composer.place", "composer.clear_place",
     "places.open", "places.create", "places.save", "places.use", "places.locate", "places.delete", "places.close",
     "library.saved", "import.instagram", "import.reddit", "import.tiktok", "import.youtube", "import.spotify",
     "import.x", "import.browser", "import.anything", "import.help", "import.stop", "import.retry", "import.open_feed",
@@ -132,7 +136,7 @@ def main() -> None:
         (
             "CORE_REFRESH_BRIDGE", "sideways:importcomplete", "sideways:corpusrefresh", "await rebuildState()",
             '"workspace-db.js"', '"workspace-profile.js"', '"workspace-records.js"', '"workspace-sync.js"',
-            '"workspace-migration.js"', '"workspace.js"', '"workspace-ui.js"', '"workspace.css"',
+            '"workspace-migration.js"', '"workspace.js"', '"workspace-ui.js"', '"core-actions.js"', '"workspace.css"',
             '"system-icons.svg"', "data-workspace-product",
             "remove_retired_social",
         ),
@@ -191,6 +195,14 @@ def main() -> None:
     )
     forbid(ui_source, ("REACTIONS", "MOODS", "STYLES", "REMIX", "new MutationObserver", "location.reload()"), "retired social UI")
 
+    core_actions_source = source_text[PRODUCT / "core-actions.js"]
+    require(
+        core_actions_source,
+        ("record.source", "record.author", "record.open", "record.save", "record.collect", "record.share", "bindAction", "sideways:feedrender"),
+        "core action adapter",
+    )
+    forbid(core_actions_source, ("new MutationObserver", "location.reload()", "stopImmediatePropagation"), "core action adapter regression")
+
     component_css = source_text[PRODUCT / "studio-components.css"]
     require(component_css, (".studio-launch-actions", ".studio-launch-button", ".workspace-feed-header", ".workspace-route-view"), "workspace component styling")
 
@@ -232,7 +244,7 @@ def main() -> None:
     generated_js = (
         "app.js", "profile.js", "kernel.js", "studio.js", "copy.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "workspace-sync.js",
-        "workspace-migration.js", "workspace.js", "workspace-ui.js", "import-studio.js",
+        "workspace-migration.js", "workspace.js", "workspace-ui.js", "core-actions.js", "import-studio.js",
         "import-phone.js", "imports/registry.js", "imports/runtime.js",
     )
     for name in generated_js:
@@ -258,7 +270,7 @@ def main() -> None:
     assets = (
         "studio.css", "studio-components.css", "studio-reset.css", "workspace.css", "studio.js", "copy.js",
         "actions.js", "workspace-db.js", "workspace-profile.js", "workspace-records.js", "workspace-sync.js",
-        "workspace-migration.js", "workspace.js", "workspace-ui.js", "system-icons.svg", "import-studio.css", "import-studio.js",
+        "workspace-migration.js", "workspace.js", "workspace-ui.js", "core-actions.js", "system-icons.svg", "import-studio.css", "import-studio.js",
         "import-phone.js", "imports/registry.js", "imports/runtime.js",
     )
     for asset in assets:
@@ -274,6 +286,8 @@ def main() -> None:
         raise AssertionError("product reset must inject exactly one stylesheet")
     if index.count("data-workspace-product") != 2:
         raise AssertionError("workspace layer must inject exactly one style and one script")
+    if index.count("data-core-actions") != 1:
+        raise AssertionError("core action adapter must inject exactly one script")
     if "data-social-product" in index:
         raise AssertionError("retired social layer remains in generated index")
     if index.count("data-import-workbench") != 2:
