@@ -1,29 +1,134 @@
 import fs from 'node:fs';
-import {chromium} from 'playwright-core';
-const paths=[process.env.CHROME_BIN,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].filter(Boolean);
-const executablePath=paths.find(p=>fs.existsSync(p));if(!executablePath)throw new Error('no Chromium found');
-const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox','--disable-dev-shm-usage']});
-const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Version/18.5 Mobile/15E148 Safari/604.1'});
-const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-await page.goto('http://127.0.0.1:4173/manual/?debug=1&test=1&autorun=1',{waitUntil:'networkidle'});
-await page.waitForFunction(()=>document.documentElement.dataset.gateMoved==='yes',{timeout:20000});
-const count=(await page.locator('#corpusStatus').textContent())?.trim();const policy=(await page.locator('#debugPolicy').textContent())||'';const state=(await page.locator('#debugState').textContent())||'';
-const gate=Number((policy.match(/gate=([0-9.]+)/)||[])[1]);
-if(count!=='20 THINGS')throw new Error(`expected 20 THINGS, got ${count}`);
-if(!(gate>.05))throw new Error(`gate did not visibly move: ${policy}`);
-if(!/state=(saturation|deep_saturation)/.test(state))throw new Error(`state did not change: ${state}`);
-for(const label of ['ADD','KEEP','READ','SEND','MOVE GATE'])if(!(await page.getByRole('button',{name:label,exact:true}).count()))throw new Error(`missing button ${label}`);
-await page.evaluate(()=>{
-  if(window.SidewaysCore?.routeTo)window.SidewaysCore.routeTo('#/add');
-  else location.hash='#/add';
+import { chromium } from 'playwright-core';
+
+const paths = [
+  process.env.CHROME_BIN,
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser'
+].filter(Boolean);
+const executablePath = paths.find(path => fs.existsSync(path));
+if (!executablePath) throw new Error('no Chromium found');
+
+const iphone = {
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 1,
+  isMobile: true,
+  hasTouch: true,
+  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Version/18.5 Mobile/15E148 Safari/604.1'
+};
+const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+
+function collectErrors(page) {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  return errors;
+}
+
+async function touch(page, locator) {
+  await locator.waitFor({ state: 'visible', timeout: 10000 });
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('touch target has no bounding box');
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+async function waitForImportOutcome(page) {
+  await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
+  const error = page.locator('.import-error-panel');
+  if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
+  await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+}
+
+const gateContext = await browser.newContext(iphone);
+const gatePage = await gateContext.newPage();
+const gateErrors = collectErrors(gatePage);
+await gatePage.goto('http://127.0.0.1:4173/manual/?debug=1&test=1&autorun=1', { waitUntil: 'networkidle' });
+await gatePage.waitForFunction(() => document.documentElement.dataset.gateMoved === 'yes', { timeout: 20000 });
+const count = (await gatePage.locator('#corpusStatus').textContent())?.trim();
+const policy = (await gatePage.locator('#debugPolicy').textContent()) || '';
+const state = (await gatePage.locator('#debugState').textContent()) || '';
+const gate = Number((policy.match(/gate=([0-9.]+)/) || [])[1]);
+if (count !== '20 THINGS') throw new Error(`expected 20 THINGS, got ${count}`);
+if (!(gate > .05)) throw new Error(`gate did not visibly move: ${policy}`);
+if (!/state=(saturation|deep_saturation)/.test(state)) throw new Error(`state did not change: ${state}`);
+for (const label of ['ADD', 'KEEP', 'READ', 'SEND', 'MOVE GATE']) {
+  if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing button ${label}`);
+}
+await gatePage.evaluate(() => window.SidewaysCore?.routeTo?.('#/add'));
+await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 5000 });
+const coreFilesContract = await gatePage.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
+if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
+await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
+const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children].filter(child => !child.matches('#importWorkbenchHost') && getComputedStyle(child).display !== 'none').length);
+if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
+if (gateErrors.length) throw new Error(gateErrors.join(' | '));
+await gatePage.screenshot({ path: 'manual-phone-gate.png', fullPage: true });
+await gateContext.close();
+
+const consumerContext = await browser.newContext(iphone);
+const consumer = await consumerContext.newPage();
+const consumerErrors = collectErrors(consumer);
+let loads = 0;
+consumer.on('load', () => { loads += 1; });
+await consumer.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
+loads = 0;
+
+await consumer.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
+await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
+await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
+if (await consumer.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
+if ((await consumer.locator('.source-card').count()) !== 8) throw new Error('expected exactly eight app cards');
+for (const id of ['instagram', 'reddit', 'tiktok', 'youtube', 'spotify', 'x', 'browser', 'anything']) {
+  if ((await consumer.locator(`.source-card[data-platform="${id}"]`).count()) !== 1) throw new Error(`missing app card: ${id}`);
+}
+for (const forbidden of ['SAVE AND CHOOSE AN APP', 'I HAVE THE FILES', 'ADD TO MY FEED', 'PICK MORE FILES', 'PICK FOLDER']) {
+  if (await consumer.getByText(forbidden, { exact: true }).count()) throw new Error(`old setup UI still visible: ${forbidden}`);
+}
+if (await consumer.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
+
+const redditImport = consumer.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
+const chooserPromise = consumer.waitForEvent('filechooser', { timeout: 10000 });
+await touch(consumer, redditImport);
+const chooser = await chooserPromise;
+await chooser.setFiles({
+  name: 'comments.csv',
+  mimeType: 'text/csv',
+  buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"hello from reddit",sideways,/r/sideways/comments/1,1700000000,kai,abc123\n')
 });
-await page.locator('#addView').waitFor({state:'visible',timeout:5000});
-await page.getByRole('button',{name:/^FILES \+/}).waitFor({state:'visible',timeout:10000});
-if(await page.getByRole('button',{name:/^FOLDER\b/}).count())throw new Error('unsupported iPhone folder picker still shown');
-await page.locator('#importWorkbenchHost').waitFor({state:'visible',timeout:10000});
-await page.getByRole('button',{name:/^PICK MORE FILES\b/}).waitFor({state:'visible',timeout:10000});
-if(await page.getByRole('button',{name:/^PICK FOLDER\b/}).count())throw new Error('import workbench exposed unsupported iPhone folder picker');
-await page.screenshot({path:'manual-phone-gate.png',fullPage:true});
-if(errors.length)throw new Error(errors.join(' | '));
-console.log(JSON.stringify({count,gate,state:state.split('\n').find(x=>x.startsWith('state=')),iphonePicker:'FILES +',importerPicker:'PICK MORE FILES',route:'direct',screenshot:'manual-phone-gate.png'},null,2));
+
+await waitForImportOutcome(consumer);
+if (await consumer.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
+const refreshedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
+if (!/^[1-9]\d* THING/.test(refreshedCount)) throw new Error(`core did not refresh after import: ${refreshedCount}`);
+await consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+await consumer.waitForTimeout(2500);
+if (loads !== 0) throw new Error(`import triggered ${loads} automatic page load(s)`);
+await consumer.screenshot({ path: 'manual-onboarding-phone.png', fullPage: true });
+
+await touch(consumer, consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }));
+await consumer.waitForURL(/#\/feed$/, { timeout: 10000 });
+await consumer.locator('#feed').waitFor({ state: 'visible', timeout: 10000 });
+await consumer.waitForFunction(() => /^[1-9]\d* THING/.test(document.getElementById('corpusStatus')?.textContent || ''), { timeout: 10000 });
+const importedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
+if (loads !== 0) throw new Error(`OPEN MY FEED reloaded the page ${loads} time(s)`);
+if (consumerErrors.length) throw new Error(consumerErrors.join(' | '));
+await consumerContext.close();
+
+console.log(JSON.stringify({
+  count,
+  gate,
+  state: state.split('\n').find(line => line.startsWith('state=')),
+  visibleLegacyAddSurface: false,
+  duplicateIntro: false,
+  chooserBehindCompletion: false,
+  firstRun: 'app cards immediately visible',
+  consumerJourney: 'IMPORT REDDIT → native picker → automatic import → in-place feed',
+  automaticReloads: 0,
+  refreshedCount,
+  importedCount,
+  screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png']
+}, null, 2));
 await browser.close();

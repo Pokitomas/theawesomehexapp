@@ -1,28 +1,20 @@
-.studio-hero-actions {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: .7rem;
-  margin-top: 1.1rem;
-}
-
 .studio-primary-action,
-.studio-secondary-action,
-.studio-storage-action {
-  min-height: 46px;
-  padding: .75rem 1rem;
+.studio-secondary-action {
+  min-height: 48px;
+  display: inline-grid;
+  place-items: center;
+  padding: .78rem 1rem;
   border: 2px solid var(--studio-line);
   border-radius: 999px;
   color: var(--studio-ink);
   background: white;
   font: inherit;
-  font-size: .78rem;
-  font-weight: 950;
-  letter-spacing: .055em;
-  text-transform: uppercase;
+  font-size: .8rem;
+  font-weight: 900;
+  letter-spacing: .025em;
   cursor: pointer;
   box-shadow: 3px 3px 0 var(--studio-ink);
+  touch-action: manipulation;
 }
 
 .studio-primary-action {
@@ -31,83 +23,26 @@
 }
 
 .studio-primary-action:hover,
-.studio-secondary-action:hover,
-.studio-storage-action:hover {
+.studio-secondary-action:hover {
   transform: translate(-1px, -1px);
   box-shadow: 5px 5px 0 var(--studio-ink);
 }
 
-.studio-format-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .45rem;
-  margin-top: 1rem;
-}
-
-.studio-format-grid span {
-  padding: .55rem .65rem;
-  border: 2px solid var(--studio-line);
-  border-radius: 10px;
-  background: rgba(255,255,255,.72);
-  font-size: .7rem;
-  font-weight: 900;
-  text-align: center;
-}
-
-.studio-storage-card {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0,1fr) auto;
-  gap: .2rem 1rem;
-  align-items: center;
-  margin-top: 1rem;
-  padding: .9rem;
-  border: 2px solid var(--studio-line);
-  border-radius: 14px;
-  background: rgba(255,255,255,.88);
-}
-
-.studio-storage-card strong,
-.studio-storage-card span {
-  min-width: 0;
-}
-
-.studio-storage-card strong {
-  font-size: .78rem;
-  letter-spacing: .04em;
-}
-
-.studio-storage-card span {
-  font-size: .76rem;
-  color: #474942;
-}
-
-.studio-storage-card .studio-storage-action {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  min-height: 38px;
-  padding: .55rem .75rem;
-  background: var(--studio-blue);
-}
-
 .studio-progress-card {
   display: grid;
-  grid-template-columns: auto minmax(0,1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: .4rem 1rem;
   align-items: center;
   margin: 0 0 1.25rem;
   padding: 1rem;
-  border: 3px solid var(--studio-line);
+  border: 2px solid var(--studio-line);
   border-radius: 18px;
   background: var(--studio-blue);
-  box-shadow: 5px 5px 0 var(--studio-ink);
+  box-shadow: 4px 4px 0 var(--studio-ink);
 }
 
 .studio-progress-card.is-awake {
-  background: var(--studio-acid);
+  background: var(--studio-lime);
 }
 
 .studio-progress-card .studio-progress-count {
@@ -147,82 +82,16 @@
   white-space: nowrap;
 }
 
-html.studio-product .add-grid {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-}
-
-html.studio-product .add-tile {
-  min-height: 116px;
-  border: 3px solid var(--studio-line);
-  border-radius: 16px;
-  background: white;
-  box-shadow: 5px 5px 0 var(--studio-ink);
-  text-align: left;
-}
-
-html.studio-product .add-tile:hover,
-html.studio-product .add-tile:focus-visible {
-  transform: translate(-2px,-2px);
-  box-shadow: 8px 8px 0 var(--studio-ink);
-}
-
-html.studio-product .drop-zone {
-  border: 3px dashed var(--studio-line);
-  border-radius: 18px;
-  background: rgba(255,255,255,.62);
-  font-weight: 950;
-  letter-spacing: .08em;
-}
-
-html.studio-product .drop-zone.drag {
-  background: var(--studio-acid);
-}
-
-html.studio-product .queue {
-  display: grid;
-  gap: .55rem;
-  padding: 0;
-  list-style: none;
-}
-
-html.studio-product .queue li {
-  display: grid;
-  gap: .2rem;
-  padding: .75rem;
-  border: 2px solid var(--studio-line);
-  border-radius: 12px;
-  background: white;
-}
-
-html.studio-product .queue li span {
-  font-size: .78rem;
-  color: #55584f;
-}
-
-html.studio-product .simple-form input,
-html.studio-product .simple-form textarea,
-html.studio-product .simple-form select {
-  border: 2px solid var(--studio-line);
-  border-radius: 12px;
-  background: white;
-}
-
 html.studio-product :focus-visible {
   outline: 4px solid var(--studio-violet);
   outline-offset: 3px;
 }
 
 @media (max-width: 760px) {
-  .studio-format-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .studio-storage-card,
   .studio-progress-card {
     grid-template-columns: 1fr;
   }
 
-  .studio-storage-card .studio-storage-action,
   .studio-progress-card .studio-progress-count,
   .studio-progress-card .studio-secondary-action {
     grid-column: 1;
@@ -237,21 +106,15 @@ html.studio-product :focus-visible {
 
 @media (max-width: 420px) {
   html.studio-product .topline {
-    grid-template-columns: minmax(0,1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   html.studio-product #navProfile {
     display: none;
   }
 
-  .studio-hero-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
   .studio-primary-action,
-  .studio-secondary-action,
-  .studio-storage-action {
+  .studio-secondary-action {
     width: 100%;
   }
 }

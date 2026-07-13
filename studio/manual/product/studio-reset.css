@@ -1,0 +1,14 @@
+/* The canonical ADD engine stays underneath for parsing and compatibility.
+   The rebuilt product exposes only the consumer importer. */
+html.studio-product #addView.studio-add-modern > :not(#importWorkbenchHost) {
+  display: none !important;
+}
+
+html.studio-product #addView.studio-add-modern,
+html.studio-product #addView.studio-add-modern > #importWorkbenchHost {
+  display: block;
+}
+
+html.studio-product #addView.studio-add-modern .import-workbench {
+  margin-top: 0;
+}

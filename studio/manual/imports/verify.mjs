@@ -23,7 +23,8 @@ for (const relative of [
   'imports/runtime.js',
   'imports/apply.py',
   'product/import-studio.js',
-  'product/import-studio.css'
+  'product/import-studio.css',
+  'product/import-phone.js'
 ]) assert.equal(await exists(resolve(source, relative)), true, `missing source: ${relative}`);
 
 for (const relative of [
@@ -31,6 +32,7 @@ for (const relative of [
   'imports/runtime.js',
   'import-studio.js',
   'import-studio.css',
+  'import-phone.js',
   'index.html'
 ]) assert.equal(await exists(resolve(manual, relative)), true, `missing built file: ${relative}`);
 
@@ -38,20 +40,25 @@ for (const path of [
   resolve(source, 'imports/registry.js'),
   resolve(source, 'imports/runtime.js'),
   resolve(source, 'product/import-studio.js'),
+  resolve(source, 'product/import-phone.js'),
   resolve(manual, 'imports/registry.js'),
   resolve(manual, 'imports/runtime.js'),
-  resolve(manual, 'import-studio.js')
+  resolve(manual, 'import-studio.js'),
+  resolve(manual, 'import-phone.js')
 ]) checkJS(path);
 
 const html = await readFile(resolve(manual, 'index.html'), 'utf8');
 assert.match(html, /data-import-workbench/);
+assert.match(html, /data-import-phone/);
 assert.equal((html.match(/import-studio\.css/g) || []).length, 1, 'stylesheet injected more than once');
 assert.equal((html.match(/import-studio\.js/g) || []).length, 1, 'script injected more than once');
+assert.equal((html.match(/import-phone\.js/g) || []).length, 1, 'phone script injected more than once');
 
 const runtimeText = await readFile(resolve(source, 'imports/runtime.js'), 'utf8');
 for (const contract of [
   "const DB_NAME = 'sideways-manual-corpus-v1'",
   "const RECORD_STORE = 'records'",
+  "const PROFILE_KEY = 'sideways-local-profile-v1'",
   'new AbortController()',
   'navigator.storage?.estimate',
   'navigator.storage?.persist',
@@ -63,12 +70,21 @@ for (const forbidden of ['riskFloor', 'deep_saturation', 'scoreCandidate', 'upda
   assert.equal(runtimeText.includes(forbidden), false, `import runtime duplicated kernel logic: ${forbidden}`);
 }
 
+for (const relative of ['product/studio.js', 'product/import-studio.js', 'product/import-phone.js']) {
+  const text = await readFile(resolve(source, relative), 'utf8');
+  assert.equal(text.includes('new MutationObserver'), false, `${relative} reintroduced a global DOM observer`);
+}
+
 const { createDefaultRegistry } = await import(`${pathToFileURL(resolve(source, 'imports/registry.js')).href}?verify=${Date.now()}`);
 const registry = createDefaultRegistry();
 const ids = registry.list().map(adapter => adapter.id);
 assert.deepEqual(ids, [
   'x-archive',
   'reddit-export',
+  'instagram-export',
+  'tiktok-export',
+  'youtube-takeout',
+  'spotify-history',
   'mastodon-outbox',
   'bookmarks-html',
   'rss-atom',
@@ -77,8 +93,13 @@ assert.deepEqual(ids, [
   'plain-text'
 ]);
 
-const fake = (name, type = '') => ({ name, type, size: 10, lastModified: 1 });
+const fake = (name, type = '', webkitRelativePath = '') => ({ name, type, size: 10, lastModified: 1, webkitRelativePath });
 assert.equal(registry.find(fake('tweets.js'), 'window.YTD.tweets.part0 = []').id, 'x-archive');
+assert.equal(registry.find(fake('comments.csv'), 'subreddit,permalink,created_utc').id, 'reddit-export');
+assert.equal(registry.find(fake('saved_saved_media.json'), '"string_map_data"').id, 'instagram-export');
+assert.equal(registry.find(fake('user_data.json'), '"ItemFavoriteList"').id, 'tiktok-export');
+assert.equal(registry.find(fake('watch-history.html'), '<a href="https://youtube.com/watch?v=1">').id, 'youtube-takeout');
+assert.equal(registry.find(fake('Streaming_History_Audio_2026.json'), '"master_metadata_track_name"').id, 'spotify-history');
 assert.equal(registry.find(fake('outbox.json'), '{"orderedItems":[]}').id, 'mastodon-outbox');
 assert.equal(registry.find(fake('Bookmarks.html'), '<!DOCTYPE NETSCAPE-Bookmark-file-1>').id, 'bookmarks-html');
 assert.equal(registry.find(fake('feed.xml'), '<rss>').id, 'rss-atom');
@@ -86,8 +107,8 @@ assert.equal(registry.find(fake('records.jsonl')).id, 'json-lines');
 assert.equal(registry.find(fake('records.csv', 'text/csv')).id, 'csv');
 assert.equal(registry.find(fake('notes.txt', 'text/plain')).id, 'plain-text');
 
-console.log(JSON.stringify({ adapters: ids, indexedDB: DBContract(runtimeText), workbench: true }, null, 2));
+console.log(JSON.stringify({ adapters: ids, indexedDB: DBContract(runtimeText), workbench: true, observerFree: true }, null, 2));
 
 function DBContract(text) {
-  return text.includes("sideways-manual-corpus-v1") && text.includes("RECORD_STORE = 'records'");
+  return text.includes('sideways-manual-corpus-v1') && text.includes("RECORD_STORE = 'records'");
 }

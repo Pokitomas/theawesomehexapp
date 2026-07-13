@@ -4,6 +4,7 @@ const DB_NAME = 'sideways-manual-corpus-v1';
 const DB_VERSION = 1;
 const RECORD_STORE = 'records';
 const BLOB_STORE = 'blobs';
+const PROFILE_KEY = 'sideways-local-profile-v1';
 const MAX_SINGLE_FILE = 350 * 1024 * 1024;
 const DEFAULT_CHUNK = 75;
 
@@ -71,8 +72,22 @@ function clean(value = '') {
   return String(value).replace(/\u0000/g, '').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{4,}/g, '\n\n\n').trim();
 }
 
+function localProfile() {
+  try {
+    const value = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+    return {
+      displayName: clean(value.name || 'Me').slice(0, 80) || 'Me',
+      handle: value.handle ? `@${clean(value.handle).replace(/^@/, '').slice(0, 47)}` : ''
+    };
+  } catch {
+    return { displayName: 'Me', handle: '' };
+  }
+}
+
 function currentProfile() {
-  return window.SidewaysProfiles?.profile || { displayName: 'Me', handle: '@me' };
+  const core = window.SidewaysProfiles?.profile;
+  if (core?.displayName && core.displayName !== 'Me') return core;
+  return localProfile();
 }
 
 function normalize(input, file, digest) {
@@ -139,6 +154,15 @@ async function capacityFor(files) {
   return { requested, usage: Number(estimate.usage || 0), quota: Number(estimate.quota || 0), remaining };
 }
 
+function requestPersistentStorage() {
+  try {
+    const result = navigator.storage?.persist?.();
+    if (result?.catch) result.catch(() => false);
+  } catch {
+    // Persistence is an optimization; importing must never wait on it.
+  }
+}
+
 function nextFrame() {
   return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
@@ -186,7 +210,7 @@ export class ImportRuntime extends EventTarget {
 
     const capacity = await capacityFor(list);
     if (capacity.quota && capacity.remaining < capacity.requested * 1.15) throw new Error('NOT ENOUGH BROWSER SPACE');
-    if (options.persist !== false) await navigator.storage?.persist?.().catch(() => false);
+    if (options.persist !== false) requestPersistentStorage();
 
     const controller = new AbortController();
     this.controller = controller;

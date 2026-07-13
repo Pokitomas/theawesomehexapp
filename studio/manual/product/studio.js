@@ -2,12 +2,13 @@ import { COPY } from './copy.js';
 
 const STABLE_LABELS = Object.freeze(['ADD', 'KEEP', 'READ', 'SEND', 'FILES +']);
 const STABLE_IDS = Object.freeze(['corpusStatus', 'debugPolicy', 'debugState', 'debugPanel']);
-const PRODUCT_TITLE = 'Sideways — Build Your Feed';
-const PRODUCT_THEME = '#e9ff3f';
+const PRODUCT_TITLE = 'Sideways — Your stuff, one feed';
+const PRODUCT_THEME = '#ff5a36';
 let scheduled = false;
-let storagePromise = null;
+let appReady = Boolean(window.SidewaysCore?.state?.manifest);
+let firstRunRouted = false;
 
-function element(tag, className, text) {
+function element(tag, className = '', text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
@@ -23,17 +24,12 @@ function setAttribute(node, name, value) {
 }
 
 function routeTo(hash) {
-  const core = window.SidewaysCore;
-  if (core?.routeTo) core.routeTo(hash);
-  else location.hash = hash;
-}
-
-function proofRow() {
-  const row = element('div', 'studio-proof-row');
-  for (const item of [COPY.localBadge, COPY.addHint, COPY.storage]) {
-    row.append(element('span', '', item));
+  if (!appReady) {
+    window.addEventListener('sideways:ready', () => routeTo(hash), { once: true });
+    return;
   }
-  return row;
+  if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo(hash);
+  else location.hash = hash;
 }
 
 function actionButton(label, className, action) {
@@ -43,43 +39,17 @@ function actionButton(label, className, action) {
   return node;
 }
 
-function introCard() {
-  const card = element('section', 'studio-intro');
-  card.dataset.studioIntro = 'true';
-  const actions = element('div', 'studio-hero-actions');
-  actions.append(
-    actionButton('CHOOSE FILES', 'studio-primary-action', () => document.getElementById('filePicker')?.click()),
-    actionButton('PASTE OR LINK', 'studio-secondary-action', () => routeTo('#/add'))
-  );
-  const formats = element('div', 'studio-format-grid');
-  for (const format of COPY.formats) formats.append(element('span', '', format));
-  card.append(
-    element('span', 'studio-kicker', COPY.kicker),
-    element('h1', '', COPY.importTitle),
-    element('p', '', COPY.importBody),
-    actions,
-    formats,
-    proofRow(),
-    storageCard()
-  );
-  return card;
-}
-
 function emptyCard() {
   const card = element('section', 'studio-empty-hero');
   card.dataset.studioEmpty = 'true';
-  const actions = element('div', 'studio-hero-actions');
-  actions.append(
-    actionButton(COPY.emptyAction, 'studio-primary-action', () => routeTo('#/add')),
-    actionButton(COPY.openPackAction, 'studio-secondary-action', () => document.getElementById('packPicker')?.click())
-  );
-  card.append(
+  const top = element('div', 'studio-empty-copy');
+  top.append(
     element('span', 'studio-local', COPY.ready),
     element('h1', '', COPY.emptyTitle),
     element('p', '', COPY.emptyBody),
-    actions,
-    proofRow()
+    actionButton(COPY.emptyAction, 'studio-primary-action', () => routeTo('#/add'))
   );
+  card.append(top);
   return card;
 }
 
@@ -92,143 +62,74 @@ function progressCard(count) {
     element('h2', '', awake ? COPY.feedAwake : COPY.feedLearning),
     element('p', '', awake ? COPY.feedAwakeBody : COPY.feedLearningBody)
   );
-  if (!awake) {
-    card.append(actionButton('ADD ANOTHER SOURCE', 'studio-secondary-action', () => routeTo('#/add')));
-  }
+  if (!awake) card.append(actionButton('BRING OVER ANOTHER APP', 'studio-secondary-action', () => routeTo('#/add')));
   return card;
 }
 
-function storageCard() {
-  const card = element('section', 'studio-storage-card');
-  card.dataset.studioStorage = 'true';
-  card.append(
-    element('strong', '', COPY.storageUnknown),
-    element('span', '', COPY.privacy)
-  );
-  void refreshStorage(card);
-  return card;
+function recordCount() {
+  return Number(window.SidewaysCore?.state?.records?.length || document.querySelectorAll('#feed .post').length || 0);
 }
 
-async function storageState() {
-  if (storagePromise) return storagePromise;
-  storagePromise = (async () => {
-    if (!navigator.storage) return { supported: false };
-    const [estimate, persisted] = await Promise.all([
-      navigator.storage.estimate?.().catch(() => ({})) ?? {},
-      navigator.storage.persisted?.().catch(() => false) ?? false
-    ]);
-    return {
-      supported: true,
-      persisted: Boolean(persisted),
-      usage: Number(estimate.usage) || 0,
-      quota: Number(estimate.quota) || 0
-    };
-  })();
-  return storagePromise;
-}
-
-function compactBytes(value) {
-  if (!Number.isFinite(value) || value <= 0) return '0 MB';
-  const mb = value / 1024 / 1024;
-  if (mb < 1024) return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`;
-  return `${(mb / 1024).toFixed(1)} GB`;
-}
-
-async function refreshStorage(card) {
-  const state = await storageState();
-  if (!card.isConnected) return;
-  const strong = card.querySelector('strong');
-  const detail = card.querySelector('span');
-  if (!state.supported) {
-    setText(strong, COPY.storage);
-    setText(detail, COPY.privacy);
-    return;
-  }
-  const capacity = state.quota ? `${compactBytes(state.usage)} OF ${compactBytes(state.quota)} USED` : COPY.storage;
-  setText(strong, state.persisted ? COPY.storagePersistent : COPY.storageTemporary);
-  setText(detail, capacity);
-  const existing = card.querySelector('button');
-  if (!state.persisted && navigator.storage.persist && !existing) {
-    card.append(actionButton(COPY.storageAction, 'studio-storage-action', async (event) => {
-      event.currentTarget.disabled = true;
-      const granted = await navigator.storage.persist().catch(() => false);
-      storagePromise = null;
-      if (!granted) event.currentTarget.disabled = false;
-      await refreshStorage(card);
-    }));
-  } else if (state.persisted && existing) {
-    existing.remove();
-  }
+function shouldAutoOpenApps() {
+  if (firstRunRouted || !appReady || recordCount() > 0) return false;
+  if (new URLSearchParams(location.search).has('test')) return false;
+  return !location.hash || location.hash === '#/feed';
 }
 
 function enhanceBrand() {
-  const brand = document.querySelector('.brand-lockup span');
-  setText(brand, COPY.brand);
-  const navFeed = document.getElementById('navFeed');
-  setAttribute(navFeed, 'aria-label', `${COPY.brand}: feed`);
+  setText(document.querySelector('.brand-lockup span'), COPY.brand);
+  setAttribute(document.getElementById('navFeed'), 'aria-label', `${COPY.brand}: feed`);
   if (document.title !== PRODUCT_TITLE) document.title = PRODUCT_TITLE;
-  const theme = document.querySelector('meta[name="theme-color"]');
-  setAttribute(theme, 'content', PRODUCT_THEME);
-}
-
-function enhanceAddView() {
-  const addView = document.getElementById('addView');
-  if (!addView || addView.hidden || addView.querySelector('[data-studio-intro]')) return;
-  addView.prepend(introCard());
+  setAttribute(document.querySelector('meta[name="theme-color"]'), 'content', PRODUCT_THEME);
 }
 
 function enhanceFeed() {
   const feed = document.getElementById('feed');
   if (!feed) return;
   const posts = feed.querySelectorAll('.post').length;
-  const empty = feed.querySelector('.add-empty, .empty');
+  const nativeEmpty = feed.querySelector('.add-empty, .empty');
   const existingHero = feed.querySelector('[data-studio-empty]');
   const existingProgress = feed.querySelector('[data-studio-progress]');
 
-  if (!posts && empty) {
+  if (!posts && nativeEmpty) {
+    nativeEmpty.classList.add('studio-native-empty');
     if (!existingHero) feed.prepend(emptyCard());
-    if (!empty.hidden) empty.hidden = true;
     existingProgress?.remove();
     return;
   }
 
-  if (existingHero) existingHero.remove();
-  if (empty?.hidden) empty.hidden = false;
-  const total = Number(window.SidewaysCore?.state?.records?.length || posts);
+  nativeEmpty?.classList.remove('studio-native-empty');
+  existingHero?.remove();
+  const total = recordCount();
   if (total > 0 && total < 20) {
     if (!existingProgress || existingProgress.dataset.studioProgress !== String(total)) {
       existingProgress?.remove();
       feed.prepend(progressCard(total));
     }
-  } else {
-    existingProgress?.remove();
-  }
+  } else existingProgress?.remove();
 }
 
-function enhanceProfile() {
+function enhanceViews() {
   const profileView = document.getElementById('profileView');
-  if (!profileView || profileView.hidden) return;
-  if (!profileView.dataset.studioNamed) profileView.dataset.studioNamed = 'true';
-  setAttribute(profileView, 'aria-label', COPY.profile);
-}
-
-function enhanceSaved() {
+  if (profileView && !profileView.hidden) setAttribute(profileView, 'aria-label', COPY.profile);
   const savedView = document.getElementById('savedView');
-  if (!savedView || savedView.hidden) return;
-  if (!savedView.dataset.studioNamed) savedView.dataset.studioNamed = 'true';
-  setAttribute(savedView, 'aria-label', COPY.saved);
+  if (savedView && !savedView.hidden) setAttribute(savedView, 'aria-label', COPY.saved);
 }
 
 function enhance() {
   document.documentElement.classList.add('studio-product');
-  if (document.documentElement.dataset.studioReady !== 'yes') {
-    document.documentElement.dataset.studioReady = 'yes';
-  }
+  document.documentElement.dataset.studioReady = appReady ? 'yes' : 'booting';
   enhanceBrand();
-  enhanceAddView();
+  if (!appReady) return;
+
+  if (shouldAutoOpenApps()) {
+    firstRunRouted = true;
+    routeTo('#/add');
+    return;
+  }
+
   enhanceFeed();
-  enhanceProfile();
-  enhanceSaved();
+  enhanceViews();
 }
 
 function scheduleEnhance() {
@@ -238,6 +139,11 @@ function scheduleEnhance() {
     scheduled = false;
     enhance();
   });
+}
+
+function bootEnhancers() {
+  scheduleEnhance();
+  for (const delay of [80, 280, 900, 1800]) setTimeout(scheduleEnhance, delay);
 }
 
 function assertCompatibility() {
@@ -250,36 +156,30 @@ function assertCompatibility() {
   }
 }
 
-const observer = new MutationObserver(scheduleEnhance);
-observer.observe(document.body || document.documentElement, {
-  childList: true,
-  subtree: true,
-  attributes: true,
-  attributeFilter: ['hidden']
+for (const eventName of ['sideways:feedrender', 'hashchange', 'popstate']) {
+  window.addEventListener(eventName, scheduleEnhance);
+}
+window.addEventListener('sideways:importcomplete', bootEnhancers);
+window.addEventListener('sideways:ready', () => {
+  appReady = true;
+  bootEnhancers();
+  assertCompatibility();
 });
 
-window.addEventListener('sideways:ready', scheduleEnhance);
-window.addEventListener('sideways:feedrender', scheduleEnhance);
-window.addEventListener('hashchange', scheduleEnhance);
-
 function bootStudio() {
-  enhance();
-  assertCompatibility();
+  scheduleEnhance();
+  if (appReady) {
+    bootEnhancers();
+    assertCompatibility();
+  }
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootStudio, { once: true });
-} else {
-  bootStudio();
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootStudio, { once: true });
+else bootStudio();
 
 window.SidewaysStudio = Object.freeze({
   copy: COPY,
-  enhance,
+  enhance: scheduleEnhance,
   stableLabels: STABLE_LABELS,
-  stableIds: STABLE_IDS,
-  refreshStorage: () => {
-    storagePromise = null;
-    document.querySelectorAll('[data-studio-storage]').forEach((node) => void refreshStorage(node));
-  }
+  stableIds: STABLE_IDS
 });

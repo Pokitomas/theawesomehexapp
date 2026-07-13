@@ -4,33 +4,14 @@ const IOS_PICKER = /iPad|iPhone|iPod/.test(navigator.userAgent)
 
 let scheduled = false;
 
-function importerFileInput() {
-  return [...document.querySelectorAll('body > input[type="file"][hidden]')]
-    .find(input => !input.id && !input.hasAttribute('webkitdirectory'))
-    || document.getElementById('filePicker');
-}
-
 function patchPhonePicker() {
-  if (!IOS_PICKER) return;
-  const terminals = [...document.querySelectorAll('#importWorkbenchHost .import-terminal')];
-  const folder = terminals.find(node => node.querySelector('strong')?.textContent === 'PICK FOLDER'
-    || node.dataset.phonePicker === 'true');
-  if (!folder) return;
-
-  folder.dataset.phonePicker = 'true';
-  const label = folder.querySelector('strong');
-  const help = folder.querySelector('span');
-  if (label && label.textContent !== 'PICK MORE FILES') label.textContent = 'PICK MORE FILES';
-  if (help && help.textContent !== 'Choose several files on this device.') {
-    help.textContent = 'Choose several files on this device.';
-  }
-  if (folder.dataset.phoneBound === 'true') return;
-  folder.dataset.phoneBound = 'true';
-  folder.addEventListener('click', event => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    importerFileInput()?.click();
-  }, true);
+  const input = document.getElementById('sidewaysImportFiles');
+  if (!input) return false;
+  input.multiple = true;
+  input.removeAttribute('webkitdirectory');
+  input.removeAttribute('directory');
+  input.dataset.phoneReady = IOS_PICKER ? 'yes' : 'not-needed';
+  return true;
 }
 
 function schedule() {
@@ -42,15 +23,15 @@ function schedule() {
   });
 }
 
-new MutationObserver(schedule).observe(document.body || document.documentElement, {
-  childList: true,
-  subtree: true,
-  attributes: true,
-  attributeFilter: ['hidden']
-});
-window.addEventListener('hashchange', schedule);
-window.addEventListener('sideways:ready', schedule);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
-else schedule();
+function boot() {
+  schedule();
+  for (const delay of [100, 320, 900, 1800]) setTimeout(schedule, delay);
+}
+
+for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:importworkbench']) {
+  window.addEventListener(eventName, schedule);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+else boot();
 
 window.SidewaysImportPhone = Object.freeze({ patch: patchPhonePicker, isPhoneFallback: IOS_PICKER });

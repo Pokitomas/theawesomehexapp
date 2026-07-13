@@ -1,0 +1,48 @@
+name: Kernel parity check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble canonical root and manual layers
+        run: |
+          set -euo pipefail
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
+
+          cat manual-overlay.b64.part.* > manual-overlay.b64
+          base64 -d manual-overlay.b64 > manual-overlay.tar.xz
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
+
+          cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
+          base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
+          tar -xJf manual-kernel-overlay.tar.xz
+          python studio/manual/prepare-kernel.py
+          python manual-kernel/patch.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run kernel parity check
+        run: node studio/manual/tests/kernel-parity.mjs src/app.js manual-app/kernel.js

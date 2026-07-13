@@ -116,6 +116,78 @@ function genericObject(item, source) {
   });
 }
 
+function normalizedKeys(value) {
+  return Object.fromEntries(Object.entries(value || {}).map(([key, item]) => [key.toLowerCase().replace(/[^a-z0-9]+/g, '_'), item]));
+}
+
+function portableRecords(value, source, output = [], seen = new WeakSet()) {
+  if (output.length >= 50000) return output;
+  if (Array.isArray(value)) {
+    for (const item of value) portableRecords(item, source, output, seen);
+    return output;
+  }
+  if (!value || typeof value !== 'object' || seen.has(value)) return output;
+  seen.add(value);
+
+  const keys = normalizedKeys(value);
+  const stringList = value.string_list_data || value.stringListData;
+  if (Array.isArray(stringList)) {
+    for (const item of stringList) {
+      output.push(record({
+        type: 'social',
+        title: item.value || value.title || source,
+        text: item.value || value.title || '',
+        source,
+        sourceUrl: item.href || item.url,
+        published: item.timestamp ? Number(item.timestamp) * 1000 : '',
+        nativeId: item.href || `${item.value || ''}:${item.timestamp || ''}`
+      }));
+    }
+  }
+
+  const mapData = value.string_map_data || value.stringMapData;
+  if (mapData && typeof mapData === 'object') {
+    for (const [label, item] of Object.entries(mapData)) {
+      if (!item || typeof item !== 'object') continue;
+      output.push(record({
+        type: 'social',
+        title: value.title || label,
+        text: item.value || value.title || label,
+        source,
+        sourceUrl: item.href || item.url,
+        published: item.timestamp ? Number(item.timestamp) * 1000 : '',
+        nativeId: item.href || `${label}:${item.timestamp || item.value || ''}`
+      }));
+    }
+  }
+
+  const title = keys.title || keys.name || keys.track_name || keys.master_metadata_track_name || keys.video_title || keys.caption || keys.query || keys.search_term;
+  const text = keys.text || keys.body || keys.content || keys.comment || keys.description || keys.caption || keys.value || keys.video_link || keys.link;
+  const href = keys.url || keys.href || keys.link || keys.video_link || keys.share_url || keys.webpage_url;
+  const timestamp = keys.timestamp || keys.time || keys.date || keys.created_at || keys.creation_timestamp || keys.ts;
+  if (title || text || href) {
+    output.push(record({
+      type: href && !text ? 'article' : 'social',
+      title: title || text || href,
+      text: text || title || '',
+      source,
+      sourceUrl: href,
+      published: typeof timestamp === 'number' && timestamp < 100000000000 ? timestamp * 1000 : timestamp,
+      nativeId: keys.id || keys.item_id || keys.media_id || href || `${title || text}:${timestamp || ''}`,
+      author: { name: keys.author || keys.username || keys.artist_name || keys.master_metadata_album_artist_name || 'Me' }
+    }));
+  }
+
+  for (const item of Object.values(value)) portableRecords(item, source, output, seen);
+  return output;
+}
+
+function parsePortableFile(text, file, source) {
+  if (/\.csv$/i.test(file.name)) return csvRows(text).map(item => genericObject(item, source));
+  const payload = parseAssignedJSON(text);
+  return portableRecords(payload, source);
+}
+
 export class AdapterRegistry {
   #adapters = [];
 
@@ -138,29 +210,29 @@ export class AdapterRegistry {
 export function createDefaultRegistry() {
   return new AdapterRegistry()
     .register({
-      id: 'x-archive', label: 'X / TWITTER EXPORT',
+      id: 'x-archive', label: 'X / TWITTER',
       match: (file, sample) => /(^|\/)(tweet|tweets)(\.js|\.json)$/i.test(file.name) || /window\.YTD\.tweets/i.test(sample),
       async parse(file, context) {
         const payload = parseAssignedJSON(await file.text());
         const rows = Array.isArray(payload) ? payload : payload.tweets || [];
         return rows.map(wrapper => wrapper.tweet || wrapper).map(tweet => record({
           type: 'social', title: clean(tweet.full_text || tweet.text).slice(0, 90), text: tweet.full_text || tweet.text,
-          source: 'X ARCHIVE', sourceUrl: tweet.id_str ? `https://x.com/i/web/status/${tweet.id_str}` : '',
+          source: 'X', sourceUrl: tweet.id_str ? `https://x.com/i/web/status/${tweet.id_str}` : '',
           author: { name: context.profileName || 'Me', handle: context.profileHandle || '' },
           published: tweet.created_at, nativeId: tweet.id_str, links: (tweet.entities?.urls || []).map(link => ({ label: link.display_url, url: link.expanded_url }))
         }));
       }
     })
     .register({
-      id: 'reddit-export', label: 'REDDIT EXPORT',
-      match: (file, sample) => /reddit|comments|posts/i.test(file.name) && /subreddit|permalink|created_utc/i.test(sample),
+      id: 'reddit-export', label: 'REDDIT',
+      match: (file, sample) => /reddit|comments|posts|saved/i.test(file.name) && /subreddit|permalink|created_utc|reddit/i.test(sample),
       async parse(file) {
         const text = await file.text();
         const payload = file.name.toLowerCase().endsWith('.csv') ? csvRows(text) : parseAssignedJSON(text);
         const rows = Array.isArray(payload) ? payload : flattenJSON(payload).map(item => item.value);
         return rows.map(item => record({
           type: item.title ? 'forum' : 'social', title: item.title || clean(item.body).slice(0, 90), text: item.selftext || item.body || item.text,
-          source: item.subreddit ? `r/${item.subreddit}` : 'REDDIT EXPORT',
+          source: item.subreddit ? `r/${item.subreddit}` : 'REDDIT',
           sourceUrl: item.permalink ? `https://www.reddit.com${item.permalink}` : item.url,
           author: { name: item.author || 'Me', handle: item.author ? `u/${item.author}` : '' },
           published: item.created_utc ? Number(item.created_utc) * 1000 : item.created_at,
@@ -169,19 +241,64 @@ export function createDefaultRegistry() {
       }
     })
     .register({
-      id: 'mastodon-outbox', label: 'MASTODON EXPORT',
+      id: 'instagram-export', label: 'INSTAGRAM',
+      match: (file, sample) => /instagram|saved_saved_media|liked_posts|comments|following|followers/i.test(file.webkitRelativePath || file.name) || /string_(list|map)_data|media_list_data/i.test(sample),
+      async parse(file) { return parsePortableFile(await file.text(), file, 'INSTAGRAM'); }
+    })
+    .register({
+      id: 'tiktok-export', label: 'TIKTOK',
+      match: (file, sample) => /tiktok|user_data|like list|favorite|video browsing|search history/i.test(file.webkitRelativePath || file.name) || /ItemFavoriteList|VideoList|SearchList/i.test(sample),
+      async parse(file) { return parsePortableFile(await file.text(), file, 'TIKTOK'); }
+    })
+    .register({
+      id: 'youtube-takeout', label: 'YOUTUBE',
+      match: (file, sample) => /youtube|watch-history|search-history|subscriptions|playlists/i.test(file.webkitRelativePath || file.name) || /youtube\.com\/watch|youtu\.be/i.test(sample),
+      async parse(file) {
+        const text = await file.text();
+        if (/\.html?$/i.test(file.name)) {
+          const document = new DOMParser().parseFromString(text, 'text/html');
+          return [...document.querySelectorAll('a[href]')].map(anchor => record({
+            type: 'article', title: anchor.textContent || anchor.href, source: 'YOUTUBE', sourceUrl: anchor.href,
+            published: anchor.closest('div')?.textContent?.match(/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^\n]*/)?.[0] || file.lastModified,
+            nativeId: anchor.href
+          }));
+        }
+        return parsePortableFile(text, file, 'YOUTUBE');
+      }
+    })
+    .register({
+      id: 'spotify-history', label: 'SPOTIFY',
+      match: (file, sample) => /spotify|streaming_history|endsong|playlist/i.test(file.webkitRelativePath || file.name) || /master_metadata_track_name|trackName|artistName|ms_played/i.test(sample),
+      async parse(file) {
+        const payload = parseAssignedJSON(await file.text());
+        const rows = Array.isArray(payload) ? payload : portableRecords(payload, 'SPOTIFY');
+        if (!Array.isArray(rows) || !rows.length || rows[0]?.type) return rows;
+        return rows.map(item => record({
+          type: 'social',
+          title: item.trackName || item.master_metadata_track_name || item.episode_name || 'LISTENED ON SPOTIFY',
+          text: [item.artistName || item.master_metadata_album_artist_name, item.albumName || item.master_metadata_album_album_name].filter(Boolean).join(' · '),
+          source: 'SPOTIFY',
+          published: item.endTime || item.ts,
+          nativeId: item.spotify_track_uri || item.spotify_episode_uri || `${item.trackName || item.master_metadata_track_name}:${item.endTime || item.ts}`,
+          author: { name: item.artistName || item.master_metadata_album_artist_name || 'Spotify' },
+          tags: item.reason_end ? [item.reason_end] : []
+        }));
+      }
+    })
+    .register({
+      id: 'mastodon-outbox', label: 'MASTODON',
       match: (file, sample) => /outbox\.json$/i.test(file.name) || /"orderedItems"\s*:/i.test(sample),
       async parse(file) {
         const payload = JSON.parse(await file.text());
         return (payload.orderedItems || []).map(activity => activity.object || activity).filter(Boolean).map(item => record({
           type: 'social', title: stripHTML(item.summary || item.content).slice(0, 90), text: stripHTML(item.content),
-          source: 'MASTODON EXPORT', sourceUrl: item.url || item.id, published: item.published,
+          source: 'MASTODON', sourceUrl: item.url || item.id, published: item.published,
           nativeId: item.id, links: (item.attachment || []).map(attachment => ({ label: attachment.name || 'MEDIA', url: attachment.url }))
         }));
       }
     })
     .register({
-      id: 'bookmarks-html', label: 'BROWSER BOOKMARKS',
+      id: 'bookmarks-html', label: 'BOOKMARKS',
       match: (file, sample) => /bookmark.*\.html?$/i.test(file.name) || /<!DOCTYPE NETSCAPE-Bookmark-file/i.test(sample),
       async parse(file) {
         const document = new DOMParser().parseFromString(await file.text(), 'text/html');
@@ -193,7 +310,7 @@ export function createDefaultRegistry() {
       }
     })
     .register({
-      id: 'rss-atom', label: 'RSS / ATOM FILE',
+      id: 'rss-atom', label: 'RSS / ATOM',
       match: (file, sample) => /\.(rss|xml|atom)$/i.test(file.name) || /<(rss|feed)[\s>]/i.test(sample),
       async parse(file) {
         const document = new DOMParser().parseFromString(await file.text(), 'application/xml');
@@ -202,7 +319,7 @@ export function createDefaultRegistry() {
           const itemUrl = linkNode?.getAttribute('href') || linkNode?.textContent || '';
           return record({
             type: 'article', title: item.querySelector('title')?.textContent, text: stripHTML(item.querySelector('content, content\\:encoded, description, summary')?.textContent || ''),
-            source: document.querySelector('channel > title, feed > title')?.textContent || 'FEED FILE', sourceUrl: itemUrl,
+            source: document.querySelector('channel > title, feed > title')?.textContent || 'RSS', sourceUrl: itemUrl,
             author: { name: item.querySelector('author name, creator')?.textContent || '' },
             published: item.querySelector('pubDate, published, updated')?.textContent, nativeId: item.querySelector('guid, id')?.textContent || itemUrl
           });
