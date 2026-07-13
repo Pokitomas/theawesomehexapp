@@ -1,5 +1,5 @@
-version: 10
-updated_at: 2026-07-13T07:00:00-07:00
+version: 11
+updated_at: 2026-07-13T07:12:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -14,6 +14,7 @@ file_locks:
   - studio/manual/product/import-studio.css
   - studio/manual/product/import-phone.js
   - studio/manual/product/studio.js
+  - studio/manual/product/studio-components.css
   - studio/manual/product/studio-reset.css
   - studio/manual/README.md
   - studio/manual/verify.py
@@ -25,21 +26,18 @@ file_locks:
   - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Make first run feel like a normal consumer app: tap Instagram or Reddit and the native picker opens. The product must not expose “files,” “exports,” profiles, or storage as concepts.
-  last_change: User rejected even the simplified two-step download/file wording. Main experience is now one app button per source; technical mechanics stay underneath.
+  summary: Fix the one-tap import completion race found by the real phone workflow.
+  root_cause: The picker change handler calls routeTo('#/add') even though the consumer is already on ADD; the core can rebuild the view and detach #importWorkbenchHost before completion renders.
   current_ci:
-    - overlay validation: success on head 957e3f7
-    - kernel parity: success on head 957e3f7
-    - phone onboarding/import: success on head 957e3f7
-    - Pages build: in progress on head 957e3f7
-  final_product_changes:
-    - remove name/handle from first run entirely
-    - make each platform card a single IMPORT INSTAGRAM / IMPORT REDDIT action
-    - open the native picker directly from that action
-    - keep a tiny NEED YOUR DOWNLOAD? recovery link only for users who do not already have it
-    - remove visible file/export/storage jargon
-    - update real-touch tests and docs atomically
-  done_when: A brand-new user sees a cool app, taps Reddit, chooses the Reddit download from the native system picker, and reaches a feed without learning Sideways architecture.
+    - overlay validation: success on head c280c04
+    - kernel parity: success on head c280c04
+    - phone onboarding/import: failed waiting for the Reddit completion panel
+    - Pages build: in progress on head c280c04
+  fix:
+    - remove the redundant route from importChosen
+    - keep the existing mounted workbench alive throughout import
+    - make both phone tests surface error-panel text immediately instead of timing out invisibly
+  done_when: Both real iPhone journeys reach Reddit completion, remain quiescent, and the deliberate OPEN MY FEED transition loads the imported record.
 
 external_execution:
   github_actions:
@@ -49,10 +47,10 @@ external_execution:
     status: implementation integrated; no file locks
 
 coordination_alerts:
-  - id: first-run-cognitive-load
+  - id: redundant-add-route
     severity: active
-    finding: Even “get download then choose files” is too implementation-shaped for the main product.
-    resolution: One platform action opens the native picker; recovery help is secondary and optional.
+    finding: Re-routing an already-visible ADD view can detach the consumer workbench during import.
+    resolution: Import in place; only route when opening the importer from another view.
   - id: exposed-user-token
     severity: security
     finding: A GitHub personal access token was pasted into chat.
@@ -61,8 +59,8 @@ coordination_alerts:
 next_architectural_goal:
   summary: Ship the completed consumer-facing Sideways app from main.
   sequence:
-    - land one-tap platform import
-    - run unified CI and inspect fresh phone artifacts
+    - fix and prove one-tap completion
+    - inspect fresh phone artifacts
     - merge PR 43 to main
     - verify Pages deployment and live phone URLs
     - release all file locks and mark this ledger complete
@@ -86,7 +84,7 @@ invariants:
 collaborator:
   owner: Claude
   mode: integrated
-  updated_at: 2026-07-13T14:00:00Z
+  updated_at: 2026-07-13T14:12:00Z
   file_locks: []
   current_subtask:
     summary: No active implementation lane. All accepted work is consolidated into PR 43.
