@@ -1,0 +1,23 @@
+name: Lock enforcer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  locks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch ledger
+        run: git fetch origin frankenstate:refs/remotes/origin/frankenstate || echo "no ledger branch yet"
+      - name: Enforce ledger locks
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          python3 coordination/enforce_locks.py --base "$BASE" --head "${{ github.sha }}"
