@@ -1,4 +1,5 @@
 import { createDefaultRegistry } from './registry.js';
+import { classifyFile, mediaTitle, probeFile } from './media-classifier.js';
 
 const DB_NAME = 'sideways-manual-corpus-v1';
 const DB_VERSION = 1;
@@ -118,10 +119,12 @@ function normalize(input, file, digest) {
     mime: clean(input.mime || file.type || 'application/octet-stream').slice(0, 120),
     size: Number(input.size) || file.size || new Blob([text]).size,
     hash: input.hash || `${digest}:${input.nativeId || title}`,
-    assetKey: '',
-    mediaKind: '',
-    width: 0,
-    height: 0,
+    assetKey: clean(input.assetKey || ''),
+    mediaKind: clean(input.mediaKind || ''),
+    mediaConfidence: clean(input.mediaConfidence || ''),
+    width: Math.max(0, Number(input.width) || 0),
+    height: Math.max(0, Number(input.height) || 0),
+    duration: Math.max(0, Number(input.duration) || 0),
     nativeId: clean(input.nativeId || '').slice(0, 180),
     links: Array.isArray(input.links) ? input.links.map(item => ({ label: clean(item.label || item.url || 'LINK').slice(0, 120), url: safeURL(item.url) })).filter(item => item.url).slice(0, 100) : [],
     tags: Array.isArray(input.tags) ? input.tags.map(clean).filter(Boolean).slice(0, 30) : [],
@@ -178,6 +181,66 @@ async function addRecords(records) {
   });
 }
 
+async function addMediaRecord(record, asset) {
+  const db = await openDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([RECORD_STORE, BLOB_STORE], 'readwrite');
+      tx.objectStore(RECORD_STORE).add(record);
+      tx.objectStore(BLOB_STORE).put(asset);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new DOMException('Import stopped', 'AbortError'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+function uniqueRecord(record, keys) {
+  const nativeKey = record.nativeId ? `${record.source}\n${record.nativeId}` : '';
+  if (keys.hashes.has(record.hash) || (nativeKey && keys.native.has(nativeKey))) return false;
+  keys.hashes.add(record.hash);
+  if (nativeKey) keys.native.add(nativeKey);
+  return true;
+}
+
+async function directMediaRecord(file, digest, classification) {
+  const measured = await probeFile(file, classification);
+  const assetKey = `import-asset-${digest}`;
+  const record = normalize({
+    type: 'social',
+    title: mediaTitle(file),
+    summary: '',
+    text: '',
+    source: 'FILES',
+    published: file.lastModified || Date.now(),
+    originalName: file.webkitRelativePath || file.name,
+    mime: classification.mime,
+    size: file.size,
+    hash: `${digest}:file`,
+    assetKey,
+    mediaKind: classification.kind,
+    mediaConfidence: classification.confidence,
+    width: measured.width,
+    height: measured.height,
+    duration: measured.duration,
+    nativeId: `file:${digest}`,
+    tags: [`media:${classification.kind}`, `classification:${classification.confidence}`]
+  }, file, digest);
+  const asset = {
+    key: assetKey,
+    blob: file,
+    mime: classification.mime,
+    mediaKind: classification.kind,
+    width: measured.width,
+    height: measured.height,
+    duration: measured.duration,
+    originalName: file.webkitRelativePath || file.name
+  };
+  return { record, asset };
+}
+
 export class ImportRuntime extends EventTarget {
   constructor({ registry = createDefaultRegistry(), chunkSize = DEFAULT_CHUNK } = {}) {
     super();
@@ -195,9 +258,13 @@ export class ImportRuntime extends EventTarget {
     const capacity = await capacityFor(list);
     const found = [];
     for (const file of list) {
-      const sample = await sampleFile(file);
-      const adapter = this.registry.find(file, sample);
-      found.push({ file, adapter, size: file.size });
+      const classification = await classifyFile(file);
+      if (classification.direct) found.push({ file, adapter: { id: `direct-${classification.kind}`, label: classification.kind.toUpperCase() }, classification, size: file.size });
+      else {
+        const sample = await sampleFile(file);
+        const adapter = this.registry.find(file, sample);
+        found.push({ file, adapter, classification, size: file.size });
+      }
     }
     return { files: found, capacity };
   }
@@ -223,10 +290,33 @@ export class ImportRuntime extends EventTarget {
       for (let fileIndex = 0; fileIndex < list.length; fileIndex += 1) {
         abortIfNeeded(signal);
         const file = list[fileIndex];
+        const classification = await classifyFile(file);
+        const digest = await digestFile(file);
+
+        if (classification.direct) {
+          const adapter = { id: `direct-${classification.kind}`, label: classification.kind.toUpperCase() };
+          this.dispatchEvent(new CustomEvent('file', { detail: { file, adapter, classification, fileIndex, totalFiles: list.length } }));
+          try {
+            const { record, asset } = await directMediaRecord(file, digest, classification);
+            if (!uniqueRecord(record, keys)) result.skipped += 1;
+            else {
+              await addMediaRecord(record, asset);
+              result.added += 1;
+            }
+            this.dispatchEvent(new CustomEvent('progress', { detail: { ...result, file, adapter, parsed: 1, offset: 1 } }));
+            await nextFrame();
+          } catch (error) {
+            if (error?.name === 'AbortError') throw error;
+            result.failed += 1;
+            result.errors.push({ file: file.name, adapter: adapter.id, message: error.message });
+            this.dispatchEvent(new CustomEvent('fileerror', { detail: { file, adapter, error } }));
+          }
+          continue;
+        }
+
         const sample = await sampleFile(file);
         const adapter = this.registry.find(file, sample);
-        const digest = await digestFile(file);
-        this.dispatchEvent(new CustomEvent('file', { detail: { file, adapter, fileIndex, totalFiles: list.length } }));
+        this.dispatchEvent(new CustomEvent('file', { detail: { file, adapter, classification, fileIndex, totalFiles: list.length } }));
 
         try {
           const parsed = await adapter.parse(file, {
@@ -237,17 +327,13 @@ export class ImportRuntime extends EventTarget {
           const normalized = parsed.map(item => normalize(item, file, digest));
           for (let offset = 0; offset < normalized.length; offset += this.chunkSize) {
             abortIfNeeded(signal);
-            const chunk = [];
-            for (const record of normalized.slice(offset, offset + this.chunkSize)) {
-              const nativeKey = record.nativeId ? `${record.source}\n${record.nativeId}` : '';
-              if (keys.hashes.has(record.hash) || (nativeKey && keys.native.has(nativeKey))) {
+            const chunk = normalized.slice(offset, offset + this.chunkSize).filter(record => {
+              if (!uniqueRecord(record, keys)) {
                 result.skipped += 1;
-                continue;
+                return false;
               }
-              keys.hashes.add(record.hash);
-              if (nativeKey) keys.native.add(nativeKey);
-              chunk.push(record);
-            }
+              return true;
+            });
             await addRecords(chunk);
             result.added += chunk.length;
             this.dispatchEvent(new CustomEvent('progress', { detail: { ...result, file, adapter, parsed: normalized.length, offset: Math.min(offset + this.chunkSize, normalized.length) } }));
