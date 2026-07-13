@@ -98,11 +98,12 @@ function cleanFeedURL() {
   return target.href;
 }
 
-function makeInput({ directory = false } = {}) {
+function makeInput({ directory = false, id = '' } = {}) {
   const input = el('input');
   input.type = 'file';
   input.multiple = true;
   input.hidden = true;
+  if (id) input.id = id;
   if (directory) {
     input.setAttribute('webkitdirectory', '');
     input.setAttribute('directory', '');
@@ -115,13 +116,34 @@ function makeInput({ directory = false } = {}) {
   return input;
 }
 
-const filesInput = makeInput();
-const folderInput = makeInput({ directory: true });
+const filesInput = makeInput({ id: 'sidewaysImportFiles' });
+const folderInput = makeInput({ directory: true, id: 'sidewaysImportFolder' });
 
-function chooseFiles(platform) {
+function configureFiles(platform) {
   state.platform = platform.id;
   filesInput.accept = platform.accept || '';
-  filesInput.click();
+}
+
+function chooseFiles(platform) {
+  configureFiles(platform);
+  if (typeof filesInput.showPicker === 'function') filesInput.showPicker();
+  else filesInput.click();
+}
+
+function platformFileControl(platform) {
+  const control = el('label', 'source-choose', platform.id === 'anything' ? 'CHOOSE FILES' : 'I HAVE THE FILES');
+  control.htmlFor = filesInput.id;
+  control.setAttribute('role', 'button');
+  control.tabIndex = 0;
+  control.addEventListener('pointerdown', () => configureFiles(platform));
+  control.addEventListener('click', () => configureFiles(platform));
+  control.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      chooseFiles(platform);
+    }
+  });
+  return control;
 }
 
 async function setFiles(files) {
@@ -160,7 +182,7 @@ function platformCard(platform) {
   } else if (platform.id === 'browser') {
     actions.append(el('span', 'source-tip', 'Use your browser’s bookmark export, then choose the HTML file.'));
   }
-  actions.append(button(platform.id === 'anything' ? 'CHOOSE FILES' : 'I HAVE THE FILES', 'source-choose', () => chooseFiles(platform)));
+  actions.append(platformFileControl(platform));
   card.append(head, copy, actions);
   return card;
 }
@@ -185,16 +207,13 @@ function advancedFiles() {
   const copy = el('div');
   copy.append(el('strong', '', 'ALREADY HAVE A FOLDER OR A MIX OF FILES?'), el('span', '', 'Choose them directly. Sideways detects the format automatically.'));
   const actions = el('div', 'import-advanced-actions');
-  const fileButton = button('', 'import-terminal', () => {
-    state.platform = 'anything';
-    filesInput.accept = '';
-    filesInput.click();
-  });
+  const fileButton = button('', 'import-terminal', () => chooseFiles(PLATFORMS.at(-1)));
   fileButton.dataset.importTerminal = 'files';
   fileButton.append(el('strong', '', 'PICK FILES'), el('span', '', 'One or many files.'));
   const folderButton = button('', 'import-terminal', () => {
     state.platform = 'anything';
-    folderInput.click();
+    if (typeof folderInput.showPicker === 'function') folderInput.showPicker();
+    else folderInput.click();
   });
   folderButton.dataset.importTerminal = 'folder';
   folderButton.append(el('strong', '', 'PICK FOLDER'), el('span', '', 'A full export folder.'));
