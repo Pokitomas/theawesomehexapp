@@ -55,6 +55,10 @@ export const ACTIONS = Object.freeze({
   'places.close': define('places.close', 'Close', 'places', 'close_places'),
 
   'library.saved': define('library.saved', 'Open saved', 'library', 'navigate', { route: '#/saved' }),
+  'vault.persist': define('vault.persist', 'PIN', 'vault', 'request_persistence_and_mirror'),
+  'vault.audit': define('vault.audit', 'CHECK', 'vault', 'audit_corpus'),
+  'vault.export': define('vault.export', 'BACKUP', 'vault', 'export_user_owned_ark'),
+  'vault.restore': define('vault.restore', 'RESTORE', 'vault', 'restore_user_owned_ark', { accepts: ['.sideways'] }),
 
   'import.instagram': define('import.instagram', 'IMPORT INSTAGRAM', 'import', 'pick_import', { platform: 'instagram' }),
   'import.reddit': define('import.reddit', 'IMPORT REDDIT', 'import', 'pick_import', { platform: 'reddit' }),
