@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build only the manual product
         run: |
+          set -euo pipefail
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
           cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
@@ -37,9 +38,22 @@ jobs:
           python manual-kernel/patch.py
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
           python studio/manual/apply.py
-          python studio/manual/verify.py
+          set +e
+          python studio/manual/verify.py >/tmp/social-verify.log 2>&1
+          verify_status=$?
+          set -e
+          cat /tmp/social-verify.log
+          if [ "$verify_status" -ne 0 ]; then exit "$verify_status"; fi
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
+      - name: Upload verifier diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-verify-log
+          path: /tmp/social-verify.log
+          if-no-files-found: warn
+          retention-days: 3
       - name: Package exact built source for diagnosis
         run: |
           tar -czf /tmp/manual-kernel-built.tar.gz manual-app manual-kernel studio/manual dist/manual
