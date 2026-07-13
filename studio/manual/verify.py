@@ -12,6 +12,13 @@ TEXT_FILES = [
     HERE / "product" / "studio.js",
     HERE / "product" / "studio.css",
     HERE / "product" / "studio-components.css",
+    HERE / "product" / "import-studio.js",
+    HERE / "product" / "import-studio.css",
+    HERE / "product" / "import-phone.js",
+    HERE / "imports" / "registry.js",
+    HERE / "imports" / "runtime.js",
+    HERE / "imports" / "apply.py",
+    HERE / "imports" / "verify.mjs",
     HERE / "apply.py",
 ]
 
@@ -35,17 +42,41 @@ def main() -> None:
     for path in TEXT_FILES:
         assert_clean_text(path)
 
-    node_check(HERE / "product" / "copy.js")
+    for path in (
+        HERE / "product" / "copy.js",
+        HERE / "product" / "studio.js",
+        HERE / "product" / "import-studio.js",
+        HERE / "product" / "import-phone.js",
+        HERE / "imports" / "registry.js",
+        HERE / "imports" / "runtime.js",
+        HERE / "imports" / "verify.mjs",
+    ):
+        node_check(path)
+
     studio_source = assert_clean_text(HERE / "product" / "studio.js")
-    node_check(HERE / "product" / "studio.js")
     if "requestAnimationFrame" not in studio_source or "setText" not in studio_source:
         raise AssertionError("studio enhancer must remain scheduled and idempotent")
 
+    phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
+    for contract in ("PICK MORE FILES", "webkitdirectory", "stopImmediatePropagation"):
+        if contract not in phone_source:
+            raise AssertionError(f"phone importer fallback missing: {contract}")
+
     if not MANUAL.exists():
-        print("manual-app not assembled; source layer itself is clean")
+        print("manual studio and importer source layers are clean")
         return
 
-    for name in ("app.js", "profile.js", "kernel.js"):
+    for name in (
+        "app.js",
+        "profile.js",
+        "kernel.js",
+        "studio.js",
+        "copy.js",
+        "import-studio.js",
+        "import-phone.js",
+        "imports/registry.js",
+        "imports/runtime.js",
+    ):
         path = MANUAL / name
         assert_clean_text(path)
         node_check(path)
@@ -58,13 +89,30 @@ def main() -> None:
     for label in ("ADD", "KEEP", "READ", "SEND", "FILES +"):
         if label not in corpus:
             raise AssertionError(f"stable phone-test label missing: {label}")
-    for asset in ("studio.css", "studio-components.css", "studio.js", "copy.js"):
+
+    for asset in (
+        "studio.css",
+        "studio-components.css",
+        "studio.js",
+        "copy.js",
+        "import-studio.css",
+        "import-studio.js",
+        "import-phone.js",
+        "imports/registry.js",
+        "imports/runtime.js",
+    ):
         if not (MANUAL / asset).is_file():
             raise AssertionError(f"product asset not applied: {asset}")
+
     if index.count("data-studio-product") != 3:
         raise AssertionError("product layer must inject exactly two styles and one script")
+    if index.count("data-import-workbench") != 2:
+        raise AssertionError("import workbench must inject exactly one style and one script")
+    if index.count("data-import-phone") != 1:
+        raise AssertionError("phone importer fallback must inject exactly one script")
 
-    print("manual studio product layer verified")
+    subprocess.run(["node", str(HERE / "imports" / "verify.mjs")], check=True)
+    print("manual studio product layer and import workbench verified")
 
 
 if __name__ == "__main__":
