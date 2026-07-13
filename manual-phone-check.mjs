@@ -35,6 +35,15 @@ async function touch(page, locator) {
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+async function openImportFromCreate(page) {
+  await touch(page, page.locator('[data-action-id="nav.create"]'));
+  const sheet = page.locator('[data-os-create]');
+  await sheet.waitFor({ state: 'visible', timeout: 10000 });
+  await touch(page, sheet.locator('[data-action-id="create.import"]'));
+  await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
+}
+
 async function waitForImportOutcome(page) {
   await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
   const error = page.locator('.import-error-panel');
@@ -48,7 +57,7 @@ const gateContext = await browser.newContext(iphone);
 const gatePage = await gateContext.newPage();
 const gateErrors = collectErrors(gatePage);
 await gatePage.goto('http://127.0.0.1:4173/manual/?debug=1&test=1&autorun=1', { waitUntil: 'networkidle' });
-await gatePage.waitForFunction(() => document.documentElement.dataset.gateMoved === 'yes', { timeout: 20000 });
+await gatePage.waitForFunction(() => document.documentElement.dataset.gateMoved === 'yes' && window.SidewaysShell && window.SidewaysStudio, { timeout: 20000 });
 const count = (await gatePage.locator('#corpusStatus').textContent())?.trim();
 const policy = (await gatePage.locator('#debugPolicy').textContent()) || '';
 const state = (await gatePage.locator('#debugState').textContent()) || '';
@@ -56,14 +65,25 @@ const gate = Number((policy.match(/gate=([0-9.]+)/) || [])[1]);
 if (count !== '20 THINGS') throw new Error(`expected 20 THINGS, got ${count}`);
 if (!(gate > .05)) throw new Error(`gate did not visibly move: ${policy}`);
 if (!/state=(saturation|deep_saturation)/.test(state)) throw new Error(`state did not change: ${state}`);
-for (const label of ['ADD', 'KEEP', 'READ', 'SEND', 'MOVE GATE']) {
-  if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing button ${label}`);
+
+for (const label of ['KEEP', 'READ', 'SEND', 'MOVE GATE']) {
+  if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing core button ${label}`);
 }
-await touch(gatePage, gatePage.getByRole('button', { name: 'ADD', exact: true }));
-await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
+const compatibility = await gatePage.evaluate(() => ({
+  labels: window.SidewaysStudio?.stableLabels || [],
+  ids: window.SidewaysStudio?.stableIds || [],
+  navAdd: Boolean(document.getElementById('navAdd'))
+}));
+for (const label of ['ADD', 'KEEP', 'READ', 'SEND', 'FILES +']) {
+  if (!compatibility.labels.includes(label)) throw new Error(`stable compatibility label missing: ${label}`);
+}
+if (!compatibility.navAdd) throw new Error('underlying navAdd compatibility hook disappeared');
+const dockIds = await gatePage.locator('[data-os-dock] [data-action-id]').evaluateAll(nodes => nodes.map(node => node.dataset.actionId));
+if (dockIds.join('|') !== 'nav.feed|nav.places|nav.create|nav.me') throw new Error(`wrong OS dock: ${dockIds.join('|')}`);
+
+await openImportFromCreate(gatePage);
 const coreFilesContract = await gatePage.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
 if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
-await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children].filter(child => !child.matches('#importWorkbenchHost') && getComputedStyle(child).display !== 'none').length);
 if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
 if (gateErrors.length) throw new Error(gateErrors.join(' | '));
@@ -77,8 +97,11 @@ let loads = 0;
 consumer.on('load', () => { loads += 1; });
 await consumer.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
 loads = 0;
-await consumer.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await consumer.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes' && window.SidewaysShell, { timeout: 15000 });
 await touch(consumer, consumer.locator('.studio-launch-button.is-import'));
+const createSheet = consumer.locator('[data-os-create]');
+await createSheet.waitFor({ state: 'visible', timeout: 10000 });
+await touch(consumer, createSheet.locator('[data-action-id="create.import"]'));
 await consumer.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
@@ -92,7 +115,7 @@ for (const forbidden of ['SAVE AND CHOOSE AN APP', 'I HAVE THE FILES', 'ADD TO M
 }
 if (await consumer.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
 
-const redditImport = consumer.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
+const redditImport = consumer.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'Reddit' });
 const chooserPromise = consumer.waitForEvent('filechooser', { timeout: 10000 });
 await touch(consumer, redditImport);
 const chooser = await chooserPromise;
@@ -106,17 +129,18 @@ await waitForImportOutcome(consumer);
 if (await consumer.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
 const refreshedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
 if (!/^[1-9]\d* THING/.test(refreshedCount)) throw new Error(`core did not refresh after import: ${refreshedCount}`);
-await consumer.getByRole('button', { name: 'OPEN FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+const openFeed = consumer.locator('[data-action-id="import.open_feed"]');
+await openFeed.waitFor({ state: 'visible', timeout: 5000 });
 await consumer.waitForTimeout(2500);
 if (loads !== 0) throw new Error(`import triggered ${loads} automatic page load(s)`);
 await consumer.screenshot({ path: 'manual-onboarding-phone.png', fullPage: true });
 
-await touch(consumer, consumer.getByRole('button', { name: 'OPEN FEED', exact: true }));
+await touch(consumer, openFeed);
 await consumer.waitForURL(/#\/feed$/, { timeout: 10000 });
 await consumer.locator('#feed').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.waitForFunction(() => /^[1-9]\d* THING/.test(document.getElementById('corpusStatus')?.textContent || ''), { timeout: 10000 });
 const importedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
-if (loads !== 0) throw new Error(`OPEN FEED reloaded the page ${loads} time(s)`);
+if (loads !== 0) throw new Error(`Open feed reloaded the page ${loads} time(s)`);
 if (consumerErrors.length) throw new Error(consumerErrors.join(' | '));
 await consumerContext.close();
 
@@ -124,11 +148,13 @@ console.log(JSON.stringify({
   count,
   gate,
   state: state.split('\n').find(line => line.startsWith('state=')),
+  dock: dockIds,
+  stableLabels: compatibility.labels,
   visibleLegacyAddSurface: false,
   duplicateIntro: false,
   chooserBehindCompletion: false,
-  firstRun: 'POST or IMPORT launchpad',
-  consumerJourney: 'IMPORT launchpad → Reddit picker → automatic import → in-place feed',
+  firstRun: 'Post or Import launchpad',
+  consumerJourney: 'Import launchpad → Create sheet → Reddit picker → automatic import → in-place feed',
   automaticReloads: 0,
   refreshedCount,
   importedCount,
