@@ -7,52 +7,14 @@ const runtime = createImportRuntime({ registry, chunkSize: 75 });
 const state = { files: [], inspection: null, busy: false, platform: '', result: null };
 
 const PLATFORMS = Object.freeze([
-  {
-    id: 'reddit', name: 'Reddit', mark: 'r/', tone: 'orange',
-    description: 'Posts, comments, saved links, and the communities you actually spent time in.',
-    exportUrl: 'https://www.reddit.com/settings/data-request',
-    action: 'GET REDDIT DATA', accept: '.json,.csv,.zip,text/csv,application/json'
-  },
-  {
-    id: 'instagram', name: 'Instagram', mark: '◎', tone: 'pink',
-    description: 'Saved posts, likes, comments, captions, follows, and your own media history.',
-    exportUrl: 'https://accountscenter.instagram.com/info_and_permissions/dyi/',
-    action: 'GET INSTAGRAM DATA', accept: '.json,.html,.zip,application/json,text/html'
-  },
-  {
-    id: 'tiktok', name: 'TikTok', mark: '♪', tone: 'cyan',
-    description: 'Watch history, likes, favorites, comments, searches, and posted videos.',
-    exportUrl: 'https://www.tiktok.com/setting/download-your-data',
-    action: 'GET TIKTOK DATA', accept: '.json,.txt,.zip,application/json,text/plain'
-  },
-  {
-    id: 'youtube', name: 'YouTube', mark: '▶', tone: 'red',
-    description: 'Watch history, searches, subscriptions, playlists, likes, and comments.',
-    exportUrl: 'https://takeout.google.com/settings/takeout/custom/youtube',
-    action: 'OPEN GOOGLE TAKEOUT', accept: '.json,.html,.csv,.zip,application/json,text/html,text/csv'
-  },
-  {
-    id: 'spotify', name: 'Spotify', mark: '≋', tone: 'green',
-    description: 'Listening history and playlists—the clearest map of your taste outside text.',
-    exportUrl: 'https://www.spotify.com/account/privacy/',
-    action: 'GET SPOTIFY DATA', accept: '.json,.zip,application/json'
-  },
-  {
-    id: 'x', name: 'X / Twitter', mark: 'X', tone: 'black',
-    description: 'Posts, likes, bookmarks, follows, and links from your account archive.',
-    exportUrl: 'https://x.com/settings/download_your_data',
-    action: 'GET X ARCHIVE', accept: '.js,.json,.zip,application/json,text/javascript'
-  },
-  {
-    id: 'browser', name: 'Bookmarks', mark: '★', tone: 'yellow',
-    description: 'The links you deliberately kept across Chrome, Safari, Firefox, or Edge.',
-    exportUrl: '', action: 'EXPORT FROM YOUR BROWSER', accept: '.html,.htm,text/html'
-  },
-  {
-    id: 'anything', name: 'Anything else', mark: '+', tone: 'violet',
-    description: 'PDFs, notes, screenshots, documents, folders, JSON, CSV, RSS, or plain text.',
-    exportUrl: '', action: 'CHOOSE ANY FILES', accept: ''
-  }
+  { id: 'reddit', name: 'Reddit', mark: 'r/', tone: 'orange', description: 'Posts, comments, saved links, and the communities you actually spent time in.', exportUrl: 'https://www.reddit.com/settings/data-request', action: 'GET REDDIT DATA', accept: '.json,.csv,.zip,text/csv,application/json' },
+  { id: 'instagram', name: 'Instagram', mark: '◎', tone: 'pink', description: 'Saved posts, likes, comments, captions, follows, and your own media history.', exportUrl: 'https://accountscenter.instagram.com/info_and_permissions/dyi/', action: 'GET INSTAGRAM DATA', accept: '.json,.html,.zip,application/json,text/html' },
+  { id: 'tiktok', name: 'TikTok', mark: '♪', tone: 'cyan', description: 'Watch history, likes, favorites, comments, searches, and posted videos.', exportUrl: 'https://www.tiktok.com/setting/download-your-data', action: 'GET TIKTOK DATA', accept: '.json,.txt,.zip,application/json,text/plain' },
+  { id: 'youtube', name: 'YouTube', mark: '▶', tone: 'red', description: 'Watch history, searches, subscriptions, playlists, likes, and comments.', exportUrl: 'https://takeout.google.com/settings/takeout/custom/youtube', action: 'OPEN GOOGLE TAKEOUT', accept: '.json,.html,.csv,.zip,application/json,text/html,text/csv' },
+  { id: 'spotify', name: 'Spotify', mark: '≋', tone: 'green', description: 'Listening history and playlists—the clearest map of your taste outside text.', exportUrl: 'https://www.spotify.com/account/privacy/', action: 'GET SPOTIFY DATA', accept: '.json,.zip,application/json' },
+  { id: 'x', name: 'X / Twitter', mark: 'X', tone: 'black', description: 'Posts, likes, bookmarks, follows, and links from your account archive.', exportUrl: 'https://x.com/settings/download_your_data', action: 'GET X ARCHIVE', accept: '.js,.json,.zip,application/json,text/javascript' },
+  { id: 'browser', name: 'Bookmarks', mark: '★', tone: 'yellow', description: 'The links you deliberately kept across Chrome, Safari, Firefox, or Edge.', exportUrl: '', action: 'EXPORT FROM YOUR BROWSER', accept: '.html,.htm,text/html' },
+  { id: 'anything', name: 'Anything else', mark: '+', tone: 'violet', description: 'PDFs, notes, screenshots, documents, folders, JSON, CSV, RSS, or plain text.', exportUrl: '', action: 'CHOOSE ANY FILES', accept: '' }
 ]);
 
 function el(tag, className = '', text = '') {
@@ -151,7 +113,8 @@ async function setFiles(files) {
   state.files = [...files].filter(Boolean);
   state.result = null;
   state.inspection = state.files.length ? await runtime.inspect(state.files) : null;
-  renderPanel();
+  routeTo('#/add');
+  schedule();
 }
 
 function adapterSummary() {
@@ -191,11 +154,7 @@ function sourceChooser() {
   const section = el('section', 'source-chooser');
   section.dataset.onboardingSource = 'true';
   const intro = el('div', 'source-chooser-copy');
-  intro.append(
-    el('span', 'import-workbench-kicker', 'START WITH ONE'),
-    el('h2', '', COPY.chooseSource),
-    el('p', '', COPY.chooseSourceBody)
-  );
+  intro.append(el('span', 'import-workbench-kicker', 'START WITH ONE'), el('h2', '', COPY.chooseSource), el('p', '', COPY.chooseSourceBody));
   const grid = el('div', 'source-card-grid');
   for (const platform of PLATFORMS) grid.append(platformCard(platform));
   section.append(intro, grid);
@@ -327,6 +286,7 @@ function renderPanel() {
 function mount() {
   const addView = document.getElementById('addView');
   if (!addView || addView.hidden) return false;
+  addView.classList.add('studio-add-modern');
   let host = document.getElementById('importWorkbenchHost');
   if (!host) {
     host = el('div', 'import-workbench');
@@ -359,17 +319,8 @@ function bootMount() {
   retryTimers = [80, 280, 900, 1800].map(delay => setTimeout(schedule, delay));
 }
 
-for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:feedrender']) {
-  window.addEventListener(eventName, schedule);
-}
+for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:feedrender']) window.addEventListener(eventName, schedule);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootMount, { once: true });
 else bootMount();
 
-window.SidewaysImportWorkbench = Object.freeze({
-  registry,
-  runtime,
-  platforms: PLATFORMS,
-  open: () => routeTo('#/add'),
-  setFiles,
-  mount: schedule
-});
+window.SidewaysImportWorkbench = Object.freeze({ registry, runtime, platforms: PLATFORMS, open: () => routeTo('#/add'), setFiles, mount: schedule });
