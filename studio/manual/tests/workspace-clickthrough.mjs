@@ -153,11 +153,12 @@ async function deletePost(text, decision = 'accept') {
   const card = page.locator('#feed .post').filter({ hasText: text });
   await card.waitFor({ state: 'visible', timeout: 15000 });
   const dialogPromise = page.waitForEvent('dialog', { timeout: 10000 });
-  await touch(card.locator('[data-action-id="post.delete"]'));
+  const tapPromise = touch(card.locator('[data-action-id="post.delete"]'));
   const dialog = await dialogPromise;
   if (!dialog.message().includes('Delete this post from this device?')) throw new Error(`unexpected delete confirmation: ${dialog.message()}`);
   if (decision === 'dismiss') await dialog.dismiss();
   else await dialog.accept();
+  await tapPromise;
 
   if (decision === 'dismiss') {
     await card.waitFor({ state: 'visible', timeout: 5000 });
@@ -168,6 +169,27 @@ async function deletePost(text, decision = 'accept') {
 
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await page.waitForFunction(() => document.documentElement.dataset.workspaceChrome === 'ready', { timeout: 15000 });
+
+const chromePlacement = await page.evaluate(() => {
+  const commandbar = document.querySelector('[data-workspace-commandbar]');
+  const titleActions = document.querySelector('[data-workspace-title-actions]');
+  const newButton = document.querySelector('[data-workspace-new]');
+  const nav = document.querySelector('[data-workspace-nav]');
+  const profile = document.getElementById('navProfile');
+  const post = document.querySelector('#feed .post');
+  return {
+    newInCommandbar: Boolean(commandbar && newButton && commandbar.contains(newButton)),
+    navInCommandbar: Boolean(commandbar && nav && commandbar.contains(nav)),
+    profileInTitlebar: Boolean(titleActions && profile && titleActions.contains(profile)),
+    mobileLabelsVisible: newButton ? getComputedStyle(newButton.querySelector('.workspace-button-label')).display !== 'none' : false,
+    postRadius: post ? parseFloat(getComputedStyle(post).borderRadius) : 0
+  };
+});
+if (!chromePlacement.newInCommandbar || !chromePlacement.navInCommandbar || !chromePlacement.profileInTitlebar || !chromePlacement.mobileLabelsVisible) {
+  throw new Error(`workspace controls are not in the operating-system chrome: ${JSON.stringify(chromePlacement)}`);
+}
+if (chromePlacement.postRadius > 8) throw new Error(`cards regressed to rounded dashboard styling: ${chromePlacement.postRadius}`);
 
 for (const selector of ['.social-post-card', '.social-option-grid', '[data-action-id="post.mood"]', '[data-action-id="post.style"]', '[data-action-id="post.react"]', '[data-action-id="post.remix"]']) {
   if (await page.locator(selector).count()) throw new Error(`retired social control returned: ${selector}`);
@@ -270,6 +292,7 @@ await touch(page.locator('#navFeed[data-action-id="nav.feed"]'));
 await page.waitForURL(/#\/feed$/, { timeout: 10000 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await page.waitForFunction(() => document.documentElement.dataset.workspaceChrome === 'ready', { timeout: 15000 });
 for (const text of [
   'A lived system with one real content model.',
   'Second post: text only, deliberately disposable.',
@@ -325,6 +348,7 @@ await touch(page.locator('#navFeed[data-action-id="nav.feed"]'));
 await page.waitForURL(/#\/feed$/, { timeout: 10000 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await page.waitForFunction(() => document.documentElement.dataset.workspaceChrome === 'ready', { timeout: 15000 });
 await waitForOwnedCount(0);
 await page.locator('#feed .post').filter({ hasText: 'Imported witness' }).waitFor({ state: 'visible', timeout: 15000 });
 if (await page.locator('#feed .post').filter({ hasText: 'A lived system with one real content model.' }).count()) throw new Error('deleted post returned after reload');
@@ -364,11 +388,12 @@ console.log(JSON.stringify({
   remainingAuthoredBlobs: blobs.length,
   importedWitnessSurvived: Boolean(witness),
   placeAfterDeletes: { ...savedPlaces[0], items: 0 },
+  chromePlacement,
   outbox,
   visibleUncontractedControls: 0,
   actionContracts: contracts.length,
   retiredSocialAssets: true,
-  screenshot: 'manual-workspace-phone.png'
+  screenshots: ['manual-workspace-populated.png', 'manual-workspace-phone.png']
 }, null, 2));
 
 await context.close();
