@@ -84,7 +84,7 @@ function enhanceBrand() {
   const navAdd = document.getElementById('navAdd');
   const navSaved = document.getElementById('navSaved');
   if (navFeed) navFeed.textContent = 'FEED';
-  if (navAdd) navAdd.textContent = 'IMPORT';
+  if (navAdd) navAdd.textContent = 'ADD';
   if (navSaved) navSaved.textContent = 'SAVED';
 
   for (const [node, id] of [[navFeed, 'nav.feed'], [navAdd, 'nav.import'], [navSaved, 'nav.saved']]) {
