@@ -1,0 +1,344 @@
+:root {
+  --chrome-face: #e9e9ec;
+  --chrome-face-raised: #f7f7f8;
+  --chrome-face-pressed: #dadbe0;
+  --chrome-edge: rgba(31, 33, 40, .28);
+  --chrome-edge-soft: rgba(31, 33, 40, .14);
+  --chrome-title: #2f3440;
+  --chrome-title-muted: #707480;
+  --chrome-focus: color-mix(in srgb, var(--workspace-accent) 42%, transparent);
+}
+
+html.workspace-chrome body {
+  background:
+    linear-gradient(rgba(255,255,255,.34), rgba(255,255,255,0) 180px),
+    var(--studio-paper);
+}
+
+html.workspace-chrome .topbar {
+  border-bottom: 1px solid var(--chrome-edge);
+  background: rgba(239, 239, 242, .96);
+  box-shadow: 0 1px 0 rgba(255,255,255,.86), 0 4px 14px rgba(31,33,40,.07);
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+html.workspace-chrome .topline {
+  min-height: 42px;
+  padding-block: .36rem;
+  gap: .55rem;
+}
+
+html.workspace-chrome .brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: .48rem;
+  min-height: 30px;
+  padding: .18rem .28rem;
+  color: var(--chrome-title);
+}
+
+.workspace-brand-icon {
+  width: 1.12rem;
+  height: 1.12rem;
+  fill: none;
+  stroke: var(--workspace-accent);
+  stroke-width: 1.55;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.workspace-title-actions {
+  display: flex;
+  align-items: center;
+  gap: .34rem;
+  margin-left: auto;
+}
+
+html.workspace-chrome .corpus-status {
+  min-height: 28px;
+  padding: .28rem .52rem;
+  border-radius: 3px;
+  background: rgba(255,255,255,.46);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.82), inset -1px -1px 0 rgba(31,33,40,.08);
+}
+
+.workspace-commandbar {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: .34rem;
+  padding: .36rem max(.72rem, calc((100vw - 1180px) / 2));
+  border-top: 1px solid rgba(255,255,255,.74);
+  border-bottom: 1px solid var(--chrome-edge-soft);
+  background: linear-gradient(#f5f5f7, #e4e4e8);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.workspace-commandbar::-webkit-scrollbar { display: none; }
+
+.workspace-commandbar .workspace-nav {
+  display: flex;
+  align-items: center;
+  gap: .18rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workspace-command-separator {
+  width: 1px;
+  align-self: stretch;
+  min-height: 25px;
+  margin: 0 .14rem;
+  background: linear-gradient(transparent, var(--chrome-edge), transparent);
+}
+
+html.workspace-chrome .workspace-nav-button,
+html.workspace-chrome .workspace-new-button,
+html.workspace-chrome .workspace-primary,
+html.workspace-chrome .workspace-secondary,
+html.workspace-chrome .workspace-tool-button,
+html.workspace-chrome .workspace-inline-action,
+html.workspace-chrome .workspace-icon-button,
+html.workspace-chrome .workspace-quiet-danger,
+html.workspace-chrome .studio-launch-button,
+html.workspace-chrome .source-import,
+html.workspace-chrome .source-help,
+html.workspace-chrome .import-secondary,
+html.workspace-chrome .import-primary {
+  border-radius: 4px;
+  border-color: var(--chrome-edge);
+  background: linear-gradient(var(--chrome-face-raised), var(--chrome-face));
+  color: var(--chrome-title);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.9),
+    inset -1px -1px 0 rgba(31,33,40,.08),
+    0 1px 2px rgba(31,33,40,.06);
+}
+
+html.workspace-chrome .workspace-nav-button,
+html.workspace-chrome .workspace-new-button {
+  min-height: 30px;
+  width: auto;
+  padding: .38rem .58rem;
+  font-size: .74rem;
+}
+
+html.workspace-chrome .workspace-new-button,
+html.workspace-chrome .workspace-primary,
+html.workspace-chrome .studio-launch-button.is-post,
+html.workspace-chrome .source-import,
+html.workspace-chrome .import-primary {
+  border-color: color-mix(in srgb, var(--workspace-accent) 66%, #2f3440);
+  background: linear-gradient(
+    color-mix(in srgb, var(--workspace-accent) 84%, white),
+    color-mix(in srgb, var(--workspace-accent) 88%, black)
+  );
+  color: white;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.28),
+    inset -1px -1px 0 rgba(0,0,0,.16),
+    0 1px 2px color-mix(in srgb, var(--workspace-accent) 24%, transparent);
+}
+
+html.workspace-chrome .workspace-nav-button:hover,
+html.workspace-chrome .workspace-secondary:hover,
+html.workspace-chrome .workspace-tool-button:hover,
+html.workspace-chrome .workspace-inline-action:hover,
+html.workspace-chrome .workspace-icon-button:hover,
+html.workspace-chrome .studio-launch-button:not(.is-post):hover {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--workspace-accent) 34%, var(--chrome-edge));
+}
+
+html.workspace-chrome .workspace-nav-button:active,
+html.workspace-chrome .workspace-new-button:active,
+html.workspace-chrome .workspace-primary:active,
+html.workspace-chrome .workspace-secondary:active,
+html.workspace-chrome .workspace-tool-button:active,
+html.workspace-chrome .workspace-inline-action:active,
+html.workspace-chrome .workspace-icon-button:active {
+  transform: translateY(1px);
+  background: var(--chrome-face-pressed);
+  box-shadow: inset 1px 1px 2px rgba(31,33,40,.18);
+}
+
+html.workspace-chrome .workspace-nav-button.is-active,
+html.workspace-chrome .workspace-nav-button[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--workspace-accent) 48%, var(--chrome-edge));
+  background: color-mix(in srgb, var(--workspace-accent) 10%, var(--chrome-face-raised));
+  color: color-mix(in srgb, var(--workspace-accent) 78%, black);
+  box-shadow: inset 1px 1px 2px rgba(31,33,40,.1);
+}
+
+html.workspace-chrome #navProfile.workspace-nav-button {
+  min-width: 34px;
+  padding: .28rem .42rem;
+}
+
+html.workspace-chrome .workspace-feed-actions { display: none; }
+
+html.workspace-chrome .workspace-feed-header,
+html.workspace-chrome .workspace-library-header,
+html.workspace-chrome .workspace-route-header {
+  align-items: start;
+  margin-bottom: .9rem;
+  padding: .15rem 0 .78rem;
+  border-bottom-color: var(--chrome-edge-soft);
+}
+
+html.workspace-chrome .workspace-feed-header h1,
+html.workspace-chrome .workspace-library-header h1,
+html.workspace-chrome .workspace-route-header h1 {
+  font-size: clamp(1.7rem, 4vw, 2.6rem);
+  letter-spacing: -.045em;
+}
+
+html.workspace-chrome .post,
+html.workspace-chrome .studio-empty-hero,
+html.workspace-chrome .workspace-place-card,
+html.workspace-chrome .import-workbench-card,
+html.workspace-chrome .import-progress-panel,
+html.workspace-chrome .import-error-panel,
+html.workspace-chrome .import-complete-panel,
+html.workspace-chrome .add-panel,
+html.workspace-chrome .detail-card,
+html.workspace-chrome .profile-card,
+html.workspace-chrome .empty {
+  border-radius: 7px;
+  border-color: var(--chrome-edge);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.82),
+    0 3px 11px rgba(31,33,40,.08);
+}
+
+html.workspace-chrome .post:hover,
+html.workspace-chrome .post:focus-within {
+  transform: none;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.88),
+    0 5px 16px rgba(31,33,40,.11);
+}
+
+html.workspace-chrome .workspace-window {
+  border-radius: 8px;
+  border-color: var(--chrome-edge);
+  background: #f4f4f6;
+  box-shadow: 0 24px 70px rgba(20,21,26,.28), inset 1px 1px 0 white;
+}
+
+html.workspace-chrome .workspace-window-bar {
+  min-height: 38px;
+  padding: .42rem .46rem .42rem .68rem;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--workspace-accent) 13%, #e5e7ef), #efeff3);
+  border-bottom-color: var(--chrome-edge);
+}
+
+html.workspace-chrome .workspace-window-title {
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+html.workspace-chrome .workspace-icon-button {
+  width: 27px;
+  height: 27px;
+  padding: 0;
+}
+
+html.workspace-chrome .workspace-window-footer {
+  min-height: 50px;
+  padding: .55rem .72rem;
+  border-top-color: var(--chrome-edge);
+  background: linear-gradient(#ededf0, #e2e2e6);
+}
+
+html.workspace-chrome .workspace-input,
+html.workspace-chrome .workspace-composer-text,
+html.workspace-chrome .workspace-place-choice {
+  border-radius: 4px;
+}
+
+html.workspace-chrome .workspace-owned-actions {
+  display: flex;
+  align-items: center;
+  gap: .22rem;
+  margin-left: auto;
+  padding-left: .45rem;
+  border-left: 1px solid var(--chrome-edge-soft);
+}
+
+html.workspace-chrome .workspace-inline-action {
+  min-height: 30px;
+  padding: .34rem .48rem;
+}
+
+html.workspace-chrome .workspace-inline-action.is-danger,
+html.workspace-chrome .workspace-quiet-danger {
+  color: #7d2f34;
+  background: linear-gradient(#fffafa, #f1e6e7);
+}
+
+html.workspace-chrome :focus-visible {
+  outline: 2px solid var(--chrome-focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 760px) {
+  html.workspace-chrome .topline {
+    min-height: 39px;
+    padding-inline: .68rem;
+  }
+
+  html.workspace-chrome .brand-lockup span { font-size: .9rem; }
+
+  html.workspace-chrome .workspace-commandbar {
+    min-height: 38px;
+    padding: .32rem .58rem;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-button-label,
+  html.workspace-chrome #navProfile .workspace-button-label {
+    display: inline;
+  }
+
+  html.workspace-chrome .workspace-nav-button,
+  html.workspace-chrome .workspace-new-button {
+    min-width: max-content;
+  }
+
+  html.workspace-chrome .corpus-status {
+    position: static;
+    z-index: auto;
+    opacity: 1;
+    pointer-events: auto;
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  html.workspace-chrome .workspace-title-actions {
+    gap: .22rem;
+  }
+
+  html.workspace-chrome .corpus-status {
+    max-width: 6.4rem;
+    font-size: .64rem;
+  }
+
+  html.workspace-chrome .studio-empty-hero {
+    border-radius: 7px;
+  }
+
+  html.workspace-chrome .workspace-owned-actions {
+    width: auto;
+    margin-left: auto;
+  }
+}
