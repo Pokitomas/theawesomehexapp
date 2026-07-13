@@ -1,77 +1,92 @@
-version: 19
-updated_at: 2026-07-13T12:05:00-07:00
+version: 20
+updated_at: 2026-07-13T12:32:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/fun-posting-system
-active_pr: 48
+active_pr: 54
 beacon_issue: 52
 
 owner: GPT-5.6 Thinking
-mode: product-rebuild
+mode: integration-and-proof
 
 file_locks:
   - studio/manual/product/copy.js
+  - studio/manual/product/icons.js
+  - studio/manual/product/actions.js
+  - studio/manual/product/shell.js
   - studio/manual/product/studio.js
   - studio/manual/product/studio.css
   - studio/manual/product/studio-components.css
-  - studio/manual/product/actions.js
   - studio/manual/product/social.js
   - studio/manual/product/social.css
+  - studio/manual/product/interaction.css
   - studio/manual/product/import-studio.js
   - studio/manual/product/import-studio.css
   - studio/manual/product/studio-reset.css
+  - studio/manual/product/workspace.js
   - studio/manual/apply.py
   - studio/manual/verify.py
   - studio/manual/README.md
   - manual-phone-check.mjs
   - studio/manual/tests/onboarding-clickthrough.mjs
   - studio/manual/tests/social-clickthrough.mjs
+  - studio/manual/tests/workspace-model.mjs
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Kill the current visual release candidate and rebuild Sideways as a lived-in personal operating system with real product topology, not a CSS skin.
-  superseded_release_candidate: 1d4e0c148b2bb780aa674a9d901ffbae93d46b1b
-  user_direction:
-    - Macintosh/Windows-class familiarity without retro cosplay or retro prose
-    - paint and physics matter as much as the state machine
-    - replace the entire current visual, assets, buttons, and posting interaction model
-    - add and delete tabs, locations, backend features, and product concepts based on ruthless judgment
+  summary: Integrate and prove the Sideways personal operating system in replacement PR 54 after PR 48 was merged prematurely.
+  premature_merge:
+    pr: 48
+    deployed_commit: 4cd8a828f99d6150b061b95103edae56fc3fd1a7
+    finding: The merged app is the superseded profile/posting prototype, not this rebuild.
+    resolution: PR 54 supersedes it; coordination/PREMATURE_MERGE_48.md records the distinction.
   product_topology:
     - FEED: ranked stream
-    - PLACES: persistent user-created locations and the default LATER place
-    - CREATE: post remix and import launcher
-    - ME: profile posts drafts and archive
-    - SAVED is deleted as a top-level tab and becomes LATER
-    - IMPORT is deleted as a permanent top-level tab and moves inside CREATE
+    - PLACES: Everything, Later, Archive, and persistent custom locations
+    - CREATE: post, import, and new-place launcher
+    - ME: profile, drafts, posts, and archive
+    - SAVED removed as a top-level tab; Later carries its useful behavior
+    - IMPORT removed as a permanent tab; import lives in Create
+    - self-reactions and numeric self-validation removed
   visual_system:
-    - contemporary personal-computer chrome
-    - floating mobile dock and desktop rail
-    - windows sheets menus and drag-like spatial transitions
-    - system typography soft depth crisp one-pixel separators and tactile pressed states
-    - no beige neo-brutalist cards thick black outlines or slogan blocks
-  done_when: PR 48 proves the new topology, workspace backend, drafts/places/posting, mobile physics, and real screenshots; only then may it merge.
+    - contemporary personal-computer titlebar, window, dock, sheets, menus, and Open-style importer
+    - system typography, soft material depth, crisp one-pixel structure, tactile states, reduced-motion parity, dark mode
+    - no beige neo-brutalism, thick black outlines, slogan blocks, or retro prose
+  backend:
+    source_pr: 53
+    merge_commit: 3ae091975c84f6a645ad0baecb8bcd0f27f2a8f8
+    status: integrated into agent/fun-posting-system
+    capabilities:
+      - transaction-complete places, drafts, entities, moves, archive, restore, delete, undo
+      - atomic draft publishing
+      - active-place persistence
+      - snapshot import/export
+      - migration from deployed sideways-social-v1 records
+  done_when: PR 54 is ancestry-clean, all generated/model/phone checks pass, mobile and desktop screenshots survive visual review, main deploys the exact head, and the live assets are verified.
 
 co_agent:
   owner: Claude
   beacon: 52
-  requested_branch_base: agent/fun-posting-system
-  requested_files:
+  source_pr: 53
+  status: integrated
+  released_files:
     - studio/manual/product/workspace.js
     - studio/manual/tests/workspace-model.mjs
     - coordination/PRODUCT_AUDIT.md
-  interface: createWorkspaceBackend with places drafts move archive restore snapshot and migration methods
-  collision_rule: Do not edit GPT visual/shell/social/action files before posting MATCHED and a contract delta on issue 52.
+  audit_findings_applied:
+    - self-reactions deleted
+    - Later treated honestly as generalized Saved
+    - remix attribution remains a product follow-up unless jump-to-original lands in this pass
 
 next_architectural_goal:
-  summary: Make interaction results generate the operating system rather than merely reorder picker buttons.
+  summary: Let durable workspace outcomes shape the visible operating system instead of adding fake social metrics.
   sequence:
-    - replace CSS and shell with the new OS body
-    - replace permanent navigation with FEED PLACES CREATE ME
-    - integrate workspace places drafts archive and move semantics
-    - autosave composer drafts and add edit/move/undo
-    - replace fake single-user social affordances with useful local actions
-    - add motion and reduced-motion parity
-    - review screenshots at 390x844 and desktop width
-    - merge all co-agent work into PR 48 and deploy one app
+    - reconcile branch ancestry with main once
+    - fix generated source and backend interface mismatches
+    - prove workspace model tests
+    - prove CREATE to Import with zero reloads
+    - prove profile to Place to autosaved draft to photo post to Later to edit/remix/archive/undo/reload
+    - inspect real 390x844 and desktop screenshots for spacing, hierarchy, and motion
+    - merge PR 54 and verify bounded Pages deployment
 
 invariants:
   - Read this file at the start of every coding turn.
@@ -81,17 +96,14 @@ invariants:
   - No manifesto copy and no retro-themed prose.
   - Every visible custom product control must come from the action contract.
   - Native core compatibility controls may remain hidden underneath the shell.
-  - Social and workspace writes must resolve only after IndexedDB transaction completion.
-  - PR 48 remains the single product integration point.
+  - Social and workspace writes resolve only after IndexedDB transaction completion.
+  - PR 54 is the only active product integration point.
   - Never use or persist credentials pasted into chat.
 
 collaborator:
-  owner: claude
-  mode: backend-and-adversarial-review
-  file_locks:
-    - studio/manual/product/workspace.js
-    - studio/manual/tests/workspace-model.mjs
-    - coordination/PRODUCT_AUDIT.md
+  owner: none
+  mode: integrated-review-only
+  file_locks: []
   other_open_prs:
-    - 50: coordination protocol, review separately, do not merge into product branch yet
-    - 51: kernel scanner fix, technically relevant but must not fragment the product integration path
+    - 50: coordination protocol, review separately; do not merge into product branch yet
+    - 51: kernel scanner fix, technically relevant; integrate only without fragmenting PR 54
