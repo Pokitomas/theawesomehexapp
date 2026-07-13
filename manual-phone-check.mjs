@@ -99,18 +99,19 @@ await chooser.setFiles({
 });
 
 await waitForImportOutcome(consumer);
+const refreshedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
+if (!/^[1-9]\d* THING/.test(refreshedCount)) throw new Error(`core did not refresh after import: ${refreshedCount}`);
 await consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 await consumer.waitForTimeout(2500);
 if (loads !== 0) throw new Error(`import triggered ${loads} automatic page load(s)`);
 await consumer.screenshot({ path: 'manual-onboarding-phone.png', fullPage: true });
 
-const expectedLoad = consumer.waitForEvent('load', { timeout: 15000 });
 await touch(consumer, consumer.getByRole('button', { name: 'OPEN MY FEED', exact: true }));
-await expectedLoad;
-await consumer.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await consumer.waitForURL(/#\/feed$/, { timeout: 10000 });
 await consumer.locator('#feed').waitFor({ state: 'visible', timeout: 10000 });
+await consumer.waitForFunction(() => /^[1-9]\d* THING/.test(document.getElementById('corpusStatus')?.textContent || ''), { timeout: 10000 });
 const importedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
-if (!/^[1-9]\d* THING/.test(importedCount)) throw new Error(`imported feed did not load: ${importedCount}`);
+if (loads !== 0) throw new Error(`OPEN MY FEED reloaded the page ${loads} time(s)`);
 if (consumerErrors.length) throw new Error(consumerErrors.join(' | '));
 await consumerContext.close();
 
@@ -120,8 +121,9 @@ console.log(JSON.stringify({
   state: state.split('\n').find(line => line.startsWith('state=')),
   visibleLegacyAddSurface: false,
   firstRun: 'app cards immediately visible',
-  consumerJourney: 'IMPORT REDDIT → native picker → automatic import → feed',
+  consumerJourney: 'IMPORT REDDIT → native picker → automatic import → in-place feed',
   automaticReloads: 0,
+  refreshedCount,
   importedCount,
   screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png']
 }, null, 2));
