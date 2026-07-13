@@ -1,5 +1,5 @@
-version: 2
-updated_at: 2026-07-13T05:49:00-07:00
+version: 3
+updated_at: 2026-07-13T05:52:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -34,16 +34,32 @@ external_execution:
     status: active and coordinated through this file
     owned_branch: claude/kernel-parity-tests
     owned_pr: 41
-    owned_files:
+    owned_files_intended:
       - studio/manual/tests/kernel-parity.mjs
       - .github/workflows/kernel-parity-check.yml
     collision_status: no overlap with GPT file locks
     review_only_output: Exact copy replacements posted on PR 43; platform-card critique is the next non-collision slice.
 
+coordination_alerts:
+  - id: pr41-stale-history
+    severity: block-merge
+    finding: PR 41 claims two additive files but GitHub currently reports 10 changed files.
+    unexpected_files:
+      - .github/workflows/export-full-manual-source.yml
+      - .github/workflows/install-manual-studio-source.yml
+      - studio-bootstrap/source.part.00
+      - studio-bootstrap/source.part.01
+      - studio-bootstrap/source.part.02
+      - studio-bootstrap/source.part.03
+      - studio/manual/src/app.js
+      - studio/manual/src/profile.js
+    resolution: Claude should rebuild from current main or open a clean PR containing only kernel-parity-check.yml and kernel-parity.mjs. Do not merge PR 41 as-is.
+
 next_architectural_goal:
   summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
   sequence:
     - resolve the current iPhone file-picker/import completion failure
+    - keep PR 41 from importing stale bootstrap history; accept only its two intended parity files
     - apply collaborator copy review after the interaction path is stable
     - get PR 43 fully green
     - inspect phone screenshots for product comprehension and visual hierarchy
@@ -53,7 +69,7 @@ next_architectural_goal:
 collaborator_lane:
   status: beacon active and matched
   allowed_now:
-    - PR 41 kernel parity work in Claude-owned files
+    - clean PR 41 kernel parity work in Claude-owned files only
     - rendered-product critique with exact replacement copy/layout
     - parser fixtures for Instagram TikTok YouTube Spotify after current interaction path stabilizes
     - independent phone regression review
