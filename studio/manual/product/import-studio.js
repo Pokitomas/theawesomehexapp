@@ -105,7 +105,6 @@ async function importChosen(chosen) {
   state.busy = true;
   state.result = null;
   state.error = '';
-  routeTo('#/add');
   renderPanel();
 
   try {
