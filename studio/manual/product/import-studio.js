@@ -228,10 +228,7 @@ function statusPanel() {
 function renderPanel() {
   const host = document.getElementById('importWorkbenchHost');
   if (!host) return;
-  const children = [importCard()];
-  const status = statusPanel();
-  if (status) children.push(status);
-  host.replaceChildren(...children);
+  host.replaceChildren(statusPanel() || importCard());
   window.dispatchEvent(new CustomEvent('sideways:importworkbench'));
 }
 
