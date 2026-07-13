@@ -1,5 +1,6 @@
-// Adapted from the parallel #42 collaboration test for the actual Sideways UI.
-// Proves real iPhone touch taps land and the app becomes quiet after bounded setup work.
+// Proves the consumer first run on a real iPhone viewport:
+// cards appear immediately, a raw touch opens Reddit import, the import starts
+// automatically, and the interface becomes quiet without reloading itself.
 
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -60,16 +61,11 @@ page.on('load', () => { unexpectedLoads += 1; });
 
 await page.goto(url, { waitUntil: 'networkidle' });
 unexpectedLoads = 0;
-
-const profile = page.locator('[data-studio-profile-setup]');
-await profile.waitFor({ state: 'visible', timeout: 10000 });
-await profile.locator('input[name="name"]').fill('Touch Test');
-await profile.locator('input[name="handle"]').fill('@touch-test');
-await touch(profile.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }));
-
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
-const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'I HAVE THE FILES' });
+if (await page.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
+
+const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
 const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
 await touch(picker);
 const chooser = await chooserPromise;
@@ -79,22 +75,19 @@ await chooser.setFiles({
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"touch path works",sideways,/r/sideways/comments/touch,1700000000,touch-test,touch-1\n')
 });
 
-await page.getByText('1 FILE READY', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-const completion = page.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true });
-await touch(page.getByRole('button', { name: 'ADD TO MY FEED', exact: true }));
-await completion.waitFor({ state: 'visible', timeout: 15000 });
-
+await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 15000 });
 const firesBeforeQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
 await page.waitForTimeout(2600);
 const firesAfterQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
 const lateObserverFires = firesAfterQuietWindow - firesBeforeQuietWindow;
 if (lateObserverFires !== 0) throw new Error(`DOM work did not quiesce: ${lateObserverFires} observer callback(s) after the retry ceiling`);
-if (unexpectedLoads !== 0) throw new Error(`touch journey caused ${unexpectedLoads} unexpected page load(s)`);
+if (unexpectedLoads !== 0) throw new Error(`consumer journey caused ${unexpectedLoads} unexpected page load(s)`);
 if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-onboarding-touch.png', fullPage: true });
 console.log(JSON.stringify({
-  touchJourney: 'profile → Reddit picker → import complete',
+  touchJourney: 'IMPORT REDDIT → native picker → automatic import complete',
+  profileGate: false,
   lateObserverFires,
   unexpectedLoads,
   screenshot: 'manual-onboarding-touch.png'
