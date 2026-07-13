@@ -1,0 +1,41 @@
+name: Patch OS source once
+
+on:
+  push:
+    branches: [agent/fun-posting-system]
+    paths:
+      - .github/workflows/patch-os-source.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fun-posting-system
+      - name: Correct composer place precedence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('studio/manual/product/social.js')
+          text = path.read_text(encoding='utf-8')
+          old = "placeId: existing.placeId || seed.placeId || currentPlaceId === 'archive' ? 'everything' : currentPlaceId,"
+          new = "placeId: existing.placeId || seed.placeId || (currentPlaceId === 'archive' ? 'everything' : currentPlaceId),"
+          if old not in text:
+              if new in text:
+                  print('composer place precedence already corrected')
+                  raise SystemExit(0)
+              raise SystemExit('expected composer place expression not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Push exact patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add studio/manual/product/social.js
+          git commit -m "Correct composer place selection precedence"
+          git push origin HEAD:agent/fun-posting-system
