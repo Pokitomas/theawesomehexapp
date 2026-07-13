@@ -10,10 +10,18 @@ function icon(name, className = 'workspace-icon') {
   return svg;
 }
 
-function installBrandMark() {
-  const brand = document.querySelector('.brand-lockup');
-  if (!brand || brand.querySelector('.workspace-brand-icon')) return;
-  brand.prepend(icon('window', 'workspace-brand-icon'));
+function installTitleBrand(topline) {
+  let brand = topline.querySelector('[data-workspace-title-brand]');
+  if (!brand) {
+    brand = document.createElement('div');
+    brand.className = 'workspace-title-brand';
+    brand.dataset.workspaceTitleBrand = 'true';
+    brand.append(icon('window', 'workspace-brand-icon'));
+    const label = document.createElement('span');
+    label.textContent = 'Sideways';
+    brand.append(label);
+    topline.prepend(brand);
+  }
 }
 
 function installTitleActions(topline) {
@@ -31,6 +39,16 @@ function installTitleActions(topline) {
   if (profile) actions.append(profile);
 }
 
+function normalizeFeedCommand() {
+  const feed = document.getElementById('navFeed');
+  if (!feed) return;
+  feed.classList.remove('brand', 'button-plain', 'brand-lockup');
+  feed.classList.add('workspace-nav-button');
+  const label = feed.querySelector('.workspace-button-label');
+  if (label) label.textContent = 'Feed';
+  feed.setAttribute('aria-label', 'Feed');
+}
+
 function installCommandbar(topbar, topline) {
   let commandbar = topbar.querySelector('[data-workspace-commandbar]');
   if (!commandbar) {
@@ -42,6 +60,7 @@ function installCommandbar(topbar, topline) {
     topline.insertAdjacentElement('afterend', commandbar);
   }
 
+  normalizeFeedCommand();
   const newButton = document.querySelector('[data-workspace-new]');
   const nav = document.querySelector('[data-workspace-nav]');
   if (newButton) commandbar.append(newButton);
@@ -62,7 +81,7 @@ function installChrome() {
   const topline = document.querySelector('.topline');
   if (!topbar || !topline) return;
   document.documentElement.classList.add('workspace-chrome');
-  installBrandMark();
+  installTitleBrand(topline);
   installTitleActions(topline);
   installCommandbar(topbar, topline);
   document.documentElement.dataset.workspaceChrome = 'ready';
