@@ -24,6 +24,15 @@ function installTitleBrand(topline) {
   }
 }
 
+function normalizeStatus(status) {
+  if (!status) return;
+  const match = String(status.textContent || '').match(/\d[\d,]*/);
+  const count = match?.[0] || '0';
+  status.textContent = count;
+  status.dataset.count = count.replace(/,/g, '');
+  status.setAttribute('aria-label', `${count} items`);
+}
+
 function installTitleActions(topline) {
   let actions = topline.querySelector('[data-workspace-title-actions]');
   if (!actions) {
@@ -35,6 +44,7 @@ function installTitleActions(topline) {
 
   const status = document.getElementById('corpusStatus');
   const profile = document.getElementById('navProfile');
+  normalizeStatus(status);
   if (status) actions.append(status);
   if (profile) actions.append(profile);
 }
