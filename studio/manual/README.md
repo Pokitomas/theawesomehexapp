@@ -13,20 +13,24 @@ The large ingestion and ranking core is assembled from the repository's verified
 - `product/import-phone.js` — iPhone-safe replacement for unsupported folder picking.
 - `imports/registry.js` — structured export adapters.
 - `imports/runtime.js` — inspection, dedupe, chunked IndexedDB writes, cancellation, quota checks, and profile attribution.
+- `prepare-kernel.py` — readable, idempotent compatibility preparation for the extracted kernel builder. It accepts harmless whitespace drift in root constants and refuses to run if the bounded feed-render guard disappears.
 - `apply.py` — installs the editable layer into the assembled `manual-app/` without duplicating tags.
 - `verify.py` — rejects malformed UTF-8, binary bytes, syntax errors, render-loop regressions, missing assets, automatic import reloads, event hijacking, and broken phone-test contracts.
 - `tests/onboarding-clickthrough.mjs` — real iPhone touch and post-interaction quiescence proof contributed through the #40 collaboration beacon.
+- `tests/kernel-parity.mjs` — proves the generated manual kernel still contains the root feed's load-bearing constants.
 
 ## Build contract
 
-After the normal overlays have produced `manual-app/`:
+After the normal overlays have produced `manual-kernel/` and `manual-app/`:
 
 ```bash
+python studio/manual/prepare-kernel.py
+python manual-kernel/patch.py
 python studio/manual/apply.py
 python studio/manual/verify.py
 ```
 
-The Pages and phone-proof workflows run both commands before copying, testing, or deploying the manual product.
+The Pages, phone-proof, and kernel-parity workflows run the same preparation before building. Compatibility fixes belong in readable source here instead of silently replacing a known-good packed overlay.
 
 ## First-run product contract
 
@@ -68,6 +72,8 @@ Do not install a whole-document `MutationObserver` to keep the product layer mou
 Imports must not automatically reload or navigate. Completion shows a deliberate `OPEN MY FEED` action. Persistent-storage approval is best-effort and must never block importing.
 
 On iPhone, unsupported folder selection is replaced by a cloned `PICK MORE FILES` control. Do not use capture-phase `stopImmediatePropagation()` to steal clicks from other behavior.
+
+The core animation loop may continue updating ranking state, but it must not replace the feed DOM when there are no records or while the feed view is hidden.
 
 ## Editing the product
 
