@@ -1,9 +1,10 @@
 version: 21
-updated_at: 2026-07-13T13:08:00-07:00
+updated_at: 2026-07-13T13:13:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
 active_pr: 56 merged
 beacon_issue: 55 completed
+deployment_receipt: 57
 
 owner: GPT-5.6 Thinking
 mode: complete
@@ -11,8 +12,9 @@ mode: complete
 file_locks: []
 
 current_subtask:
-  summary: Completed and merged the lived workspace rebuild.
+  summary: Completed merged and deployed the lived workspace rebuild.
   merge_commit: 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212
+  deployment_receipt: 57
   production_url: https://pokitomas.github.io/theawesomehexapp/manual/
   completed:
     - unified authored posts and imports in sideways-manual-corpus-v1
@@ -29,7 +31,7 @@ current_subtask:
     - zero automatic reloads and zero visible controls outside the action contract
     - final generated phone artifact was visually reviewed with clean media and copy separation
     - squash-merged to main as 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212
-    - production target is https://pokitomas.github.io/theawesomehexapp/manual/
+    - GitHub Pages deployed merge commit 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212 and recorded issue 57
   done_when: complete
 
 next_architectural_goal:
