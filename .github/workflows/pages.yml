@@ -60,6 +60,7 @@ jobs:
           base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
           echo "26d1602bc9a1f9bb381c8b819d923fb14bc692588715623ef9214ba8c134ef2c  manual-kernel-overlay.tar.xz" | sha256sum -c -
           tar -xJf manual-kernel-overlay.tar.xz
+          python studio/manual/prepare-kernel.py
           python manual-kernel/patch.py
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
 
