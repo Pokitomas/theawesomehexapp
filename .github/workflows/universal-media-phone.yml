@@ -47,6 +47,7 @@ jobs:
         run: npm install --no-save playwright-core@1.55.0
       - name: Prove byte classification surfaces modes and imported deletion
         run: |
+          set -euo pipefail
           python -m http.server 4173 --directory dist >/tmp/universal-media-http.log 2>&1 &
           server=$!
           trap 'kill $server || true' EXIT
