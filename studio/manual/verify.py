@@ -1,21 +1,26 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+PRODUCT = HERE / "product"
 MANUAL = ROOT / "manual-app"
 
 TEXT_FILES = [
-    HERE / "product" / "copy.js",
-    HERE / "product" / "studio.js",
-    HERE / "product" / "studio.css",
-    HERE / "product" / "studio-components.css",
-    HERE / "product" / "studio-reset.css",
-    HERE / "product" / "import-studio.js",
-    HERE / "product" / "import-studio.css",
-    HERE / "product" / "import-phone.js",
+    PRODUCT / "copy.js",
+    PRODUCT / "actions.js",
+    PRODUCT / "studio.js",
+    PRODUCT / "studio.css",
+    PRODUCT / "studio-components.css",
+    PRODUCT / "studio-reset.css",
+    PRODUCT / "social.js",
+    PRODUCT / "social.css",
+    PRODUCT / "import-studio.js",
+    PRODUCT / "import-studio.css",
+    PRODUCT / "import-phone.js",
     HERE / "imports" / "registry.js",
     HERE / "imports" / "runtime.js",
     HERE / "imports" / "apply.py",
@@ -23,6 +28,67 @@ TEXT_FILES = [
     HERE / "prepare-kernel.py",
     HERE / "apply.py",
 ]
+
+JS_FILES = [
+    PRODUCT / "copy.js",
+    PRODUCT / "actions.js",
+    PRODUCT / "studio.js",
+    PRODUCT / "social.js",
+    PRODUCT / "import-studio.js",
+    PRODUCT / "import-phone.js",
+    HERE / "imports" / "registry.js",
+    HERE / "imports" / "runtime.js",
+    HERE / "imports" / "verify.mjs",
+]
+
+BANNED_EDITORIAL = (
+    "YOUR STUFF. ONE FEED.",
+    "BRING YOUR INTERNET",
+    "YOUR STUFF, RECOMPOSED",
+    "YOUR INTERNET, YOUR WAY",
+    "BRING SOMETHING OVER",
+    "FROM YOUR STUFF",
+    "GOOD START.",
+    "YOUR FEED IS READY.",
+)
+
+REQUIRED_ACTIONS = (
+    "nav.feed",
+    "nav.import",
+    "nav.saved",
+    "nav.profile",
+    "feed.post",
+    "feed.import",
+    "profile.open",
+    "profile.save",
+    "profile.random",
+    "profile.close",
+    "profile.avatar",
+    "profile.color",
+    "post.open",
+    "post.publish",
+    "post.cancel",
+    "post.attach",
+    "post.mood",
+    "post.style",
+    "post.react",
+    "post.remix",
+    "post.save",
+    "post.share",
+    "post.delete",
+    "import.instagram",
+    "import.reddit",
+    "import.tiktok",
+    "import.youtube",
+    "import.spotify",
+    "import.x",
+    "import.browser",
+    "import.anything",
+    "import.help",
+    "import.stop",
+    "import.retry",
+    "import.open_feed",
+)
 
 
 def assert_clean_text(path: Path) -> str:
@@ -40,140 +106,163 @@ def node_check(path: Path) -> None:
     subprocess.run(["node", "--check", str(path)], check=True)
 
 
-def main() -> None:
-    for path in TEXT_FILES:
-        assert_clean_text(path)
+def require(source: str, values: tuple[str, ...], label: str) -> None:
+    for value in values:
+        if value not in source:
+            raise AssertionError(f"{label} missing: {value}")
 
-    for path in (
-        HERE / "product" / "copy.js",
-        HERE / "product" / "studio.js",
-        HERE / "product" / "import-studio.js",
-        HERE / "product" / "import-phone.js",
-        HERE / "imports" / "registry.js",
-        HERE / "imports" / "runtime.js",
-        HERE / "imports" / "verify.mjs",
-    ):
+
+def forbid(source: str, values: tuple[str, ...], label: str) -> None:
+    for value in values:
+        if value in source:
+            raise AssertionError(f"{label} returned: {value}")
+
+
+def main() -> None:
+    source_text = {path: assert_clean_text(path) for path in TEXT_FILES}
+    for path in JS_FILES:
         node_check(path)
 
-    kernel_prepare = assert_clean_text(HERE / "prepare-kernel.py")
-    for contract in (
-        "\\s*=.*$",
-        "state.records.length&&!els.feedView.hidden",
-        "refusing a blind compatibility patch",
-    ):
-        if contract not in kernel_prepare:
-            raise AssertionError(f"kernel compatibility contract missing: {contract}")
+    all_product = "\n".join(source_text[path] for path in TEXT_FILES if PRODUCT in path.parents)
+    forbid(all_product.upper(), tuple(value.upper() for value in BANNED_EDITORIAL), "editorial product copy")
 
-    apply_source = assert_clean_text(HERE / "apply.py")
-    for contract in (
-        "CORE_REFRESH_BRIDGE",
-        "sideways:importcomplete",
-        "sideways:corpusrefresh",
-        "await rebuildState()",
-    ):
-        if contract not in apply_source:
-            raise AssertionError(f"core refresh bridge contract missing: {contract}")
+    kernel_prepare = source_text[HERE / "prepare-kernel.py"]
+    require(kernel_prepare, ("\\s*=.*$", "state.records.length&&!els.feedView.hidden", "refusing a blind compatibility patch"), "kernel compatibility contract")
 
-    studio_source = assert_clean_text(HERE / "product" / "studio.js")
-    for contract in ("requestAnimationFrame", "setText", "shouldAutoOpenApps", "routeTo('#/add')"):
-        if contract not in studio_source:
-            raise AssertionError(f"consumer first-run contract missing: {contract}")
-    for forbidden in (
-        "studio-profile-setup",
-        "PROFILE_KEY",
-        "storageCard(",
-        "navigator.storage",
-        "introCard(",
-        "data-studio-intro",
-    ):
-        if forbidden in studio_source:
-            raise AssertionError(f"first run reintroduced setup or duplicate intro machinery: {forbidden}")
+    apply_source = source_text[HERE / "apply.py"]
+    require(
+        apply_source,
+        (
+            "CORE_REFRESH_BRIDGE",
+            "sideways:importcomplete",
+            "sideways:corpusrefresh",
+            "await rebuildState()",
+            '"actions.js"',
+            '"social.js"',
+            '"social.css"',
+            "data-social-product",
+        ),
+        "generated product installer",
+    )
 
-    for relative in ("studio.js", "import-studio.js", "import-phone.js"):
-        source = assert_clean_text(HERE / "product" / relative)
+    actions_source = source_text[PRODUCT / "actions.js"]
+    for action_id in REQUIRED_ACTIONS:
+        if actions_source.count(f"'{action_id}'") < 2:
+            raise AssertionError(f"action contract is incomplete: {action_id}")
+    require(actions_source, ("emitAction", "bindAction", "actionButton", "actionContract", "sideways:action"), "action runtime")
+    if len(set(REQUIRED_ACTIONS)) != len(REQUIRED_ACTIONS):
+        raise AssertionError("verification action list contains duplicates")
+
+    studio_source = source_text[PRODUCT / "studio.js"]
+    require(
+        studio_source,
+        (
+            "actionButton",
+            "bindAction",
+            "feed.post",
+            "feed.import",
+            "openPost",
+            "openProfile",
+            "studio-launch-actions",
+            "requestAnimationFrame",
+        ),
+        "studio action surface",
+    )
+    forbid(studio_source, ("shouldAutoOpenApps", "studio-profile-setup", "storageCard(", "navigator.storage", "new MutationObserver"), "deleted first-run machinery")
+
+    copy_source = source_text[PRODUCT / "copy.js"]
+    require(copy_source, ("START HERE.", "POST", "IMPORT", "OPEN FEED"), "minimal visible copy")
+    if len([line for line in copy_source.splitlines() if ": '" in line]) > 20:
+        raise AssertionError("copy dictionary grew back into an editorial layer")
+
+    social_source = source_text[PRODUCT / "social.js"]
+    require(
+        social_source,
+        (
+            "sideways-social-v1",
+            "sideways-social-profile-v1",
+            "sideways-action-results-v1",
+            "createObjectStore(POST_STORE",
+            "createObjectStore(EVENT_STORE",
+            "openProfile",
+            "openComposer",
+            "imageFileToDataURL",
+            "post.publish",
+            "post.react",
+            "post.remix",
+            "post.save",
+            "post.share",
+            "post.delete",
+            "rankByResults",
+            "data-social-stream",
+            "sideways:action",
+        ),
+        "social product",
+    )
+    forbid(social_source, ("new MutationObserver", "location.reload()", "stopImmediatePropagation"), "social interaction regression")
+
+    for relative in ("studio.js", "social.js", "import-studio.js", "import-phone.js"):
+        source = source_text[PRODUCT / relative]
         if "new MutationObserver" in source:
             raise AssertionError(f"{relative} reintroduced a whole-document mutation observer")
 
-    copy_source = assert_clean_text(HERE / "product" / "copy.js")
-    for forbidden in ("profileTitle", "storageUnknown", "queueEmpty", "CHOOSE FILES", "REAL EXPORT"):
-        if forbidden in copy_source:
-            raise AssertionError(f"visible copy reintroduced implementation language: {forbidden}")
+    import_source = source_text[PRODUCT / "import-studio.js"]
+    require(
+        import_source,
+        (
+            "actionButton",
+            "bindAction",
+            "import.instagram",
+            "import.reddit",
+            "runtime.import(chosen)",
+            "waitForCoreRefresh",
+            "sideways:corpusrefresh",
+            "host.replaceChildren(statusPanel() || importCard())",
+        ),
+        "one-tap import action surface",
+    )
+    forbid(import_source, ("location.reload()", "I HAVE THE FILES", "ADD TO MY FEED", "import-file-list", "import-queue-panel", "PICK FOLDER"), "legacy import workbench")
 
-    component_css = assert_clean_text(HERE / "product" / "studio-components.css")
-    for forbidden in (".studio-profile-", ".studio-storage-", ".drop-zone", ".queue li", ".studio-format-grid"):
-        if forbidden in component_css:
-            raise AssertionError(f"dead prototype component styling returned: {forbidden}")
+    component_css = source_text[PRODUCT / "studio-components.css"]
+    require(component_css, (".studio-launch-actions", ".studio-launch-button", ".studio-progress-actions"), "launch component styling")
+    forbid(component_css, (".studio-profile-", ".studio-storage-", ".drop-zone", ".queue li", ".studio-format-grid"), "dead prototype component styling")
 
-    import_source = assert_clean_text(HERE / "product" / "import-studio.js")
-    if "location.reload()" in import_source:
-        raise AssertionError("imports must not force an automatic page reload")
-    for contract in (
-        "Instagram",
-        "Reddit",
-        "TikTok",
-        "YouTube",
-        "Spotify",
-        "NEED YOUR DOWNLOAD?",
-        "runtime.import(chosen)",
-        "IMPORT ${platform.name.toUpperCase()}",
-        "waitForCoreRefresh",
-        "sideways:corpusrefresh",
-        "await refreshed",
-        "studio-add-modern",
-        "host.replaceChildren(statusPanel() || importCard())",
-    ):
-        if contract not in import_source:
-            raise AssertionError(f"one-tap platform contract missing: {contract}")
-    for forbidden in (
-        "I HAVE THE FILES",
-        "ADD TO MY FEED",
-        "CHOOSE DIFFERENT FILES",
-        "import-file-list",
-        "import-queue-panel",
-        "PICK FOLDER",
-        "const children = [importCard()]",
-    ):
-        if forbidden in import_source:
-            raise AssertionError(f"consumer import reintroduced file-workbench or buried status UI: {forbidden}")
+    social_css = source_text[PRODUCT / "social.css"]
+    require(
+        social_css,
+        (
+            ".social-top-post",
+            ".social-post-card",
+            ".social-profile-dialog",
+            ".social-composer-dialog",
+            ".social-option-grid",
+            ".social-post-actions",
+        ),
+        "social product styling",
+    )
 
-    import_css = assert_clean_text(HERE / "product" / "import-studio.css")
-    for contract in (".source-import", ".source-help", ".import-progress-panel", ".import-complete-panel"):
-        if contract not in import_css:
-            raise AssertionError(f"consumer import visual contract missing: {contract}")
-    for forbidden in (".import-queue-panel", ".import-file-list", ".import-advanced"):
-        if forbidden in import_css:
-            raise AssertionError(f"legacy workbench styling returned: {forbidden}")
-
-    reset_source = assert_clean_text(HERE / "product" / "studio-reset.css")
-    for contract in ("studio-add-modern", "#importWorkbenchHost"):
-        if contract not in reset_source:
-            raise AssertionError(f"legacy-surface reset missing: {contract}")
-    if "data-studio-intro" in reset_source:
-        raise AssertionError("reset stylesheet still preserves the removed duplicate intro")
-
-    phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
-    for contract in ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"):
-        if contract not in phone_source:
-            raise AssertionError(f"native phone importer contract missing: {contract}")
-    for forbidden in ("stopImmediatePropagation", "cloneNode", "PICK MORE FILES"):
-        if forbidden in phone_source:
-            raise AssertionError(f"phone importer reintroduced a patched visible control: {forbidden}")
+    phone_source = source_text[PRODUCT / "import-phone.js"]
+    require(phone_source, ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"), "native phone importer")
+    forbid(phone_source, ("stopImmediatePropagation", "cloneNode", "PICK MORE FILES"), "patched phone control")
 
     if not MANUAL.exists():
-        print("manual studio and importer source layers are clean")
+        print("manual studio, action contract, social product, and importer source are clean")
         return
 
-    for name in (
+    generated_js = (
         "app.js",
         "profile.js",
         "kernel.js",
         "studio.js",
         "copy.js",
+        "actions.js",
+        "social.js",
         "import-studio.js",
         "import-phone.js",
         "imports/registry.js",
         "imports/runtime.js",
-    ):
+    )
+    for name in generated_js:
         path = MANUAL / name
         assert_clean_text(path)
         node_check(path)
@@ -193,32 +282,41 @@ def main() -> None:
         if label not in corpus:
             raise AssertionError(f"stable phone-test label missing: {label}")
 
-    for asset in (
+    assets = (
         "studio.css",
         "studio-components.css",
         "studio-reset.css",
+        "social.css",
         "studio.js",
         "copy.js",
+        "actions.js",
+        "social.js",
         "import-studio.css",
         "import-studio.js",
         "import-phone.js",
         "imports/registry.js",
         "imports/runtime.js",
-    ):
+    )
+    for asset in assets:
         if not (MANUAL / asset).is_file():
             raise AssertionError(f"product asset not applied: {asset}")
 
     if index.count("data-studio-product") != 3:
-        raise AssertionError("product layer must inject exactly two styles and one script")
+        raise AssertionError("studio layer must inject exactly two styles and one script")
     if index.count("data-studio-reset") != 1:
         raise AssertionError("product reset must inject exactly one stylesheet")
+    if index.count("data-social-product") != 2:
+        raise AssertionError("social product must inject exactly one style and one script")
     if index.count("data-import-workbench") != 2:
         raise AssertionError("import workbench must inject exactly one style and one script")
     if index.count("data-import-phone") != 1:
         raise AssertionError("phone importer fallback must inject exactly one script")
 
+    generated_product = "\n".join(assert_clean_text(MANUAL / asset) for asset in assets if (MANUAL / asset).suffix in {".js", ".css"})
+    forbid(generated_product.upper(), tuple(value.upper() for value in BANNED_EDITORIAL), "generated editorial copy")
+
     subprocess.run(["node", str(HERE / "imports" / "verify.mjs")], check=True)
-    print("manual studio consumer product and import pipeline verified")
+    print("manual action contract, social posting, consumer import, and kernel contracts verified")
 
 
 if __name__ == "__main__":
