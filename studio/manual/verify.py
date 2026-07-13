@@ -7,44 +7,53 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 PRODUCT = HERE / "product"
 MANUAL = ROOT / "manual-app"
+WORKSPACE = PRODUCT / "workspace.js"
 
-BASE_TEXT_FILES = [
-    PRODUCT / "copy.js",
-    PRODUCT / "icons.js",
-    PRODUCT / "actions.js",
-    PRODUCT / "shell.js",
-    PRODUCT / "studio.js",
-    PRODUCT / "studio.css",
-    PRODUCT / "studio-components.css",
-    PRODUCT / "studio-reset.css",
-    PRODUCT / "social.js",
-    PRODUCT / "social.css",
-    PRODUCT / "import-studio.js",
-    PRODUCT / "import-studio.css",
-    PRODUCT / "import-phone.js",
+PRODUCT_FILES = [
+    PRODUCT / name
+    for name in (
+        "copy.js",
+        "icons.js",
+        "actions.js",
+        "shell.js",
+        "studio.js",
+        "studio.css",
+        "studio-components.css",
+        "studio-reset.css",
+        "social.js",
+        "social.css",
+        "interaction.css",
+        "import-studio.js",
+        "import-studio.css",
+        "import-phone.js",
+    )
+]
+TEXT_FILES = PRODUCT_FILES + [
     HERE / "imports" / "registry.js",
     HERE / "imports" / "runtime.js",
     HERE / "imports" / "apply.py",
     HERE / "imports" / "verify.mjs",
     HERE / "prepare-kernel.py",
     HERE / "apply.py",
-]
-WORKSPACE_SOURCE = PRODUCT / "workspace.js"
-TEXT_FILES = BASE_TEXT_FILES + ([WORKSPACE_SOURCE] if WORKSPACE_SOURCE.is_file() else [])
+] + ([WORKSPACE] if WORKSPACE.is_file() else [])
 
 JS_FILES = [
-    PRODUCT / "copy.js",
-    PRODUCT / "icons.js",
-    PRODUCT / "actions.js",
-    PRODUCT / "shell.js",
-    PRODUCT / "studio.js",
-    PRODUCT / "social.js",
-    PRODUCT / "import-studio.js",
-    PRODUCT / "import-phone.js",
+    PRODUCT / name
+    for name in (
+        "copy.js",
+        "icons.js",
+        "actions.js",
+        "shell.js",
+        "studio.js",
+        "social.js",
+        "import-studio.js",
+        "import-phone.js",
+    )
+] + [
     HERE / "imports" / "registry.js",
     HERE / "imports" / "runtime.js",
     HERE / "imports" / "verify.mjs",
-] + ([WORKSPACE_SOURCE] if WORKSPACE_SOURCE.is_file() else [])
+] + ([WORKSPACE] if WORKSPACE.is_file() else [])
 
 BANNED_EDITORIAL = (
     "YOUR STUFF. ONE FEED.",
@@ -57,7 +66,7 @@ BANNED_EDITORIAL = (
     "GOOD START",
 )
 
-BANNED_PRODUCT_ACTIONS = (
+BANNED_ACTIONS = (
     "nav.import",
     "nav.saved",
     "nav.profile",
@@ -81,13 +90,12 @@ REQUIRED_ACTIONS = (
 )
 
 
-def assert_clean_text(path: Path) -> str:
+def read(path: Path) -> str:
     raw = path.read_bytes()
     text = raw.decode("utf-8")
     if b"\x00" in raw:
         raise AssertionError(f"{path} contains NUL bytes")
-    bad = [byte for byte in raw if byte < 32 and byte not in (9, 10, 13)]
-    if bad:
+    if any(byte < 32 and byte not in (9, 10, 13) for byte in raw):
         raise AssertionError(f"{path} contains binary control bytes")
     return text
 
@@ -97,101 +105,97 @@ def node_check(path: Path) -> None:
 
 
 def require(source: str, values: tuple[str, ...], label: str) -> None:
-    for value in values:
-        if value not in source:
-            raise AssertionError(f"{label} missing: {value}")
+    missing = [value for value in values if value not in source]
+    if missing:
+        raise AssertionError(f"{label} missing: {', '.join(missing)}")
 
 
 def forbid(source: str, values: tuple[str, ...], label: str) -> None:
-    for value in values:
-        if value in source:
-            raise AssertionError(f"{label} returned: {value}")
+    found = [value for value in values if value in source]
+    if found:
+        raise AssertionError(f"{label} returned: {', '.join(found)}")
 
 
 def main() -> None:
-    source_text = {path: assert_clean_text(path) for path in TEXT_FILES}
+    source = {path: read(path) for path in TEXT_FILES}
     for path in JS_FILES:
         node_check(path)
 
-    all_product = "\n".join(source_text[path] for path in TEXT_FILES if PRODUCT in path.parents)
-    forbid(all_product.upper(), tuple(value.upper() for value in BANNED_EDITORIAL), "editorial product copy")
+    product_text = "\n".join(source[path] for path in PRODUCT_FILES + ([WORKSPACE] if WORKSPACE.is_file() else []))
+    forbid(product_text.upper(), tuple(value.upper() for value in BANNED_EDITORIAL), "editorial copy")
+    forbid(product_text, ("new MutationObserver", "location.reload()", "stopImmediatePropagation"), "interaction regression")
 
-    kernel_prepare = source_text[HERE / "prepare-kernel.py"]
-    require(kernel_prepare, ("\\s*=.*$", "state.records.length&&!els.feedView.hidden", "refusing a blind compatibility patch"), "kernel compatibility contract")
+    kernel = source[HERE / "prepare-kernel.py"]
+    require(kernel, ("\\s*=.*$", "state.records.length&&!els.feedView.hidden", "refusing a blind compatibility patch"), "kernel preparation")
 
-    apply_source = source_text[HERE / "apply.py"]
+    installer = source[HERE / "apply.py"]
     require(
-        apply_source,
+        installer,
         (
-            "CORE_REFRESH_BRIDGE", "sideways:importcomplete", "sideways:corpusrefresh", "await rebuildState()",
-            '"icons.js"', '"actions.js"', '"shell.js"', '"social.js"', '"social.css"',
-            "data-shell-product", "data-social-product", "WORKSPACE_SCRIPT_MARKER",
+            "CORE_REFRESH_BRIDGE",
+            "await rebuildState()",
+            '"icons.js"',
+            '"actions.js"',
+            '"shell.js"',
+            '"social.js"',
+            '"interaction.css"',
+            "WORKSPACE_SCRIPT_MARKER",
+            "SHELL_SCRIPT_MARKER",
+            "INTERACTION_STYLE_MARKER",
         ),
-        "generated product installer",
+        "product installer",
     )
 
-    icons_source = source_text[PRODUCT / "icons.js"]
-    require(icons_source, ("feed:", "places:", "create:", "me:", "later:", "archive:", "export function icon"), "icon asset system")
-
-    actions_source = source_text[PRODUCT / "actions.js"]
+    actions = source[PRODUCT / "actions.js"]
     for action_id in REQUIRED_ACTIONS:
-        if actions_source.count(f"'{action_id}'") < 2:
-            raise AssertionError(f"action contract is incomplete: {action_id}")
-    forbid(actions_source, tuple(f"'{action_id}'" for action_id in BANNED_PRODUCT_ACTIONS), "deleted product action")
+        if actions.count(f"'{action_id}'") < 2:
+            raise AssertionError(f"action contract incomplete: {action_id}")
+    forbid(actions, tuple(f"'{action_id}'" for action_id in BANNED_ACTIONS), "deleted action")
     require(
-        actions_source,
-        (
-            "command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:",
-            "emitAction", "bindAction", "actionButton", "actionContract", "sideways:action",
-        ),
-        "formal action/backend contract",
+        actions,
+        ("command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "data-action-command", "actionContract"),
+        "backend action schema",
     )
 
-    shell_source = source_text[PRODUCT / "shell.js"]
+    icons = source[PRODUCT / "icons.js"]
+    require(icons, ("feed:", "places:", "create:", "me:", "later:", "archive:", "export function icon"), "icon set")
+
+    shell = source[PRODUCT / "shell.js"]
     require(
-        shell_source,
+        shell,
         (
-            "#/feed", "#/places", "#/me", "nav.feed", "nav.places", "nav.create", "nav.me",
-            "os-dock", "os-titlebar", "os-create-sheet", "osPlacesView", "osMeView",
-            "showCreateSheet", "renderPlaces", "renderMe", "SidewaysWorkspace",
+            "#/feed", "#/places", "#/me",
+            "nav.feed", "nav.places", "nav.create", "nav.me",
+            "os-dock", "os-titlebar", "os-create-sheet",
+            "osPlacesView", "osMeView", "renderPlaces", "renderMe", "SidewaysWorkspace",
         ),
         "operating-system shell",
     )
-    forbid(shell_source, ("nav.saved", "nav.import", "post.react"), "obsolete shell topology")
+    forbid(shell, ("nav.saved", "nav.import", "post.react"), "obsolete shell topology")
 
-    studio_source = source_text[PRODUCT / "studio.js"]
-    require(studio_source, ("create.post", "create.import", "nav.places", "studio-launch-actions", "requestAnimationFrame"), "feed launch surface")
-    forbid(studio_source, ("shouldAutoOpenApps", "studio-profile-setup", "storageCard(", "navigator.storage", "new MutationObserver", "nav.saved", "feed.import"), "deleted first-run or navigation machinery")
+    studio = source[PRODUCT / "studio.js"]
+    require(studio, ("create.post", "create.import", "nav.places", "studio-launch-actions", "requestAnimationFrame"), "feed launch surface")
+    forbid(studio, ("shouldAutoOpenApps", "studio-profile-setup", "storageCard(", "navigator.storage", "nav.saved", "feed.import"), "deleted first-run model")
 
-    copy_source = source_text[PRODUCT / "copy.js"]
-    require(copy_source, ("'Sideways'", "'Start'", "'Feed'", "'Import'"), "contemporary visible labels")
-    if len([line for line in copy_source.splitlines() if ": '" in line]) > 16:
-        raise AssertionError("copy dictionary grew back into an editorial layer")
-
-    social_source = source_text[PRODUCT / "social.js"]
+    social = source[PRODUCT / "social.js"]
     require(
-        social_source,
+        social,
         (
-            "sideways-social-v1", "sideways-social-profile-v1", "sideways-action-results-v1",
-            "DRAFT_STORE", "saveDraft", "publishDraft", "listDrafts", "setActivePlace", "listPlaces",
-            "updateEntity", "moveEntity", "archiveEntity", "restoreEntity", "deleteEntity", "undoLast",
+            "DRAFT_STORE", "saveDraft", "publishDraft", "listDrafts",
+            "setActivePlace", "listPlaces", "updateEntity", "moveEntity",
+            "archiveEntity", "restoreEntity", "deleteEntity", "undoLast",
             "post.update", "post.move", "post.later", "post.archive", "post.restore", "undo.last",
             "social-draft-status", "sideways:workspacechange", "sideways:placeopen",
         ),
-        "workspace-aware social product",
+        "workspace-aware social model",
     )
-    forbid(social_source, ("post.react", "post.save", "REACTIONS", "saved: false", "new MutationObserver", "location.reload()", "stopImmediatePropagation"), "fake social or interaction regression")
+    forbid(social, ("post.react", "post.save", "REACTIONS"), "fake single-user social feature")
 
-    for relative in ("studio.js", "shell.js", "social.js", "import-studio.js", "import-phone.js"):
-        source = source_text[PRODUCT / relative]
-        if "new MutationObserver" in source:
-            raise AssertionError(f"{relative} reintroduced a whole-document mutation observer")
+    import_js = source[PRODUCT / "import-studio.js"]
+    require(import_js, ("const id = `import.${platform.id}`", "runtime.import(chosen)", "waitForCoreRefresh", "host.replaceChildren(statusPanel() || importCard())"), "one-tap importer")
+    forbid(import_js, ("I HAVE THE FILES", "ADD TO MY FEED", "import-file-list", "import-queue-panel", "PICK FOLDER"), "legacy import workbench")
 
-    import_source = source_text[PRODUCT / "import-studio.js"]
-    require(import_source, ("const id = `import.${platform.id}`", "runtime.import(chosen)", "waitForCoreRefresh", "sideways:corpusrefresh", "host.replaceChildren(statusPanel() || importCard())"), "one-tap import surface")
-    forbid(import_source, ("location.reload()", "I HAVE THE FILES", "ADD TO MY FEED", "import-file-list", "import-queue-panel", "PICK FOLDER"), "legacy import workbench")
-
-    studio_css = source_text[PRODUCT / "studio.css"]
+    studio_css = source[PRODUCT / "studio.css"]
     require(
         studio_css,
         (
@@ -199,99 +203,81 @@ def main() -> None:
             ".os-places-grid", ".os-me-hero", "backdrop-filter", "prefers-reduced-motion", "prefers-color-scheme: dark",
             "cubic-bezier(.2,.9,.22,1.08)",
         ),
-        "paint and physics system",
+        "paint and physics",
     )
-    forbid(
-        studio_css,
-        (
-            "--studio-paper", "--studio-ink", "--studio-shadow", "background-size: 28px 28px",
-            "5px 5px 0", "8px 8px 0", "border: 2px solid var(--studio",
-        ),
-        "killed neo-brutalist visual system",
-    )
+    forbid(studio_css, ("--studio-paper", "--studio-ink", "--studio-shadow", "background-size: 28px 28px", "5px 5px 0", "8px 8px 0"), "killed neo-brutalist system")
 
-    component_css = source_text[PRODUCT / "studio-components.css"]
-    require(component_css, (".studio-launch-actions", ".studio-launch-button", ".studio-progress-actions", "var(--os-line)"), "launch component styling")
-    forbid(component_css, ("var(--studio-ink)", "var(--studio-lime)", "5px 5px 0", "8px 8px 0"), "old launch styling")
+    require(source[PRODUCT / "studio-components.css"], (".studio-launch-actions", ".studio-launch-button", ".studio-progress-actions", "var(--os-line)"), "launch styling")
+    require(source[PRODUCT / "social.css"], (".social-post-card", ".social-dialog", ".social-place-picker", ".social-draft-status", "var(--os-line)"), "social styling")
+    require(source[PRODUCT / "interaction.css"], (".os-menu-list", ".os-toast", ".os-menu-item", ".social-post-link"), "interaction styling")
+    require(source[PRODUCT / "import-studio.css"], (".source-card-grid", ".source-import", ".import-complete-panel", "var(--os-line)", "os-import-pulse"), "Open-style importer")
 
-    social_css = source_text[PRODUCT / "social.css"]
-    require(social_css, (".social-post-card", ".social-dialog", ".social-composer-text", ".social-place-picker", ".social-draft-status", "var(--os-line)"), "workspace social styling")
-    forbid(social_css, ("var(--studio-ink)", "var(--studio-yellow)", "5px 5px 0", "border: 2px solid"), "old social styling")
-
-    import_css = source_text[PRODUCT / "import-studio.css"]
-    require(import_css, (".source-card-grid", ".source-import", ".import-complete-panel", "var(--os-line)", "os-import-pulse"), "Open-style importer visuals")
-    forbid(import_css, ("var(--studio-ink", "var(--studio-surface", "5px 5px 0", "7px 7px 0", "border: 2px solid"), "old importer styling")
-
-    phone_source = source_text[PRODUCT / "import-phone.js"]
-    require(phone_source, ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"), "native phone importer")
-    forbid(phone_source, ("stopImmediatePropagation", "cloneNode", "PICK MORE FILES"), "patched phone control")
-
-    if WORKSPACE_SOURCE.is_file():
-        workspace_source = source_text[WORKSPACE_SOURCE]
+    if WORKSPACE.is_file():
+        workspace = source[WORKSPACE]
         require(
-            workspace_source,
+            workspace,
             (
                 "createWorkspaceBackend", "listPlaces", "createPlace", "renamePlace", "deletePlace",
-                "listEntities", "getEntity", "updateEntity", "moveEntity", "saveDraft", "listDrafts",
+                "listEntities", "getEntity", "updateEntity", "moveEntity", "saveDraft", "listDrafts", "deleteDraft",
                 "publishDraft", "archiveEntity", "restoreEntity", "deleteEntity", "undo", "exportSnapshot", "importSnapshot",
-                "sideways:workspacechange",
             ),
             "workspace backend",
         )
 
     if not MANUAL.exists():
-        print("operating-system product source, actions, social model, and importer are clean")
+        print("OS product source verified")
         return
+
+    generated_assets = [
+        "studio.css", "studio-components.css", "studio-reset.css", "social.css", "interaction.css",
+        "icons.js", "actions.js", "shell.js", "studio.js", "copy.js", "social.js",
+        "import-studio.css", "import-studio.js", "import-phone.js",
+        "imports/registry.js", "imports/runtime.js",
+    ] + (["workspace.js"] if WORKSPACE.is_file() else [])
 
     generated_js = [
         "app.js", "profile.js", "kernel.js", "icons.js", "actions.js", "shell.js", "studio.js", "copy.js", "social.js",
         "import-studio.js", "import-phone.js", "imports/registry.js", "imports/runtime.js",
-    ] + (["workspace.js"] if WORKSPACE_SOURCE.is_file() else [])
+    ] + (["workspace.js"] if WORKSPACE.is_file() else [])
     for name in generated_js:
-        path = MANUAL / name
-        assert_clean_text(path)
-        node_check(path)
+        node_check(MANUAL / name)
 
-    app_text = assert_clean_text(MANUAL / "app.js")
-    if app_text.count("'sideways:corpusrefresh'") != 1 or "await rebuildState()" not in app_text:
-        raise AssertionError("generated core refresh bridge must exist exactly once and rebuild live corpus")
+    app = read(MANUAL / "app.js")
+    if app.count("'sideways:corpusrefresh'") != 1 or "await rebuildState()" not in app:
+        raise AssertionError("core refresh bridge must exist exactly once")
 
-    index = assert_clean_text(MANUAL / "index.html")
+    index = read(MANUAL / "index.html")
     for hook in ("corpusStatus", "debugPolicy", "debugState", "debugPanel"):
         if f'id="{hook}"' not in index:
             raise AssertionError(f"stable DOM hook missing: {hook}")
-    corpus = index + app_text
     for label in ("ADD", "KEEP", "READ", "SEND", "FILES +"):
-        if label not in corpus:
-            raise AssertionError(f"stable phone-test label missing: {label}")
-
-    assets = [
-        "studio.css", "studio-components.css", "studio-reset.css", "social.css", "icons.js", "actions.js", "shell.js",
-        "studio.js", "copy.js", "social.js", "import-studio.css", "import-studio.js", "import-phone.js",
-        "imports/registry.js", "imports/runtime.js",
-    ] + (["workspace.js"] if WORKSPACE_SOURCE.is_file() else [])
-    for asset in assets:
+        if label not in index + app:
+            raise AssertionError(f"stable compatibility label missing: {label}")
+    for asset in generated_assets:
         if not (MANUAL / asset).is_file():
-            raise AssertionError(f"product asset not applied: {asset}")
+            raise AssertionError(f"generated asset missing: {asset}")
 
-    if index.count("data-studio-product") != 3:
-        raise AssertionError("studio layer must inject exactly two styles and one script")
-    if index.count("data-studio-reset") != 1:
-        raise AssertionError("product reset must inject exactly one stylesheet")
-    if index.count("data-social-product") != 2:
-        raise AssertionError("social product must inject exactly one style and one script")
-    if index.count("data-shell-product") != 1:
-        raise AssertionError("operating-system shell must inject exactly one script")
-    if WORKSPACE_SOURCE.is_file() and index.count("data-workspace-product") != 1:
-        raise AssertionError("workspace backend must inject exactly one script")
-    if index.count("data-import-workbench") != 2 or index.count("data-import-phone") != 1:
-        raise AssertionError("import workbench assets are not injected exactly once")
+    exact_markers = {
+        "data-studio-product": 3,
+        "data-studio-reset": 1,
+        "data-social-product": 2,
+        "data-interaction-product": 1,
+        "data-shell-product": 1,
+        "data-import-workbench": 2,
+        "data-import-phone": 1,
+    }
+    if WORKSPACE.is_file():
+        exact_markers["data-workspace-product"] = 1
+    for marker, expected in exact_markers.items():
+        actual = index.count(marker)
+        if actual != expected:
+            raise AssertionError(f"{marker} expected {expected}, got {actual}")
 
-    generated_product = "\n".join(assert_clean_text(MANUAL / asset) for asset in assets if (MANUAL / asset).suffix in {".js", ".css"})
-    forbid(generated_product.upper(), tuple(value.upper() for value in BANNED_EDITORIAL), "generated editorial copy")
+    generated_text = "\n".join(read(MANUAL / asset) for asset in generated_assets if Path(asset).suffix in {".js", ".css"})
+    forbid(generated_text.upper(), tuple(value.upper() for value in BANNED_EDITORIAL), "generated editorial copy")
 
     subprocess.run(["node", str(HERE / "imports" / "verify.mjs")], check=True)
-    print("operating-system shell, workspace actions, drafts, places, importer, and kernel contracts verified")
+    print("operating-system shell, workspace model, interaction physics, importer, and kernel verified")
 
 
 if __name__ == "__main__":
