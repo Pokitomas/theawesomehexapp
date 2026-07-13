@@ -23,6 +23,18 @@ function extension(name = '', mime = '') {
   return (tail || 'FILE').replace(/[^a-z0-9]+/gi, '').slice(0, 8).toUpperCase() || 'FILE';
 }
 
+function fileCode(record, state) {
+  if (state === 'missing') return 'MISS';
+  const kind = kindFor(record);
+  if (kind === 'binary') return 'BIN';
+  if (kind === 'archive') return 'ARC';
+  if (kind === 'pdf') return 'PDF';
+  if (kind === 'audio') return 'AUD';
+  if (kind === 'video') return 'VID';
+  if (kind === 'image') return 'IMG';
+  return extension(record.originalName || record.title, record.mime);
+}
+
 function formatBytes(value = 0) {
   const bytes = Number(value) || 0;
   if (bytes < 1024) return `${bytes} B`;
@@ -59,7 +71,7 @@ function fileSurface(record, url, state = 'ready') {
   }
   const code = document.createElement('strong');
   code.className = 'universal-file-code';
-  code.textContent = state === 'missing' ? 'MISS' : extension(record.originalName || record.title, record.mime);
+  code.textContent = fileCode(record, state);
   const name = document.createElement('span');
   name.className = 'universal-file-name';
   name.textContent = record.originalName || record.title || 'UNTITLED';
@@ -76,6 +88,7 @@ function imageSurface(record, url) {
   image.alt = record.title || record.originalName || '';
   image.decoding = 'async';
   image.loading = 'lazy';
+  image.addEventListener('error', () => image.replaceWith(fileSurface(record, url, 'broken')), { once: true });
   image.src = url;
   return image;
 }
@@ -135,6 +148,7 @@ function applyGeometry(card, shell, record) {
     shell.style.removeProperty('--media-ratio');
     card.dataset.mediaOrientation = 'unknown';
   }
+  shell.dataset.mediaTitle = record.title || record.originalName || '';
   card.dataset.mediaKind = kindFor(record) || 'none';
 }
 
