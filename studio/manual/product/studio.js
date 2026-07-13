@@ -102,17 +102,18 @@ function enhanceFeed() {
   const nativeEmpty = feed.querySelector('.add-empty, .empty');
   const existingHero = feed.querySelector('[data-studio-empty]');
   const existingProgress = feed.querySelector('[data-studio-progress]');
+  const coreTotal = recordCount();
 
-  if (!posts && !socialPosts && nativeEmpty) {
-    nativeEmpty.classList.add('studio-native-empty');
+  if (nativeEmpty) nativeEmpty.classList.add('studio-native-empty');
+
+  if (!posts && !socialPosts && coreTotal === 0 && nativeEmpty) {
     if (!existingHero) feed.prepend(emptyCard());
     existingProgress?.remove();
     return;
   }
 
-  nativeEmpty?.classList.remove('studio-native-empty');
   existingHero?.remove();
-  const total = recordCount() + socialPosts;
+  const total = coreTotal + socialPosts;
   if (total > 0) {
     if (!existingProgress || existingProgress.dataset.studioProgress !== String(total)) {
       existingProgress?.remove();
