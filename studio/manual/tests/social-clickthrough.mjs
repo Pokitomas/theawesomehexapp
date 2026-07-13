@@ -133,7 +133,7 @@ await composer.locator('.social-image-preview img').waitFor({ state: 'visible', 
 await touch(composer.locator('[data-action-id="post.publish"]'));
 await composer.waitFor({ state: 'hidden', timeout: 10000 });
 
-let first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW IS THE PLACE' });
+let first = page.locator('[data-social-post]').filter({ has: page.locator('.social-post-text', { hasText: 'THE WINDOW IS THE PLACE' }) });
 await first.waitFor({ state: 'visible', timeout: 10000 });
 if ((await first.locator('.social-post-image').count()) !== 1) throw new Error('photo post did not render');
 if (!(await first.getByText('KAI', { exact: true }).count())) throw new Error('profile name did not reach the post');
@@ -146,7 +146,7 @@ await openDock('nav.places');
 const laterPlace = placesView.locator('[data-place-id="later"]');
 await laterPlace.waitFor({ state: 'visible', timeout: 10000 });
 await touch(laterPlace.locator('[data-action-id="place.open"]'));
-first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW IS THE PLACE' });
+first = page.locator('[data-social-post]').filter({ has: page.locator('.social-post-text', { hasText: 'THE WINDOW IS THE PLACE' }) });
 await first.waitFor({ state: 'visible', timeout: 10000 });
 if ((await first.getAttribute('data-place-id')) !== 'later') throw new Error('Later did not become a real location');
 
@@ -160,7 +160,7 @@ await composer.locator('.social-composer-text').fill('THE WINDOW BECAME A ROOM')
 await touch(composer.locator('[data-action-id="post.place"]').filter({ hasText: 'Later' }));
 await touch(composer.locator('[data-action-id="post.update"]'));
 await composer.waitFor({ state: 'hidden', timeout: 10000 });
-first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW BECAME A ROOM' });
+first = page.locator('[data-social-post]').filter({ has: page.locator('.social-post-text', { hasText: 'THE WINDOW BECAME A ROOM' }) });
 await first.waitFor({ state: 'visible', timeout: 10000 });
 
 await touch(first.locator('[data-action-id="post.remix"]'));
@@ -171,7 +171,7 @@ await composer.locator('.social-composer-text').fill('ROOM TWO');
 await touch(composer.locator('[data-action-id="post.publish"]'));
 await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 2, { timeout: 10000 });
 
-first = page.locator('[data-social-post]').filter({ hasText: 'THE WINDOW BECAME A ROOM' });
+first = page.locator('[data-social-post]').filter({ has: page.locator('.social-post-text', { hasText: 'THE WINDOW BECAME A ROOM' }) });
 await touch(first.locator('[data-action-id="post.more"]'));
 menu = page.locator('.os-small-sheet[open]');
 await menu.waitFor({ state: 'visible', timeout: 5000 });
