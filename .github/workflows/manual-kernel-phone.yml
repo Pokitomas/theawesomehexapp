@@ -33,11 +33,13 @@ jobs:
           tar -xJf manual-kernel-overlay.tar.xz
           python manual-kernel/patch.py
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
+          python studio/manual/apply.py
+          python studio/manual/verify.py
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
       - name: Package exact built source for diagnosis
         run: |
-          tar -czf /tmp/manual-kernel-built.tar.gz manual-app manual-kernel dist/manual
+          tar -czf /tmp/manual-kernel-built.tar.gz manual-app manual-kernel studio/manual dist/manual
       - name: Upload exact built source
         uses: actions/upload-artifact@v4
         with:
