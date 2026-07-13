@@ -14,7 +14,7 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAADCAQAAABWKLW/AAAADElEQVR42mNk+M8AAAICAQB7CY6hAAAAAElFTkSuQmCC', 'base64');
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const unknown = Buffer.from([0, 255, 1, 2, 3, 0, 127, 128, 129, 13, 10, 0, 4, 5, 6, 7]);
 
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -81,13 +81,15 @@ const imageCard = page.locator('#feed .post').filter({ hasText: 'red-circle.png'
 const binaryCard = page.locator('#feed .post').filter({ hasText: 'unknown-no-extension' });
 await imageCard.waitFor({ state: 'visible', timeout: 15000 });
 await binaryCard.waitFor({ state: 'visible', timeout: 15000 });
-await imageCard.locator('.universal-image').waitFor({ state: 'visible', timeout: 15000 });
+const image = imageCard.locator('.universal-image');
+await image.waitFor({ state: 'visible', timeout: 15000 });
+await page.waitForFunction(() => document.querySelector('.universal-image')?.naturalWidth > 0, { timeout: 10000 });
 await binaryCard.locator('.universal-file-surface').waitFor({ state: 'visible', timeout: 15000 });
 
 const records = await readAll('records');
 const imageRecord = records.find(record => record.originalName === 'red-circle.png');
 const binaryRecord = records.find(record => record.originalName === 'unknown-no-extension');
-if (!imageRecord || imageRecord.mediaKind !== 'image' || imageRecord.mime !== 'image/png' || !imageRecord.assetKey || imageRecord.text) {
+if (!imageRecord || imageRecord.mediaKind !== 'image' || imageRecord.mime !== 'image/png' || !imageRecord.assetKey || imageRecord.text || !(imageRecord.width > 0) || !(imageRecord.height > 0)) {
   throw new Error(`MIME-less PNG was not normalized as image media: ${JSON.stringify(imageRecord)}`);
 }
 if (!binaryRecord || binaryRecord.mediaKind !== 'binary' || binaryRecord.mime !== 'application/octet-stream' || !binaryRecord.assetKey || binaryRecord.text) {
@@ -104,6 +106,7 @@ for (const poison of ['IHDR', 'gAMA', 'cHRM', '�', '\u0000']) {
 const modes = page.locator('[data-feed-mode-rail]');
 await modes.waitFor({ state: 'visible', timeout: 10000 });
 if (await modes.locator('[data-feed-mode-button]').count() !== 3) throw new Error('Flow Stage Grid rail is incomplete');
+if (!(await page.locator('.type-nav').evaluate((nav, rail) => nav.contains(rail), await modes.elementHandle()))) throw new Error('feed modes escaped the filter strip');
 
 await touch(modes.locator('[data-feed-mode-button="stage"]'));
 await page.waitForFunction(() => document.documentElement.dataset.feedMode === 'stage');
