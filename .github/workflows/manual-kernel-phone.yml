@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   phone:
@@ -120,3 +121,16 @@ jobs:
             /tmp/workspace-http.log
           if-no-files-found: warn
           retention-days: 5
+      - name: Report branch proof
+        if: always() && github.ref == 'refs/heads/agent/fun-posting-system'
+        uses: actions/github-script@v7
+        env:
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 52,
+              body: `BRANCH_PROOF run=${context.runId} sha=${context.sha} result=${process.env.JOB_STATUS}`
+            });
