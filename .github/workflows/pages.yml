@@ -52,6 +52,13 @@ jobs:
           tar -xJf manual-overlay.tar.xz
           python manual/patch.py
 
+      - name: Install shared manual saturation kernel
+        run: |
+          cat manual-kernel.tar.xz.b64.part.* | base64 -d > manual-kernel.tar.xz
+          echo "1be2d8e725fb87959a0a09f84291b955c1796da9b233d74b5119d069f1816c70  manual-kernel.tar.xz" | sha256sum -c -
+          tar -xJf manual-kernel.tar.xz
+          python manual-kernel/patch.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -130,6 +137,9 @@ jobs:
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
+      - name: Verify shared manual saturation kernel
+        run: python manual-kernel/verify.py
+
       - name: Package generated code for PR inspection
         if: github.event_name == 'pull_request'
         run: |
@@ -203,6 +213,10 @@ jobs:
                 'MANUAL_STORAGE=browser-local IndexedDB',
                 'UPLOADS=files/folders/paste/links/JSON/CSV/ZIP/PDF/Office/media',
                 'PACKS=portable JSON with local assets',
-                'BUTTON_LANGUAGE=WALL-E'
+                'BUTTON_LANGUAGE=WALL-E',
+                'RANKING_KERNEL=root-exact',
+                'DEBUG_ROUTE=manual/?debug=1',
+                'PROOF_ROUTE=manual/?debug=1&fixture=20',
+                'PROOF_GATE=0.000->0.877'
               ].join('\n')
             });
