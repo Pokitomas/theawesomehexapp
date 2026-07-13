@@ -55,11 +55,13 @@ await page.evaluate(() => {
   else location.hash = '#/add';
 });
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 5000 });
-await page.getByRole('button', { name: /^FILES \+/ }).waitFor({ state: 'visible', timeout: 10000 });
-if (await page.getByRole('button', { name: /^FOLDER\b/ }).count()) throw new Error('unsupported iPhone folder picker still shown');
+const coreFilesContract = await page.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
+if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 await page.getByRole('button', { name: /^PICK MORE FILES\b/ }).waitFor({ state: 'visible', timeout: 10000 });
 if (await page.getByRole('button', { name: /^PICK FOLDER\b/ }).count()) throw new Error('import workbench exposed unsupported iPhone folder picker');
+const visibleLegacyChildren = await page.locator('#addView.studio-add-modern').evaluate(node => [...node.children].filter(child => !child.matches('[data-studio-intro], #importWorkbenchHost') && getComputedStyle(child).display !== 'none').length);
+if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
 await page.screenshot({ path: 'manual-phone-gate.png', fullPage: true });
 if (gateErrors.length) throw new Error(gateErrors.join(' | '));
 await gateContext.close();
@@ -78,9 +80,9 @@ await touch(onboarding, onboarding.getByRole('button', { name: 'SAVE AND CHOOSE 
 await onboarding.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await onboarding.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await onboarding.getByText('PUT IN A REAL EXPORT.', { exact: true }).count()) throw new Error('old developer copy still visible');
-if ((await onboarding.locator('.source-card').count()) < 8) throw new Error('platform chooser did not render all source cards');
-for (const source of ['Reddit', 'Instagram', 'TikTok', 'YouTube', 'Spotify', 'X / Twitter', 'Bookmarks', 'Anything else']) {
-  await onboarding.getByRole('heading', { name: source, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+if ((await onboarding.locator('.source-card').count()) !== 8) throw new Error('platform chooser did not render exactly eight source cards');
+for (const id of ['reddit', 'instagram', 'tiktok', 'youtube', 'spotify', 'x', 'browser', 'anything']) {
+  if ((await onboarding.locator(`.source-card[data-platform="${id}"]`).count()) !== 1) throw new Error(`missing platform card: ${id}`);
 }
 
 const redditPicker = onboarding.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'I HAVE THE FILES' });
@@ -92,7 +94,7 @@ await chooser.setFiles({
   mimeType: 'text/csv',
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"hello from reddit",sideways,/r/sideways/comments/1,1700000000,kai,abc123\n')
 });
-await onboarding.getByText('1 FILE READY', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+await onboarding.locator('#addView:not([hidden]) #importWorkbenchHost .import-queue-title').filter({ hasText: '1 FILE READY' }).waitFor({ state: 'visible', timeout: 10000 });
 const completion = onboarding.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true });
 await touch(onboarding, onboarding.getByRole('button', { name: 'ADD TO MY FEED', exact: true }));
 await completion.waitFor({ state: 'visible', timeout: 15000 });
@@ -109,8 +111,9 @@ console.log(JSON.stringify({
   count,
   gate,
   state: state.split('\n').find(line => line.startsWith('state=')),
-  iphonePicker: 'FILES +',
+  compatibilityPicker: 'FILES + remains underneath',
   importerPicker: 'PICK MORE FILES',
+  visibleLegacyAddSurface: false,
   onboarding: 'profile → Reddit file → import complete',
   automaticReloads: unexpectedLoads,
   screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png']
