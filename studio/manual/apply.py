@@ -11,6 +11,7 @@ IMPORT_INSTALLER = Path(__file__).resolve().parent / "imports" / "apply.py"
 
 STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
+RESET_STYLE_MARKER = '<link rel="stylesheet" href="./studio-reset.css" data-studio-reset>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 
 
@@ -26,13 +27,14 @@ def main() -> None:
     if not MANUAL.exists():
         raise SystemExit("manual-app is missing; assemble the canonical overlays first")
 
-    for name in ("studio.css", "studio-components.css", "studio.js", "copy.js"):
+    for name in ("studio.css", "studio-components.css", "studio-reset.css", "studio.js", "copy.js"):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
     index = MANUAL / "index.html"
     text = index.read_text(encoding="utf-8")
     text = inject_once(text, STYLE_MARKER, "</head>")
     text = inject_once(text, COMPONENT_STYLE_MARKER, "</head>")
+    text = inject_once(text, RESET_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
