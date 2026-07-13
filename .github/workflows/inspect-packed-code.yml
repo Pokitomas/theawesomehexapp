@@ -1,0 +1,63 @@
+name: Inspect packed product code
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/inspect-packed-code.yml'
+      - '.github/workflows/pages.yml'
+      - 'source.xz.part.*'
+      - 'general-overlay.part.*'
+      - 'profile-overlay.part.*'
+      - 'manual-overlay.b64.part.*'
+      - 'verify-manual-edition.py'
+      - 'manual-kernel/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack every product layer
+        run: |
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
+          cat manual-overlay.b64.part.* | base64 -d > manual-overlay.tar.xz
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
+
+      - name: Package inspectable source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import tarfile
+
+          skip = {'.git', 'node_modules', 'corpus', 'data', 'media', '.cache'}
+          suffixes = {'.js', '.mjs', '.py', '.html', '.css', '.json', '.md', '.yml', '.yaml'}
+          with tarfile.open('packed-code.tar.gz', 'w:gz') as archive:
+              for path in Path('.').rglob('*'):
+                  if not path.is_file() or path.suffix.lower() not in suffixes:
+                      continue
+                  if any(part in skip for part in path.parts):
+                      continue
+                  if path.stat().st_size > 2_000_000:
+                      continue
+                  archive.add(path, arcname=path.as_posix())
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packed-code
+          path: packed-code.tar.gz
+          if-no-files-found: error
+          retention-days: 3
