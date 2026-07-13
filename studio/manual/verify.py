@@ -11,6 +11,7 @@ TEXT_FILES = [
     HERE / "product" / "copy.js",
     HERE / "product" / "studio.js",
     HERE / "product" / "studio.css",
+    HERE / "product" / "studio-components.css",
     HERE / "apply.py",
 ]
 
@@ -35,7 +36,10 @@ def main() -> None:
         assert_clean_text(path)
 
     node_check(HERE / "product" / "copy.js")
+    studio_source = assert_clean_text(HERE / "product" / "studio.js")
     node_check(HERE / "product" / "studio.js")
+    if "requestAnimationFrame" not in studio_source or "setText" not in studio_source:
+        raise AssertionError("studio enhancer must remain scheduled and idempotent")
 
     if not MANUAL.exists():
         print("manual-app not assembled; source layer itself is clean")
@@ -50,15 +54,15 @@ def main() -> None:
     for hook in ("corpusStatus", "debugPolicy", "debugState", "debugPanel"):
         if f'id="{hook}"' not in index:
             raise AssertionError(f"stable DOM hook missing: {hook}")
+    corpus = index + (MANUAL / "app.js").read_text(encoding="utf-8")
     for label in ("ADD", "KEEP", "READ", "SEND", "FILES +"):
-        corpus = index + (MANUAL / "app.js").read_text(encoding="utf-8")
         if label not in corpus:
             raise AssertionError(f"stable phone-test label missing: {label}")
-    for asset in ("studio.css", "studio.js", "copy.js"):
+    for asset in ("studio.css", "studio-components.css", "studio.js", "copy.js"):
         if not (MANUAL / asset).is_file():
             raise AssertionError(f"product asset not applied: {asset}")
-    if "data-studio-product" not in index:
-        raise AssertionError("product layer was not injected into index.html")
+    if index.count("data-studio-product") != 3:
+        raise AssertionError("product layer must inject exactly two styles and one script")
 
     print("manual studio product layer verified")
 
