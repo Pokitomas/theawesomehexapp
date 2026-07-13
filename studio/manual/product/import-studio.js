@@ -148,6 +148,7 @@ function capacityCopy() {
 function platformCard(platform) {
   const card = el('article', `source-card source-${platform.tone}${state.platform === platform.id ? ' is-selected' : ''}`);
   card.dataset.platform = platform.id;
+  card.dataset.sourceOption = platform.id;
   const head = el('div', 'source-card-head');
   head.append(el('span', 'source-mark', platform.mark), el('h3', '', platform.name));
   const copy = el('p', '', platform.description);
@@ -166,6 +167,7 @@ function platformCard(platform) {
 
 function sourceChooser() {
   const section = el('section', 'source-chooser');
+  section.dataset.onboardingSource = 'true';
   const intro = el('div', 'source-chooser-copy');
   intro.append(
     el('span', 'import-workbench-kicker', 'START WITH ONE'),
@@ -188,11 +190,13 @@ function advancedFiles() {
     filesInput.accept = '';
     filesInput.click();
   });
+  fileButton.dataset.importTerminal = 'files';
   fileButton.append(el('strong', '', 'PICK FILES'), el('span', '', 'One or many files.'));
   const folderButton = button('', 'import-terminal', () => {
     state.platform = 'anything';
     folderInput.click();
   });
+  folderButton.dataset.importTerminal = 'folder';
   folderButton.append(el('strong', '', 'PICK FOLDER'), el('span', '', 'A full export folder.'));
   actions.append(fileButton, folderButton);
   section.append(copy, actions);
@@ -248,7 +252,10 @@ function queuePanel() {
   status.id = 'importLiveStatus';
   const actions = el('div', 'import-actions');
   const clear = button('CHOOSE DIFFERENT FILES', 'import-secondary', () => setFiles([]));
-  const run = button(COPY.importRun, 'import-primary', () => startImport(status, clear, run));
+  const run = button(COPY.importRun, 'import-primary', () => {
+    if (state.busy) runtime.stop();
+    else void startImport(status, clear, run);
+  });
   actions.append(clear, run);
   panel.append(status, actions);
   return panel;
@@ -259,8 +266,6 @@ async function startImport(status, clear, run) {
   state.busy = true;
   clear.disabled = true;
   run.textContent = 'STOP IMPORT';
-  const stop = () => runtime.stop();
-  run.addEventListener('click', stop, { once: true });
 
   const onFile = event => { status.textContent = `READING ${event.detail.file.name}`; };
   const onProgress = event => { status.textContent = `${event.detail.added} ADDED · ${event.detail.skipped} DUPLICATES · ${event.detail.failed} FAILED`; };
@@ -284,7 +289,6 @@ async function startImport(status, clear, run) {
       status.textContent = error.message || 'IMPORT FAILED';
       toast(error.message || 'IMPORT FAILED', 'error');
     }
-    state.busy = false;
     renderPanel();
   } finally {
     state.busy = false;
@@ -298,6 +302,7 @@ function renderPanel() {
   const host = document.getElementById('importWorkbenchHost');
   if (!host) return;
   host.replaceChildren(importCard(), queuePanel());
+  window.dispatchEvent(new CustomEvent('sideways:importworkbench'));
 }
 
 function mount() {
@@ -308,24 +313,31 @@ function mount() {
     host = el('div', 'import-workbench');
     host.id = 'importWorkbenchHost';
     addView.append(host);
+    renderPanel();
   }
-  renderPanel();
   return true;
 }
 
 let scheduled = false;
+let retryTimers = [];
+
+function clearRetryTimers() {
+  for (const timer of retryTimers) clearTimeout(timer);
+  retryTimers = [];
+}
+
 function schedule() {
   if (scheduled) return;
   scheduled = true;
   requestAnimationFrame(() => {
     scheduled = false;
-    mount();
+    if (mount()) clearRetryTimers();
   });
 }
 
 function bootMount() {
   schedule();
-  for (const delay of [80, 280, 900, 1800]) setTimeout(schedule, delay);
+  retryTimers = [80, 280, 900, 1800].map(delay => setTimeout(schedule, delay));
 }
 
 for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:feedrender']) {
