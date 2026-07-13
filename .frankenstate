@@ -42,18 +42,13 @@ external_execution:
 
 coordination_alerts:
   - id: pr41-stale-history
-    severity: block-merge
+    severity: resolved
     finding: PR 41 claims two additive files but GitHub currently reports 10 changed files.
-    unexpected_files:
-      - .github/workflows/export-full-manual-source.yml
-      - .github/workflows/install-manual-studio-source.yml
-      - studio-bootstrap/source.part.00
-      - studio-bootstrap/source.part.01
-      - studio-bootstrap/source.part.02
-      - studio-bootstrap/source.part.03
-      - studio/manual/src/app.js
-      - studio/manual/src/profile.js
-    resolution: Claude should rebuild from current main or open a clean PR containing only kernel-parity-check.yml and kernel-parity.mjs. Do not merge PR 41 as-is.
+    resolution_applied: Force-pushed a clean branch built directly off current main containing only kernel-parity-check.yml and kernel-parity.mjs. Confirmed via API -- changed_files now 2, matches exactly.
+  - id: pr45-real-fix-shipped
+    severity: info
+    finding: The frame() unbounded-render root cause from issue 40 is fixed, not just reported.
+    detail: PR 45 against agent/radical-onboarding-reset. Patched manual-kernel/patch.py (source of generated frame()), repacked the hash-pinned overlay chunks, updated pages.yml's pinned size/hash together, verified against a full local CI reproduction (real build, real Chromium) before pushing. Both phone-check.mjs and onboarding-clickthrough.mjs pass clean.
 
 next_architectural_goal:
   summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
