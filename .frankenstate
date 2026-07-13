@@ -1,12 +1,12 @@
-version: 16
-updated_at: 2026-07-13T08:49:00-07:00
+version: 17
+updated_at: 2026-07-13T09:18:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/fun-posting-system
 active_pr: 48
 beacon_issue: none
 
 owner: GPT-5.6 Thinking
-mode: solo-integration
+mode: release-candidate
 
 file_locks:
   - studio/manual/product/copy.js
@@ -20,31 +20,37 @@ file_locks:
   - studio/manual/apply.py
   - studio/manual/verify.py
   - studio/manual/README.md
+  - manual-phone-check.mjs
+  - studio/manual/tests/onboarding-clickthrough.mjs
   - studio/manual/tests/social-clickthrough.mjs
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Drive PR 48 through generated-app verification and repair every integration failure.
-  implemented:
-    - editorial copy removed
-    - formal action contract for navigation, import, profile, composer, and post controls
-    - picker-style persistent profiles
-    - text and photo posts
-    - reactions, remixing, saves, sharing, and deletion
-    - action-result learning that reorders moods, styles, avatars, colors, and reactions
-    - generated asset installer and build verification
-    - full 390x844 social persistence journey
-  validation_limit:
-    - local container cannot resolve github.com, so GitHub Actions is the executable build environment
-  done_when: PR 48 phone workflow proves profile -> photo post -> react -> save -> remix -> reload, all checks pass, screenshots are visually correct, and the app deploys from main.
+  summary: Run the final unified release candidate after all real interaction paths passed and the action audit was narrowed to visible product controls.
+  verified_in_browser:
+    - exact root kernel: 20 THINGS, saturation, moved gate
+    - visible ADD compatibility and hidden legacy surface
+    - POST or IMPORT launchpad
+    - one-tap Reddit import and in-place feed refresh
+    - zero automatic page reloads
+    - zero late observer callbacks
+    - picker-style profile creation and persistence
+    - text and photo posting
+    - reaction, save, remix, and reload persistence
+    - action result learning for mood and style
+  final_audit:
+    - every visible custom product control must have data-action-id
+    - hidden core compatibility controls are preserved but excluded by visibility and closed-dialog state
+  done_when: all four PR checks pass, the social phone screenshot is visually correct, PR 48 merges, and the Pages deployment is verified live.
 
 next_architectural_goal:
   summary: Treat interaction results as the app-generation input.
   sequence:
-    - fix generated build and social phone failures on PR 48
-    - inspect the rendered profile, composer, and post screenshot
-    - merge PR 48
-    - verify bounded Pages deployment and live social persistence
+    - confirm final four green checks
+    - inspect manual-social-phone.png
+    - merge PR 48 to main
+    - verify bounded production Pages deployment
+    - verify the live app serves actions.js, social.js, social.css, and the POST/ME controls
     - release locks and mark this ledger complete
 
 invariants:
@@ -53,7 +59,9 @@ invariants:
   - Preserve the exact root ranking kernel and stable debug hooks.
   - Do not reintroduce whole-document MutationObservers, automatic reloads, or click hijacking.
   - No visible manifesto copy such as your stuff your way, bring your internet, or recomposed.
-  - Buttons must come from the action contract unless they are native core compatibility controls.
+  - Every visible custom product control must come from the action contract.
+  - Native core compatibility controls may remain hidden underneath the shell.
+  - Social writes must resolve only after IndexedDB transaction completion.
   - Never use or persist credentials pasted into chat.
 
 collaborator:
