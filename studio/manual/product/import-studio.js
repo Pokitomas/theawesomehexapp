@@ -114,6 +114,7 @@ async function setFiles(files) {
   state.result = null;
   state.inspection = state.files.length ? await runtime.inspect(state.files) : null;
   routeTo('#/add');
+  renderPanel();
   schedule();
 }
 
