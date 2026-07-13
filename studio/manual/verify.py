@@ -100,10 +100,13 @@ def main() -> None:
             '"workspace-records.js"',
             '"universal-media.js"',
             '"media-modes.js"',
-            'shared_target',
+            "shared_target",
             '"corpus-db.js"',
             '"workspace-sync.js"',
             "path.unlink()",
+            "release_core_schema_ownership",
+            "CORE_DB_OPEN_CURRENT",
+            "db.onversionchange=()=>db.close()",
         ),
         "workspace installer",
     )
@@ -186,6 +189,8 @@ def main() -> None:
     app_text = read_clean(MANUAL / "app.js")
     if app_text.count("'sideways:corpusrefresh'") != 1 or "await rebuildState()" not in app_text:
         raise AssertionError("generated core refresh bridge is invalid")
+    require(app_text, ("indexedDB.open(DB_NAME)", "db.onversionchange=()=>db.close()"), "generated core database client")
+    forbid(app_text, ("const DB_VERSION=", "indexedDB.open(DB_NAME,DB_VERSION)"), "duplicate core schema ownership")
 
     index = read_clean(MANUAL / "index.html")
     for hook in ("corpusStatus", "debugPolicy", "debugState", "debugPanel"):
@@ -195,7 +200,7 @@ def main() -> None:
         raise AssertionError("generated runtime layers are duplicated or missing")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
-    print("local-first runtime, atomic ledger, and viewport media contracts verified")
+    print("local-first runtime, one-owner schema, atomic ledger, and viewport media contracts verified")
 
 
 if __name__ == "__main__":
