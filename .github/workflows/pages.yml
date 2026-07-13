@@ -55,10 +55,10 @@ jobs:
       - name: Reuse the exact root saturation kernel
         run: |
           cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
-          test "$(wc -c < manual-kernel-overlay.b64)" = "13240"
-          echo "dbefdc6431dd6359070b43e095e7f5a71f1cd687087cfbd1106fb6faaed7be80  manual-kernel-overlay.b64" | sha256sum -c -
+          test "$(wc -c < manual-kernel-overlay.b64)" = "13264"
+          echo "f5e47fe3724e2193cdab1199e811250af99d2a552294afbc96367566bc8a60a9  manual-kernel-overlay.b64" | sha256sum -c -
           base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
-          echo "6222882773e966ad457a2b6f7dd6ca7b4babe8dc2b67f812a84871fe2f19f3fd  manual-kernel-overlay.tar.xz" | sha256sum -c -
+          echo "26d1602bc9a1f9bb381c8b819d923fb14bc692588715623ef9214ba8c134ef2c  manual-kernel-overlay.tar.xz" | sha256sum -c -
           tar -xJf manual-kernel-overlay.tar.xz
           python manual-kernel/patch.py
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
