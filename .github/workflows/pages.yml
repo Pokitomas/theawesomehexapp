@@ -125,6 +125,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Apply editable manual studio layer
+        run: |
+          python studio/manual/apply.py
+          python studio/manual/verify.py
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -201,14 +206,22 @@ jobs:
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
-      - name: Verify exact manual saturation kernel
+      - name: Verify exact manual saturation kernel and studio shell
         run: |
           node --check manual-app/app.js
           node --check manual-app/kernel.js
+          node --check manual-app/studio.js
+          node --check manual-app/copy.js
+          python studio/manual/verify.py
           node manual-kernel/verify-kernel.mjs
           grep -q 'FORMULAS ARE THE ROOT FEED FORMULAS' manual-app/kernel.js
           grep -q 'id="debugPanel"' dist/manual/index.html
+          grep -q 'data-studio-product' dist/manual/index.html
           test -f dist/manual/kernel.js
+          test -f dist/manual/studio.css
+          test -f dist/manual/studio-components.css
+          test -f dist/manual/studio.js
+          test -f dist/manual/copy.js
 
       - name: Check manual gate on a phone viewport
         run: |
@@ -267,6 +280,7 @@ jobs:
                 'ROOT_PRODUCT=unchanged',
                 'MANUAL_CORPUS=empty until user PUTS IN records',
                 'MANUAL_KERNEL=root-exact extracted from src/app.js',
+                'MANUAL_STUDIO=editable product layer applied and verified',
                 'MANUAL_DEBUG=?debug=1 same axes gate and ranking pane',
                 'PHONE_GATE_TEST=20 records and visible gate movement',
                 'IPHONE_FOLDER_FALLBACK=FILES + multi-file picker',
