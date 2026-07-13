@@ -1,5 +1,5 @@
-version: 13
-updated_at: 2026-07-13T07:30:00-07:00
+version: 14
+updated_at: 2026-07-13T07:45:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -27,38 +27,36 @@ file_locks:
   - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Finish the rendered consumer hierarchy after the full one-tap import pipeline passed.
+  summary: Make the release pipeline deterministic after the completed app passed all product and phone checks.
   verified:
-    - exact kernel gate: 20 THINGS, gate 0.843, saturation
-    - empty launch: app cards immediately visible
-    - one-tap Reddit import: native picker, automatic import, live in-place core refresh
-    - OPEN MY FEED: 1 THING visible with zero page reloads
-    - quiescence: zero late observer callbacks
-  screenshot_findings:
-    - duplicate introductory cards say the same thing twice before the app cards
-    - completion appears below the full app grid instead of replacing it
+    - one app chooser only; no duplicate intro
+    - completion replaces the chooser and is immediately visible
+    - exact kernel gate: 20 THINGS, gate 0.879, saturation
+    - Reddit one-tap import refreshes the live feed to 1 THING
+    - zero page reloads and zero late observer callbacks
+    - overlay integrity and kernel parity green
+  release_risk:
+    - the PR Pages job is stalled in an external forum fetch unrelated to the manual app
+    - the same unbounded third-party fetch would threaten the main deployment
   fix:
-    - remove the separate studio intro from ADD; the app chooser is the first content
-    - render chooser only while idle; progress, error, and completion replace the chooser
-    - update reset and verification contracts atomically
-  done_when: Initial phone screenshot begins directly with one app chooser, and completion is immediately visible without scrolling past app cards.
+    - PR Pages checks assemble and verify the manual product without rebuilding the public root corpus
+    - main pushes still build the full root corpus
+    - public forum, social, and media retrieval on main get explicit time bounds and valid fallbacks
+    - production artifact verification and phone smoke tests remain blocking
+  done_when: PR 43 has four green checks quickly, and the main release cannot be held indefinitely by external content APIs.
 
 external_execution:
   github_actions:
-    status: latest proven phone head 4dc8ba5 is green; visual hierarchy fix will create the final release-candidate head
-    coordination: No duplicate workflow branches or auxiliary product PRs remain.
+    status: current Pages PR run is stalled in Retrieve forum source records; changing pages.yml will cancel and replace it
+    coordination: Phone, parity, and overlay checks are already green on the rendered release candidate.
   collaborator:
     status: implementation integrated; no file locks
 
 coordination_alerts:
-  - id: duplicate-first-screen
+  - id: external-content-release-hostage
     severity: active
-    finding: Separate studio intro duplicates the chooser headline.
-    resolution: Remove the intro from the ADD route.
-  - id: buried-completion
-    severity: active
-    finding: Completion is appended under eight app cards.
-    resolution: Status states replace the chooser until user returns or opens the feed.
+    finding: Unbounded forum retrieval can stall the entire Pages release.
+    resolution: Separate PR product verification from push content generation and add bounded push fallbacks.
   - id: exposed-user-token
     severity: security
     finding: A GitHub personal access token was pasted into chat.
@@ -67,9 +65,9 @@ coordination_alerts:
 next_architectural_goal:
   summary: Ship the completed consumer-facing Sideways app from main.
   sequence:
-    - prove the corrected visual hierarchy on phone screenshots
+    - prove deterministic PR release checks
     - merge PR 43 to main
-    - verify Pages deployment and live phone URLs
+    - verify bounded full Pages deployment and live phone URLs
     - release all file locks and mark this ledger complete
 
 collaborator_lane:
@@ -91,7 +89,7 @@ invariants:
 collaborator:
   owner: Claude
   mode: integrated
-  updated_at: 2026-07-13T14:30:00Z
+  updated_at: 2026-07-13T14:45:00Z
   file_locks: []
   current_subtask:
     summary: No active implementation lane. All accepted work is consolidated into PR 43.
