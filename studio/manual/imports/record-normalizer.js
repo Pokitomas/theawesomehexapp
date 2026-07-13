@@ -34,6 +34,12 @@ export function normalizeRecord(input, file, digest) {
   const text = clean(input.text || '');
   const title = clean(input.title || input.name || text.split('\n')[0] || file.name || 'UNTITLED').slice(0, 240) || 'UNTITLED';
   const source = clean(input.source || file.name || 'MY IMPORT').slice(0, 120) || 'MY IMPORT';
+  const mime = clean(input.mime || file.type || 'application/octet-stream').slice(0, 120);
+  const compatibility = input.compatibility && typeof input.compatibility === 'object'
+    ? structuredClone(input.compatibility)
+    : {};
+  compatibility.sourceMime ||= clean(file.type || '');
+  compatibility.canonicalMime ||= mime;
   return {
     type: ['article', 'forum', 'social'].includes(input.type) ? input.type : 'social',
     title,
@@ -53,7 +59,7 @@ export function normalizeRecord(input, file, digest) {
     addedAt: now,
     updatedAt: now,
     originalName: clean(input.originalName || file.webkitRelativePath || file.name || title).slice(0, 260),
-    mime: clean(input.mime || file.type || 'application/octet-stream').slice(0, 120),
+    mime,
     size: Number(input.size) || file.size || new Blob([text]).size,
     hash: input.hash || `${digest}:${input.nativeId || title}`,
     assetKey: clean(input.assetKey || ''),
@@ -66,6 +72,6 @@ export function normalizeRecord(input, file, digest) {
     links: Array.isArray(input.links) ? input.links.map(item => ({ label: clean(item.label || item.url || 'LINK').slice(0, 120), url: safeURL(item.url) })).filter(item => item.url).slice(0, 100) : [],
     tags: Array.isArray(input.tags) ? input.tags.map(clean).filter(Boolean).slice(0, 30) : [],
     rank: input.rank && typeof input.rank === 'object' ? structuredClone(input.rank) : {},
-    compatibility: input.compatibility && typeof input.compatibility === 'object' ? structuredClone(input.compatibility) : {}
+    compatibility
   };
 }
