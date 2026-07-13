@@ -1,57 +1,83 @@
-version: 19
-updated_at: 2026-07-13T09:44:00-07:00
+version: 20
+updated_at: 2026-07-13T12:41:00-07:00
 repository: Pokitomas/theawesomehexapp
-branch: main
-active_pr: 48 merged
-beacon_issue: none
+branch: agent/lived-workspace-system
+active_pr: 56
+beacon_issue: 55
 
 owner: GPT-5.6 Thinking
-mode: complete
+mode: co-engineering
 
-file_locks: []
+file_locks:
+  - studio/manual/product/actions.js
+  - studio/manual/product/copy.js
+  - studio/manual/product/studio.js
+  - studio/manual/product/studio.css
+  - studio/manual/product/studio-components.css
+  - studio/manual/product/studio-reset.css
+  - studio/manual/product/workspace-db.js
+  - studio/manual/product/workspace-profile.js
+  - studio/manual/product/workspace-records.js
+  - studio/manual/product/workspace-sync.js
+  - studio/manual/product/workspace-migration.js
+  - studio/manual/product/workspace.js
+  - studio/manual/product/workspace-ui.js
+  - studio/manual/product/core-actions.js
+  - studio/manual/product/workspace.css
+  - studio/manual/product/system-icons.svg
+  - studio/manual/product/import-studio.css
+  - studio/manual/apply.py
+  - studio/manual/verify.py
+  - studio/manual/README.md
+  - studio/manual/tests/workspace-clickthrough.mjs
+  - manual-phone-check.mjs
+  - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Completed and deployed the fun profile/posting system.
-  merge_commit: 4cd8a828f99d6150b061b95103edae56fc3fd1a7
-  deployment_receipt: 49
-  production_url: https://pokitomas.github.io/theawesomehexapp/manual/
-  completed:
-    - removed manifesto/editorial product copy
-    - made ME a first-class phone profile picker
-    - added persistent name handle face and color profiles
-    - added text and photo posting
-    - added mood and visual style choices
-    - added reactions remix save send and delete
-    - added one-tap imports and in-place feed refresh
-    - formalized every visible product action with ID label surface intent and payload contract
-    - persisted action lifecycle events and local result aggregates
-    - used action results to reorder mood style avatar color and reaction choices
-    - preserved exact root kernel and stable ADD KEEP READ SEND FILES+ contracts
-  verification:
-    - all four PR checks green on exact final head d3d79ea033cf973c3aa79c0b5f7a2bf66719792e
-    - real 390x844 ME -> profile -> photo post -> react -> save -> remix -> reload journey green
-    - profile and two posts survive reload
-    - zero automatic reloads and zero visible uncontracted custom controls
-    - production Pages deployed merge commit 4cd8a828f99d6150b061b95103edae56fc3fd1a7
-    - production root one-million-candidate feed verified
-  done_when: complete
+  summary: Replace the acid-paper toy social layer with a lived OS-like workspace and one canonical content model.
+  architecture:
+    - authored posts write directly to sideways-manual-corpus-v1
+    - drafts places events and migration receipts use sideways-workspace-v1
+    - legacy sideways-social-v1 posts migrate once into the canonical corpus
+    - user places may carry explicitly requested coordinates
+    - an optional event outbox can synchronize through a configured endpoint
+    - Feed Places Library You are the primary surfaces; New is an action rather than a tab
+  deleting:
+    - social.js and social.css
+    - separate social post storage
+    - emoji avatars
+    - mood and visual-style selectors
+    - reactions and remixing
+    - Saved as a top-level tab
+  visual_rule:
+    - operating-system hierarchy and physics without retro prose or costume
+    - quiet chrome one-pixel structure soft depth restrained accent
+    - same system across phone sheets and desktop windows
+  done_when:
+    - canonical profile place photo post edit and reload journey passes at 390x844
+    - import and exact kernel phone proofs remain green
+    - retired social assets are absent from the generated product
+    - co-engineer review remains attached through merge
 
 next_architectural_goal:
-  summary: Use the stable sideways:action contract and outcome aggregates as inputs for future interface generation and optional server synchronization.
-  immediate_work: none
+  summary: Let the same action and record contracts support a real account/sync service without changing local-first behavior.
+  immediate_work: co-review product seams backend contracts accessibility and phone behavior while implementation evolves
 
 invariants:
   - Read this file at the start of every coding turn.
-  - Update it before changing sub-task, lock set, branch, PR, or architectural goal.
   - Preserve the exact root ranking kernel and stable debug hooks.
-  - Do not reintroduce whole-document MutationObservers, automatic reloads, or click hijacking.
-  - No visible manifesto copy such as your stuff your way, bring your internet, or recomposed.
+  - Do not reintroduce whole-document MutationObservers automatic reloads or click hijacking.
   - Every visible custom product control must come from the action contract.
-  - Native core compatibility controls may remain hidden underneath the shell.
-  - Social writes must resolve only after IndexedDB transaction completion.
+  - Social and workspace writes resolve only after IndexedDB transaction completion.
   - Never use or persist credentials pasted into chat.
+  - Do not close the collaborator loop before merge and production verification.
 
 collaborator:
-  owner: none
-  mode: closed
+  owner: claude
+  mode: continuous-review-requested
+  responsibilities:
+    - challenge product cuts and additions as implementation changes
+    - review canonical-record and migration correctness
+    - inspect locations privacy accessibility and mobile interaction
+    - stay attached through CI merge and deployment proof
   file_locks: []

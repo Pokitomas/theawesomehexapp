@@ -4,23 +4,32 @@ import { actionButton, bindAction } from './actions.js';
 const STABLE_LABELS = Object.freeze(['ADD', 'KEEP', 'READ', 'SEND', 'FILES +']);
 const STABLE_IDS = Object.freeze(['corpusStatus', 'debugPolicy', 'debugState', 'debugPanel']);
 const PRODUCT_TITLE = 'Sideways';
-const PRODUCT_THEME = '#ff5a36';
-let scheduled = false;
+const PRODUCT_THEME = '#ececf0';
 let appReady = Boolean(window.SidewaysCore?.state?.manifest);
+let scheduled = false;
 
-function element(tag, className = '', text) {
+function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
   if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
+  if (text !== '') node.textContent = text;
   return node;
 }
 
-function setText(node, value) {
-  if (node && node.textContent !== value) node.textContent = value;
+function icon(name, className = 'workspace-icon') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', className);
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `./system-icons.svg#${name}`);
+  svg.append(use);
+  return svg;
 }
 
-function setAttribute(node, name, value) {
-  if (node && node.getAttribute(name) !== value) node.setAttribute(name, value);
+function actionWithIcon(actionId, iconName, handler, options = {}) {
+  const button = actionButton(actionId, handler, options);
+  const label = options.label || window.SidewaysActions.action(actionId).label;
+  button.replaceChildren(icon(iconName), el('span', 'workspace-button-label', label));
+  return button;
 }
 
 function routeTo(hash) {
@@ -28,114 +37,176 @@ function routeTo(hash) {
     window.addEventListener('sideways:ready', () => routeTo(hash), { once: true });
     return;
   }
+  if (hash === '#/places') {
+    location.hash = hash;
+    window.SidewaysWorkspaceUI?.openPlaces?.();
+    return;
+  }
   if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo(hash);
   else location.hash = hash;
 }
 
-function openPost() {
-  window.SidewaysSocial?.openComposer?.();
+function cloneNav(node, actionId, iconName, label, route, ariaLabel = label) {
+  if (!node) return null;
+  if (node.dataset.workspaceNav === actionId) return node;
+  const replacement = node.cloneNode(false);
+  replacement.id = node.id;
+  replacement.className = `${node.className || ''} workspace-nav-button`.trim();
+  replacement.dataset.workspaceNav = actionId;
+  replacement.dataset.route = route;
+  replacement.removeAttribute('href');
+  replacement.replaceChildren(icon(iconName), el('span', 'workspace-button-label', label));
+  bindAction(replacement, actionId, event => {
+    event.preventDefault();
+    routeTo(route);
+  }, { ariaLabel, payload: { route } });
+  node.replaceWith(replacement);
+  return replacement;
 }
 
-function openProfile() {
-  window.SidewaysSocial?.openProfile?.();
+function installNavigation() {
+  const top = document.querySelector('.topline');
+  if (!top) return;
+  let nav = top.querySelector('[data-workspace-nav]');
+  if (!nav) {
+    nav = el('nav', 'workspace-nav');
+    nav.dataset.workspaceNav = 'true';
+    nav.setAttribute('aria-label', 'Main navigation');
+    top.append(nav);
+  }
+
+  const navFeed = cloneNav(document.getElementById('navFeed'), 'nav.feed', 'feed', COPY.feed, '#/feed');
+  const navAdd = cloneNav(document.getElementById('navAdd'), 'nav.import', 'library', COPY.library, '#/add', 'ADD');
+  let navPlaces = document.getElementById('navPlaces');
+  if (!navPlaces) {
+    navPlaces = actionWithIcon('nav.places', 'pin', () => routeTo('#/places'), { className: 'workspace-nav-button', label: COPY.places, payload: { route: '#/places' } });
+    navPlaces.id = 'navPlaces';
+  }
+
+  const navSaved = document.getElementById('navSaved');
+  if (navSaved) {
+    navSaved.hidden = true;
+    navSaved.setAttribute('aria-hidden', 'true');
+    navSaved.tabIndex = -1;
+  }
+
+  let newButton = top.querySelector('[data-workspace-new]');
+  if (!newButton) {
+    newButton = actionWithIcon('feed.post', 'compose', () => window.SidewaysWorkspaceUI?.openComposer?.(), { className: 'workspace-new-button', label: 'New' });
+    newButton.dataset.workspaceNew = 'true';
+  }
+
+  const navProfile = document.getElementById('navProfile');
+  for (const node of [navFeed, navPlaces, navAdd, navProfile].filter(Boolean)) nav.append(node);
+  if (!newButton.isConnected) top.insertBefore(newButton, nav);
+
+  const active = location.hash || '#/feed';
+  for (const button of nav.querySelectorAll('.workspace-nav-button')) {
+    const route = button.dataset.route || (button.id === 'navPlaces' ? '#/places' : '');
+    button.classList.toggle('is-active', route === active || (active === '' && route === '#/feed'));
+    if (route) button.setAttribute('aria-current', route === active ? 'page' : 'false');
+  }
 }
 
-function emptyCard() {
-  const card = element('section', 'studio-empty-hero');
-  card.dataset.studioEmpty = 'true';
-  const top = element('div', 'studio-empty-copy');
-  const actions = element('div', 'studio-launch-actions');
-  actions.append(
-    actionButton('feed.post', openPost, { className: 'studio-launch-button is-post' }),
-    actionButton('feed.import', () => routeTo('#/add'), { className: 'studio-launch-button is-import' })
-  );
-  top.append(element('span', 'studio-local', COPY.ready), element('h1', '', COPY.emptyTitle), actions);
-  card.append(top);
-  return card;
-}
-
-function progressCard(count) {
-  const card = element('section', 'studio-progress-card is-awake');
-  card.dataset.studioProgress = String(count);
-  const actions = element('div', 'studio-progress-actions');
-  actions.append(
-    actionButton('feed.post', openPost, { className: 'studio-secondary-action' }),
-    actionButton('feed.import', () => routeTo('#/add'), { className: 'studio-secondary-action' })
-  );
-  card.append(
-    element('span', 'studio-progress-count', `${count} ${count === 1 ? 'THING' : 'THINGS'}`),
-    element('h2', '', COPY.feedAwake),
-    actions
-  );
-  return card;
+function enhanceBrand() {
+  const brand = document.querySelector('.brand-lockup span');
+  if (brand && brand.textContent !== COPY.brand) brand.textContent = COPY.brand;
+  const brandLink = document.querySelector('.brand-lockup');
+  if (brandLink) brandLink.setAttribute('aria-label', `${COPY.brand} home`);
+  document.title = PRODUCT_TITLE;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PRODUCT_THEME);
 }
 
 function recordCount() {
   return Number(window.SidewaysCore?.state?.records?.length || document.querySelectorAll('#feed .post').length || 0);
 }
 
-function enhanceBrand() {
-  setText(document.querySelector('.brand-lockup span'), COPY.brand);
-  setAttribute(document.getElementById('navFeed'), 'aria-label', `${COPY.brand}: feed`);
-  if (document.title !== PRODUCT_TITLE) document.title = PRODUCT_TITLE;
-  setAttribute(document.querySelector('meta[name="theme-color"]'), 'content', PRODUCT_THEME);
+function emptyCard() {
+  const card = el('section', 'studio-empty-hero');
+  card.dataset.studioEmpty = 'true';
+  const mark = el('div', 'workspace-empty-mark');
+  mark.append(icon('window', 'workspace-empty-symbol'));
+  const copy = el('div', 'studio-empty-copy');
+  copy.append(el('p', 'workspace-eyebrow', 'Your space'), el('h1', '', COPY.emptyTitle), el('p', '', COPY.emptyBody));
+  const actions = el('div', 'studio-launch-actions');
+  const post = actionWithIcon('feed.post', 'compose', () => window.SidewaysWorkspaceUI?.openComposer?.(), { className: 'studio-launch-button is-post', label: COPY.emptyPost });
+  const imports = actionWithIcon('feed.import', 'import', () => routeTo('#/add'), { className: 'studio-launch-button is-import', label: COPY.emptyImport });
+  actions.append(post, imports);
+  copy.append(actions);
+  card.append(mark, copy);
+  return card;
+}
 
-  const navFeed = document.getElementById('navFeed');
-  const navAdd = document.getElementById('navAdd');
-  const navSaved = document.getElementById('navSaved');
-  if (navFeed) navFeed.textContent = 'FEED';
-  if (navAdd) navAdd.textContent = 'ADD';
-  if (navSaved) navSaved.textContent = 'SAVED';
-
-  for (const [node, id] of [[navFeed, 'nav.feed'], [navAdd, 'nav.import'], [navSaved, 'nav.saved']]) {
-    if (!node || node.dataset.actionBound === 'true') continue;
-    node.dataset.actionBound = 'true';
-    bindAction(node, id, () => undefined, { payload: { route: node.dataset.route || location.hash } });
-  }
+function feedHeader(count) {
+  const header = el('header', 'workspace-feed-header');
+  header.dataset.workspaceFeedHeader = String(count);
+  const copy = el('div');
+  copy.append(el('p', 'workspace-eyebrow', count ? `${count} ${count === 1 ? 'item' : 'items'}` : 'Local feed'), el('h1', '', COPY.feedTitle), el('p', '', COPY.feedSubtitle));
+  const actions = el('div', 'workspace-feed-actions');
+  actions.append(
+    actionWithIcon('feed.post', 'compose', () => window.SidewaysWorkspaceUI?.openComposer?.(), { className: 'workspace-primary', label: 'New post' }),
+    actionWithIcon('feed.import', 'import', () => routeTo('#/add'), { className: 'workspace-secondary', label: 'Import' })
+  );
+  header.append(copy, actions);
+  return header;
 }
 
 function enhanceFeed() {
   const feed = document.getElementById('feed');
   if (!feed) return;
-  const posts = feed.querySelectorAll('.post').length;
-  const socialPosts = feed.querySelectorAll('[data-social-post]').length;
+  const count = recordCount();
   const nativeEmpty = feed.querySelector('.add-empty, .empty');
-  const existingHero = feed.querySelector('[data-studio-empty]');
-  const existingProgress = feed.querySelector('[data-studio-progress]');
-  const coreTotal = recordCount();
-
   if (nativeEmpty) nativeEmpty.classList.add('studio-native-empty');
-
-  if (!posts && !socialPosts && coreTotal === 0 && nativeEmpty) {
-    if (!existingHero) feed.prepend(emptyCard());
-    existingProgress?.remove();
-    return;
-  }
-
-  existingHero?.remove();
-  const total = coreTotal + socialPosts;
-  if (total > 0) {
-    if (!existingProgress || existingProgress.dataset.studioProgress !== String(total)) {
-      existingProgress?.remove();
-      feed.prepend(progressCard(total));
+  const empty = feed.querySelector('[data-studio-empty]');
+  const header = feed.querySelector('[data-workspace-feed-header]');
+  if (!count && !feed.querySelector('.post')) {
+    header?.remove();
+    if (!empty) feed.prepend(emptyCard());
+  } else {
+    empty?.remove();
+    if (!header || header.dataset.workspaceFeedHeader !== String(count)) {
+      header?.remove();
+      feed.prepend(feedHeader(count));
     }
-  } else existingProgress?.remove();
+  }
 }
 
-function enhanceViews() {
-  const profileView = document.getElementById('profileView');
-  if (profileView && !profileView.hidden) setAttribute(profileView, 'aria-label', COPY.profile);
-  const savedView = document.getElementById('savedView');
-  if (savedView && !savedView.hidden) setAttribute(savedView, 'aria-label', COPY.saved);
+function libraryHeader() {
+  const header = el('header', 'workspace-library-header');
+  header.dataset.workspaceLibraryHeader = 'true';
+  const copy = el('div');
+  copy.append(el('p', 'workspace-eyebrow', 'Library'), el('h1', '', COPY.libraryTitle), el('p', '', 'Imports stay on this device and enter the same feed as your posts.'));
+  const saved = actionWithIcon('library.saved', 'bookmark', () => routeTo('#/saved'), { className: 'workspace-secondary', label: 'Open saved' });
+  header.append(copy, saved);
+  return header;
+}
+
+function enhanceLibrary() {
+  const view = document.getElementById('addView');
+  if (!view) return;
+  if (!view.querySelector('[data-workspace-library-header]')) view.prepend(libraryHeader());
+}
+
+function enhanceSaved() {
+  const view = document.getElementById('savedView');
+  if (!view || view.querySelector('[data-workspace-saved-header]')) return;
+  const header = el('header', 'workspace-route-header workspace-saved-header');
+  header.dataset.workspaceSavedHeader = 'true';
+  const copy = el('div');
+  copy.append(el('p', 'workspace-eyebrow', 'Library'), el('h1', '', 'Saved'), el('p', '', 'Things you kept for later.'));
+  header.append(copy);
+  view.prepend(header);
 }
 
 function enhance() {
-  document.documentElement.classList.add('studio-product');
+  document.documentElement.classList.add('studio-product', 'workspace-product');
   document.documentElement.dataset.studioReady = appReady ? 'yes' : 'booting';
   enhanceBrand();
+  installNavigation();
   if (!appReady) return;
   enhanceFeed();
-  enhanceViews();
+  enhanceLibrary();
+  enhanceSaved();
 }
 
 function scheduleEnhance() {
@@ -162,7 +233,7 @@ function assertCompatibility() {
   }
 }
 
-for (const eventName of ['sideways:feedrender', 'sideways:profilechange', 'hashchange', 'popstate']) {
+for (const eventName of ['sideways:feedrender', 'sideways:profilechange', 'sideways:workspacechange', 'sideways:placeschange', 'hashchange', 'popstate']) {
   window.addEventListener(eventName, scheduleEnhance);
 }
 window.addEventListener('sideways:importcomplete', bootEnhancers);
@@ -188,6 +259,6 @@ window.SidewaysStudio = Object.freeze({
   enhance: scheduleEnhance,
   stableLabels: STABLE_LABELS,
   stableIds: STABLE_IDS,
-  openPost,
-  openProfile
+  openPost: () => window.SidewaysWorkspaceUI?.openComposer?.(),
+  openProfile: () => window.SidewaysWorkspaceUI?.openProfile?.()
 });
