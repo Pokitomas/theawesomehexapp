@@ -2,7 +2,7 @@ name: Prove manual gate on phone
 
 on:
   push:
-    branches: [main]
+    branches: [main, agent/fun-posting-system]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   phone:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Build only the manual product
@@ -39,10 +39,10 @@ jobs:
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
           python studio/manual/apply.py
           set +e
-          python studio/manual/verify.py >/tmp/social-verify.log 2>&1
+          python studio/manual/verify.py >/tmp/os-verify.log 2>&1
           verify_status=$?
           set -e
-          cat /tmp/social-verify.log
+          cat /tmp/os-verify.log
           if [ "$verify_status" -ne 0 ]; then exit "$verify_status"; fi
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
@@ -50,29 +50,37 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: social-verify-log
-          path: /tmp/social-verify.log
+          name: os-verify-log
+          path: /tmp/os-verify.log
           if-no-files-found: warn
           retention-days: 3
       - name: Package exact built source for diagnosis
         run: |
-          tar -czf /tmp/manual-kernel-built.tar.gz manual-app manual-kernel studio/manual dist/manual
+          tar -czf /tmp/manual-os-built.tar.gz manual-app manual-kernel studio/manual dist/manual coordination
       - name: Upload exact built source
         uses: actions/upload-artifact@v4
         with:
-          name: manual-kernel-built
-          path: /tmp/manual-kernel-built.tar.gz
-          retention-days: 2
+          name: manual-os-built
+          path: /tmp/manual-os-built.tar.gz
+          retention-days: 3
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Install browser driver
         run: |
           npm install --no-save playwright-core@1.55.0
-          command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
+          echo "CHROME_BIN=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
       - name: Prove exact kernel in twenty records
         run: node manual-kernel/verify-kernel.mjs
-      - name: Prove gate import social posting and persistence at 390 by 844
+      - name: Prove workspace transactions and migration
+        run: |
+          python -m http.server 4174 --directory . >/tmp/workspace-http.log 2>&1 &
+          server=$!
+          trap 'kill $server || true' EXIT
+          sleep 1
+          node studio/manual/tests/workspace-model.mjs >workspace-check.log 2>&1
+          cat workspace-check.log
+      - name: Prove import workspace posting and persistence at 390 by 844
         run: |
           python -m http.server 4173 --directory dist >/tmp/manual-http.log 2>&1 &
           server=$!
@@ -96,15 +104,19 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: manual-phone-gate-fast
+          name: manual-os-proof
           path: |
             manual-phone-gate.png
             manual-onboarding-phone.png
             manual-onboarding-touch.png
-            manual-social-phone.png
+            manual-os-phone.png
+            manual-os-desktop.png
             phone-check.log
             touch-check.log
             social-check.log
+            workspace-check.log
+            /tmp/os-verify.log
             /tmp/manual-http.log
+            /tmp/workspace-http.log
           if-no-files-found: warn
           retention-days: 5
