@@ -1,83 +1,51 @@
-version: 20
-updated_at: 2026-07-13T12:41:00-07:00
+version: 21
+updated_at: 2026-07-13T13:08:00-07:00
 repository: Pokitomas/theawesomehexapp
-branch: agent/lived-workspace-system
-active_pr: 56
-beacon_issue: 55
+branch: main
+active_pr: 56 merged
+beacon_issue: 55 completed
 
 owner: GPT-5.6 Thinking
-mode: co-engineering
+mode: complete
 
-file_locks:
-  - studio/manual/product/actions.js
-  - studio/manual/product/copy.js
-  - studio/manual/product/studio.js
-  - studio/manual/product/studio.css
-  - studio/manual/product/studio-components.css
-  - studio/manual/product/studio-reset.css
-  - studio/manual/product/workspace-db.js
-  - studio/manual/product/workspace-profile.js
-  - studio/manual/product/workspace-records.js
-  - studio/manual/product/workspace-sync.js
-  - studio/manual/product/workspace-migration.js
-  - studio/manual/product/workspace.js
-  - studio/manual/product/workspace-ui.js
-  - studio/manual/product/core-actions.js
-  - studio/manual/product/workspace.css
-  - studio/manual/product/system-icons.svg
-  - studio/manual/product/import-studio.css
-  - studio/manual/apply.py
-  - studio/manual/verify.py
-  - studio/manual/README.md
-  - studio/manual/tests/workspace-clickthrough.mjs
-  - manual-phone-check.mjs
-  - .github/workflows/manual-kernel-phone.yml
+file_locks: []
 
 current_subtask:
-  summary: Replace the acid-paper toy social layer with a lived OS-like workspace and one canonical content model.
-  architecture:
-    - authored posts write directly to sideways-manual-corpus-v1
-    - drafts places events and migration receipts use sideways-workspace-v1
-    - legacy sideways-social-v1 posts migrate once into the canonical corpus
-    - user places may carry explicitly requested coordinates
-    - an optional event outbox can synchronize through a configured endpoint
-    - Feed Places Library You are the primary surfaces; New is an action rather than a tab
-  deleting:
-    - social.js and social.css
-    - separate social post storage
-    - emoji avatars
-    - mood and visual-style selectors
-    - reactions and remixing
-    - Saved as a top-level tab
-  visual_rule:
-    - operating-system hierarchy and physics without retro prose or costume
-    - quiet chrome one-pixel structure soft depth restrained accent
-    - same system across phone sheets and desktop windows
-  done_when:
-    - canonical profile place photo post edit and reload journey passes at 390x844
-    - import and exact kernel phone proofs remain green
-    - retired social assets are absent from the generated product
-    - co-engineer review remains attached through merge
+  summary: Completed and merged the lived workspace rebuild.
+  merge_commit: 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212
+  production_url: https://pokitomas.github.io/theawesomehexapp/manual/
+  completed:
+    - unified authored posts and imports in sideways-manual-corpus-v1
+    - added autosaved drafts places explicit geolocation profile photo posting editing and deletion
+    - added one-time legacy social migration and a sync-ready action outbox
+    - removed the second social post store emoji identity moods styles reactions remixing and acid-paper visuals
+    - shipped Feed Places Library You with New as a global action
+    - contracted every visible feed and workspace control into one action lifecycle
+    - made media cards content-sized and preserved transparent image uploads
+  verification:
+    - all four final pull-request workflows passed on exact head e38a3af5a1789b43055cb48f5397ce02975d9943
+    - real 390x844 profile place geolocation photo post edit and reload journey passed
+    - exact ranking kernel import refresh migration persistence and action outbox passed
+    - zero automatic reloads and zero visible controls outside the action contract
+    - final generated phone artifact was visually reviewed with clean media and copy separation
+    - squash-merged to main as 31283a030c21fc22e5e64c6b0caa6ef5cf0a5212
+    - production target is https://pokitomas.github.io/theawesomehexapp/manual/
+  done_when: complete
 
 next_architectural_goal:
-  summary: Let the same action and record contracts support a real account/sync service without changing local-first behavior.
-  immediate_work: co-review product seams backend contracts accessibility and phone behavior while implementation evolves
+  summary: Use the stable action and record contracts for an optional account and sync service without changing local-first behavior.
+  immediate_work: none
 
 invariants:
   - Read this file at the start of every coding turn.
   - Preserve the exact root ranking kernel and stable debug hooks.
   - Do not reintroduce whole-document MutationObservers automatic reloads or click hijacking.
   - Every visible custom product control must come from the action contract.
-  - Social and workspace writes resolve only after IndexedDB transaction completion.
+  - Workspace writes resolve only after IndexedDB transaction completion.
+  - Geolocation remains explicit and user initiated.
   - Never use or persist credentials pasted into chat.
-  - Do not close the collaborator loop before merge and production verification.
 
 collaborator:
-  owner: claude
-  mode: continuous-review-requested
-  responsibilities:
-    - challenge product cuts and additions as implementation changes
-    - review canonical-record and migration correctness
-    - inspect locations privacy accessibility and mobile interaction
-    - stay attached through CI merge and deployment proof
+  owner: none
+  mode: closed
   file_locks: []
