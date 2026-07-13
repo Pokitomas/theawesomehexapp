@@ -1,0 +1,62 @@
+name: Install plain manual studio source
+
+on:
+  push:
+    branches: [manual-studio-refactor]
+    paths:
+      - 'studio-bootstrap/**'
+      - '.github/workflows/install-manual-studio-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: install-manual-studio-source
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: manual-studio-refactor
+          fetch-depth: 0
+
+      - name: Wait for every archive shard
+        id: shards
+        shell: bash
+        run: |
+          count=$(find studio-bootstrap -maxdepth 1 -type f -name 'source.part.*' 2>/dev/null | wc -l)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" != 8 ]; then
+            echo "Waiting for 8 shards; found $count."
+          fi
+
+      - name: Verify and extract canonical source
+        if: steps.shards.outputs.count == '8'
+        run: |
+          cat studio-bootstrap/source.part.* > /tmp/studio-source.b64
+          test "$(wc -c < /tmp/studio-source.b64)" = "62472"
+          echo "e07c3f677e174813de049480005fabe9b055f9e08ce9efed104f63c6a9104b79  /tmp/studio-source.b64" | sha256sum -c -
+          base64 -d /tmp/studio-source.b64 > /tmp/studio-source.tar.xz
+          echo "335e590fe6ad16be1f131f3b56b0e3512fe0e435e896e3a2b7b364547bdca2ba  /tmp/studio-source.tar.xz" | sha256sum -c -
+          rm -rf studio/manual
+          tar -xJf /tmp/studio-source.tar.xz
+          test -f studio/manual/src/app.js
+          test -f studio/manual/src/copy.js
+          test -f studio/manual/build.mjs
+          node studio/manual/verify.mjs
+
+      - name: Commit the editable source and remove bootstrap files
+        if: steps.shards.outputs.count == '8'
+        run: |
+          rm -rf studio-bootstrap
+          rm -f .github/workflows/install-manual-studio-source.yml
+          rm -f .github/workflows/export-full-manual-source.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Install editable manual studio source"
+          git push origin HEAD:manual-studio-refactor
