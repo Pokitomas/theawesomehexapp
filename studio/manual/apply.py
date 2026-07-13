@@ -21,6 +21,7 @@ CHROME_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome-po
 FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" data-future-media>'
 FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-polish.css" data-future-media-polish>'
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
+FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
@@ -106,6 +107,7 @@ def main() -> None:
         "future-media.css",
         "future-media-polish.css",
         "future-media-final.css",
+        "future-media-mobile.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -146,6 +148,7 @@ def main() -> None:
     text = inject_once(text, FUTURE_MEDIA_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_POLISH_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_FINAL_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_MOBILE_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
@@ -161,7 +164,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, universal media surfaces, and Flow Stage Grid physics")
+    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, and River Focus Field physics")
 
 
 if __name__ == "__main__":
