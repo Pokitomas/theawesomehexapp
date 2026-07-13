@@ -16,26 +16,34 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: agent/fun-posting-system
-      - name: Correct composer place precedence
+      - name: Apply exact source corrections
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('studio/manual/product/social.js')
-          text = path.read_text(encoding='utf-8')
+
+          social = Path('studio/manual/product/social.js')
+          text = social.read_text(encoding='utf-8')
           old = "placeId: existing.placeId || seed.placeId || currentPlaceId === 'archive' ? 'everything' : currentPlaceId,"
           new = "placeId: existing.placeId || seed.placeId || (currentPlaceId === 'archive' ? 'everything' : currentPlaceId),"
-          if old not in text:
-              if new in text:
-                  print('composer place precedence already corrected')
-                  raise SystemExit(0)
+          if old in text:
+              social.write_text(text.replace(old, new, 1), encoding='utf-8')
+          elif new not in text:
               raise SystemExit('expected composer place expression not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          verify = Path('studio/manual/verify.py')
+          text = verify.read_text(encoding='utf-8')
+          old = '"command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "data-action-command", "actionContract"'
+          new = '"command:", "payload:", "result:", "optimistic:", "undoable:", "destructive:", "dataset.actionCommand", "dataset.actionOptimistic", "dataset.actionUndoable", "actionContract"'
+          if old in text:
+              verify.write_text(text.replace(old, new, 1), encoding='utf-8')
+          elif new not in text:
+              raise SystemExit('expected action dataset verifier expression not found')
           PY
-      - name: Push exact patch
+      - name: Push exact patches
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add studio/manual/product/social.js
-          git commit -m "Correct composer place selection precedence"
+          git add studio/manual/product/social.js studio/manual/verify.py
+          git commit -m "Correct OS source and verifier contracts"
           git push origin HEAD:agent/fun-posting-system
