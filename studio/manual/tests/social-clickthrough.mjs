@@ -107,8 +107,10 @@ if (!results['post.style']?.values?.CHAOS) throw new Error('action results did n
 
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.querySelectorAll('[data-social-post]').length === 2, { timeout: 15000 });
-if ((await page.locator('[data-social-post]').filter({ hasText: 'HELLO FROM SIDEWAYS' }).count()) !== 1) throw new Error('first post did not persist');
-if ((await page.locator('[data-social-post]').filter({ hasText: 'SECOND POST' }).count()) !== 1) throw new Error('remix did not persist');
+const storedPosts = await page.evaluate(() => window.SidewaysSocial.posts());
+if (storedPosts.length !== 2) throw new Error(`expected two persisted posts, got ${storedPosts.length}`);
+if ((await page.locator('.social-post-text').filter({ hasText: 'HELLO FROM SIDEWAYS' }).count()) !== 1) throw new Error('first post did not persist');
+if ((await page.locator('.social-post-text').filter({ hasText: 'SECOND POST' }).count()) !== 1) throw new Error('remix did not persist');
 const savedProfile = await page.evaluate(() => window.SidewaysSocial.profile());
 if (savedProfile.name !== 'KAI' || savedProfile.handle !== 'sideways' || savedProfile.avatar !== '🪩') {
   throw new Error(`profile did not persist: ${JSON.stringify(savedProfile)}`);
@@ -123,7 +125,7 @@ if (errors.length) throw new Error(errors.join(' | '));
 await page.screenshot({ path: 'manual-social-phone.png', fullPage: true });
 console.log(JSON.stringify({
   profile: savedProfile,
-  posts: 2,
+  posts: storedPosts.length,
   photo: true,
   reaction: '😂 1',
   remix: true,
