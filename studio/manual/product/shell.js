@@ -9,6 +9,8 @@ let placesView;
 let meView;
 let installed = false;
 let workspaceReady = false;
+let placesRenderToken = 0;
+let meRenderToken = 0;
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -250,12 +252,15 @@ function placeCard(place) {
 
 async function renderPlaces() {
   if (!placesView) return;
+  const token = ++placesRenderToken;
+  const places = await getPlaces();
+  if (token !== placesRenderToken || !placesView) return;
   const content = placesView.querySelector('.os-view-content');
   content.replaceChildren();
   const toolbar = el('div', 'os-view-toolbar');
   toolbar.append(actionButton('place.create', openPlaceCreator, { className: 'ui-button is-primary' }));
   const grid = el('div', 'os-places-grid');
-  for (const place of await getPlaces()) grid.append(placeCard(place));
+  for (const place of places) grid.append(placeCard(place));
   content.append(toolbar, grid);
 }
 
@@ -297,9 +302,18 @@ function openPlaceCreator() {
 
 async function renderMe() {
   if (!meView) return;
+  const token = ++meRenderToken;
+  const profile = window.SidewaysSocial?.profile?.() || { name: 'You', handle: '', avatar: '◉', color: '#9cc7ff' };
+  const posts = window.SidewaysSocial?.posts?.() || [];
+  const [drafts, places, archive] = await Promise.all([
+    window.SidewaysWorkspace?.listDrafts ? window.SidewaysWorkspace.listDrafts() : [],
+    getPlaces(),
+    window.SidewaysWorkspace?.listArchived ? window.SidewaysWorkspace.listArchived() : []
+  ]);
+  if (token !== meRenderToken || !meView) return;
+
   const content = meView.querySelector('.os-view-content');
   content.replaceChildren();
-  const profile = window.SidewaysSocial?.profile?.() || { name: 'You', handle: '', avatar: '◉', color: '#9cc7ff' };
   const hero = el('section', 'os-me-hero');
   const avatar = el('span', 'os-me-avatar', profile.avatar || '◉');
   avatar.style.setProperty('--profile-color', profile.color || '#9cc7ff');
@@ -308,9 +322,7 @@ async function renderMe() {
   hero.append(avatar, copy, actionButton('profile.open', () => window.SidewaysSocial?.openProfile?.(), { className: 'ui-button', label: 'Edit' }));
 
   const stats = el('div', 'os-me-stats');
-  const posts = window.SidewaysSocial?.posts?.() || [];
-  const drafts = window.SidewaysWorkspace?.listDrafts ? await window.SidewaysWorkspace.listDrafts() : [];
-  for (const [value, label] of [[posts.length, 'Posts'], [drafts.length, 'Drafts'], [(await getPlaces()).filter(place => !place.virtual).length, 'Places']]) {
+  for (const [value, label] of [[posts.length, 'Posts'], [drafts.length, 'Drafts'], [places.filter(place => !place.virtual).length, 'Places']]) {
     const stat = el('div', 'os-stat');
     stat.append(el('strong', '', String(value)), el('span', '', label));
     stats.append(stat);
@@ -329,7 +341,6 @@ async function renderMe() {
 
   const archiveSection = el('section', 'os-me-section');
   archiveSection.append(el('h3', '', 'Archive'));
-  const archive = window.SidewaysWorkspace?.listArchived ? await window.SidewaysWorkspace.listArchived() : [];
   if (archive.length) archiveSection.append(...archive.slice(0, 8).map(item => el('div', 'os-list-row', item.text || item.title || 'Archived item')));
   else archiveSection.append(el('p', 'os-empty-note', 'Nothing archived'));
 

@@ -36,7 +36,7 @@ async function touch(page, locator) {
 }
 
 async function openImportFromCreate(page) {
-  await touch(page, page.locator('[data-action-id="nav.create"]'));
+  await touch(page, page.locator('[data-os-dock] [data-action-id="nav.create"]'));
   const sheet = page.locator('[data-os-create]');
   await sheet.waitFor({ state: 'visible', timeout: 10000 });
   await touch(page, sheet.locator('[data-action-id="create.import"]'));
