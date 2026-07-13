@@ -1,23 +1,23 @@
 # Manual studio
 
-This is the editable product layer for `/manual/`.
+This is the editable consumer product layer for `/manual/`.
 
-The large ingestion and ranking core is assembled from the repository's verified overlays. Do not hand-edit generated or packed shards. Product work belongs here:
+The ranking core is assembled from verified overlays. Do not hand-edit generated or packed shards. Product work belongs here:
 
-- `product/copy.js` — visible onboarding, profile, feed, import, completion, and storage language.
-- `product/studio.css` — visual tokens, navigation, feed cards, blank state, and the core responsive skin.
-- `product/studio-components.css` — local-profile form, storage, progress, accessibility, and responsive components.
-- `product/studio.js` — additive product behavior and the browser-local profile flow.
-- `product/import-studio.js` — platform chooser, file handoff, import queue, progress, and completion flow.
-- `product/import-studio.css` — source-card visuals and import layout.
-- `product/import-phone.js` — iPhone-safe replacement for unsupported folder picking.
-- `imports/registry.js` — structured export adapters.
-- `imports/runtime.js` — inspection, dedupe, chunked IndexedDB writes, cancellation, quota checks, and profile attribution.
-- `prepare-kernel.py` — readable, idempotent compatibility preparation for the extracted kernel builder. It accepts harmless whitespace drift in root constants and refuses to run if the bounded feed-render guard disappears.
-- `apply.py` — installs the editable layer into the assembled `manual-app/` without duplicating tags.
-- `verify.py` — rejects malformed UTF-8, binary bytes, syntax errors, render-loop regressions, missing assets, automatic import reloads, event hijacking, and broken phone-test contracts.
-- `tests/onboarding-clickthrough.mjs` — real iPhone touch and post-interaction quiescence proof contributed through the #40 collaboration beacon.
-- `tests/kernel-parity.mjs` — proves the generated manual kernel still contains the root feed's load-bearing constants.
+- `product/copy.js` — visible consumer language.
+- `product/studio.css` — shared visual system, navigation, feed cards, and responsive shell.
+- `product/studio-components.css` — progress, accessibility, and responsive components.
+- `product/studio.js` — product behavior, including opening an empty Sideways directly on the app importer.
+- `product/import-studio.js` — one-tap app imports, progress, error recovery, and completion.
+- `product/import-studio.css` — app-card hierarchy and import states.
+- `product/import-phone.js` — keeps the native multi-item picker reliable on iPhone.
+- `imports/registry.js` — source adapters.
+- `imports/runtime.js` — dedupe, chunked IndexedDB writes, cancellation, and quota checks.
+- `prepare-kernel.py` — readable, idempotent compatibility preparation for the extracted kernel builder.
+- `apply.py` — installs the editable layer into `manual-app/` without duplicate assets.
+- `verify.py` — rejects syntax errors, render loops, setup gates, visible file-workbench UI, and broken compatibility contracts.
+- `tests/onboarding-clickthrough.mjs` — real iPhone touch and quiescence proof.
+- `tests/kernel-parity.mjs` — root/manual ranking-kernel parity proof.
 
 ## Build contract
 
@@ -30,60 +30,39 @@ python studio/manual/apply.py
 python studio/manual/verify.py
 ```
 
-The Pages, phone-proof, and kernel-parity workflows run the same preparation before building. Compatibility fixes belong in readable source here instead of silently replacing a known-good packed overlay.
+Pages, phone proof, and kernel parity use the same path.
 
-## First-run product contract
+## Consumer first-run contract
 
-A new user should be able to understand the product without knowing what an “archive,” “corpus,” “kernel,” or “data dump” is:
+A new user should not need to understand exports, archives, file formats, local storage, or Sideways architecture.
 
-1. Enter a local name and optional handle, or skip.
-2. Choose a recognizable app.
-3. Open that app's official data-download page when needed.
-4. Choose the downloaded files.
-5. Review what Sideways recognized.
-6. Add it to the feed.
-7. Explicitly open the feed after the completion screen.
+1. Empty Sideways opens directly on the app cards.
+2. Instagram and Reddit are the dominant choices.
+3. Tapping `IMPORT REDDIT`, `IMPORT INSTAGRAM`, or another app opens the native system picker.
+4. Choosing the downloaded item starts importing immediately.
+5. No queue, profile form, storage panel, or second import confirmation appears.
+6. Completion offers one action: `OPEN MY FEED`.
+7. `NEED YOUR DOWNLOAD?` is secondary recovery help, not the main flow.
 
-The UI must never pretend that static GitHub Pages can perform OAuth or silently retrieve account data. “Connect” means guiding the user through the platform's official export and then importing locally.
+Static GitHub Pages cannot silently retrieve private account history. The product therefore keeps the browser picker as an operating-system detail while presenting the action as importing an app, not managing files.
 
-## Supported structured sources
+## Supported sources
 
-The editable adapter registry recognizes:
-
-- X / Twitter archives
-- Reddit posts and comments
-- Instagram account exports
-- TikTok user-data exports
-- YouTube / Google Takeout history
-- Spotify listening history
-- Mastodon outbox files
-- browser bookmarks
-- RSS / Atom
-- JSON / JSONL / NDJSON
-- CSV
-- plain text, Markdown, and HTML
-
-The canonical ADD engine continues to handle PDF, Office, ZIP, images, audio, video, links, and pasted material.
+The adapter registry recognizes X/Twitter, Reddit, Instagram, TikTok, YouTube/Google Takeout, Spotify, Mastodon, bookmarks, RSS/Atom, JSON/JSONL, CSV, text, Markdown, and HTML. The canonical ADD engine continues to support PDF, Office, ZIP, images, audio, video, links, and pasted material underneath the consumer layer.
 
 ## Interaction contract
 
-Do not install a whole-document `MutationObserver` to keep the product layer mounted. The product uses real route/application events plus a bounded setup retry window. The interface must become quiescent after that window so taps are never competing with endless remount work.
-
-Imports must not automatically reload or navigate. Completion shows a deliberate `OPEN MY FEED` action. Persistent-storage approval is best-effort and must never block importing.
-
-On iPhone, unsupported folder selection is replaced by a cloned `PICK MORE FILES` control. Do not use capture-phase `stopImmediatePropagation()` to steal clicks from other behavior.
-
-The core animation loop may continue updating ranking state, but it must not replace the feed DOM when there are no records or while the feed view is hidden.
-
-## Editing the product
-
-Change language in `copy.js`. Change the shared palette, borders, shadows, navigation, and feed cards in `studio.css`. Change profile/storage/progress/mobile components in `studio-components.css`. Change platform onboarding in `import-studio.js` and `import-studio.css`. Add or improve parsers in `imports/registry.js`.
-
-Every pass should re-evaluate whether a phrase, screen, or component deserves to exist. Do not preserve developer-shaped language or aesthetic decoration solely because it is already implemented.
+- No whole-document `MutationObserver`.
+- No automatic reload after importing.
+- No capture-phase click hijacking.
+- No visible legacy ADD surface beside the consumer importer.
+- No profile or storage gate before the app cards.
+- The UI must become quiescent after its bounded startup retries.
+- The core animation loop must not replace feed DOM while the feed is hidden or empty.
 
 ## Compatibility contract
 
-Keep these phone-test labels stable unless the test changes atomically in the same commit:
+Keep these underlying labels stable unless the test changes atomically:
 
 `ADD`, `KEEP`, `READ`, `SEND`, `FILES +`
 
@@ -91,4 +70,4 @@ Keep these DOM hooks stable:
 
 `#corpusStatus`, `#debugPolicy`, `#debugState`, `#debugPanel`
 
-The root saturation kernel remains generated from the root feed. The studio layer can change the product shell aggressively, but it must not duplicate or rewrite that math.
+The studio layer may aggressively change the product shell, but it must not duplicate or rewrite the root ranking math.
