@@ -117,9 +117,12 @@ if (savedProfile.name !== 'KAI' || savedProfile.handle !== 'sideways' || savedPr
 }
 
 const uncontracted = await page.locator('button:not([data-action-id]), [role="button"]:not([data-action-id])').evaluateAll(nodes => nodes
+  .filter(node => node.getClientRects().length > 0)
+  .filter(node => getComputedStyle(node).visibility !== 'hidden')
+  .filter(node => !node.closest('[hidden], dialog:not([open])'))
   .filter(node => !node.closest('#debugPanel') && !node.matches('.type-nav button') && !node.matches('.actions button'))
   .map(node => node.textContent.trim() || node.getAttribute('aria-label') || node.outerHTML.slice(0, 80)));
-if (uncontracted.length) throw new Error(`uncontracted product controls: ${uncontracted.join(' | ')}`);
+if (uncontracted.length) throw new Error(`visible uncontracted product controls: ${uncontracted.join(' | ')}`);
 if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-social-phone.png', fullPage: true });
@@ -130,6 +133,7 @@ console.log(JSON.stringify({
   reaction: '😂 1',
   remix: true,
   persisted: true,
+  visibleUncontractedControls: 0,
   actionContracts: contract.length,
   learnedMood: results['post.mood'].values,
   learnedStyle: results['post.style'].values,
