@@ -32,6 +32,7 @@ jobs:
           base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
           tar -xJf manual-kernel-overlay.tar.xz
           python manual-kernel/patch.py
+          cp manual-phone-check.mjs manual-kernel/phone-check.mjs
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
       - name: Package exact built source for diagnosis
