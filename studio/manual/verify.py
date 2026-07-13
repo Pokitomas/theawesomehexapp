@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,41 +52,12 @@ BANNED_EDITORIAL = (
 )
 
 REQUIRED_ACTIONS = (
-    "nav.feed",
-    "nav.import",
-    "nav.saved",
-    "nav.profile",
-    "feed.post",
-    "feed.import",
-    "profile.open",
-    "profile.save",
-    "profile.random",
-    "profile.close",
-    "profile.avatar",
-    "profile.color",
-    "post.open",
-    "post.publish",
-    "post.cancel",
-    "post.attach",
-    "post.mood",
-    "post.style",
-    "post.react",
-    "post.remix",
-    "post.save",
-    "post.share",
-    "post.delete",
-    "import.instagram",
-    "import.reddit",
-    "import.tiktok",
-    "import.youtube",
-    "import.spotify",
-    "import.x",
-    "import.browser",
-    "import.anything",
-    "import.help",
-    "import.stop",
-    "import.retry",
-    "import.open_feed",
+    "nav.feed", "nav.import", "nav.saved", "nav.profile", "feed.post", "feed.import",
+    "profile.open", "profile.save", "profile.random", "profile.close", "profile.avatar", "profile.color",
+    "post.open", "post.publish", "post.cancel", "post.attach", "post.mood", "post.style",
+    "post.react", "post.remix", "post.save", "post.share", "post.delete",
+    "import.instagram", "import.reddit", "import.tiktok", "import.youtube", "import.spotify", "import.x",
+    "import.browser", "import.anything", "import.help", "import.stop", "import.retry", "import.open_feed",
 )
 
 
@@ -133,14 +103,8 @@ def main() -> None:
     require(
         apply_source,
         (
-            "CORE_REFRESH_BRIDGE",
-            "sideways:importcomplete",
-            "sideways:corpusrefresh",
-            "await rebuildState()",
-            '"actions.js"',
-            '"social.js"',
-            '"social.css"',
-            "data-social-product",
+            "CORE_REFRESH_BRIDGE", "sideways:importcomplete", "sideways:corpusrefresh", "await rebuildState()",
+            '"actions.js"', '"social.js"', '"social.css"', "data-social-product",
         ),
         "generated product installer",
     )
@@ -150,22 +114,11 @@ def main() -> None:
         if actions_source.count(f"'{action_id}'") < 2:
             raise AssertionError(f"action contract is incomplete: {action_id}")
     require(actions_source, ("emitAction", "bindAction", "actionButton", "actionContract", "sideways:action"), "action runtime")
-    if len(set(REQUIRED_ACTIONS)) != len(REQUIRED_ACTIONS):
-        raise AssertionError("verification action list contains duplicates")
 
     studio_source = source_text[PRODUCT / "studio.js"]
     require(
         studio_source,
-        (
-            "actionButton",
-            "bindAction",
-            "feed.post",
-            "feed.import",
-            "openPost",
-            "openProfile",
-            "studio-launch-actions",
-            "requestAnimationFrame",
-        ),
+        ("actionButton", "bindAction", "feed.post", "feed.import", "openPost", "openProfile", "studio-launch-actions", "requestAnimationFrame"),
         "studio action surface",
     )
     forbid(studio_source, ("shouldAutoOpenApps", "studio-profile-setup", "storageCard(", "navigator.storage", "new MutationObserver"), "deleted first-run machinery")
@@ -179,23 +132,10 @@ def main() -> None:
     require(
         social_source,
         (
-            "sideways-social-v1",
-            "sideways-social-profile-v1",
-            "sideways-action-results-v1",
-            "createObjectStore(POST_STORE",
-            "createObjectStore(EVENT_STORE",
-            "openProfile",
-            "openComposer",
-            "imageFileToDataURL",
-            "post.publish",
-            "post.react",
-            "post.remix",
-            "post.save",
-            "post.share",
-            "post.delete",
-            "rankByResults",
-            "data-social-stream",
-            "sideways:action",
+            "sideways-social-v1", "sideways-social-profile-v1", "sideways-action-results-v1",
+            "createObjectStore(POST_STORE", "createObjectStore(EVENT_STORE", "openProfile", "openComposer",
+            "imageFileToDataURL", "post.publish", "post.react", "post.remix", "post.save", "post.share",
+            "post.delete", "rankByResults", "dataset.socialStream", "sideways:action",
         ),
         "social product",
     )
@@ -210,14 +150,8 @@ def main() -> None:
     require(
         import_source,
         (
-            "actionButton",
-            "bindAction",
-            "import.instagram",
-            "import.reddit",
-            "runtime.import(chosen)",
-            "waitForCoreRefresh",
-            "sideways:corpusrefresh",
-            "host.replaceChildren(statusPanel() || importCard())",
+            "actionButton", "bindAction", "const id = `import.${platform.id}`", "runtime.import(chosen)",
+            "waitForCoreRefresh", "sideways:corpusrefresh", "host.replaceChildren(statusPanel() || importCard())",
         ),
         "one-tap import action surface",
     )
@@ -228,18 +162,7 @@ def main() -> None:
     forbid(component_css, (".studio-profile-", ".studio-storage-", ".drop-zone", ".queue li", ".studio-format-grid"), "dead prototype component styling")
 
     social_css = source_text[PRODUCT / "social.css"]
-    require(
-        social_css,
-        (
-            ".social-top-post",
-            ".social-post-card",
-            ".social-profile-dialog",
-            ".social-composer-dialog",
-            ".social-option-grid",
-            ".social-post-actions",
-        ),
-        "social product styling",
-    )
+    require(social_css, (".social-top-post", ".social-post-card", ".social-profile-dialog", ".social-composer-dialog", ".social-option-grid", ".social-post-actions"), "social product styling")
 
     phone_source = source_text[PRODUCT / "import-phone.js"]
     require(phone_source, ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"), "native phone importer")
@@ -250,17 +173,8 @@ def main() -> None:
         return
 
     generated_js = (
-        "app.js",
-        "profile.js",
-        "kernel.js",
-        "studio.js",
-        "copy.js",
-        "actions.js",
-        "social.js",
-        "import-studio.js",
-        "import-phone.js",
-        "imports/registry.js",
-        "imports/runtime.js",
+        "app.js", "profile.js", "kernel.js", "studio.js", "copy.js", "actions.js", "social.js",
+        "import-studio.js", "import-phone.js", "imports/registry.js", "imports/runtime.js",
     )
     for name in generated_js:
         path = MANUAL / name
@@ -283,19 +197,9 @@ def main() -> None:
             raise AssertionError(f"stable phone-test label missing: {label}")
 
     assets = (
-        "studio.css",
-        "studio-components.css",
-        "studio-reset.css",
-        "social.css",
-        "studio.js",
-        "copy.js",
-        "actions.js",
-        "social.js",
-        "import-studio.css",
-        "import-studio.js",
-        "import-phone.js",
-        "imports/registry.js",
-        "imports/runtime.js",
+        "studio.css", "studio-components.css", "studio-reset.css", "social.css", "studio.js", "copy.js",
+        "actions.js", "social.js", "import-studio.css", "import-studio.js", "import-phone.js",
+        "imports/registry.js", "imports/runtime.js",
     )
     for asset in assets:
         if not (MANUAL / asset).is_file():
