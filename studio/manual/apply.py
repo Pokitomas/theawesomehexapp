@@ -12,7 +12,9 @@ IMPORT_INSTALLER = Path(__file__).resolve().parent / "imports" / "apply.py"
 STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
 RESET_STYLE_MARKER = '<link rel="stylesheet" href="./studio-reset.css" data-studio-reset>'
+SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social.css" data-social-product>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
+SOCIAL_SCRIPT_MARKER = '<script type="module" src="./social.js" data-social-product></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -48,7 +50,16 @@ def main() -> None:
     if not MANUAL.exists():
         raise SystemExit("manual-app is missing; assemble the canonical overlays first")
 
-    for name in ("studio.css", "studio-components.css", "studio-reset.css", "studio.js", "copy.js"):
+    for name in (
+        "studio.css",
+        "studio-components.css",
+        "studio-reset.css",
+        "social.css",
+        "studio.js",
+        "copy.js",
+        "actions.js",
+        "social.js",
+    ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
     index = MANUAL / "index.html"
@@ -56,7 +67,9 @@ def main() -> None:
     text = inject_once(text, STYLE_MARKER, "</head>")
     text = inject_once(text, COMPONENT_STYLE_MARKER, "</head>")
     text = inject_once(text, RESET_STYLE_MARKER, "</head>")
+    text = inject_once(text, SOCIAL_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
+    text = inject_once(text, SOCIAL_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
@@ -65,7 +78,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied editable manual studio product layer and core refresh bridge")
+    print("applied studio, social product, action contract, and core refresh bridge")
 
 
 if __name__ == "__main__":
