@@ -14,6 +14,8 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
+const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+
 const browser = await chromium.launch({
   headless: true,
   executablePath,
@@ -51,19 +53,117 @@ async function touch(locator) {
   throw lastError;
 }
 
-async function corpusRecords() {
-  return page.evaluate(() => new Promise((resolve, reject) => {
+async function readAll(databaseName, storeName) {
+  return page.evaluate(({ databaseName, storeName }) => new Promise((resolve, reject) => {
+    const request = indexedDB.open(databaseName);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(storeName, 'readonly');
+      const all = transaction.objectStore(storeName).getAll();
+      all.onerror = () => reject(all.error);
+      all.onsuccess = () => resolve(all.result);
+      transaction.oncomplete = () => db.close();
+    };
+  }), { databaseName, storeName });
+}
+
+const corpusRecords = () => readAll('sideways-manual-corpus-v1', 'records');
+const corpusBlobs = () => readAll('sideways-manual-corpus-v1', 'blobs');
+const workspaceEvents = () => readAll('sideways-workspace-v1', 'events');
+
+async function waitForOwnedCount(expected) {
+  await page.waitForFunction(count => window.SidewaysWorkspace.ownedEntries().then(records => records.length === count), expected, { timeout: 15000 });
+}
+
+async function attachTinyImage(composer, name) {
+  const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
+  await touch(composer.locator('[data-action-id="post.attach"]'));
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ name, mimeType: 'image/png', buffer: tinyPng });
+  await composer.locator('.workspace-image-preview img').waitFor({ state: 'visible', timeout: 10000 });
+}
+
+async function openNewComposer() {
+  await touch(page.locator('[data-workspace-new][data-action-id="feed.post"]'));
+  const composer = page.locator('[data-workspace-composer]');
+  await composer.waitFor({ state: 'visible', timeout: 10000 });
+  return composer;
+}
+
+async function publishComposer(composer) {
+  await touch(composer.locator('[data-action-id="post.publish"]'));
+  await composer.waitFor({ state: 'hidden', timeout: 10000 });
+}
+
+async function seedImportedWitness() {
+  await page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('sideways-manual-corpus-v1');
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result;
-      const tx = db.transaction('records', 'readonly');
-      const all = tx.objectStore('records').getAll();
-      all.onerror = () => reject(all.error);
-      all.onsuccess = () => resolve(all.result);
-      tx.oncomplete = () => db.close();
+      const transaction = db.transaction('records', 'readwrite');
+      const now = new Date().toISOString();
+      transaction.objectStore('records').add({
+        type: 'social',
+        title: 'Imported witness',
+        summary: 'This imported item must survive deleting every authored post.',
+        text: 'This imported item must survive deleting every authored post.',
+        body: [],
+        source: 'Test import',
+        sourceUrl: '',
+        outboundUrl: '',
+        author: { name: 'Archive', handle: '', url: '', avatar: '' },
+        published: now,
+        addedAt: now,
+        updatedAt: now,
+        originalName: 'Imported witness',
+        mime: 'text/plain',
+        size: 62,
+        hash: `test-import-witness:${Date.now()}`,
+        assetKey: '',
+        mediaKind: '',
+        width: 0,
+        height: 0,
+        nativeId: `reddit:witness:${Date.now()}`,
+        links: [],
+        tags: ['test:imported-witness'],
+        rank: {}
+      });
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error || new Error('witness transaction aborted'));
     };
   }));
+
+  await page.evaluate(() => new Promise(resolve => {
+    const timer = setTimeout(() => resolve({ timedOut: true }), 3000);
+    window.addEventListener('sideways:corpusrefresh', event => {
+      clearTimeout(timer);
+      resolve(event.detail || {});
+    }, { once: true });
+    window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: { source: 'destructive-flow-witness' } }));
+  }));
+}
+
+async function deletePost(text, decision = 'accept') {
+  const card = page.locator('#feed .post').filter({ hasText: text });
+  await card.waitFor({ state: 'visible', timeout: 15000 });
+  const dialogPromise = page.waitForEvent('dialog', { timeout: 10000 });
+  await touch(card.locator('[data-action-id="post.delete"]'));
+  const dialog = await dialogPromise;
+  if (!dialog.message().includes('Delete this post from this device?')) throw new Error(`unexpected delete confirmation: ${dialog.message()}`);
+  if (decision === 'dismiss') await dialog.dismiss();
+  else await dialog.accept();
+
+  if (decision === 'dismiss') {
+    await card.waitFor({ state: 'visible', timeout: 5000 });
+    return;
+  }
+  await page.waitForFunction(value => ![...document.querySelectorAll('#feed .post')].some(node => node.textContent.includes(value)), text, { timeout: 15000 });
 }
 
 await page.goto(url, { waitUntil: 'networkidle' });
@@ -107,17 +207,8 @@ await page.waitForFunction(() => document.querySelector('input[name="placeLatitu
 await touch(placeEditor.locator('[data-action-id="places.save"]'));
 await placeEditor.waitFor({ state: 'hidden', timeout: 5000 });
 
-const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
-await touch(composer.locator('[data-action-id="post.attach"]'));
-const chooser = await chooserPromise;
-await chooser.setFiles({
-  name: 'tiny.png',
-  mimeType: 'image/png',
-  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
-});
-await composer.locator('.workspace-image-preview img').waitFor({ state: 'visible', timeout: 10000 });
-await touch(composer.locator('[data-action-id="post.publish"]'));
-await composer.waitFor({ state: 'hidden', timeout: 10000 });
+await attachTinyImage(composer, 'first-transparent.png');
+await publishComposer(composer);
 
 const authored = page.locator('#feed .post').filter({ hasText: 'A lived system, not a retro costume.' });
 await authored.waitFor({ state: 'visible', timeout: 15000 });
@@ -134,16 +225,37 @@ if (record.author?.name !== 'KAI' || record.author?.handle !== '@sideways') thro
 await touch(authored.locator('[data-action-id="post.edit"]'));
 await composer.waitFor({ state: 'visible', timeout: 10000 });
 await composer.locator('.workspace-composer-text').fill('A lived system with one real content model.');
-await touch(composer.locator('[data-action-id="post.publish"]'));
-await composer.waitFor({ state: 'hidden', timeout: 10000 });
+await publishComposer(composer);
 await page.locator('#feed .post').filter({ hasText: 'A lived system with one real content model.' }).waitFor({ state: 'visible', timeout: 15000 });
+
+let secondComposer = await openNewComposer();
+await secondComposer.locator('.workspace-composer-text').fill('Second post: text only, deliberately disposable.');
+await publishComposer(secondComposer);
+await page.locator('#feed .post').filter({ hasText: 'Second post: text only, deliberately disposable.' }).waitFor({ state: 'visible', timeout: 15000 });
+
+let thirdComposer = await openNewComposer();
+await thirdComposer.locator('.workspace-composer-text').fill('Third post returns to the Kitchen table.');
+await touch(thirdComposer.locator('[data-action-id="composer.place"]'));
+const secondPicker = page.locator('[data-workspace-place-picker]');
+await secondPicker.waitFor({ state: 'visible', timeout: 5000 });
+await touch(secondPicker.locator('[data-action-id="places.use"]').filter({ hasText: 'Kitchen table' }));
+await attachTinyImage(thirdComposer, 'third-transparent.png');
+await publishComposer(thirdComposer);
+await page.locator('#feed .post').filter({ hasText: 'Third post returns to the Kitchen table.' }).waitFor({ state: 'visible', timeout: 15000 });
+
+await waitForOwnedCount(3);
+records = await corpusRecords();
+let authoredRecords = records.filter(item => item.nativeId?.startsWith('sideways:workspace:'));
+if (authoredRecords.length !== 3) throw new Error(`expected three authored records, found ${authoredRecords.length}`);
+let blobs = await corpusBlobs();
+if (blobs.length !== 2) throw new Error(`expected two authored image blobs, found ${blobs.length}`);
 
 await touch(page.locator('#navPlaces[data-action-id="nav.places"]'));
 await page.waitForURL(/#\/places$/, { timeout: 10000 });
 const places = page.locator('#workspacePlacesView');
 await places.waitFor({ state: 'visible', timeout: 10000 });
 await places.getByText('Kitchen table', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-await places.getByText('1 item', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+await places.getByText('2 items', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 
 const contracts = await page.evaluate(() => window.SidewaysActions.actionContract());
 const ids = new Set(contracts.map(item => item.id));
@@ -158,18 +270,80 @@ await touch(page.locator('#navFeed[data-action-id="nav.feed"]'));
 await page.waitForURL(/#\/feed$/, { timeout: 10000 });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
-await page.locator('#feed .post').filter({ hasText: 'A lived system with one real content model.' }).waitFor({ state: 'visible', timeout: 15000 });
+for (const text of [
+  'A lived system with one real content model.',
+  'Second post: text only, deliberately disposable.',
+  'Third post returns to the Kitchen table.'
+]) {
+  await page.locator('#feed .post').filter({ hasText: text }).waitFor({ state: 'visible', timeout: 15000 });
+}
+
 const savedProfile = await page.evaluate(() => window.SidewaysWorkspace.profile());
 if (savedProfile.name !== 'KAI' || savedProfile.handle !== 'sideways' || savedProfile.bio !== 'Building a personal internet.') {
   throw new Error(`profile did not persist: ${JSON.stringify(savedProfile)}`);
 }
 records = await corpusRecords();
-record = records.find(item => item.nativeId?.startsWith('sideways:workspace:'));
-if (!record || record.text !== 'A lived system with one real content model.') throw new Error('canonical edit did not persist');
+record = records.find(item => item.nativeId?.startsWith('sideways:workspace:') && item.text === 'A lived system with one real content model.');
+if (!record) throw new Error('canonical edit did not persist');
 const savedPlaces = await page.evaluate(() => window.SidewaysWorkspace.listPlaces());
 if (savedPlaces.length !== 1 || savedPlaces[0].name !== 'Kitchen table') throw new Error(`place did not persist: ${JSON.stringify(savedPlaces)}`);
+
+await page.screenshot({ path: 'manual-workspace-populated.png', fullPage: true });
+await seedImportedWitness();
+await page.locator('#feed .post').filter({ hasText: 'Imported witness' }).waitFor({ state: 'visible', timeout: 15000 });
+
+await deletePost('Second post: text only, deliberately disposable.', 'dismiss');
+await waitForOwnedCount(3);
+await deletePost('Second post: text only, deliberately disposable.');
+await waitForOwnedCount(2);
+blobs = await corpusBlobs();
+if (blobs.length !== 2) throw new Error('deleting a text-only post unexpectedly changed image blobs');
+
+await deletePost('A lived system with one real content model.');
+await waitForOwnedCount(1);
+blobs = await corpusBlobs();
+if (blobs.length !== 1) throw new Error(`first image blob leaked or over-deleted: ${blobs.length}`);
+
+await deletePost('Third post returns to the Kitchen table.');
+await waitForOwnedCount(0);
+blobs = await corpusBlobs();
+if (blobs.length !== 0) throw new Error(`authored image blobs survived deleting every post: ${blobs.length}`);
+
+records = await corpusRecords();
+authoredRecords = records.filter(item => item.nativeId?.startsWith('sideways:workspace:'));
+if (authoredRecords.length) throw new Error(`authored records survived destructive flow: ${authoredRecords.length}`);
+const witness = records.find(item => item.tags?.includes('test:imported-witness'));
+if (!witness) throw new Error('deleting authored posts also deleted imported library material');
+await page.locator('#feed .post').filter({ hasText: 'Imported witness' }).waitFor({ state: 'visible', timeout: 15000 });
+if (await page.locator('[data-workspace-post-controls]').count()) throw new Error('owned controls survived after every authored post was deleted');
+
+await touch(page.locator('#navPlaces[data-action-id="nav.places"]'));
+await page.waitForURL(/#\/places$/, { timeout: 10000 });
+await places.getByText('0 items', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+
+await touch(page.locator('#navFeed[data-action-id="nav.feed"]'));
+await page.waitForURL(/#\/feed$/, { timeout: 10000 });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await waitForOwnedCount(0);
+await page.locator('#feed .post').filter({ hasText: 'Imported witness' }).waitFor({ state: 'visible', timeout: 15000 });
+if (await page.locator('#feed .post').filter({ hasText: 'A lived system with one real content model.' }).count()) throw new Error('deleted post returned after reload');
+
+let events = [];
+for (let attempt = 0; attempt < 30; attempt += 1) {
+  events = await workspaceEvents();
+  const deleteResults = events.filter(event => event.actionId === 'post.delete' && event.phase !== 'start');
+  if (deleteResults.length >= 4) break;
+  await page.waitForTimeout(100);
+}
+const deleteResults = events.filter(event => event.actionId === 'post.delete' && event.phase !== 'start');
+const cancelledDeletes = deleteResults.filter(event => event.phase === 'cancelled').length;
+const successfulDeletes = deleteResults.filter(event => event.phase === 'success').length;
+if (cancelledDeletes !== 1) throw new Error(`cancelled delete lifecycle is dishonest: ${JSON.stringify(deleteResults)}`);
+if (successfulDeletes !== 3) throw new Error(`expected three successful delete lifecycles: ${JSON.stringify(deleteResults)}`);
+
 const outbox = await page.evaluate(() => window.SidewaysWorkspace.outboxCount());
-if (!(outbox > 0)) throw new Error('action outbox did not record the journey');
+if (!(outbox > 0)) throw new Error('action outbox did not record the destructive journey');
 
 const uncontracted = await page.locator('button:not([data-action-id]), [role="button"]:not([data-action-id])').evaluateAll(nodes => nodes
   .filter(node => node.getClientRects().length > 0)
@@ -183,10 +357,13 @@ if (errors.length) throw new Error(errors.join(' | '));
 await page.screenshot({ path: 'manual-workspace-phone.png', fullPage: true });
 console.log(JSON.stringify({
   profile: savedProfile,
-  canonicalPosts: records.filter(item => item.nativeId?.startsWith('sideways:workspace:')).length,
-  place: savedPlaces[0],
-  imageAsset: Boolean(record.assetKey),
-  edited: true,
+  createdPosts: 3,
+  deletedPosts: successfulDeletes,
+  cancelledDeletes,
+  authoredPostsAfterReload: 0,
+  remainingAuthoredBlobs: blobs.length,
+  importedWitnessSurvived: Boolean(witness),
+  placeAfterDeletes: { ...savedPlaces[0], items: 0 },
   outbox,
   visibleUncontractedControls: 0,
   actionContracts: contracts.length,
