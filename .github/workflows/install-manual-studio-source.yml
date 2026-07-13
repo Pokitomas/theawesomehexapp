@@ -83,4 +83,4 @@ jobs:
           git commit -m "Install editable manual studio source"
           git push origin HEAD:manual-studio-refactor
 
-# All four shards are present; this commit triggers the installer.
+# Retry after the branch moved to the direct app/profile source commit.
