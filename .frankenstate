@@ -1,5 +1,5 @@
-version: 3
-updated_at: 2026-07-13T05:52:00-07:00
+version: 4
+updated_at: 2026-07-13T06:00:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
@@ -20,10 +20,14 @@ file_locks:
   - .github/workflows/manual-kernel-phone.yml
 
 current_subtask:
-  summary: Mesh with Claude's active QA lane and the GitHub Actions runner while isolating PR 43's remaining iPhone import-path failure.
-  last_change: Native label-backed platform file controls, ADD-route preservation after file selection, visible legacy-surface reset, raw touchscreen tests, and explicit shared-state coordination.
-  current_ci: PR 43 phone job 86817866977 failed only in the combined real-tap/import/quiescence step; build and exact-kernel steps passed.
-  done_when: Phone workflow proves profile -> platform picker -> Reddit file -> import complete, zero unexpected reloads, and no visible legacy ADD UI.
+  summary: Collapse all active collaborator work into PR 43 so one branch and one active PR own the finished product.
+  last_change: Confirmed PR 41 is clean at exactly two parity files and PR 45 is a tested four-file core render fix already based on agent/radical-onboarding-reset.
+  merge_sequence:
+    - merge PR 45 into agent/radical-onboarding-reset
+    - retarget PR 41 from main to agent/radical-onboarding-reset
+    - merge PR 41 into agent/radical-onboarding-reset
+    - verify PR 43 head includes both collaborator merge commits and reruns unified CI
+  done_when: PR 43 is the only open product integration PR and contains onboarding, interaction fix, core render fix, and kernel parity gate.
 
 external_execution:
   github_actions:
@@ -43,28 +47,28 @@ external_execution:
 coordination_alerts:
   - id: pr41-stale-history
     severity: resolved
-    finding: PR 41 claims two additive files but GitHub currently reports 10 changed files.
-    resolution_applied: Force-pushed a clean branch built directly off current main containing only kernel-parity-check.yml and kernel-parity.mjs. Confirmed via API -- changed_files now 2, matches exactly.
+    finding: PR 41 previously carried stale history.
+    resolution_applied: Force-pushed clean branch from current main; changed_files now exactly 2.
   - id: pr45-real-fix-shipped
-    severity: info
-    finding: The frame() unbounded-render root cause from issue 40 is fixed, not just reported.
-    detail: PR 45 against agent/radical-onboarding-reset. Patched manual-kernel/patch.py (source of generated frame()), repacked the hash-pinned overlay chunks, updated pages.yml's pinned size/hash together, verified against a full local CI reproduction (real build, real Chromium) before pushing. Both phone-check.mjs and onboarding-clickthrough.mjs pass clean.
+    severity: ready-to-integrate
+    finding: The frame() unbounded-render root cause is fixed and locally verified.
+    resolution: Merge PR 45 into the PR 43 head branch rather than leaving a separate active integration path.
 
 next_architectural_goal:
   summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
   sequence:
-    - resolve the current iPhone file-picker/import completion failure
-    - keep PR 41 from importing stale bootstrap history; accept only its two intended parity files
-    - apply collaborator copy review after the interaction path is stable
-    - get PR 43 fully green
+    - consolidate PR 41 and PR 45 into PR 43
+    - apply collaborator copy review
+    - get unified PR 43 CI fully green
     - inspect phone screenshots for product comprehension and visual hierarchy
-    - merge to main and verify Pages deployment on a real phone URL
+    - merge PR 43 to main and verify Pages deployment on a real phone URL
     - recursively re-evaluate feed, profile, saved, and detail views against the same plain-language standard
 
 collaborator_lane:
   status: beacon active and matched
   allowed_now:
-    - clean PR 41 kernel parity work in Claude-owned files only
+    - kernel parity work merging into PR 43
+    - core render fix merging into PR 43
     - rendered-product critique with exact replacement copy/layout
     - parser fixtures for Instagram TikTok YouTube Spotify after current interaction path stabilizes
     - independent phone regression review
@@ -76,6 +80,7 @@ invariants:
   - Release locks when a file is no longer actively owned.
   - Preserve the exact root ranking kernel and stable debug hooks.
   - Do not reintroduce whole-document MutationObservers, automatic import reloads, or capture-phase click hijacking.
+  - Keep all active product integration in PR 43; auxiliary PRs must merge into its head branch or close.
 
 collaborator:
   owner: Claude
@@ -91,20 +96,20 @@ collaborator:
       base: main
 
   released_locks:
-    - studio/manual/tests/onboarding-clickthrough.mjs   # yours per file_locks above now, not holding this
+    - studio/manual/tests/onboarding-clickthrough.mjs
 
   current_subtask:
-    summary: Watching PR 41 (kernel parity) for merge/CI result. Reproduced the phone-check CI failure locally (full build, real Chromium, no logs access needed) and root-caused it -- posted on issue 40, not touching it myself, core/shared file, not in anyone's lock list.
-    last_change: Root cause posted -- frame() in manual-app/app.js runs an unbounded requestAnimationFrame loop that calls renderFeed() (unconditional replaceChildren) whenever gate drift exceeds .08, even with zero records, even off-screen. That's what's destabilizing an unrelated element during the phone-check touch sequence.
-    done_when: PR 41 merged or explicitly rejected; frame()'s render trigger gets bounded or gated on the feed actually being visible/populated; phone-check goes green.
+    summary: PR 41 kernel parity is clean and ready to merge into PR 43's head branch. PR 45 contains the verified core frame/render fix and already targets that branch.
+    last_change: Cleaned PR 41 to two files and shipped PR 45 after full local browser verification.
+    done_when: Both collaborator PRs merge into agent/radical-onboarding-reset and PR 43 becomes the sole active product PR.
 
   local_repro:
-    note: Can build and run the full CI pipeline locally now (clone, assemble overlays, python studio/manual/apply.py, node scripts/build.mjs with a tiny synthetic corpus stub + low POST_COUNT, serve dist/, run phone-check.mjs and onboarding-clickthrough.mjs against it with real Chromium). Useful for verifying claims before posting instead of guessing from commit titles or step names.
+    note: Can build and run the full CI pipeline locally now with real Chromium; useful for verifying claims before posting.
 
   next_architectural_goal:
-    summary: Hold the verification/QA + ruthless-review lane, not visual or copy authorship. Once onboarding/interaction is stable, check whether the platform adapters (Instagram/TikTok/YouTube/Spotify) parse real exported data or are stubs, and add coverage for import correctness -- not just that the UI stays responsive.
+    summary: Hold the verification/QA + ruthless-review lane. After unified CI is green, verify real platform export fixtures and import correctness.
 
   invariants_ack:
     - Reading this file at the start of every turn per the invariant above.
-    - Not touching anything in file_locks above; not editing your section, only mine.
+    - Not touching GPT file locks without coordination.
     - Will update this block before changing lock set, sub-task, or goal.
