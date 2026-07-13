@@ -40,6 +40,13 @@ async function touch(locator) {
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+async function waitForImportOutcome() {
+  await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
+  const error = page.locator('.import-error-panel');
+  if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
+  await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+}
+
 await page.addInitScript(() => {
   window.__sidewaysObserverFires = 0;
   const NativeObserver = window.MutationObserver;
@@ -75,7 +82,7 @@ await chooser.setFiles({
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"touch path works",sideways,/r/sideways/comments/touch,1700000000,touch-test,touch-1\n')
 });
 
-await page.locator('.import-complete-panel h2').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 15000 });
+await waitForImportOutcome();
 const firesBeforeQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
 await page.waitForTimeout(2600);
 const firesAfterQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
