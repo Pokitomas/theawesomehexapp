@@ -100,6 +100,30 @@ function helpControl(platform) {
   return help;
 }
 
+function waitForCoreRefresh() {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      window.removeEventListener('sideways:corpusrefresh', onRefresh);
+      window.removeEventListener('sideways:corpusrefresherror', onError);
+    };
+    const onRefresh = event => {
+      cleanup();
+      resolve(event.detail || {});
+    };
+    const onError = event => {
+      cleanup();
+      reject(new Error(event.detail?.message || 'FEED DID NOT REFRESH'));
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('FEED DID NOT REFRESH'));
+    }, 10000);
+    window.addEventListener('sideways:corpusrefresh', onRefresh, { once: true });
+    window.addEventListener('sideways:corpusrefresherror', onError, { once: true });
+  });
+}
+
 async function importChosen(chosen) {
   if (state.busy || !chosen.length) return;
   state.busy = true;
@@ -109,7 +133,9 @@ async function importChosen(chosen) {
 
   try {
     state.result = await runtime.import(chosen);
+    const refreshed = waitForCoreRefresh();
     window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: state.result }));
+    await refreshed;
   } catch (error) {
     state.error = error?.name === 'AbortError' ? 'STOPPED' : (error?.message || 'TRY AGAIN');
   } finally {
