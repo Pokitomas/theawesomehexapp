@@ -1,4 +1,4 @@
-name: Inspect packed product code
+name: Verify packed manual saturation kernel
 
 on:
   pull_request:
@@ -9,18 +9,22 @@ on:
       - 'general-overlay.part.*'
       - 'profile-overlay.part.*'
       - 'manual-overlay.b64.part.*'
+      - 'manual-kernel.tar.xz.b64.part.*'
       - 'verify-manual-edition.py'
-      - 'manual-kernel/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  unpack:
+  unpack-and-prove:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Unpack every product layer
         run: |
@@ -35,6 +39,16 @@ jobs:
           cat manual-overlay.b64.part.* | base64 -d > manual-overlay.tar.xz
           tar -xJf manual-overlay.tar.xz
           python manual/patch.py
+
+      - name: Install exact root kernel in manual edition
+        run: |
+          cat manual-kernel.tar.xz.b64.part.* | base64 -d > manual-kernel.tar.xz
+          echo "1be2d8e725fb87959a0a09f84291b955c1796da9b233d74b5119d069f1816c70  manual-kernel.tar.xz" | sha256sum -c -
+          tar -xJf manual-kernel.tar.xz
+          python manual-kernel/patch.py
+
+      - name: Prove exact reuse and 20-record gate motion
+        run: python manual-kernel/verify.py
 
       - name: Package inspectable source
         run: |
