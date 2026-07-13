@@ -114,11 +114,19 @@ html.studio-product :focus-visible {
 
 @media (max-width: 420px) {
   html.studio-product .topline {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) repeat(4, auto);
+    gap: .38rem;
   }
 
   html.studio-product #navProfile {
-    display: none;
+    display: flex;
+    min-width: 42px;
+    width: auto;
+    padding-inline: .55rem;
+    border: 2px solid var(--studio-ink);
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 950;
   }
 
   .studio-primary-action,
