@@ -27,6 +27,14 @@ async function collectErrors(page) {
   return errors;
 }
 
+async function touch(page, locator) {
+  await locator.waitFor({ state: 'visible', timeout: 10000 });
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('touch target has no bounding box');
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 const gateContext = await browser.newContext(iphone);
 const page = await gateContext.newPage();
 const gateErrors = await collectErrors(page);
@@ -66,7 +74,7 @@ unexpectedLoads = 0;
 await onboarding.locator('[data-studio-profile-setup]').waitFor({ state: 'visible', timeout: 10000 });
 await onboarding.locator('input[name="name"]').fill('Kai');
 await onboarding.locator('input[name="handle"]').fill('@sideways-test');
-await onboarding.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }).tap();
+await touch(onboarding, onboarding.getByRole('button', { name: 'SAVE AND CHOOSE AN APP', exact: true }));
 await onboarding.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await onboarding.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await onboarding.getByText('PUT IN A REAL EXPORT.', { exact: true }).count()) throw new Error('old developer copy still visible');
@@ -75,19 +83,19 @@ for (const source of ['Reddit', 'Instagram', 'TikTok', 'YouTube', 'Spotify', 'X 
   await onboarding.getByRole('heading', { name: source, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 }
 
-const reddit = onboarding.locator('.source-card[data-platform="reddit"]');
-const [chooser] = await Promise.all([
-  onboarding.waitForEvent('filechooser'),
-  reddit.getByRole('button', { name: 'I HAVE THE FILES', exact: true }).tap()
-]);
+const redditPicker = onboarding.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'I HAVE THE FILES' });
+const chooserPromise = onboarding.waitForEvent('filechooser', { timeout: 10000 });
+await touch(onboarding, redditPicker);
+const chooser = await chooserPromise;
 await chooser.setFiles({
   name: 'comments.csv',
   mimeType: 'text/csv',
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"hello from reddit",sideways,/r/sideways/comments/1,1700000000,kai,abc123\n')
 });
 await onboarding.getByText('1 FILE READY', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
-await onboarding.getByRole('button', { name: 'ADD TO MY FEED', exact: true }).tap();
-await onboarding.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+const completion = onboarding.getByRole('heading', { name: 'YOUR FEED HAS NEW MATERIAL', exact: true });
+await touch(onboarding, onboarding.getByRole('button', { name: 'ADD TO MY FEED', exact: true }));
+await completion.waitFor({ state: 'visible', timeout: 15000 });
 await onboarding.getByRole('button', { name: 'OPEN MY FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
 await onboarding.waitForTimeout(2500);
 if (unexpectedLoads !== 0) throw new Error(`onboarding unexpectedly reloaded ${unexpectedLoads} times`);
