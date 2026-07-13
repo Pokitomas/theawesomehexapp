@@ -28,6 +28,30 @@
   box-shadow: 5px 5px 0 var(--studio-ink);
 }
 
+.studio-launch-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .8rem;
+  margin-top: 1rem;
+}
+
+.studio-launch-button {
+  min-height: 96px;
+  border: 2px solid var(--studio-ink);
+  border-radius: 18px;
+  color: var(--studio-ink);
+  font: inherit;
+  font-size: clamp(1.3rem, 6vw, 2.8rem);
+  font-weight: 950;
+  letter-spacing: -.05em;
+  box-shadow: 5px 5px 0 var(--studio-ink);
+  cursor: pointer;
+}
+
+.studio-launch-button.is-post { background: var(--studio-lime); }
+.studio-launch-button.is-import { background: var(--studio-blue); }
+.studio-launch-button:hover { transform: translate(-2px,-2px); box-shadow: 8px 8px 0 var(--studio-ink); }
+
 .studio-progress-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -37,16 +61,11 @@
   padding: 1rem;
   border: 2px solid var(--studio-line);
   border-radius: 18px;
-  background: var(--studio-blue);
+  background: var(--studio-lime);
   box-shadow: 4px 4px 0 var(--studio-ink);
 }
 
-.studio-progress-card.is-awake {
-  background: var(--studio-lime);
-}
-
 .studio-progress-card .studio-progress-count {
-  grid-row: 1 / span 2;
   align-self: stretch;
   display: grid;
   place-items: center;
@@ -59,27 +78,21 @@
   font-weight: 950;
 }
 
-.studio-progress-card h2,
-.studio-progress-card p {
-  margin: 0;
-}
-
 .studio-progress-card h2 {
+  margin: 0;
   font-size: clamp(1.35rem, 4vw, 2rem);
   line-height: .95;
   letter-spacing: -.04em;
 }
 
-.studio-progress-card p {
-  max-width: 62ch;
-  font-size: .88rem;
-  line-height: 1.35;
+.studio-progress-actions {
+  display: flex;
+  gap: .5rem;
 }
 
-.studio-progress-card .studio-secondary-action {
-  grid-column: 3;
-  grid-row: 1 / span 2;
+.studio-progress-actions .studio-secondary-action {
   white-space: nowrap;
+  box-shadow: none;
 }
 
 html.studio-product :focus-visible {
@@ -89,18 +102,13 @@ html.studio-product :focus-visible {
 
 @media (max-width: 760px) {
   .studio-progress-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .studio-progress-card .studio-progress-count,
-  .studio-progress-card .studio-secondary-action {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .studio-progress-card .studio-progress-count {
-    justify-self: start;
-    min-width: 0;
+  .studio-progress-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -117,4 +125,7 @@ html.studio-product :focus-visible {
   .studio-secondary-action {
     width: 100%;
   }
+
+  .studio-launch-actions { grid-template-columns: 1fr; }
+  .studio-launch-button { min-height: 78px; }
 }
