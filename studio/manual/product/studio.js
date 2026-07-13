@@ -97,8 +97,7 @@ function installNavigation() {
     newButton.dataset.workspaceNew = 'true';
   }
 
-  const navProfile = document.getElementById('navProfile');
-  for (const node of [navFeed, navPlaces, navAdd, navProfile].filter(Boolean)) nav.append(node);
+  for (const node of [navFeed, navPlaces, navAdd].filter(Boolean)) nav.append(node);
   if (!newButton.isConnected) top.insertBefore(newButton, nav);
 
   const active = location.hash || '#/feed';
