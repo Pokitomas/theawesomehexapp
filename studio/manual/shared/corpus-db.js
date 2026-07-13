@@ -88,9 +88,10 @@ export async function readCorpusLedger({ limit = 250 } = {}) {
 
 export async function storageDurability({ request = false } = {}) {
   const storage = navigator.storage;
-  let persisted = Boolean(await storage?.persisted?.().catch(() => false));
-  if (request && !persisted) persisted = Boolean(await storage?.persist?.().catch(() => false));
-  const estimate = await storage?.estimate?.().catch(() => ({})) || {};
+  if (!storage) return { persisted: false, usage: 0, quota: 0, bestEffort: true };
+  let persisted = Boolean(await storage.persisted?.().catch(() => false));
+  if (request && !persisted) persisted = Boolean(await storage.persist?.().catch(() => false));
+  const estimate = await storage.estimate?.().catch(() => ({})) || {};
   return {
     persisted,
     usage: Number(estimate.usage || 0),
