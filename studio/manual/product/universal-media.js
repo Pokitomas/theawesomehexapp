@@ -64,10 +64,18 @@ function mediaShell(card) {
 
 function fileSurface(record, url, state = 'ready') {
   const node = document.createElement(url ? 'a' : 'div');
-  node.className = `universal-file-surface is-${state}`;
+  const kind = kindFor(record);
+  node.className = `universal-file-surface is-${state} is-${kind || 'file'}`;
   if (url) {
     node.href = url;
-    node.download = record.originalName || record.title || 'file';
+    if (kind === 'pdf') {
+      node.target = '_blank';
+      node.rel = 'noopener';
+      node.setAttribute('aria-label', `Open ${record.originalName || record.title || 'PDF'}`);
+    } else {
+      node.download = record.originalName || record.title || 'file';
+      node.setAttribute('aria-label', `Download ${record.originalName || record.title || 'file'}`);
+    }
   }
   const code = document.createElement('strong');
   code.className = 'universal-file-code';
@@ -77,7 +85,7 @@ function fileSurface(record, url, state = 'ready') {
   name.textContent = record.originalName || record.title || 'UNTITLED';
   const meta = document.createElement('span');
   meta.className = 'universal-file-meta';
-  meta.textContent = [kindFor(record) || 'FILE', formatBytes(record.size)].filter(Boolean).join(' / ');
+  meta.textContent = [kind || 'FILE', formatBytes(record.size)].filter(Boolean).join(' / ');
   node.append(code, name, meta);
   return node;
 }
@@ -101,6 +109,7 @@ function videoSurface(record, url) {
   video.preload = 'metadata';
   video.src = url;
   video.setAttribute('aria-label', record.title || 'Video');
+  video.addEventListener('error', () => video.replaceWith(fileSurface(record, url, 'broken')), { once: true });
   return video;
 }
 
@@ -114,17 +123,9 @@ function audioSurface(record, url) {
   audio.controls = true;
   audio.preload = 'metadata';
   audio.src = url;
+  audio.addEventListener('error', () => stage.replaceWith(fileSurface(record, url, 'broken')), { once: true });
   stage.append(mark, audio);
   return stage;
-}
-
-function pdfSurface(record, url) {
-  const frame = document.createElement('iframe');
-  frame.className = 'universal-pdf';
-  frame.title = record.title || record.originalName || 'PDF';
-  frame.loading = 'lazy';
-  frame.src = `${url}#view=FitH&toolbar=0`;
-  return frame;
 }
 
 function surfaceFor(record, asset, url) {
@@ -133,7 +134,6 @@ function surfaceFor(record, asset, url) {
   if (kind === 'image') return imageSurface(record, url);
   if (kind === 'video') return videoSurface(record, url);
   if (kind === 'audio') return audioSurface(record, url);
-  if (kind === 'pdf') return pdfSurface(record, url);
   return fileSurface(record, url);
 }
 
