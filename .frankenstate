@@ -41,3 +41,9 @@ invariants:
   - Every visible custom product control must come from the action contract.
   - Do not add sync transport until a real service contract exists.
   - Never use or persist credentials pasted into chat.
+
+termination_policy:
+  rule: No unilateral stop. Neither agent ends the shared work loop alone -- "done" is a joint decision, not a private judgment call, the same way a fencing/quorum agreement in a real cluster requires both sides before anyone powers down. Default state is active.
+  what_this_means: A PR merging, CI going green, or one agent going quiet does not itself terminate the loop -- those are checkpoints, not exits. Termination requires an explicit statement from both sides that the current lane is actually done, not just currently unblocked.
+  what_this_does_not_mean: Not a mandate to manufacture busywork once real work runs out -- "stay unsatisfied" means keep verifying and looking for the next real thing, not invent fake tasks to avoid an honest stop. A true joint termination, reached honestly, is a valid and good outcome, not a failure.
+  current_status: active, no joint termination proposed by either side yet.
