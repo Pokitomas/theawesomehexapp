@@ -40,6 +40,11 @@ CORE_REFRESH_BRIDGE = (
     "window.dispatchEvent(new CustomEvent('sideways:corpusrefresherror',{detail:{message:error.message}}))"
     "}});"
 )
+CORE_DB_VERSION = "const DB_VERSION=1;\n"
+CORE_DB_OPEN = "indexedDB.open(DB_NAME,DB_VERSION)"
+CORE_DB_OPEN_CURRENT = "indexedDB.open(DB_NAME)"
+CORE_DB_SUCCESS = "request.onsuccess=()=>resolve(request.result)"
+CORE_DB_SUCCESS_CURRENT = "request.onsuccess=()=>{const db=request.result;db.onversionchange=()=>db.close();resolve(db)}"
 
 OLD_SOCIAL_MARKERS = (
     '<link rel="stylesheet" href="./social.css" data-social-product>',
@@ -61,6 +66,19 @@ def inject_core_refresh(text: str) -> str:
     if CORE_ANCHOR not in text:
         raise RuntimeError("cannot install core import refresh bridge")
     return text.replace(CORE_ANCHOR, f"{CORE_REFRESH_BRIDGE}\n{CORE_ANCHOR}", 1)
+
+
+def release_core_schema_ownership(text: str) -> str:
+    text = text.replace(CORE_DB_VERSION, "", 1)
+    if CORE_DB_OPEN in text:
+        text = text.replace(CORE_DB_OPEN, CORE_DB_OPEN_CURRENT, 1)
+    elif CORE_DB_OPEN_CURRENT not in text:
+        raise RuntimeError("cannot release core corpus schema version ownership")
+    if CORE_DB_SUCCESS in text:
+        text = text.replace(CORE_DB_SUCCESS, CORE_DB_SUCCESS_CURRENT, 1)
+    elif CORE_DB_SUCCESS_CURRENT not in text:
+        raise RuntimeError("cannot install core version-change close behavior")
+    return text
 
 
 def remove_retired_social(text: str) -> str:
@@ -137,12 +155,13 @@ def main() -> None:
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
-    app.write_text(inject_core_refresh(app.read_text(encoding="utf-8")), encoding="utf-8")
+    app_text = release_core_schema_ownership(app.read_text(encoding="utf-8"))
+    app.write_text(inject_core_refresh(app_text), encoding="utf-8")
 
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied durable corpus ledger, off-thread hashing, viewport media hydration, universal media surfaces, and Flow Stage Grid physics")
+    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, universal media surfaces, and Flow Stage Grid physics")
 
 
 if __name__ == "__main__":
