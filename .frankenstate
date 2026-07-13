@@ -1,35 +1,46 @@
-version: 24
-updated_at: 2026-07-13T16:10:00-07:00
+version: 25
+updated_at: 2026-07-13T16:42:00-07:00
 repository: Pokitomas/theawesomehexapp
-branch: agent/runtime-hardening-ledger
-active_pr: 68 open
-deployment_receipt: 67
-supersedes_pr: 66 closed
+branch: main
+active_pr: 68 merged
+merge_commit: 1282312114941e75327cb29b70978f68b744575a
+previous_deployment_receipt: 67
+superseded_pr: 66 closed locked zero-diff
 
 owner: GPT-5.6 Thinking
-mode: implementation complete; awaiting external proof
+mode: complete
 
 current_subtask:
-  summary: Harden the local-first byte runtime without turning the vision into protocol theater.
-  base_commit: 6e0ccee32fc59043b98fdded77ca29cc8de4f11d
+  summary: Hardened the local-first byte runtime without turning the vision into protocol theater.
   completed:
-    - added corpus schema v2 with an append-only compatibility ledger
-    - made record blob and compatibility receipt changes atomic
+    - upgraded the corpus to schema v2 with one append-only compatibility ledger
+    - made record blob and compatibility receipt mutations atomic
+    - made the shared corpus module the only schema-version owner
     - requested persistent storage and exposed honest best-effort durability status
-    - moved full-file SHA-256 hashing into a worker with a recorded fallback mode
+    - moved bounded full-file SHA-256 hashing into a worker and recorded sampled fallback mode
     - batch-hydrated only near-viewport media and dehydrated far-off heavy surfaces
     - replaced full-record shared-asset scans with an assetKey index
-    - removed the unused generic action-sync outbox
-    - split import hardening into small hashing writing and normalization modules
+    - removed the unused generic action-sync outbox and arbitrary endpoint machinery
+    - split import hashing writing and normalization into focused modules
+    - replaced stale outbox and eager-media proofs with lived ledger and viewport proofs
+    - reset closed and locked the superseded cortical branch at the merged main commit
   verification:
-    - all changed JavaScript passes node syntax checks
-    - both changed Python installers compile
-    - phone runtime proof added to CI
-  done_when: pull-request checks pass and merge or deployment state is recorded
+    - all five required pull-request workflows passed on exact head 5c816f58c616332126e748f8d6d6c1ea046d832f
+    - real 390x844 journeys passed for workspace creation cancellation deletion reload and ledger survival
+    - MIME-less image video audio PDF and unknown binary passed viewport hydration and deletion
+    - zero authored blobs remained after destructive cleanup
+    - delete tombstones survived reload
+    - kernel parity and overlay shard proofs remained green
+    - squash-merged as 1282312114941e75327cb29b70978f68b744575a
+  production:
+    - previous verified Pages receipt remains issue 67 for merge dd111692d2af5c8dd002883b4a1202ae8e58f973
+    - do not claim the new merge deployed until an external Pages receipt identifies 1282312114941e75327cb29b70978f68b744575a
+  done_when: complete
 
 invariants:
   - Preserve the exact root ranking kernel and stable debug hooks.
   - IndexedDB is canonical working state, not a promise against browser eviction.
+  - One shared corpus module owns schema upgrades; root clients open the current version without pinning it.
   - Request persistent storage and report best-effort status honestly.
   - Corpus mutations and compatibility receipts commit atomically.
   - Full-file hashing must not run on the main thread when Worker and Web Crypto exist.
@@ -40,4 +51,5 @@ invariants:
   - Flow Stage and Grid may change layout physics but never ranking records or action semantics.
   - Every visible custom product control must come from the action contract.
   - Do not add sync transport until a real service contract exists.
+  - Do not add a second engineering belief ledger or duplicate runtime schema authority.
   - Never use or persist credentials pasted into chat.
