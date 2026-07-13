@@ -1,0 +1,392 @@
+.social-top-post {
+  min-height: 42px;
+  padding: .58rem .9rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 999px;
+  background: var(--studio-lime);
+  color: var(--studio-ink);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 950;
+  letter-spacing: .04em;
+  box-shadow: 3px 3px 0 var(--studio-ink);
+  cursor: pointer;
+}
+
+.social-stream {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.social-post-card {
+  --post-accent: var(--studio-yellow);
+  overflow: hidden;
+  border: 2px solid var(--studio-ink);
+  border-radius: 20px;
+  background: var(--studio-surface);
+  box-shadow: 5px 5px 0 var(--studio-ink);
+}
+
+.social-post-card.style-shout { --post-accent: var(--studio-orange); }
+.social-post-card.style-soft { --post-accent: var(--studio-pink); }
+.social-post-card.style-chaos {
+  --post-accent: var(--studio-violet);
+  transform: rotate(-.35deg);
+}
+
+.social-post-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: .7rem;
+  align-items: center;
+  padding: .75rem .9rem;
+  border-bottom: 2px solid var(--studio-ink);
+  background: var(--post-accent);
+}
+
+.social-post-avatar,
+.social-profile-avatar,
+.social-mini-avatar {
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--studio-ink);
+  border-radius: 14px;
+  box-shadow: 2px 2px 0 var(--studio-ink);
+}
+
+.social-post-avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 1.45rem;
+}
+
+.social-post-identity {
+  min-width: 0;
+  display: grid;
+  gap: .08rem;
+}
+
+.social-post-identity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .95rem;
+}
+
+.social-post-identity span,
+.social-post-head time {
+  font-size: .67rem;
+  font-weight: 850;
+  letter-spacing: .04em;
+  opacity: .72;
+}
+
+.social-post-body {
+  display: grid;
+  gap: .8rem;
+  padding: 1rem;
+}
+
+.social-post-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.3rem, 5vw, 2.45rem);
+  line-height: 1.02;
+  letter-spacing: -.045em;
+  font-weight: 850;
+}
+
+.style-shout .social-post-text {
+  text-transform: uppercase;
+  font-size: clamp(1.7rem, 7vw, 3.4rem);
+  line-height: .92;
+}
+
+.style-soft .social-post-text {
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+
+.style-chaos .social-post-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: -.05em;
+}
+
+.social-post-image {
+  width: 100%;
+  max-height: 620px;
+  object-fit: cover;
+  border: 2px solid var(--studio-ink);
+  border-radius: 14px;
+}
+
+.social-post-remix,
+.social-remix-preview {
+  margin: 0;
+  padding: .7rem .8rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 12px;
+  background: rgba(255,255,255,.7);
+}
+
+.social-post-remix span,
+.social-remix-preview span {
+  font-size: .65rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.social-post-remix p,
+.social-remix-preview p {
+  margin: .3rem 0 0;
+  font-size: .85rem;
+  line-height: 1.35;
+}
+
+.social-post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  padding: .8rem;
+  border-top: 2px solid var(--studio-ink);
+  background: #ebe6dc;
+}
+
+.social-post-actions button,
+.social-core-remix {
+  min-height: 40px;
+  padding: .55rem .72rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 999px;
+  background: white;
+  color: var(--studio-ink);
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.social-reaction { background: var(--studio-yellow) !important; }
+.social-post-action.is-active { background: var(--studio-pink); }
+.social-delete { margin-left: auto; opacity: .62; }
+
+.social-dialog {
+  width: min(94vw, 680px);
+  max-height: min(92vh, 860px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.social-dialog::backdrop {
+  background: rgba(23,23,20,.72);
+  backdrop-filter: blur(8px);
+}
+
+.social-dialog-shell {
+  max-height: min(92vh, 860px);
+  overflow: auto;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 22px;
+  background: var(--studio-paper);
+  box-shadow: 8px 8px 0 var(--studio-ink);
+}
+
+.social-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.social-dialog-head h2 {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  line-height: .85;
+  letter-spacing: -.07em;
+}
+
+.social-icon-button {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--studio-ink);
+  border-radius: 50%;
+  background: white;
+  color: var(--studio-ink);
+  font: 950 1.4rem/1 sans-serif;
+  cursor: pointer;
+}
+
+.social-profile-preview {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  padding: .85rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 16px;
+  background: white;
+}
+
+.social-profile-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 2rem;
+}
+
+.social-profile-preview > div {
+  min-width: 0;
+  display: grid;
+}
+
+.social-profile-preview strong {
+  font-size: 1.3rem;
+  letter-spacing: -.04em;
+}
+
+.social-profile-preview span { font-size: .78rem; opacity: .65; }
+
+.social-input,
+.social-composer-text {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid var(--studio-ink);
+  border-radius: 14px;
+  background: white;
+  color: var(--studio-ink);
+  font: inherit;
+}
+
+.social-input {
+  min-height: 50px;
+  padding: .75rem .85rem;
+  font-weight: 850;
+}
+
+.social-composer-text {
+  min-height: 180px;
+  resize: vertical;
+  padding: 1rem;
+  font-size: clamp(1.5rem, 6vw, 3rem);
+  line-height: 1;
+  letter-spacing: -.05em;
+  font-weight: 850;
+}
+
+.social-profile-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.social-picker {
+  display: grid;
+  gap: .55rem;
+}
+
+.social-picker h3 {
+  margin: 0;
+  font-size: .68rem;
+  letter-spacing: .08em;
+}
+
+.social-option-grid,
+.social-color-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+.social-option {
+  min-height: 48px;
+  padding: .55rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 12px;
+  background: white;
+  color: var(--studio-ink);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.social-option.is-selected {
+  outline: 4px solid var(--studio-blue);
+  outline-offset: 1px;
+  transform: translate(-1px,-1px);
+  box-shadow: 3px 3px 0 var(--studio-ink);
+}
+
+.social-color-grid .social-option { min-height: 42px; }
+
+.social-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: .65rem;
+}
+
+.social-primary,
+.social-secondary {
+  min-height: 50px;
+  padding: .7rem 1rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 12px;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.social-primary { background: var(--studio-lime); color: var(--studio-ink); }
+.social-secondary { background: white; color: var(--studio-ink); }
+
+.social-composer-author {
+  width: max-content;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .45rem .65rem;
+  border: 2px solid var(--studio-ink);
+  border-radius: 999px;
+  background: white;
+  color: var(--studio-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.social-mini-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  box-shadow: none;
+}
+
+.social-image-preview:empty { display: none; }
+.social-image-preview img {
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border: 2px solid var(--studio-ink);
+  border-radius: 14px;
+}
+
+@media (max-width: 640px) {
+  .social-top-post {
+    min-height: 38px;
+    padding: .5rem .68rem;
+  }
+
+  .social-post-card { border-radius: 15px; box-shadow: 4px 4px 0 var(--studio-ink); }
+  .social-profile-controls { grid-template-columns: 1fr; }
+  .social-dialog-actions { grid-template-columns: 1fr; }
+  .social-option-grid,
+  .social-color-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .social-post-actions { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .social-post-actions button { min-width: 0; padding-inline: .35rem; }
+  .social-delete { margin-left: 0; }
+}
