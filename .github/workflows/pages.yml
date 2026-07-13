@@ -61,6 +61,7 @@ jobs:
           echo "6222882773e966ad457a2b6f7dd6ca7b4babe8dc2b67f812a84871fe2f19f3fd  manual-kernel-overlay.tar.xz" | sha256sum -c -
           tar -xJf manual-kernel-overlay.tar.xz
           python manual-kernel/patch.py
+          cp manual-phone-check.mjs manual-kernel/phone-check.mjs
 
       - uses: actions/setup-node@v4
         with:
