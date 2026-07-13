@@ -67,3 +67,5 @@ jobs:
           git add -A
           git commit -m "Install editable manual studio source"
           git push origin HEAD:manual-studio-refactor
+
+# Triggered after this workflow already existed on main.
