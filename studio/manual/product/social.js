@@ -523,7 +523,7 @@ async function buildComposerDialog(seed = {}) {
     createdAt: existing.createdAt || new Date().toISOString(),
     image: existing.image || seed.image || '',
     style: existing.style || rankByResults('post.style', STYLES)[0] || 'NOTE',
-    placeId: existing.placeId || seed.placeId || currentPlaceId === 'archive' ? 'everything' : currentPlaceId,
+    placeId: existing.placeId || seed.placeId || (currentPlaceId === 'archive' ? 'everything' : currentPlaceId),
     saveTimer: null,
     saved: false,
     published: false
