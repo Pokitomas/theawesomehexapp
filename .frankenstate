@@ -1,75 +1,43 @@
-version: 23
-updated_at: 2026-07-13T15:25:00-07:00
+version: 24
+updated_at: 2026-07-13T16:06:00-07:00
 repository: Pokitomas/theawesomehexapp
-branch: main
-active_pr: 65 merged
-lane_issues: 61 62 63 64 completed
+branch: agent/runtime-hardening-ledger
+active_pr: pending
 deployment_receipt: 67
-parallel_coordination_pr: 66 open
+supersedes_pr: 66
 
 owner: GPT-5.6 Thinking
-mode: complete
-
-file_locks: []
+mode: implementation complete; awaiting external proof
 
 current_subtask:
-  summary: Shipped Sideways as a byte-first universal future-media desktop.
-  merge_commit: dd111692d2af5c8dd002883b4a1202ae8e58f973
-  deployment_receipt: 67
-  production_url: https://pokitomas.github.io/theawesomehexapp/manual/
+  summary: Harden the local-first byte runtime without turning the vision into protocol theater.
+  base_commit: 6e0ccee32fc59043b98fdded77ca29cc8de4f11d
   completed:
-    - classify imported files from magic bytes and content before trusting MIME or filenames
-    - preserve image video audio PDF archive and unknown binary blobs in the canonical corpus
-    - prevent MIME-less binary payloads from becoming visible text gibberish
-    - render image playable portrait video audio PDF document and honest binary surfaces
-    - restore canonical MIME when IndexedDB blobs lose their declared type
-    - pause offscreen video without changing record state
-    - make every local record deletable through contracted controls
-    - delete unshared media blobs in the same durable record transaction
-    - ship persistent Flow Stage and Grid feed physics without changing ranking or records
-    - replace rounded dashboard cards with a no-prose future desktop of hard panes media planes electric blue and toxic state
-    - preserve the exact root kernel and legacy phone compatibility contracts
+    - added corpus schema v2 with an append-only compatibility ledger
+    - made record blob and compatibility receipt changes atomic
+    - requested persistent storage and exposed honest best-effort durability status
+    - moved full-file SHA-256 hashing into a worker with a recorded fallback mode
+    - batch-hydrated only near-viewport media and dehydrated far-off heavy surfaces
+    - replaced full-record shared-asset scans with an assetKey index
+    - removed the unused generic action-sync outbox
+    - split import hardening into small hashing writing and normalization modules
   verification:
-    - all five exact-head workflows passed at 10ede2368960ebe5db90b90e030b8938eef08c83
-    - legacy build overlay kernel and 390x844 phone journeys remained green
-    - MIME-less PNG decoded with intrinsic dimensions
-    - 90x160 WebM remained a playable video after reload
-    - WAV rendered as playable audio with measured duration
-    - PDF rendered as an openable document surface
-    - unknown binary rendered as BIN with zero payload text leakage
-    - Stage used visual-viewport-aware y mandatory snapping
-    - Grid persisted through reload and retained ranking order
-    - five imported records deleted to zero records and zero blobs after reload
-    - final Grid and empty-state phone artifacts were visually reviewed
-    - squash-merged to main as dd111692d2af5c8dd002883b4a1202ae8e58f973
-    - GitHub Pages deployed that exact merge and recorded issue 67
-  done_when: complete
-
-next_architectural_goal:
-  summary: Fold the open cortical coordination substrate in PR 66 against this deployed product state without overwriting version 23 or changing product runtime by accident.
-  immediate_work: PR 66 must rebase or merge main and preserve this deployment receipt before integration.
+    - all changed JavaScript passes node syntax checks
+    - both changed Python installers compile
+    - phone runtime proof added to CI
+  done_when: pull-request checks pass and merge or deployment state is recorded
 
 invariants:
-  - Read this file at the start of every coding turn.
   - Preserve the exact root ranking kernel and stable debug hooks.
-  - Do not reintroduce whole-document MutationObservers automatic reloads or click hijacking.
-  - Every visible custom product control must come from the action contract.
-  - Workspace writes resolve only after IndexedDB transaction completion.
-  - Cancelled destructive actions must never be recorded as success.
+  - IndexedDB is canonical working state, not a promise against browser eviction.
+  - Request persistent storage and report best-effort status honestly.
+  - Corpus mutations and compatibility receipts commit atomically.
+  - Full-file hashing must not run on the main thread when Worker and Web Crypto exist.
+  - Heavy media hydrates near the viewport only and releases object URLs when cold.
   - Magic bytes and content outrank absent or contradictory MIME metadata.
   - Unknown binary must never be decoded into feed text.
   - Every local record may be deleted; shared assets may not be removed while referenced.
-  - Stored blobs with empty type must be rendered using canonical record or asset MIME.
   - Flow Stage and Grid may change layout physics but never ranking records or action semantics.
-  - Offscreen video may pause but must not mutate playback records or ranking state.
-  - Titlebar owns product identity profile and status; commandbar owns commands and navigation.
-  - Exactly one New action and one navigation container may exist.
-  - No explanatory feed prose rounded SaaS cards or fake retro decoration.
-  - Geolocation remains explicit and user initiated.
+  - Every visible custom product control must come from the action contract.
+  - Do not add sync transport until a real service contract exists.
   - Never use or persist credentials pasted into chat.
-
-collaborator:
-  owner: cortical-field-pr-66
-  mode: open-separate
-  requirement: preserve version 23 and deployment receipt 67 before merge
-  file_locks: []

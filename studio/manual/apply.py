@@ -5,9 +5,11 @@ import runpy
 import shutil
 
 ROOT = Path(__file__).resolve().parents[2]
-PRODUCT = Path(__file__).resolve().parent / "product"
+HERE = Path(__file__).resolve().parent
+PRODUCT = HERE / "product"
+SHARED = HERE / "shared"
 MANUAL = ROOT / "manual-app"
-IMPORT_INSTALLER = Path(__file__).resolve().parent / "imports" / "apply.py"
+IMPORT_INSTALLER = HERE / "imports" / "apply.py"
 
 STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
@@ -71,6 +73,10 @@ def main() -> None:
     if not MANUAL.exists():
         raise SystemExit("manual-app is missing; assemble the canonical overlays first")
 
+    shared_target = MANUAL / "shared"
+    shared_target.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(SHARED / "corpus-db.js", shared_target / "corpus-db.js")
+
     for name in (
         "studio.css",
         "studio-components.css",
@@ -88,7 +94,6 @@ def main() -> None:
         "workspace-db.js",
         "workspace-profile.js",
         "workspace-records.js",
-        "workspace-sync.js",
         "workspace-migration.js",
         "workspace.js",
         "workspace-ui.js",
@@ -100,7 +105,13 @@ def main() -> None:
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
-    for retired in ("social.js", "social.css"):
+    workspace_db = MANUAL / "workspace-db.js"
+    workspace_db.write_text(
+        workspace_db.read_text(encoding="utf-8").replace("../shared/corpus-db.js", "./shared/corpus-db.js"),
+        encoding="utf-8",
+    )
+
+    for retired in ("social.js", "social.css", "workspace-sync.js"):
         path = MANUAL / retired
         if path.exists():
             path.unlink()
@@ -131,7 +142,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied universal media ingestion, adaptive surfaces, Flow Stage Grid physics, aggressive future-media chrome, no-prose viewport lock, and core refresh bridge")
+    print("applied durable corpus ledger, off-thread hashing, viewport media hydration, universal media surfaces, and Flow Stage Grid physics")
 
 
 if __name__ == "__main__":

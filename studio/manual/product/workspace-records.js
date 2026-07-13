@@ -1,8 +1,10 @@
 import {
   BLOB_STORE,
+  LEDGER_STORE,
   RECORD_STORE,
   clean,
   hashText,
+  ledgerEntry,
   openCorpusDB,
   readStore,
   requestResult,
@@ -14,6 +16,16 @@ import { clearDraft, placeTag, readProfile, recordPlaceId } from './workspace-pr
 
 function canvasBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(blob => resolve(blob), type, quality));
+}
+
+function compatibilityOf(record = {}) {
+  return {
+    mediaKind: record.mediaKind || '',
+    mime: record.mime || '',
+    mediaConfidence: record.mediaConfidence || '',
+    assetKey: record.assetKey || '',
+    originalName: record.originalName || ''
+  };
 }
 
 export async function prepareImage(file) {
@@ -82,6 +94,7 @@ export async function buildRecord(input = {}, options = {}) {
     hash: `${hash}:${nativeId}`,
     assetKey: image ? `workspace-asset-${uid('image')}` : '',
     mediaKind: image ? 'image' : '',
+    mediaConfidence: image ? 'authored' : '',
     width: Number(image?.width || 0),
     height: Number(image?.height || 0),
     nativeId,
@@ -94,13 +107,19 @@ export async function buildRecord(input = {}, options = {}) {
 export async function insertRecord(record, image = null) {
   const db = await openCorpusDB();
   try {
-    const stores = image ? [RECORD_STORE, BLOB_STORE] : [RECORD_STORE];
+    const stores = image ? [RECORD_STORE, BLOB_STORE, LEDGER_STORE] : [RECORD_STORE, LEDGER_STORE];
     const transaction = db.transaction(stores, 'readwrite');
+    const done = transactionDone(transaction);
     if (image && record.assetKey) {
-      transaction.objectStore(BLOB_STORE).put({ key: record.assetKey, blob: image.blob, mime: image.mime, width: image.width, height: image.height });
+      transaction.objectStore(BLOB_STORE).put({ key: record.assetKey, blob: image.blob, mime: image.mime, mediaKind: 'image', width: image.width, height: image.height });
     }
     const id = await requestResult(transaction.objectStore(RECORD_STORE).add(record));
-    await transactionDone(transaction);
+    transaction.objectStore(LEDGER_STORE).add(ledgerEntry('record.insert', {
+      recordId: id,
+      source: 'workspace',
+      compatibility: compatibilityOf(record)
+    }));
+    await done;
     return { ...record, id };
   } finally {
     db.close();
@@ -143,6 +162,23 @@ export async function getAsset(assetKey) {
   return (await readStore(openCorpusDB, BLOB_STORE, assetKey)) || null;
 }
 
+export async function getAssets(assetKeys = []) {
+  const keys = [...new Set(assetKeys.filter(Boolean))];
+  if (!keys.length) return new Map();
+  const db = await openCorpusDB();
+  try {
+    const transaction = db.transaction(BLOB_STORE, 'readonly');
+    const done = transactionDone(transaction);
+    const store = transaction.objectStore(BLOB_STORE);
+    const requests = keys.map(key => requestResult(store.get(key)).then(value => [key, value || null]));
+    const rows = await Promise.all(requests);
+    await done;
+    return new Map(rows);
+  } finally {
+    db.close();
+  }
+}
+
 export async function updateEntry(recordId, input = {}) {
   const existing = await getRecord(recordId);
   if (!existing || !String(existing.nativeId || '').startsWith('sideways:')) throw new Error('This post cannot be edited here.');
@@ -158,24 +194,32 @@ export async function updateEntry(recordId, input = {}) {
   };
   const db = await openCorpusDB();
   try {
-    const transaction = db.transaction([RECORD_STORE, BLOB_STORE], 'readwrite');
+    const transaction = db.transaction([RECORD_STORE, BLOB_STORE, LEDGER_STORE], 'readwrite');
+    const done = transactionDone(transaction);
     const blobs = transaction.objectStore(BLOB_STORE);
     if (input.removeImage && next.assetKey) {
       blobs.delete(next.assetKey);
-      Object.assign(next, { assetKey: '', mediaKind: '', width: 0, height: 0, mime: 'text/plain' });
+      Object.assign(next, { assetKey: '', mediaKind: '', mediaConfidence: '', width: 0, height: 0, mime: 'text/plain' });
     }
     if (input.image) {
       if (next.assetKey) blobs.delete(next.assetKey);
       next.assetKey = `workspace-asset-${uid('image')}`;
       next.mediaKind = 'image';
+      next.mediaConfidence = 'authored';
       next.width = input.image.width;
       next.height = input.image.height;
       next.mime = input.image.mime;
       next.size = new Blob([text]).size + input.image.blob.size;
-      blobs.put({ key: next.assetKey, blob: input.image.blob, mime: input.image.mime, width: input.image.width, height: input.image.height });
+      blobs.put({ key: next.assetKey, blob: input.image.blob, mime: input.image.mime, mediaKind: 'image', width: input.image.width, height: input.image.height });
     }
     transaction.objectStore(RECORD_STORE).put(next);
-    await transactionDone(transaction);
+    transaction.objectStore(LEDGER_STORE).add(ledgerEntry('record.update', {
+      recordId: Number(recordId),
+      source: 'workspace',
+      previousAssetKey: existing.assetKey || '',
+      compatibility: compatibilityOf(next)
+    }));
+    await done;
   } finally {
     db.close();
   }
@@ -186,16 +230,32 @@ export async function updateEntry(recordId, input = {}) {
 
 export async function deleteEntry(recordId) {
   const numericId = Number(recordId);
-  const existing = await getRecord(numericId);
-  if (!existing) throw new Error('This item no longer exists.');
-  const allRecords = await listRecords();
-  const assetIsShared = Boolean(existing.assetKey && allRecords.some(record => Number(record.id) !== numericId && record.assetKey === existing.assetKey));
   const db = await openCorpusDB();
+  let existing;
   try {
-    const transaction = db.transaction([RECORD_STORE, BLOB_STORE], 'readwrite');
-    transaction.objectStore(RECORD_STORE).delete(numericId);
+    const transaction = db.transaction([RECORD_STORE, BLOB_STORE, LEDGER_STORE], 'readwrite');
+    const done = transactionDone(transaction);
+    const records = transaction.objectStore(RECORD_STORE);
+    existing = await requestResult(records.get(numericId));
+    if (!existing) {
+      transaction.abort();
+      await done.catch(() => {});
+      throw new Error('This item no longer exists.');
+    }
+    let assetIsShared = false;
+    if (existing.assetKey) {
+      const matches = await requestResult(records.index('assetKey').getAll(existing.assetKey));
+      assetIsShared = matches.some(record => Number(record.id) !== numericId);
+    }
+    records.delete(numericId);
     if (existing.assetKey && !assetIsShared) transaction.objectStore(BLOB_STORE).delete(existing.assetKey);
-    await transactionDone(transaction);
+    transaction.objectStore(LEDGER_STORE).add(ledgerEntry('record.delete', {
+      recordId: numericId,
+      source: String(existing.nativeId || '').startsWith('sideways:') ? 'workspace' : 'import',
+      assetDeleted: Boolean(existing.assetKey && !assetIsShared),
+      compatibility: compatibilityOf(existing)
+    }));
+    await done;
   } finally {
     db.close();
   }

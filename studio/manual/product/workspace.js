@@ -1,10 +1,11 @@
 import { ACCENTS, clearDraft, deletePlace, listPlaces, readDraft, readProfile, recordPlaceId, saveDraft, savePlace, saveProfile } from './workspace-profile.js';
-import { deleteEntry, getAsset, getRecord, listRecords, ownedEntries, prepareImage, publishEntry, recordsByPlace, updateEntry } from './workspace-records.js';
-import { configureSync, flushOutbox, outboxCount, persistEvent } from './workspace-sync.js';
+import { deleteEntry, getAsset, getAssets, getRecord, listRecords, ownedEntries, prepareImage, publishEntry, recordsByPlace, updateEntry } from './workspace-records.js';
+import { readCorpusLedger, storageDurability } from './workspace-db.js';
 import { migrateLegacySocial } from './workspace-migration.js';
 
-window.addEventListener('sideways:action', event => void persistEvent(event.detail).catch(error => console.warn('[workspace] event persistence failed', error)));
-window.addEventListener('online', () => void flushOutbox().catch(error => console.warn('[workspace] sync failed', error)));
+void storageDurability({ request: true })
+  .then(detail => window.dispatchEvent(new CustomEvent('sideways:durability', { detail })))
+  .catch(error => console.warn('[workspace] durability request failed', error));
 
 export const Workspace = Object.freeze({
   accents: ACCENTS,
@@ -23,12 +24,12 @@ export const Workspace = Object.freeze({
   deleteEntry,
   getRecord,
   getAsset,
+  getAssets,
   listRecords,
   ownedEntries,
   recordsByPlace,
-  configureSync,
-  flushOutbox,
-  outboxCount,
+  durability: storageDurability,
+  ledger: readCorpusLedger,
   migrateLegacySocial
 });
 

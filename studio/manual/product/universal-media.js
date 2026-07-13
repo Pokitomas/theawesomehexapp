@@ -1,8 +1,11 @@
-import { getAsset, getRecord } from './workspace-records.js';
+import { getAssets, getRecord } from './workspace-records.js';
 
 const liveURLs = new Map();
 const rendered = new Map();
-let scheduled = false;
+const recordCache = new Map();
+const pendingCards = new Set();
+let batchScheduled = false;
+let scanScheduled = false;
 
 function kindFor(record = {}) {
   if (record.mediaKind) return record.mediaKind;
@@ -90,13 +93,17 @@ function fileSurface(record, url, state = 'ready') {
   return node;
 }
 
-function imageSurface(record, url) {
+function imageSurface(record, url, release) {
   const image = new Image();
   image.className = 'universal-image';
   image.alt = record.title || record.originalName || '';
   image.decoding = 'async';
   image.loading = 'lazy';
-  image.addEventListener('error', () => image.replaceWith(fileSurface(record, url, 'broken')), { once: true });
+  image.addEventListener('load', release, { once: true });
+  image.addEventListener('error', () => {
+    release();
+    image.replaceWith(fileSurface(record, '', 'broken'));
+  }, { once: true });
   image.src = url;
   return image;
 }
@@ -109,7 +116,7 @@ function videoSurface(record, url) {
   video.preload = 'metadata';
   video.src = url;
   video.setAttribute('aria-label', record.title || 'Video');
-  video.addEventListener('error', () => video.replaceWith(fileSurface(record, url, 'broken')), { once: true });
+  video.addEventListener('error', () => video.replaceWith(fileSurface(record, '', 'broken')), { once: true });
   return video;
 }
 
@@ -123,15 +130,15 @@ function audioSurface(record, url) {
   audio.controls = true;
   audio.preload = 'metadata';
   audio.src = url;
-  audio.addEventListener('error', () => stage.replaceWith(fileSurface(record, url, 'broken')), { once: true });
+  audio.addEventListener('error', () => stage.replaceWith(fileSurface(record, '', 'broken')), { once: true });
   stage.append(mark, audio);
   return stage;
 }
 
-function surfaceFor(record, asset, url) {
+function surfaceFor(recordId, record, renderBlob, url) {
   const kind = kindFor(record);
-  if (!asset?.blob || !url) return fileSurface(record, '', 'missing');
-  if (kind === 'image') return imageSurface(record, url);
+  if (!renderBlob || !url) return fileSurface(record, '', 'missing');
+  if (kind === 'image') return imageSurface(record, url, () => clearURL(recordId));
   if (kind === 'video') return videoSurface(record, url);
   if (kind === 'audio') return audioSurface(record, url);
   return fileSurface(record, url);
@@ -152,18 +159,38 @@ function applyGeometry(card, shell, record) {
   card.dataset.mediaKind = kindFor(record) || 'none';
 }
 
-async function renderCard(card) {
+function recordFromCore(recordId) {
+  const records = window.SidewaysCore?.state?.records;
+  if (!Array.isArray(records)) return null;
+  return records.find(record => Number(record.id) === recordId) || null;
+}
+
+async function resolveRecord(card) {
   const recordId = Number(card.dataset.id || 0);
-  if (!recordId) return;
+  if (!recordId) return null;
+  const coreRecord = recordFromCore(recordId);
+  if (coreRecord) {
+    recordCache.set(recordId, coreRecord);
+    return coreRecord;
+  }
+  if (recordCache.has(recordId)) return recordCache.get(recordId);
   const record = await getRecord(recordId);
-  if (!record) return;
-  const signature = `${record.updatedAt || record.addedAt || ''}:${record.assetKey || ''}:${record.mediaKind || ''}:${record.mime || ''}`;
+  if (record) recordCache.set(recordId, record);
+  return record;
+}
+
+function signatureFor(record) {
+  return `${record.updatedAt || record.addedAt || ''}:${record.assetKey || ''}:${record.mediaKind || ''}:${record.mime || ''}`;
+}
+
+function renderResolved(card, record, asset) {
+  const recordId = Number(card.dataset.id || 0);
+  const signature = signatureFor(record);
   if (rendered.get(recordId) === signature && card.dataset.universalMedia === 'ready') return;
 
   const kind = kindFor(record);
   if (!kind && !record.assetKey) return;
   clearURL(recordId);
-  const asset = record.assetKey ? await getAsset(record.assetKey) : null;
   const storedBlob = asset?.blob || null;
   const declaredMime = asset?.mime || record.mime || '';
   const renderBlob = storedBlob && !storedBlob.type && declaredMime
@@ -173,52 +200,97 @@ async function renderCard(card) {
   if (url) liveURLs.set(recordId, url);
 
   const shell = mediaShell(card);
-  shell.replaceChildren(surfaceFor(record, asset, url));
+  shell.replaceChildren(surfaceFor(recordId, record, renderBlob, url));
   applyGeometry(card, shell, record);
   card.classList.add('has-universal-media');
-  card.classList.toggle('is-media-missing', !asset?.blob);
+  card.classList.toggle('is-media-missing', !renderBlob);
   card.dataset.universalMedia = 'ready';
   rendered.set(recordId, signature);
+  for (const video of shell.querySelectorAll('.universal-video')) videoObserver.observe(video);
 }
 
-async function renderAll() {
-  const cards = [...document.querySelectorAll('#feed .post')];
-  const ids = new Set(cards.map(card => Number(card.dataset.id || 0)).filter(Boolean));
-  for (const recordId of [...liveURLs.keys()]) if (!ids.has(recordId)) clearURL(recordId);
-  await Promise.all(cards.map(renderCard));
-  observeVideos();
+async function flushBatch() {
+  batchScheduled = false;
+  const cards = [...pendingCards].filter(card => card.isConnected);
+  pendingCards.clear();
+  if (!cards.length) return;
+
+  const pairs = (await Promise.all(cards.map(async card => [card, await resolveRecord(card)]))).filter(([, record]) => record);
+  const assets = await getAssets(pairs.map(([, record]) => record.assetKey));
+  for (const [card, record] of pairs) renderResolved(card, record, assets.get(record.assetKey) || null);
   document.documentElement.dataset.universalMedia = 'ready';
 }
 
+function enqueue(card) {
+  if (!card?.isConnected) return;
+  pendingCards.add(card);
+  if (batchScheduled) return;
+  batchScheduled = true;
+  requestAnimationFrame(() => void flushBatch().catch(error => console.warn('[media] hydrate failed', error)));
+}
+
+function dehydrate(card) {
+  const recordId = Number(card.dataset.id || 0);
+  const record = recordCache.get(recordId);
+  const kind = kindFor(record || {});
+  const media = card.querySelector('video, audio');
+  media?.pause?.();
+  if (!record || kind === 'image' || !liveURLs.has(recordId)) return;
+  clearURL(recordId);
+  const shell = mediaShell(card);
+  shell.replaceChildren(fileSurface(record, '', 'cold'));
+  card.dataset.universalMedia = 'cold';
+  rendered.delete(recordId);
+}
+
+const mediaObserver = new IntersectionObserver(entries => {
+  for (const entry of entries) {
+    if (entry.isIntersecting) enqueue(entry.target);
+    else dehydrate(entry.target);
+  }
+}, { rootMargin: '900px 0px', threshold: 0.01 });
+
 const videoObserver = new IntersectionObserver(entries => {
   for (const entry of entries) {
-    const video = entry.target;
-    if (!entry.isIntersecting || entry.intersectionRatio < .35) video.pause();
+    if (!entry.isIntersecting || entry.intersectionRatio < .35) entry.target.pause();
   }
 }, { threshold: [0, .35, .8] });
 
-function observeVideos() {
+function nearViewport(card) {
+  const rect = card.getBoundingClientRect();
+  return rect.bottom > -900 && rect.top < innerHeight + 900;
+}
+
+function scan() {
+  scanScheduled = false;
+  const cards = [...document.querySelectorAll('#feed .post')];
+  const ids = new Set(cards.map(card => Number(card.dataset.id || 0)).filter(Boolean));
+  for (const recordId of [...liveURLs.keys()]) if (!ids.has(recordId)) clearURL(recordId);
+  for (const recordId of [...recordCache.keys()]) if (!ids.has(recordId)) recordCache.delete(recordId);
+  mediaObserver.disconnect();
   videoObserver.disconnect();
-  for (const video of document.querySelectorAll('#feed .universal-video')) videoObserver.observe(video);
+  for (const card of cards) {
+    mediaObserver.observe(card);
+    if (nearViewport(card)) enqueue(card);
+  }
+  document.documentElement.dataset.universalMedia = 'ready';
 }
 
 function schedule() {
-  if (scheduled) return;
-  scheduled = true;
-  requestAnimationFrame(async () => {
-    scheduled = false;
-    await renderAll();
-  });
+  if (scanScheduled) return;
+  scanScheduled = true;
+  requestAnimationFrame(scan);
 }
 
 for (const eventName of ['sideways:ready', 'sideways:feedrender', 'sideways:workspacechange', 'sideways:importcomplete', 'hashchange', 'popstate']) {
   window.addEventListener(eventName, schedule);
 }
 window.addEventListener('pagehide', () => {
+  mediaObserver.disconnect();
+  videoObserver.disconnect();
   for (const recordId of [...liveURLs.keys()]) clearURL(recordId);
 });
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
 else schedule();
-for (const delay of [120, 420, 1200]) setTimeout(schedule, delay);
 
 window.SidewaysUniversalMedia = Object.freeze({ refresh: schedule, kindFor });
