@@ -12,18 +12,60 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
-      - name: Extract second full-build phone failure
+      - name: Wait for final main release and live assets
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_JOB: '86771789611'
+          FINAL_SHA: 1c6775e00fa8b5ecb89c05695800bca70b0b0fbe
         run: |
           set -euo pipefail
-          curl -fsSL -L \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/jobs/$BUILD_JOB/logs" \
-            -o /tmp/build.log
-          grep -n -E -A24 -B18 'Check manual gate and importer|locator\.waitFor|TimeoutError|##\[error\]|expected|missing|PICK MORE|FILES \+|addView|pageerror' /tmp/build.log | tail -220 || true
-          echo '--- FINAL 120 LINES ---'
-          tail -120 /tmp/build.log
+          api() {
+            curl -fsSL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              "$1"
+          }
+
+          for workflow in 'Build and deploy manual root-kernel feed' 'Prove manual gate on phone'; do
+            found=''
+            for attempt in $(seq 1 100); do
+              runs=$(api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$FINAL_SHA&per_page=30")
+              found=$(echo "$runs" | jq -r --arg workflow "$workflow" '[.workflow_runs[] | select(.event=="push" and .name==$workflow)][0].id // empty')
+              status=$(echo "$runs" | jq -r --arg workflow "$workflow" '[.workflow_runs[] | select(.event=="push" and .name==$workflow)][0].status // "missing"')
+              conclusion=$(echo "$runs" | jq -r --arg workflow "$workflow" '[.workflow_runs[] | select(.event=="push" and .name==$workflow)][0].conclusion // ""')
+              echo "$workflow attempt=$attempt run=$found status=$status conclusion=$conclusion"
+              if [ "$status" = completed ]; then
+                if [ "$conclusion" != success ]; then
+                  jobs=$(api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$found/jobs?per_page=100")
+                  echo "$jobs" | jq '.jobs[] | {id,name,status,conclusion,steps:[.steps[]|{name,status,conclusion}]}'
+                  exit 1
+                fi
+                break
+              fi
+              sleep 15
+            done
+            [ -n "$found" ] || { echo "$workflow never appeared" >&2; exit 1; }
+          done
+
+          base='https://pokitomas.github.io/theawesomehexapp/manual'
+          for attempt in $(seq 1 50); do
+            html=$(curl -fsSL --max-time 20 "$base/" || true)
+            phone=$(curl -fsSL --max-time 20 "$base/import-phone.js" || true)
+            studio=$(curl -fsSL --max-time 20 "$base/studio.css" || true)
+            importer=$(curl -fsSL --max-time 20 "$base/import-studio.js" || true)
+            if grep -q 'data-import-phone' <<<"$html" \
+              && grep -q 'PICK MORE FILES' <<<"$phone" \
+              && grep -q 'studio-product' <<<"$studio" \
+              && grep -q 'PUT IN A REAL EXPORT' <<<"$importer"; then
+              echo 'FINAL_LIVE=yes'
+              echo 'MANUAL_URL=https://pokitomas.github.io/theawesomehexapp/manual/'
+              echo 'DEBUG_URL=https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1'
+              echo 'PHONE_PICKER=PICK MORE FILES'
+              exit 0
+            fi
+            echo "Pages propagation attempt=$attempt"
+            sleep 10
+          done
+          echo 'final workflows passed but Pages assets did not propagate' >&2
+          exit 1
