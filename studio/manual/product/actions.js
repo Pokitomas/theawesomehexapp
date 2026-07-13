@@ -97,7 +97,8 @@ export function bindAction(node, id, handler, options = {}) {
     emitAction(id, { phase: 'start', ...payload });
     try {
       const result = await handler?.(event, definition);
-      emitAction(id, { phase: 'success', result: result ?? null, ...payload });
+      const phase = result?.cancelled === true ? 'cancelled' : 'success';
+      emitAction(id, { phase, result: result ?? null, ...payload });
     } catch (error) {
       emitAction(id, { phase: 'error', error: error?.message || String(error), ...payload });
       throw error;
