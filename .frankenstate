@@ -1,14 +1,15 @@
-version: 7
-updated_at: 2026-07-13T06:14:00-07:00
+version: 8
+updated_at: 2026-07-13T06:52:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: agent/radical-onboarding-reset
 active_pr: 43
 beacon_issue: 40
 
 owner: GPT-5.6 Thinking
-mode: active
+mode: solo-integration
 
 file_locks:
+  - studio/manual/product/copy.js
   - studio/manual/product/import-studio.js
   - studio/manual/product/import-studio.css
   - studio/manual/product/import-phone.js
@@ -23,68 +24,59 @@ file_locks:
   - .github/workflows/pages.yml
 
 current_subtask:
-  summary: Finish consolidation by integrating PR 46's logical fix into readable source on PR 43 and closing every auxiliary PR.
-  last_change: Confirmed PR 45's render guard and PR 46's extraction regex are the only logical differences; current phone proof is green on PR 43.
+  summary: Final solo product pass: remove the remaining inferential/developer language, prove the explicit platform-download journey on iPhone, clear all CI errors, merge PR 43, and verify the deployed app.
+  last_change: PR 45 render guard and PR 46 extraction compatibility are both integrated into readable PR 43 build paths; PR 41, PR 45, PR 46, and probe PR 36 are closed or merged into the single integration branch.
   current_ci:
-    - overlay validation: success
-    - phone proof: success on head 061ddd0
-    - Pages build: running
-    - kernel parity: running after prerequisite repair
-  active_auxiliary_pr:
-    pr: 46
-    purpose: whitespace-tolerant kernel extraction regex
-    integration_decision: Do not repack or overwrite the PR 45 overlay. Add an idempotent readable pre-build compatibility step in studio/manual/prepare-kernel.py and invoke it before every manual-kernel/patch.py run.
-    preservation:
-      - PR 45 bounded feed-render guard remains inside the existing packed overlay untouched
-      - PR 46 extraction regex is applied after extraction and before execution in every canonical workflow
-  user_approval:
-    quote: "true merge is fine js make sure it pushes and make everything in one place not different pr"
-    interpretation: Explicit approval to consolidate auxiliary fixes into PR 43 and close duplicate PR paths.
-  done_when: PR 46 is closed as integrated, PR 36 is closed as obsolete, PR 43 is the only open product PR, and unified CI passes from one head SHA.
+    - overlay validation: success on head 957e3f7
+    - kernel parity: success on head 957e3f7
+    - phone onboarding/import: success on head 957e3f7
+    - Pages build: in progress on head 957e3f7
+  final_product_changes:
+    - apply plain-language profile and storage review
+    - replace vague GET DATA / I HAVE THE FILES controls with OPEN DOWNLOAD PAGE / CHOOSE DOWNLOADED FILES
+    - update real-touch tests atomically
+    - inspect fresh phone artifacts before merge
+  done_when: One green PR 43 is merged to main, GitHub Pages deploys, and the live manual URL passes the real phone journey without reloads, hidden legacy UI, kernel drift, or unexplained setup language.
 
 external_execution:
   github_actions:
-    status: unified on PR 43 head
-    meaning: The supplied Azure Blob URL is a signed redirect to a GitHub Actions job log, not a source-code editor.
-    coordination: Treat current PR 43 runs as the single source of CI truth.
-  claude:
-    status: integrated
-    source_prs:
-      - pr: 45
-        result: merged into agent/radical-onboarding-reset
-      - pr: 41
-        result: exact two files copied to agent/radical-onboarding-reset; original PR closed as superseded
-      - pr: 46
-        result: logical fix moving into readable PR 43 compatibility source; original PR will close as superseded
-    review_only_output: Exact copy replacements remain queued for PR 43.
+    status: single source of truth is PR 43 head
+    coordination: No duplicate workflow branches or auxiliary product PRs remain.
+  collaborator:
+    status: implementation integrated; no file locks
+    incorporated:
+      - bounded feed-render guard
+      - root/manual kernel parity gate
+      - whitespace-tolerant kernel extraction
+      - plain-language copy review
 
 coordination_alerts:
   - id: auxiliary-pr-sprawl
+    severity: resolved
+    resolution_applied: PR 41 content copied into PR 43; PR 45 merged into its head; PR 46 logic integrated readably; PR 36, PR 41, and PR 46 closed.
+  - id: final-language-handoff
     severity: active
-    finding: PR 46 and obsolete probe PR 36 remain open.
-    resolution: Integrate PR 46 logically into readable source on PR 43, then close PR 46 and PR 36.
-  - id: packed-overlay-overlap
-    severity: resolved-by-design
-    finding: PR 45 and PR 46 both repack the same compressed overlay files.
-    resolution_applied: Keep PR 45's known-good overlay; apply PR 46's non-semantic extraction compatibility after extraction through readable source.
+    finding: Platform cards still require users to infer that the first button opens a download page and the second chooses the resulting files.
+    resolution: Make both actions explicit and prove them in the iPhone tests.
+  - id: exposed-user-token
+    severity: security
+    finding: A GitHub personal access token was pasted into chat.
+    resolution: Do not use or store it; user must revoke it after completion.
 
 next_architectural_goal:
-  summary: Merge and deploy one coherent human-first Sideways product rather than an old developer tool wearing a visual skin.
+  summary: Ship the completed human-first Sideways app from main.
   sequence:
-    - integrate readable kernel compatibility and close auxiliary PRs
-    - get unified PR 43 CI fully green
-    - apply collaborator copy review
-    - inspect phone screenshots for product comprehension and visual hierarchy
-    - merge PR 43 to main and verify Pages deployment on a real phone URL
-    - recursively re-evaluate feed, profile, saved, and detail views against the same plain-language standard
+    - finish copy and platform-action pass
+    - run unified CI and inspect artifacts
+    - merge PR 43 to main
+    - verify Pages deployment and live phone URLs
+    - release all file locks and mark this ledger complete
 
 collaborator_lane:
-  status: beacon active and matched
+  status: closed for implementation
   allowed_now:
-    - rendered-product critique with exact replacement copy/layout
-    - parser fixtures for Instagram TikTok YouTube Spotify after current interaction path stabilizes
-    - independent phone regression review
-  collision_rule: Do not edit another owner's locked files without first updating this ledger and commenting on issue 40.
+    - review-only observations after merge
+  collision_rule: Solo integration owns all listed files until deployment verification completes.
 
 invariants:
   - Read this file at the start of every coding turn.
@@ -92,40 +84,24 @@ invariants:
   - Release locks when a file is no longer actively owned.
   - Preserve the exact root ranking kernel and stable debug hooks.
   - Do not reintroduce whole-document MutationObservers, automatic import reloads, or capture-phase click hijacking.
-  - Keep all active product integration in PR 43; auxiliary PRs must merge into its head branch or close.
-  - Prefer readable compatibility source over another opaque packed-overlay mutation when semantics are unchanged.
+  - Keep all active product integration in PR 43 until it merges to main.
+  - Prefer readable compatibility source over opaque packed-overlay mutations when semantics are unchanged.
+  - Never use or persist credentials pasted into chat.
 
 collaborator:
   owner: Claude
-  mode: review-and-QA
-  updated_at: 2026-07-13T13:20:00Z
-
+  mode: integrated
+  updated_at: 2026-07-13T13:52:00Z
   file_locks: []
-
   released_locks:
     - studio/manual/tests/onboarding-clickthrough.mjs
     - studio/manual/tests/kernel-parity.mjs
     - .github/workflows/kernel-parity-check.yml
-
   current_subtask:
-    summary: Implementation is consolidated into PR 43. PR 46's extraction compatibility is being moved into readable source without losing PR 45's render guard.
-    last_change: Shipped PR 46 after finding real formatting drift in kernel extraction.
-    done_when: PR 46's logical fix exists in PR 43, auxiliary PRs are closed, and unified CI passes.
-
+    summary: No active implementation lane. All accepted work is consolidated into PR 43.
+    done_when: PR 43 is green, merged, and deployed.
   local_repro:
-    note: Full local CI reproduction with real Chromium is available for validating future claims.
-
-  next_architectural_goal:
-    summary: After unified CI is green, verify real platform export fixtures and import correctness.
-
-  invariants_ack:
-    - Read .frankenstate before every turn.
-    - Do not touch GPT locks without coordination.
-    - Update this block before changing lane or locks.
-
+    note: Full local CI reproduction with real Chromium remains available as a diagnostic reference.
   merge_policy:
-    rule: Merging is a termination decision; request explicit approval first.
     approval_received: User explicitly approved true merging and directed all work into one PR.
-    still_open_for_integration:
-      - pr: 46
     holding: false
