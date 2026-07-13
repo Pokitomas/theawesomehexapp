@@ -1,18 +1,16 @@
 export const COPY = Object.freeze({
-  brand: 'SIDEWAYS',
-  ready: 'NEW',
-  emptyTitle: 'START HERE.',
-  emptyPost: 'POST',
-  emptyImport: 'IMPORT',
-  saved: 'SAVED',
-  profile: 'ME',
-  feedLearning: '1 THING',
-  feedAwake: 'FEED',
-  importTitle: 'IMPORT',
-  importBusy: 'IMPORTING…',
-  importDone: 'IT’S IN.',
-  importOpen: 'OPEN FEED',
-  importRetry: 'TRY AGAIN'
+  brand: 'Sideways',
+  ready: 'Ready',
+  emptyTitle: 'Start',
+  emptyPost: 'Post',
+  emptyImport: 'Import',
+  profile: 'Me',
+  feedAwake: 'Feed',
+  importTitle: 'Import',
+  importBusy: 'Importing…',
+  importDone: 'Done',
+  importOpen: 'Open feed',
+  importRetry: 'Try again'
 });
 
 export function copy(key, fallback = '') {
