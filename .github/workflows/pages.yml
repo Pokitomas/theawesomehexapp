@@ -130,6 +130,38 @@ jobs:
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
+      - name: Package generated code for PR inspection
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import tarfile
+
+          roots = [Path('dist'), Path('manual'), Path('general'), Path('profile'), Path('scripts')]
+          keep_suffixes = {'.js', '.mjs', '.py', '.html', '.css', '.json', '.md'}
+          with tarfile.open('inspectable-build.tar.gz', 'w:gz') as archive:
+              for root in roots:
+                  if not root.exists():
+                      continue
+                  for path in root.rglob('*'):
+                      if not path.is_file() or path.suffix.lower() not in keep_suffixes:
+                          continue
+                      if any(part in {'data', 'media', 'node_modules'} for part in path.parts):
+                          continue
+                      if path.stat().st_size > 2_000_000:
+                          continue
+                      archive.add(path, arcname=path.as_posix())
+          PY
+
+      - name: Upload generated code for PR inspection
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: inspectable-build
+          path: inspectable-build.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Configure Pages
         if: github.event_name == 'push'
         uses: actions/configure-pages@v5
