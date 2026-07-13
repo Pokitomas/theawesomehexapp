@@ -125,7 +125,7 @@ export async function exportArk({ download = true } = {}) {
   const blob = new Blob([ARK_MAGIC, `${json.byteLength}\n`, json, ...data.assets.map(asset => asset.blob)], { type: 'application/x-sideways-ark' });
   const filename = `sideways-${new Date().toISOString().slice(0, 10)}.sideways`;
   const save = download ? await saveArk(blob, filename) : { status: 'created-not-saved', method: 'memory' };
-  if (save.status !== 'cancelled') await appendLedger('survival.ark.export', { status: save.status, method: save.method, filename, records: data.records.length, assets: data.assets.length, bytes: blob.size });
+  if (save.status !== 'cancelled') await appendLedger('survival.ark.export', { status: save.status, method: save.method, filename, records: data.records.length, assets: data.assets.length, ledgerEntries: data.ledger.length, bytes: blob.size });
   return { cancelled: save.status === 'cancelled', blob, filename, manifest, save };
 }
 
@@ -165,7 +165,7 @@ export async function restoreArk(file) {
       if (record.hash) hashes.add(record.hash);
       added += 1;
     }
-    ledger.add(ledgerEntry('survival.ark.restore', { added, skipped, assets: Number(manifest.assets?.length || 0), sourceCreatedAt: manifest.createdAt || '' }));
+    ledger.add(ledgerEntry('survival.ark.restore', { added, skipped, assets: Number(manifest.assets?.length || 0), ledgerEntries: Number(manifest.ledger?.length || 0), sourceCreatedAt: manifest.createdAt || '' }));
     await transactionDone(tx);
   } finally { db.close(); }
   if (manifest.profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(manifest.profile));
@@ -178,19 +178,19 @@ export async function restoreArk(file) {
       await transactionDone(tx);
     } finally { workspace.close(); }
   }
-  const result = { added, skipped, assets: Number(manifest.assets?.length || 0) };
+  const result = { added, skipped, assets: Number(manifest.assets?.length || 0), ledgerEntries: Number(manifest.ledger?.length || 0) };
   window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: { source: 'ark', ...result } }));
   window.dispatchEvent(new CustomEvent('sideways:survivalchange', { detail: { op: 'survival.ark.restore', ...result } }));
   return result;
 }
 
-export async function audit() {
+export async function audit({ record = true } = {}) {
   const data = await snapshot();
   const referenced = new Set(data.records.map(record => record.assetKey).filter(Boolean));
   const available = new Set(data.assets.map(asset => asset.key));
   const durability = await storageDurability();
   const result = { records: data.records.length, assets: data.assets.length, bytes: data.assets.reduce((sum, asset) => sum + Number(asset.blob?.size || 0), 0), missingAssets: [...referenced].filter(key => !available.has(key)), orphanAssets: data.assets.filter(asset => !referenced.has(asset.key)).map(asset => asset.key), durability };
-  await appendLedger('survival.audit', { ...result, durability: { persisted: durability.persisted, bestEffort: durability.bestEffort } });
+  if (record) await appendLedger('survival.audit', { ...result, durability: { persisted: durability.persisted, bestEffort: durability.bestEffort } });
   return result;
 }
 
