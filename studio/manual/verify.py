@@ -65,20 +65,50 @@ def main() -> None:
             raise AssertionError(f"kernel compatibility contract missing: {contract}")
 
     studio_source = assert_clean_text(HERE / "product" / "studio.js")
-    if "requestAnimationFrame" not in studio_source or "setText" not in studio_source:
-        raise AssertionError("studio enhancer must remain scheduled and idempotent")
+    for contract in ("requestAnimationFrame", "setText", "shouldAutoOpenApps", "routeTo('#/add')"):
+        if contract not in studio_source:
+            raise AssertionError(f"consumer first-run contract missing: {contract}")
+    for forbidden in ("studio-profile-setup", "PROFILE_KEY", "storageCard(", "navigator.storage"):
+        if forbidden in studio_source:
+            raise AssertionError(f"first run reintroduced setup machinery: {forbidden}")
 
     for relative in ("studio.js", "import-studio.js", "import-phone.js"):
         source = assert_clean_text(HERE / "product" / relative)
         if "new MutationObserver" in source:
             raise AssertionError(f"{relative} reintroduced a whole-document mutation observer")
 
+    copy_source = assert_clean_text(HERE / "product" / "copy.js")
+    for forbidden in ("profileTitle", "storageUnknown", "queueEmpty", "CHOOSE FILES", "REAL EXPORT"):
+        if forbidden in copy_source:
+            raise AssertionError(f"visible copy reintroduced implementation language: {forbidden}")
+
     import_source = assert_clean_text(HERE / "product" / "import-studio.js")
     if "location.reload()" in import_source:
         raise AssertionError("imports must not force an automatic page reload")
-    for contract in ("Reddit", "Instagram", "TikTok", "YouTube", "Spotify", "cleanFeedURL", "studio-add-modern"):
+    for contract in (
+        "Instagram",
+        "Reddit",
+        "TikTok",
+        "YouTube",
+        "Spotify",
+        "NEED YOUR DOWNLOAD?",
+        "runtime.import(chosen)",
+        "IMPORT ${platform.name.toUpperCase()}",
+        "studio-add-modern",
+    ):
         if contract not in import_source:
-            raise AssertionError(f"platform onboarding contract missing: {contract}")
+            raise AssertionError(f"one-tap platform contract missing: {contract}")
+    for forbidden in ("I HAVE THE FILES", "ADD TO MY FEED", "CHOOSE DIFFERENT FILES", "import-file-list", "import-queue-panel", "PICK FOLDER"):
+        if forbidden in import_source:
+            raise AssertionError(f"consumer import reintroduced file-workbench UI: {forbidden}")
+
+    import_css = assert_clean_text(HERE / "product" / "import-studio.css")
+    for contract in (".source-import", ".source-help", ".import-progress-panel", ".import-complete-panel"):
+        if contract not in import_css:
+            raise AssertionError(f"consumer import visual contract missing: {contract}")
+    for forbidden in (".import-queue-panel", ".import-file-list", ".import-advanced"):
+        if forbidden in import_css:
+            raise AssertionError(f"legacy workbench styling returned: {forbidden}")
 
     reset_source = assert_clean_text(HERE / "product" / "studio-reset.css")
     for contract in ("studio-add-modern", "#importWorkbenchHost", "[data-studio-intro]"):
@@ -86,11 +116,12 @@ def main() -> None:
             raise AssertionError(f"legacy-surface reset missing: {contract}")
 
     phone_source = assert_clean_text(HERE / "product" / "import-phone.js")
-    for contract in ("PICK MORE FILES", "webkitdirectory", "cloneNode", "replaceWith"):
+    for contract in ("sidewaysImportFiles", "input.multiple = true", "removeAttribute('webkitdirectory')"):
         if contract not in phone_source:
-            raise AssertionError(f"phone importer fallback missing: {contract}")
-    if "stopImmediatePropagation" in phone_source:
-        raise AssertionError("phone importer must not hijack every click listener")
+            raise AssertionError(f"native phone importer contract missing: {contract}")
+    for forbidden in ("stopImmediatePropagation", "cloneNode", "PICK MORE FILES"):
+        if forbidden in phone_source:
+            raise AssertionError(f"phone importer reintroduced a patched visible control: {forbidden}")
 
     if not MANUAL.exists():
         print("manual studio and importer source layers are clean")
@@ -145,7 +176,7 @@ def main() -> None:
         raise AssertionError("phone importer fallback must inject exactly one script")
 
     subprocess.run(["node", str(HERE / "imports" / "verify.mjs")], check=True)
-    print("manual studio product layer and import workbench verified")
+    print("manual studio consumer product and import pipeline verified")
 
 
 if __name__ == "__main__":
