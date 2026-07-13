@@ -199,7 +199,7 @@ def main() -> None:
     require(
         studio_css,
         (
-            "--os-accent", "--os-window", ".os-titlebar", ".os-dock", ".os-sheet", ".os-create-grid",
+            "--os-accent", "--os-window", "body > .topbar", ".os-dock", ".os-sheet", ".os-create-grid",
             ".os-places-grid", ".os-me-hero", "backdrop-filter", "prefers-reduced-motion", "prefers-color-scheme: dark",
             "cubic-bezier(.2,.9,.22,1.08)",
         ),
