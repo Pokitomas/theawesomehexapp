@@ -38,7 +38,13 @@ async function migrate(pool) {
 }
 
 export function ensureSocialSchema(pool) {
-  if (!readyByPool.has(pool)) readyByPool.set(pool, migrate(pool));
+  if (!readyByPool.has(pool)) {
+    const pending = migrate(pool).catch(error => {
+      readyByPool.delete(pool);
+      throw error;
+    });
+    readyByPool.set(pool, pending);
+  }
   return readyByPool.get(pool);
 }
 
