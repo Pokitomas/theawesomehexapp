@@ -7,6 +7,7 @@ import {
   mutationRequestDigest,
   withSocialMutationContext
 } from '../../netlify/functions/social-idempotency.mjs';
+import { createRelationalSocialService } from '../../netlify/functions/social-relational-core.mjs';
 
 const SECRET = 'social-idempotency-test-secret-at-least-32-bytes';
 const OTHER_SECRET = 'different-social-idempotency-secret-32-bytes';
@@ -19,6 +20,14 @@ function request(op, body, key = 'same-key') {
       'idempotency-key': key
     },
     body: JSON.stringify(body)
+  });
+}
+
+function oversizedRequest() {
+  return new Request('https://sideways.test/api/social?op=post', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: 'x'.repeat(MAX_MUTATION_BODY_BYTES + 1)
   });
 }
 
@@ -36,15 +45,17 @@ test('request identity is keyed, deterministic, body-bound, operation-bound, and
 });
 
 test('request identity rejects an oversized body even without a content-length header', async () => {
-  const oversized = new Request('https://sideways.test/api/social?op=post', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: 'x'.repeat(MAX_MUTATION_BODY_BYTES + 1)
-  });
   await assert.rejects(
-    mutationRequestDigest(oversized, SECRET),
+    mutationRequestDigest(oversizedRequest(), SECRET),
     error => error.status === 413
   );
+});
+
+test('the relational HTTP service converts pre-handler identity denial into a 413 response', async () => {
+  const service = createRelationalSocialService({ authority: {}, sessionSecret: SECRET });
+  const result = await service(oversizedRequest());
+  assert.equal(result.status, 413);
+  assert.deepEqual(await result.json(), { error: 'Request is too large.' });
 });
 
 test('mutation identity remains isolated across concurrent async request chains', async () => {
