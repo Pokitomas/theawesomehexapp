@@ -67,7 +67,7 @@ const medianComplexity = [...rows].sort((a, b) => a.complexity - b.complexity)[M
 
 const brief = {
   schema: 'sideways-personal-web-brief-v1',
-  generatedAt: new Date().toISOString(),
+  generatedAt: manifest.generatedAt || new Date().toISOString(),
   sourceCount: rows.length,
   sourceUrls: rows.map(row => row.url),
   rankedSignals: rankedSignals.map(([signal, count]) => ({ signal, count })),
@@ -89,12 +89,16 @@ const brief = {
   sources: rows,
 };
 
-fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, `${JSON.stringify(brief, null, 2)}\n`);
-console.log(`wrote ${path.relative(root, outputPath)} from ${rows.length} attributed sources`);
-
 if (args.has('--check')) {
   if (rows.length < 16) throw new Error('inspiration set must contain at least 16 unique sources');
   if (!manifest.requiredTraits?.length || !manifest.rejectDrift?.length) throw new Error('anchor rules missing');
   if (medianComplexity > manifest.complexityCeiling) throw new Error('source-set complexity exceeds product ceiling');
+  const committed = JSON.parse(read(outputPath));
+  if (committed.sourceCount !== rows.length) throw new Error('committed brief is stale');
+  if (committed.productCenter !== manifest.productCenter) throw new Error('product center drifted');
+  console.log(`validated ${rows.length} attributed sources; median complexity ${medianComplexity}/${manifest.complexityCeiling}`);
+} else {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(brief, null, 2)}\n`);
+  console.log(`wrote ${path.relative(root, outputPath)} from ${rows.length} attributed sources`);
 }
