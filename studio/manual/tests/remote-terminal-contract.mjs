@@ -39,12 +39,23 @@ assert.equal(manifest.weave.thought, 'https://raw.githubusercontent.com/Pokitoma
 assert.equal(manifest.documentation, 'https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/README_REMOTE.md');
 assert.equal(manifest.weave.live_state, manifest.state);
 assert.equal(manifest.weave.static_state, manifest.snapshot);
+assert.equal(manifest.generation.protocol, 'sideways-universal-remote-generation/1');
+assert.equal(manifest.generation.number, Number(process.env.REMOTE_GENERATION || 2));
+assert.equal(manifest.generation.authoritative, false);
+assert.equal(manifest.generation.state_ledger, false);
+assert.equal(manifest.generation.semantics, 'discovery metadata only; live and static remote state remain authoritative');
+const expectedBranch = process.env.REMOTE_GENERATION_BRANCH || process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || 'main';
+assert.equal(manifest.generation.branch, expectedBranch);
+const pullMatch = (process.env.GITHUB_REF || '').match(/^refs\/pull\/(\d+)\//);
+const expectedPull = pullMatch ? `https://github.com/${process.env.GITHUB_REPOSITORY || 'Pokitomas/theawesomehexapp'}/pull/${pullMatch[1]}` : null;
+assert.equal(manifest.generation.pull_request, expectedPull);
 assert.equal(fs.existsSync(path.join(root, 'REMOTE_WORK.md')), true, 'work entry point is missing');
 assert.equal(fs.existsSync(path.join(root, 'REMOTE_THOUGHT.md')), true, 'shareable thought location is missing');
 assert.equal(snapshot.state.blocker_count, 0);
 assert.ok(Array.isArray(snapshot.state.messages));
 console.log(JSON.stringify({
   discovery: '.well-known/sideways-remote.json',
+  generation: manifest.generation,
   publicState: manifest.state,
   publicMessages: manifest.messages,
   report: manifest.weave.report,

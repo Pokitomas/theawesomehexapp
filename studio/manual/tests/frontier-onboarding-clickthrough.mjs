@@ -125,12 +125,21 @@ await page.route('**/api/remote/state**', async route => {
 
 await page.route('**/api/starter', async route => {
   starterRequests += 1;
-  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: 99, items: fixture }) });
+  if (starterRequests === 1) {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: 99, items: fixture }) });
+    return;
+  }
+  await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'No function in a static Drop.' }) });
 });
 
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
-page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+page.on('console', message => {
+  if (message.type() !== 'error') return;
+  const text = message.text();
+  if (starterRequests > 1 && /404|api\/starter/i.test(text)) return;
+  errors.push(text);
+});
 
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.frontier === 'ready', { timeout: 15000 });
@@ -188,23 +197,27 @@ if (!machineState?.includes('proof-head-123456789')) throw new Error('machine-re
 await page.screenshot({ path: 'frontier-live-work-proof.png', fullPage: false });
 await liveDialog.getByRole('button', { name: 'Close live work' }).click();
 
-const removeProofPosts = () => page.evaluate(async () => {
-  const records = (await window.SidewaysWorkspace.listRecords()).filter(record => String(record.nativeId || '').startsWith('starter:proof-'));
+const removeStarterPosts = prefix => page.evaluate(async expectedPrefix => {
+  const records = (await window.SidewaysWorkspace.listRecords()).filter(record => String(record.nativeId || '').startsWith(expectedPrefix));
   for (const record of records) await window.SidewaysWorkspace.deleteEntry(record.id);
-  const remaining = (await window.SidewaysWorkspace.listRecords()).filter(record => String(record.nativeId || '').startsWith('starter:proof-'));
+  const remaining = (await window.SidewaysWorkspace.listRecords()).filter(record => String(record.nativeId || '').startsWith(expectedPrefix));
   return { inserted: records.length, remaining: remaining.length };
-});
+}, prefix);
 
-const cleanup = await removeProofPosts();
+const cleanup = await removeStarterPosts('starter:proof-');
 if (cleanup.inserted !== fixture.length || cleanup.remaining !== 0) throw new Error(`fixture cleanup failed: ${JSON.stringify(cleanup)}`);
 await page.waitForFunction(() => document.querySelectorAll('#feed .post').length === 0, { timeout: 15000 });
 await page.evaluate(() => localStorage.removeItem('sideways-starter-pack-v1'));
 const instantStarter = page.locator('.studio-launch-button.is-import');
 await touch(instantStarter);
-await page.waitForFunction(expected => document.querySelectorAll('#feed .post').length === expected, fixture.length, { timeout: 15000 });
-const instantCleanup = await removeProofPosts();
-if (instantCleanup.inserted !== fixture.length || instantCleanup.remaining !== 0) throw new Error(`instant starter cleanup failed: ${JSON.stringify(instantCleanup)}`);
-if (starterRequests !== 2) throw new Error(`starter endpoint should be called by both onboarding and the empty-state button, saw ${starterRequests}`);
+const builtInCount = 8;
+await page.waitForFunction(expected => document.querySelectorAll('#feed .post').length === expected, builtInCount, { timeout: 15000 });
+await page.getByText('The good part was never infinite content. It was noticing the same people becoming more themselves.', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+if (await page.getByText(/Request failed/i).count()) throw new Error('static fallback exposed the missing function as an error');
+await page.screenshot({ path: 'frontier-static-drop-proof.png', fullPage: false });
+const instantCleanup = await removeStarterPosts('starter:');
+if (instantCleanup.inserted !== builtInCount || instantCleanup.remaining !== 0) throw new Error(`static starter cleanup failed: ${JSON.stringify(instantCleanup)}`);
+if (starterRequests !== 2) throw new Error(`starter endpoint should be attempted by onboarding and the empty-state button, saw ${starterRequests}`);
 if (fileChoosers !== 0) throw new Error(`instant starter opened ${fileChoosers} file chooser(s)`);
 if (errors.length) throw new Error(errors.join(' | '));
 
@@ -217,7 +230,7 @@ console.log(JSON.stringify({
   temporaryPostsRemaining: cleanup.remaining,
   socialActions: ['Like', 'Reply', 'Remix', 'Save', 'Share'],
   closeTarget: closeBox,
-  screenshots: ['frontier-profile-proof.png', 'frontier-starter-proof.png', 'frontier-phone-proof.png', 'frontier-live-work-proof.png']
+  screenshots: ['frontier-profile-proof.png', 'frontier-starter-proof.png', 'frontier-phone-proof.png', 'frontier-live-work-proof.png', 'frontier-static-drop-proof.png']
 }, null, 2));
 
 await context.close();

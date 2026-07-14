@@ -1,6 +1,7 @@
 import { actionButton } from './actions.js';
 import { Workspace } from './workspace.js';
 import { buildRecord, insertRecord, refreshCorpus } from './workspace-records.js';
+import { starterPack } from './starter-pack.js';
 
 const DEVICE_KEY = 'sideways-device-v1';
 const LIKE_KEY = 'sideways-likes-v1';
@@ -51,10 +52,30 @@ async function backend(path, options = {}) {
       signal: controller.signal
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+    if (!response.ok) {
+      const error = new Error(data.error || `Request failed (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
     return data;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+function starterUnavailable(error) {
+  return error?.name === 'AbortError' || error instanceof TypeError || [404, 405, 501].includes(Number(error?.status));
+}
+
+async function starterResult(profile) {
+  try {
+    return await backend('/api/starter', {
+      method: 'POST',
+      body: JSON.stringify({ deviceId: deviceId(), profile })
+    });
+  } catch (error) {
+    if (!starterUnavailable(error)) throw error;
+    return { version: 1, items: starterPack(profile), source: 'built-in' };
   }
 }
 
@@ -133,10 +154,7 @@ async function installStarter(status, button) {
   setStatus(status, 'Making your feed…');
   try {
     const profile = Workspace.profile();
-    const result = await backend('/api/starter', {
-      method: 'POST',
-      body: JSON.stringify({ deviceId: deviceId(), profile })
-    });
+    const result = await starterResult(profile);
     const existing = new Set((await Workspace.listRecords()).map(record => record.nativeId).filter(Boolean));
     let inserted = 0;
     for (const item of result.items || []) {

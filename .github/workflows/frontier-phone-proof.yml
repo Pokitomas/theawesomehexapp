@@ -89,6 +89,7 @@ jobs:
           node studio/manual/tests/remote-terminal-contract.mjs
           node --test scripts/tests/remote-service.test.mjs
           node --check studio/manual/product/frontier.js
+          node --check studio/manual/product/starter-pack.js
           node --check netlify/functions/profile.mjs
           node --check netlify/functions/starter.mjs
           node --check netlify/functions/remote-core.mjs
@@ -118,6 +119,7 @@ jobs:
             frontier-starter-proof.png
             frontier-phone-proof.png
             frontier-live-work-proof.png
+            frontier-static-drop-proof.png
             /tmp/sideways-frontier-server.log
           if-no-files-found: warn
           retention-days: 5
