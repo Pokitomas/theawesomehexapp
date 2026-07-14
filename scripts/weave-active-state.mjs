@@ -5,6 +5,10 @@ const timeOf = value => {
   const parsed = Date.parse(clean(value));
   return Number.isFinite(parsed) ? parsed : 0;
 };
+const positiveInteger = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
 
 function sortedEvents(messages) {
   return (Array.isArray(messages) ? messages : [])
@@ -55,6 +59,8 @@ function terminalSupersedesPresence(terminal, presence) {
 
 export function projectActiveWeaveState(messages, options = {}) {
   const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  const terminationWindowMs = positiveInteger(options.terminationWindowMs, 24 * 60 * 60 * 1000);
+  const terminationLimit = positiveInteger(options.terminationLimit, 20);
   const folded = foldWeaveMessages(messages, now);
   const events = sortedEvents(messages);
   const sessions = new Map();
@@ -131,6 +137,7 @@ export function projectActiveWeaveState(messages, options = {}) {
     for (let rightIndex = leftIndex + 1; rightIndex < activeIntents.length; rightIndex += 1) {
       const left = activeIntents[leftIndex];
       const right = activeIntents[rightIndex];
+      if (left.session_id === right.session_id) continue;
       const shared = overlap(left.artifact_keys, right.artifact_keys);
       if (!shared.length) continue;
       collisions.push({
@@ -173,13 +180,18 @@ export function projectActiveWeaveState(messages, options = {}) {
     .filter(message => (responseTimes.get(message.event_id) || 0) <= timeOf(message.issued_at))
     .sort((left, right) => left.event_id.localeCompare(right.event_id));
 
+  const terminationCutoff = now - terminationWindowMs;
   const recentTerminations = [...terminals.values()]
     .filter(terminal => {
       const presence = sessions.get(terminal.session_id);
-      return !presence || terminalSupersedesPresence(terminal, presence);
+      const issuedAt = timeOf(terminal.issued_at);
+      return issuedAt >= terminationCutoff
+        && issuedAt <= now
+        && (!presence || terminalSupersedesPresence(terminal, presence));
     })
     .sort((left, right) => timeOf(right.issued_at) - timeOf(left.issued_at)
-      || clean(left.session_id).localeCompare(clean(right.session_id)));
+      || clean(left.session_id).localeCompare(clean(right.session_id)))
+    .slice(0, terminationLimit);
 
   return {
     head: clean(options.head) || null,
