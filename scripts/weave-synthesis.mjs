@@ -10,7 +10,7 @@ export function buildSynthesis({ id, issuer = 'system:weave-synthesizer', issued
     issuer,
     issued_at,
     visibility: 'private',
-    source_event_ids: events.map(event => event.id),
+    source_event_ids: [...new Set([...events.map(event => event.id), ...unresolved_ids, ...minority_report_ids])],
     body: {
       statement: `Synthesis over ${events.length} typed events.`,
       observations,
