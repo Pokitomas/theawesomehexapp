@@ -27,6 +27,7 @@ import {
   verifyEd25519Signature,
   verifyHmacSignature
 } from './remote-core.mjs';
+import { lassoRemoteArrival } from './weave-lasso-service.mjs';
 
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
@@ -59,6 +60,13 @@ async function listBlobKeys(store, prefix) {
 
 function envValue(env, key) {
   return typeof env?.[key] === 'string' ? env[key] : '';
+}
+
+function lassoEnabled(env) {
+  const explicit = clean(envValue(env, 'REMOTE_WEAVE_LASSO')).toLowerCase();
+  if (['0', 'false', 'off', 'disabled'].includes(explicit)) return false;
+  if (['1', 'true', 'on', 'enabled'].includes(explicit)) return true;
+  return clean(envValue(env, 'NETLIFY')).toLowerCase() === 'true';
 }
 
 function envPrincipalKeyName(principalId) {
@@ -377,6 +385,23 @@ export function createRemoteHandler({ store, env = process.env, now = () => Date
       const key = messageKey(message.session, message.generation, message.issued_at, message.id);
       await store.setJSON(key, message);
       await store.setJSON(idKey, { key, id: message.id, issued_at: message.issued_at });
+      if (lassoEnabled(env)) {
+        try {
+          const page = await readMessages(store, message.session, message.generation, {
+            limit: MAX_PAGE_SIZE,
+            publicOnly: false
+          });
+          await lassoRemoteArrival({
+            store,
+            message,
+            state: nextState,
+            existingMessages: [...page.messages, message],
+            now: auth.now
+          });
+        } catch {
+          // Collaboration grouping must never block the authenticated write it accompanies.
+        }
+      }
       state = await writeState(store, nextState, auth.principalId, auth.now);
       return reply(200, { stored: key, message, state: publicStateProjection(state, message.visibility === 'public' ? [message] : []) });
     } catch (error) {
