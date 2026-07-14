@@ -272,8 +272,7 @@ function allReferences(event) {
   const refs = [...event.source_event_ids];
   if (event.parent) refs.push(event.parent);
   if (event.kind === 'evidence') refs.push(...body.supports, ...body.opposes);
-  if (event.kind === 'contradiction') refs.push(body.left_id, body.right_id, ...(body.resolved_by ? [body.resolved_by] : []));
-  if (event.kind === 'question' && body.resolved_by) refs.push(body.resolved_by);
+  if (event.kind === 'contradiction') refs.push(body.left_id, body.right_id);
   if (event.kind === 'plan') refs.push(...body.goal_ids);
   if (event.kind === 'decision') refs.push(...body.supporting_ids, ...body.opposing_ids, ...body.resolves);
   if (event.kind === 'test.result') refs.push(...body.targets);
@@ -289,6 +288,7 @@ function allReferences(event) {
 export function foldCognitionEvents(events = []) {
   const ordered = sortedUniqueEvents(events);
   const ids = new Set(ordered.map(event => event.id));
+  const eventById = new Map(ordered.map(event => [event.id, event]));
   const referencesById = new Map();
   for (const event of ordered) {
     const references = allReferences(event);
@@ -297,6 +297,13 @@ export function foldCognitionEvents(events = []) {
       if (!ids.has(reference)) fail(`Event ${event.id} references missing event ${reference}.`, 'COGNITION_DANGLING_REFERENCE');
       if (reference === event.id) fail(`Event ${event.id} cannot reference itself.`, 'COGNITION_SELF_REFERENCE');
     }
+  }
+  for (const event of ordered) {
+    if (!['question', 'contradiction'].includes(event.kind) || !event.body.resolved_by) continue;
+    const resolver = eventById.get(event.body.resolved_by);
+    if (!resolver) fail(`Event ${event.id} names missing resolution event ${event.body.resolved_by}.`, 'COGNITION_DANGLING_RESOLUTION');
+    if (resolver.kind !== 'decision') fail(`Event ${event.id} resolution ${resolver.id} is not a decision.`, 'COGNITION_INVALID_RESOLUTION');
+    if (!resolver.body.resolves.includes(event.id)) fail(`Decision ${resolver.id} does not resolve event ${event.id}.`, 'COGNITION_INCONSISTENT_RESOLUTION');
   }
   const visiting = new Set();
   const visited = new Set();
