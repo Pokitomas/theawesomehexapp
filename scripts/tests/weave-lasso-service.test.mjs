@@ -126,7 +126,7 @@ test('a second direct principal collides in foundational rooms while retaining a
   });
   const result = await lassoRemoteArrival({
     store,
-    message: sourceMessage('agent-two', 'm2', 'What is the actual comment and moderation model?'),
+    message: sourceMessage('agent-two', 'm2', 'What is the actual comment, reply, and thread model?'),
     state,
     existingMessages: store.messages(),
     now: Date.parse('2026-07-14T14:02:00Z')
