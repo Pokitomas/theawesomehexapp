@@ -141,6 +141,11 @@ def main() -> None:
         build_head = os.environ.get("GITHUB_SHA") or os.environ.get("COMMIT_REF")
         if build_head:
             remote_data["head_sha"] = build_head
+        remote_data["live_backend"] = bool(
+            os.environ.get("NETLIFY")
+            or os.environ.get("NETLIFY_DEV")
+            or os.environ.get("REMOTE_LIVE_BACKEND") == "1"
+        )
         remote_data.setdefault("decision", "proceed")
         remote_data.setdefault("claims", [])
         remote_data.setdefault("blocker_count", 0)
