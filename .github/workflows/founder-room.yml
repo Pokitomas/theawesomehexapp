@@ -46,5 +46,6 @@ jobs:
           path: |
             founder
             founder-room-phone.png
+            founder-room-proof.json
           if-no-files-found: error
           retention-days: 5
