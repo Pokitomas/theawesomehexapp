@@ -47,4 +47,16 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: node --test --test-concurrency=1 scripts/tests/social-authority-schema-bootstrap.test.mjs
+      - name: Execute staged schema upgrade
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 scripts/tests/social-authority-schema-bootstrap.test.mjs 2>&1 | tee social-authority-schema.log
+      - name: Preserve schema upgrade evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-authority-schema-log
+          path: social-authority-schema.log
+          if-no-files-found: error
+          retention-days: 5
