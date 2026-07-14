@@ -35,7 +35,8 @@ test('social assembly retains every source authority boundary', async () => {
     '001_social_authority.sql',
     '002_community_conversation_authority.sql',
     '003_social_idempotency_identity.sql',
-    '004_immutable_appeal_actions.sql'
+    '004_immutable_appeal_actions.sql',
+    '005_quarantine_legacy_idempotency_receipts.sql'
   ]) assert.ok(migrations.includes(name), `migration loader lost ${name}`);
 
   const pkg = JSON.parse(packageText);
@@ -43,6 +44,7 @@ test('social assembly retains every source authority boundary', async () => {
     'social-cookie-provenance.test.mjs',
     'social-idempotency.test.mjs',
     'social-idempotency-postgres.test.mjs',
+    'social-authority-schema-bootstrap.test.mjs',
     'immutable-appeal-postgres.test.mjs',
     'community-moderation-postgres.test.mjs',
     'social-viewer-controls.test.mjs',
