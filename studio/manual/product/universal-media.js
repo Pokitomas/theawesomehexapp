@@ -46,9 +46,20 @@ function formatBytes(value = 0) {
   return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
+function detachMedia(node) {
+  const media = node?.matches?.('video, audio') ? node : node?.querySelector?.('video, audio');
+  if (!media) return;
+  media.pause?.();
+  media.removeAttribute('src');
+  media.querySelectorAll?.('source').forEach(source => source.removeAttribute('src'));
+  media.load?.();
+}
+
 function clearURL(recordId) {
   const current = liveURLs.get(recordId);
-  if (current) URL.revokeObjectURL(current);
+  const entry = typeof current === 'string' ? { url: current, node: null } : current;
+  if (entry?.node) detachMedia(entry.node);
+  if (entry?.url) URL.revokeObjectURL(entry.url);
   liveURLs.delete(recordId);
 }
 
@@ -197,10 +208,11 @@ function renderResolved(card, record, asset) {
     ? new Blob([storedBlob], { type: declaredMime })
     : storedBlob;
   const url = renderBlob ? URL.createObjectURL(renderBlob) : '';
-  if (url) liveURLs.set(recordId, url);
 
   const shell = mediaShell(card);
-  shell.replaceChildren(surfaceFor(recordId, record, renderBlob, url));
+  const surface = surfaceFor(recordId, record, renderBlob, url);
+  shell.replaceChildren(surface);
+  if (url) liveURLs.set(recordId, { url, node: surface });
   applyGeometry(card, shell, record);
   card.classList.add('has-universal-media');
   card.classList.toggle('is-media-missing', !renderBlob);
@@ -233,8 +245,6 @@ function dehydrate(card) {
   const recordId = Number(card.dataset.id || 0);
   const record = recordCache.get(recordId);
   const kind = kindFor(record || {});
-  const media = card.querySelector('video, audio');
-  media?.pause?.();
   if (!record || kind === 'image' || !liveURLs.has(recordId)) return;
   clearURL(recordId);
   const shell = mediaShell(card);
