@@ -74,7 +74,17 @@ These events do not terminalize the whole Remote generation. Whole-generation co
 
 ## Automatic co-agent lasso
 
+There are two arrival paths.
+
+### GitHub arrivals
+
 `scripts/weave-lasso.mjs` observes incoming GitHub issues, comments, pull requests, and reviews through `.github/workflows/weave-lasso.yml`. When Remote credentials are configured, the workflow silently records the arrival in private weave messages and groups the principal into shared ontology assemblies.
+
+### Direct Remote arrivals
+
+`netlify/functions/weave-lasso-service.mjs` runs inside the authenticated Remote write path. A new opaque principal is grouped immediately after its original message is durably stored. The lasso writes private internal messages under `system:weave-lasso`, never recursively lassos its own messages, and never blocks or changes the response to the authenticated write if grouping fails.
+
+The backend lasso is enabled automatically in the Netlify runtime. `REMOTE_WEAVE_LASSO=1` explicitly enables it elsewhere; `REMOTE_WEAVE_LASSO=0` disables it.
 
 The lasso does not assign a coding ticket. Every arrival enters the two foundational rooms:
 
@@ -83,7 +93,7 @@ The lasso does not assign a coding ticket. Every arrival enters the two foundati
 
 A third room is selected from the arrival’s context: social substrate, conversation model, ranking legitimacy, identity and community, or governance and abuse.
 
-Rooms are stable threads. A second participant triggers an adversarial round asking each participant for a concrete model, a contradiction, an executable probe, and one deletion candidate. Deterministic event identifiers make repeated GitHub deliveries idempotent instead of generating chatter storms.
+Rooms are stable threads. A second participant triggers an adversarial round asking each participant for a concrete model, a contradiction, an executable probe, and one deletion candidate. Deterministic event and message identifiers make repeated deliveries idempotent instead of generating chatter storms.
 
 The foundational object distinctions and current product claim are recorded in [`PROGRAM_ONTOLOGY.md`](./PROGRAM_ONTOLOGY.md). Assemblies are expected to attack that document, not treat it as doctrine.
 
