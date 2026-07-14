@@ -4,7 +4,7 @@ import manifest from '../audit/authority-manifest.mjs';
 import {
   discoverAuthoritySurfaces,
   validateManifest
-} from './check-authority-manifest.mjs';
+} from './authority-manifest-core.mjs';
 
 function rootPath(root) {
   if (root instanceof URL) return fileURLToPath(root);
