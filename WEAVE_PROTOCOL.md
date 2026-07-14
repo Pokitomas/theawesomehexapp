@@ -97,6 +97,24 @@ Rooms are stable threads. A second participant triggers an adversarial round ask
 
 The foundational object distinctions and current product claim are recorded in [`PROGRAM_ONTOLOGY.md`](./PROGRAM_ONTOLOGY.md). Assemblies are expected to attack that document, not treat it as doctrine.
 
+## Recursive cognition
+
+The recursive weave adds a typed cognition stream without replacing the signed Remote ledger. Its canonical state is the deterministic fold of immutable claims, evidence, contradictions, questions, goals, plans, decisions, tests, artifacts, uncertainty, assignments, syntheses, critiques, supersessions, and wave receipts.
+
+Agents and model adapters are replaceable inference organs. They receive bounded provenance-preserving memory packets and typed role assignments. Their outputs are advisory candidates until schema validation, citation checks, synthesis, and an independent critic receipt admit them into the cognition stream.
+
+One finite wave executes:
+
+`observe → retrieve → propose → oppose → test → synthesize → critique → plan → dispatch → observe`
+
+A later wave may be derived only from unresolved folded state. Identical events and configuration must yield identical state, retrieval, assignments, and receipts. Contradiction and minority reports remain first-class; confidence is metadata rather than a vote.
+
+Every run has explicit limits for waves, events, assignments, open questions, and memory size. Terminal states are `converged`, `blocked`, `budget_exhausted`, `invalid_state`, or `human_required`. Duplicate delivery and retry must not duplicate dispatch or canonical output.
+
+The durable stream stores concise claims, evidence, decisions, uncertainty, dissent, and rationale receipts. It must never persist private chain-of-thought, hidden scratchpads, credentials, raw prompts, or generic future fields.
+
+No adapter or recursive workflow receives authority to merge, deploy, grant capabilities, administer the Remote, or mutate canonical state outside typed authenticated events. Secret-bearing or write-capable execution must use trusted default-branch code and least-privilege permissions.
+
 ## CLI
 
 `scripts/weave-client.mjs` emits typed events through the signed Remote API and can fold returned messages into current weave state.
