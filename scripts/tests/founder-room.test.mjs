@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { DIRECTIONS, ROOM_VERSION, normalizeDecision, stableReceipt, summarizeDecision } from '../../founder/founder.js';
+import {
+  DIRECTIONS,
+  ROOM_VERSION,
+  applyReaction,
+  createDecisionStorage,
+  normalizeDecision,
+  stableReceipt,
+  summarizeDecision
+} from '../../founder/founder.js';
 
 const html = fs.readFileSync('founder/index.html', 'utf8');
 const css = fs.readFileSync('founder/founder.css', 'utf8');
@@ -10,6 +18,7 @@ for (const reaction of ['pull', 'push', 'steal']) assert.ok(html.includes(`data-
 assert.ok(html.includes('id="founder-note"'));
 assert.ok(html.includes('id="copy-receipt"'));
 assert.ok(html.includes('id="download-receipt"'));
+assert.ok(html.includes('id="room-status"'));
 assert.ok(css.includes('@media (max-width: 520px)'));
 
 const normalized = normalizeDecision({
@@ -31,7 +40,12 @@ assert.deepEqual(normalized, {
   note: 'make memory social, but steal the remix tools'
 });
 
-const receipt = stableReceipt(normalized);
+const reacted = applyReaction(normalized, 'scene-social', 'push');
+assert.equal(reacted.reactions['scene-social'], 'push');
+assert.deepEqual(applyReaction(reacted, 'unknown', 'pull'), reacted);
+assert.deepEqual(applyReaction(reacted, 'scene-social', 'invalid'), reacted);
+
+const receipt = stableReceipt(reacted);
 assert.equal(receipt, stableReceipt(JSON.parse(receipt)));
 assert.ok(receipt.endsWith('\n'));
 assert.equal(
@@ -40,4 +54,24 @@ assert.equal(
 );
 assert.equal(summarizeDecision({}), 'No direction selected yet.');
 
-console.log('founder room contract ok: three distinct directions produce a local, normalized, deterministic decision receipt');
+const memory = new Map();
+const storage = createDecisionStorage({
+  getItem: key => memory.get(key) || null,
+  setItem: (key, value) => memory.set(key, value),
+  removeItem: key => memory.delete(key)
+});
+assert.equal(storage.save(reacted), true);
+assert.deepEqual(storage.load(), reacted);
+assert.equal(storage.clear(), true);
+assert.deepEqual(storage.load(), normalizeDecision());
+
+const brokenStorage = createDecisionStorage({
+  getItem() { throw new Error('blocked'); },
+  setItem() { throw new Error('blocked'); },
+  removeItem() { throw new Error('blocked'); }
+});
+assert.deepEqual(brokenStorage.load(), normalizeDecision());
+assert.equal(brokenStorage.save(reacted), false);
+assert.equal(brokenStorage.clear(), false);
+
+console.log('founder room contract ok: three distinct directions produce resilient local decisions and deterministic receipts');
