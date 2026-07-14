@@ -24,18 +24,25 @@ jobs:
   lasso:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out trusted lasso implementation
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-lasso
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Verify lasso before execution
+      - name: Verify trusted lasso before execution
+        working-directory: trusted-lasso
         run: |
           node --check scripts/weave-lasso.mjs
           node --test scripts/tests/weave-lasso.test.mjs
 
       - name: Group the incoming principal in private ontology assemblies
+        working-directory: trusted-lasso
         env:
           REMOTE_URL: ${{ secrets.REMOTE_URL }}
           REMOTE_KEY: ${{ secrets.REMOTE_KEY }}
