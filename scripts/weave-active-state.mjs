@@ -33,11 +33,32 @@ function uniqueBeacons(beacons = []) {
   return [...byId.values()].sort((left, right) => clean(left.beacon_id).localeCompare(clean(right.beacon_id)));
 }
 
+function terminalRecord(event) {
+  const body = event.body || {};
+  const state = event.kind === 'session.handoff'
+    ? 'handed_off'
+    : event.kind === 'session.lost'
+      ? 'lost'
+      : 'recovered';
+  return {
+    ...body,
+    state,
+    event_id: event.id,
+    issued_at: event.issued_at,
+    issued_by: event.issuer
+  };
+}
+
+function terminalSupersedesPresence(terminal, presence) {
+  return Boolean(terminal && timeOf(terminal.issued_at) >= timeOf(presence.reported_at));
+}
+
 export function projectActiveWeaveState(messages, options = {}) {
   const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
   const folded = foldWeaveMessages(messages, now);
   const events = sortedEvents(messages);
   const sessions = new Map();
+  const terminals = new Map();
   const intents = [];
   const expectedResponses = new Map();
   const responseTimes = new Map();
@@ -61,15 +82,17 @@ export function projectActiveWeaveState(messages, options = {}) {
     } else if (event.kind === 'intent') {
       const eventTime = timeOf(event.issued_at);
       const candidates = [...sessions.values()]
-        .filter(candidate => candidate.agent_id === event.issuer
+        .filter(candidate => candidate.reported_by === event.issuer
           && timeOf(candidate.reported_at) <= eventTime
-          && timeOf(candidate.lease_expires_at) > eventTime)
-        .sort((left, right) => left.session_id.localeCompare(right.session_id));
+          && timeOf(candidate.lease_expires_at) > eventTime
+          && !terminalSupersedesPresence(terminals.get(candidate.session_id), candidate))
+        .sort((left, right) => timeOf(right.reported_at) - timeOf(left.reported_at)
+          || left.session_id.localeCompare(right.session_id));
       intents.push({
         ...body,
         issuer: event.issuer,
-        session_id: candidates.length === 1 ? candidates[0].session_id : null,
-        ambiguous_session_ids: candidates.length > 1 ? candidates.map(candidate => candidate.session_id) : [],
+        session_id: candidates[0]?.session_id || null,
+        candidate_session_ids: candidates.map(candidate => candidate.session_id),
         issued_at: event.issued_at,
         event_id: event.id,
         artifact_keys: artifactKeys(body)
@@ -85,12 +108,14 @@ export function projectActiveWeaveState(messages, options = {}) {
         const responseTime = timeOf(event.issued_at);
         responseTimes.set(body.reply_to, Math.max(responseTimes.get(body.reply_to) || 0, responseTime));
       }
+    } else if (['session.handoff', 'session.lost', 'session.recover'].includes(event.kind)) {
+      terminals.set(body.session_id, terminalRecord(event));
     }
   }
 
-  const terminalSessions = folded.sessions || {};
   const activeSessions = [...sessions.values()]
-    .filter(session => timeOf(session.lease_expires_at) > now && !terminalSessions[session.session_id])
+    .filter(session => timeOf(session.lease_expires_at) > now
+      && !terminalSupersedesPresence(terminals.get(session.session_id), session))
     .sort((left, right) => left.session_id.localeCompare(right.session_id));
   const activeSessionIds = new Set(activeSessions.map(session => session.session_id));
 
@@ -119,28 +144,42 @@ export function projectActiveWeaveState(messages, options = {}) {
   }
 
   const recoveryNeeded = [...sessions.values()]
-    .filter(session => timeOf(session.lease_expires_at) <= now && !terminalSessions[session.session_id])
+    .filter(session => timeOf(session.lease_expires_at) <= now
+      && !terminalSupersedesPresence(terminals.get(session.session_id), session))
     .map(session => ({
       agent_id: session.agent_id,
       session_id: session.session_id,
       lease_expires_at: session.lease_expires_at,
       last_state: session.state,
+      reported_by: session.reported_by,
       recovery_beacon_id: `recovery:${session.session_id}`
     }))
     .sort((left, right) => left.session_id.localeCompare(right.session_id));
 
+  const recoveryBeacons = recoveryNeeded.map(session => ({
+    beacon_id: session.recovery_beacon_id,
+    kind: 'agent_disappeared',
+    target: { agent_id: session.agent_id, session_id: session.session_id },
+    signal: `Presence lease expired for ${session.agent_id}.`,
+    useful_contribution: ['inspect workspace', 'recover intent', 'package or revert changes'],
+    state: 'open'
+  }));
   const openBeacons = uniqueBeacons([
     ...Object.values(folded.beacons || {}).filter(beacon => ['open', 'active'].includes(beacon.state)),
-    ...(folded.recovery_beacons || [])
+    ...recoveryBeacons
   ]);
 
   const unresolvedResponses = [...expectedResponses.values()]
     .filter(message => (responseTimes.get(message.event_id) || 0) <= timeOf(message.issued_at))
     .sort((left, right) => left.event_id.localeCompare(right.event_id));
 
-  const recentTerminations = Object.values(terminalSessions)
-    .filter(session => ['handed_off', 'lost', 'recovered'].includes(session.state))
-    .sort((left, right) => timeOf(right.issued_at) - timeOf(left.issued_at) || clean(left.session_id).localeCompare(clean(right.session_id)));
+  const recentTerminations = [...terminals.values()]
+    .filter(terminal => {
+      const presence = sessions.get(terminal.session_id);
+      return !presence || terminalSupersedesPresence(terminal, presence);
+    })
+    .sort((left, right) => timeOf(right.issued_at) - timeOf(left.issued_at)
+      || clean(left.session_id).localeCompare(clean(right.session_id)));
 
   return {
     head: clean(options.head) || null,
