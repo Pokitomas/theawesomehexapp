@@ -12,5 +12,11 @@
     {"id":"safety-bounds","depends_on":["recursive-runtime"],"owns":["scripts/tests/weave-recursion-hostile.test.mjs","scripts/tests/weave-recursion-privacy.test.mjs"]},
     {"id":"inspection-surface","depends_on":["belief-graph","recursive-runtime"],"owns":["netlify/functions/remote-core.mjs","studio/manual/product/remote-window.js","scripts/tests/weave-public-projection.test.mjs"]},
     {"id":"assembly","depends_on":["belief-graph","deliberation-planner","memory-retrieval","role-dispatch","synthesis-critic","recursive-runtime","safety-bounds","inspection-surface"],"owns":["package.json","WEAVE_PROTOCOL.md","audit/authority-manifest.mjs"]}
-  ]
+  ],
+  "stop": {
+    "max_waves": 8,
+    "max_events_per_wave": 128,
+    "max_open_questions": 64,
+    "requires_terminal_receipt": true
+  }
 }
