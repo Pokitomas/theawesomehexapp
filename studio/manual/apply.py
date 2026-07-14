@@ -207,6 +207,7 @@ def main() -> None:
         "survival-ledger.css",
         "studio.js",
         "copy.js",
+        "starter-pack.js",
         "actions.js",
         "workspace-db.js",
         "workspace-profile.js",
