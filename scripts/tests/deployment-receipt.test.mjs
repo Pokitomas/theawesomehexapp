@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import receipt from '../deployment-receipt.cjs';
 
@@ -137,4 +138,20 @@ test('receipt upsert updates the newest open receipt and closes stale duplicates
     state: 'closed',
     state_reason: 'not_planned'
   });
+});
+
+test('Pages workflow cannot record a receipt before the live commit is verified', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
+  const uploadArtifact = workflow.indexOf('uses: actions/upload-pages-artifact@v3');
+  const deployPages = workflow.indexOf('uses: actions/deploy-pages@v4');
+  const verifyLive = workflow.indexOf('node scripts/deployment-receipt.cjs verify-live');
+  const upsertReceipt = workflow.indexOf('const { upsertDeploymentReceipt } = require');
+
+  assert.ok(writeSentinel >= 0, 'workflow must write a deployment sentinel');
+  assert.ok(uploadArtifact > writeSentinel, 'sentinel must be inside the uploaded Pages artifact');
+  assert.ok(deployPages > uploadArtifact, 'deployment must consume the artifact after it is written');
+  assert.ok(verifyLive > deployPages, 'live verification must run after Pages deployment');
+  assert.ok(upsertReceipt > verifyLive, 'receipt must be written only after live verification');
+  assert.match(workflow, /- uses: actions\/checkout@v4[\s\S]*?- name: Deploy to GitHub Pages/);
 });
