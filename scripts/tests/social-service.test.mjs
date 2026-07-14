@@ -1,103 +1,118 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMemoryStore, createSocialService } from '../../netlify/functions/social-core.mjs';
+import { createSocialService } from '../../netlify/functions/social-core.mjs';
+import { createMemorySocialStore } from '../../netlify/functions/social-memory-store.mjs';
 
-function client(service) {
-  let cookie = '';
-  return {
-    async call(op, { method = 'GET', body } = {}) {
-      const headers = {};
-      if (cookie) headers.cookie = cookie;
-      if (body !== undefined) headers['content-type'] = 'application/json';
-      const response = await service(new Request(`http://sideways.test/api/social?op=${op}`, {
-        method,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body)
-      }));
-      const setCookie = response.headers.get('set-cookie');
-      if (setCookie) cookie = setCookie.split(';')[0];
-      const data = await response.json();
-      return { response, data };
-    },
-    cookie: () => cookie
+function harness() {
+  const store = createMemorySocialStore();
+  const service = createSocialService({ store });
+  const call = async (method, route, { token = '', body, key = '', query = '' } = {}) => {
+    const headers = { 'content-type': 'application/json' };
+    if (token) headers.authorization = `Bearer ${token}`;
+    if (key) headers['idempotency-key'] = key;
+    const request = new Request(`http://sideways.test${route}${query}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    const result = await service(request, { route });
+    const payload = result.status === 204 ? null : await result.json();
+    return { status: result.status, body: payload };
   };
+  return { store, call };
 }
 
-test('two accounts can post, follow, reply, and like through isolated sessions', async () => {
-  let tick = Date.parse('2026-07-14T06:00:00.000Z');
-  const store = createMemoryStore();
-  const service = createSocialService({ store, now: () => tick++ });
-  const alice = client(service);
-  const bob = client(service);
+const signup = (call, identity) => call('POST', '/auth/signup', { body: identity, key: `signup-${identity.handle}` });
 
-  let result = await alice.call('register', { method: 'POST', body: { name: 'Alice', handle: '@alice', password: 'correct horse battery staple', bio: 'first account' } });
-  assert.equal(result.response.status, 201);
-  assert.equal(result.data.account.handle, 'alice');
-  assert.match(alice.cookie(), /^sideways_session=/);
+test('two accounts can follow, post, reply, like, synchronize and return on a fresh session', async () => {
+  const { store, call } = harness();
+  const first = await signup(call, { email: 'first@example.com', password: 'correct horse 1', handle: 'first', displayName: 'First Person', bio: 'one' });
+  const second = await signup(call, { email: 'second@example.com', password: 'correct horse 2', handle: 'second', displayName: 'Second Person', bio: 'two' });
+  assert.equal(first.status, 201);
+  assert.equal(second.status, 201);
+  assert.notEqual(first.body.user.id, second.body.user.id);
 
-  result = await bob.call('register', { method: 'POST', body: { name: 'Bob', handle: 'bob', password: 'another excellent password' } });
-  assert.equal(result.response.status, 201);
-  assert.notEqual(alice.cookie(), bob.cookie());
+  const firstToken = first.body.session.accessToken;
+  const secondToken = second.body.session.accessToken;
 
-  const stranger = client(service);
-  result = await stranger.call('login', { method: 'POST', body: { handle: 'alice', password: 'wrong password' } });
-  assert.equal(result.response.status, 401);
-  assert.equal(stranger.cookie(), '');
+  const lookup = await call('GET', '/users/first', { token: secondToken });
+  assert.equal(lookup.status, 200);
+  assert.equal(lookup.body.user.handle, 'first');
 
-  result = await alice.call('post', { method: 'POST', body: { text: 'hello from alice' } });
-  assert.equal(result.response.status, 201);
-  const alicePost = result.data.post;
-  assert.equal(alicePost.author.handle, 'alice');
+  const follow = await call('POST', `/users/${first.body.user.id}/follow`, { token: secondToken, key: 'follow-first' });
+  assert.equal(follow.status, 200);
+  assert.equal(follow.body.following, true);
 
-  result = await bob.call('discover');
-  assert.equal(result.response.status, 200);
-  assert.equal(result.data.posts[0].id, alicePost.id);
-  assert.equal(result.data.posts[0].following, false);
+  const post = await call('POST', '/posts', { token: firstToken, key: 'first-post', body: { body: 'hello from the shared social graph' } });
+  assert.equal(post.status, 201);
+  const duplicate = await call('POST', '/posts', { token: firstToken, key: 'first-post', body: { body: 'this must not create another post' } });
+  assert.equal(duplicate.status, 201);
+  assert.equal(duplicate.body.post.id, post.body.post.id);
 
-  result = await bob.call('follow', { method: 'POST', body: { handle: 'alice', active: true } });
-  assert.equal(result.response.status, 200);
-  assert.equal(result.data.active, true);
+  const feed = await call('GET', '/feed/following', { token: secondToken });
+  assert.equal(feed.status, 200);
+  assert.equal(feed.body.items.length, 1);
+  assert.equal(feed.body.items[0].body, 'hello from the shared social graph');
 
-  result = await bob.call('feed');
-  assert.equal(result.response.status, 200);
-  assert.deepEqual(result.data.posts.map(post => post.id), [alicePost.id]);
+  const reply = await call('POST', '/posts', { token: secondToken, key: 'reply-first', body: { body: 'a real reply', replyToId: post.body.post.id } });
+  assert.equal(reply.status, 201);
+  assert.equal(reply.body.post.replyToId, post.body.post.id);
 
-  result = await bob.call('post', { method: 'POST', body: { text: 'a first-class reply', replyTo: alicePost.id } });
-  assert.equal(result.response.status, 201);
-  const bobReply = result.data.post;
-  assert.equal(bobReply.replyTo, alicePost.id);
+  const like = await call('POST', `/posts/${post.body.post.id}/like`, { token: secondToken, key: 'like-first' });
+  assert.equal(like.status, 200);
+  assert.equal(like.body.active, true);
+  assert.equal(like.body.post.engagement.likes, 1);
+  assert.equal(like.body.post.engagement.viewerLiked, true);
 
-  result = await alice.call('like', { method: 'POST', body: { postId: bobReply.id, active: true } });
-  assert.equal(result.response.status, 200);
-  assert.equal(result.data.post.liked, true);
-  assert.equal(result.data.post.likeCount, 1);
+  const thread = await call('GET', `/posts/${post.body.post.id}/thread`, { token: firstToken });
+  assert.equal(thread.status, 200);
+  assert.equal(thread.body.root.id, post.body.post.id);
+  assert.equal(thread.body.replies.length, 1);
+  assert.equal(thread.body.replies[0].body, 'a real reply');
 
-  result = await bob.call('discover');
-  const reply = result.data.posts.find(post => post.id === bobReply.id);
-  const parent = result.data.posts.find(post => post.id === alicePost.id);
-  assert.equal(reply.likeCount, 1);
-  assert.equal(reply.liked, false);
-  assert.equal(parent.replyCount, 1);
+  const logout = await call('POST', '/auth/logout', { token: firstToken });
+  assert.equal(logout.status, 204);
+  const expiredMe = await call('GET', '/me', { token: firstToken });
+  assert.equal(expiredMe.status, 401);
 
-  result = await alice.call('session');
-  assert.equal(result.data.account.handle, 'alice');
-  result = await bob.call('session');
-  assert.equal(result.data.account.handle, 'bob');
+  const login = await call('POST', '/auth/login', { body: { email: 'first@example.com', password: 'correct horse 1' } });
+  assert.equal(login.status, 200);
+  const restored = await call('GET', '/me', { token: login.body.session.accessToken });
+  assert.equal(restored.body.user.handle, 'first');
+  const ownPosts = await call('GET', `/users/${first.body.user.id}/posts`, { token: login.body.session.accessToken });
+  assert.equal(ownPosts.body.items.length, 1);
 
-  const snapshot = store.snapshot();
-  const eventTypes = [...snapshot.entries()].filter(([key]) => key.startsWith('social/event/')).map(([, value]) => value.type);
-  for (const type of ['account.registered', 'post.created', 'follow.created', 'post.replied', 'like.created']) {
-    assert.ok(eventTypes.includes(type), `missing append-only event ${type}`);
-  }
-  assert.equal([...snapshot.keys()].filter(key => key.startsWith('social/session/')).length, 2);
+  const events = await store.listEvents();
+  assert.deepEqual(events.map(event => event.type), ['account.created', 'account.created', 'follow.created', 'post.created', 'post.created', 'reaction.created']);
 });
 
-test('mutations reject a cross-origin request', async () => {
-  const service = createSocialService({ store: createMemoryStore() });
-  const response = await service(new Request('https://sideways.test/api/social?op=register', {
+test('public identity stays separate from local preferences and profile updates are idempotent', async () => {
+  const { call } = harness();
+  const created = await signup(call, { email: 'profile@example.com', password: 'correct horse 3', handle: 'profile', displayName: 'Profile Person' });
+  const token = created.body.session.accessToken;
+  const patch = await call('PATCH', '/me/profile', { token, key: 'profile-v2', body: { displayName: 'Public Name', bio: 'public bio', website: 'https://example.com' } });
+  const replay = await call('PATCH', '/me/profile', { token, key: 'profile-v2', body: { displayName: 'Wrong Replay' } });
+  assert.equal(patch.status, 200);
+  assert.equal(replay.status, 200);
+  assert.equal(replay.body.user.displayName, 'Public Name');
+  assert.equal('theme' in replay.body.user, false);
+  assert.equal('feedDensity' in replay.body.user, false);
+});
+
+test('unique account constraints, ownership and request boundaries are enforced', async () => {
+  const { call } = harness();
+  const first = await signup(call, { email: 'same@example.com', password: 'correct horse 4', handle: 'same', displayName: 'Same' });
+  assert.equal(first.status, 201);
+  assert.equal((await signup(call, { email: 'same@example.com', password: 'correct horse 5', handle: 'other', displayName: 'Other' })).status, 409);
+  assert.equal((await signup(call, { email: 'other@example.com', password: 'correct horse 5', handle: 'same', displayName: 'Other' })).status, 409);
+
+  const second = await signup(call, { email: 'other@example.com', password: 'correct horse 5', handle: 'other', displayName: 'Other' });
+  const post = await call('POST', '/posts', { token: first.body.session.accessToken, body: { body: 'owned by first' }, key: 'owned' });
+  const forbiddenDelete = await call('DELETE', `/posts/${post.body.post.id}`, { token: second.body.session.accessToken, key: 'wrong-owner' });
+  assert.equal(forbiddenDelete.status, 404);
+
+  const store = createMemorySocialStore();
+  const service = createSocialService({ store });
+  const crossOrigin = await service(new Request('https://sideways.test/auth/signup', {
     method: 'POST',
     headers: { origin: 'https://evil.test', 'content-type': 'application/json' },
-    body: JSON.stringify({ name: 'X', handle: 'xx', password: '12345678' })
-  }));
-  assert.equal(response.status, 403);
+    body: JSON.stringify({ email: 'x@example.com', password: 'correct horse 6', handle: 'xx', displayName: 'X' })
+  }), { route: '/auth/signup' });
+  assert.equal(crossOrigin.status, 403);
 });
