@@ -1,0 +1,1 @@
+Proof content is test-only, generated at runtime, and deleted before the browser context closes.
