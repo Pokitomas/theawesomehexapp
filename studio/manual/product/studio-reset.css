@@ -1,6 +1,6 @@
 /* The canonical ADD engine stays underneath for parsing and compatibility.
    The workspace exposes the library header and consumer importer. */
-html.studio-product #addView.studio-add-modern > :not(#importWorkbenchHost):not([data-workspace-library-header]) {
+html.studio-product #addView.studio-add-modern > :not(#importWorkbenchHost):not([data-workspace-library-header]):not([data-survival-vault]) {
   display: none !important;
 }
 

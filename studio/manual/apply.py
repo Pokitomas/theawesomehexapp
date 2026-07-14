@@ -24,6 +24,7 @@ CHROME_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./workspace-chrome-po
 FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" data-future-media>'
 FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-polish.css" data-future-media-polish>'
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
+SURVIVAL_STYLE_MARKER = '<link rel="stylesheet" href="./survival-ledger.css" data-survival-ledger>'
 FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
 FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-frontier-product>'
 REMOTE_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
@@ -36,6 +37,7 @@ UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js
 MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
 FRONTIER_SCRIPT_MARKER = '<script type="module" src="./frontier.js" data-frontier-product></script>'
 REMOTE_SCRIPT_MARKER = '<script type="module" src="./remote-terminal.js" data-remote-terminal></script>'
+VAULT_SCRIPT_MARKER = '<script type="module" src="./vault-ui.js" data-survival-ledger></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -184,6 +186,7 @@ def main() -> None:
         "future-media.css",
         "future-media-polish.css",
         "future-media-final.css",
+        "survival-ledger.css",
         "future-media-mobile.css",
         "frontier.css",
         "remote-terminal.css",
@@ -194,6 +197,7 @@ def main() -> None:
         "workspace-profile.js",
         "workspace-records.js",
         "workspace-migration.js",
+        "survival-ledger.js",
         "workspace.js",
         "workspace-ui.js",
         "core-actions.js",
@@ -202,6 +206,7 @@ def main() -> None:
         "media-modes.js",
         "frontier.js",
         "remote-terminal.js",
+        "vault-ui.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
@@ -233,6 +238,7 @@ def main() -> None:
     text = inject_once(text, FRONTIER_STYLE_MARKER, "</head>")
     text = inject_once(text, REMOTE_STYLE_MARKER, "</head>")
     text = inject_once(text, REMOTE_SERVICE_MARKER, "</head>")
+    text = inject_once(text, SURVIVAL_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
@@ -241,6 +247,7 @@ def main() -> None:
     text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
     text = inject_once(text, FRONTIER_SCRIPT_MARKER, "</body>")
     text = inject_once(text, REMOTE_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, VAULT_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     write_remote_projection()
@@ -252,7 +259,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, the profile-first frontier surface, and the public live-work terminal")
+    print("applied one-owner corpus schema, atomic ledger, off-thread hashing, viewport media hydration, the profile-first frontier surface, the public live-work terminal, OPFS mirror, and Ark recovery")
 
 
 if __name__ == "__main__":

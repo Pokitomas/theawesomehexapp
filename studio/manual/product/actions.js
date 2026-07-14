@@ -65,6 +65,11 @@ export const ACTIONS = Object.freeze({
   'remote.close': define('remote.close', 'Close live work', 'remote', 'close_live_work'),
   'remote.refresh': define('remote.refresh', 'Refresh live work', 'remote', 'refresh_live_work'),
 
+  'vault.persist': define('vault.persist', 'PIN', 'vault', 'request_persistence_and_mirror'),
+  'vault.audit': define('vault.audit', 'CHECK', 'vault', 'audit_corpus'),
+  'vault.export': define('vault.export', 'BACKUP', 'vault', 'export_user_owned_ark'),
+  'vault.restore': define('vault.restore', 'RESTORE', 'vault', 'restore_user_owned_ark', { accepts: ['.sideways'] }),
+
   'import.instagram': define('import.instagram', 'IMPORT INSTAGRAM', 'import', 'pick_import', { platform: 'instagram' }),
   'import.reddit': define('import.reddit', 'IMPORT REDDIT', 'import', 'pick_import', { platform: 'reddit' }),
   'import.tiktok': define('import.tiktok', 'IMPORT TIKTOK', 'import', 'pick_import', { platform: 'tiktok' }),

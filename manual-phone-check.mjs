@@ -74,7 +74,7 @@ const coreFilesContract = await gatePage.locator('#addView').evaluate(node => no
 if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
 await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children]
-  .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header]'))
+  .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header], [data-survival-vault]'))
   .filter(child => getComputedStyle(child).display !== 'none').length);
 if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
 if (gateErrors.length) throw new Error(gateErrors.join(' | '));

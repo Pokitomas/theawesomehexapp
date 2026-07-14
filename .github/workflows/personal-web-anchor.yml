@@ -1,0 +1,29 @@
+name: Validate personal-web inspiration anchor
+
+on:
+  pull_request:
+    paths:
+      - 'tools/inspiration/**'
+      - 'studio/manual/inspiration/**'
+      - '.github/workflows/personal-web-anchor.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/inspiration/**'
+      - 'studio/manual/inspiration/**'
+      - '.github/workflows/personal-web-anchor.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspiration-anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate attributed source set and complexity ceiling
+        run: node tools/inspiration/parse-personal-web.mjs --check
