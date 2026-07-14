@@ -40,9 +40,18 @@ async function touch(locator) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       await locator.waitFor({ state: 'visible', timeout: 12000 });
-      await locator.scrollIntoViewIfNeeded();
+      await locator.evaluate(node => node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
+      await page.waitForTimeout(50);
       const box = await locator.boundingBox();
       if (!box) throw new Error('touch target has no bounding box');
+      const obstruction = await locator.evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return hit && hit !== node && !node.contains(hit) ? hit.closest('[data-workspace-commandbar]')?.getAttribute('data-workspace-commandbar') || hit.tagName : '';
+      });
+      if (obstruction) throw new Error(`touch target is obstructed by ${obstruction}`);
       await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
       return;
     } catch (error) {
