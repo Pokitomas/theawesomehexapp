@@ -3,9 +3,9 @@ import { actionButton } from './actions.js';
 const STORAGE_KEY = 'sideways-feed-mode-v1';
 const MODES = Object.freeze(['flow', 'stage', 'grid']);
 const LABELS = Object.freeze({
-  flow: 'RIVER',
-  stage: 'FOCUS',
-  grid: 'FIELD'
+  flow: 'FEED',
+  stage: 'FULL',
+  grid: 'DESKTOP'
 });
 let scheduled = false;
 let resizeObserver;

@@ -71,11 +71,28 @@ async function readAll(storeName) {
 }
 
 async function touch(locator) {
-  await locator.waitFor({ state: 'visible', timeout: 15000 });
-  await locator.scrollIntoViewIfNeeded();
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('no touch box');
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  let lastError;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      await locator.waitFor({ state: 'visible', timeout: 15000 });
+      await locator.evaluate(node => node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
+      await page.waitForTimeout(60);
+      const box = await locator.boundingBox();
+      if (!box) throw new Error('no touch box');
+      const obstruction = await locator.evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return hit && hit !== node && !node.contains(hit) ? hit.closest('[data-workspace-commandbar]')?.tagName || hit.tagName : '';
+      });
+      if (obstruction) throw new Error(`touch target is obstructed by ${obstruction}`);
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await page.waitForTimeout(140);
+    }
+  }
+  throw lastError;
 }
 
 async function hydrate(card, selector, state = 'attached') {
@@ -98,6 +115,12 @@ async function deleteCard(card) {
 function recordByName(records, name) {
   return records.find(record => record.originalName === name);
 }
+
+await page.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+  }));
+});
 
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
@@ -165,7 +188,7 @@ for (const poison of ['IHDR', 'gAMA', 'cHRM', '�', '\u0000']) {
 
 const modes = page.locator('[data-feed-mode-rail]');
 await modes.waitFor({ state: 'visible', timeout: 10000 });
-if (await modes.locator('[data-feed-mode-button]').count() !== 3) throw new Error('Flow Stage Grid rail is incomplete');
+if (await modes.locator('[data-feed-mode-button]').count() !== 3) throw new Error('Feed Full Desktop rail is incomplete');
 const railInFilters = await page.evaluate(() => document.querySelector('.type-nav')?.contains(document.querySelector('[data-feed-mode-rail]')) || false);
 if (!railInFilters) throw new Error('feed modes escaped the filter strip');
 

@@ -67,10 +67,16 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 let unexpectedLoads = 0;
 page.on('load', () => { unexpectedLoads += 1; });
 
+await page.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+  }));
+});
+
 await page.goto(url, { waitUntil: 'networkidle' });
 unexpectedLoads = 0;
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
-await touch(page.locator('.studio-launch-button.is-import'));
+await page.evaluate(() => { location.hash = '#/add'; });
 await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await page.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');

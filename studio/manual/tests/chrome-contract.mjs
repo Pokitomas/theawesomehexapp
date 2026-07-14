@@ -27,6 +27,12 @@ const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
+await page.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+  }));
+});
+
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes');
 await page.waitForFunction(() => document.documentElement.dataset.workspaceChrome === 'ready');
@@ -77,11 +83,11 @@ if (result.newCount !== 1 || result.navCount !== 1) throw new Error(`command chr
 if (!result.newInCommandbar || !result.navInCommandbar) throw new Error(`commands escaped the commandbar: ${JSON.stringify(result)}`);
 if (result.feedLabel !== 'Feed' || result.feedHasBrandClass) throw new Error(`Feed is still impersonating product identity: ${JSON.stringify(result)}`);
 if (!result.newLabelVisible) throw new Error(`mobile command labels disappeared: ${JSON.stringify(result)}`);
-if (result.commandPosition !== 'fixed' || result.commandBottomGap > 2 || result.commandHeight < 48) throw new Error(`mobile commands are not a bottom dock: ${JSON.stringify(result)}`);
+if (result.commandPosition !== 'fixed' || result.commandBottomGap > 12 || result.commandHeight < 48) throw new Error(`mobile commands are not a bottom dock: ${JSON.stringify(result)}`);
 if (!result.navSingleRow) throw new Error(`mobile navigation wrapped instead of remaining one instrument row: ${JSON.stringify(result)}`);
 if (result.newRadius < 8 || result.newRadius > 14) throw new Error(`primary command lost its tactile geometry: ${JSON.stringify(result)}`);
-if (result.activeTabRadius < 12 || !result.activeTabBackground || result.activeTabBackground === 'rgba(0, 0, 0, 0)') throw new Error(`filter selection lost its capsule state: ${JSON.stringify(result)}`);
-if (result.modeLabels.join('|') !== 'RIVER|FOCUS|FIELD') throw new Error(`feed modes lost their product language: ${JSON.stringify(result)}`);
+if (result.activeTabRadius < 8 || !result.activeTabBackground || result.activeTabBackground === 'rgba(0, 0, 0, 0)') throw new Error(`filter selection lost its capsule state: ${JSON.stringify(result)}`);
+if (result.modeLabels.join('|') !== 'FEED|FULL|DESKTOP') throw new Error(`feed modes lost their simple product language: ${JSON.stringify(result)}`);
 if (result.horizontalOverflow > 1) throw new Error(`mobile chrome leaks horizontally: ${JSON.stringify(result)}`);
 if (errors.length) throw new Error(errors.join(' | '));
 

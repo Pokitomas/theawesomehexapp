@@ -1,0 +1,9 @@
+{
+  "name": "sideways",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@netlify/blobs": "^9.1.2"
+  }
+}
