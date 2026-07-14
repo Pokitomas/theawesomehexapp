@@ -1,53 +1,58 @@
-version: 26
-updated_at: 2026-07-13T17:18:00-07:00
+version: 27
+updated_at: 2026-07-13T19:32:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 72 merged
-merge_commit: a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
+active_pr: 75 merged
+merge_commit: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
+previous_product_merge: a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
 previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
 previous_verified_deployment_receipt: 67
 superseded_pr: 66 closed locked zero-diff
 
-owners:
-  - GPT-5.6 Thinking
-  - Claude
-mode: completed fused product
+owner: GPT-5.6 Thinking
+mode: completed profile-first frontier
 
 current_subtask:
-  summary: Rebuilt Sideways as a living spatial personal-media instrument and terminated the fused implementation loop by proof.
+  summary: Rebuilt Sideways around a tiny real profile and a one-tap live starter while preserving the proven local-first corpus and media runtime.
   directive:
-    - one shared application branch and pull request
-    - each agent consumes the other's latest concrete implementation
-    - improve the app itself rather than adding coordination machinery
-    - terminate only after exact-head green proof direct artifact inspection merge and honest production accounting
+    - compete on niceness flow and obviousness rather than feature taxonomy
+    - keep analyst machinery behind ordinary human actions
+    - make the empty product useful without opening Files
+    - use a real backend only where a real service contract now exists
+    - prove the populated experience with temporary posts and remove every proof record before termination
   completed:
-    - preserved the proven local-first byte runtime ranking kernel schema owner and compatibility ledger
-    - replaced diagnostic-terminal presentation with one coherent spatial media system
-    - renamed stable visible feed physics to RIVER FOCUS and FIELD without changing record order or ranking
-    - made FIELD a deterministic dense mosaic with tap-to-focus
-    - made FOCUS occupy the usable visual viewport with snap physics
-    - made RIVER a paced media-first living-magazine stream
-    - installed a real single-row mobile bottom command dock
-    - rebuilt cards dialogs actions document audio video image and binary surfaces around one visual grammar
-    - replaced the empty screen with a full-height signal aperture and direct WRITE or BRING IT IN choices
-    - gave the product a decisive human voice without onboarding bureaucracy
-    - consumed Claude's wider 8px dock rhythm and navigation padding in the final mobile layer
-    - fixed inherited mobile grid placement aspect ratio ink contrast command clipping and fixed-chrome touch obstruction
-    - strengthened the phone proof so a target must be physically unobstructed before the touchscreen tap
+    - replaced the clipped legacy profile surface with an unclipped profile-first entrance
+    - reduced profile creation to name handle optional line and color
+    - added handle availability and durable profile storage through Netlify Functions and Blobs
+    - hashed the local device secret before backend profile identity and never persisted the raw secret in the functions
+    - kept offline profile saves useful locally and added later backend retry
+    - replaced the empty-feed file-picker shortcut with START ME OFF backed by /api/starter
+    - preserved the explicit Library archive importer for real Reddit Instagram TikTok YouTube Spotify X browser and arbitrary exports
+    - simplified visible layout language to FEED FULL and DESKTOP while retaining the same ranking corpus and layout physics
+    - added Like Reply Remix Save and Share as ordinary visible actions
+    - made Remix carry its source into the composer
+    - restored warm cream gray cobalt hard-edged window material and removed the acid glass SaaS layer
+    - preserved classic syntax through label parallels ADD KEEP READ SEND and FILES + rather than exposing it as product jargon
+    - kept the ranking kernel compatibility ledger worker hashing viewport hydration media normalization and destructive cleanup behavior intact
   verification:
-    - all five required workflows passed on exact final head 372d16e2873e35c31fc9ecfc7c423177716a3709
+    - all six required workflows passed on exact final head 23e03574cb804e181d2c8b6e9d038ecdfbb5b6d6
     - kernel parity passed
     - overlay shard validation passed
+    - profile-first starter phone journey passed
     - universal media phone journey passed
-    - workspace creation cancellation deletion reload and ledger survival journey passed
+    - workspace creation deletion reload and ledger survival journey passed
     - build and manual phone gate passed
-    - direct artifact inspection confirmed readable RIVER FOCUS FIELD controls
-    - direct artifact inspection confirmed an untruncated New command and one-row bottom dock
-    - direct artifact inspection confirmed the full-height empty signal and authored plus imported record surfaces
-    - squash-merged PR 72 as a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
+    - direct artifact inspection confirmed an unclipped profile close target and warm physical profile surface
+    - direct artifact inspection confirmed the one-action starter screen and populated social feed
+    - phone proof inserted nine temporary posts twice exercised Like Reply Remix Save and Share and removed every proof post after both cycles
+    - phone proof observed two starter backend requests zero file choosers and zero temporary posts remaining
+    - frontier proof artifact 8298583164 digest sha256:e5006051d4ae714e7016d23a282521e836c2a76f61a4fb25424870220993978e
+    - squash-merged PR 75 as b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
   production:
     - previous verified Pages receipt remains issue 67 for merge dd111692d2af5c8dd002883b4a1202ae8e58f973
-    - do not claim the completed product deployed until an external Pages receipt identifies a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
+    - Netlify Functions and Blobs are implemented but not externally verified in production
+    - a static ZIP or Netlify Drop cannot execute the profile and starter functions
+    - do not claim this completed product or backend deployed until an external Netlify receipt identifies b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
   done_when: complete
 
 invariants:
@@ -61,9 +66,11 @@ invariants:
   - Magic bytes and content outrank absent or contradictory MIME metadata.
   - Unknown binary must never be decoded into feed text.
   - Every local record may be deleted; shared assets may not be removed while referenced.
-  - RIVER FOCUS and FIELD may change layout physics but never ranking records or action semantics.
+  - FEED FULL and DESKTOP may change layout physics but never ranking records or action semantics.
   - Every visible custom product control must come from the action contract.
   - Fixed chrome must never make a physically covered control count as a passing touch target.
-  - Do not add sync transport until a real service contract exists.
+  - Temporary proof content may exist only inside test journeys and must be gone before the browser context closes.
+  - Backend identity must not persist the raw local device secret.
+  - Do not expand the profile and starter service into generic sync transport without a real service contract.
   - Do not add a second engineering belief ledger or duplicate runtime schema authority.
   - Never use or persist credentials pasted into chat.
