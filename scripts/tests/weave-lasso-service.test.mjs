@@ -115,7 +115,7 @@ test('repeated messages from one principal do not create new invitations', async
   assert.equal(store.messages().length, before.length);
 });
 
-test('a second direct principal creates private adversarial rounds', async () => {
+test('a second direct principal collides in foundational rooms while retaining a contextual third room', async () => {
   const store = new MemoryStore();
   await lassoRemoteArrival({
     store,
@@ -133,6 +133,11 @@ test('a second direct principal creates private adversarial rounds', async () =>
   });
   assert.equal(result.stored, 6);
   const rounds = store.messages().filter(message => message.payload?.weave?.body?.message_type === 'assembly.round');
-  assert.equal(rounds.length, 3);
+  assert.equal(rounds.length, 2);
+  assert.deepEqual(
+    rounds.map(message => message.payload.weave.body.thread_id).sort(),
+    ['assembly:corpus-boundaries', 'assembly:program-execution']
+  );
   assert.ok(rounds.every(message => /direct contradiction/.test(message.payload.weave.body.statement)));
+  assert.ok(store.messages().some(message => message.payload?.weave?.body?.thread_id === 'assembly:conversation-model'));
 });
