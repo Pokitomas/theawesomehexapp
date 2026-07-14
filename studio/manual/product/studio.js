@@ -131,7 +131,7 @@ function emptyCard() {
   copy.append(el('p', 'workspace-eyebrow', 'Your space'), el('h1', '', COPY.emptyTitle), el('p', '', COPY.emptyBody));
   const actions = el('div', 'studio-launch-actions');
   const post = actionWithIcon('feed.post', 'compose', () => window.SidewaysWorkspaceUI?.openComposer?.(), { className: 'studio-launch-button is-post', label: COPY.emptyPost });
-  const imports = actionWithIcon('feed.import', 'import', () => routeTo('#/add'), { className: 'studio-launch-button is-import', label: COPY.emptyImport });
+  const imports = actionWithIcon('profile.start', 'import', () => window.SidewaysFrontier?.startFromEmpty?.(), { className: 'studio-launch-button is-import', label: COPY.emptyImport });
   actions.append(post, imports);
   copy.append(actions);
   card.append(mark, copy);
