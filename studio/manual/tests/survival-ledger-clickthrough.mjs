@@ -9,6 +9,11 @@ if (!executablePath) throw new Error('no Chromium found');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Ark Proof', handle: 'arkproof', bio: 'Restorable.', accent: '#335cff'
+  }));
+});
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
@@ -52,17 +57,31 @@ if (mirror.status === 'ready') {
 const ark = await page.evaluate(async () => {
   const result = await window.SidewaysWorkspace.survival.exportArk({ download: false });
   window.__ark = result.blob;
-  return { size: result.blob.size, head: await result.blob.slice(0, 32).text(), records: result.manifest.records.length, assets: result.manifest.assets.length, ledger: result.manifest.ledger.length };
+  return {
+    size: result.blob.size,
+    head: await result.blob.slice(0, 32).text(),
+    records: result.manifest.records.length,
+    assets: result.manifest.assets.length,
+    ledger: result.manifest.ledger.length,
+    profile: result.manifest.profile
+  };
 });
 if (!ark.head.startsWith('SIDEWAYS-ARK/1\n') || ark.records !== 1 || ark.assets !== 1 || ark.size <= png.length) throw new Error(`bad Ark ${JSON.stringify(ark)}`);
+if (ark.profile?.name !== 'Ark Proof' || ark.profile?.handle !== 'arkproof') throw new Error(`Ark missed workspace profile ${JSON.stringify(ark.profile)}`);
 
-await page.evaluate(id => window.SidewaysWorkspace.deleteEntry(id), record.id);
+await page.evaluate(id => {
+  localStorage.removeItem('sideways-workspace-profile-v1');
+  localStorage.removeItem('sideways-local-profile-v1');
+  return window.SidewaysWorkspace.deleteEntry(id);
+}, record.id);
 await page.waitForFunction(() => window.SidewaysCore?.state?.records?.length === 0, { timeout: 15000 });
 if ((await corpus('blobs')).length) throw new Error('delete left the canonical blob behind');
 
 const restored = await page.evaluate(() => window.SidewaysWorkspace.survival.restoreArk(window.__ark));
 if (restored.added !== 1 || restored.assets !== 1) throw new Error(`restore failed ${JSON.stringify(restored)}`);
 await page.waitForFunction(() => window.SidewaysCore?.state?.records?.length === 1, { timeout: 15000 });
+const restoredProfile = await page.evaluate(() => JSON.parse(localStorage.getItem('sideways-workspace-profile-v1') || 'null'));
+if (restoredProfile?.name !== 'Ark Proof' || restoredProfile?.handle !== 'arkproof' || restoredProfile?.bio !== 'Restorable.') throw new Error(`profile restore failed ${JSON.stringify(restoredProfile)}`);
 const audit = await page.evaluate(() => window.SidewaysWorkspace.survival.audit());
 if (audit.records !== 1 || audit.assets !== 1 || audit.missingAssets.length || audit.orphanAssets.length) throw new Error(`audit failed ${JSON.stringify(audit)}`);
 
@@ -84,6 +103,6 @@ if (overflow > 1) throw new Error(`horizontal overflow ${overflow}`);
 if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-survival-ledger.png', fullPage: true });
-console.log(JSON.stringify({ mirror: mirror.status, ark, restored, audit, ledgerOps: [...new Set(ledger.map(entry => entry.op))].filter(op => op.startsWith('survival.')), vaultActions, horizontalOverflow: overflow }, null, 2));
+console.log(JSON.stringify({ mirror: mirror.status, ark, restored, restoredProfile, audit, ledgerOps: [...new Set(ledger.map(entry => entry.op))].filter(op => op.startsWith('survival.')), vaultActions, horizontalOverflow: overflow }, null, 2));
 await context.close();
 await browser.close();
