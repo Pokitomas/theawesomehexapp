@@ -1,1 +1,0 @@
-The phone proof asserts temporaryPostsRemaining === 0 after both starter cycles.
