@@ -43,7 +43,7 @@ test('inconsistent resolution backlinks fail closed', () => {
     statement: 'Different decision', supporting_ids: [question.id], opposing_ids: [], rationale: 'does not resolve target', confidence: 0.9, resolves: [], rollback_trigger: 'counterexample'
   }, [question.id]);
   assert.throws(() => foldCognitionEvents([question, decision]), /does not resolve event question:1/);
-  const falseResolver = event('claim:2', 'claim', { subject: 'resolver', statement: 'not a decision', confidence: 0.5, impact: 20 }, [question.id]);
+  const falseResolver = event('decision:2', 'claim', { subject: 'resolver', statement: 'not a decision', confidence: 0.5, impact: 20 }, [question.id]);
   assert.throws(() => foldCognitionEvents([question, falseResolver]), /is not a decision/);
 });
 
