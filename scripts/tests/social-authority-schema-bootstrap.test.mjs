@@ -51,6 +51,21 @@ test('staged 001+002 database upgrades to the complete authority schema and quar
   await resetSchema();
   await pool.query(await migrationSQL(MIGRATIONS[0]));
   await pool.query(await migrationSQL(MIGRATIONS[1]));
+
+  // Fresh-install migrations are intentionally cumulative. Remove fields backported
+  // into 001/002 so this database matches a real deployment that predates 003/004.
+  await pool.query(`
+    ALTER TABLE social_mutation_receipts
+      DROP CONSTRAINT IF EXISTS social_mutation_receipts_request_digest_shape;
+    ALTER TABLE social_mutation_receipts
+      DROP COLUMN IF EXISTS request_digest;
+    DROP INDEX IF EXISTS social_appeals_appealed_action_unique;
+    ALTER TABLE social_appeals
+      DROP COLUMN IF EXISTS appealed_action_id;
+    ALTER TABLE social_appeals
+      DROP COLUMN IF EXISTS appeal_target;
+  `);
+
   await pool.query(`
     CREATE TABLE social_schema_migrations (
       name text PRIMARY KEY,
