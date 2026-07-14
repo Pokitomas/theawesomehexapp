@@ -36,15 +36,36 @@ test('planner creates complementary deterministic assignments and stops after eq
   assert.deepEqual(first.assignments.map(value => value.body.role), ['proposer', 'verifier']);
 });
 
+test('planner derives another bounded wave only after substantive frontier change', () => {
+  const question = event('question:1', 'question', { question: 'Which architecture?', priority: 90, answer_kinds: ['claim'] });
+  const initial = foldCognitionEvents([question]);
+  const first = planDeliberationWave(initial, { wave_index: 0, issued_at: at(1) });
+  const assignments = first.assignments.map(({ novelty_key, priority, ...value }) => normalizeCognitionEvent(value));
+  const claim = event('claim:2', 'claim', { subject: 'architecture', statement: 'candidate A', confidence: 0.5, impact: 80 }, [question.id]);
+  const advanced = foldCognitionEvents([question, ...assignments, claim]);
+  const second = planDeliberationWave(advanced, { wave_index: 1, issued_at: at(2) });
+  assert.ok(second.assignments.length > 0);
+  assert.notDeepEqual(second.assignments.map(value => value.body.novelty_key), first.assignments.map(value => value.body.novelty_key));
+});
+
+test('supersession changes derived plan status without mutating immutable event body', () => {
+  const goal = event('goal:1', 'goal', { statement: 'ship', success_criteria: ['green'], priority: 80, state: 'open' });
+  const plan = event('plan:2', 'plan', { statement: 'old plan', goal_ids: [goal.id], steps: [], state: 'active' }, [goal.id]);
+  const supersede = event('supersede:3', 'supersede', { target_ids: [plan.id], statement: 'replace old plan' }, [plan.id]);
+  const state = foldCognitionEvents([goal, plan, supersede]);
+  assert.equal(state.plans[plan.id].status, 'abandoned');
+  assert.equal(state.by_id[plan.id].body.state, 'active');
+});
+
 test('memory preserves dissent diversity and private/public boundary under budget', () => {
   const publicClaim = event('claim:1', 'claim', { subject: 'x', statement: 'public architecture', confidence: 0.6, impact: 50 }, [], 'public');
   const privateClaim = event('claim:2', 'claim', { subject: 'x', statement: 'private countercase', confidence: 0.8, impact: 50 });
   const contradiction = event('contradiction:3', 'contradiction', { left_id: publicClaim.id, right_id: privateClaim.id, statement: 'countercase', severity: 80 }, [publicClaim.id, privateClaim.id], 'public');
   const state = foldCognitionEvents([publicClaim, privateClaim, contradiction]);
   const packet = retrieveCognitionMemory(state, { text: 'architecture countercase', target_ids: [contradiction.id] }, { visibility: 'public', max_chars: 4000 });
-  assert.ok(packet.events.some(value => value.id === contradiction.id));
   assert.ok(packet.events.some(value => value.id === publicClaim.id));
-  assert.ok(!packet.events.some(value => value.id === privateClaim.id));
+  assert.ok(!packet.events.some(value => value.id === contradiction.id));
+  assert.ok(!JSON.stringify(packet).includes(privateClaim.id));
 });
 
 test('dispatch packets are advisory and output must cite targets and stay in schema', () => {
@@ -58,6 +79,8 @@ test('dispatch packets are advisory and output must cite targets and stay in sch
   const parsed = parseAdapterOutput([{ kind: 'claim', source_event_ids: [question.id], body: { subject: 'Q', statement: 'A', confidence: 0.7, impact: 50 } }], packet, { issued_at: at(3) });
   assert.equal(parsed[0].kind, 'claim');
   assert.throws(() => parseAdapterOutput([{ kind: 'claim', source_event_ids: [], body: { subject: 'Q', statement: 'A', confidence: 0.7, impact: 50 } }], packet), /missing assignment target citations/);
+  assert.throws(() => parseAdapterOutput([{ kind: 'claim', authority: { repo_write: true }, source_event_ids: [question.id], body: { subject: 'Q', statement: 'A', confidence: 0.7, impact: 50 } }], packet), /Forbidden adapter authority/);
+  assert.throws(() => parseAdapterOutput([{ kind: 'claim', source_event_ids: [question.id], body: { subject: 'Q', statement: 'token=leaked-value', confidence: 0.7, impact: 50 } }], packet), /secret-like material/);
 });
 
 test('critic blocks a synthesis that erases live contradiction or minority evidence', () => {
@@ -114,4 +137,30 @@ test('recursive runtime terminates cyclic nonprogress at finite budget', async (
   const result = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter, default: adapter }, budget: { max_waves: 2, max_events: 48 }, now: (() => { let i = 20; return () => at(i++); })() });
   assert.ok(['blocked', 'budget_exhausted'].includes(result.terminal));
   assert.ok(result.events.length <= 49);
+});
+
+test('terminal receipt makes a retry an exact no-op', async () => {
+  const question = event('question:1', 'question', { question: 'resolve?', priority: 90, answer_kinds: ['decision'] });
+  const adapter = {
+    id: 'resolver',
+    async execute(packet) {
+      return [{
+        kind: 'decision',
+        source_event_ids: [packet.assignment.target_ids[0]],
+        body: { statement: 'resolved', supporting_ids: [packet.assignment.target_ids[0]], opposing_ids: [], rationale: 'fixture', confidence: 0.9, resolves: [packet.assignment.target_ids[0]], rollback_trigger: 'counterexample' }
+      }];
+    }
+  };
+  const now = (() => { let i = 40; return () => at(i++); })();
+  const first = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter }, now });
+  const second = await runRecursiveWeave({ initial_events: first.events, adapters: { proposer: adapter, verifier: adapter }, now });
+  assert.equal(second.terminal, first.terminal);
+  assert.equal(second.events.length, first.events.length);
+  assert.deepEqual(second.receipts.map(value => value.id), first.receipts.map(value => value.id));
+});
+
+test('invalid initial event terminates as typed invalid-state receipt', async () => {
+  const result = await runRecursiveWeave({ initial_events: [{ kind: 'claim', issuer: 'x', body: { subject: 'x', statement: 'x', scratchpad: 'hidden' } }], now: () => at(50) });
+  assert.equal(result.terminal, 'invalid_state');
+  assert.equal(result.receipts[0].body.status, 'invalid_state');
 });
