@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createBlobStore, createProductionSocialService } from '../../netlify/functions/social.mjs';
+import { createBlobStore, createProductionSocialService } from '../../netlify/functions/social-entrypoint-core.mjs';
 
 function fakeBlobStore(seed = {}) {
   const values = new Map(Object.entries(seed).map(([key, value]) => [key, structuredClone(value)]));
