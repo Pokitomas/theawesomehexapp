@@ -91,31 +91,18 @@ test('production factory executes a complete request through the Blob fallback',
   assert.ok([...fake.values.keys()].some(key => key.startsWith('social/event/')));
 });
 
-test('production factory deterministically selects Blob or composed PostgreSQL authority', () => {
+test('production factory bootstraps and composes PostgreSQL authority before serving', async () => {
   const fake = fakeBlobStore();
-  const blobMarker = async () => new Response('{}');
-  let blobStore;
-  const blobService = createProductionSocialService({
-    env: {},
-    getStore: () => fake.store,
-    createBlobService(options) {
-      blobStore = options.store;
-      return blobMarker;
-    }
-  });
-
-  assert.equal(blobService, blobMarker);
-  assert.ok(blobStore);
-
-  const relationalMarker = async () => new Response('{}');
   const pool = { kind: 'pool' };
   const baseAuthority = { accountForLogin: 'base' };
   const communityAuthority = { createCommunity: 'community' };
   let poolOptions;
   let authorityPool;
   let communityPool;
+  let migrationPool;
   let relationalOptions;
   let blobRequested = false;
+  let served = 0;
 
   const relationalService = createProductionSocialService({
     env: {
@@ -138,13 +125,18 @@ test('production factory deterministically selects Blob or composed PostgreSQL a
       communityPool = options.pool;
       return communityAuthority;
     },
+    async ensureRelationalSchema(value) {
+      migrationPool = value;
+    },
     createRelationalService(options) {
       relationalOptions = options;
-      return relationalMarker;
+      return async () => {
+        served += 1;
+        return new Response('{"ok":true}', { headers: { 'content-type': 'application/json' } });
+      };
     }
   });
 
-  assert.equal(relationalService, relationalMarker);
   assert.equal(blobRequested, false);
   assert.deepEqual(poolOptions, {
     connectionString: 'postgres://sideways.test/social',
@@ -157,4 +149,30 @@ test('production factory deterministically selects Blob or composed PostgreSQL a
     authority: { ...baseAuthority, ...communityAuthority },
     sessionSecret: 'test-session-secret'
   });
+
+  const first = await relationalService(new Request('http://sideways.test/api/social?op=session'));
+  const second = await relationalService(new Request('http://sideways.test/api/social?op=session'));
+  assert.equal(first.status, 200);
+  assert.equal(second.status, 200);
+  assert.equal(migrationPool, pool);
+  assert.equal(served, 2);
+});
+
+test('schema bootstrap failure fails closed before relational handlers run', async () => {
+  let served = false;
+  const service = createProductionSocialService({
+    env: { SOCIAL_DATABASE_URL: 'postgres://sideways.test/social', SOCIAL_SESSION_SECRET: 'test-session-secret' },
+    createPool: () => ({ kind: 'pool' }),
+    createRelationalAuthority: () => ({}),
+    createCommunityAuthority: () => ({}),
+    ensureRelationalSchema: async () => { throw new Error('migration failed'); },
+    createRelationalService: () => async () => {
+      served = true;
+      return new Response('{}');
+    }
+  });
+  const response = await service(new Request('http://sideways.test/api/social?op=session'));
+  assert.equal(response.status, 503);
+  assert.equal(served, false);
+  assert.deepEqual(await response.json(), { error: 'Social database schema is unavailable.' });
 });
