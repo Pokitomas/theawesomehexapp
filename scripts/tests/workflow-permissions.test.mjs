@@ -13,7 +13,21 @@ function job(source, name, next = '') {
 }
 
 function checkoutBlocks(source) {
-  return [...source.matchAll(/- uses: actions\/checkout@v4\n((?:\s{8,}.+\n?)*)/g)].map(match => match[0]);
+  const lines = source.split(/\r?\n/);
+  const blocks = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/uses:\s*actions\/checkout@v4\s*$/.test(lines[index])) continue;
+    const indent = lines[index].match(/^\s*/)?.[0].length || 0;
+    let end = index + 1;
+    while (end < lines.length) {
+      const line = lines[end];
+      const nextIndent = line.match(/^\s*/)?.[0].length || 0;
+      if (/^\s*-\s+/.test(line) && nextIndent <= indent) break;
+      end += 1;
+    }
+    blocks.push(lines.slice(index, end).join('\n'));
+  }
+  return blocks;
 }
 
 test('PR-reachable Pages jobs stay read-only and never persist checkout credentials', async () => {
