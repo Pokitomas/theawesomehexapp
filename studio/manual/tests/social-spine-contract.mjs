@@ -93,7 +93,7 @@ assert.ok(migrated.every(record => record.authority === 'public'));
 assert.ok(migrated.every(record => !Object.hasOwn(record, 'id')));
 
 const cached = mergeNetworkCache(migrated, [
-  { postId: 'B', nativeId: 'network:B', text: 'new B', authority: 'public', updatedAt: '2026-07-14T00:00:00Z', observedAt: '2026-07-14T00:00:00Z' }
+  { postId: 'B', nativeId: 'network:B', text: 'new B', authority: 'public', updatedAt: '2026-07-14T00:00:00Z', observedAt: '2026-07-14T00:00:00Z', activationEpoch: 1 }
 ]);
 assert.deepEqual(cached.map(record => record.postId), ['A', 'B']);
 assert.equal(cached.find(record => record.postId === 'A').text, 'old A');
@@ -104,22 +104,45 @@ const freshObservation = {
   nativeId: 'network:B',
   text: 'fresh viewer state',
   updatedAt: '2026-07-14T00:00:00Z',
-  observedAt: '2026-07-14T00:02:00Z'
+  observedAt: '2026-07-14T00:02:00Z',
+  activationEpoch: 2
 };
 const staleObservation = {
   postId: 'B',
   nativeId: 'network:B',
   text: 'late stale viewer state',
   updatedAt: '2026-07-14T00:00:00Z',
-  observedAt: '2026-07-14T00:01:00Z'
+  observedAt: '2026-07-14T00:01:00Z',
+  activationEpoch: 1
 };
 assert.ok(compareNetworkFreshness(freshObservation, staleObservation) > 0);
 const freshnessOrdered = mergeNetworkCache([freshObservation], [
   staleObservation,
-  { postId: 'C', nativeId: 'network:C', text: 'cache-only discover result', updatedAt: '2026-07-14T00:00:00Z', observedAt: '2026-07-14T00:01:00Z' }
+  { postId: 'C', nativeId: 'network:C', text: 'cache-only discover result', updatedAt: '2026-07-14T00:00:00Z', observedAt: '2026-07-14T00:01:00Z', activationEpoch: 1 }
 ]);
 assert.equal(freshnessOrdered.find(record => record.postId === 'B').text, 'fresh viewer state');
 assert.ok(freshnessOrdered.some(record => record.postId === 'C'));
+
+const sameMillisecondFresh = {
+  postId: 'B',
+  nativeId: 'network:B',
+  text: 'epoch 2 wins',
+  updatedAt: '2026-07-14T00:00:00Z',
+  observedAt: '2026-07-14T00:02:00.000Z',
+  activationEpoch: 2
+};
+const sameMillisecondStale = {
+  postId: 'B',
+  nativeId: 'network:B',
+  text: 'late epoch 1 loses',
+  updatedAt: '2026-07-14T00:00:00Z',
+  observedAt: '2026-07-14T00:02:00.000Z',
+  activationEpoch: 1
+};
+assert.ok(compareNetworkFreshness(sameMillisecondFresh, sameMillisecondStale) > 0);
+const epochOrdered = mergeNetworkCache([sameMillisecondFresh], [sameMillisecondStale]);
+assert.equal(epochOrdered[0].text, 'epoch 2 wins');
+assert.equal(epochOrdered[0].activationEpoch, 2);
 
 const following = networkViewSnapshot([{ postId: 'B' }], { mode: 'following' }, '2026-07-14T00:00:00.000Z');
 assert.deepEqual(following, {
@@ -174,4 +197,4 @@ assert.deepEqual(materialized, [{ mode: 'following', posts: ['F'] }]);
 assert.deepEqual(statusWrites, ['following']);
 assert.deepEqual(renderWrites, ['following']);
 
-console.log('social spine contract ok: public cache is authority-safe, stale observations cannot overwrite fresh records, and late loads cannot replace current eligibility or UI state');
+console.log('social spine contract ok: public cache is authority-safe, activation epochs break timestamp ties, and late loads cannot replace current eligibility or UI state');

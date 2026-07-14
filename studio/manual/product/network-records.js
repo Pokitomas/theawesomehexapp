@@ -50,6 +50,8 @@ export function createNetworkActivationGate() {
 export function compareNetworkFreshness(left = {}, right = {}) {
   const updated = timeOf(left.updatedAt || left.published) - timeOf(right.updatedAt || right.published);
   if (updated) return updated;
+  const activation = Number(left.activationEpoch || 0) - Number(right.activationEpoch || 0);
+  if (activation) return activation;
   return timeOf(left.observedAt) - timeOf(right.observedAt);
 }
 
@@ -70,7 +72,7 @@ function bindActivationAbort(transaction, detail = {}) {
   return () => signal.removeEventListener('abort', abort);
 }
 
-async function projectedRecord(post, existing = null, observedAt = new Date().toISOString()) {
+async function projectedRecord(post, existing = null, observedAt = new Date().toISOString(), activationEpoch = 0) {
   const postId = String(post?.id || '');
   const text = clean(post?.text || '').slice(0, 4000);
   const published = post?.createdAt || new Date().toISOString();
@@ -83,6 +85,7 @@ async function projectedRecord(post, existing = null, observedAt = new Date().to
     postId,
     authority: 'public',
     observedAt,
+    activationEpoch: Number(activationEpoch || 0),
     type: 'social',
     title: firstLine,
     summary: text.slice(0, 420),
@@ -156,6 +159,7 @@ export function legacyNetworkCacheSeeds(existingRecords = [], observedAt = new D
         ...record,
         postId,
         authority: 'public',
+        activationEpoch: Number(record.activationEpoch || 0),
         observedAt: record.observedAt || record.updatedAt || record.addedAt || observedAt
       };
     })
@@ -299,6 +303,7 @@ export async function projectNetworkPosts(posts = [], detail = {}) {
     incoming.push(post);
   }
   const observedAt = clean(detail?.activation?.requestedAt || detail?.requestedAt) || new Date().toISOString();
+  const activationEpoch = Number(detail?.activation?.epoch || detail?.activationEpoch || 0);
   const [cached, allRecords] = await Promise.all([
     readStore(openWorkspaceDB, NETWORK_RECORD_STORE),
     readStore(openCorpusDB, RECORD_STORE)
@@ -306,7 +311,7 @@ export async function projectNetworkPosts(posts = [], detail = {}) {
   const legacySeeds = legacyNetworkCacheSeeds(allRecords || [], observedAt);
   const retained = mergeNetworkCache(cached || [], legacySeeds);
   const existing = new Map(retained.map(record => [postIdOf(record), record]));
-  const next = await Promise.all(incoming.map(post => projectedRecord(post, existing.get(String(post.id)), observedAt)));
+  const next = await Promise.all(incoming.map(post => projectedRecord(post, existing.get(String(post.id)), observedAt, activationEpoch)));
   const view = networkViewSnapshot(next, detail, observedAt);
   const cacheDetail = await cacheNetworkRecords(next, legacySeeds);
   const cachedById = new Map(cacheDetail.records.map(record => [postIdOf(record), record]));
