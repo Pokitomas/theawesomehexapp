@@ -62,6 +62,8 @@
     min-height: 48px !important;
     padding-inline: .18rem !important;
     overflow: hidden;
+    grid-column: auto !important;
+    grid-row: 1 !important;
   }
 
   html.workspace-chrome .workspace-commandbar .workspace-button-label {
