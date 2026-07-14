@@ -89,6 +89,42 @@ test('keeps recovery state separate for simultaneous sessions of one agent', () 
   );
 });
 
+test('does not report one session colliding with itself but preserves cross-session collisions', () => {
+  const messages = [
+    remote({ id: '01', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'worker-a', session_id: 'session-a', state: 'coding', lease_expires_at: '2026-07-14T17:00:00Z' } }),
+    remote({ id: '02', kind: 'intent', issuer: 'principal-a', issued_at: '2026-07-14T16:31:00Z', body: { artifact: 'first', intended_reality_change: 'First edit.', expected_files: ['shared.js'], collision_policy: 'avoid' } }),
+    remote({ id: '03', kind: 'intent', issuer: 'principal-a', issued_at: '2026-07-14T16:32:00Z', body: { artifact: 'second', intended_reality_change: 'Second edit.', expected_files: ['shared.js'], collision_policy: 'compare' } }),
+    remote({ id: '04', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:33:00Z', body: { agent_id: 'worker-a', session_id: 'session-b', state: 'testing', lease_expires_at: '2026-07-14T17:00:00Z' } }),
+    remote({ id: '05', kind: 'intent', issuer: 'principal-a', issued_at: '2026-07-14T16:34:00Z', body: { artifact: 'third', intended_reality_change: 'Other session edit.', expected_files: ['shared.js'], collision_policy: 'deliberately_overlap' } })
+  ];
+  const state = projectActiveWeaveState(messages, { now: Date.parse('2026-07-14T16:40:00Z') });
+  assert.equal(state.collisions.length, 2);
+  assert.ok(state.collisions.every(item => item.sessions[0] !== item.sessions[1]));
+  assert.ok(state.collisions.every(item => item.sessions.includes('session-a') && item.sessions.includes('session-b')));
+});
+
+test('bounds recent terminations by deterministic window and limit', () => {
+  const messages = [
+    remote({ id: '01', kind: 'session.handoff', issuer: 'principal-a', issued_at: '2026-07-14T15:39:59Z', body: { agent_id: 'worker-a', session_id: 'too-old', reason: 'old', claimed_beacons: [], handoff_to: 'any' } }),
+    remote({ id: '02', kind: 'session.handoff', issuer: 'principal-a', issued_at: '2026-07-14T15:40:00Z', body: { agent_id: 'worker-a', session_id: 'boundary', reason: 'boundary', claimed_beacons: [], handoff_to: 'any' } }),
+    remote({ id: '03', kind: 'session.lost', issuer: 'principal-b', issued_at: '2026-07-14T16:10:00Z', body: { agent_id: 'worker-b', session_id: 'middle', reason: 'lost' } }),
+    remote({ id: '04', kind: 'session.recover', issuer: 'principal-c', issued_at: '2026-07-14T16:20:00Z', body: { agent_id: 'worker-c', session_id: 'newest', recovery_for: 'middle', claim: 'recovered' } }),
+    remote({ id: '05', kind: 'session.handoff', issuer: 'principal-d', issued_at: '2026-07-14T16:41:00Z', body: { agent_id: 'worker-d', session_id: 'future', reason: 'future', claimed_beacons: [], handoff_to: 'any' } })
+  ];
+  const state = projectActiveWeaveState(messages, {
+    now: Date.parse('2026-07-14T16:40:00Z'),
+    terminationWindowMs: 60 * 60 * 1000,
+    terminationLimit: 2
+  });
+  assert.deepEqual(state.recentTerminations.map(item => item.session_id), ['newest', 'middle']);
+  const boundaryState = projectActiveWeaveState(messages, {
+    now: Date.parse('2026-07-14T16:40:00Z'),
+    terminationWindowMs: 60 * 60 * 1000,
+    terminationLimit: 3
+  });
+  assert.deepEqual(boundaryState.recentTerminations.map(item => item.session_id), ['newest', 'middle', 'boundary']);
+});
+
 test('CLI projects a real Remote page and preserves requested head', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'weave-active-'));
   const input = path.join(directory, 'remote-page.json');
