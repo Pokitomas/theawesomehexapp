@@ -1,0 +1,1 @@
+No temporary proof post is present in production source or left in IndexedDB after the test.
