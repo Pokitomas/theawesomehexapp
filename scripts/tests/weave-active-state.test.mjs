@@ -18,6 +18,7 @@ function remote(event) {
 
 test('projects sessions, collisions, responses, recovery, and beacons', () => {
   const messages = [
+    remote({ id: '00', kind: 'message', issuer: 'agent-b', issued_at: '2026-07-14T16:29:00Z', body: { message_type: 'answer', reply_to: '07', statement: 'Too early to satisfy a later request.' } }),
     remote({ id: '01', kind: 'presence', issuer: 'agent-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'agent-a', session_id: 'session-a', state: 'coding', lease_expires_at: '2026-07-14T16:50:00Z' } }),
     remote({ id: '02', kind: 'intent', issuer: 'agent-a', issued_at: '2026-07-14T16:31:00Z', body: { artifact: 'projection-a', intended_reality_change: 'Project current state.', expected_files: ['scripts/weave-active-state.mjs'], parallel_work_welcome: true, collision_policy: 'compare' } }),
     remote({ id: '03', kind: 'presence', issuer: 'agent-b', issued_at: '2026-07-14T16:30:30Z', body: { agent_id: 'agent-b', session_id: 'session-b', state: 'coding', lease_expires_at: '2026-07-14T16:50:00Z' } }),
@@ -45,11 +46,14 @@ test('projects sessions, collisions, responses, recovery, and beacons', () => {
   assert.deepEqual(state.recentTerminations.map(item => item.session_id), ['session-c']);
 });
 
-test('keeps two sessions from the same agent separate', () => {
+test('keeps same-agent sessions separate and refuses ambiguous intent binding', () => {
   const messages = [
     remote({ id: '01', kind: 'presence', issuer: 'agent-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'agent-a', session_id: 'session-a1', state: 'coding', lease_expires_at: '2026-07-14T17:00:00Z' } }),
-    remote({ id: '02', kind: 'presence', issuer: 'agent-a', issued_at: '2026-07-14T16:31:00Z', body: { agent_id: 'agent-a', session_id: 'session-a2', state: 'testing', lease_expires_at: '2026-07-14T17:00:00Z' } })
+    remote({ id: '02', kind: 'presence', issuer: 'agent-a', issued_at: '2026-07-14T16:31:00Z', body: { agent_id: 'agent-a', session_id: 'session-a2', state: 'testing', lease_expires_at: '2026-07-14T17:00:00Z' } }),
+    remote({ id: '03', kind: 'intent', issuer: 'agent-a', issued_at: '2026-07-14T16:32:00Z', body: { artifact: 'ambiguous', intended_reality_change: 'Change one of two sessions.', expected_files: ['x.js'], collision_policy: 'avoid' } })
   ];
   const state = projectActiveWeaveState(messages, { now: Date.parse('2026-07-14T16:40:00Z') });
   assert.deepEqual(state.activeSessions.map(item => item.session_id), ['session-a1', 'session-a2']);
+  assert.equal(state.activeIntents.length, 0);
+  assert.deepEqual(state.unboundIntents[0].ambiguous_session_ids, ['session-a1', 'session-a2']);
 });
