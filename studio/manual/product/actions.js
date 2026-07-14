@@ -17,14 +17,16 @@ export const ACTIONS = Object.freeze({
   'feed.post': define('feed.post', 'New', 'feed', 'open_composer'),
   'feed.import': define('feed.import', 'Import', 'feed', 'navigate', { route: '#/add' }),
 
-  'view.flow': define('view.flow', 'Flow', 'view', 'set_feed_mode', { mode: 'flow' }),
-  'view.stage': define('view.stage', 'Stage', 'view', 'set_feed_mode', { mode: 'stage' }),
-  'view.grid': define('view.grid', 'Grid', 'view', 'set_feed_mode', { mode: 'grid' }),
+  'view.flow': define('view.flow', 'Feed', 'view', 'set_feed_mode', { mode: 'flow' }),
+  'view.stage': define('view.stage', 'Full', 'view', 'set_feed_mode', { mode: 'stage' }),
+  'view.grid': define('view.grid', 'Desktop', 'view', 'set_feed_mode', { mode: 'grid' }),
 
   'profile.open': define('profile.open', 'You', 'profile', 'open_profile'),
   'profile.save': define('profile.save', 'Save changes', 'profile', 'save_profile', { fields: ['name', 'handle', 'bio', 'accent'] }),
   'profile.close': define('profile.close', 'Close', 'profile', 'close_profile'),
-  'profile.accent': define('profile.accent', 'Accent', 'profile', 'select_accent', { value: 'string' }),
+  'profile.accent': define('profile.accent', 'Color', 'profile', 'select_accent', { value: 'string' }),
+  'profile.start': define('profile.start', 'Make it alive', 'profile', 'install_starter_pack'),
+  'profile.skip_start': define('profile.skip_start', 'Not yet', 'profile', 'skip_starter_pack'),
 
   'post.open': define('post.open', 'New post', 'composer', 'open_composer'),
   'post.publish': define('post.publish', 'Publish', 'composer', 'publish_entry', { fields: ['text', 'image', 'placeId'] }),
@@ -34,7 +36,10 @@ export const ACTIONS = Object.freeze({
   'post.edit': define('post.edit', 'Edit', 'post', 'edit_entry', { recordId: 'number' }),
   'post.delete': define('post.delete', 'Delete', 'post', 'delete_entry', { recordId: 'number' }),
   'post.save': define('post.save', 'Save', 'post', 'toggle_save', { recordId: 'number' }),
-  'post.share': define('post.share', 'Send', 'post', 'share', { recordId: 'number' }),
+  'post.share': define('post.share', 'Share', 'post', 'share', { recordId: 'number' }),
+  'post.like': define('post.like', 'Like', 'post', 'toggle_like', { recordId: 'number' }),
+  'post.reply': define('post.reply', 'Reply', 'post', 'open_reply', { recordId: 'number' }),
+  'post.remix': define('post.remix', 'Remix', 'post', 'open_remix', { recordId: 'number' }),
 
   'record.source': define('record.source', 'Open source', 'record', 'open_source', { recordId: 'number' }),
   'record.author': define('record.author', 'Open author', 'record', 'open_author', { recordId: 'number' }),
