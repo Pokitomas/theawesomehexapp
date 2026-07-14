@@ -35,7 +35,7 @@ async function join(page, { name, handle, password }) {
   await dialog.locator('input[name="name"]').fill(name);
   await dialog.locator('input[name="handle"]').fill(handle);
   await dialog.locator('input[name="password"]').fill(password);
-  await dialog.getByRole('button', { name: 'Join', exact: true }).click();
+  await dialog.locator('button.social-primary').filter({ hasText: 'Join' }).click();
   await page.locator('section[data-social-spine]').getByText(`@${handle}`, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 }
 
@@ -44,7 +44,7 @@ async function publicPost(page, text) {
   const dialog = page.locator('[data-social-composer]');
   await dialog.waitFor({ state: 'visible' });
   await dialog.locator('textarea[name="text"]').fill(text);
-  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
+  await dialog.locator('button.social-primary').filter({ hasText: 'Publish' }).click();
   await page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 }
 
@@ -82,7 +82,7 @@ await followingCard.getByRole('button', { name: /^Reply/ }).click();
 const replyDialog = bob.page.locator('[data-social-composer]');
 await replyDialog.waitFor({ state: 'visible' });
 await replyDialog.locator('textarea[name="text"]').fill('bob replies as a real post');
-await replyDialog.getByRole('button', { name: 'Reply', exact: true }).click();
+await replyDialog.locator('button.social-primary').filter({ hasText: 'Reply' }).click();
 await bob.page.getByText('bob replies as a real post', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 await bob.page.screenshot({ path: 'social-bob-following-reply.png', fullPage: false });
 
