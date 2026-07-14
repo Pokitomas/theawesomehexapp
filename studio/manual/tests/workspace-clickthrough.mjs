@@ -164,6 +164,12 @@ async function deletePost(text, decision = 'accept') {
   else await card.waitFor({ state: 'detached', timeout: 15000 });
 }
 
+await page.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+  }));
+});
+
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
 await page.waitForFunction(() => document.documentElement.dataset.workspaceChrome === 'ready', { timeout: 15000 });
