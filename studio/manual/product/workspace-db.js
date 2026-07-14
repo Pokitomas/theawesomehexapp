@@ -27,10 +27,12 @@ export {
 };
 
 export const WORKSPACE_DB = 'sideways-workspace-v1';
-export const WORKSPACE_VERSION = 1;
+export const WORKSPACE_VERSION = 2;
 export const DRAFT_STORE = 'drafts';
 export const PLACE_STORE = 'places';
 export const META_STORE = 'meta';
+export const NETWORK_RECORD_STORE = 'networkRecords';
+export const NETWORK_VIEW_STORE = 'networkViews';
 export const LEGACY_SOCIAL_DB = 'sideways-social-v1';
 
 export function uid(prefix) {
@@ -67,6 +69,16 @@ export function openWorkspaceDB() {
         places.createIndex('updatedAt', 'updatedAt');
       }
       if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE, { keyPath: 'key' });
+      if (!db.objectStoreNames.contains(NETWORK_RECORD_STORE)) {
+        const records = db.createObjectStore(NETWORK_RECORD_STORE, { keyPath: 'postId' });
+        records.createIndex('nativeId', 'nativeId', { unique: true });
+        records.createIndex('observedAt', 'observedAt');
+      }
+      if (!db.objectStoreNames.contains(NETWORK_VIEW_STORE)) {
+        const views = db.createObjectStore(NETWORK_VIEW_STORE, { keyPath: 'key' });
+        views.createIndex('viewKey', 'viewKey');
+        views.createIndex('postId', 'postId');
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
