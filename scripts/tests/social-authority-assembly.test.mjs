@@ -27,7 +27,7 @@ test('social assembly retains every source authority boundary', async () => {
   ]) assert.ok(runtime.includes(token), `shared runtime lost ${token}`);
 
   assert.ok(relational.includes('withSocialMutationContext'), 'relational service lost request identity context');
-  assert.ok(entrypoint.includes('assertCookieMutationProvenance'), 'entrypoint lost cookie provenance denial');
+  assert.ok(entrypoint.includes('cookieMutationProvenanceResponse'), 'entrypoint lost cookie provenance denial');
   assert.ok(blob.includes("request.method === 'DELETE' && op === 'post'"), 'Blob authority lost author deletion endpoint');
   assert.ok(blob.includes("'post.author_deleted'"), 'Blob authority lost durable deletion event');
 
