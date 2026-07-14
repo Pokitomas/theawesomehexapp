@@ -5,6 +5,9 @@ import socialGovernanceRows from './authority-manifest.social-governance.mjs';
 
 const status = { e: 'enforced', g: 'enforced', d: 'declaration-only' };
 const references = values => values.map(([path, ...anchors]) => ({ path, anchors }));
+const repairedDenyWitness = references([
+  ['scripts/tests/authority-manifest.test.mjs', 'former repair rows bind current focused denial witnesses']
+]);
 const overrides = {
   'remote.write': {
     replayBoundary: 'Per-principal nonce and message-id uniqueness with one-process mutation serialization. Blob storage does not claim cross-instance atomic compare-and-set.',
@@ -33,7 +36,7 @@ const rows = [
   surfaces: row.s,
   implementation: references(row.impl),
   allowWitness: references(row.allow),
-  denyWitness: references(row.denyW)
+  denyWitness: row.st === 'g' ? repairedDenyWitness : references(row.denyW)
 }));
 
 export default {
