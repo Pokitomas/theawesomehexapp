@@ -68,6 +68,22 @@ const projection = {
   next_cursor: 'cursor-2'
 };
 
+await page.route('**/remote-session.json', async route => {
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      session: 'theawesomehexapp/universal-remote',
+      generation: 4,
+      decision: 'proceed',
+      claims: [],
+      blocker_count: 0,
+      live_backend: true,
+      messages: []
+    })
+  });
+});
+
 await page.route('**/api/remote/state**', async route => {
   const request = route.request();
   if (request.method() !== 'GET') {
@@ -106,6 +122,9 @@ const open = page.locator('[data-remote-open]');
 const openBox = await touch(open);
 if (openBox.width < 44 || openBox.height < 36 || openBox.x < 0 || openBox.x + openBox.width > 390) {
   throw new Error(`live terminal target is clipped or undersized: ${JSON.stringify(openBox)}`);
+}
+if ((await open.getAttribute('data-remote-mounted')) !== 'title-actions') {
+  throw new Error('LIVE did not mount inside owned title chrome');
 }
 
 const terminal = page.locator('[data-remote-terminal]');
@@ -151,6 +170,7 @@ console.log(JSON.stringify({
   claimCount: 1,
   terminalBox,
   openBox,
+  mounted: 'title-actions',
   screenshot: 'remote-terminal-phone-proof.png'
 }, null, 2));
 
