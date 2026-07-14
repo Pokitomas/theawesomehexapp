@@ -235,6 +235,12 @@ jobs:
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/deployment-receipt.cjs write-sentinel
 
+      - name: Publish founder room into product artifact
+        run: |
+          node scripts/tests/founder-room.test.mjs
+          mkdir -p dist/founder
+          cp founder/index.html founder/founder.css founder/founder.js dist/founder/
+
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
@@ -281,6 +287,9 @@ jobs:
           test -f dist/manual/import-phone.js
           test -f dist/manual/imports/registry.js
           test -f dist/manual/imports/runtime.js
+          test -f dist/founder/index.html
+          test -f dist/founder/founder.css
+          test -f dist/founder/founder.js
 
       - name: Check manual gate and importer on a phone viewport
         run: |
