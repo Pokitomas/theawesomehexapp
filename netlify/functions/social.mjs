@@ -1,5 +1,10 @@
 import { getStore } from '@netlify/blobs';
+import pg from 'pg';
 import { createSocialService } from './social-core.mjs';
+import { createPostgresAuthority } from './social-postgres-store.mjs';
+import { createRelationalSocialService } from './social-relational-core.mjs';
+
+const { Pool } = pg;
 
 function blobStore() {
   const store = getStore('sideways-social');
@@ -14,4 +19,15 @@ function blobStore() {
   };
 }
 
-export default createSocialService({ store: blobStore() });
+const databaseUrl = process.env.SOCIAL_DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || '';
+
+const service = databaseUrl
+  ? createRelationalSocialService({
+      authority: createPostgresAuthority({
+        pool: new Pool({ connectionString: databaseUrl, max: 4, idleTimeoutMillis: 20_000 })
+      }),
+      sessionSecret: process.env.SOCIAL_SESSION_SECRET
+    })
+  : createSocialService({ store: blobStore() });
+
+export default service;
