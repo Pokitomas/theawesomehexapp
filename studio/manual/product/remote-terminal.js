@@ -8,6 +8,8 @@ let dialog = null;
 let latest = null;
 let pollTimer = 0;
 let openButton = null;
+let mountTimer = 0;
+let mountAttempts = 0;
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -188,6 +190,24 @@ function openTerminal() {
   pollTimer = window.setInterval(() => void refresh({ quiet: true }), POLL_MS);
 }
 
+function mountOpenButton() {
+  if (!openButton) return false;
+  const chromeActions = document.querySelector('[data-workspace-title-actions]');
+  const fallback = mountAttempts >= 20 ? document.querySelector('.topline') : null;
+  const host = chromeActions || fallback;
+  if (host) {
+    clearTimeout(mountTimer);
+    mountTimer = 0;
+    if (openButton.parentElement !== host) host.prepend(openButton);
+    openButton.dataset.remoteMounted = chromeActions ? 'title-actions' : 'topline';
+    return true;
+  }
+  mountAttempts += 1;
+  clearTimeout(mountTimer);
+  mountTimer = window.setTimeout(mountOpenButton, 80);
+  return false;
+}
+
 function install() {
   ensureDiscovery();
   if (!document.querySelector('meta[name="sideways-remote-session"]')) {
@@ -200,9 +220,12 @@ function install() {
   openButton.dataset.remoteOpen = 'true';
   openButton.replaceChildren(el('span', 'remote-terminal-open-dot'), el('span', '', 'LIVE'));
   openButton.firstChild.dataset.remoteDot = 'true';
-  document.body.append(openButton);
+  mountOpenButton();
   void refresh({ quiet: true });
   window.setInterval(() => { if (!dialog?.open) void refresh({ quiet: true }); }, BACKGROUND_MS);
+  for (const eventName of ['sideways:ready', 'sideways:workspacechange', 'sideways:profilechange']) {
+    window.addEventListener(eventName, mountOpenButton);
+  }
 }
 
 window.SidewaysRemoteTerminal = Object.freeze({ open: openTerminal, refresh, state: () => latest, endpoint: () => endpoint().href });
