@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
 import receipt from '../deployment-receipt.cjs';
 
@@ -11,6 +12,18 @@ const {
   verifyLiveDeployment,
   upsertDeploymentReceipt
 } = receipt;
+
+function loadPagesWorkflow({
+  workspace = process.env.GITHUB_WORKSPACE || process.cwd(),
+  readFile = readFileSync
+} = {}) {
+  const workflowPath = resolve(workspace, '.github/workflows/pages.yml');
+  const workflow = readFile(workflowPath, 'utf8');
+  if (!workflow.includes('name: Build and deploy manual root-kernel feed')) {
+    throw new Error(`Unexpected Pages workflow content at ${workflowPath}`);
+  }
+  return { workflowPath, workflow };
+}
 
 test('deployment identity and receipt expose the exact live commit', () => {
   assert.deepEqual(buildDeploymentSentinel({
@@ -140,8 +153,25 @@ test('receipt upsert updates the newest open receipt and closes stale duplicates
   });
 });
 
+test('workflow loader anchors to the checked-out workspace instead of the test module URL', () => {
+  const reads = [];
+  const result = loadPagesWorkflow({
+    workspace: '/checkout/repository',
+    readFile(path, encoding) {
+      reads.push({ path, encoding });
+      return 'name: Build and deploy manual root-kernel feed\n';
+    }
+  });
+
+  assert.equal(result.workflowPath, resolve('/checkout/repository', '.github/workflows/pages.yml'));
+  assert.deepEqual(reads, [{
+    path: resolve('/checkout/repository', '.github/workflows/pages.yml'),
+    encoding: 'utf8'
+  }]);
+});
+
 test('Pages workflow cannot record a receipt before the live commit is verified', () => {
-  const workflow = readFileSync(new URL('../../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  const { workflow } = loadPagesWorkflow();
   const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
   const uploadArtifact = workflow.indexOf('uses: actions/upload-pages-artifact@v3');
   const deployPages = workflow.indexOf('uses: actions/deploy-pages@v4');
