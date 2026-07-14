@@ -11,6 +11,37 @@ const connectionString = process.env.POSTGRES_URL || process.env.SOCIAL_DATABASE
 const enabled = Boolean(connectionString);
 const pool = enabled ? new Pool({ connectionString, max: 8 }) : null;
 
+function diagnosticPool(base) {
+  const query = async (runner, args) => {
+    try {
+      return await runner.query(...args);
+    } catch (error) {
+      const statement = typeof args[0] === 'string' ? args[0] : args[0]?.text;
+      console.error(JSON.stringify({
+        sqlError: {
+          code: error?.code || '',
+          constraint: error?.constraint || '',
+          message: error?.message || String(error),
+          statement: String(statement || '').replace(/\s+/g, ' ').trim().slice(0, 280)
+        }
+      }));
+      throw error;
+    }
+  };
+  return {
+    query: (...args) => query(base, args),
+    async connect() {
+      const client = await base.connect();
+      return {
+        query: (...args) => query(client, args),
+        release: () => client.release()
+      };
+    }
+  };
+}
+
+const runtimePool = pool ? diagnosticPool(pool) : null;
+
 function client(service) {
   let cookie = '';
   return {
@@ -56,8 +87,8 @@ test('PostgreSQL moderation target and role matrix fails closed on current membe
   let tick = Date.parse('2026-07-14T19:00:00.000Z');
   const service = createRelationalSocialService({
     authority: {
-      ...createPostgresAuthority({ pool }),
-      ...createPostgresCommunityRuntime({ pool })
+      ...createPostgresAuthority({ pool: runtimePool }),
+      ...createPostgresCommunityRuntime({ pool: runtimePool })
     },
     sessionSecret: 'moderation-role-matrix-secret-at-least-32-bytes',
     now: () => tick++
@@ -78,7 +109,7 @@ test('PostgreSQL moderation target and role matrix fails closed on current membe
       method: 'POST', key: `register-${handle}`,
       body: { name, handle, password: `${handle} password is long enough` }
     });
-    assert.equal(result.response.status, 201);
+    assert.equal(result.response.status, 201, JSON.stringify(result.data));
     identities[handle] = result.data.account.id;
   }
 
