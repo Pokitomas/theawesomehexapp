@@ -1,6 +1,7 @@
 import { createSocialService } from './social-core.mjs';
 import { createPostgresCommunityRuntime } from './social-postgres-community-runtime.mjs';
 import { createPostgresAuthority } from './social-postgres-store.mjs';
+import { ensureSocialSchema } from './social-postgres-migrations.mjs';
 import { createRelationalSocialService } from './social-relational-core.mjs';
 
 export function createBlobStore({ getStore, storeName = 'sideways-social' } = {}) {
@@ -25,7 +26,8 @@ export function createProductionSocialService({
   createBlobService = createSocialService,
   createRelationalAuthority = createPostgresAuthority,
   createCommunityAuthority = createPostgresCommunityRuntime,
-  createRelationalService = createRelationalSocialService
+  createRelationalService = createRelationalSocialService,
+  ensureRelationalSchema = ensureSocialSchema
 } = {}) {
   const databaseUrl = env.SOCIAL_DATABASE_URL || env.NETLIFY_DATABASE_URL || env.DATABASE_URL || '';
   if (!databaseUrl) {
@@ -34,11 +36,24 @@ export function createProductionSocialService({
   if (typeof createPool !== 'function') throw new Error('A PostgreSQL pool factory is required.');
 
   const pool = createPool({ connectionString: databaseUrl, max: 4, idleTimeoutMillis: 20_000 });
-  return createRelationalService({
+  const service = createRelationalService({
     authority: {
       ...createRelationalAuthority({ pool }),
       ...createCommunityAuthority({ pool })
     },
     sessionSecret: env.SOCIAL_SESSION_SECRET
   });
+  let schemaReady;
+  return async request => {
+    try {
+      schemaReady ||= ensureRelationalSchema(pool);
+      await schemaReady;
+      return service(request);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Social database schema is unavailable.' }), {
+        status: 503,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
+      });
+    }
+  };
 }
