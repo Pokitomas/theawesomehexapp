@@ -45,6 +45,11 @@ async function waitForImportOutcome(page) {
 }
 
 const gateContext = await browser.newContext(iphone);
+await gateContext.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+  }));
+});
 const gatePage = await gateContext.newPage();
 const gateErrors = collectErrors(gatePage);
 await gatePage.goto('http://127.0.0.1:4173/manual/?debug=1&test=1&autorun=1', { waitUntil: 'networkidle' });
@@ -56,8 +61,12 @@ const gate = Number((policy.match(/gate=([0-9.]+)/) || [])[1]);
 if (count !== '20 THINGS') throw new Error(`expected 20 THINGS, got ${count}`);
 if (!(gate > .05)) throw new Error(`gate did not visibly move: ${policy}`);
 if (!/state=(saturation|deep_saturation)/.test(state)) throw new Error(`state did not change: ${state}`);
+const labelParallels = Object.freeze({ KEEP: 'Save', READ: 'Open', SEND: 'Share' });
 for (const label of ['ADD', 'KEEP', 'READ', 'SEND', 'MOVE GATE']) {
-  if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing button ${label}`);
+  const visibleLabel = labelParallels[label] || label;
+  if (!(await gatePage.getByRole('button', { name: visibleLabel, exact: true }).count())) {
+    throw new Error(`missing button ${label} (${visibleLabel})`);
+  }
 }
 await touch(gatePage, gatePage.getByRole('button', { name: 'ADD', exact: true }));
 await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
@@ -73,6 +82,11 @@ await gatePage.screenshot({ path: 'manual-phone-gate.png', fullPage: true });
 await gateContext.close();
 
 const consumerContext = await browser.newContext(iphone);
+await consumerContext.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+  }));
+});
 const consumer = await consumerContext.newPage();
 const consumerErrors = collectErrors(consumer);
 let loads = 0;
@@ -80,7 +94,7 @@ consumer.on('load', () => { loads += 1; });
 await consumer.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
 loads = 0;
 await consumer.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
-await touch(consumer, consumer.locator('.studio-launch-button.is-import'));
+await touch(consumer, consumer.getByRole('button', { name: 'ADD', exact: true }));
 await consumer.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
@@ -130,8 +144,8 @@ console.log(JSON.stringify({
   workspaceLibraryHeader: true,
   duplicateIntro: false,
   chooserBehindCompletion: false,
-  firstRun: 'New post or Import',
-  consumerJourney: 'Import → Reddit picker → automatic import → in-place feed',
+  firstRun: 'Profile, write, or one-tap starter',
+  consumerJourney: 'Library → Reddit picker → automatic import → in-place feed',
   automaticReloads: 0,
   refreshedCount,
   importedCount,
