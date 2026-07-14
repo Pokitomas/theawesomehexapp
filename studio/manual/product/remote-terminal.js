@@ -1,3 +1,5 @@
+import { actionButton } from './actions.js';
+
 const MANIFEST_FALLBACK = Object.freeze({
   protocol: 'sideways-universal-remote/1',
   live: false,
@@ -159,10 +161,11 @@ function buildTerminal() {
   const bar = el('header', 'remote-terminal-bar');
   const title = el('div', 'remote-terminal-title');
   title.append(el('span', 'remote-terminal-light'), el('strong', '', 'LIVE WORK'));
-  const close = el('button', 'remote-terminal-close', '×');
-  close.type = 'button';
-  close.setAttribute('aria-label', 'Close live work');
-  close.addEventListener('click', closeTerminal);
+  const close = actionButton('remote.close', closeTerminal, {
+    className: 'remote-terminal-close',
+    label: '×',
+    ariaLabel: 'Close live work'
+  });
   bar.append(title, close);
 
   const hero = el('div', 'remote-terminal-hero');
@@ -197,9 +200,14 @@ function buildTerminal() {
   output.hidden = true;
 
   const footer = el('footer', 'remote-terminal-footer');
-  const refreshButton = el('button', 'remote-terminal-refresh', 'REFRESH');
-  refreshButton.type = 'button';
-  refreshButton.addEventListener('click', () => void refresh());
+  const refreshButton = actionButton('remote.refresh', async () => {
+    await refresh().catch(() => {});
+    return currentState;
+  }, {
+    className: 'remote-terminal-refresh',
+    label: 'REFRESH',
+    ariaLabel: 'Refresh live work'
+  });
   const manifestLink = el('a', 'remote-terminal-manifest', 'JSON');
   manifestLink.href = './.well-known/sideways-remote.json';
   manifestLink.target = '_blank';
@@ -223,16 +231,17 @@ async function openTerminal() {
 
 function installLaunch() {
   if (document.querySelector('[data-sideways-remote-launch]')) return document.querySelector('[data-sideways-remote-launch]');
-  const button = el('button', 'remote-terminal-launch');
-  button.type = 'button';
+  const button = actionButton('remote.open', openTerminal, {
+    className: 'remote-terminal-launch',
+    label: 'LIVE',
+    ariaLabel: 'Open live work terminal'
+  });
   button.dataset.sidewaysRemoteLaunch = 'true';
-  button.setAttribute('aria-label', 'Open live work terminal');
   const dot = el('span', 'remote-launch-dot');
   dot.dataset.remoteDot = 'true';
   const label = el('span', '', 'LIVE');
   label.dataset.remoteLabel = 'true';
-  button.append(dot, label);
-  button.addEventListener('click', () => void openTerminal());
+  button.replaceChildren(dot, label);
   document.body.append(button);
   return button;
 }
