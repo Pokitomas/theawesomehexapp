@@ -20,6 +20,10 @@ The weave adds ambient coordination over that substrate. Beacons are coordinatio
 
 A beacon claim, presence announcement, or artifact intent does not create exclusive ownership. It makes overlap legible. Capabilities, repository primitives, explicit leases, and exact-head evidence remain authoritative.
 
+## Message normalization
+
+Protocol examples may use a convenience helper surface such as `channel: "public"` when demonstrating an emission call. Before persistence, every message must normalize into the canonical `MessageEnvelope`: the destination becomes `to`, `expectsResponse` is explicit, IDs and timestamps are assigned, and related evidence/artifacts remain attached. Helper shorthand is never a second message schema.
+
 ## Public product boundary
 
 The visible **LIVE** terminal makes current work a readable social object. It exposes only the sanitized public projection and exact-build snapshot. It never receives private credentials, signatures, administrative controls, nonce records, or generic product-sync authority.
