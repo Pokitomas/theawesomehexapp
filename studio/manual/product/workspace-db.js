@@ -27,10 +27,12 @@ export {
 };
 
 export const WORKSPACE_DB = 'sideways-workspace-v1';
-export const WORKSPACE_VERSION = 1;
+export const WORKSPACE_VERSION = 2;
 export const DRAFT_STORE = 'drafts';
 export const PLACE_STORE = 'places';
 export const META_STORE = 'meta';
+export const NETWORK_RECORD_STORE = 'networkRecords';
+export const NETWORK_VIEW_STORE = 'networkViews';
 export const LEGACY_SOCIAL_DB = 'sideways-social-v1';
 
 export function uid(prefix) {
@@ -67,9 +69,23 @@ export function openWorkspaceDB() {
         places.createIndex('updatedAt', 'updatedAt');
       }
       if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE, { keyPath: 'key' });
+      if (!db.objectStoreNames.contains(NETWORK_RECORD_STORE)) {
+        const networkRecords = db.createObjectStore(NETWORK_RECORD_STORE, { keyPath: 'postId' });
+        networkRecords.createIndex('updatedAt', 'updatedAt');
+        networkRecords.createIndex('observedAt', 'observedAt');
+      }
+      if (!db.objectStoreNames.contains(NETWORK_VIEW_STORE)) {
+        const networkViews = db.createObjectStore(NETWORK_VIEW_STORE, { keyPath: 'key' });
+        networkViews.createIndex('observedAt', 'observedAt');
+      }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new DOMException('Close another Sideways tab and try again.', 'InvalidStateError'));
   });
 }
 
