@@ -63,7 +63,7 @@ jobs:
         run: |
           node --check scripts/coordination-tick-core.mjs
           node --check scripts/coordination-tick.mjs
-          node --test scripts/tests/coordination-tick.test.mjs
+          node --test scripts/tests/coordination-tick.test.mjs scripts/tests/coordination-tick-hardening.test.mjs
 
       - name: Apply one atomic repository-event tick
         env:
