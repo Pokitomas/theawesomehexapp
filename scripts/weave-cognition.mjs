@@ -345,7 +345,7 @@ export function foldCognitionEvents(events = []) {
     if (event.kind === 'claim') state.claims[event.id] = { ...event, status: 'active' };
     else if (event.kind === 'question') state.questions[event.id] = { ...event, status: body.resolved_by ? 'resolved' : 'open' };
     else if (event.kind === 'goal') state.goals[event.id] = event;
-    else if (event.kind === 'plan') state.plans[event.id] = event;
+    else if (event.kind === 'plan') state.plans[event.id] = { ...event, status: body.state };
     else if (event.kind === 'decision') {
       state.decisions[event.id] = event;
       for (const target of body.resolves) {
@@ -371,7 +371,7 @@ export function foldCognitionEvents(events = []) {
         state.superseded[target] = event.id;
         if (state.claims[target]) state.claims[target].status = 'superseded';
         if (state.questions[target]) state.questions[target].status = 'superseded';
-        if (state.plans[target]) state.plans[target].body.state = 'abandoned';
+        if (state.plans[target]) state.plans[target].status = 'abandoned';
       }
     }
   }
@@ -394,7 +394,7 @@ export function foldCognitionEvents(events = []) {
     .map(([id]) => id);
   state.failed_test_ids = state.tests.filter(event => event.body.status === 'failed').map(event => event.id);
   state.active_plan_ids = Object.entries(state.plans)
-    .filter(([id, value]) => ['proposed', 'active', 'blocked'].includes(value.body.state) && !state.superseded[id])
+    .filter(([id, value]) => ['proposed', 'active', 'blocked'].includes(value.status) && !state.superseded[id])
     .map(([id]) => id);
   state.dissent_event_ids = [...new Set(state.dissent_event_ids.filter(id => ids.has(id)))];
   return state;
@@ -406,6 +406,6 @@ export function unresolvedCognitionIds(state) {
     ...(state?.unresolved_contradiction_ids || []),
     ...(state?.unsupported_claim_ids || []),
     ...(state?.failed_test_ids || []),
-    ...(state?.active_plan_ids || []).filter(id => state.plans[id]?.body.state === 'blocked')
+    ...(state?.active_plan_ids || []).filter(id => state.plans[id]?.status === 'blocked')
   ])];
 }
