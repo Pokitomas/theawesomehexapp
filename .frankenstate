@@ -1,5 +1,5 @@
-version: 37
-updated_at: 2026-07-14T20:25:19Z
+version: 38
+updated_at: 2026-07-14T20:32:04Z
 repository: Pokitomas/theawesomehexapp
 branch: main
 active_pr: 16 open PRs total - 12 leaf drafts (#140-#151, closing issues #127,128,129,130,132-139), 2 wave drafts (#154 remote/weave, #155 social, closing #152/#153, base main), and 2 non-draft shard PRs feeding wave #154 (#158 main-sync, #160 folds leaf #147 in), base assembly/remote-authority-wave - more shards expected as each remaining leaf branch is folded in
@@ -27,7 +27,9 @@ current_subtask:
     - "leaf PRs land sequentially, one per ~5-13 min, accelerating toward the end of a backlog"
     - "once a parent's full leaf set is open, convergence issues appear within ~8 min and their wave PRs within ~2-3 min more"
     - "each wave PR is built via a chain of shard PRs based on the wave branch itself (not main): one main-sync shard, then one shard per leaf branch folded in, ~1-2 min apart"
-  subagent_deployment: read-only verification only - cross-checking each leaf PR's diff against its issue's declared Reserved scope for hidden file overlaps that could break wave assembly, and independently re-deriving CI status for lanes not yet directly checked. No subagent has write/comment/merge/push tools for this repository.
+  subagent_deployment: read-only verification only - cross-checking each leaf PR's diff against its issue's declared Reserved scope for hidden file overlaps that could break wave assembly, and independently re-deriving CI status for lanes not yet directly checked. No subagent had write/comment/merge/push tools for this repository.
+  subagent_findings: verified (not speculative) collisions across #140,143,148,149,150,151 - three-way anchor conflict in social-postgres-community-runtime.mjs, two independent package.json line conflicts (test:social, test:social:postgres), and a semantic collision where #151's moderate() drops #149's self-ban/peer-moderator-ban hierarchy guard on naive merge. Wave #154 already resolved an analogous undeclared package.json (test:remote) collision between #145/#147. #141 ships scripts/authority-manifest-core.mjs (356 lines) outside its own self-declared scope. #144's workflow-permission claims were independently verified true against the actual diff.
+  live_action_taken: posted one comment on issue #153 (https://github.com/Pokitomas/theawesomehexapp/issues/153#issuecomment-4973712968) reporting the moderate() collision and outstanding textual conflicts to whoever is assembling that wave - gated on the finding being independently verified via direct diff/code reading by two subagents, not on speculation. No code pushed, no lane claimed, no PR opened for product changes.
   observed_open_prs:
     - "#155 [assembly] converge social authority wave (closes #153; targets #140,#143,#148,#149,#150,#151)"
     - "#154 [assembly] converge Remote and weave authority wave (closes #152; targets #142,#144,#145,#146,#147)"
