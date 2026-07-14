@@ -76,12 +76,14 @@ await page.evaluate(() => window.SidewaysCore.routeTo('#/add'));
 await page.waitForFunction(() => !document.getElementById('addView')?.hidden, { timeout: 10000 });
 const vault = page.locator('section[data-survival-vault]');
 await vault.waitFor({ state: 'visible', timeout: 10000 });
-if (await vault.locator('[data-action-id^="vault."]').count() !== 4) throw new Error('vault rail is incomplete');
+await page.waitForFunction(() => document.querySelectorAll('section[data-survival-vault] [data-action-id^="vault."]').length === 4, { timeout: 10000 });
+const vaultActions = await vault.locator('[data-action-id^="vault."]').count();
+if (vaultActions !== 4) throw new Error(`vault rail is incomplete: ${vaultActions}`);
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 if (overflow > 1) throw new Error(`horizontal overflow ${overflow}`);
 if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-survival-ledger.png', fullPage: true });
-console.log(JSON.stringify({ mirror: mirror.status, ark, restored, audit, ledgerOps: [...new Set(ledger.map(entry => entry.op))].filter(op => op.startsWith('survival.')), horizontalOverflow: overflow }, null, 2));
+console.log(JSON.stringify({ mirror: mirror.status, ark, restored, audit, ledgerOps: [...new Set(ledger.map(entry => entry.op))].filter(op => op.startsWith('survival.')), vaultActions, horizontalOverflow: overflow }, null, 2));
 await context.close();
 await browser.close();
