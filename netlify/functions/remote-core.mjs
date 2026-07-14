@@ -209,6 +209,19 @@ export function publicMessageProjection(message) {
   };
 }
 
+export function publicTerminalReceiptProjection(receipt) {
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) return null;
+  const production = receipt.production && typeof receipt.production === 'object' && !Array.isArray(receipt.production)
+    ? { state: clean(receipt.production.state).slice(0, 64) || null }
+    : null;
+  return {
+    head_sha: clean(receipt.head_sha).slice(0, 80) || null,
+    merge_sha: clean(receipt.merge_sha).slice(0, 80) || null,
+    production,
+    terminated_at: clean(receipt.terminated_at).slice(0, 64) || null
+  };
+}
+
 export function publicStateProjection(state, messages = []) {
   const cleanState = pruneExpiredClaims(state);
   return {
@@ -224,13 +237,7 @@ export function publicStateProjection(state, messages = []) {
     })),
     blocker_count: activeBlockerCount(cleanState),
     terminal: Boolean(cleanState.terminal),
-    terminal_receipt: cleanState.terminal_receipt ? {
-      head_sha: cleanState.terminal_receipt.head_sha,
-      merge_sha: cleanState.terminal_receipt.merge_sha,
-      production: cleanState.terminal_receipt.production,
-      terminated_at: cleanState.terminal_receipt.terminated_at,
-      terminated_by: cleanState.terminal_receipt.terminated_by
-    } : null,
+    terminal_receipt: publicTerminalReceiptProjection(cleanState.terminal_receipt),
     summary: cleanState.summary,
     updated_at: cleanState.updated_at,
     updated_by: cleanState.updated_by,
