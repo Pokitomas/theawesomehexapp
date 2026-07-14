@@ -46,6 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify exact-head deployment receipt contract
+        run: node --test scripts/tests/deployment-receipt.test.mjs
+
       - name: Extract base product layers
         run: |
           set -euo pipefail
@@ -88,10 +95,6 @@ jobs:
           python studio/manual/prepare-kernel.py
           python manual-kernel/patch.py
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - uses: actions/setup-python@v5
         with:
@@ -225,10 +228,17 @@ jobs:
         if: github.event_name == 'push'
         run: python verify-profile-build.py
 
+      - name: Write deployment identity
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: node scripts/deployment-receipt.cjs write-sentinel
+
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
-      - name: Verify kernel, studio, remote, importer, and deployed assets
+      - name: Verify kernel, studio, remote, importer, receipt, and deployed assets
         run: |
           node --check manual-app/app.js
           node --check manual-app/kernel.js
@@ -244,6 +254,7 @@ jobs:
           node --check netlify/functions/remote.mjs
           node --check scripts/remote-client.mjs
           node --check scripts/remote-gate.mjs
+          node --check scripts/deployment-receipt.cjs
           node --test scripts/tests/remote-service.test.mjs
           python studio/manual/verify.py
           node studio/manual/tests/remote-terminal-contract.mjs
@@ -308,35 +319,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: [remote-gate, build]
     steps:
+      - uses: actions/checkout@v4
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record successful deployment
+      - name: Verify deployed commit identity
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: node scripts/deployment-receipt.cjs verify-live
+
+      - name: Upsert successful deployment receipt
         uses: actions/github-script@v7
         env:
           DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
         with:
           script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: 'Sideways consumer app deployed',
-              body: [
-                `ROOT_URL=${process.env.DEPLOYED_URL}`,
-                `MANUAL_URL=${process.env.DEPLOYED_URL}manual/`,
-                `PHONE_TEST_URL=${process.env.DEPLOYED_URL}manual/?debug=1&test=1&autorun=1`,
-                `COMMIT=${context.sha}`,
-                'ROOT_PRODUCT=one-million-candidate feed verified',
-                'MANUAL_CORPUS=empty until the user imports an app',
-                'MANUAL_KERNEL=root-exact and parity checked',
-                'MANUAL_STUDIO=one-tap consumer importer with no setup gate',
-                'MANUAL_IMPORTS=Instagram Reddit TikTok YouTube Spotify X Mastodon bookmarks RSS JSON CSV text and canonical document/media support',
-                'IMPORT_RUNTIME=chunked cancellable IndexedDB writes with dedupe and quota checks',
-                'PHONE_GATE_TEST=real 390x844 touch import and in-place feed refresh',
-                'IPHONE_IMPORTER=native multi-item system picker',
-                'LIVE_WORK_TERMINAL=public read-only build snapshot on Pages; Netlify live state requires a verified Netlify deployment',
-                'AUTOMATIC_RELOADS=zero',
-                'MANUAL_STORAGE=browser-local IndexedDB'
-              ].join('\n')
+            const { upsertDeploymentReceipt } = require('./scripts/deployment-receipt.cjs');
+            const result = await upsertDeploymentReceipt({
+              github,
+              context,
+              deployedUrl: process.env.DEPLOYED_URL
             });
+            core.info(`deployment receipt #${result.primary.number}; closed stale receipts: ${result.closedDuplicates.join(', ') || 'none'}`);
