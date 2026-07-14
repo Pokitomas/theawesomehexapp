@@ -61,12 +61,13 @@ function issueContextForLanes(inventory, laneKeys) {
 function eventKey(name, action, payload, env) {
   if (name === 'issue_comment') return `issue_comment:${payload.comment?.id || 'unknown'}`;
   if (name === 'issues') return `issues:${payload.issue?.id || payload.issue?.number}:${action}:${payload.issue?.updated_at || ''}`;
-  if (name.startsWith('pull_request')) {
-    const pull = payload.pull_request || payload.review?.pull_request;
-    return `${name}:${pull?.id || pull?.number}:${action}:${pull?.head?.sha || pull?.updated_at || ''}`;
-  }
   if (name === 'pull_request_review') return `pull_request_review:${payload.review?.id || 'unknown'}:${action}`;
   if (name === 'pull_request_review_comment') return `pull_request_review_comment:${payload.comment?.id || 'unknown'}:${action}`;
+  if (name === 'pull_request' || name === 'pull_request_target') {
+    const pull = payload.pull_request || {};
+    const revision = action === 'synchronize' ? pull.head?.sha : (pull.updated_at || pull.head?.sha || '');
+    return `${name}:${pull.id || pull.number}:${action}:${revision}`;
+  }
   if (name === 'workflow_run') {
     const run = payload.workflow_run || {};
     return `workflow_run:${run.id || 'unknown'}:${run.run_attempt || 1}:${run.conclusion || run.status || action}`;
@@ -94,7 +95,7 @@ export function normalizeGitHubTickEvent(payload = {}, env = process.env, invent
     source = clean(payload.comment?.html_url || issue.html_url || '');
   }
 
-  if (name.startsWith('pull_request')) {
+  if (name === 'pull_request' || name === 'pull_request_target') {
     const pull = payload.pull_request || {};
     if (pull.number) laneKeys.push(`pr:${pull.number}`);
     branch = clean(pull.head?.ref);
