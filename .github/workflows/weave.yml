@@ -1,0 +1,33 @@
+name: Verify weave protocol
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/weave-*.mjs'
+      - 'scripts/tests/weave-protocol.test.mjs'
+      - 'WEAVE_PROTOCOL.md'
+      - '.github/workflows/weave.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/weave-*.mjs'
+      - 'scripts/tests/weave-protocol.test.mjs'
+      - 'WEAVE_PROTOCOL.md'
+      - '.github/workflows/weave.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  weave-protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify weave modules
+        run: |
+          node --check scripts/weave-protocol.mjs
+          node --check scripts/weave-client.mjs
+          node --test scripts/tests/weave-protocol.test.mjs
