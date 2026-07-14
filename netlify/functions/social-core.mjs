@@ -1,321 +1,272 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 
-export const SOCIAL_VERSION = 1;
-export const SESSION_COOKIE = 'sideways_session';
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-export const MAX_FEED = 80;
-const COLORS = new Set(['#335cff', '#2f7d64', '#b24d6b', '#8a5b24', '#6554c0', '#24262b']);
+const scrypt = promisify(scryptCallback);
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
+const ACCESS_TTL_MS = 60 * 60 * 1000;
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const HANDLE = /^[a-z0-9][a-z0-9_.-]{1,29}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
-const handleOf = value => clean(value).replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 30);
-const nowISO = now => new Date(now()).toISOString();
-const sha256 = value => createHash('sha256').update(value).digest('hex');
-const randomId = (bytes = 18) => randomBytes(bytes).toString('base64url');
-const response = (status, body = {}, headers = {}) => new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { ...JSON_HEADERS, ...headers } });
-const fail = (status, message) => Object.assign(new Error(message), { status });
-const accountKey = id => `social/account/${id}`;
-const handleKey = handle => `social/handle/${handle}`;
-const sessionKey = token => `social/session/${sha256(token)}`;
-const postKey = id => `social/post/${id}`;
-const followKey = (viewerId, targetId) => `social/follow/${viewerId}/${targetId}`;
-const likeKey = (viewerId, postId) => `social/like/${viewerId}/${postId}`;
-const likePostKey = (postId, viewerId) => `social/like-post/${postId}/${viewerId}`;
-const eventKey = (at, id = randomId(10)) => `social/event/${at.replace(/[-:.TZ]/g, '')}-${id}`;
-
-function safeEqual(a, b) {
-  const A = Buffer.from(String(a));
-  const B = Buffer.from(String(b));
-  return A.length === B.length && timingSafeEqual(A, B);
-}
-
-function passwordRecord(password) {
-  const salt = randomBytes(16).toString('hex');
-  return { salt, hash: scryptSync(password, salt, 64).toString('hex') };
-}
-
-function passwordMatches(password, record = {}) {
-  try {
-    return safeEqual(scryptSync(password, record.salt, 64).toString('hex'), record.hash);
-  } catch {
-    return false;
-  }
-}
-
-function cookieToken(request) {
-  const cookie = request.headers.get('cookie') || '';
-  for (const part of cookie.split(';')) {
-    const [name, ...rest] = part.trim().split('=');
-    if (name === SESSION_COOKIE) return decodeURIComponent(rest.join('='));
-  }
-  return '';
-}
-
-function sessionCookie(token, request, maxAge = Math.floor(SESSION_TTL_MS / 1000)) {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
+const clean = (value, max = 1000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, max);
+const handleOf = value => clean(value, 31).replace(/^@/, '').toLowerCase();
+const emailOf = value => clean(value, 254).toLowerCase();
+const tokenHash = value => createHash('sha256').update(String(value)).digest('hex');
+const opaqueToken = prefix => `${prefix}_${randomBytes(32).toString('base64url')}`;
+const isoAfter = milliseconds => new Date(Date.now() + milliseconds).toISOString();
+const expired = value => !value || Date.parse(value) <= Date.now();
+const response = (status, body = null, headers = {}) => new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { ...JSON_HEADERS, ...headers } });
 function assertSameOriginMutation(request) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
   const url = new URL(request.url);
   const origin = request.headers.get('origin');
-  if (origin && origin !== url.origin) throw fail(403, 'Cross-origin mutation rejected.');
+  if (origin && origin !== url.origin) throw Object.assign(new Error('Cross-origin mutation rejected.'), { status: 403 });
   const site = request.headers.get('sec-fetch-site');
-  if (site && !['same-origin', 'same-site', 'none'].includes(site)) throw fail(403, 'Cross-site mutation rejected.');
+  if (site && !['same-origin', 'same-site', 'none'].includes(site)) throw Object.assign(new Error('Cross-site mutation rejected.'), { status: 403 });
 }
 
-async function jsonBody(request) {
+const json = request => {
   const length = Number(request.headers.get('content-length') || 0);
-  if (length > 64 * 1024) throw fail(413, 'Request is too large.');
-  return request.json().catch(() => { throw fail(400, 'Valid JSON required.'); });
+  if (length > 64 * 1024) throw Object.assign(new Error('Request is too large.'), { status: 413 });
+  return request.json().catch(() => ({}));
+};
+const asLimit = value => Math.max(1, Math.min(50, Number(value) || 30));
+
+function routeFrom(request, explicitRoute = '') {
+  if (explicitRoute) return explicitRoute.startsWith('/') ? explicitRoute : `/${explicitRoute}`;
+  const url = new URL(request.url);
+  const queryRoute = url.searchParams.get('route');
+  if (queryRoute) return queryRoute.startsWith('/') ? queryRoute : `/${queryRoute}`;
+  return url.pathname.replace(/^\/\.netlify\/functions\/social/, '') || '/';
 }
 
-function publicAccount(account) {
-  if (!account) return null;
-  return { id: account.id, handle: account.handle, name: account.name, bio: account.bio, accent: account.accent, createdAt: account.createdAt, updatedAt: account.updatedAt };
+async function hashPassword(password) {
+  const salt = randomBytes(16);
+  const derived = await scrypt(password, salt, 64);
+  return `scrypt$${salt.toString('base64url')}$${Buffer.from(derived).toString('base64url')}`;
 }
 
-async function writeEvent(store, type, actorId, payload, at) {
-  const event = { version: SOCIAL_VERSION, id: randomId(12), type, actorId, at, payload };
-  await store.set(eventKey(at, event.id), event);
-  return event;
+async function verifyPassword(password, encoded) {
+  const [algorithm, saltValue, hashValue] = String(encoded || '').split('$');
+  if (algorithm !== 'scrypt' || !saltValue || !hashValue) return false;
+  const expected = Buffer.from(hashValue, 'base64url');
+  const actual = Buffer.from(await scrypt(password, Buffer.from(saltValue, 'base64url'), expected.length));
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-async function resolveSession(store, request, now) {
-  const token = cookieToken(request);
-  if (!token) return null;
-  const session = await store.get(sessionKey(token));
-  if (!session || Date.parse(session.expiresAt) <= now()) {
-    if (session) await store.delete(sessionKey(token));
-    return null;
-  }
-  const account = await store.get(accountKey(session.accountId));
-  return account ? { token, session, account } : null;
-}
-
-async function requireSession(store, request, now) {
-  const value = await resolveSession(store, request, now);
-  if (!value) throw fail(401, 'Sign in required.');
-  return value;
-}
-
-async function issueSession(store, accountId, request, now) {
-  const token = randomId(32);
-  const createdAt = nowISO(now);
-  const expiresAt = new Date(now() + SESSION_TTL_MS).toISOString();
-  await store.set(sessionKey(token), { accountId, createdAt, expiresAt });
-  return { token, cookie: sessionCookie(token, request), expiresAt };
-}
-
-async function accountByHandle(store, value) {
-  const handle = handleOf(value);
-  if (!handle) return null;
-  const pointer = await store.get(handleKey(handle));
-  return pointer?.accountId ? store.get(accountKey(pointer.accountId)) : null;
-}
-
-async function listObjects(store, prefix) {
-  const keys = await store.list(prefix);
-  const rows = await Promise.all(keys.map(key => store.get(key)));
-  return rows.filter(Boolean);
-}
-
-async function relationSets(store, viewerId) {
-  if (!viewerId) return { follows: new Set(), likes: new Set() };
-  const [follows, likes] = await Promise.all([
-    listObjects(store, `social/follow/${viewerId}/`),
-    listObjects(store, `social/like/${viewerId}/`)
-  ]);
+function publicIdentity(bundle, viewerId = '') {
+  if (!bundle?.profile) return null;
   return {
-    follows: new Set(follows.map(item => item.targetId)),
-    likes: new Set(likes.map(item => item.postId))
+    id: bundle.id,
+    handle: bundle.profile.handle,
+    displayName: bundle.profile.displayName,
+    bio: bundle.profile.bio || '',
+    avatar: bundle.profile.avatar || '',
+    cover: bundle.profile.cover || '',
+    pronouns: bundle.profile.pronouns || '',
+    website: bundle.profile.website || '',
+    createdAt: bundle.createdAt,
+    isSelf: bundle.id === viewerId
   };
 }
 
-async function projectPosts(store, posts, viewerId = '') {
-  const accounts = new Map();
-  for (const post of posts) {
-    if (!accounts.has(post.authorId)) accounts.set(post.authorId, await store.get(accountKey(post.authorId)));
-  }
-  const relations = await relationSets(store, viewerId);
-  const allPosts = await listObjects(store, 'social/post/');
-  const replyCounts = new Map();
-  for (const item of allPosts) if (item.replyTo) replyCounts.set(item.replyTo, (replyCounts.get(item.replyTo) || 0) + 1);
-  return Promise.all(posts.map(async post => ({
-    id: post.id,
-    text: post.text,
-    replyTo: post.replyTo || null,
-    createdAt: post.createdAt,
-    updatedAt: post.updatedAt,
-    author: publicAccount(accounts.get(post.authorId)),
-    likeCount: (await store.list(`social/like-post/${post.id}/`)).length,
-    replyCount: replyCounts.get(post.id) || 0,
-    liked: relations.likes.has(post.id),
-    following: relations.follows.has(post.authorId),
-    mine: viewerId === post.authorId
-  })));
-}
-
-function newest(posts) {
-  return posts.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, MAX_FEED);
-}
-
-export function createMemoryStore() {
-  const values = new Map();
-  return {
-    async get(key) { return values.has(key) ? structuredClone(values.get(key)) : null; },
-    async set(key, value) { values.set(key, structuredClone(value)); },
-    async delete(key) { values.delete(key); },
-    async list(prefix = '') { return [...values.keys()].filter(key => key.startsWith(prefix)).sort(); },
-    snapshot() { return new Map([...values].map(([key, value]) => [key, structuredClone(value)])); }
+function profileInput(body, { partial = false } = {}) {
+  const source = body?.profile && typeof body.profile === 'object' ? body.profile : body || {};
+  const handle = source.handle === undefined && partial ? undefined : handleOf(source.handle);
+  const displayName = source.displayName === undefined && partial ? undefined : clean(source.displayName || source.name, 64);
+  const profile = {
+    ...(handle !== undefined ? { handle } : {}),
+    ...(displayName !== undefined ? { displayName } : {}),
+    ...(source.bio !== undefined ? { bio: clean(source.bio, 280) } : {}),
+    ...(source.avatar !== undefined ? { avatar: clean(source.avatar, 500) } : {}),
+    ...(source.cover !== undefined ? { cover: clean(source.cover, 500) } : {}),
+    ...(source.pronouns !== undefined ? { pronouns: clean(source.pronouns, 48) } : {}),
+    ...(source.website !== undefined ? { website: clean(source.website, 500) } : {})
   };
+  if (!partial && (!HANDLE.test(profile.handle || '') || !profile.displayName)) throw Object.assign(new Error('A valid handle and display name are required.'), { status: 400 });
+  if (profile.handle !== undefined && !HANDLE.test(profile.handle)) throw Object.assign(new Error('Handle must be 2–30 lowercase letters, numbers, dots, dashes, or underscores.'), { status: 400 });
+  return profile;
 }
 
-export function createSocialService({ store, now = Date.now } = {}) {
-  if (!store) throw new Error('A social store is required.');
-  return async function socialService(request) {
+async function issueSession(store, userId) {
+  const accessToken = opaqueToken('sat');
+  const refreshToken = opaqueToken('srt');
+  const accessExpiresAt = isoAfter(ACCESS_TTL_MS);
+  const refreshExpiresAt = isoAfter(REFRESH_TTL_MS);
+  const session = await store.createSession({ userId, accessHash: tokenHash(accessToken), refreshHash: tokenHash(refreshToken), accessExpiresAt, refreshExpiresAt });
+  return { sessionId: session.id, accessToken, refreshToken, accessExpiresAt, refreshExpiresAt };
+}
+
+async function authenticate(store, request, { optional = false } = {}) {
+  const authorization = request.headers.get('authorization') || '';
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || '';
+  if (!token) {
+    if (optional) return null;
+    throw Object.assign(new Error('Authentication required.'), { status: 401 });
+  }
+  const session = await store.sessionByAccessHash(tokenHash(token));
+  if (!session || session.revokedAt || expired(session.accessExpiresAt)) throw Object.assign(new Error('Session expired.'), { status: 401 });
+  const user = await store.getUserById(session.userId);
+  if (!user || user.status !== 'active') throw Object.assign(new Error('Account is unavailable.'), { status: 403 });
+  return { session, user };
+}
+
+function mapStoreError(error) {
+  if (error?.status) return error;
+  if (error?.code === 'unique_email') return Object.assign(new Error('Email already exists.'), { status: 409 });
+  if (error?.code === 'unique_handle') return Object.assign(new Error('Handle already exists.'), { status: 409 });
+  if (error?.code === 'foreign_key') return Object.assign(new Error(error.message || 'Related object not found.'), { status: 404 });
+  return error;
+}
+
+export function createSocialService({ store }) {
+  if (!store) throw new TypeError('social store required');
+  let ready;
+  const ensureReady = () => ready ||= Promise.resolve(store.ensureSchema?.());
+
+  return async function socialService(request, context = {}) {
     try {
+      await ensureReady();
       assertSameOriginMutation(request);
-      if (request.method === 'OPTIONS') return response(204, {});
+      if (request.method === 'OPTIONS') return response(204);
       const url = new URL(request.url);
-      const op = clean(url.searchParams.get('op')).toLowerCase();
-      const current = await resolveSession(store, request, now);
+      const route = routeFrom(request, context.route || '');
+      const segments = route.split('/').filter(Boolean).map(decodeURIComponent);
+      const idempotencyKey = clean(request.headers.get('idempotency-key'), 180);
 
-      if (request.method === 'GET' && op === 'session') {
-        return response(200, { authenticated: Boolean(current), account: publicAccount(current?.account) });
-      }
-
-      if (request.method === 'POST' && op === 'register') {
-        const body = await jsonBody(request);
-        const name = clean(body.name).slice(0, 48);
-        const handle = handleOf(body.handle);
+      if (request.method === 'POST' && route === '/auth/signup') {
+        const body = await json(request);
+        const email = emailOf(body.email);
         const password = String(body.password || '');
-        const bio = clean(body.bio).slice(0, 180);
-        const accent = COLORS.has(body.accent) ? body.accent : '#335cff';
-        if (!name || handle.length < 2) throw fail(400, 'Name and a two-character handle are required.');
-        if (password.length < 8 || password.length > 200) throw fail(400, 'Password must be 8–200 characters.');
-        if (await store.get(handleKey(handle))) throw fail(409, 'That handle is taken.');
-        const id = `acct_${randomId(14)}`;
-        const at = nowISO(now);
-        const account = { id, name, handle, bio, accent, password: passwordRecord(password), createdAt: at, updatedAt: at };
-        await store.set(accountKey(id), account);
-        await store.set(handleKey(handle), { accountId: id, at });
-        const claimed = await store.get(handleKey(handle));
-        if (claimed?.accountId !== id) {
-          await store.delete(accountKey(id));
-          throw fail(409, 'That handle was claimed simultaneously. Try another.');
-        }
-        await writeEvent(store, 'account.registered', id, { handle }, at);
-        const issued = await issueSession(store, id, request, now);
-        return response(201, { account: publicAccount(account) }, { 'set-cookie': issued.cookie });
+        if (!EMAIL.test(email)) return response(400, { error: 'A valid email is required.' });
+        if (password.length < 10 || password.length > 200) return response(400, { error: 'Password must be at least 10 characters.' });
+        const profile = profileInput(body);
+        const user = await store.createUser({ email, passwordHash: await hashPassword(password), profile, idempotencyKey });
+        const session = await issueSession(store, user.id);
+        return response(201, { session, user: publicIdentity(user, user.id), email: user.email });
       }
 
-      if (request.method === 'POST' && op === 'login') {
-        const body = await jsonBody(request);
-        const account = await accountByHandle(store, body.handle);
-        const password = String(body.password || '');
-        if (!account || !passwordMatches(password, account.password)) throw fail(401, 'Handle or password is incorrect.');
-        const issued = await issueSession(store, account.id, request, now);
-        await writeEvent(store, 'session.started', account.id, {}, nowISO(now));
-        return response(200, { account: publicAccount(account) }, { 'set-cookie': issued.cookie });
+      if (request.method === 'POST' && route === '/auth/login') {
+        const body = await json(request);
+        const user = await store.findUserByEmail(emailOf(body.email));
+        if (!user || !await verifyPassword(String(body.password || ''), user.passwordHash)) return response(401, { error: 'Email or password is incorrect.' });
+        const bundle = await store.getUserById(user.id);
+        const session = await issueSession(store, user.id);
+        return response(200, { session, user: publicIdentity(bundle, user.id), email: user.email });
       }
 
-      if (request.method === 'POST' && op === 'logout') {
-        if (current) await store.delete(sessionKey(current.token));
-        return response(200, { signedOut: true }, { 'set-cookie': sessionCookie('', request, 0) });
+      if (request.method === 'POST' && route === '/auth/refresh') {
+        const body = await json(request);
+        const refreshToken = clean(body.refreshToken, 300);
+        const current = refreshToken ? await store.sessionByRefreshHash(tokenHash(refreshToken)) : null;
+        if (!current || current.revokedAt || expired(current.refreshExpiresAt)) return response(401, { error: 'Refresh session expired.' });
+        const accessToken = opaqueToken('sat');
+        const nextRefreshToken = opaqueToken('srt');
+        const accessExpiresAt = isoAfter(ACCESS_TTL_MS);
+        const refreshExpiresAt = isoAfter(REFRESH_TTL_MS);
+        await store.rotateSession(current.id, { accessHash: tokenHash(accessToken), accessExpiresAt, refreshHash: tokenHash(nextRefreshToken), refreshExpiresAt });
+        return response(200, { session: { sessionId: current.id, accessToken, refreshToken: nextRefreshToken, accessExpiresAt, refreshExpiresAt } });
       }
 
-      if (request.method === 'GET' && op === 'profile') {
-        const account = await accountByHandle(store, url.searchParams.get('handle'));
-        if (!account) throw fail(404, 'Profile not found.');
-        const following = current ? Boolean(await store.get(followKey(current.account.id, account.id))) : false;
-        return response(200, { account: publicAccount(account), following, mine: current?.account.id === account.id });
+      if (request.method === 'POST' && route === '/auth/logout') {
+        const auth = await authenticate(store, request);
+        await store.revokeSession(auth.session.id);
+        return response(204);
       }
 
-      if (request.method === 'PATCH' && op === 'profile') {
-        const { account } = await requireSession(store, request, now);
-        const body = await jsonBody(request);
-        const previousHandle = account.handle;
-        const nextHandle = body.handle === undefined ? previousHandle : handleOf(body.handle);
-        const nextName = body.name === undefined ? account.name : clean(body.name).slice(0, 48);
-        const bio = body.bio === undefined ? account.bio : clean(body.bio).slice(0, 180);
-        const accent = body.accent === undefined ? account.accent : (COLORS.has(body.accent) ? body.accent : account.accent);
-        if (!nextName || nextHandle.length < 2) throw fail(400, 'Name and a two-character handle are required.');
-        if (nextHandle !== previousHandle) {
-          const owner = await store.get(handleKey(nextHandle));
-          if (owner && owner.accountId !== account.id) throw fail(409, 'That handle is taken.');
-          await store.set(handleKey(nextHandle), { accountId: account.id, at: nowISO(now) });
-          await store.delete(handleKey(previousHandle));
-        }
-        const updated = { ...account, name: nextName, handle: nextHandle, bio, accent, updatedAt: nowISO(now) };
-        await store.set(accountKey(account.id), updated);
-        await writeEvent(store, 'profile.updated', account.id, { handle: nextHandle }, updated.updatedAt);
-        return response(200, { account: publicAccount(updated) });
+      if (request.method === 'GET' && route === '/me') {
+        const auth = await authenticate(store, request);
+        return response(200, { user: publicIdentity(auth.user, auth.user.id), email: auth.user.email });
       }
 
-      if (request.method === 'POST' && op === 'post') {
-        const { account } = await requireSession(store, request, now);
-        const body = await jsonBody(request);
-        const text = clean(body.text).slice(0, 4000);
-        const replyTo = clean(body.replyTo).slice(0, 80) || null;
-        if (!text) throw fail(400, 'Write something first.');
-        if (replyTo && !await store.get(postKey(replyTo))) throw fail(404, 'The post you are replying to is gone.');
-        const at = nowISO(now);
-        const post = { id: `post_${randomId(14)}`, authorId: account.id, text, replyTo, createdAt: at, updatedAt: at };
-        await store.set(postKey(post.id), post);
-        await writeEvent(store, replyTo ? 'post.replied' : 'post.created', account.id, { postId: post.id, replyTo }, at);
-        const [projected] = await projectPosts(store, [post], account.id);
-        return response(201, { post: projected });
+      if (request.method === 'PATCH' && route === '/me/profile') {
+        const auth = await authenticate(store, request);
+        const patch = profileInput(await json(request), { partial: true });
+        if (!Object.keys(patch).length) return response(400, { error: 'No profile changes supplied.' });
+        const updated = await store.updateProfile(auth.user.id, patch, idempotencyKey);
+        return response(200, { user: publicIdentity(updated, auth.user.id) });
       }
 
-      if (request.method === 'POST' && op === 'follow') {
-        const { account } = await requireSession(store, request, now);
-        const body = await jsonBody(request);
-        const target = await accountByHandle(store, body.handle);
-        if (!target) throw fail(404, 'Profile not found.');
-        if (target.id === account.id) throw fail(400, 'You already follow yourself.');
-        const active = body.active !== false;
-        const key = followKey(account.id, target.id);
-        if (active) await store.set(key, { viewerId: account.id, targetId: target.id, at: nowISO(now) }); else await store.delete(key);
-        await writeEvent(store, active ? 'follow.created' : 'follow.deleted', account.id, { targetId: target.id }, nowISO(now));
-        return response(200, { active, account: publicAccount(target) });
+      if (segments[0] === 'users' && segments.length === 2 && request.method === 'GET') {
+        const viewer = await authenticate(store, request, { optional: true });
+        const bundle = await store.getUserByHandle(handleOf(segments[1]));
+        if (!bundle) return response(404, { error: 'User not found.' });
+        return response(200, { user: publicIdentity(bundle, viewer?.user.id || '') });
       }
 
-      if (request.method === 'POST' && op === 'like') {
-        const { account } = await requireSession(store, request, now);
-        const body = await jsonBody(request);
-        const postId = clean(body.postId).slice(0, 80);
-        const post = await store.get(postKey(postId));
-        if (!post) throw fail(404, 'Post not found.');
-        const active = body.active !== false;
-        if (active) {
-          const value = { viewerId: account.id, postId, at: nowISO(now) };
-          await store.set(likeKey(account.id, postId), value);
-          await store.set(likePostKey(postId, account.id), value);
-        } else {
-          await store.delete(likeKey(account.id, postId));
-          await store.delete(likePostKey(postId, account.id));
-        }
-        await writeEvent(store, active ? 'like.created' : 'like.deleted', account.id, { postId }, nowISO(now));
-        const [projected] = await projectPosts(store, [post], account.id);
-        return response(200, { active, post: projected });
+      if (segments[0] === 'users' && segments[2] === 'follow' && segments.length === 3 && ['POST', 'DELETE'].includes(request.method)) {
+        const auth = await authenticate(store, request);
+        const followedId = segments[1];
+        if (followedId === auth.user.id) return response(400, { error: 'You cannot follow yourself.' });
+        if (!await store.getUserById(followedId)) return response(404, { error: 'User not found.' });
+        const result = await store.setFollow(auth.user.id, followedId, request.method === 'POST', idempotencyKey);
+        return response(200, result);
       }
 
-      if (request.method === 'GET' && (op === 'discover' || op === 'feed')) {
-        const viewer = op === 'feed' ? (await requireSession(store, request, now)).account : current?.account;
-        const posts = await listObjects(store, 'social/post/');
-        let selected = posts;
-        if (op === 'feed') {
-          const relations = await relationSets(store, viewer.id);
-          selected = posts.filter(post => post.authorId === viewer.id || relations.follows.has(post.authorId));
-        }
-        return response(200, { mode: op, posts: await projectPosts(store, newest(selected), viewer?.id || '') });
+      if (segments[0] === 'users' && segments[2] === 'posts' && segments.length === 3 && request.method === 'GET') {
+        const viewer = await authenticate(store, request, { optional: true });
+        if (!await store.getUserById(segments[1])) return response(404, { error: 'User not found.' });
+        return response(200, await store.userPosts(segments[1], viewer?.user.id || '', { cursor: url.searchParams.get('cursor'), limit: asLimit(url.searchParams.get('limit')) }));
       }
 
-      throw fail(404, 'Social operation not found.');
-    } catch (error) {
-      return response(Number(error?.status || 500), { error: error?.status ? error.message : 'Social service failed.' });
+      if (request.method === 'POST' && route === '/posts') {
+        const auth = await authenticate(store, request);
+        const body = await json(request);
+        const text = clean(body.body, 4000);
+        if (!text) return response(400, { error: 'Post text is required.' });
+        const visibility = clean(body.visibility || 'public', 20);
+        if (!['public', 'unlisted'].includes(visibility)) return response(400, { error: 'Unsupported visibility.' });
+        const post = await store.createPost(auth.user.id, {
+          body: text,
+          visibility,
+          replyToId: clean(body.replyToId || body.reply_to_id, 100) || null,
+          repostOfId: clean(body.repostOfId || body.repost_of_id, 100) || null,
+          contentWarning: clean(body.contentWarning || body.content_warning, 280),
+          language: clean(body.language || 'und', 12) || 'und'
+        }, idempotencyKey);
+        return response(201, { post });
+      }
+
+      if (segments[0] === 'posts' && segments.length === 2 && request.method === 'GET') {
+        const viewer = await authenticate(store, request, { optional: true });
+        const post = await store.getPost(segments[1], viewer?.user.id || '');
+        if (!post) return response(404, { error: 'Post not found.' });
+        return response(200, { post });
+      }
+
+      if (segments[0] === 'posts' && segments.length === 2 && request.method === 'DELETE') {
+        const auth = await authenticate(store, request);
+        const post = await store.deletePost(auth.user.id, segments[1], idempotencyKey);
+        if (!post) return response(404, { error: 'Post not found or not owned by you.' });
+        return response(200, { post });
+      }
+
+      if (segments[0] === 'posts' && segments[2] === 'like' && segments.length === 3 && ['POST', 'DELETE'].includes(request.method)) {
+        const auth = await authenticate(store, request);
+        const result = await store.setReaction(auth.user.id, segments[1], request.method === 'POST', 'like', idempotencyKey);
+        if (!result) return response(404, { error: 'Post not found.' });
+        return response(200, result);
+      }
+
+      if (segments[0] === 'posts' && segments[2] === 'thread' && segments.length === 3 && request.method === 'GET') {
+        const viewer = await authenticate(store, request, { optional: true });
+        const thread = await store.thread(segments[1], viewer?.user.id || '', { cursor: url.searchParams.get('cursor'), limit: asLimit(url.searchParams.get('limit')) });
+        if (!thread) return response(404, { error: 'Post not found.' });
+        return response(200, thread);
+      }
+
+      if (request.method === 'GET' && route === '/feed/following') {
+        const auth = await authenticate(store, request);
+        return response(200, await store.followingFeed(auth.user.id, { cursor: url.searchParams.get('cursor'), limit: asLimit(url.searchParams.get('limit')) }));
+      }
+
+      return response(404, { error: 'Route not found.' });
+    } catch (rawError) {
+      const error = mapStoreError(rawError);
+      if (!error.status || error.status >= 500) console.error('[social]', error);
+      return response(error.status || 500, { error: error.status ? error.message : 'Social service failed.' });
     }
   };
 }
+
+export const SocialSecurity = Object.freeze({ hashPassword, verifyPassword, tokenHash });
