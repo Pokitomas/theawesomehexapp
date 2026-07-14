@@ -91,7 +91,7 @@ test('production factory executes a complete request through the Blob fallback',
   assert.ok([...fake.values.keys()].some(key => key.startsWith('social/event/')));
 });
 
-test('production factory deterministically selects Blob or PostgreSQL authority', () => {
+test('production factory deterministically selects Blob or composed PostgreSQL authority', () => {
   const fake = fakeBlobStore();
   const blobMarker = async () => new Response('{}');
   let blobStore;
@@ -109,9 +109,11 @@ test('production factory deterministically selects Blob or PostgreSQL authority'
 
   const relationalMarker = async () => new Response('{}');
   const pool = { kind: 'pool' };
-  const authority = { kind: 'authority' };
+  const baseAuthority = { accountForLogin: 'base' };
+  const communityAuthority = { createCommunity: 'community' };
   let poolOptions;
   let authorityPool;
+  let communityPool;
   let relationalOptions;
   let blobRequested = false;
 
@@ -130,7 +132,11 @@ test('production factory deterministically selects Blob or PostgreSQL authority'
     },
     createRelationalAuthority(options) {
       authorityPool = options.pool;
-      return authority;
+      return baseAuthority;
+    },
+    createCommunityAuthority(options) {
+      communityPool = options.pool;
+      return communityAuthority;
     },
     createRelationalService(options) {
       relationalOptions = options;
@@ -146,8 +152,9 @@ test('production factory deterministically selects Blob or PostgreSQL authority'
     idleTimeoutMillis: 20_000
   });
   assert.equal(authorityPool, pool);
+  assert.equal(communityPool, pool);
   assert.deepEqual(relationalOptions, {
-    authority,
+    authority: { ...baseAuthority, ...communityAuthority },
     sessionSecret: 'test-session-secret'
   });
 });
