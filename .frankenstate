@@ -1,40 +1,53 @@
-version: 25
-updated_at: 2026-07-13T16:42:00-07:00
+version: 26
+updated_at: 2026-07-13T17:18:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 68 merged
-merge_commit: 1282312114941e75327cb29b70978f68b744575a
-previous_deployment_receipt: 67
+active_pr: 72 merged
+merge_commit: a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
+previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
+previous_verified_deployment_receipt: 67
 superseded_pr: 66 closed locked zero-diff
 
-owner: GPT-5.6 Thinking
-mode: complete
+owners:
+  - GPT-5.6 Thinking
+  - Claude
+mode: completed fused product
 
 current_subtask:
-  summary: Hardened the local-first byte runtime without turning the vision into protocol theater.
+  summary: Rebuilt Sideways as a living spatial personal-media instrument and terminated the fused implementation loop by proof.
+  directive:
+    - one shared application branch and pull request
+    - each agent consumes the other's latest concrete implementation
+    - improve the app itself rather than adding coordination machinery
+    - terminate only after exact-head green proof direct artifact inspection merge and honest production accounting
   completed:
-    - upgraded the corpus to schema v2 with one append-only compatibility ledger
-    - made record blob and compatibility receipt mutations atomic
-    - made the shared corpus module the only schema-version owner
-    - requested persistent storage and exposed honest best-effort durability status
-    - moved bounded full-file SHA-256 hashing into a worker and recorded sampled fallback mode
-    - batch-hydrated only near-viewport media and dehydrated far-off heavy surfaces
-    - replaced full-record shared-asset scans with an assetKey index
-    - removed the unused generic action-sync outbox and arbitrary endpoint machinery
-    - split import hashing writing and normalization into focused modules
-    - replaced stale outbox and eager-media proofs with lived ledger and viewport proofs
-    - reset closed and locked the superseded cortical branch at the merged main commit
+    - preserved the proven local-first byte runtime ranking kernel schema owner and compatibility ledger
+    - replaced diagnostic-terminal presentation with one coherent spatial media system
+    - renamed stable visible feed physics to RIVER FOCUS and FIELD without changing record order or ranking
+    - made FIELD a deterministic dense mosaic with tap-to-focus
+    - made FOCUS occupy the usable visual viewport with snap physics
+    - made RIVER a paced media-first living-magazine stream
+    - installed a real single-row mobile bottom command dock
+    - rebuilt cards dialogs actions document audio video image and binary surfaces around one visual grammar
+    - replaced the empty screen with a full-height signal aperture and direct WRITE or BRING IT IN choices
+    - gave the product a decisive human voice without onboarding bureaucracy
+    - consumed Claude's wider 8px dock rhythm and navigation padding in the final mobile layer
+    - fixed inherited mobile grid placement aspect ratio ink contrast command clipping and fixed-chrome touch obstruction
+    - strengthened the phone proof so a target must be physically unobstructed before the touchscreen tap
   verification:
-    - all five required pull-request workflows passed on exact head 5c816f58c616332126e748f8d6d6c1ea046d832f
-    - real 390x844 journeys passed for workspace creation cancellation deletion reload and ledger survival
-    - MIME-less image video audio PDF and unknown binary passed viewport hydration and deletion
-    - zero authored blobs remained after destructive cleanup
-    - delete tombstones survived reload
-    - kernel parity and overlay shard proofs remained green
-    - squash-merged as 1282312114941e75327cb29b70978f68b744575a
+    - all five required workflows passed on exact final head 372d16e2873e35c31fc9ecfc7c423177716a3709
+    - kernel parity passed
+    - overlay shard validation passed
+    - universal media phone journey passed
+    - workspace creation cancellation deletion reload and ledger survival journey passed
+    - build and manual phone gate passed
+    - direct artifact inspection confirmed readable RIVER FOCUS FIELD controls
+    - direct artifact inspection confirmed an untruncated New command and one-row bottom dock
+    - direct artifact inspection confirmed the full-height empty signal and authored plus imported record surfaces
+    - squash-merged PR 72 as a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
   production:
     - previous verified Pages receipt remains issue 67 for merge dd111692d2af5c8dd002883b4a1202ae8e58f973
-    - do not claim the new merge deployed until an external Pages receipt identifies 1282312114941e75327cb29b70978f68b744575a
+    - do not claim the completed product deployed until an external Pages receipt identifies a4cdda2c88c01db8cd4ba0c03442393a41b6e8e9
   done_when: complete
 
 invariants:
@@ -48,8 +61,9 @@ invariants:
   - Magic bytes and content outrank absent or contradictory MIME metadata.
   - Unknown binary must never be decoded into feed text.
   - Every local record may be deleted; shared assets may not be removed while referenced.
-  - Flow Stage and Grid may change layout physics but never ranking records or action semantics.
+  - RIVER FOCUS and FIELD may change layout physics but never ranking records or action semantics.
   - Every visible custom product control must come from the action contract.
+  - Fixed chrome must never make a physically covered control count as a passing touch target.
   - Do not add sync transport until a real service contract exists.
   - Do not add a second engineering belief ledger or duplicate runtime schema authority.
   - Never use or persist credentials pasted into chat.
