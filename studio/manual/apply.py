@@ -145,10 +145,10 @@ def remote_snapshot() -> tuple[dict, dict]:
         "state": "/api/remote/state?public=1",
         "snapshot": "./remote-snapshot.json",
         "terminal": "#live-work",
-        "documentation": "/README_REMOTE.md",
+        "documentation": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/README_REMOTE.md",
         "weave": {
-            "report": "/REMOTE_WORK.md",
-            "thought": "/REMOTE_THOUGHT.md",
+            "report": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/REMOTE_WORK.md",
+            "thought": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/REMOTE_THOUGHT.md",
             "conversation": "https://github.com/Pokitomas/theawesomehexapp/pulls",
             "live_state": "/api/remote/state?public=1",
             "static_state": "./remote-snapshot.json",
