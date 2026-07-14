@@ -1,10 +1,22 @@
+import { createHash } from 'node:crypto';
+
 export const STATE_MARKER = '<!-- coordination-tick-state:v1';
 export const STATE_SUFFIX = '-->';
-export const DEFAULT_POLICY = Object.freeze({ quietTicks: 3, staleTicks: 8, seenLimit: 128, signalLimit: 40, completedLaneLimit: 64, claimLimit: 256 });
+export const MAX_STATE_COMMENT_CHARS = 60_000;
+export const DEFAULT_POLICY = Object.freeze({
+  quietTicks: 3,
+  staleTicks: 8,
+  seenLimit: 512,
+  signalLimit: 24,
+  completedLaneLimit: 48,
+  claimLimit: 96,
+  tableLimit: 40
+});
 
 const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
-const unique = values => [...new Set(values.filter(Boolean))];
+const unique = values => [...new Set((values || []).filter(Boolean))];
 const clone = value => structuredClone(value);
+const fingerprint = value => createHash('sha256').update(clean(value)).digest('hex').slice(0, 24);
 
 export function emptyTickState(policy = {}) {
   return {
@@ -53,7 +65,7 @@ export function parseDeclarationLines(text = '', context = {}) {
           issue,
           branch: clean(branch) || null,
           actor,
-          source,
+          source: source.slice(0, 500),
           line: line.slice(0, 500)
         });
       }
@@ -63,19 +75,16 @@ export function parseDeclarationLines(text = '', context = {}) {
   return output;
 }
 
-function signalId(type, lane, tick, detail = '') {
-  return `${tick}:${type}:${lane || 'repo'}:${detail}`;
-}
-
 function makeSignal(type, lane, tick, detail, event) {
+  const conciseDetail = clean(detail).slice(0, 240);
   return {
-    id: signalId(type, lane, tick, detail),
+    id: `${tick}:${type}:${lane || 'repo'}:${conciseDetail}`,
     type,
     lane: lane || null,
     tick,
-    detail: clean(detail).slice(0, 500),
-    event_key: event?.key || null,
-    source: event?.source || null
+    detail: conciseDetail,
+    event_key: clean(event?.key).slice(0, 240) || null,
+    source: clean(event?.source).slice(0, 500) || null
   };
 }
 
@@ -99,8 +108,8 @@ function syncInventory(state, inventory, tick, newSignals, event) {
       kind: clean(item.kind),
       number: Number(item.number) || null,
       title: clean(item.title).slice(0, 240),
-      url: clean(item.url) || null,
-      branch: clean(item.branch) || null,
+      url: clean(item.url).slice(0, 500) || null,
+      branch: clean(item.branch).slice(0, 240) || null,
       issue_refs: unique((item.issue_refs || []).map(Number).filter(Number.isFinite)),
       state: 'open',
       phase: 'active',
@@ -114,8 +123,8 @@ function syncInventory(state, inventory, tick, newSignals, event) {
     lane.kind = clean(item.kind) || lane.kind;
     lane.number = Number(item.number) || lane.number;
     lane.title = clean(item.title).slice(0, 240) || lane.title;
-    lane.url = clean(item.url) || lane.url;
-    lane.branch = clean(item.branch) || null;
+    lane.url = clean(item.url).slice(0, 500) || lane.url;
+    lane.branch = clean(item.branch).slice(0, 240) || null;
     lane.issue_refs = unique((item.issue_refs || []).map(Number).filter(Number.isFinite));
     if (lane.state === 'complete') {
       lane.state = 'open';
@@ -138,13 +147,16 @@ function syncInventory(state, inventory, tick, newSignals, event) {
   }
 }
 
+function claimIdentity(issue, actor, branch) {
+  return `${issue}|${actor}|${branch || 'actor'}`;
+}
+
 function applyDeclarations(state, declarations, tick) {
   for (const declaration of declarations || []) {
     if (!Number.isFinite(Number(declaration.issue))) continue;
     const issue = Number(declaration.issue);
     const actor = clean(declaration.actor || 'unknown');
     const branch = clean(declaration.branch || '');
-    const identity = `${issue}|${actor}`;
     if (declaration.type === 'release') {
       for (const claim of Object.values(state.claims)) {
         if (claim.issue !== issue || !claim.active) continue;
@@ -153,11 +165,13 @@ function applyDeclarations(state, declarations, tick) {
         if (actorMatch && branchMatch) {
           claim.active = false;
           claim.released_tick = tick;
-          claim.release_source = clean(declaration.source) || null;
+          claim.release_source = clean(declaration.source).slice(0, 500) || null;
         }
       }
       continue;
     }
+
+    const identity = claimIdentity(issue, actor, branch);
     state.claims[identity] = {
       id: identity,
       issue,
@@ -166,7 +180,7 @@ function applyDeclarations(state, declarations, tick) {
       active: true,
       claimed_tick: state.claims[identity]?.claimed_tick || tick,
       last_seen_tick: tick,
-      source: clean(declaration.source) || null,
+      source: clean(declaration.source).slice(0, 500) || null,
       line: clean(declaration.line).slice(0, 500)
     };
   }
@@ -235,10 +249,11 @@ function pruneBoundedHistory(state) {
   const keepCompleted = new Set(completed.slice(0, state.policy.completedLaneLimit).map(lane => lane.key));
   for (const lane of completed) if (!keepCompleted.has(lane.key)) delete state.lanes[lane.key];
 
-  const claims = Object.values(state.claims)
+  const inactiveClaims = Object.values(state.claims)
+    .filter(claim => !claim.active)
     .sort((a, b) => Number(b.last_seen_tick || b.released_tick || 0) - Number(a.last_seen_tick || a.released_tick || 0));
-  const keepClaims = new Set(claims.slice(0, state.policy.claimLimit).map(claim => claim.id));
-  for (const claim of claims) if (!keepClaims.has(claim.id)) delete state.claims[claim.id];
+  const keepInactive = new Set(inactiveClaims.slice(0, state.policy.claimLimit).map(claim => claim.id));
+  for (const claim of inactiveClaims) if (!keepInactive.has(claim.id)) delete state.claims[claim.id];
 }
 
 function detectCollisions(state, tick, newSignals, event) {
@@ -246,7 +261,8 @@ function detectCollisions(state, tick, newSignals, event) {
   const add = (issue, branch, sourceLane = null) => {
     if (!Number.isFinite(Number(issue)) || !clean(branch)) return;
     const map = branchesByIssue.get(Number(issue)) || new Map();
-    const entry = map.get(clean(branch)) || { branch: clean(branch), lanes: new Set() };
+    const normalizedBranch = clean(branch);
+    const entry = map.get(normalizedBranch) || { branch: normalizedBranch, lanes: new Set() };
     if (sourceLane) entry.lanes.add(sourceLane);
     map.set(entry.branch, entry);
     branchesByIssue.set(Number(issue), map);
@@ -282,27 +298,33 @@ function detectCollisions(state, tick, newSignals, event) {
   }
 }
 
+function eventWasSeen(state, key) {
+  const digest = fingerprint(key);
+  return (state.seen || []).includes(key) || (state.seen || []).includes(digest);
+}
+
 export function reduceCoordinationTick(previous, input = {}) {
   const state = clone(previous || emptyTickState(input.policy));
   state.policy = { ...DEFAULT_POLICY, ...(state.policy || {}), ...(input.policy || {}) };
   const event = input.event || {};
   const key = clean(event.key);
   if (!key) throw new Error('event.key is required');
-  if (state.seen.includes(key)) return { state, changed: false, duplicate: true, newSignals: [] };
+  if (eventWasSeen(state, key)) return { state, changed: false, duplicate: true, newSignals: [] };
 
   state.tick = Number(state.tick || 0) + 1;
   const tick = state.tick;
   const newSignals = [];
-  state.seen = [...state.seen, key].slice(-state.policy.seenLimit);
+  state.seen = [...(state.seen || []).map(value => /^[a-f0-9]{24}$/.test(value) ? value : fingerprint(value)), fingerprint(key)]
+    .slice(-state.policy.seenLimit);
   state.updated_at = clean(event.observed_at) || new Date().toISOString();
   state.last_event = {
-    key,
-    name: clean(event.name),
-    action: clean(event.action),
-    actor: clean(event.actor),
-    source: clean(event.source) || null,
-    lane_keys: unique(event.lane_keys || []),
-    branch: clean(event.branch) || null
+    key: key.slice(0, 240),
+    name: clean(event.name).slice(0, 80),
+    action: clean(event.action).slice(0, 80),
+    actor: clean(event.actor).slice(0, 160),
+    source: clean(event.source).slice(0, 500) || null,
+    lane_keys: unique(event.lane_keys || []).slice(0, 128),
+    branch: clean(event.branch).slice(0, 240) || null
   };
 
   syncInventory(state, input.inventory || [], tick, newSignals, event);
@@ -313,8 +335,8 @@ export function reduceCoordinationTick(previous, input = {}) {
   detectCollisions(state, tick, newSignals, event);
   pruneBoundedHistory(state);
 
-  state.signals = [...newSignals.reverse(), ...(state.signals || [])].slice(0, state.policy.signalLimit);
-  return { state, changed: true, duplicate: false, newSignals: newSignals.reverse() };
+  state.signals = [...newSignals].reverse().concat(state.signals || []).slice(0, state.policy.signalLimit);
+  return { state, changed: true, duplicate: false, newSignals };
 }
 
 export function parseStateComment(body = '') {
@@ -333,23 +355,94 @@ export function parseStateComment(body = '') {
 }
 
 function laneTable(state) {
-  return Object.values(state.lanes)
+  const lanes = Object.values(state.lanes)
     .filter(lane => lane.state === 'open')
-    .sort((a, b) => a.key.localeCompare(b.key))
-    .map(lane => `| ${lane.key} | ${lane.phase} | ${lane.last_activity_tick} | ${lane.stasis_ticks} | ${lane.branch || '—'} |`)
-    .join('\n') || '| — | — | — | — | — |';
+    .sort((a, b) => a.key.localeCompare(b.key));
+  const limit = Math.max(1, Number(state.policy?.tableLimit || DEFAULT_POLICY.tableLimit));
+  const rows = lanes.slice(0, limit)
+    .map(lane => `| ${lane.key} | ${lane.phase} | ${lane.last_activity_tick} | ${lane.stasis_ticks} | ${lane.branch || '—'} |`);
+  if (lanes.length > limit) rows.push(`| … | ${lanes.length - limit} more open lanes | — | — | — |`);
+  return rows.join('\n') || '| — | — | — | — | — |';
 }
 
 function collisionLines(state) {
   const collisions = Object.values(state.lanes).filter(lane => lane.state === 'open' && lane.collision);
-  return collisions.length ? collisions.map(lane => `- ${lane.key}: collision`).join('\n') : '- none';
+  const shown = collisions.slice(0, 20).map(lane => `- ${lane.key}: collision`);
+  if (collisions.length > shown.length) shown.push(`- ${collisions.length - shown.length} additional collisions omitted from the human view`);
+  return shown.join('\n') || '- none';
 }
 
 function signalLines(state) {
-  return (state.signals || []).slice(0, 12).map(signal => `- tick ${signal.tick}: **${signal.type}** ${signal.lane || 'repository'} — ${signal.detail}`).join('\n') || '- none';
+  return (state.signals || []).slice(0, 12)
+    .map(signal => `- tick ${signal.tick}: **${signal.type}** ${signal.lane || 'repository'} — ${signal.detail}`)
+    .join('\n') || '- none';
+}
+
+function compactPersistedState(state) {
+  const compact = clone(state);
+  compact.seen = unique((compact.seen || []).map(value => /^[a-f0-9]{24}$/.test(value) ? value : fingerprint(value)))
+    .slice(-Number(compact.policy?.seenLimit || DEFAULT_POLICY.seenLimit));
+  for (const lane of Object.values(compact.lanes || {})) {
+    delete lane.title;
+    delete lane.url;
+  }
+  for (const claim of Object.values(compact.claims || {})) {
+    delete claim.line;
+    delete claim.source;
+    delete claim.release_source;
+  }
+  if (compact.last_event) delete compact.last_event.source;
+  for (const signal of compact.signals || []) {
+    delete signal.source;
+    delete signal.event_key;
+  }
+  return compact;
+}
+
+function renderWithState(persisted, displayState) {
+  const json = JSON.stringify(persisted);
+  return `${STATE_MARKER}\n${json}\n${STATE_SUFFIX}\n\n# Event-counted coordination state\n\n**Tick:** ${displayState.tick}  \n**Last event:** ${displayState.last_event?.name || 'none'} / ${displayState.last_event?.action || 'none'}  \n**Boundary:** repository events create ticks. Total repository silence creates no tick and therefore cannot be detected without a clock or external dispatcher.\n\n## Four atomic legs\n\n1. **Activity:** touched lanes reset stasis and advance their activity receipt.\n2. **Non-activity:** every untouched open lane accrues stasis in repository-event ticks, not minutes.\n3. **Collision:** multiple active branches or MATCHED claims for one issue force collision state.\n4. **Completion:** lanes leave active state only when GitHub no longer reports them open.\n\n## Open lanes\n\n| Lane | Phase | Last activity tick | Stasis ticks | Branch |\n|---|---:|---:|---:|---|\n${laneTable(displayState)}\n\n## Collisions\n\n${collisionLines(displayState)}\n\n## Latest transitions\n\n${signalLines(displayState)}\n`;
+}
+
+function fitPersistedState(state) {
+  const compact = compactPersistedState(state);
+  let rendered = renderWithState(compact, state);
+  if (rendered.length <= MAX_STATE_COMMENT_CHARS) return { persisted: compact, rendered };
+
+  const completed = Object.values(compact.lanes || {})
+    .filter(lane => lane.state === 'complete')
+    .sort((a, b) => Number(a.completed_tick || 0) - Number(b.completed_tick || 0));
+  for (const lane of completed) {
+    delete compact.lanes[lane.key];
+    rendered = renderWithState(compact, state);
+    if (rendered.length <= MAX_STATE_COMMENT_CHARS) return { persisted: compact, rendered };
+  }
+
+  const inactive = Object.values(compact.claims || {})
+    .filter(claim => !claim.active)
+    .sort((a, b) => Number(a.last_seen_tick || a.released_tick || 0) - Number(b.last_seen_tick || b.released_tick || 0));
+  for (const claim of inactive) {
+    delete compact.claims[claim.id];
+    rendered = renderWithState(compact, state);
+    if (rendered.length <= MAX_STATE_COMMENT_CHARS) return { persisted: compact, rendered };
+  }
+
+  while ((compact.signals || []).length > 8) {
+    compact.signals.pop();
+    rendered = renderWithState(compact, state);
+    if (rendered.length <= MAX_STATE_COMMENT_CHARS) return { persisted: compact, rendered };
+  }
+  while ((compact.seen || []).length > 128) {
+    compact.seen.shift();
+    rendered = renderWithState(compact, state);
+    if (rendered.length <= MAX_STATE_COMMENT_CHARS) return { persisted: compact, rendered };
+  }
+
+  throw new Error(`Coordination state exceeds the ${MAX_STATE_COMMENT_CHARS}-character issue-comment boundary.`);
 }
 
 export function renderStateComment(state) {
-  const json = JSON.stringify(state);
-  return `${STATE_MARKER}\n${json}\n${STATE_SUFFIX}\n\n# Event-counted coordination state\n\n**Tick:** ${state.tick}  \n**Last event:** ${state.last_event?.name || 'none'} / ${state.last_event?.action || 'none'}  \n**Boundary:** repository events create ticks. Total repository silence creates no tick and therefore cannot be detected without a clock or external dispatcher.\n\n## Four atomic legs\n\n1. **Activity:** touched lanes reset stasis and advance their activity receipt.\n2. **Non-activity:** every untouched open lane accrues stasis in repository-event ticks, not minutes.\n3. **Collision:** multiple active branches or MATCHED claims for one issue force collision state.\n4. **Completion:** lanes leave active state only when GitHub no longer reports them open.\n\n## Open lanes\n\n| Lane | Phase | Last activity tick | Stasis ticks | Branch |\n|---|---:|---:|---:|---|\n${laneTable(state)}\n\n## Collisions\n\n${collisionLines(state)}\n\n## Latest transitions\n\n${signalLines(state)}\n`;
+  const direct = renderWithState(state, state);
+  if (direct.length <= MAX_STATE_COMMENT_CHARS) return direct;
+  return fitPersistedState(state).rendered;
 }
