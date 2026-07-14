@@ -26,7 +26,6 @@ FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
 FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
 FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-frontier-product>'
-SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
 REMOTE_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
 SURVIVAL_STYLE_MARKER = '<link rel="stylesheet" href="./survival-ledger.css" data-survival-ledger>'
 REMOTE_SERVICE_MARKER = '<link rel="service-desc" href="./.well-known/sideways-remote.json" type="application/json" data-sideways-remote>'
@@ -37,7 +36,6 @@ CHROME_SCRIPT_MARKER = '<script type="module" src="./workspace-chrome.js" data-w
 UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js" data-universal-media></script>'
 MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
 FRONTIER_SCRIPT_MARKER = '<script type="module" src="./frontier.js" data-frontier-product></script>'
-SOCIAL_SCRIPT_MARKER = '<script type="module" src="./social-client.js" data-social-spine></script>'
 REMOTE_SCRIPT_MARKER = '<script type="module" src="./remote-terminal.js" data-remote-terminal></script>'
 VAULT_SCRIPT_MARKER = '<script type="module" src="./vault-ui.js" data-survival-ledger></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
@@ -118,32 +116,59 @@ def remote_snapshot() -> tuple[dict, dict]:
     pull_number = os.environ.get("REMOTE_PULL_REQUEST") or (pull_match.group(1) if pull_match else "")
     pull_url = f"https://github.com/{repo}/pull/{pull_number}" if pull_number else None
     message = {
-        "id": f"build-{head[:12] or 'snapshot'}", "session": session, "generation": generation,
-        "issuer": "repository", "parent": None, "issued_at": updated, "expires_at": None,
-        "head_sha": head or None, "scope": ["repo:read"], "visibility": "public",
-        "summary": summary, "payload": {"summary": summary, "source": "frankenstate"},
+        "id": f"build-{head[:12] or 'snapshot'}",
+        "session": session,
+        "generation": generation,
+        "issuer": "repository",
+        "parent": None,
+        "issued_at": updated,
+        "expires_at": None,
+        "head_sha": head or None,
+        "scope": ["repo:read"],
+        "visibility": "public",
+        "summary": summary,
+        "payload": {"summary": summary, "source": "frankenstate"},
     }
     state = {
-        "protocol_version": 1, "session": session, "generation": generation, "decision": "proceed",
-        "head_sha": head or None, "claims": [], "blocker_count": 0, "terminal": False,
-        "terminal_receipt": None, "summary": summary, "updated_at": updated or None,
-        "updated_by": "repository", "messages": [message], "source": "snapshot",
+        "protocol_version": 1,
+        "session": session,
+        "generation": generation,
+        "decision": "proceed",
+        "head_sha": head or None,
+        "claims": [],
+        "blocker_count": 0,
+        "terminal": False,
+        "terminal_receipt": None,
+        "summary": summary,
+        "updated_at": updated or None,
+        "updated_by": "repository",
+        "messages": [message],
+        "source": "snapshot",
     }
     manifest = {
-        "protocol": "sideways-universal-remote/1", "session": session, "live": live,
-        "messages": "/api/remote?public=1", "state": "/api/remote/state?public=1",
-        "snapshot": "./remote-snapshot.json", "terminal": "#live-work",
+        "protocol": "sideways-universal-remote/1",
+        "session": session,
+        "live": live,
+        "messages": "/api/remote?public=1",
+        "state": "/api/remote/state?public=1",
+        "snapshot": "./remote-snapshot.json",
+        "terminal": "#live-work",
         "documentation": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/README_REMOTE.md",
         "generation": {
-            "protocol": "sideways-universal-remote-generation/1", "number": generation, "branch": branch,
-            "pull_request": pull_url, "authoritative": False, "state_ledger": False,
+            "protocol": "sideways-universal-remote-generation/1",
+            "number": generation,
+            "branch": branch,
+            "pull_request": pull_url,
+            "authoritative": False,
+            "state_ledger": False,
             "semantics": "discovery metadata only; live and static remote state remain authoritative",
         },
         "weave": {
             "report": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/REMOTE_WORK.md",
             "thought": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/REMOTE_THOUGHT.md",
             "conversation": "https://github.com/Pokitomas/theawesomehexapp/pulls",
-            "live_state": "/api/remote/state?public=1", "static_state": "./remote-snapshot.json",
+            "live_state": "/api/remote/state?public=1",
+            "static_state": "./remote-snapshot.json",
         },
     }
     return manifest, state
@@ -166,19 +191,47 @@ def main() -> None:
     shutil.copyfile(SHARED / "corpus-db.js", shared_target / "corpus-db.js")
 
     for name in (
-        "studio.css", "studio-components.css", "studio-reset.css", "workspace.css", "card-layout.css",
-        "workspace-chrome.css", "workspace-chrome-polish.css", "future-media.css", "future-media-polish.css",
-        "future-media-final.css", "future-media-mobile.css", "frontier.css", "social-client.css",
-        "remote-terminal.css", "survival-ledger.css", "studio.js", "copy.js", "starter-pack.js", "actions.js",
-        "workspace-db.js", "workspace-profile.js", "workspace-records.js", "network-records.js",
-        "workspace-migration.js", "survival-ledger.js", "workspace.js", "workspace-ui.js", "core-actions.js",
-        "workspace-chrome.js", "universal-media.js", "media-modes.js", "frontier.js", "social-client.js",
-        "remote-terminal.js", "vault-ui.js", "system-icons.svg",
+        "studio.css",
+        "studio-components.css",
+        "studio-reset.css",
+        "workspace.css",
+        "card-layout.css",
+        "workspace-chrome.css",
+        "workspace-chrome-polish.css",
+        "future-media.css",
+        "future-media-polish.css",
+        "future-media-final.css",
+        "future-media-mobile.css",
+        "frontier.css",
+        "remote-terminal.css",
+        "survival-ledger.css",
+        "studio.js",
+        "copy.js",
+        "starter-pack.js",
+        "actions.js",
+        "workspace-db.js",
+        "workspace-profile.js",
+        "workspace-records.js",
+        "workspace-migration.js",
+        "survival-ledger.js",
+        "workspace.js",
+        "workspace-ui.js",
+        "core-actions.js",
+        "workspace-chrome.js",
+        "universal-media.js",
+        "media-modes.js",
+        "frontier.js",
+        "remote-terminal.js",
+        "vault-ui.js",
+        "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
     workspace_db = MANUAL / "workspace-db.js"
-    workspace_db.write_text(workspace_db.read_text(encoding="utf-8").replace("../shared/corpus-db.js", "./shared/corpus-db.js"), encoding="utf-8")
+    workspace_db.write_text(
+        workspace_db.read_text(encoding="utf-8").replace("../shared/corpus-db.js", "./shared/corpus-db.js"),
+        encoding="utf-8",
+    )
 
     for retired in ("social.js", "social.css", "workspace-sync.js"):
         path = MANUAL / retired
@@ -187,19 +240,30 @@ def main() -> None:
 
     index = MANUAL / "index.html"
     text = remove_retired_social(index.read_text(encoding="utf-8"))
-    for marker in (
-        STYLE_MARKER, COMPONENT_STYLE_MARKER, RESET_STYLE_MARKER, WORKSPACE_STYLE_MARKER, CARD_LAYOUT_STYLE_MARKER,
-        CHROME_STYLE_MARKER, CHROME_POLISH_STYLE_MARKER, FUTURE_MEDIA_STYLE_MARKER, FUTURE_MEDIA_POLISH_STYLE_MARKER,
-        FUTURE_MEDIA_FINAL_STYLE_MARKER, FUTURE_MEDIA_MOBILE_STYLE_MARKER, FRONTIER_STYLE_MARKER, SOCIAL_STYLE_MARKER,
-        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, REMOTE_SERVICE_MARKER,
-    ):
-        text = inject_once(text, marker, "</head>")
-    for marker in (
-        SCRIPT_MARKER, WORKSPACE_SCRIPT_MARKER, CORE_ACTIONS_SCRIPT_MARKER, CHROME_SCRIPT_MARKER,
-        UNIVERSAL_MEDIA_SCRIPT_MARKER, MEDIA_MODES_SCRIPT_MARKER, FRONTIER_SCRIPT_MARKER, SOCIAL_SCRIPT_MARKER,
-        REMOTE_SCRIPT_MARKER, VAULT_SCRIPT_MARKER,
-    ):
-        text = inject_once(text, marker, "</body>")
+    text = inject_once(text, STYLE_MARKER, "</head>")
+    text = inject_once(text, COMPONENT_STYLE_MARKER, "</head>")
+    text = inject_once(text, RESET_STYLE_MARKER, "</head>")
+    text = inject_once(text, WORKSPACE_STYLE_MARKER, "</head>")
+    text = inject_once(text, CARD_LAYOUT_STYLE_MARKER, "</head>")
+    text = inject_once(text, CHROME_STYLE_MARKER, "</head>")
+    text = inject_once(text, CHROME_POLISH_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_POLISH_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_FINAL_STYLE_MARKER, "</head>")
+    text = inject_once(text, FUTURE_MEDIA_MOBILE_STYLE_MARKER, "</head>")
+    text = inject_once(text, FRONTIER_STYLE_MARKER, "</head>")
+    text = inject_once(text, REMOTE_STYLE_MARKER, "</head>")
+    text = inject_once(text, SURVIVAL_STYLE_MARKER, "</head>")
+    text = inject_once(text, REMOTE_SERVICE_MARKER, "</head>")
+    text = inject_once(text, SCRIPT_MARKER, "</body>")
+    text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, CHROME_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, UNIVERSAL_MEDIA_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, FRONTIER_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, REMOTE_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, VAULT_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     write_remote_projection()
@@ -211,7 +275,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied local ownership, public social projection, Ark recovery, profile-first media, and public live-work terminal")
+    print("applied one-owner corpus schema, atomic ledger, off-thread hashing, viewport hydration, OPFS mirror, Ark recovery, the profile-first frontier surface, and the public live-work terminal")
 
 
 if __name__ == "__main__":

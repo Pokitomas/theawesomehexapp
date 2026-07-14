@@ -30,6 +30,15 @@ export const ACTIONS = Object.freeze({
   'profile.start': define('profile.start', 'Make it alive', 'profile', 'install_starter_pack'),
   'profile.skip_start': define('profile.skip_start', 'Not yet', 'profile', 'skip_starter_pack'),
 
+  'network.account': define('network.account', 'Join', 'network', 'open_account'),
+  'network.close': define('network.close', 'Close', 'network', 'close_account'),
+  'network.signup': define('network.signup', 'Create account', 'network', 'signup', { fields: ['email', 'password', 'handle', 'displayName', 'bio'] }),
+  'network.login': define('network.login', 'Log in', 'network', 'login', { fields: ['email', 'password'] }),
+  'network.logout': define('network.logout', 'Log out', 'network', 'logout'),
+  'network.sync': define('network.sync', 'Sync feed', 'network', 'sync_public_feed'),
+  'user.follow': define('user.follow', 'Follow', 'network', 'follow_user', { userId: 'string' }),
+  'user.unfollow': define('user.unfollow', 'Unfollow', 'network', 'unfollow_user', { userId: 'string' }),
+
   'post.open': define('post.open', 'New post', 'composer', 'open_composer'),
   'post.publish': define('post.publish', 'Publish', 'composer', 'publish_entry', { fields: ['text', 'image', 'placeId'] }),
   'post.cancel': define('post.cancel', 'Close', 'composer', 'close_composer'),
@@ -71,16 +80,6 @@ export const ACTIONS = Object.freeze({
   'remote.close': define('remote.close', 'Close live work', 'remote', 'close_live_work'),
   'remote.refresh': define('remote.refresh', 'Refresh live work', 'remote', 'refresh_live_work'),
 
-  'social.join': define('social.join', 'JOIN', 'social', 'register_account'),
-  'social.login': define('social.login', 'SIGN IN', 'social', 'start_session'),
-  'social.logout': define('social.logout', 'SIGN OUT', 'social', 'end_session'),
-  'social.close': define('social.close', 'Close', 'social', 'close_dialog'),
-  'social.post': define('social.post', 'POST', 'social', 'publish_public_post', { fields: ['text', 'replyTo'] }),
-  'social.refresh': define('social.refresh', 'REFRESH', 'social', 'refresh_public_feed'),
-  'social.follow': define('social.follow', 'FOLLOW', 'social', 'toggle_follow', { recordId: 'number' }),
-  'social.feed': define('social.feed', 'FOLLOWING', 'social', 'open_following_feed'),
-  'social.discover': define('social.discover', 'EXPLORE', 'social', 'open_public_feed'),
-
   'import.instagram': define('import.instagram', 'IMPORT INSTAGRAM', 'import', 'pick_import', { platform: 'instagram' }),
   'import.reddit': define('import.reddit', 'IMPORT REDDIT', 'import', 'pick_import', { platform: 'reddit' }),
   'import.tiktok': define('import.tiktok', 'IMPORT TIKTOK', 'import', 'pick_import', { platform: 'tiktok' }),
@@ -117,7 +116,13 @@ export async function run(id, detail = {}, fallback = null) {
 
 export function emitAction(id, detail = {}) {
   const definition = action(id);
-  const event = Object.freeze({ actionId: id, surface: definition.surface, intent: definition.intent, at: new Date().toISOString(), ...detail });
+  const event = Object.freeze({
+    actionId: id,
+    surface: definition.surface,
+    intent: definition.intent,
+    at: new Date().toISOString(),
+    ...detail
+  });
   window.dispatchEvent(new CustomEvent('sideways:action', { detail: event }));
   return event;
 }
@@ -155,7 +160,13 @@ export function actionButton(id, handler, options = {}) {
 }
 
 export function actionContract() {
-  return Object.values(ACTIONS).map(item => ({ id: item.id, label: item.label, surface: item.surface, intent: item.intent, payload: item.payload }));
+  return Object.values(ACTIONS).map(item => ({
+    id: item.id,
+    label: item.label,
+    surface: item.surface,
+    intent: item.intent,
+    payload: item.payload
+  }));
 }
 
 window.SidewaysActions = Object.freeze({ ACTIONS, action, run, registerActionHandler, emitAction, bindAction, actionButton, actionContract });

@@ -14,11 +14,6 @@
   status = 200
 
 [[redirects]]
-  from = "/api/social"
-  to = "/.netlify/functions/social"
-  status = 200
-
-[[redirects]]
   from = "/api/remote/state"
   to = "/.netlify/functions/remote?mode=state"
   status = 200
@@ -26,6 +21,41 @@
 [[redirects]]
   from = "/api/remote"
   to = "/.netlify/functions/remote"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/*"
+  to = "/.netlify/functions/social?route=/auth/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/me"
+  to = "/.netlify/functions/social?route=/me"
+  status = 200
+
+[[redirects]]
+  from = "/api/me/*"
+  to = "/.netlify/functions/social?route=/me/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/users/*"
+  to = "/.netlify/functions/social?route=/users/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/posts"
+  to = "/.netlify/functions/social?route=/posts"
+  status = 200
+
+[[redirects]]
+  from = "/api/posts/*"
+  to = "/.netlify/functions/social?route=/posts/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/feed/*"
+  to = "/.netlify/functions/social?route=/feed/:splat"
   status = 200
 
 [[headers]]
