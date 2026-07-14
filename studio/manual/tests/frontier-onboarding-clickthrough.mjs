@@ -212,7 +212,7 @@ const instantStarter = page.locator('.studio-launch-button.is-import');
 await touch(instantStarter);
 const builtInCount = 8;
 await page.waitForFunction(expected => document.querySelectorAll('#feed .post').length === expected, builtInCount, { timeout: 15000 });
-await page.getByText('A smaller internet can feel bigger.', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+await page.getByText('The good part was never infinite content. It was noticing the same people becoming more themselves.', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
 if (await page.getByText(/Request failed/i).count()) throw new Error('static fallback exposed the missing function as an error');
 await page.screenshot({ path: 'frontier-static-drop-proof.png', fullPage: false });
 const instantCleanup = await removeStarterPosts('starter:');
