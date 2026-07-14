@@ -7,6 +7,7 @@ const executablePath = [process.env.CHROME_BIN, process.env.CHROME_PATH, '/usr/b
 if (!executablePath) throw new Error('no Chromium found');
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const phone = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
+const shellAction = (page, id) => page.locator(`section[data-social-spine] [data-action-id="${id}"]`);
 
 function errors(page) {
   const list = [];
@@ -29,7 +30,7 @@ async function contextFor(localName, localHandle) {
 }
 
 async function join(page, { name, handle, password }) {
-  await page.getByRole('button', { name: 'JOIN', exact: true }).click();
+  await shellAction(page, 'social.join').click();
   const dialog = page.locator('[data-social-account="register"]');
   await dialog.waitFor({ state: 'visible' });
   await dialog.locator('input[name="name"]').fill(name);
@@ -40,7 +41,7 @@ async function join(page, { name, handle, password }) {
 }
 
 async function publicPost(page, text) {
-  await page.getByRole('button', { name: 'POST', exact: true }).click();
+  await shellAction(page, 'social.post').click();
   const dialog = page.locator('[data-social-composer]');
   await dialog.waitFor({ state: 'visible' });
   await dialog.locator('textarea[name="text"]').fill(text);
@@ -70,11 +71,11 @@ await publicPost(alice.page, 'hello from alice public');
 await alice.page.screenshot({ path: 'social-alice-post.png', fullPage: false });
 
 await join(bob.page, { name: 'Bob Public', handle: 'bob', password: 'another excellent password' });
-await bob.page.getByRole('button', { name: 'EXPLORE', exact: true }).click();
+await shellAction(bob.page, 'social.discover').click();
 const aliceCard = bob.page.locator('#feed .post', { hasText: 'hello from alice public' });
 await aliceCard.waitFor({ state: 'visible', timeout: 15000 });
 await aliceCard.getByRole('button', { name: 'Follow @alice', exact: true }).click();
-await bob.page.getByRole('button', { name: 'FOLLOWING', exact: true }).click();
+await shellAction(bob.page, 'social.feed').click();
 await bob.page.locator('#feed .post', { hasText: 'hello from alice public' }).waitFor({ state: 'visible', timeout: 15000 });
 
 const followingCard = bob.page.locator('#feed .post', { hasText: 'hello from alice public' });
@@ -86,13 +87,13 @@ await replyDialog.locator('button.social-primary').filter({ hasText: 'Reply' }).
 await bob.page.getByText('bob replies as a real post', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 await bob.page.screenshot({ path: 'social-bob-following-reply.png', fullPage: false });
 
-await alice.page.getByRole('button', { name: 'EXPLORE', exact: true }).click();
+await shellAction(alice.page, 'social.discover').click();
 const bobReply = alice.page.locator('#feed .post', { hasText: 'bob replies as a real post' });
 await bobReply.waitFor({ state: 'visible', timeout: 15000 });
 await bobReply.getByRole('button', { name: /^Like/ }).click();
 await alice.page.screenshot({ path: 'social-alice-like.png', fullPage: false });
 
-await bob.page.getByRole('button', { name: 'EXPLORE', exact: true }).click();
+await shellAction(bob.page, 'social.discover').click();
 const likedReply = bob.page.locator('#feed .post', { hasText: 'bob replies as a real post' });
 await likedReply.waitFor({ state: 'visible', timeout: 15000 });
 await likedReply.getByRole('button', { name: 'Like 1', exact: true }).waitFor({ state: 'visible', timeout: 10000 });
