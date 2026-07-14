@@ -43,6 +43,14 @@ jobs:
       - name: Install runtime dependencies
         run: npm install
       - name: Prove PostgreSQL transactions and HTTP parity
-        run: npm run test:social:postgres
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! npm run test:social:postgres > /tmp/social-postgres-test.log 2>&1; then
+            echo '--- PostgreSQL contract failure tail ---'
+            tail -n 90 /tmp/social-postgres-test.log
+            exit 1
+          fi
+          cat /tmp/social-postgres-test.log
       - name: Preserve existing in-memory contract
         run: npm run test:social
