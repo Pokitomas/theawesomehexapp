@@ -127,7 +127,7 @@ if ((await open.getAttribute('data-remote-mounted')) !== 'title-actions') {
   throw new Error('LIVE did not mount inside owned title chrome');
 }
 
-const terminal = page.locator('[data-remote-terminal]');
+const terminal = page.locator('dialog[data-remote-terminal]');
 await terminal.waitFor({ state: 'visible', timeout: 10000 });
 await terminal.getByText('moving', { exact: true }).waitFor({ state: 'visible' });
 const renderedHead = await terminal.locator('[data-remote-head]').textContent();
