@@ -29,7 +29,7 @@ Every weave event is stored inside the existing Remote message payload:
 }
 ```
 
-Messages remain signed and immutable. Current collaboration state is a projection produced by folding the event stream; it is never independently mutated or treated as canonical.
+Messages remain signed and immutable. Current collaboration state is a projection produced by folding the event stream; it is never independently mutated or treated as canonical. Beacon and presence events default public so other participants can discover them. Operational messages, recodes, session handoffs, loss records, and recovery residue default private unless the sender explicitly marks them public.
 
 ## Beacons
 
