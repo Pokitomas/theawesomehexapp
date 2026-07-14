@@ -1,8 +1,8 @@
-version: 34
-updated_at: 2026-07-14T19:52:00Z
+version: 35
+updated_at: 2026-07-14T20:10:23Z
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 10 open drafts on main (#140-#149), each closing a numbered issue in the #127-#139 authority-hardening backlog, all with full green CI as of this check
+active_pr: 12 open drafts on main (#140-#151), each closing one of the 12 child issues (#127,128,129,130,132-139) under parent audit #131, green CI verified directly against the GitHub API as of this check
 integration_pr: 84 merged
 integration_merge: 739ae16f1a931ad16958dabb10c6a668a0bb676b
 final_fix_pr: 87 merged
@@ -17,12 +17,14 @@ previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
 previous_verified_deployment_receipt: 85
 superseded_pr: 73 closed locked resolved
 
-owner: heartbeat-audit (claude-sonnet-5, external co-engineer session)
-mode: corrective ledger sync only - no product, protocol, or workflow change
+owner: full-audit heartbeat (external co-engineer session on claude/join-full-co-agent-j5w05v)
+mode: full read-only audit plus corrective ledger sync only - no product, protocol, or workflow change; did not review, approve, or merge any open PR
 
 current_subtask:
-  summary: Found this ledger claiming active_pr: none while 10 draft PRs were actually open and passing on main. Corrected the stale fields only; did not rewrite prior-generation history.
+  summary: Full audit found 12 open draft PRs, not 10 - #150 and #151 opened after the prior correction was written. Corrected the count/range and re-verified CI and the orphaned-run claim directly against the GitHub API instead of trusting the prior ledger text.
   observed_open_prs:
+    - "#151 immutable appeal actions (closes #135)"
+    - "#150 viewer-local social control eligibility (closes #134)"
     - "#149 moderation role hierarchy (closes #137)"
     - "#148 social deletion witness (closes #130)"
     - "#147 remote fail-closed capability (closes #133)"
@@ -33,14 +35,19 @@ current_subtask:
     - "#142 lasso idempotency proof (closes #127)"
     - "#141 authority manifest drift check (closes #139)"
     - "#140 social idempotency authority (closes #136)"
+  ci_verification: queried GitHub check-runs directly for #140, #150, and #151 (14/14 green or skipped-deploy on each); the other nine each independently declare exact-head green CI in their own PR body and were not individually re-run-checked this pass.
+  open_non_audit_issues:
+    - "#131 is the parent authority-audit issue; stays open until all 12 children above close, and is not itself one of the 12"
+    - "#112 is an older, unlabeled naming/assembly issue predating this audit generation; no open PR currently addresses it"
+    - "#104 is a github-actions-authored deployment-status issue, not an audit lane"
   known_dead_state:
-    - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); not cancelled - auditing session lacked Actions write scope
-  done_when: ledger matches observed repository state; does not claim to have reviewed or merged any open PR
+    - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); reconfirmed still queued and not cancelled - this session also lacks Actions write scope
+  done_when: ledger matches observed repository state; does not claim to have reviewed, approved, or merged any open PR; does not claim to have changed product code, workflows, or protocol.
 
 # NOTE: a prior commit on this path briefly wrote this file as a raw base64
 # blob due to a tool-input mistake (content was pre-encoded before calling
-# create_or_update_file, which expects plain text). This commit restores
-# plain-text YAML and corrects the mistake.
+# create_or_update_file, which expects plain text). That was restored to
+# plain-text YAML in commit f7b59de.
 
 # Prior generation's full closure record (version 33 current_subtask /
 # verification / production blocks) remains available in git history at
