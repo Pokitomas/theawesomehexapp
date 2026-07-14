@@ -14,6 +14,8 @@ jobs:
   social-spine:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    env:
+      SOCIAL_LIVE_ENDPOINT: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
