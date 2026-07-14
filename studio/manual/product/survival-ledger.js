@@ -17,6 +17,7 @@ const LEGACY_PROFILE_KEY = 'sideways-local-profile-v1';
 const ARK_MAGIC = 'SIDEWAYS-ARK/1\n';
 const VAULT_DIR = 'sideways-vault';
 const ASSET_DIR = 'assets';
+const isServerProjection = record => String(record?.nativeId || '').startsWith('network:');
 
 const safeName = value => encodeURIComponent(String(value || 'asset')).replaceAll('%', '_').slice(0, 220);
 
@@ -31,17 +32,21 @@ async function appendLedger(op, detail = {}) {
 }
 
 async function snapshot() {
-  const [records, assets, ledger, places] = await Promise.all([
+  const [allRecords, allAssets, ledger, places] = await Promise.all([
     readStore(openCorpusDB, RECORD_STORE),
     readStore(openCorpusDB, BLOB_STORE),
     readCorpusLedger({ limit: 10000 }),
     readStore(openWorkspaceDB, PLACE_STORE).catch(() => [])
   ]);
+  const records = (allRecords || []).filter(record => !isServerProjection(record));
+  const referenced = new Set(records.map(record => record.assetKey).filter(Boolean));
+  const assets = (allAssets || []).filter(asset => referenced.has(asset.key));
   let profile = {};
   try {
     profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || localStorage.getItem(LEGACY_PROFILE_KEY) || '{}');
   } catch {}
-  return { records: records || [], assets: assets || [], ledger: ledger || [], places: places || [], profile };
+  // The user-owned Ark excludes server projections; those public facts can be fetched again.
+  return { records, assets, ledger: ledger || [], places: places || [], profile };
 }
 
 async function opfs(create = true) {

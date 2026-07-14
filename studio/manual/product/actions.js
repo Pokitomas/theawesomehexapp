@@ -6,6 +6,8 @@ const define = (id, label, surface, intent, payload = {}) => Object.freeze({
   payload: Object.freeze(payload)
 });
 
+const HANDLERS = new Map();
+
 export const ACTIONS = Object.freeze({
   'nav.feed': define('nav.feed', 'Feed', 'navigation', 'navigate', { route: '#/feed' }),
   'nav.places': define('nav.places', 'Places', 'navigation', 'navigate', { route: '#/places' }),
@@ -37,8 +39,8 @@ export const ACTIONS = Object.freeze({
   'post.delete': define('post.delete', 'Delete', 'post', 'delete_entry', { recordId: 'number' }),
   'post.save': define('post.save', 'Save', 'post', 'toggle_save', { recordId: 'number' }),
   'post.share': define('post.share', 'Share', 'post', 'share', { recordId: 'number' }),
-  'post.like': define('post.like', 'Like', 'post', 'toggle_like', { recordId: 'number' }),
-  'post.reply': define('post.reply', 'Reply', 'post', 'open_reply', { recordId: 'number' }),
+  'post.like': define('post.like', 'Like', 'post', 'toggle_like', { recordId: 'number', postId: 'string' }),
+  'post.reply': define('post.reply', 'Reply', 'post', 'open_reply', { recordId: 'number', postId: 'string' }),
   'post.remix': define('post.remix', 'Remix', 'post', 'open_remix', { recordId: 'number' }),
 
   'record.source': define('record.source', 'Open source', 'record', 'open_source', { recordId: 'number' }),
@@ -69,6 +71,16 @@ export const ACTIONS = Object.freeze({
   'remote.close': define('remote.close', 'Close live work', 'remote', 'close_live_work'),
   'remote.refresh': define('remote.refresh', 'Refresh live work', 'remote', 'refresh_live_work'),
 
+  'social.join': define('social.join', 'JOIN', 'social', 'register_account'),
+  'social.login': define('social.login', 'SIGN IN', 'social', 'start_session'),
+  'social.logout': define('social.logout', 'SIGN OUT', 'social', 'end_session'),
+  'social.close': define('social.close', 'Close', 'social', 'close_dialog'),
+  'social.post': define('social.post', 'POST', 'social', 'publish_public_post', { fields: ['text', 'replyTo'] }),
+  'social.refresh': define('social.refresh', 'REFRESH', 'social', 'refresh_public_feed'),
+  'social.follow': define('social.follow', 'FOLLOW', 'social', 'toggle_follow', { recordId: 'number' }),
+  'social.feed': define('social.feed', 'FOLLOWING', 'social', 'open_following_feed'),
+  'social.discover': define('social.discover', 'EXPLORE', 'social', 'open_public_feed'),
+
   'import.instagram': define('import.instagram', 'IMPORT INSTAGRAM', 'import', 'pick_import', { platform: 'instagram' }),
   'import.reddit': define('import.reddit', 'IMPORT REDDIT', 'import', 'pick_import', { platform: 'reddit' }),
   'import.tiktok': define('import.tiktok', 'IMPORT TIKTOK', 'import', 'pick_import', { platform: 'tiktok' }),
@@ -89,15 +101,23 @@ export function action(id) {
   return value;
 }
 
+export function registerActionHandler(id, handler) {
+  action(id);
+  if (typeof handler !== 'function') throw new TypeError('action handler must be a function');
+  HANDLERS.set(id, handler);
+  return () => HANDLERS.delete(id);
+}
+
+export async function run(id, detail = {}, fallback = null) {
+  const definition = action(id);
+  const handler = HANDLERS.get(id);
+  if (handler) return handler(detail, definition);
+  return typeof fallback === 'function' ? fallback(detail, definition) : undefined;
+}
+
 export function emitAction(id, detail = {}) {
   const definition = action(id);
-  const event = Object.freeze({
-    actionId: id,
-    surface: definition.surface,
-    intent: definition.intent,
-    at: new Date().toISOString(),
-    ...detail
-  });
+  const event = Object.freeze({ actionId: id, surface: definition.surface, intent: definition.intent, at: new Date().toISOString(), ...detail });
   window.dispatchEvent(new CustomEvent('sideways:action', { detail: event }));
   return event;
 }
@@ -113,7 +133,7 @@ export function bindAction(node, id, handler, options = {}) {
     const payload = typeof options.payload === 'function' ? options.payload(event) : (options.payload || {});
     emitAction(id, { phase: 'start', ...payload });
     try {
-      const result = await handler?.(event, definition);
+      const result = await run(id, payload, () => handler?.(event, definition));
       const phase = result?.cancelled === true ? 'cancelled' : 'success';
       emitAction(id, { phase, result: result ?? null, ...payload });
     } catch (error) {
@@ -135,13 +155,7 @@ export function actionButton(id, handler, options = {}) {
 }
 
 export function actionContract() {
-  return Object.values(ACTIONS).map(item => ({
-    id: item.id,
-    label: item.label,
-    surface: item.surface,
-    intent: item.intent,
-    payload: item.payload
-  }));
+  return Object.values(ACTIONS).map(item => ({ id: item.id, label: item.label, surface: item.surface, intent: item.intent, payload: item.payload }));
 }
 
-window.SidewaysActions = Object.freeze({ ACTIONS, action, emitAction, bindAction, actionButton, actionContract });
+window.SidewaysActions = Object.freeze({ ACTIONS, action, run, registerActionHandler, emitAction, bindAction, actionButton, actionContract });
