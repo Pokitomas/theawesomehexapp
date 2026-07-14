@@ -48,9 +48,11 @@ function installTitleActions(topline) {
     topline.append(actions);
   }
 
+  const liveWork = document.querySelector('[data-sideways-remote-launch]');
   const status = document.getElementById('corpusStatus');
   const profile = document.getElementById('navProfile');
   normalizeStatus(status);
+  if (liveWork) actions.prepend(liveWork);
   if (status) actions.append(status);
   if (profile) actions.append(profile);
 }
@@ -112,7 +114,7 @@ function schedule() {
   });
 }
 
-for (const eventName of ['sideways:ready', 'sideways:feedrender', 'sideways:workspacechange', 'sideways:profilechange', 'hashchange', 'popstate']) {
+for (const eventName of ['sideways:ready', 'sideways:feedrender', 'sideways:workspacechange', 'sideways:profilechange', 'sideways:remoteupdate', 'hashchange', 'popstate']) {
   window.addEventListener(eventName, schedule);
 }
 
