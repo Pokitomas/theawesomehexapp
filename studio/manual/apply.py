@@ -10,6 +10,7 @@ PRODUCT = HERE / "product"
 SHARED = HERE / "shared"
 MANUAL = ROOT / "manual-app"
 IMPORT_INSTALLER = HERE / "imports" / "apply.py"
+REMOTE_SESSION = ROOT / "remote" / "session.json"
 
 STYLE_MARKER = '<link rel="stylesheet" href="./studio.css" data-studio-product>'
 COMPONENT_STYLE_MARKER = '<link rel="stylesheet" href="./studio-components.css" data-studio-product>'
@@ -23,6 +24,7 @@ FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
 FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
 FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-frontier-product>'
+REMOTE_TERMINAL_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
@@ -30,6 +32,7 @@ CHROME_SCRIPT_MARKER = '<script type="module" src="./workspace-chrome.js" data-w
 UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js" data-universal-media></script>'
 MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
 FRONTIER_SCRIPT_MARKER = '<script type="module" src="./frontier.js" data-frontier-product></script>'
+REMOTE_TERMINAL_SCRIPT_MARKER = '<script type="module" src="./remote-terminal.js" data-remote-terminal></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -111,6 +114,7 @@ def main() -> None:
         "future-media-final.css",
         "future-media-mobile.css",
         "frontier.css",
+        "remote-terminal.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -125,9 +129,13 @@ def main() -> None:
         "universal-media.js",
         "media-modes.js",
         "frontier.js",
+        "remote-terminal.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
+
+    if REMOTE_SESSION.is_file():
+        shutil.copyfile(REMOTE_SESSION, MANUAL / "remote-session.json")
 
     workspace_db = MANUAL / "workspace-db.js"
     workspace_db.write_text(
@@ -154,6 +162,7 @@ def main() -> None:
     text = inject_once(text, FUTURE_MEDIA_FINAL_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_MOBILE_STYLE_MARKER, "</head>")
     text = inject_once(text, FRONTIER_STYLE_MARKER, "</head>")
+    text = inject_once(text, REMOTE_TERMINAL_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
@@ -161,6 +170,7 @@ def main() -> None:
     text = inject_once(text, UNIVERSAL_MEDIA_SCRIPT_MARKER, "</body>")
     text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
     text = inject_once(text, FRONTIER_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, REMOTE_TERMINAL_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
@@ -170,7 +180,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, and the profile-first frontier surface")
+    print("applied one-owner corpus schema, durable ledger, profile-first social surface, and read-only live work terminal")
 
 
 if __name__ == "__main__":
