@@ -9,6 +9,7 @@
   "decision": "proceed",
   "claims": [],
   "blocker_count": 0,
+  "live_backend": false,
   "human_report": "REMOTE_WORK.md",
   "thought_location": "remote/THOUGHT.md",
   "conversation_location": "https://github.com/Pokitomas/theawesomehexapp/pull/78",
