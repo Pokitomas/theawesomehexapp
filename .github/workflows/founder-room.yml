@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'founder/**'
-      - 'scripts/tests/founder-room.test.mjs'
+      - 'scripts/tests/founder-room*.mjs'
       - '.github/workflows/founder-room.yml'
   workflow_dispatch:
 
@@ -24,14 +24,27 @@ jobs:
       - name: Verify browser assets
         run: |
           node --check founder/founder.js
+          node --check scripts/tests/founder-room-phone.mjs
           test -s founder/index.html
           test -s founder/founder.css
           grep -q 'Social identity with memory' founder/index.html
           grep -q 'Private remixable life feed' founder/index.html
           grep -q 'Scene-first social world' founder/index.html
+      - name: Prove founder journey at 390x844
+        run: |
+          npm install --no-save playwright-core@1.55.0
+          python -m http.server 4174 >/tmp/founder-http.log 2>&1 &
+          server=$!
+          trap 'kill $server || true' EXIT
+          sleep 2
+          node scripts/tests/founder-room-phone.mjs
       - name: Upload founder room preview
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sideways-founder-room
-          path: founder
+          path: |
+            founder
+            founder-room-phone.png
+          if-no-files-found: error
           retention-days: 5
