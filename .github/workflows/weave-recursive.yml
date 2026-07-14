@@ -55,8 +55,16 @@ jobs:
           node --check scripts/weave-dispatch.mjs
           node --check scripts/weave-synthesis.mjs
           node --check scripts/weave-recursive-runtime.mjs
-      - name: Verify belief graph and resolution semantics
-        run: node --test --test-name-pattern='belief|hidden|resolution|supersession' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify belief graph preservation
+        run: node --test --test-name-pattern='belief graph preserves' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify hidden reasoning and dangling rejection
+        run: node --test --test-name-pattern='hidden reasoning' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify one-way resolution causality
+        run: node --test --test-name-pattern='resolution backlinks are' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify inconsistent resolution rejection
+        run: node --test --test-name-pattern='inconsistent resolution' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify immutable supersession projection
+        run: node --test --test-name-pattern='supersession changes' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify deliberation planning
         run: node --test --test-name-pattern='planner' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify bounded memory
