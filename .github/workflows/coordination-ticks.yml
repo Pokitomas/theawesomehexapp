@@ -22,6 +22,7 @@ on:
       - Verify social authority schema
       - Verify workflow authority
       - Authority manifest drift
+      - Verify coordination tick reducer
       - Build and deploy manual root-kernel feed
       - Validate manual overlay shards
       - Kernel parity check
