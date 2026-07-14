@@ -92,6 +92,43 @@ test('two accounts can post, follow, reply, and like through isolated sessions',
   assert.equal([...snapshot.keys()].filter(key => key.startsWith('social/session/')).length, 2);
 });
 
+test('authoritative author deletion defeats a stale observer without touching unrelated private residue', async () => {
+  let tick = Date.parse('2026-07-14T07:00:00.000Z');
+  const store = createMemoryStore();
+  const service = createSocialService({ store, now: () => tick++ });
+  const alice = client(service);
+  const bob = client(service);
+
+  await alice.call('register', { method: 'POST', body: { name: 'Alice', handle: 'alice-delete', password: 'correct horse battery staple' } });
+  await bob.call('register', { method: 'POST', body: { name: 'Bob', handle: 'bob-observer', password: 'another excellent password' } });
+  const created = await alice.call('post', { method: 'POST', body: { text: 'authoritative deletion witness' } });
+  const postId = created.data.post.id;
+
+  const observed = await bob.call('discover');
+  assert.ok(observed.data.posts.some(post => post.id === postId));
+  const stalePublicObservation = structuredClone(observed.data.posts.find(post => post.id === postId));
+  await store.set('private/archive/witness', { owner: 'bob', text: 'unrelated private archive material' });
+
+  const denied = await bob.call('post', { method: 'DELETE', body: { postId } });
+  assert.equal(denied.response.status, 403);
+  assert.ok((await bob.call('discover')).data.posts.some(post => post.id === postId));
+
+  const deleted = await alice.call('post', { method: 'DELETE', body: { postId } });
+  assert.equal(deleted.response.status, 200);
+  assert.deepEqual(deleted.data, { deleted: true, postId });
+
+  const refreshed = await bob.call('discover');
+  assert.equal(refreshed.data.posts.some(post => post.id === postId), false);
+  assert.equal(stalePublicObservation.id, postId);
+
+  const snapshot = store.snapshot();
+  assert.equal(snapshot.has(`social/post/${postId}`), false);
+  assert.equal(snapshot.get(`social/post-state/${postId}`).state, 'author_deleted');
+  assert.deepEqual(snapshot.get('private/archive/witness'), { owner: 'bob', text: 'unrelated private archive material' });
+  const eventTypes = [...snapshot.entries()].filter(([key]) => key.startsWith('social/event/')).map(([, value]) => value.type);
+  assert.ok(eventTypes.includes('post.author_deleted'));
+});
+
 test('mutations reject a cross-origin request', async () => {
   const service = createSocialService({ store: createMemoryStore() });
   const response = await service(new Request('https://sideways.test/api/social?op=register', {
