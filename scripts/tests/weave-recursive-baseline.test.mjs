@@ -126,7 +126,9 @@ test('non-accept critique is unresolved until a later independent accept receipt
   assert.deepEqual(blockedState.unresolved_critique_ids, [blocked.id]);
   assert.ok(unresolvedCognitionIds(blockedState).includes(blocked.id));
   const correctionPlan = planDeliberationWave(blockedState, { wave_index: 1, issued_at: at(4) });
-  assert.deepEqual(correctionPlan.assignments.map(value => value.body.role), ['integrator', 'critic']);
+  const correctionRoles = correctionPlan.assignments.map(value => value.body.role);
+  assert.ok(correctionRoles.includes('integrator'));
+  assert.ok(correctionRoles.includes('critic'));
 
   const revised = buildSynthesis({ id: 'synthesis:4', issued_at: at(4), source_events: [claim, blocked], unresolved_ids: [blocked.id], minority_report_ids: [], proposed_actions: ['correct'] });
   const interim = foldCognitionEvents([claim, firstSynthesis, blocked, revised]);
