@@ -23,6 +23,10 @@ SOURCE_FILES = (
     PRODUCT / "core-actions.js",
     PRODUCT / "universal-media.js",
     PRODUCT / "media-modes.js",
+    PRODUCT / "frontier.js",
+    PRODUCT / "frontier.css",
+    PRODUCT / "remote-terminal.js",
+    PRODUCT / "remote-terminal.css",
     PRODUCT / "studio.css",
     PRODUCT / "studio-components.css",
     PRODUCT / "studio-reset.css",
@@ -165,6 +169,10 @@ def main() -> None:
         if actions_source.count(f"'{action_id}'") < 2:
             raise AssertionError(f"action contract is incomplete: {action_id}")
 
+    remote_source = source[PRODUCT / "remote-terminal.js"]
+    require(remote_source, ("service-desc", "sideways:remoteupdate", "data-sideways-remote-state", "window.SidewaysRemote"), "public live-work terminal")
+    forbid(remote_source, ("REMOTE_ROOT_KEY", "REMOTE_PRIVATE_KEY", "x-remote-signature"), "browser credential leak")
+
     if not MANUAL.exists():
         print("local-first runtime sources verified")
         return
@@ -173,6 +181,7 @@ def main() -> None:
         "app.js", "profile.js", "kernel.js", "studio.js", "copy.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "workspace-migration.js",
         "workspace.js", "workspace-ui.js", "core-actions.js", "universal-media.js", "media-modes.js",
+        "frontier.js", "remote-terminal.js",
         "import-studio.js", "import-phone.js", "shared/corpus-db.js", "imports/registry.js",
         "imports/runtime.js", "imports/file-hash.js", "imports/hash-worker.js", "imports/corpus-writer.js",
         "imports/record-normalizer.js",
@@ -198,6 +207,11 @@ def main() -> None:
             raise AssertionError(f"stable DOM hook missing: {hook}")
     if index.count("data-workspace-product") != 2 or index.count("data-universal-media") != 1 or index.count("data-media-modes") != 1:
         raise AssertionError("generated runtime layers are duplicated or missing")
+    if index.count("data-remote-terminal") != 2 or index.count("data-sideways-remote") != 1:
+        raise AssertionError("public live-work terminal is duplicated or missing")
+    for name in ("remote-snapshot.json", ".well-known/sideways-remote.json"):
+        if not (MANUAL / name).is_file():
+            raise AssertionError(f"remote discovery projection missing: {name}")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
     print("local-first runtime, one-owner schema, atomic ledger, and viewport media contracts verified")

@@ -13,6 +13,16 @@
   to = "/.netlify/functions/starter"
   status = 200
 
+[[redirects]]
+  from = "/api/remote/state"
+  to = "/.netlify/functions/remote?mode=state"
+  status = 200
+
+[[redirects]]
+  from = "/api/remote"
+  to = "/.netlify/functions/remote"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

@@ -6,6 +6,8 @@ on:
       - 'studio/manual/**'
       - 'manual-phone-check.mjs'
       - 'netlify/**'
+      - 'scripts/**'
+      - 'README_REMOTE.md'
       - 'package.json'
       - 'netlify.toml'
       - '.github/workflows/frontier-phone-proof.yml'
@@ -15,7 +17,30 @@ permissions:
   contents: read
 
 jobs:
+  remote-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      decision: ${{ steps.gate.outputs.decision }}
+      reason: ${{ steps.gate.outputs.reason }}
+      session: ${{ steps.gate.outputs.session }}
+      generation: ${{ steps.gate.outputs.generation }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: gate
+        name: Read the universal remote
+        env:
+          REMOTE_URL: ${{ vars.REMOTE_URL }}
+          REMOTE_SESSION: ${{ vars.REMOTE_SESSION }}
+          REMOTE_GATE_FAIL_CLOSED: ${{ vars.REMOTE_GATE_FAIL_CLOSED }}
+        run: node scripts/remote-gate.mjs
+
   frontier-phone:
+    needs: remote-gate
+    if: needs.remote-gate.outputs.decision == 'proceed'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -61,9 +86,16 @@ jobs:
         run: |
           python3 studio/manual/verify.py
           node studio/manual/tests/frontier-contract.mjs
+          node studio/manual/tests/remote-terminal-contract.mjs
+          node --test scripts/tests/remote-service.test.mjs
           node --check studio/manual/product/frontier.js
           node --check netlify/functions/profile.mjs
           node --check netlify/functions/starter.mjs
+          node --check netlify/functions/remote-core.mjs
+          node --check netlify/functions/remote-service.mjs
+          node --check netlify/functions/remote.mjs
+          node --check scripts/remote-client.mjs
+          node --check scripts/remote-gate.mjs
 
       - name: Run the real phone journey
         run: |
@@ -85,6 +117,7 @@ jobs:
             frontier-profile-proof.png
             frontier-starter-proof.png
             frontier-phone-proof.png
+            frontier-live-work-proof.png
             /tmp/sideways-frontier-server.log
           if-no-files-found: warn
           retention-days: 5

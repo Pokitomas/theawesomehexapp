@@ -61,6 +61,10 @@ export const ACTIONS = Object.freeze({
 
   'library.saved': define('library.saved', 'Open saved', 'library', 'navigate', { route: '#/saved' }),
 
+  'remote.open': define('remote.open', 'Live work', 'remote', 'open_live_work'),
+  'remote.close': define('remote.close', 'Close live work', 'remote', 'close_live_work'),
+  'remote.refresh': define('remote.refresh', 'Refresh live work', 'remote', 'refresh_live_work'),
+
   'import.instagram': define('import.instagram', 'IMPORT INSTAGRAM', 'import', 'pick_import', { platform: 'instagram' }),
   'import.reddit': define('import.reddit', 'IMPORT REDDIT', 'import', 'pick_import', { platform: 'reddit' }),
   'import.tiktok': define('import.tiktok', 'IMPORT TIKTOK', 'import', 'pick_import', { platform: 'tiktok' }),
