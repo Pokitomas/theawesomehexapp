@@ -3,6 +3,9 @@
   publish = "manual-app"
   functions = "netlify/functions"
 
+[functions]
+  included_files = ["migrations/*.sql"]
+
 [[redirects]]
   from = "/api/profile"
   to = "/.netlify/functions/profile"
