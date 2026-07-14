@@ -2,16 +2,40 @@ name: Prove authoritative social spine on phone
 
 on:
   pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+    paths:
+      - 'studio/manual/**'
+      - 'netlify/**'
+      - 'migrations/**'
+      - 'scripts/social-test-server.mjs'
+      - 'scripts/tests/social-service.test.mjs'
+      - 'package.json'
+      - 'netlify.toml'
+      - '.github/workflows/social-spine-phone.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  social-spine:
+  remote-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      decision: ${{ steps.gate.outputs.decision }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: gate
+        env:
+          REMOTE_URL: ${{ vars.REMOTE_URL }}
+          REMOTE_SESSION: ${{ vars.REMOTE_SESSION }}
+          REMOTE_GATE_FAIL_CLOSED: ${{ vars.REMOTE_GATE_FAIL_CLOSED }}
+        run: node scripts/remote-gate.mjs
+
+  social-phone:
+    needs: remote-gate
+    if: needs.remote-gate.outputs.decision == 'proceed'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -19,53 +43,79 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Prove server social contract
-        run: npm run test:social
-      - name: Assemble the manual product
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install runtime
+        run: |
+          npm install
+          npm install --no-save playwright-core@1.55.0
+          command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
+
+      - name: Assemble the existing Sideways client
         run: |
           set -euo pipefail
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
           cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
           tar -xJf general-overlay.tar.xz
-          python general/patch.py
+          python3 general/patch.py
           cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
           tar -xJf profile-overlay.tar.xz
-          python profile/patch.py
+          python3 profile/patch.py
           cat manual-overlay.b64.part.* > manual-overlay.b64
           base64 -d manual-overlay.b64 > manual-overlay.tar.xz
           tar -xJf manual-overlay.tar.xz
-          python manual/patch.py
+          python3 manual/patch.py
           cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
           base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
           tar -xJf manual-kernel-overlay.tar.xz
-          python studio/manual/prepare-kernel.py
-          python manual-kernel/patch.py
-          python studio/manual/apply.py
-          python studio/manual/verify.py
+          python3 studio/manual/prepare-kernel.py
+          python3 manual-kernel/patch.py
+          python3 studio/manual/apply.py
+
+      - name: Verify server, adapter, and preserved kernel contracts
+        run: |
+          node --test scripts/tests/social-service.test.mjs
           node studio/manual/tests/social-spine-contract.mjs
-          mkdir -p dist/manual
-          cp -a manual-app/. dist/manual/
-      - name: Install browser driver
-        run: npm install --no-save playwright-core@1.55.0
-      - name: Prove two isolated accounts on phone
+          node --check netlify/functions/social-core.mjs
+          node --check netlify/functions/social-memory-store.mjs
+          node --check netlify/functions/social-postgres-store.mjs
+          node --check netlify/functions/social-schema.mjs
+          node --check netlify/functions/social.mjs
+          node --check scripts/social-test-server.mjs
+          node --check studio/manual/product/network-ui.js
+          find studio/manual/product/network -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check manual-app/network-ui.js
+          find manual-app/network -name '*.js' -print0 | xargs -0 -n1 node --check
+          test -f manual-app/network.css
+          grep -q 'data-sideways-network' manual-app/index.html
+          python3 studio/manual/verify.py
+          node manual-kernel/verify-kernel.mjs
+
+      - name: Prove two real accounts in isolated phone contexts
         run: |
           set -euo pipefail
-          node scripts/social-proof-server.mjs dist/manual 4174 >/tmp/social-proof-server.log 2>&1 &
-          server=$!
-          trap 'kill $server || true' EXIT
-          sleep 2
-          node studio/manual/tests/social-spine-clickthrough.mjs http://127.0.0.1:4174/manual/ 2>&1 | tee social-spine-check.log
+          PORT=4173 node scripts/social-test-server.mjs manual-app >/tmp/sideways-social-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:4173/index.html >/dev/null && break
+            sleep 1
+          done
+          node studio/manual/tests/social-spine-clickthrough.mjs http://127.0.0.1:4173/index.html 2>&1 | tee social-spine-check.log
+
       - name: Upload social phone proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: authoritative-social-spine-phone
           path: |
-            social-alice-post.png
-            social-bob-following-reply.png
-            social-alice-like.png
+            social-spine-alice-published.png
+            social-spine-bob-interaction.png
+            social-spine-fresh-login.png
             social-spine-check.log
-            /tmp/social-proof-server.log
+            /tmp/sideways-social-server.log
           if-no-files-found: warn
           retention-days: 5
