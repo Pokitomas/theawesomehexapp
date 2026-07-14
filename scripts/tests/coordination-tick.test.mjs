@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import {
   emptyTickState,
@@ -8,8 +11,10 @@ import {
   renderStateComment
 } from '../coordination-tick-core.mjs';
 import {
+  declarationsFromSnapshots,
   inventoryFromGitHub,
-  normalizeGitHubTickEvent
+  normalizeGitHubTickEvent,
+  runCoordinationTick
 } from '../coordination-tick.mjs';
 
 const inventory = (...items) => items.map(item => ({
@@ -258,4 +263,97 @@ test('completed branch claims retire and bounded history cannot grow forever', (
   }).state;
   assert.ok(Object.values(state.lanes).filter(lane => lane.state === 'complete').length <= 2);
   assert.ok(Object.keys(state.claims).length <= 2);
+});
+
+test('bootstrap declarations preserve historical claim and release order', () => {
+  const declarations = declarationsFromSnapshots([
+    {
+      number: 1,
+      body: 'Closes #10. MATCHED #10 BRANCH agent/a',
+      head: { ref: 'agent/a' },
+      user: { login: 'agent' },
+      html_url: 'https://example.test/pr/1'
+    }
+  ], [], {
+    1: [{
+      id: 2,
+      body: 'SUPERSEDED #10 BRANCH agent/a',
+      user: { login: 'agent' },
+      html_url: 'https://example.test/comment/2'
+    }]
+  });
+  const result = reduceCoordinationTick(emptyTickState(), {
+    event: { key: 'bootstrap', name: 'workflow_dispatch', action: 'observed', actor: 'agent', lane_keys: [] },
+    inventory: inventory(
+      { key: 'pr:1', number: 1, branch: 'agent/a', issue_refs: [10] },
+      { key: 'issue:10', kind: 'issue', number: 10 }
+    ),
+    declarations
+  });
+  assert.equal(Object.values(result.state.claims)[0].active, false);
+});
+
+test('runtime creates one state comment and duplicate delivery performs no second mutation', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'coordination-tick-'));
+  const eventPath = path.join(directory, 'event.json');
+  await fs.writeFile(eventPath, JSON.stringify({
+    action: 'created',
+    sender: { login: 'agent' },
+    issue: { number: 10, id: 10, title: 'lane', body: '', html_url: 'https://example.test/issues/10' },
+    comment: { id: 900, body: 'MATCHED #10 BRANCH agent/a', html_url: 'https://example.test/comments/900' }
+  }));
+
+  let stateBody = null;
+  let mutations = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    const target = String(url);
+    const method = options.method || 'GET';
+    if (method === 'GET' && target.includes('/issues/131/comments')) {
+      return new Response(JSON.stringify(stateBody ? [{ id: 77, body: stateBody }] : []), { status: 200 });
+    }
+    if (method === 'GET' && target.includes('/pulls?state=open')) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    if (method === 'GET' && target.includes('/issues?state=open')) {
+      return new Response(JSON.stringify([{ number: 10, id: 10, title: 'lane', body: '', html_url: 'https://example.test/issues/10', user: { login: 'agent' } }]), { status: 200 });
+    }
+    if (method === 'GET' && target.includes('/issues/10/comments')) {
+      return new Response(JSON.stringify([{ id: 900, body: 'MATCHED #10 BRANCH agent/a', html_url: 'https://example.test/comments/900', user: { login: 'agent' } }]), { status: 200 });
+    }
+    if (method === 'POST' && target.endsWith('/issues/131/comments')) {
+      mutations += 1;
+      stateBody = JSON.parse(options.body).body;
+      return new Response(JSON.stringify({ id: 77, body: stateBody }), { status: 201 });
+    }
+    if (method === 'PATCH' && target.endsWith('/issues/comments/77')) {
+      mutations += 1;
+      stateBody = JSON.parse(options.body).body;
+      return new Response(JSON.stringify({ id: 77, body: stateBody }), { status: 200 });
+    }
+    throw new Error(`Unexpected fetch ${method} ${target}`);
+  };
+
+  const env = {
+    GITHUB_EVENT_PATH: eventPath,
+    GITHUB_EVENT_NAME: 'issue_comment',
+    GITHUB_EVENT_ACTION: 'created',
+    GITHUB_ACTOR: 'agent',
+    GITHUB_TOKEN: 'test-token',
+    GITHUB_REPOSITORY: 'owner/repo',
+    COORDINATION_ISSUE: '131'
+  };
+  try {
+    const first = await runCoordinationTick(env);
+    assert.equal(first.state.tick, 1);
+    assert.equal(mutations, 1);
+    assert.ok(stateBody.includes('coordination-tick-state:v1'));
+
+    const duplicate = await runCoordinationTick(env);
+    assert.equal(duplicate.duplicate, true);
+    assert.equal(mutations, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await fs.rm(directory, { recursive: true, force: true });
+  }
 });
