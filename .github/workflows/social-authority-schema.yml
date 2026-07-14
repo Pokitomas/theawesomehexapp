@@ -1,0 +1,50 @@
+name: Verify social authority schema
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/*.sql'
+      - 'netlify/functions/social-postgres-migrations.mjs'
+      - 'scripts/tests/social-authority-schema-bootstrap.test.mjs'
+      - '.github/workflows/social-authority-schema.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/*.sql'
+      - 'netlify/functions/social-postgres-migrations.mjs'
+      - 'scripts/tests/social-authority-schema-bootstrap.test.mjs'
+      - '.github/workflows/social-authority-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sideways
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sideways"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
+      SOCIAL_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: node --test --test-concurrency=1 scripts/tests/social-authority-schema-bootstrap.test.mjs
