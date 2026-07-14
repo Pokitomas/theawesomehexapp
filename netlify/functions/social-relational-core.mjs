@@ -18,6 +18,7 @@ import {
   sessionCookie,
   sha256
 } from './social-schema.mjs';
+import { communitySlug } from './community-authority.mjs';
 
 export function createRelationalSocialService({ authority, sessionSecret, now = Date.now } = {}) {
   if (!authority) throw new Error('A relational social authority is required.');
@@ -136,17 +137,130 @@ export function createRelationalSocialService({ authority, sessionSecret, now = 
         return response(result.status, result.body);
       }
 
+      if (request.method === 'GET' && op === 'community') {
+        const result = await authority.community({
+          slug: communitySlug(url.searchParams.get('slug')),
+          viewerId: current?.account?.id || ''
+        });
+        if (!result) throw fail(404, 'Community not found.');
+        return response(200, result);
+      }
+
+      if (request.method === 'POST' && op === 'community') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const name = clean(body.name).slice(0, 80);
+        const slug = communitySlug(body.slug || name);
+        const description = clean(body.description).slice(0, 1000);
+        const rules = body.rules && typeof body.rules === 'object' && !Array.isArray(body.rules) ? body.rules : {};
+        const result = await authority.createCommunity({
+          id: `community_${randomId(14)}`,
+          actorId: session.account.id,
+          slug,
+          name,
+          description,
+          rules,
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'community-member') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.setCommunityMembership({
+          actorId: session.account.id,
+          slug: communitySlug(body.slug),
+          active: body.active !== false,
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'community-role') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.setCommunityRole({
+          actorId: session.account.id,
+          slug: communitySlug(body.slug),
+          handle: handleOf(body.handle),
+          role: clean(body.role).toLowerCase(),
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'community-fork') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.forkCommunity({
+          id: `community_${randomId(14)}`,
+          actorId: session.account.id,
+          slug: communitySlug(body.slug),
+          newSlug: communitySlug(body.newSlug),
+          name: clean(body.name).slice(0, 80),
+          description: body.description === undefined ? null : clean(body.description).slice(0, 1000),
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
       if (request.method === 'POST' && op === 'post') {
         const session = await requireSession(request);
         const body = await jsonBody(request);
         const text = clean(body.text).slice(0, 4000);
         const replyTo = clean(body.replyTo).slice(0, 80) || null;
         if (!text) throw fail(400, 'Write something first.');
-        const result = await authority.createPost({
-          id: `post_${randomId(14)}`,
+        const community = communitySlug(body.community || body.communitySlug);
+        const result = community
+          ? await authority.createCommunityPost({
+              id: `post_${randomId(14)}`,
+              actorId: session.account.id,
+              slug: community,
+              text,
+              replyTo,
+              at: nowISO(now),
+              idempotencyKey: key
+            })
+          : await authority.createPost({
+              id: `post_${randomId(14)}`,
+              actorId: session.account.id,
+              text,
+              replyTo,
+              at: nowISO(now),
+              idempotencyKey: key
+            });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'PATCH' && op === 'post') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const postId = clean(body.postId).slice(0, 80);
+        const text = clean(body.text).slice(0, 4000);
+        if (!postId || !text) throw fail(400, 'Post and text are required.');
+        const result = await authority.editCommunityPost({
           actorId: session.account.id,
+          postId,
           text,
-          replyTo,
+          reason: clean(body.reason).slice(0, 300),
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'post-state') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.setAuthorPostState({
+          actorId: session.account.id,
+          postId: clean(body.postId).slice(0, 80),
+          active: body.active !== false,
           at: nowISO(now),
           idempotencyKey: key
         });
@@ -180,6 +294,98 @@ export function createRelationalSocialService({ authority, sessionSecret, now = 
           idempotencyKey: key
         });
         return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'moderate') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.moderate({
+          actorId: session.account.id,
+          slug: communitySlug(body.slug),
+          targetType: clean(body.targetType).toLowerCase(),
+          targetId: clean(body.targetId).slice(0, 80),
+          action: clean(body.action).toLowerCase(),
+          reason: clean(body.reason).slice(0, 1000),
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'report') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const evidence = body.evidence && typeof body.evidence === 'object' && !Array.isArray(body.evidence) ? body.evidence : {};
+        const result = await authority.report({
+          actorId: session.account.id,
+          postId: clean(body.postId).slice(0, 80),
+          kind: clean(body.kind).slice(0, 80) || 'report',
+          evidence,
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'appeal') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const text = clean(body.text).slice(0, 4000);
+        if (!text) throw fail(400, 'Appeal text is required.');
+        const result = await authority.appeal({
+          actorId: session.account.id,
+          caseId: clean(body.caseId).slice(0, 80),
+          text,
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'appeal-decide') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.decideAppeal({
+          actorId: session.account.id,
+          appealId: clean(body.appealId).slice(0, 80),
+          decision: clean(body.decision).toLowerCase(),
+          reason: clean(body.reason).slice(0, 1000),
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'POST' && op === 'local-control') {
+        const session = await requireSession(request);
+        const body = await jsonBody(request);
+        const result = await authority.setLocalControl({
+          actorId: session.account.id,
+          targetType: clean(body.targetType).toLowerCase(),
+          targetId: clean(body.targetId).slice(0, 100),
+          kind: clean(body.kind).toLowerCase(),
+          active: body.active !== false,
+          at: nowISO(now),
+          idempotencyKey: key
+        });
+        return response(result.status, result.body);
+      }
+
+      if (request.method === 'GET' && op === 'community-feed') {
+        const posts = await authority.communityPosts({
+          slug: communitySlug(url.searchParams.get('slug')),
+          viewerId: current?.account?.id || ''
+        });
+        return response(200, { mode: 'community', posts });
+      }
+
+      if (request.method === 'GET' && op === 'thread') {
+        const thread = await authority.thread({
+          postId: clean(url.searchParams.get('postId')).slice(0, 80),
+          viewerId: current?.account?.id || ''
+        });
+        if (!thread) throw fail(404, 'Conversation not found.');
+        return response(200, thread);
       }
 
       if (request.method === 'GET' && (op === 'discover' || op === 'feed')) {
