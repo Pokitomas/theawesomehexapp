@@ -83,6 +83,27 @@ CREATE TRIGGER social_posts_conversation_authority
 BEFORE INSERT OR UPDATE OF reply_to_id, community_id ON social_posts
 FOR EACH ROW EXECUTE FUNCTION social_enforce_conversation_authority();
 
+CREATE OR REPLACE FUNCTION social_sync_legacy_deletion_visibility()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.author_deleted_at IS NOT NULL
+     OR NEW.moderator_removed_at IS NOT NULL
+     OR NEW.legal_restricted_at IS NOT NULL THEN
+    NEW.deleted_at := COALESCE(NEW.deleted_at, NEW.author_deleted_at, NEW.moderator_removed_at, NEW.legal_restricted_at, now());
+  ELSE
+    NEW.deleted_at := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS social_posts_visibility_projection ON social_posts;
+CREATE TRIGGER social_posts_visibility_projection
+BEFORE INSERT OR UPDATE OF author_deleted_at, moderator_removed_at, legal_restricted_at ON social_posts
+FOR EACH ROW EXECUTE FUNCTION social_sync_legacy_deletion_visibility();
+
 UPDATE social_posts
 SET thread_root_id = id
 WHERE thread_root_id IS NULL AND reply_to_id IS NULL;
