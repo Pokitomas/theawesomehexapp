@@ -1,5 +1,5 @@
 version: 28
-updated_at: 2026-07-13T21:34:00-07:00
+updated_at: 2026-07-13T21:36:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
 active_pr: 79 merged
@@ -7,7 +7,7 @@ merge_commit: 316901b10f809067f71568141aae3b240099240b
 exact_tested_head: 5143168fe3ab4c7ffc26178604dd086d20ee293d
 previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
 previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
-previous_verified_deployment_receipt: 67
+previous_verified_deployment_receipt: 76
 superseded_pr: 66 closed locked zero-diff
 
 owner: GPT-5.6 Thinking
@@ -56,7 +56,7 @@ current_subtask:
     - frontier proof artifact 8300267987 digest sha256:b4bc2edebaf016a9df2a709cec4890eaaae287b491b62c351b13528a45c2aa8f
     - squash-merged PR 79 as 316901b10f809067f71568141aae3b240099240b
   production:
-    - previous verified Pages receipt remains issue 67 for merge dd111692d2af5c8dd002883b4a1202ae8e58f973
+    - previous verified Pages receipt is issue 76 for product merge b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
     - the GitHub Pages deployment for merge 316901b10f809067f71568141aae3b240099240b is not yet externally receipted here
     - the static Pages build can expose only the truthful build snapshot because GitHub Pages cannot execute Netlify Functions
     - the live Netlify Functions and Blobs remote remains externally unverified
