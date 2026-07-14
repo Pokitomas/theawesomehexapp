@@ -1,5 +1,5 @@
-version: 38
-updated_at: 2026-07-14T20:32:04Z
+version: 39
+updated_at: 2026-07-14T20:41:05Z
 repository: Pokitomas/theawesomehexapp
 branch: main
 active_pr: 16 open PRs total - 12 leaf drafts (#140-#151, closing issues #127,128,129,130,132-139), 2 wave drafts (#154 remote/weave, #155 social, closing #152/#153, base main), and 2 non-draft shard PRs feeding wave #154 (#158 main-sync, #160 folds leaf #147 in), base assembly/remote-authority-wave - more shards expected as each remaining leaf branch is folded in
@@ -29,7 +29,13 @@ current_subtask:
     - "each wave PR is built via a chain of shard PRs based on the wave branch itself (not main): one main-sync shard, then one shard per leaf branch folded in, ~1-2 min apart"
   subagent_deployment: read-only verification only - cross-checking each leaf PR's diff against its issue's declared Reserved scope for hidden file overlaps that could break wave assembly, and independently re-deriving CI status for lanes not yet directly checked. No subagent had write/comment/merge/push tools for this repository.
   subagent_findings: verified (not speculative) collisions across #140,143,148,149,150,151 - three-way anchor conflict in social-postgres-community-runtime.mjs, two independent package.json line conflicts (test:social, test:social:postgres), and a semantic collision where #151's moderate() drops #149's self-ban/peer-moderator-ban hierarchy guard on naive merge. Wave #154 already resolved an analogous undeclared package.json (test:remote) collision between #145/#147. #141 ships scripts/authority-manifest-core.mjs (356 lines) outside its own self-declared scope. #144's workflow-permission claims were independently verified true against the actual diff.
-  live_action_taken: posted one comment on issue #153 (https://github.com/Pokitomas/theawesomehexapp/issues/153#issuecomment-4973712968) reporting the moderate() collision and outstanding textual conflicts to whoever is assembling that wave - gated on the finding being independently verified via direct diff/code reading by two subagents, not on speculation. No code pushed, no lane claimed, no PR opened for product changes.
+  live_action_taken:
+    - "comment on #153 (issuecomment-4973712968): moderate() semantic collision between #149/#151 and outstanding textual conflicts in wave #155"
+    - "comment on #129 (issuecomment-4973791592): live, demonstrable public-data leak - publicStateProjection's terminal_receipt.production field is unfiltered and reachable via public /api/remote/state?public=1; a terminate-capable principal can leak arbitrary data through it. Confirmed by code trace plus a local simulation, not claimed by PR #145 despite its description"
+    - "comment on #152 (issuecomment-4973791907): cross-reference of the #129 leak, since wave #154 already started from #145's head and is otherwise CI-green with only #142 outstanding"
+    - "comment on #131 (issuecomment-4973796225): two test-coverage gaps against the closing issues' own executable-witness requirements - #133/PR#147 never tests that a read,write-only principal is denied grant/set-head/terminalize; #138/PR#143 never distinguishes register/login/logout as required and never tests its Postgres-branch guard. Production logic for both was independently verified correct - these are coverage gaps, not live defects"
+  second_round_clean: PR #140 (issue #136, the account-takeover-via-replay fix) was independently verified fully solid - traced the HMAC request-digest binding, the registration actor-check carve-out, the migration sentinel, and all four required test witnesses. No gap found. PR #142 and #146 were separately confirmed clean in the first round.
+  all_subagent_work_read_only: ten subagents total across two rounds, none had write/comment/merge/push tools; every comment above was posted by this top-level session only, after direct evidence review, never by a subagent.
   observed_open_prs:
     - "#155 [assembly] converge social authority wave (closes #153; targets #140,#143,#148,#149,#150,#151)"
     - "#154 [assembly] converge Remote and weave authority wave (closes #152; targets #142,#144,#145,#146,#147)"
