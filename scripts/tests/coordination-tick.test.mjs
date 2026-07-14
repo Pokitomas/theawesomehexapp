@@ -181,3 +181,81 @@ test('workflow completion maps back to the PR by head branch when pull_requests 
   assert.deepEqual(event.lane_keys.sort(), ['issue:153', 'pr:155']);
   assert.equal(event.key, 'workflow_run:99:2:success');
 });
+
+test('review and edited-PR events use distinct delivery identities', () => {
+  const items = inventoryFromGitHub([{
+    number: 1,
+    title: 'one',
+    html_url: 'https://example.test/pr/1',
+    head: { ref: 'agent/a' },
+    body: 'Closes #10.'
+  }], []);
+  const reviewA = normalizeGitHubTickEvent({
+    action: 'submitted',
+    review: { id: 501, body: 'first' },
+    pull_request: { number: 1, head: { ref: 'agent/a', sha: 'a'.repeat(40) } }
+  }, { GITHUB_EVENT_NAME: 'pull_request_review' }, items);
+  const reviewB = normalizeGitHubTickEvent({
+    action: 'submitted',
+    review: { id: 502, body: 'second' },
+    pull_request: { number: 1, head: { ref: 'agent/a', sha: 'a'.repeat(40) } }
+  }, { GITHUB_EVENT_NAME: 'pull_request_review' }, items);
+  assert.notEqual(reviewA.key, reviewB.key);
+
+  const editedA = normalizeGitHubTickEvent({
+    action: 'edited',
+    pull_request: { id: 9, number: 1, updated_at: '2026-07-14T01:00:00Z', head: { ref: 'agent/a', sha: 'a'.repeat(40) } }
+  }, { GITHUB_EVENT_NAME: 'pull_request_target' }, items);
+  const editedB = normalizeGitHubTickEvent({
+    action: 'edited',
+    pull_request: { id: 9, number: 1, updated_at: '2026-07-14T01:01:00Z', head: { ref: 'agent/a', sha: 'a'.repeat(40) } }
+  }, { GITHUB_EVENT_NAME: 'pull_request_target' }, items);
+  assert.notEqual(editedA.key, editedB.key);
+});
+
+test('completed branch claims retire and bounded history cannot grow forever', () => {
+  const initialItems = inventory(
+    { key: 'pr:1', number: 1, branch: 'agent/a', issue_refs: [10] },
+    { key: 'issue:10', kind: 'issue', number: 10 }
+  );
+  const declarations = parseDeclarationLines('MATCHED #10 BRANCH agent/a', {
+    actor: 'agent', branch: 'agent/a', issueNumbers: [10], source: 'comment'
+  });
+  let result = reduceCoordinationTick(emptyTickState(), {
+    policy: { quietTicks: 2, staleTicks: 4, completedLaneLimit: 2, claimLimit: 2 },
+    event: { key: 'e1', name: 'issue_comment', action: 'created', actor: 'agent', lane_keys: ['issue:10'] },
+    inventory: initialItems,
+    declarations
+  });
+  assert.equal(Object.values(result.state.claims)[0].active, true);
+
+  result = reduceCoordinationTick(result.state, {
+    event: { key: 'e2', name: 'pull_request_target', action: 'closed', actor: 'agent', lane_keys: ['pr:1'] },
+    inventory: inventory({ key: 'issue:10', kind: 'issue', number: 10 })
+  });
+  assert.equal(Object.values(result.state.claims)[0].active, false);
+
+  let state = result.state;
+  for (let index = 0; index < 6; index += 1) {
+    state.lanes[`pr:old-${index}`] = {
+      key: `pr:old-${index}`,
+      kind: 'pr',
+      number: 100 + index,
+      title: 'old',
+      state: 'complete',
+      phase: 'complete',
+      collision: false,
+      branch: `agent/old-${index}`,
+      issue_refs: [],
+      completed_tick: index,
+      last_activity_tick: 0,
+      stasis_ticks: 0
+    };
+  }
+  state = reduceCoordinationTick(state, {
+    event: { key: 'e3', name: 'workflow_dispatch', action: 'observed', actor: 'agent', lane_keys: [] },
+    inventory: inventory({ key: 'issue:10', kind: 'issue', number: 10 })
+  }).state;
+  assert.ok(Object.values(state.lanes).filter(lane => lane.state === 'complete').length <= 2);
+  assert.ok(Object.keys(state.claims).length <= 2);
+});
