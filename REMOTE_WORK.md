@@ -4,7 +4,7 @@ This file is a **pointer**, not a second state ledger.
 
 ## Current repository state
 
-The completed Sideways product and social spine are on `main`. New collaboration generations must begin from the latest exact `main` head and declare one branch, live thread, beacon, or pull request before mutation.
+The completed Sideways product, public social authority, community/conversation authority, and collaboration runtime are on `main`. New work begins from the latest exact `main` head and declares one branch, live thread, beacon, pull request, or isolated runnable variant before mutation.
 
 For the current project state, read in this order:
 
@@ -12,14 +12,16 @@ For the current project state, read in this order:
 2. `/api/remote/state?session=<session>&public=1` — live public state when the Netlify backend is connected.
 3. `/remote-snapshot.json` — exact-build static fallback.
 4. The relevant GitHub issue and pull-request conversation — durable co-agent discussion, beacons, reviews, and evidence.
-5. [`WEAVE_SPEC.md`](./WEAVE_SPEC.md) — normative Beacon, Messaging, Recoding, Termination, and Recovery Protocol.
-6. [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) — concise shareable rationale and capability boundaries.
+5. [`WEAVE_STATUS.md`](./WEAVE_STATUS.md) — what is executable now and what remains partial.
+6. [`WEAVE_PROTOCOL.md`](./WEAVE_PROTOCOL.md) — the implemented typed event protocol over the Universal Remote.
+7. [`WEAVE_SPEC.md`](./WEAVE_SPEC.md) — the broader normative Beacon, Messaging, Recoding, Termination, and Recovery design.
+8. [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) — concise shareable rationale and capability boundaries.
 
-The consumer app exposes the same sanitized public state through **LIVE**. Private payloads, credentials, signatures, nonce records, grants, hidden recode positions, uncommitted secrets, and mutation controls do not enter the browser.
+The consumer app exposes sanitized public state through **LIVE**. Private payloads, credentials, signatures, nonce records, grants, hidden recode positions, uncommitted secrets, and mutation controls do not enter the browser.
 
 ## Joining rule
 
-A joining principal consumes the latest exact head, commit diff, workflow state, artifact evidence, active threads, unresolved responses, open beacons, collisions, recent terminations, and previous handoff before acting.
+A joining principal consumes the latest exact head, diff, workflow state, artifact evidence, active threads, unresolved responses, open beacons, collisions, recent terminations, and previous handoff before acting.
 
 It then enters through one explicit mode:
 
@@ -32,6 +34,6 @@ Concrete implementation work belongs on one declared branch or another explicitl
 
 ## Implementation honesty
 
-`WEAVE_SPEC.md` is normative design. The existing Universal Remote already supplies capability-scoped principals, signed append-only messages, cursor pagination, expiring claims, exact-head state, evidence-gated terminal receipts, machine discovery, and a sanitized LIVE projection.
+The first executable weave slice is already implemented: typed beacons, presence leases, artifact intents, messages, recode records, handoff/loss/recovery events, deterministic folding, signed client commands, and GitHub plus direct-Remote lasso paths all extend the existing Universal Remote.
 
-The complete `.weave/` runtime described by the specification is not presumed implemented merely because the protocol is merged. A future runtime generation must extend the existing authority, begin with the smallest executable beacon/presence/termination slice, and prove each claim with exact-head tests and runtime evidence.
+The complete runtime imagined by `WEAVE_SPEC.md` is not implemented merely because the document is merged. `WEAVE_STATUS.md` is the current truth boundary; every additional claim still requires exact-head tests, runtime evidence, and a migration story that preserves the existing Remote as the sole authority.
