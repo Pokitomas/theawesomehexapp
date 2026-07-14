@@ -1,0 +1,8 @@
+{
+  "agent": "pokitomas",
+  "directive": "interrupt",
+  "target_run": 29301319721,
+  "issued_at": "2026-07-14T00:00:00Z",
+  "expires_at": "2026-07-14T23:59:00Z",
+  "note": "interrupt phone-check and skip heavy media fetches until manual review"
+}
