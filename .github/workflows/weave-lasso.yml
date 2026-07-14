@@ -1,0 +1,51 @@
+name: Lasso incoming co-agents
+
+on:
+  issues:
+    types: [opened, reopened]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weave-lasso-${{ github.repository }}-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  lasso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify lasso before execution
+        run: |
+          node --check scripts/weave-lasso.mjs
+          node --test scripts/tests/weave-lasso.test.mjs
+
+      - name: Group the incoming principal in private ontology assemblies
+        env:
+          REMOTE_URL: ${{ secrets.REMOTE_URL }}
+          REMOTE_KEY: ${{ secrets.REMOTE_KEY }}
+          REMOTE_PRINCIPAL: ${{ secrets.REMOTE_LASSO_PRINCIPAL }}
+          REMOTE_SESSION: ${{ secrets.REMOTE_SESSION }}
+          REMOTE_GENERATION: ${{ secrets.REMOTE_GENERATION }}
+        run: |
+          if [ -z "$REMOTE_URL" ] || [ -z "$REMOTE_KEY" ]; then
+            echo "Universal Remote lasso credentials are not configured; verified no-op."
+            exit 0
+          fi
+          export REMOTE_PRINCIPAL="${REMOTE_PRINCIPAL:-weave-lasso}"
+          node scripts/weave-lasso.mjs github-event
