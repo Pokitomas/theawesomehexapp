@@ -1,6 +1,6 @@
 # Sideways
 
-A local-first article, forum, social, and personal-media instrument built around one saturation-ranking kernel.
+A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel.
 
 - Root feed: `https://pokitomas.github.io/theawesomehexapp/`
 - Sideways consumer app: `https://pokitomas.github.io/theawesomehexapp/manual/`
@@ -8,11 +8,15 @@ A local-first article, forum, social, and personal-media instrument built around
 - Sideways debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
 - Phone gate: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
 
-## Two product surfaces, one kernel
+## Three product realities, one ranking kernel
 
-The root product is the reproducible one-million-candidate feed. It combines article, forum, and social records from Wikinews, Hacker News, and public Mastodon sources while preserving canonical links, authorship, replies, media provenance, and deterministic recommendation features.
+The root product is a reproducible one-million-candidate reader and ranking laboratory. It combines article, forum, and social-shaped records from Wikinews, Hacker News, and public Mastodon sources while preserving canonical links, authorship, replies, media provenance, and deterministic recommendation features. These delivery candidates are not the canonical public social graph.
 
-`/manual/` is the user-owned Sideways surface. It begins without a hidden corpus, but it is no longer merely an upload utility: a person can create a profile, install the small built-in starter feed, write posts, attach images and places, like, reply, remix, save, share, delete, import personal archives, and move through Feed, Places, Library, Saved, Full, and Desktop modes.
+`/manual/` contains the user-owned private personal archive. A person can create a local profile, install the small built-in starter fixture, write unpublished local posts, attach images and places, save and delete private material, import personal archives, and move through Feed, Places, Library, Saved, Full, and Desktop modes.
+
+A function-capable deployment also exposes a canonical public social authority. Cookie-authenticated actors can create accounts and profiles, publish and delete posts, follow and react; the relational PostgreSQL authority additionally owns communities, membership, moderation actions, immutable appeals, viewer-local controls, event history, and idempotent mutation receipts. Browser caches and feed responses are projections of that authority, never substitutes for it.
+
+The ranking candidate pool is temporary. Sideways may assemble eligible public projections beside private archive records for one viewer and one feed request, but the kernel owns neither source. Public cache retention, view membership, and active candidate materialization are stored separately so switching feeds changes eligibility without deleting public authority or private archive content.
 
 The manual app does not contain a second approximation of the recommender. During every build, `manual-app/kernel.js` is generated from the root `src/app.js` declarations. A brace-aware extractor, syntax verification, kernel-parity workflow, and the phone gate prevent formatting drift or an incomplete copied kernel from shipping.
 
@@ -20,28 +24,28 @@ The manual app does not contain a second approximation of the recommender. Durin
 
 The Sideways importer recognizes exports from Instagram, Reddit, TikTok, YouTube, Spotify, X/Twitter, Mastodon, browser bookmarks, RSS/Atom, JSON, JSONL, NDJSON, CSV, plain text, Markdown, and HTML. The normal Library path also preserves PDF, ZIP, Office documents, images, audio, video, and unknown binary files.
 
-Imports are classified by bytes rather than trusted file extensions, hashed in a worker, deduplicated, written in bounded IndexedDB transactions, cancellable between chunks, and reflected in the feed without an automatic page reload. Images and other assets remain blobs with reference-safe deletion and honest fallbacks.
+Imports are classified by bytes rather than trusted file extensions, hashed in a worker, deduplicated, written in bounded IndexedDB transactions, cancellable between chunks, and reflected in the feed without an automatic page reload. Images and other assets remain blobs with reference-safe deletion and honest fallbacks. Imported social history remains private evidence; it does not become a live identity, publication, or engagement count in the public graph.
 
-## Local ownership and recovery
+## Private ownership and recovery
 
-IndexedDB is the canonical hot corpus. Sideways exposes four compact Library controls:
+IndexedDB is the canonical hot store for the private personal archive. Sideways exposes four compact Library controls:
 
-- **PIN** requests persistent browser storage and mirrors the current corpus into OPFS where supported.
-- **CHECK** audits records, assets, missing references, orphaned blobs, bytes, and durability status.
-- **BACKUP** creates a versioned, user-owned `.sideways` Ark containing records, assets, the compatibility ledger, profile, and places.
+- **PIN** requests persistent browser storage and mirrors the current private archive into OPFS where supported.
+- **CHECK** audits private records, assets, missing references, orphaned blobs, bytes, and durability status.
+- **BACKUP** creates a versioned, user-owned `.sideways` Ark containing private records, assets, the compatibility ledger, local profile, and places.
 - **RESTORE** transactionally restores an Ark and records the survival receipt.
 
-OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can still be evicted together; the downloaded `.sideways` Ark is the boundary that survives origin loss.
+OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can still be evicted together; the downloaded `.sideways` Ark is the boundary that survives origin loss. Public social authority is not silently copied into that private backup; cached public projections are rebuildable delivery state.
 
 ## Profiles, posts, places, and media
 
-Profiles persist locally with a display name, handle, biography, accent, avatar treatment, and portable state. The app supports text and image posts, social actions, saved records, deletable local content, place creation and selection, Feed/Full/Desktop media modes, intrinsic image/video/audio/PDF/archive surfaces, and zero-overflow phone layouts.
+Local profiles persist with a display name, handle, biography, accent, avatar treatment, and portable state. The private archive supports text and image records, saved material, deletable local content, place creation and selection, Feed/Full/Desktop media modes, intrinsic image/video/audio/PDF/archive surfaces, and zero-overflow phone layouts.
 
-A static deployment saves the profile locally and can install the same profile-aware eight-item starter pack without a backend. A function-capable Netlify deployment adds unique-handle checks, durable profile synchronization, the starter endpoint, and live remote state; the starter still falls back locally when its endpoint is unavailable.
+A static deployment remains a local-only product and can install the same profile-aware starter fixture without a backend. A configured function deployment adds the canonical public social operations described above. The interface currently exposes only part of that server authority; an implemented schema or endpoint is not evidence that every governance operation has a finished consumer UI.
 
 ## LIVE work surface
 
-The **LIVE** window exposes public, read-only repository work state. `/.well-known/sideways-remote.json` is discovery metadata only; it is not a second state ledger and does not grant mutation authority. The browser receives no credentials, private payloads, signatures, nonce records, grants, or remote mutation controls.
+The **LIVE** window exposes public, read-only repository work state. `/.well-known/sideways-remote.json` is discovery metadata only; it is not a second state ledger and does not grant mutation authority. The browser receives no credentials, private payloads, signatures, nonce records, grants, deployment receipts, or remote mutation controls.
 
 See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) for the protocol boundaries.
 
@@ -55,10 +59,14 @@ The repository gates changes with:
 - universal-media phone proof
 - profile-first starter and static-drop proof
 - Ark mirror → backup → delete → restore → audit proof
+- Remote, workflow-permission, social-authority, relational PostgreSQL, and migration-upgrade contracts
+- executable authority-surface drift detection
 - exact-head build and deployment accounting
 
-The concentrated-corpus phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
+The concentrated private-archive phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
 
 ## Capability boundary
 
-This is a production-shaped local-first product, not a completed hosted social network. It does not provide a general account system, moderation service, multi-device corpus synchronization, upload CDN, or transactional guarantees across devices. Personal content remains owned by the browser unless the user exports an Ark; live remote state requires the corresponding verified backend deployment.
+Sideways is a production-shaped hybrid, not a claim that every deployment has every authority. Static GitHub Pages cannot provide canonical shared mutations. A configured server deployment can provide the repository-defined public social graph, but external branch rules, environment protection, installed-app grants, secret values, hosting-team roles, and database grants remain outside repository proof. The private archive still has no automatic multi-device synchronization or upload CDN; portability requires an explicit Ark export.
+
+See [`PROGRAM_ONTOLOGY.md`](./PROGRAM_ONTOLOGY.md) for the authority, storage, eligibility, ranking, and portability vocabulary that governs new work.
