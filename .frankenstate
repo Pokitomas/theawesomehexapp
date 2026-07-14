@@ -1,10 +1,11 @@
-version: 30
-updated_at: 2026-07-13T21:56:00-07:00
+version: 31
+updated_at: 2026-07-13T22:00:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 82 merged
-merge_commit: fc4810c0610d82fdb09de56b5b2ff24047167690
-exact_tested_head: eb4d1d84f232085313326d6d2491b5a6f943f485
+active_pr: 83 merged
+merge_commit: 03992fa66c1d81f05145faefa0910f666496e332
+exact_tested_head: 4fdf6070cf77d5f97f8b0be89c52a6b48c1ba761
+previous_remote_predicate_merge: fc4810c0610d82fdb09de56b5b2ff24047167690
 previous_static_compatibility_merge: eb94c52323224106c665a77e452a06d329f75e3d
 previous_remote_merge: 316901b10f809067f71568141aae3b240099240b
 previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
@@ -13,41 +14,31 @@ previous_verified_deployment_receipt: 76
 superseded_pr: 66 closed locked zero-diff
 
 owner: GPT-5.6 Thinking
-mode: completed universal remote terminal honesty
+mode: completed resolvable universal remote weave
 
 current_subtask:
-  summary: Closed the last mechanical honesty gaps in the vendorless universal remote and made the report and shareable thought locations permanently discoverable.
+  summary: Made every universal remote report thought and documentation pointer fetchable regardless of the application deployment base path.
   trigger:
-    - post-merge audit found that successful checks were not required to identify the exact proposed head
-    - a deployed production claim required a receipt but did not require that receipt to name the merge SHA
-    - co-agent weaving needed stable repository pointers without creating a second live-state ledger
+    - host-root Markdown paths could resolve on a root Netlify site but fail on GitHub Pages subpaths or arbitrary static hosts
+    - a named weave location that can return 404 is not operationally discoverable
   completed:
-    - required every successful terminal check to name the exact 40-character tested Git head
-    - required the tested head and merge SHA to be valid 40-character Git SHAs
-    - rejected deployed production claims unless their receipt contains the exact merge SHA
-    - added negative proofs for missing check heads wrong check heads and unrelated deployment receipts
-    - added a positive proof for an object receipt that names the merge SHA
-    - added REMOTE_WORK.md as the stable joining entry point
-    - added REMOTE_THOUGHT.md as the explicit shareable rationale location
-    - exposed report thought conversation live-state and static-state pointers through the well-known remote manifest
-    - kept live state in the remote service and exact-build snapshot rather than inventing a second engineering ledger
-    - preserved PR 81 static Drop starter compatibility unchanged
+    - replaced deployment-relative documentation report and thought paths with stable raw repository URLs
+    - preserved live state static snapshot and pull-request conversation pointers unchanged
+    - strengthened the generated terminal contract to require the fetchable URLs
+    - kept runtime state social behavior ranking storage authorization and terminal predicates unchanged
   verification:
-    - all six repository workflows passed on exact head eb4d1d84f232085313326d6d2491b5a6f943f485
+    - all six repository workflows passed on exact head 4fdf6070cf77d5f97f8b0be89c52a6b48c1ba761
     - kernel parity passed
     - overlay validation passed
     - universal media phone proof passed
     - profile-first starter and LIVE terminal phone proof passed
-    - workspace import deletion reload and persistence phone proof passed after one transient rerun
+    - workspace phone proof passed
     - build and manual gate passed
-    - downloaded the exact failed-run build artifact and independently reran its 390x844 journey successfully before rerunning CI
-    - direct artifact inspection confirmed readable LIVE state session generation head claims blockers source and public work
-    - frontier phone proof artifact 8300551015 digest sha256:8f66a043746b3eeda71b5f84af14de0b6e438d9294776ec32cc8239cef90a19a
-    - squash-merged PR 82 as fc4810c0610d82fdb09de56b5b2ff24047167690
+    - squash-merged PR 83 as 03992fa66c1d81f05145faefa0910f666496e332
   production:
-    - do not claim fc4810c0610d82fdb09de56b5b2ff24047167690 deployed without an external receipt naming that merge commit
+    - do not claim 03992fa66c1d81f05145faefa0910f666496e332 deployed without an external receipt naming that merge commit
     - the existing creative-profiterole-c6b236.netlify.app Drop remains whatever ZIP was last manually deployed
-    - static builds expose an honest exact-build snapshot and stable weave pointers
+    - generated discovery now points programs to fetchable repository rationale from Netlify Pages local and future hosts
     - live remote writes Netlify Blobs profile uniqueness and production terminal receipts still require a function-capable Netlify deployment
   done_when: complete
 
@@ -77,6 +68,7 @@ invariants:
   - A deployed production receipt must name the exact merge SHA.
   - The public LIVE terminal may expose only explicitly public projections.
   - REMOTE_WORK.md and REMOTE_THOUGHT.md are discovery and rationale pointers not live-state ledgers.
+  - Published weave pointers must remain fetchable independently of the application base path.
   - Static compatibility may replace only a missing starter endpoint and must not impersonate profile or remote persistence.
   - Do not add a second engineering-belief ledger or duplicate runtime schema authority.
   - Never use or persist credentials pasted into chat.
