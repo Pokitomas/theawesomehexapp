@@ -10,6 +10,7 @@ on:
       - scripts/weave-synthesis.mjs
       - scripts/weave-recursive-runtime.mjs
       - scripts/tests/weave-recursive-baseline.test.mjs
+      - scripts/tests/recursive-weave-sprawl-contract.test.mjs
       - .github/workflows/weave-recursive.yml
       - package.json
       - WEAVE_PROTOCOL.md
@@ -23,6 +24,7 @@ on:
       - scripts/weave-synthesis.mjs
       - scripts/weave-recursive-runtime.mjs
       - scripts/tests/weave-recursive-baseline.test.mjs
+      - scripts/tests/recursive-weave-sprawl-contract.test.mjs
       - .github/workflows/weave-recursive.yml
       - package.json
       - WEAVE_PROTOCOL.md
@@ -45,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify bounded recursive cognition
+      - name: Check recursive weave modules
         run: |
           node --check scripts/weave-cognition.mjs
           node --check scripts/weave-memory.mjs
@@ -53,4 +55,17 @@ jobs:
           node --check scripts/weave-dispatch.mjs
           node --check scripts/weave-synthesis.mjs
           node --check scripts/weave-recursive-runtime.mjs
-          node --test scripts/tests/weave-recursive-baseline.test.mjs scripts/tests/recursive-weave-sprawl-contract.test.mjs
+      - name: Verify belief graph and resolution semantics
+        run: node --test --test-name-pattern='belief|hidden|resolution|supersession' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify deliberation planning
+        run: node --test --test-name-pattern='planner' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify bounded memory
+        run: node --test --test-name-pattern='memory' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify advisory dispatch
+        run: node --test --test-name-pattern='dispatch packets' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify synthesis and critic gates
+        run: node --test --test-name-pattern='critic|non-accept' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify recursive runtime and replay
+        run: node --test --test-name-pattern='recursive runtime|orphaned assignment|terminal receipt|invalid initial' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify finite sprawl graph
+        run: node --test scripts/tests/recursive-weave-sprawl-contract.test.mjs
