@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { fail } from './social-schema.mjs';
+import { fail, response } from './social-schema.mjs';
 
 const mutationContext = new AsyncLocalStorage();
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -63,8 +63,14 @@ export async function withSocialMutationContext(request, secret, work) {
   if (typeof work !== 'function') throw new TypeError('A social mutation callback is required.');
   const method = clean(request?.method).toUpperCase() || 'GET';
   if (SAFE_METHODS.has(method)) return work();
-  const requestDigest = await mutationRequestDigest(request, secret);
-  return mutationContext.run(Object.freeze({ requestDigest }), work);
+  try {
+    const requestDigest = await mutationRequestDigest(request, secret);
+    return mutationContext.run(Object.freeze({ requestDigest }), work);
+  } catch (error) {
+    return response(Number(error?.status || 500), {
+      error: error?.status ? error.message : 'Social service failed.'
+    });
+  }
 }
 
 export function currentSocialMutationIdentity(actorId, operation) {
