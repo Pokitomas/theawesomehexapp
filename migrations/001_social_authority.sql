@@ -1,92 +1,100 @@
--- Social Authority Schema v1
--- Transactional relational store for users, posts, follows, reactions, and events
--- All mutations write facts and events in atomic transactions
+BEGIN;
 
-CREATE TABLE IF NOT EXISTS social_accounts (
-  id TEXT PRIMARY KEY,
-  handle TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  bio TEXT NOT NULL DEFAULT '',
-  accent TEXT NOT NULL DEFAULT '#335cff',
-  password_hash TEXT NOT NULL,
-  password_salt TEXT NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CHECK (length(handle) >= 2 AND length(handle) <= 30),
-  CHECK (length(name) >= 1 AND length(name) <= 48),
-  CHECK (length(bio) <= 180)
+CREATE TABLE IF NOT EXISTS social_users (
+  id text PRIMARY KEY,
+  password_salt text NOT NULL,
+  password_hash text NOT NULL,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_social_accounts_handle ON social_accounts(handle);
-CREATE INDEX IF NOT EXISTS idx_social_accounts_created_at ON social_accounts(created_at);
+CREATE TABLE IF NOT EXISTS social_public_profiles (
+  user_id text PRIMARY KEY REFERENCES social_users(id) ON DELETE CASCADE,
+  handle text NOT NULL,
+  name text NOT NULL,
+  bio text NOT NULL DEFAULT '',
+  accent text NOT NULL,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  CONSTRAINT social_public_profiles_handle_lower CHECK (handle = lower(handle)),
+  CONSTRAINT social_public_profiles_handle_unique UNIQUE (handle)
+);
 
 CREATE TABLE IF NOT EXISTS social_sessions (
-  token_hash TEXT PRIMARY KEY,
-  account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP NOT NULL,
-  revoked_at TIMESTAMP
+  token_hash text PRIMARY KEY,
+  user_id text NOT NULL REFERENCES social_users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz
 );
-
-CREATE INDEX IF NOT EXISTS idx_social_sessions_account_id ON social_sessions(account_id);
-CREATE INDEX IF NOT EXISTS idx_social_sessions_expires_at ON social_sessions(expires_at);
 
 CREATE TABLE IF NOT EXISTS social_posts (
-  id TEXT PRIMARY KEY,
-  author_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  text TEXT NOT NULL,
-  reply_to TEXT REFERENCES social_posts(id) ON DELETE SET NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CHECK (length(text) >= 1 AND length(text) <= 4000)
+  id text PRIMARY KEY,
+  author_id text NOT NULL REFERENCES social_users(id) ON DELETE RESTRICT,
+  text text NOT NULL,
+  reply_to_id text REFERENCES social_posts(id) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  deleted_at timestamptz,
+  CONSTRAINT social_posts_text_nonempty CHECK (length(text) > 0)
 );
-
-CREATE INDEX IF NOT EXISTS idx_social_posts_author_id ON social_posts(author_id);
-CREATE INDEX IF NOT EXISTS idx_social_posts_created_at ON social_posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_social_posts_reply_to ON social_posts(reply_to);
 
 CREATE TABLE IF NOT EXISTS social_follows (
-  follower_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  followed_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  follower_id text NOT NULL REFERENCES social_users(id) ON DELETE CASCADE,
+  followed_id text NOT NULL REFERENCES social_users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL,
   PRIMARY KEY (follower_id, followed_id),
-  CHECK (follower_id != followed_id)
+  CONSTRAINT social_follows_not_self CHECK (follower_id <> followed_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_social_follows_followed_id ON social_follows(followed_id);
-
-CREATE TABLE IF NOT EXISTS social_likes (
-  account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  post_id TEXT NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (account_id, post_id)
+CREATE TABLE IF NOT EXISTS social_reactions (
+  actor_id text NOT NULL REFERENCES social_users(id) ON DELETE CASCADE,
+  post_id text NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (actor_id, post_id, kind),
+  CONSTRAINT social_reactions_kind CHECK (kind IN ('like'))
 );
-
-CREATE INDEX IF NOT EXISTS idx_social_likes_post_id ON social_likes(post_id);
 
 CREATE TABLE IF NOT EXISTS social_events (
-  id TEXT PRIMARY KEY,
-  type TEXT NOT NULL,
-  account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-  CHECK (type IN ('account.registered', 'session.started', 'profile.updated', 
-                   'post.created', 'post.replied', 'follow.created', 'follow.deleted',
-                   'like.created', 'like.deleted'))
+  id text PRIMARY KEY,
+  version integer NOT NULL,
+  type text NOT NULL,
+  actor_id text NOT NULL REFERENCES social_users(id) ON DELETE RESTRICT,
+  idempotency_key text,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_social_events_account_id ON social_events(account_id);
-CREATE INDEX IF NOT EXISTS idx_social_events_created_at ON social_events(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_social_events_type ON social_events(type);
+CREATE UNIQUE INDEX IF NOT EXISTS social_events_actor_idempotency_unique
+  ON social_events(actor_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
--- Idempotency tracking: prevent duplicate mutations
-CREATE TABLE IF NOT EXISTS social_idempotency (
-  account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
-  idempotency_key TEXT NOT NULL,
-  response JSONB NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (account_id, idempotency_key),
-  CHECK (length(idempotency_key) > 0)
+CREATE TABLE IF NOT EXISTS social_mutation_receipts (
+  scope text NOT NULL,
+  idempotency_key text NOT NULL,
+  operation text NOT NULL,
+  actor_id text REFERENCES social_users(id) ON DELETE RESTRICT,
+  status integer NOT NULL,
+  body jsonb NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (scope, idempotency_key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_social_idempotency_created_at ON social_idempotency(created_at);
+CREATE INDEX IF NOT EXISTS social_sessions_user_active_idx
+  ON social_sessions(user_id, expires_at)
+  WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS social_posts_created_idx
+  ON social_posts(created_at DESC, id DESC)
+  WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS social_posts_reply_idx
+  ON social_posts(reply_to_id)
+  WHERE reply_to_id IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS social_follows_followed_idx
+  ON social_follows(followed_id, follower_id);
+CREATE INDEX IF NOT EXISTS social_reactions_post_idx
+  ON social_reactions(post_id, kind);
+CREATE INDEX IF NOT EXISTS social_events_actor_created_idx
+  ON social_events(actor_id, created_at DESC);
+
+COMMIT;
