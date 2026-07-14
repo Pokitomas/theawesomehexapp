@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sideways Founder Room</title>
+  <meta name="description" content="A private local review room for concrete Sideways product directions.">
+  <link rel="stylesheet" href="./founder.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">SIDEWAYS / FOUNDER ROOM / ROUND 001</p>
+        <h1>Which future has gravity?</h1>
+      </div>
+      <p class="brief">Three real product centers. React fast. Your decisions stay in this browser until you export them.</p>
+    </header>
+
+    <section class="directions" aria-label="Product directions">
+      <article class="direction direction-memory" data-direction="memory-social">
+        <div class="mock mock-memory" aria-hidden="true">
+          <div class="mock-top"><span>@kai</span><span>YOUR WORLD, REMEMBERING</span></div>
+          <div class="memory-strip"><b>2019</b><b>2022</b><b>NOW</b></div>
+          <div class="post hero-post"><small>MARA · FRIEND</small><strong>this reminded me of the thing you saved three summers ago</strong><span>↳ your history changes what arrives</span></div>
+          <div class="post"><small>COMMUNITY / NIGHT INTERNET</small><strong>what did you keep that everyone else forgot?</strong></div>
+        </div>
+        <div class="copy">
+          <p class="number">01</p>
+          <h2>Social identity with memory</h2>
+          <p>People and communities are the present tense. Your imported history quietly changes context, recommendations, callbacks, and who you become here.</p>
+          <p class="stakes"><b>Status comes from:</b> having a distinct remembered point of view.</p>
+        </div>
+        <div class="reaction" role="group" aria-label="React to social identity with memory">
+          <button data-reaction="pull">PULL</button>
+          <button data-reaction="push">PUSH</button>
+          <button data-reaction="steal">STEAL PARTS</button>
+        </div>
+      </article>
+
+      <article class="direction direction-archive" data-direction="private-remix">
+        <div class="mock mock-archive" aria-hidden="true">
+          <div class="archive-title">MY WHOLE INTERNET</div>
+          <div class="archive-grid">
+            <div><small>REDDIT · 2020</small><b>a post you forgot writing</b></div>
+            <div><small>CAMERA · 2024</small><b>three seconds before it got weird</b></div>
+            <div><small>SPOTIFY · 2022</small><b>the song attached to that month</b></div>
+            <div><small>NEW REMIX</small><b>cut these into something only you could make</b></div>
+          </div>
+        </div>
+        <div class="copy">
+          <p class="number">02</p>
+          <h2>Private remixable life feed</h2>
+          <p>Your archive is the center. Sideways turns years of scattered media into a private living feed you can search, arrange, remix, and selectively share.</p>
+          <p class="stakes"><b>Status comes from:</b> making surprising things from your own accumulated life.</p>
+        </div>
+        <div class="reaction" role="group" aria-label="React to private remixable life feed">
+          <button data-reaction="pull">PULL</button>
+          <button data-reaction="push">PUSH</button>
+          <button data-reaction="steal">STEAL PARTS</button>
+        </div>
+      </article>
+
+      <article class="direction direction-scene" data-direction="scene-social">
+        <div class="mock mock-scene" aria-hidden="true">
+          <div class="scene-head"><span>SCENES</span><span>LIVE NOW</span></div>
+          <div class="scene-row active"><b>ALT NEWS DESK</b><span>2.4k here</span></div>
+          <div class="scene-row"><b>LOS ANGELES AFTER DARK</b><span>418 here</span></div>
+          <div class="scene-row"><b>PEOPLE MAKING WEIRD SOFTWARE</b><span>891 here</span></div>
+          <div class="scene-post"><small>RISING IN YOUR SCENE</small><strong>the post everyone is arguing around, not merely liking</strong><span>Your archive changes which doorway you enter through.</span></div>
+        </div>
+        <div class="copy">
+          <p class="number">03</p>
+          <h2>Scene-first social world</h2>
+          <p>Communities, live conversation, social status, and shared references are primary. Personal memory makes the world fit you without becoming the world itself.</p>
+          <p class="stakes"><b>Status comes from:</b> shaping a scene other people want to inhabit.</p>
+        </div>
+        <div class="reaction" role="group" aria-label="React to scene-first social world">
+          <button data-reaction="pull">PULL</button>
+          <button data-reaction="push">PUSH</button>
+          <button data-reaction="steal">STEAL PARTS</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="decision-panel">
+      <div>
+        <p class="eyebrow">FOUNDER SIGNAL</p>
+        <h2>What is the app actually promising?</h2>
+        <textarea id="founder-note" maxlength="800" placeholder="Say what feels alive, fake, too tool-like, too safe, or unexpectedly right."></textarea>
+      </div>
+      <aside>
+        <p id="summary">No direction selected yet.</p>
+        <div class="actions">
+          <button id="copy-receipt">COPY RECEIPT</button>
+          <button id="download-receipt">DOWNLOAD JSON</button>
+          <button id="reset-room" class="quiet">RESET</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+  <script type="module" src="./founder.js"></script>
+</body>
+</html>
