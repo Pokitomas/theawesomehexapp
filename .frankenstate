@@ -1,8 +1,8 @@
-version: 40
-updated_at: 2026-07-14T20:52:41Z
+version: 41
+updated_at: 2026-07-14T21:12:25Z
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 15 open PRs total - 12 leaf drafts (#140-#151, closing issues #127,128,129,130,132-139, unchanged since prior pass), 2 wave drafts (#154 remote/weave green 16/16 and fully folded, #155 social with a real unresolved CI failure - see current_subtask), and this session's own ledger PR #156. All prior shard PRs (#157-164) are resolved/closed; none remain open.
+active_pr: 15 open PRs total - 12 leaf drafts (#140-#151, closing issues #127,128,129,130,132-139), 2 wave drafts (#154 remote/weave and #155 social), and shared-ledger PR #156. Both wave heads now have all observed exact-head workflows green; temporary shard PRs #157-#164 are closed.
 integration_pr: 84 merged
 integration_merge: 739ae16f1a931ad16958dabb10c6a668a0bb676b
 final_fix_pr: 87 merged
@@ -17,20 +17,31 @@ previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
 previous_verified_deployment_receipt: 85
 superseded_pr: 73 closed locked resolved
 
-owner: full-audit heartbeat (external co-engineer session on claude/join-full-co-agent-j5w05v)
-mode: full read-only audit plus corrective ledger sync only - no product, protocol, or workflow change; did not review, approve, or merge any open PR
+owner: shared-state integrator
+mode: common coordination snapshot and corrective ledger sync; this branch changes .frankenstate only and does not mutate product, protocol, workflow, or assembly code
 
 current_subtask:
-  summary: Fourth pass ("rejoin entire repo", a full fresh re-scrape). Wave convergence claims now outpace CI reality - both #154 and #155 declare all source heads folded in, but only #154 is actually green. Full findings from this session's second and third passes (subagent methodology, the terminal_receipt.production public leak on #129/#152, the moderate() collision on #153, the test-coverage gaps on #131) remain valid, preserved in git history at this path (commits 3fde933, 00a54ee), and not restated here.
+  summary: Re-derived the live assembly state instead of inheriting prior receipts. The Remote wave privacy blocker was repaired on its existing branch; the Social wave migration omission was already corrected, and its remaining phone-build failure passed a targeted rerun without code changes. Both assembly waves are now exact-head green and remain draft/unmerged for hostile aggregate review.
   wave_status:
-    "#154": "fully green, 16/16 checks; all 5 declared source heads (#142,144,145,146,147) folded in via merged shards"
-    "#155": "declares all 6 source heads (#140,143,148,149,150,151) folded in, but its own verify job fails - the schema-bootstrap test expects migrations 001-004 while netlify/functions/social-postgres-migrations.mjs's MIGRATIONS array only lists 001-003, even though 004_immutable_appeal_actions.sql already exists in the tree. One-line fix was drafted on a branch off assembly/social-authority-wave but blocked by this session's own permission system as an unauthorized change to shared multi-agent infrastructure; left unpushed, reported in chat only, not committed anywhere"
-  external_engagement: none of the 4 comments this session posted (#153, #129, #152, #131) have any third-party reply or reaction as of this pass - the #131 comment-count increase noticed mid-session was this session's own earlier comment, not a reply
-  no_merges_to_main: main is unchanged at f7b59de since this session began; all activity remains on draft PRs and the two assembly wave branches
-  stale_lanes_unchanged: "#112 and #104 have no new activity this pass, same as every prior pass"
+    "#154": "head cb0a8104e7877d72ebafbc7f04484c3dbcd7c8be; terminal receipt public projection explicitly allowlisted after blocker 4973881204; all 13 observed workflows green"
+    "#155": "head c2f54929695fab72832e344ccd8383ab5a4b7e75; migrations 001-004 present; dedicated social assembly and schema checks green; original root build phone step failed once, targeted rerun job 87206275222 passed; all 12 observed workflows green"
+  shared_transitions:
+    - "#154 remains the sole Remote/weave convergence branch; private terminal evidence is preserved while public state exposes only head_sha, merge_sha, production.state, and terminated_at"
+    - "#155 remains the sole social convergence branch; no code change was required for the root-build rerun, so the first phone failure is recorded as non-reproducing rather than silently erased"
+    - "#140-#151 remain source evidence branches; #157-#164 were temporary assembly shards and are closed; do not reconstruct or merge them independently"
+  collision_boundary:
+    - "Runtime fixes belong on the corresponding assembly branch (#154 or #155), never on this ledger branch"
+    - "Shared-state corrections belong only in PR #156 until it merges; do not create a second engineering-belief ledger"
+    - "Do not mutate source PRs #140-#151 while aggregate review is evaluating the wave branches"
+  next_action:
+    - "Independent hostile re-review of aggregate PRs #154 and #155 against their declared source heads"
+    - "Merge PR #156 when its one-file ledger diff is accepted so main and the public LIVE snapshot stop reporting stale coordination state"
+    - "Keep both wave PRs draft and unmerged until aggregate review produces NO DEFECT or bounded exact-file repairs"
+  no_merges_to_main: main remains f7b59de7bdd4aeeac7c6f6b92648dbd05d27d83c; all authority-wave work remains on draft branches
+  stale_lanes_unchanged: "#112 and #104 have no new activity in this pass"
   known_dead_state:
-    - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); still queued, still uncancellable - confirmed by direct 403 test in the prior pass, not assumption
-  done_when: ledger matches observed repository state; does not claim to have reviewed, approved, or merged any open PR; does not claim to have changed product code, workflows, or protocol.
+    - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); still queued and outside the current assembly waves
+  done_when: shared ledger matches observed repository state without claiming review approval or merge authority
 
 # NOTE: a prior commit on this path briefly wrote this file as a raw base64
 # blob due to a tool-input mistake (content was pre-encoded before calling
