@@ -146,6 +146,13 @@ def remote_snapshot() -> tuple[dict, dict]:
         "snapshot": "./remote-snapshot.json",
         "terminal": "#live-work",
         "documentation": "/README_REMOTE.md",
+        "weave": {
+            "report": "/REMOTE_WORK.md",
+            "thought": "/REMOTE_THOUGHT.md",
+            "conversation": "https://github.com/Pokitomas/theawesomehexapp/pulls",
+            "live_state": "/api/remote/state?public=1",
+            "static_state": "./remote-snapshot.json",
+        },
     }
     return manifest, state
 
