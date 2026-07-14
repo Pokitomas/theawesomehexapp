@@ -10,6 +10,8 @@ let pollTimer = 0;
 let openButton = null;
 let mountTimer = 0;
 let mountAttempts = 0;
+let publicEndpoint = null;
+let bootstrapCache = null;
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -29,15 +31,22 @@ function endpoint() {
   return url;
 }
 
+function setDiscovery(href) {
+  publicEndpoint = href;
+  let link = document.querySelector('link[data-sideways-remote-state]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'alternate';
+    link.type = 'application/json';
+    link.title = 'Sideways live work state';
+    link.dataset.sidewaysRemoteState = 'true';
+    document.head.append(link);
+  }
+  link.href = href;
+}
+
 function ensureDiscovery() {
-  if (document.querySelector('link[data-sideways-remote-state]')) return;
-  const link = document.createElement('link');
-  link.rel = 'alternate';
-  link.type = 'application/json';
-  link.title = 'Sideways live work state';
-  link.href = endpoint().href;
-  link.dataset.sidewaysRemoteState = 'true';
-  document.head.append(link);
+  setDiscovery(publicEndpoint || endpoint().href);
 }
 
 function humanDecision(value) {
@@ -109,12 +118,24 @@ function render(data, { fallback = false } = {}) {
 }
 
 async function fetchBootstrap() {
+  if (bootstrapCache) return bootstrapCache;
   const response = await fetch('./remote-session.json', { cache: 'no-store' });
   if (!response.ok) throw new Error(`bootstrap ${response.status}`);
-  return response.json();
+  bootstrapCache = await response.json();
+  return bootstrapCache;
 }
 
 async function refresh({ quiet = false } = {}) {
+  let bootstrap = null;
+  try { bootstrap = await fetchBootstrap(); } catch { /* A live backend may still exist. */ }
+
+  if (bootstrap && bootstrap.live_backend !== true) {
+    setDiscovery(new URL('./remote-session.json', location.href).href);
+    render(bootstrap, { fallback: true });
+    return bootstrap;
+  }
+
+  setDiscovery(endpoint().href);
   try {
     const response = await fetch(endpoint(), { headers: { accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error(`live state ${response.status}`);
@@ -122,17 +143,15 @@ async function refresh({ quiet = false } = {}) {
     render(data);
     return data;
   } catch (error) {
-    try {
-      const bootstrap = await fetchBootstrap();
+    if (bootstrap) {
       render(bootstrap, { fallback: true });
       return bootstrap;
-    } catch {
-      if (!quiet && dialog?.isConnected) {
-        render({ state: { decision: 'unknown', generation: null, claims: [], blocker_count: 0 }, messages: [] }, { fallback: true });
-        dialog.querySelector('[data-remote-note]').textContent = 'Live work is unavailable on this origin.';
-      }
-      return null;
     }
+    if (!quiet && dialog?.isConnected) {
+      render({ state: { decision: 'unknown', generation: null, claims: [], blocker_count: 0 }, messages: [] }, { fallback: true });
+      dialog.querySelector('[data-remote-note]').textContent = 'Live work is unavailable on this origin.';
+    }
+    return null;
   }
 }
 
@@ -228,7 +247,7 @@ function install() {
   }
 }
 
-window.SidewaysRemoteTerminal = Object.freeze({ open: openTerminal, refresh, state: () => latest, endpoint: () => endpoint().href });
+window.SidewaysRemoteTerminal = Object.freeze({ open: openTerminal, refresh, state: () => latest, endpoint: () => publicEndpoint || endpoint().href });
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
 else install();
