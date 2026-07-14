@@ -34,8 +34,16 @@ export function retrieveCognitionMemory(state, query = {}, options = {}) {
   const maxChars = Math.max(256, Math.min(64000, Number(options.max_chars ?? 12000) || 12000));
   const maxEvents = Math.max(1, Math.min(256, Number(options.max_events ?? 48) || 48));
   const queryTokens = tokens([query.text, query.role, ...(query.tags || [])].filter(Boolean).join(' '));
-  const targetIds = new Set((query.target_ids || []).map(String));
-  const events = (state?.events || []).filter(event => visibility === 'private' || event.visibility === 'public');
+  const requestedTargetIds = new Set((query.target_ids || []).map(String));
+  const publicIds = new Set((state?.events || []).filter(event => event.visibility === 'public').map(event => event.id));
+  const targetIds = visibility === 'private'
+    ? requestedTargetIds
+    : new Set([...requestedTargetIds].filter(id => publicIds.has(id)));
+  const events = (state?.events || []).filter(event => {
+    if (visibility === 'private') return true;
+    if (event.visibility !== 'public') return false;
+    return [...eventReferences(event)].every(id => publicIds.has(id));
+  });
 
   const scored = events.map(event => {
     const references = eventReferences(event);
