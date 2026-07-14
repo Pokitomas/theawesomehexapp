@@ -106,6 +106,7 @@ def remote_snapshot() -> tuple[dict, dict]:
     generation = int(os.environ.get("REMOTE_GENERATION", "1") or "1")
     head = os.environ.get("GITHUB_SHA") or field("merge_commit") or field("previous_product_merge")
     updated = field("updated_at") or os.environ.get("SOURCE_DATE_EPOCH") or ""
+    live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("REMOTE_LIVE_ENDPOINT", "") == "1"
     message = {
         "id": f"build-{head[:12] or 'snapshot'}",
         "session": session,
@@ -139,6 +140,7 @@ def remote_snapshot() -> tuple[dict, dict]:
     manifest = {
         "protocol": "sideways-universal-remote/1",
         "session": session,
+        "live": live,
         "messages": "/api/remote?public=1",
         "state": "/api/remote/state?public=1",
         "snapshot": "./remote-snapshot.json",
