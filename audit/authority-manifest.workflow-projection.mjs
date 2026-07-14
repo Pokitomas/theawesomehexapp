@@ -71,6 +71,7 @@ export default [
     replay: 'GitHub run and exact commit SHA.', pub: 'Public check status and intentional proof artifacts.', priv: 'No repository mutation or secret authority is declared.', st: 'e',
     s: [
       'workflow-permission:.github/workflows/weave.yml:contents:read',
+      'workflow-permission:.github/workflows/weave-recursive.yml:contents:read',
       'workflow-permission:.github/workflows/founder-room.yml:contents:read',
       'workflow-permission:.github/workflows/social-spine-phone.yml:contents:read',
       'workflow-permission:.github/workflows/validate-manual-overlay.yml:contents:read',
@@ -86,7 +87,7 @@ export default [
       'workflow-permission:.github/workflows/workflow-permissions.yml:contents:read',
       'workflow-permission:.github/workflows/coordination-tick-ci.yml:contents:read'
     ],
-    impl: [['.github/workflows/coordination-tick-ci.yml', 'contents: read'], ['.github/workflows/remote-authority-assembly.yml', 'contents: read'], ['.github/workflows/social-authority-assembly.yml', 'contents: read'], ['.github/workflows/social-authority-schema.yml', 'contents: read'], ['.github/workflows/workflow-permissions.yml', 'contents: read'], ['.github/workflows/weave.yml', 'contents: read']],
+    impl: [['.github/workflows/weave-recursive.yml', 'contents: read', 'persist-credentials: false'], ['.github/workflows/coordination-tick-ci.yml', 'contents: read'], ['.github/workflows/remote-authority-assembly.yml', 'contents: read'], ['.github/workflows/social-authority-assembly.yml', 'contents: read'], ['.github/workflows/social-authority-schema.yml', 'contents: read'], ['.github/workflows/workflow-permissions.yml', 'contents: read'], ['.github/workflows/weave.yml', 'contents: read']],
     allow: [['scripts/tests/authority-manifest.test.mjs', 'read-only and coordination workflows remain explicitly mapped']],
     denyW: [['scripts/tests/authority-manifest.test.mjs', 'read-only and coordination workflows remain explicitly mapped']]
   },
