@@ -24,6 +24,15 @@ function overlap(left = [], right = []) {
   return left.filter(value => rightSet.has(value));
 }
 
+function uniqueBeacons(beacons = []) {
+  const byId = new Map();
+  for (const beacon of beacons) {
+    const id = clean(beacon?.beacon_id);
+    if (id) byId.set(id, beacon);
+  }
+  return [...byId.values()].sort((left, right) => clean(left.beacon_id).localeCompare(clean(right.beacon_id)));
+}
+
 export function projectActiveWeaveState(messages, options = {}) {
   const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
   const folded = foldWeaveMessages(messages, now);
@@ -120,10 +129,10 @@ export function projectActiveWeaveState(messages, options = {}) {
     }))
     .sort((left, right) => left.session_id.localeCompare(right.session_id));
 
-  const openBeacons = [
+  const openBeacons = uniqueBeacons([
     ...Object.values(folded.beacons || {}).filter(beacon => ['open', 'active'].includes(beacon.state)),
     ...(folded.recovery_beacons || [])
-  ].sort((left, right) => clean(left.beacon_id).localeCompare(clean(right.beacon_id)));
+  ]);
 
   const unresolvedResponses = [...expectedResponses.values()]
     .filter(message => (responseTimes.get(message.event_id) || 0) <= timeOf(message.issued_at))
@@ -131,7 +140,7 @@ export function projectActiveWeaveState(messages, options = {}) {
 
   const recentTerminations = Object.values(terminalSessions)
     .filter(session => ['handed_off', 'lost', 'recovered'].includes(session.state))
-    .sort((left, right) => timeOf(right.issued_at) - timeOf(left.issued_at));
+    .sort((left, right) => timeOf(right.issued_at) - timeOf(left.issued_at) || clean(left.session_id).localeCompare(clean(right.session_id)));
 
   return {
     head: clean(options.head) || null,
