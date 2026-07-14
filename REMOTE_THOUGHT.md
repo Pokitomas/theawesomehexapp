@@ -2,7 +2,13 @@
 
 This is the stable location of **weavable project thought**: concise rationale, boundaries, and assumptions another participant needs to continue intelligently. It is not private chain-of-thought and it is not live project state.
 
-The normative collaboration protocol is [`WEAVE_SPEC.md`](./WEAVE_SPEC.md). That specification defines beacons, joining, presence, append-only typed messaging, recoding, termination, and startup recovery. This file remains the compact rationale layer rather than a second copy of the protocol.
+The collaboration surfaces are deliberately separated:
+
+- [`WEAVE_PROTOCOL.md`](./WEAVE_PROTOCOL.md) documents the executable typed event layer over the Universal Remote.
+- [`WEAVE_SPEC.md`](./WEAVE_SPEC.md) defines the broader normative target for beacons, joining, messaging, recoding, termination, and recovery.
+- [`WEAVE_STATUS.md`](./WEAVE_STATUS.md) records which parts are implemented now and which remain partial.
+
+This file remains the compact rationale layer rather than another copy of those documents.
 
 ## Conception
 
@@ -22,24 +28,24 @@ A beacon claim, presence announcement, or artifact intent does not create exclus
 
 ## Message normalization
 
-Protocol examples may use a convenience helper surface such as `channel: "public"` when demonstrating an emission call. Before persistence, every message must normalize into the canonical `MessageEnvelope`: the destination becomes `to`, `expectsResponse` is explicit, IDs and timestamps are assigned, and related evidence/artifacts remain attached. Helper shorthand is never a second message schema.
+Protocol helpers normalize into one canonical typed event envelope before persistence. IDs, timestamps, destinations, expected-response state, artifacts, patches, and evidence remain attached to the immutable Remote message. Helper shorthand is never a second message schema.
 
 ## Public product boundary
 
-The visible **LIVE** terminal makes current work a readable social object. It exposes only the sanitized public projection and exact-build snapshot. It never receives private credentials, signatures, administrative controls, nonce records, or generic product-sync authority.
-
-Public weave projections may summarize open beacons, active threads, artifact intents, blockers, and terminal receipts. They must not expose private message bodies, hidden recode positions, uncommitted secrets, or mutation credentials.
+The visible **LIVE** terminal makes current work a readable social object. It exposes only sanitized public projections and exact-build snapshots. It never receives private credentials, signatures, administrative controls, nonce records, generic product-sync authority, private message bodies, hidden recode positions, or uncommitted secrets.
 
 ## Sources of truth
 
-- Live state: the remote service and its immutable terminal receipt.
+- Live state: the Remote service and its immutable terminal receipts.
 - Static state: the generated exact-build snapshot.
 - Durable code/review evidence: Git commits, checks, artifacts, and pull-request discussion.
-- Normative collaboration protocol: [`WEAVE_SPEC.md`](./WEAVE_SPEC.md).
+- Executable collaboration protocol: [`WEAVE_PROTOCOL.md`](./WEAVE_PROTOCOL.md).
+- Current implementation boundary: [`WEAVE_STATUS.md`](./WEAVE_STATUS.md).
+- Normative collaboration target: [`WEAVE_SPEC.md`](./WEAVE_SPEC.md).
 - This file: concise rationale only.
 
 ## Completion honesty
 
 A terminal proposal must identify a real 40-character tested Git head. Every required successful check must name that exact head. A deployed production claim is valid only when its receipt names the exact merge SHA. Otherwise production remains explicitly `unverified`.
 
-A merged protocol document is not proof that its runtime exists. Each implemented beacon, presence, messaging, recode, termination, or recovery claim requires exact-head executable evidence and must extend the existing remote rather than silently create a second authority.
+Merged prose is not runtime evidence. Each beacon, presence, messaging, recode, termination, recovery, or public-projection claim must be grounded in executable code and exact-head proof while extending the existing Remote rather than silently creating a second authority.
