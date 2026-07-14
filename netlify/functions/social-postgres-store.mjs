@@ -108,7 +108,8 @@ export function createPostgresAuthority({ pool, afterMutation = async () => {} }
 
   async function receipt(client, { scope, operation, actorId, key, at }, mutate) {
     if (!key) return mutate();
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${scope}\u0000${key}`]);
+    const lockKey = JSON.stringify([scope, key]);
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0::bigint))', [lockKey]);
     const prior = await client.query(
       'SELECT operation, status, body FROM social_mutation_receipts WHERE scope = $1 AND idempotency_key = $2',
       [scope, key]
