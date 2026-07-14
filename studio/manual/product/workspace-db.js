@@ -80,8 +80,13 @@ export function openWorkspaceDB() {
         views.createIndex('postId', 'postId');
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new DOMException('Close another Sideways tab and try again.', 'InvalidStateError'));
   });
 }
 
