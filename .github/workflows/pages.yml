@@ -17,7 +17,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  remote_gate:
+    runs-on: ubuntu-latest
+    outputs:
+      decision: ${{ steps.remote.outputs.decision }}
+      remote_configured: ${{ steps.remote.outputs.remote_configured }}
+      remote_generation: ${{ steps.remote.outputs.remote_generation }}
+      remote_head: ${{ steps.remote.outputs.remote_head }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read universal remote decision
+        id: remote
+        env:
+          REMOTE_URL: ${{ vars.REMOTE_URL }}
+          REMOTE_SESSION: ${{ vars.REMOTE_SESSION }}
+          REMOTE_GENERATION: ${{ vars.REMOTE_GENERATION }}
+          REMOTE_REQUIRED: ${{ vars.REMOTE_REQUIRED }}
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: node scripts/remote-gate.mjs
+
   build:
+    needs: remote_gate
+    if: needs.remote_gate.outputs.decision == 'proceed'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -73,6 +97,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Prove universal remote contracts
+        run: |
+          node --check netlify/functions/remote-engine.mjs
+          node --check netlify/functions/remote-core.mjs
+          node --check netlify/functions/remote.mjs
+          node --check scripts/remote-gate.mjs
+          node --test tests/remote-core.test.mjs tests/remote-gate.test.mjs
 
       - name: Apply editable manual studio and importer
         run: |
@@ -204,12 +236,13 @@ jobs:
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
-      - name: Verify kernel, studio, importer, and deployed assets
+      - name: Verify kernel, studio, importer, remote, and deployed assets
         run: |
           node --check manual-app/app.js
           node --check manual-app/kernel.js
           node --check manual-app/studio.js
           node --check manual-app/copy.js
+          node --check manual-app/remote-terminal.js
           node --check manual-app/import-studio.js
           node --check manual-app/import-phone.js
           node --check manual-app/imports/registry.js
@@ -219,6 +252,7 @@ jobs:
           grep -q 'FORMULAS ARE THE ROOT FEED FORMULAS' manual-app/kernel.js
           grep -q 'id="debugPanel"' dist/manual/index.html
           grep -q 'data-studio-product' dist/manual/index.html
+          grep -q 'data-remote-terminal' dist/manual/index.html
           grep -q 'data-import-workbench' dist/manual/index.html
           grep -q 'data-import-phone' dist/manual/index.html
           test -f dist/manual/kernel.js
@@ -227,6 +261,9 @@ jobs:
           test -f dist/manual/studio-reset.css
           test -f dist/manual/studio.js
           test -f dist/manual/copy.js
+          test -f dist/manual/remote-terminal.css
+          test -f dist/manual/remote-terminal.js
+          test -f dist/manual/remote-session.json
           test -f dist/manual/import-studio.css
           test -f dist/manual/import-studio.js
           test -f dist/manual/import-phone.js
@@ -263,7 +300,7 @@ jobs:
           path: dist
 
   deploy:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.build.result == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -297,6 +334,7 @@ jobs:
                 'IMPORT_RUNTIME=chunked cancellable IndexedDB writes with dedupe and quota checks',
                 'PHONE_GATE_TEST=real 390x844 touch import and in-place feed refresh',
                 'IPHONE_IMPORTER=native multi-item system picker',
+                'LIVE_WORK_TERMINAL=read-only public project state with no browser control authority',
                 'AUTOMATIC_RELOADS=zero',
                 'MANUAL_STORAGE=browser-local IndexedDB'
               ].join('\n')
