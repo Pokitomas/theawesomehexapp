@@ -6,6 +6,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const frontier = read('studio/manual/product/frontier.js');
 const actions = read('studio/manual/product/actions.js');
 const studio = read('studio/manual/product/studio.js');
+const copy = read('studio/manual/product/copy.js');
 const apply = read('studio/manual/apply.py');
 const profileFn = read('netlify/functions/profile.mjs');
 const starterFn = read('netlify/functions/starter.mjs');
@@ -13,7 +14,8 @@ const starterFn = read('netlify/functions/starter.mjs');
 const requirements = [
   [frontier.includes("backend('/api/profile'"), 'profile writes through the backend'],
   [frontier.includes("backend('/api/starter'"), 'starter pack is fetched without a file chooser'],
-  [studio.includes("actionWithIcon('profile.start'") && studio.includes('startFromEmpty'), 'the empty-state instant button calls the backend starter instead of the file picker'],
+  [copy.includes('installStaticStarterFallback') && copy.includes("url.pathname !== STARTER_PATH") && copy.includes("'x-sideways-source': 'built-in'"), 'static Drop deployments replace a missing starter function with the built-in pack'],
+  [studio.includes("actionWithIcon('profile.start'") && studio.includes('startFromEmpty'), 'the empty-state instant button calls the starter instead of the file picker'],
   [frontier.includes('PENDING_PROFILE_KEY') && frontier.includes('syncPendingProfile'), 'offline profile saves retry against the real backend'],
   [frontier.includes("'post.like'"), 'Like is a real action'],
   [frontier.includes("'post.reply'"), 'Reply is a real action'],
@@ -25,7 +27,7 @@ const requirements = [
   [profileFn.includes('new Response(') && starterFn.includes('new Response('), 'backend functions use the deployed Request/Response contract'],
   [!profileFn.includes('deviceId, updatedAt') && !profileFn.includes('{ ...profile, deviceId }'), 'backend stores hashed profile ownership rather than raw device identifiers'],
   [starterFn.includes('sideways-profiles'), 'starter pack reads the backend profile'],
-  [!frontier.includes('Proof post'), 'temporary proof posts do not ship in product code']
+  [!frontier.includes('Proof post') && !copy.includes('Proof post'), 'temporary proof posts do not ship in product code']
 ];
 
 const failed = requirements.filter(([passed]) => !passed).map(([, label]) => label);
