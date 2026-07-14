@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 
 const MIGRATIONS = Object.freeze([
   '001_social_authority.sql',
-  '002_community_conversation_authority.sql'
+  '002_community_conversation_authority.sql',
+  '003_social_idempotency_identity.sql'
 ]);
 const readyByPool = new WeakMap();
 
