@@ -24,7 +24,7 @@ async function contextFor(localName, localHandle) {
   const pageErrors = errors(page);
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => window.SidewaysSocial?.available() === true, { timeout: 20000 });
-  await page.locator('[data-social-spine]').waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('section[data-social-spine]').waitFor({ state: 'visible', timeout: 10000 });
   return { context, page, pageErrors };
 }
 
@@ -36,7 +36,7 @@ async function join(page, { name, handle, password }) {
   await dialog.locator('input[name="handle"]').fill(handle);
   await dialog.locator('input[name="password"]').fill(password);
   await dialog.getByRole('button', { name: 'Join', exact: true }).click();
-  await page.locator('[data-social-spine]').getByText(`@${handle}`, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('section[data-social-spine]').getByText(`@${handle}`, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
 }
 
 async function publicPost(page, text) {
