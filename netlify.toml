@@ -3,10 +3,8 @@
   publish = "manual-app"
   functions = "netlify/functions"
 
-[[redirects]]
-  from = "/api/profile"
-  to = "/.netlify/functions/profile"
-  status = 200
+# The existing workspace profile intentionally remains local. Public identity
+# is account-owned and mutates only through /api/me/profile below.
 
 [[redirects]]
   from = "/api/starter"
