@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import {
   candidateMaterializationPlan,
+  compareNetworkFreshness,
+  createNetworkActivationGate,
   legacyNetworkCacheSeeds,
   mergeNetworkCache,
   networkViewSnapshot
@@ -29,16 +31,38 @@ for (const key of ['core', 'function', 'client', 'network', 'db', 'actions', 'wo
 const requireAll = (key, tokens) => tokens.forEach(token => { if (!source[key].includes(token)) throw new Error(`${files[key]} missing ${token}`); });
 const forbidAll = (key, tokens) => tokens.forEach(token => { if (source[key].includes(token)) throw new Error(`${files[key]} contains forbidden ${token}`); });
 requireAll('core', ['HttpOnly', 'SameSite=Lax', 'scryptSync', 'timingSafeEqual', 'social/event/', 'post.replied', 'follow.created', 'like.created']);
-requireAll('client', ["credentials: 'same-origin'", 'Workspace.projectNetworkPosts', 'dataset.socialSpine', 'window.SidewaysSocial']);
-forbidAll('client', ['Workspace.saveProfile', "localStorage.setItem('sideways_session", 'new MutationObserver', 'location.reload()']);
+requireAll('client', [
+  "credentials: 'same-origin'",
+  'Workspace.projectNetworkPosts',
+  'dataset.socialSpine',
+  'window.SidewaysSocial',
+  'requestedMode',
+  'loadEpoch',
+  'activation',
+  'superseded',
+  'mode: requestedMode'
+]);
+forbidAll('client', [
+  'Workspace.saveProfile',
+  "localStorage.setItem('sideways_session",
+  'new MutationObserver',
+  'location.reload()',
+  'Workspace.projectNetworkPosts(data.posts || [], { mode })'
+]);
 requireAll('network', [
   "const PREFIX = 'network:'",
   "authority: 'public'",
+  'createNetworkActivationGate',
+  'compareNetworkFreshness',
   'mergeNetworkCache',
   'legacyNetworkCacheSeeds',
   'networkViewSnapshot',
   'candidateMaterializationPlan',
+  'cacheNetworkRecords',
+  'isActivationCurrent',
+  "signal.addEventListener('abort'",
   "ledgerEntry('network.materialize'",
+  'activationEpoch',
   'authoritativeDeletes: 0',
   'sideways:network',
   'rank: {}'
@@ -69,11 +93,33 @@ assert.ok(migrated.every(record => record.authority === 'public'));
 assert.ok(migrated.every(record => !Object.hasOwn(record, 'id')));
 
 const cached = mergeNetworkCache(migrated, [
-  { postId: 'B', nativeId: 'network:B', text: 'new B', authority: 'public' }
+  { postId: 'B', nativeId: 'network:B', text: 'new B', authority: 'public', updatedAt: '2026-07-14T00:00:00Z', observedAt: '2026-07-14T00:00:00Z' }
 ]);
 assert.deepEqual(cached.map(record => record.postId), ['A', 'B']);
 assert.equal(cached.find(record => record.postId === 'A').text, 'old A');
 assert.equal(cached.find(record => record.postId === 'B').text, 'new B');
+
+const freshObservation = {
+  postId: 'B',
+  nativeId: 'network:B',
+  text: 'fresh viewer state',
+  updatedAt: '2026-07-14T00:00:00Z',
+  observedAt: '2026-07-14T00:02:00Z'
+};
+const staleObservation = {
+  postId: 'B',
+  nativeId: 'network:B',
+  text: 'late stale viewer state',
+  updatedAt: '2026-07-14T00:00:00Z',
+  observedAt: '2026-07-14T00:01:00Z'
+};
+assert.ok(compareNetworkFreshness(freshObservation, staleObservation) > 0);
+const freshnessOrdered = mergeNetworkCache([freshObservation], [
+  staleObservation,
+  { postId: 'C', nativeId: 'network:C', text: 'cache-only discover result', updatedAt: '2026-07-14T00:00:00Z', observedAt: '2026-07-14T00:01:00Z' }
+]);
+assert.equal(freshnessOrdered.find(record => record.postId === 'B').text, 'fresh viewer state');
+assert.ok(freshnessOrdered.some(record => record.postId === 'C'));
 
 const following = networkViewSnapshot([{ postId: 'B' }], { mode: 'following' }, '2026-07-14T00:00:00.000Z');
 assert.deepEqual(following, {
@@ -93,4 +139,39 @@ assert.equal(plan.upserts[0].eligibilitySource, 'following');
 assert.ok(!plan.deleteIds.includes(3));
 assert.ok(cached.some(record => record.postId === 'A'), 'first v2 view switch must migrate A before removing its active candidate');
 
-console.log('social spine contract ok: legacy public projections migrate into cache; view changes replace candidates without deleting public or private authority');
+const deferred = () => {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+};
+const activationGate = createNetworkActivationGate();
+const discoverResponse = deferred();
+const followingResponse = deferred();
+let selectedMode = 'discover';
+const materialized = [];
+const statusWrites = [];
+const renderWrites = [];
+async function simulatedLoad(requestedMode, response, requestedAt) {
+  selectedMode = requestedMode;
+  const activation = activationGate.begin(requestedMode, requestedAt);
+  const data = await response.promise;
+  if (!activationGate.isCurrent(activation)) return { ...data, superseded: true };
+  materialized.push({ mode: activation.mode, posts: data.posts });
+  statusWrites.push(activation.mode);
+  renderWrites.push(activation.mode);
+  return { ...data, superseded: false };
+}
+const lateDiscover = simulatedLoad('discover', discoverResponse, '2026-07-14T00:01:00Z');
+const currentFollowing = simulatedLoad('following', followingResponse, '2026-07-14T00:02:00Z');
+followingResponse.resolve({ posts: ['F'] });
+const followingResult = await currentFollowing;
+discoverResponse.resolve({ posts: ['D'] });
+const discoverResult = await lateDiscover;
+assert.equal(selectedMode, 'following');
+assert.equal(followingResult.superseded, false);
+assert.equal(discoverResult.superseded, true);
+assert.deepEqual(materialized, [{ mode: 'following', posts: ['F'] }]);
+assert.deepEqual(statusWrites, ['following']);
+assert.deepEqual(renderWrites, ['following']);
+
+console.log('social spine contract ok: public cache is authority-safe, stale observations cannot overwrite fresh records, and late loads cannot replace current eligibility or UI state');

@@ -1,8 +1,10 @@
 import { actionButton } from './actions.js';
+import { createNetworkActivationGate } from './network-records.js';
 import { Workspace } from './workspace.js';
 
 const API = '/api/social';
 const TIMEOUT = 9000;
+const loadEpoch = createNetworkActivationGate();
 let account = null;
 let mode = 'discover';
 let available = false;
@@ -175,16 +177,25 @@ function openPost(record = null) {
 
 async function load(nextMode = mode) {
   if (!available) return { unavailable: true };
-  mode = nextMode === 'following' && account ? 'following' : 'discover';
-  setStatus(mode === 'following' ? 'Loading people you follow…' : 'Loading public posts…');
+  const requestedMode = nextMode === 'following' && account ? 'following' : 'discover';
+  mode = requestedMode;
+  const activation = loadEpoch.begin(requestedMode);
+  setStatus(requestedMode === 'following' ? 'Loading people you follow…' : 'Loading public posts…');
   try {
-    const data = await request(mode === 'following' ? 'feed' : 'discover');
-    await Workspace.projectNetworkPosts(data.posts || [], { mode });
+    const data = await request(requestedMode === 'following' ? 'feed' : 'discover');
+    const projection = await Workspace.projectNetworkPosts(data.posts || [], {
+      mode: requestedMode,
+      requestedAt: activation.requestedAt,
+      activation,
+      isCurrent: () => loadEpoch.isCurrent(activation)
+    });
+    if (!loadEpoch.isCurrent(activation) || projection?.superseded) return { ...data, superseded: true };
     setStatus(`${data.posts?.length || 0} public post${data.posts?.length === 1 ? '' : 's'}.`, 'good');
     renderShell();
     queueDecorate();
-    return data;
+    return { ...data, superseded: false };
   } catch (error) {
+    if (!loadEpoch.isCurrent(activation)) return { superseded: true };
     if (unavailable(error)) {
       available = false;
       shell?.remove();
