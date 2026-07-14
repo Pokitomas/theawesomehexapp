@@ -42,12 +42,25 @@ function terminalReceipt({ waveIndex, status, assignments = [], outputs = [], un
 
 export async function runRecursiveWeave({ initial_events = [], adapters = {}, budget: budgetInput = {}, now = () => new Date().toISOString() }) {
   const budget = normalizeRecursiveBudget(budgetInput);
-  const events = initial_events.map(event => normalizeCognitionEvent(event));
+  let events;
+  try {
+    events = initial_events.map(event => normalizeCognitionEvent(event));
+  } catch (error) {
+    const receipt = terminalReceipt({ waveIndex: 0, status: 'invalid_state', unresolved: [], events: [], now });
+    return { terminal: 'invalid_state', events: [receipt], receipts: [receipt], state: foldCognitionEvents([receipt]), budget, error: String(error?.message || error) };
+  }
   const seenDispatches = new Set();
-  const receipts = [];
+  const receipts = events.filter(event => event.kind === 'wave.receipt');
+  const terminalReceiptEvent = [...receipts].reverse().find(event => event.body.status !== 'advanced');
+  if (terminalReceiptEvent) {
+    return { terminal: terminalReceiptEvent.body.status, events, receipts, state: foldCognitionEvents(events), budget };
+  }
+  const startWave = receipts.length
+    ? Math.max(...receipts.map(event => Number(event.body.index || 0))) + 1
+    : 0;
   let terminal = null;
 
-  for (let waveIndex = 0; waveIndex < budget.max_waves; waveIndex += 1) {
+  for (let waveIndex = startWave; waveIndex < budget.max_waves; waveIndex += 1) {
     let state;
     try {
       state = foldCognitionEvents(events);
