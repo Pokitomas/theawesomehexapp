@@ -1,0 +1,66 @@
+name: Prove profile-first starter on phone
+
+on:
+  pull_request:
+    paths:
+      - 'studio/manual/**'
+      - 'netlify/**'
+      - 'package.json'
+      - 'netlify.toml'
+      - '.github/workflows/frontier-phone-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontier-phone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install proof runtime
+        run: |
+          npm install
+          npm install --no-save playwright-core
+
+      - name: Assemble and verify product
+        run: |
+          python3 studio/manual/prepare-kernel.py
+          python3 studio/manual/apply.py
+          python3 studio/manual/verify.py
+          node studio/manual/tests/frontier-contract.mjs
+          node --check studio/manual/product/frontier.js
+          node --check netlify/functions/profile.mjs
+          node --check netlify/functions/starter.mjs
+
+      - name: Run the real phone journey
+        run: |
+          python3 -m http.server 4173 --directory manual-app > /tmp/sideways-frontier-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:4173/index.html >/dev/null && break
+            sleep 1
+          done
+          node studio/manual/tests/frontier-onboarding-clickthrough.mjs http://127.0.0.1:4173/index.html
+
+      - name: Upload direct visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontier-phone-proof
+          path: |
+            frontier-profile-proof.png
+            frontier-starter-proof.png
+            frontier-phone-proof.png
+          if-no-files-found: warn
