@@ -1,0 +1,70 @@
+{
+  "schema": "sideways-personal-web-brief-v1",
+  "generatedAt": "2026-07-14T02:24:00.000Z",
+  "sourceCount": 20,
+  "sourceUrls": [
+    "https://neocities.org/browse",
+    "https://neocities.org/browse?sort_by=last_updated",
+    "https://neocities.org/browse?sort_by=followers",
+    "https://neocities.org/browse?sort_by=random",
+    "https://neocities.org/site/neocities",
+    "https://indieweb.org/principles",
+    "https://indieweb.org/personal-site",
+    "https://geocities.restorativland.org/",
+    "https://oneterabyteofkilobyteage.tumblr.com/",
+    "https://wiby.me/",
+    "https://nekoweb.org/",
+    "https://sadgrl.online/webmastery/",
+    "https://32bit.cafe/",
+    "https://melonland.net/",
+    "https://www.webdesignmuseum.org/",
+    "https://www.cameronsworld.net/",
+    "https://motherfuckingwebsite.com/",
+    "https://brutalistwebsites.com/",
+    "https://thehtml.review/",
+    "https://nownownow.com/"
+  ],
+  "rankedSignals": [
+    {"signal":"dense_navigation","count":9},
+    {"signal":"community_edges","count":8},
+    {"signal":"low_infrastructure","count":8},
+    {"signal":"personal_voice","count":1},
+    {"signal":"layered_windows","count":1},
+    {"signal":"animated_texture","count":0},
+    {"signal":"handmade_edges","count":0},
+    {"signal":"expressive_type","count":0},
+    {"signal":"saturated_palette","count":0},
+    {"signal":"media_collage","count":0},
+    {"signal":"anti_template","count":0}
+  ],
+  "complexity": {
+    "median": 5,
+    "ceiling": 12,
+    "rule": "Prefer visible compositional richness over invisible subsystem count."
+  },
+  "productCenter": "A local-first personal media instrument that feels authored, strange, tactile and alive: weird personal-web energy translated into a coherent phone-first operating surface, not a retro website skin.",
+  "requiredTraits": [
+    "Personal specificity must be visible before platform structure.",
+    "Navigation should invite curiosity and spatial discovery without hiding core actions.",
+    "Media, typography and chrome may collide, but action contracts and phone legibility remain exact.",
+    "Visual richness should come from composition, state and user material rather than new backend subsystems.",
+    "Surfaces should feel handmade and consequential, never generic SaaS or a themed dashboard.",
+    "RIVER, FOCUS and FIELD remain distinct physical reading modes."
+  ],
+  "rejectDrift": [
+    "generic card-grid SaaS",
+    "sterile minimalism that erases personality",
+    "decorative nostalgia without functional consequence",
+    "fake social proof or engagement furniture",
+    "new coordination, sync or schema systems without executable product need",
+    "complexity invisible to the user",
+    "explanatory prose replacing visual hierarchy"
+  ],
+  "decisionChecks": [
+    "Does this surface reveal a person, collection, or obsession rather than a platform template?",
+    "Is the weirdness structural and usable, not decorative nostalgia pasted onto SaaS?",
+    "Can the effect be achieved with existing corpus, renderer, and action contracts?",
+    "Does the visual density remain legible at 390x844?",
+    "Did implementation complexity grow slower than visible product character?"
+  ]
+}
