@@ -8,6 +8,9 @@ agents:
     trailer: "Agent: sol"
   claude:
     trailer: "Agent: claude"
+    # session note (2026-07-14): a new session picked up this slot this
+    # turn. The lock below predates this session; it has not been verified
+    # live or stale, so it is left untouched - not claimed, not released.
 locks:
   - owner: claude
     files:
