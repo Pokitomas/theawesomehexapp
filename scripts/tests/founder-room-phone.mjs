@@ -10,6 +10,13 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
+const proof = {
+  executablePath,
+  directions: 0,
+  persisted: false,
+  overflow: null,
+  errors: []
+};
 const browser = await chromium.launch({
   headless: true,
   executablePath,
@@ -22,36 +29,43 @@ const context = await browser.newContext({
   hasTouch: true
 });
 const page = await context.newPage();
-const errors = [];
-page.on('pageerror', error => errors.push(error.message));
-page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+const browserErrors = [];
+page.on('pageerror', error => browserErrors.push(error.message));
+page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
 
-await page.goto('http://127.0.0.1:4174/founder/', { waitUntil: 'networkidle' });
-await page.getByRole('heading', { name: 'Which future has gravity?' }).waitFor({ state: 'visible' });
-if ((await page.locator('[data-direction]').count()) !== 3) throw new Error('expected exactly three founder directions');
+try {
+  await page.goto('http://127.0.0.1:4174/founder/', { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: 'Which future has gravity?' }).waitFor({ state: 'visible' });
+  proof.directions = await page.locator('[data-direction]').count();
+  if (proof.directions !== 3) throw new Error(`expected exactly three founder directions, got ${proof.directions}`);
 
-await page.locator('[data-direction="memory-social"] [data-reaction="pull"]').click();
-await page.locator('[data-direction="private-remix"] [data-reaction="steal"]').click();
-await page.locator('[data-direction="scene-social"] [data-reaction="push"]').click();
-await page.locator('#founder-note').fill('Memory is the social advantage; steal remix tools; keep scenes alive.');
+  await page.locator('[data-direction="memory-social"] [data-reaction="pull"]').click();
+  await page.locator('[data-direction="private-remix"] [data-reaction="steal"]').click();
+  await page.locator('[data-direction="scene-social"] [data-reaction="push"]').click();
+  await page.locator('#founder-note').fill('Memory is the social advantage; steal remix tools; keep scenes alive.');
 
-const beforeReload = await page.locator('#summary').innerText();
-if (!beforeReload.includes('social identity with memory: pull')) throw new Error(`missing memory reaction: ${beforeReload}`);
-if (!beforeReload.includes('private remixable life feed: steal')) throw new Error(`missing remix reaction: ${beforeReload}`);
-if (!beforeReload.includes('scene-first social world: push')) throw new Error(`missing scene reaction: ${beforeReload}`);
+  const beforeReload = await page.locator('#summary').innerText();
+  proof.summary = beforeReload;
+  if (!beforeReload.includes('social identity with memory: pull')) throw new Error(`missing memory reaction: ${beforeReload}`);
+  if (!beforeReload.includes('private remixable life feed: steal')) throw new Error(`missing remix reaction: ${beforeReload}`);
+  if (!beforeReload.includes('scene-first social world: push')) throw new Error(`missing scene reaction: ${beforeReload}`);
 
-await page.reload({ waitUntil: 'networkidle' });
-const note = await page.locator('#founder-note').inputValue();
-if (note !== 'Memory is the social advantage; steal remix tools; keep scenes alive.') throw new Error(`founder note did not persist: ${note}`);
-const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-if (overflow > 1) throw new Error(`founder room overflows phone viewport by ${overflow}px`);
-if (errors.length) throw new Error(errors.join(' | '));
-
-await page.screenshot({ path: 'founder-room-phone.png', fullPage: true });
-console.log(JSON.stringify({
-  directions: 3,
-  persisted: true,
-  overflow,
-  screenshot: 'founder-room-phone.png'
-}, null, 2));
-await browser.close();
+  await page.reload({ waitUntil: 'networkidle' });
+  const note = await page.locator('#founder-note').inputValue();
+  proof.note = note;
+  proof.persisted = note === 'Memory is the social advantage; steal remix tools; keep scenes alive.';
+  if (!proof.persisted) throw new Error(`founder note did not persist: ${note}`);
+  proof.overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (proof.overflow > 1) throw new Error(`founder room overflows phone viewport by ${proof.overflow}px`);
+  if (browserErrors.length) throw new Error(browserErrors.join(' | '));
+} catch (error) {
+  proof.errors.push(error instanceof Error ? error.message : String(error));
+  proof.errors.push(...browserErrors);
+  throw error;
+} finally {
+  try { await page.screenshot({ path: 'founder-room-phone.png', fullPage: true }); }
+  catch (error) { proof.errors.push(`screenshot: ${error instanceof Error ? error.message : String(error)}`); }
+  fs.writeFileSync('founder-room-proof.json', JSON.stringify(proof, null, 2) + '\n');
+  console.log(JSON.stringify(proof, null, 2));
+  await browser.close();
+}
