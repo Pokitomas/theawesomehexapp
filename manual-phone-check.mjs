@@ -73,8 +73,9 @@ await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 })
 const coreFilesContract = await gatePage.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
 if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
 await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
+await gatePage.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
 const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children]
-  .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header]'))
+  .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header], [data-survival-vault]'))
   .filter(child => getComputedStyle(child).display !== 'none').length);
 if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
 if (gateErrors.length) throw new Error(gateErrors.join(' | '));
@@ -97,6 +98,7 @@ await consumer.waitForFunction(() => document.documentElement.dataset.studioRead
 await touch(consumer, consumer.getByRole('button', { name: 'ADD', exact: true }));
 await consumer.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
+await consumer.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
 if (await consumer.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
 if ((await consumer.locator('.source-card').count()) !== 8) throw new Error('expected exactly eight app cards');
@@ -142,6 +144,7 @@ console.log(JSON.stringify({
   state: state.split('\n').find(line => line.startsWith('state=')),
   visibleLegacyAddSurface: false,
   workspaceLibraryHeader: true,
+  survivalVault: true,
   duplicateIntro: false,
   chooserBehindCompletion: false,
   firstRun: 'Profile, write, or one-tap starter',
