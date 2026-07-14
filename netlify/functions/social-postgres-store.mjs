@@ -35,6 +35,10 @@ function mapUser(row) {
   };
 }
 
+function safeEventUser(bundle) {
+  return bundle ? { id: bundle.id, status: bundle.status, createdAt: bundle.createdAt, profile: clone(bundle.profile) } : null;
+}
+
 function mapSession(row) {
   if (!row) return null;
   return {
@@ -100,8 +104,9 @@ export function createPostgresSocialStore({ connectionString = process.env.DATAB
 
   const ensureSchema = () => schemaReady ||= (async () => {
     const client = await pool.connect();
-    try { for (const statement of SOCIAL_SCHEMA) await client.query(statement); }
-    finally { client.release(); }
+    try {
+      for (const statement of SOCIAL_SCHEMA) await client.query(statement);
+    } finally { client.release(); }
   })();
 
   const transaction = async work => {
@@ -140,7 +145,7 @@ export function createPostgresSocialStore({ connectionString = process.env.DATAB
         await client.query(`INSERT INTO profiles(user_id,handle,display_name,bio,avatar,cover,pronouns,website)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [id, profile.handle, profile.displayName, profile.bio || '', profile.avatar || '', profile.cover || '', profile.pronouns || '', profile.website || '']);
         const bundle = mapUser((await client.query(`${USER_SELECT} WHERE u.id=$1`, [id])).rows[0]);
-        await appendEvent(client, { actorId: id, type: 'account.created', objectType: 'user', objectId: id, payload: { handle: profile.handle }, response: bundle, idempotencyKey });
+        await appendEvent(client, { actorId: id, type: 'account.created', objectType: 'user', objectId: id, payload: { handle: profile.handle }, response: safeEventUser(bundle), idempotencyKey });
         return bundle;
       });
     },
@@ -165,7 +170,7 @@ export function createPostgresSocialStore({ connectionString = process.env.DATAB
         values.push(userId);
         await client.query(`UPDATE profiles SET ${fields.join(', ')}, updated_at=now() WHERE user_id=$${values.length}`, values);
         const bundle = mapUser((await client.query(`${USER_SELECT} WHERE u.id=$1`, [userId])).rows[0]);
-        await appendEvent(client, { actorId: userId, type: 'profile.updated', objectType: 'profile', objectId: userId, payload: patch, response: bundle, idempotencyKey });
+        await appendEvent(client, { actorId: userId, type: 'profile.updated', objectType: 'profile', objectId: userId, payload: patch, response: safeEventUser(bundle), idempotencyKey });
         return bundle;
       });
     },
@@ -238,7 +243,10 @@ export function createPostgresSocialStore({ connectionString = process.env.DATAB
     async followingFeed(viewerId, { cursor = null, limit = 30 } = {}) {
       const params = [viewerId, viewerId, limit + 1];
       let cursorClause = '';
-      if (cursor) { params.push(cursor); cursorClause = `AND (p.created_at,p.id) < (SELECT created_at,id FROM posts WHERE id=$4)`; }
+      if (cursor) {
+        params.push(cursor);
+        cursorClause = `AND (p.created_at,p.id) < (SELECT created_at,id FROM posts WHERE id=$4)`;
+      }
       const rows = (await pool.query(`${POST_SELECT('$2')}
         WHERE p.deleted_at IS NULL AND p.visibility='public'
           AND (p.author_id=$1 OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=$1 AND f.followed_id=p.author_id))
@@ -249,7 +257,10 @@ export function createPostgresSocialStore({ connectionString = process.env.DATAB
     async userPosts(userId, viewerId, { cursor = null, limit = 30 } = {}) {
       const params = [userId, viewerId || '__anonymous__', limit + 1];
       let cursorClause = '';
-      if (cursor) { params.push(cursor); cursorClause = `AND (p.created_at,p.id) < (SELECT created_at,id FROM posts WHERE id=$4)`; }
+      if (cursor) {
+        params.push(cursor);
+        cursorClause = `AND (p.created_at,p.id) < (SELECT created_at,id FROM posts WHERE id=$4)`;
+      }
       const rows = (await pool.query(`${POST_SELECT('$2')} WHERE p.author_id=$1 AND p.deleted_at IS NULL AND p.visibility='public' ${cursorClause}
         ORDER BY p.created_at DESC,p.id DESC LIMIT $3`, params)).rows.map(mapPost);
       return { items: rows.slice(0, limit), nextCursor: rows.length > limit ? rows[limit - 1].id : null };
