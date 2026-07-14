@@ -71,8 +71,10 @@ jobs:
         run: node --test --test-name-pattern='memory' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify advisory dispatch
         run: node --test --test-name-pattern='dispatch packets' scripts/tests/weave-recursive-baseline.test.mjs
-      - name: Verify synthesis and critic gates
-        run: node --test --test-name-pattern='critic|non-accept' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify contradiction-erasure critic
+        run: node --test --test-name-pattern='critic blocks' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify non-accept critique recursion
+        run: node --test --test-name-pattern='non-accept critique' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify recursive runtime and replay
         run: node --test --test-name-pattern='recursive runtime|orphaned assignment|terminal receipt|invalid initial' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify finite sprawl graph
