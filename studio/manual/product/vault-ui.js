@@ -64,22 +64,30 @@ function action(id, handler) {
 
 async function render(host) {
   if (!host?.isConnected) return;
+  // Build the action rail synchronously and immediately -- it needs no
+  // async data to exist, only its click handlers are async. Appending it
+  // before the awaited status/audit calls closes the real window where
+  // the vault section was CSS-visible but had zero action buttons yet.
+  if (!host.querySelector('.survival-vault-actions')) {
+    const actions = node('div', 'survival-vault-actions');
+    actions.append(
+      action('vault.persist', async () => ({ durability: await window.SidewaysWorkspace.durability({ request: true }), mirror: await Survival.mirrorAll() })),
+      action('vault.audit', () => Survival.audit()),
+      action('vault.export', () => Survival.exportArk()),
+      action('vault.restore', async () => {
+        const file = await chooseArk();
+        if (!file) return { cancelled: true };
+        return Survival.restoreArk(file);
+      })
+    );
+    host.append(actions);
+  }
   const [status, audit] = await Promise.all([Survival.status(), Survival.audit({ record: false })]);
   if (!host.isConnected) return;
+  host.querySelector('.survival-vault-state')?.remove();
   const state = node('div', 'survival-vault-state');
   state.append(node('strong', 'survival-vault-grade', status.grade), node('span', 'survival-vault-count', `${audit.records}/${audit.assets}`), node('span', 'survival-vault-bytes', formatBytes(audit.bytes)));
-  const actions = node('div', 'survival-vault-actions');
-  actions.append(
-    action('vault.persist', async () => ({ durability: await window.SidewaysWorkspace.durability({ request: true }), mirror: await Survival.mirrorAll() })),
-    action('vault.audit', () => Survival.audit()),
-    action('vault.export', () => Survival.exportArk()),
-    action('vault.restore', async () => {
-      const file = await chooseArk();
-      if (!file) return { cancelled: true };
-      return Survival.restoreArk(file);
-    })
-  );
-  host.replaceChildren(state, actions);
+  host.prepend(state);
   host.dataset.grade = status.grade;
   host.setAttribute('aria-label', `Storage ${status.grade}. ${audit.records} records. ${audit.assets} assets.`);
 }
