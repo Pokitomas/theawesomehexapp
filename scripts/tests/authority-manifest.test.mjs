@@ -1,18 +1,17 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import AUTHORITY_MANIFEST from '../../audit/authority-manifest.mjs';
 import {
-  auditRepository,
   compareSurfaceCoverage,
   discoverAuthoritySurfaces,
   validateManifest
 } from '../check-authority-manifest.mjs';
+import { auditRepository } from '../run-authority-audit.mjs';
 
 const ROOT = new URL('../..', import.meta.url);
-const MANIFEST_URL = new URL('../../audit/authority-manifest.json', import.meta.url);
 
-async function manifest() {
-  return JSON.parse(await readFile(MANIFEST_URL, 'utf8'));
+function manifest() {
+  return structuredClone(AUTHORITY_MANIFEST);
 }
 
 test('manifest covers every discovered in-repository authority surface', async () => {
@@ -24,7 +23,7 @@ test('manifest covers every discovered in-repository authority surface', async (
 });
 
 test('removing one mapped surface is detected as drift', async () => {
-  const value = await manifest();
+  const value = manifest();
   const discovered = await discoverAuthoritySurfaces(ROOT);
   const target = discovered[0];
   for (const row of value.rows) row.surfaces = row.surfaces.filter(surface => surface !== target);
@@ -32,7 +31,7 @@ test('removing one mapped surface is detected as drift', async () => {
 });
 
 test('tracked gaps retain an issue and executable characterization anchor', async () => {
-  const value = await manifest();
+  const value = manifest();
   const tracked = value.rows.filter(row => row.status === 'tracked-gap');
   assert.ok(tracked.length > 0);
   for (const row of tracked) {
@@ -52,8 +51,8 @@ test('tracked gaps retain an issue and executable characterization anchor', asyn
   assert.ok(errors.some(error => error.includes(`${row.id}: tracked-gap rows require`)));
 });
 
-test('declaration-only capability surfaces remain explicit', async () => {
-  const value = await manifest();
+test('declaration-only capability surfaces remain explicit', () => {
+  const value = manifest();
   const declared = new Set(
     value.rows
       .filter(row => row.status === 'declaration-only')
@@ -64,8 +63,8 @@ test('declaration-only capability surfaces remain explicit', async () => {
   }
 });
 
-test('read-only workflows remain explicitly mapped', async () => {
-  const value = await manifest();
+test('read-only workflows remain explicitly mapped', () => {
+  const value = manifest();
   const row = value.rows.find(candidate => candidate.id === 'workflow.read-only-ci');
   assert.ok(row);
   assert.ok(row.surfaces.length >= 10);
