@@ -18,6 +18,8 @@ export const COGNITION_KINDS = Object.freeze([
   'critique',
   'supersede',
   'assignment',
+  'dispatch.started',
+  'dispatch.completed',
   'wave.receipt'
 ]);
 
@@ -202,6 +204,25 @@ function normalizeBody(kind, input) {
         artifact_scope: cleanList(body.artifact_scope, 128),
         novelty_key: required(body.novelty_key, 'Assignment novelty key', 240)
       };
+    case 'dispatch.started':
+      return {
+        dispatch_id: exactId(body.dispatch_id, 'Dispatch id'),
+        assignment_event_id: exactId(body.assignment_event_id, 'Assignment event id'),
+        assignment_id: exactId(body.assignment_id, 'Assignment id'),
+        adapter_id: required(body.adapter_id, 'Adapter id', 160),
+        idempotency_key: required(body.idempotency_key, 'Dispatch idempotency key', 160)
+      };
+    case 'dispatch.completed':
+      return {
+        dispatch_id: exactId(body.dispatch_id, 'Dispatch id'),
+        assignment_event_id: exactId(body.assignment_event_id, 'Assignment event id'),
+        assignment_id: exactId(body.assignment_id, 'Assignment id'),
+        adapter_id: required(body.adapter_id, 'Adapter id', 160),
+        idempotency_key: required(body.idempotency_key, 'Dispatch idempotency key', 160),
+        status: ['completed', 'failed'].includes(body.status) ? body.status : fail('Unknown dispatch status.'),
+        output_ids: exactReferences(body.output_ids, 64),
+        error: optional(body.error, 500)
+      };
     case 'wave.receipt':
       return {
         wave_id: exactId(body.wave_id, 'Wave id'),
@@ -281,6 +302,8 @@ function allReferences(event) {
   if (event.kind === 'critique') refs.push(body.synthesis_id, ...body.blocking_event_ids);
   if (event.kind === 'supersede') refs.push(...body.target_ids);
   if (event.kind === 'assignment') refs.push(...body.target_ids);
+  if (event.kind === 'dispatch.started') refs.push(body.assignment_event_id);
+  if (event.kind === 'dispatch.completed') refs.push(body.assignment_event_id, ...body.output_ids);
   if (event.kind === 'wave.receipt') refs.push(...body.assignment_ids, ...body.output_ids, ...body.unresolved_ids);
   return [...new Set(refs.filter(Boolean))];
 }
@@ -304,6 +327,12 @@ export function foldCognitionEvents(events = []) {
     if (!resolver) fail(`Event ${event.id} names missing resolution event ${event.body.resolved_by}.`, 'COGNITION_DANGLING_RESOLUTION');
     if (resolver.kind !== 'decision') fail(`Event ${event.id} resolution ${resolver.id} is not a decision.`, 'COGNITION_INVALID_RESOLUTION');
     if (!resolver.body.resolves.includes(event.id)) fail(`Decision ${resolver.id} does not resolve event ${event.id}.`, 'COGNITION_INCONSISTENT_RESOLUTION');
+  }
+  for (const event of ordered) {
+    if (!['dispatch.started', 'dispatch.completed'].includes(event.kind)) continue;
+    const assignment = eventById.get(event.body.assignment_event_id);
+    if (!assignment || assignment.kind !== 'assignment') fail(`Dispatch ${event.id} does not reference an assignment event.`, 'COGNITION_INVALID_DISPATCH');
+    if (assignment.body.assignment_id !== event.body.assignment_id) fail(`Dispatch ${event.id} assignment identity mismatch.`, 'COGNITION_INVALID_DISPATCH');
   }
   const visiting = new Set();
   const visited = new Set();
@@ -329,6 +358,8 @@ export function foldCognitionEvents(events = []) {
     decisions: {},
     contradictions: {},
     assignments: {},
+    dispatch_started: {},
+    dispatch_completed: {},
     waves: {},
     syntheses: {},
     critiques: {},
@@ -339,9 +370,11 @@ export function foldCognitionEvents(events = []) {
     superseded: {},
     open_question_ids: [],
     unresolved_contradiction_ids: [],
+    unresolved_critique_ids: [],
     unsupported_claim_ids: [],
     failed_test_ids: [],
     active_plan_ids: [],
+    pending_assignment_event_ids: [],
     dissent_event_ids: []
   };
 
@@ -372,6 +405,8 @@ export function foldCognitionEvents(events = []) {
     else if (event.kind === 'synthesis') state.syntheses[event.id] = event;
     else if (event.kind === 'critique') state.critiques[event.id] = event;
     else if (event.kind === 'assignment') state.assignments[body.assignment_id] = event;
+    else if (event.kind === 'dispatch.started') state.dispatch_started[body.assignment_id] = event;
+    else if (event.kind === 'dispatch.completed') state.dispatch_completed[body.assignment_id] = event;
     else if (event.kind === 'wave.receipt') state.waves[body.wave_id] = event;
     else if (event.kind === 'supersede') {
       for (const target of body.target_ids) {
@@ -390,11 +425,17 @@ export function foldCognitionEvents(events = []) {
     }
   }
 
+  const acceptedCritiqueSources = new Set(Object.values(state.critiques)
+    .filter(event => event.body.verdict === 'accept')
+    .flatMap(event => event.source_event_ids));
   state.open_question_ids = Object.entries(state.questions)
     .filter(([id, value]) => value.status === 'open' && !state.superseded[id])
     .map(([id]) => id);
   state.unresolved_contradiction_ids = Object.entries(state.contradictions)
     .filter(([id, value]) => value.status === 'open' && !state.superseded[id])
+    .map(([id]) => id);
+  state.unresolved_critique_ids = Object.entries(state.critiques)
+    .filter(([id, value]) => value.body.verdict !== 'accept' && !state.superseded[id] && !acceptedCritiqueSources.has(id))
     .map(([id]) => id);
   state.unsupported_claim_ids = Object.entries(state.claims)
     .filter(([id, value]) => value.status === 'active' && !state.superseded[id] && !support.has(id))
@@ -403,6 +444,9 @@ export function foldCognitionEvents(events = []) {
   state.active_plan_ids = Object.entries(state.plans)
     .filter(([id, value]) => ['proposed', 'active', 'blocked'].includes(value.status) && !state.superseded[id])
     .map(([id]) => id);
+  state.pending_assignment_event_ids = Object.values(state.assignments)
+    .filter(event => !state.dispatch_completed[event.body.assignment_id])
+    .map(event => event.id);
   state.dissent_event_ids = [...new Set(state.dissent_event_ids.filter(id => ids.has(id)))];
   return state;
 }
@@ -411,8 +455,10 @@ export function unresolvedCognitionIds(state) {
   return [...new Set([
     ...(state?.open_question_ids || []),
     ...(state?.unresolved_contradiction_ids || []),
+    ...(state?.unresolved_critique_ids || []),
     ...(state?.unsupported_claim_ids || []),
     ...(state?.failed_test_ids || []),
-    ...(state?.active_plan_ids || []).filter(id => state.plans[id]?.status === 'blocked')
+    ...(state?.active_plan_ids || []).filter(id => state.plans[id]?.status === 'blocked'),
+    ...(state?.pending_assignment_event_ids || [])
   ])];
 }
