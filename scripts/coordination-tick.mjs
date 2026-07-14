@@ -148,6 +148,63 @@ export function normalizeGitHubTickEvent(payload = {}, env = process.env, invent
   };
 }
 
+export function declarationsFromSnapshots(pulls = [], issues = [], commentsByNumber = {}) {
+  const declarations = [];
+  const append = (text, context) => declarations.push(...parseDeclarationLines(text, context));
+
+  for (const pull of pulls) {
+    const issueNumbers = closingIssueNumbers(pull.body || '');
+    const context = {
+      actor: pull.user?.login || 'unknown',
+      branch: pull.head?.ref || null,
+      issueNumbers,
+      source: pull.html_url || `pr:${pull.number}`
+    };
+    append(pull.body || '', context);
+    for (const comment of commentsByNumber[pull.number] || []) {
+      append(comment.body || '', {
+        ...context,
+        actor: comment.user?.login || context.actor,
+        source: comment.html_url || `comment:${comment.id}`
+      });
+    }
+  }
+
+  for (const issue of issues) {
+    if (issue.pull_request) continue;
+    const context = {
+      actor: issue.user?.login || 'unknown',
+      branch: null,
+      issueNumbers: [issue.number],
+      source: issue.html_url || `issue:${issue.number}`
+    };
+    append(issue.body || '', context);
+    for (const comment of commentsByNumber[issue.number] || []) {
+      append(comment.body || '', {
+        ...context,
+        actor: comment.user?.login || context.actor,
+        source: comment.html_url || `comment:${comment.id}`
+      });
+    }
+  }
+
+  return declarations;
+}
+
+async function bootstrapDeclarations(api, pulls, issues) {
+  const numbers = unique([
+    ...pulls.map(pull => Number(pull.number)),
+    ...issues.filter(issue => !issue.pull_request).map(issue => Number(issue.number))
+  ].filter(Number.isFinite));
+  const commentsByNumber = {};
+  for (let index = 0; index < numbers.length; index += 8) {
+    const group = numbers.slice(index, index + 8);
+    const batches = await Promise.all(group.map(number => api.all(`/issues/${number}/comments?`)));
+    group.forEach((number, offset) => { commentsByNumber[number] = batches[offset]; });
+  }
+  return declarationsFromSnapshots(pulls, issues, commentsByNumber);
+}
+
 function generatedStateEvent(payload, env) {
   const actor = clean(payload.sender?.login || env.GITHUB_ACTOR || '').toLowerCase();
   const body = clean(payload.comment?.body || '');
@@ -217,12 +274,15 @@ export async function runCoordinationTick(env = process.env) {
   ]);
   const inventory = inventoryFromGitHub(pulls, issues);
   const event = normalizeGitHubTickEvent(payload, env, inventory);
-  const declarations = parseDeclarationLines(event.body, {
+  const currentDeclarations = parseDeclarationLines(event.body, {
     actor: event.actor,
     branch: event.branch,
     issueNumbers: event.issue_numbers,
     source: event.source || event.key
   });
+  const declarations = previous.tick === 0
+    ? [...await bootstrapDeclarations(api, pulls, issues), ...currentDeclarations]
+    : currentDeclarations;
   const result = reduceCoordinationTick(previous, { event, inventory, declarations });
   if (!result.changed) {
     console.log(`Duplicate delivery ignored: ${event.key}`);
