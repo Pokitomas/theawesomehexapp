@@ -27,6 +27,26 @@ test('hidden reasoning and dangling references fail closed', () => {
   assert.throws(() => foldCognitionEvents([event('evidence:1', 'evidence', { statement: 'ghost', supports: ['missing'], opposes: [], artifacts: [], strength: 1 }, ['missing'])]), /missing event/);
 });
 
+test('resolution backlinks are validated projections rather than causal cycle edges', () => {
+  const question = event('question:1', 'question', { question: 'Resolved?', priority: 80, answer_kinds: ['decision'], resolved_by: 'decision:2' });
+  const decision = event('decision:2', 'decision', {
+    statement: 'Resolved', supporting_ids: [question.id], opposing_ids: [], rationale: 'exact resolution', confidence: 0.9, resolves: [question.id], rollback_trigger: 'counterexample'
+  }, [question.id]);
+  const state = foldCognitionEvents([question, decision]);
+  assert.equal(state.questions[question.id].status, 'resolved');
+  assert.equal(state.questions[question.id].body.resolved_by, decision.id);
+});
+
+test('inconsistent resolution backlinks fail closed', () => {
+  const question = event('question:1', 'question', { question: 'Resolved?', priority: 80, answer_kinds: ['decision'], resolved_by: 'decision:2' });
+  const decision = event('decision:2', 'decision', {
+    statement: 'Different decision', supporting_ids: [question.id], opposing_ids: [], rationale: 'does not resolve target', confidence: 0.9, resolves: [], rollback_trigger: 'counterexample'
+  }, [question.id]);
+  assert.throws(() => foldCognitionEvents([question, decision]), /does not resolve event question:1/);
+  const falseResolver = event('claim:2', 'claim', { subject: 'resolver', statement: 'not a decision', confidence: 0.5, impact: 20 }, [question.id]);
+  assert.throws(() => foldCognitionEvents([question, falseResolver]), /is not a decision/);
+});
+
 test('planner creates complementary deterministic assignments and stops after equivalent assignments exist', () => {
   const question = event('question:1', 'question', { question: 'Which architecture?', priority: 90, answer_kinds: ['claim'] });
   const state = foldCognitionEvents([question]);
