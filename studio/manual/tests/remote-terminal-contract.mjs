@@ -34,12 +34,20 @@ assert.equal(manifest.protocol, 'sideways-universal-remote/1');
 assert.equal(manifest.live, false, 'static proof build must not pretend a live function exists');
 assert.equal(manifest.state.includes('/api/remote/state'), true);
 assert.equal(manifest.messages.includes('/api/remote'), true);
+assert.equal(manifest.weave.report, '/REMOTE_WORK.md');
+assert.equal(manifest.weave.thought, '/REMOTE_THOUGHT.md');
+assert.equal(manifest.weave.live_state, manifest.state);
+assert.equal(manifest.weave.static_state, manifest.snapshot);
+assert.equal(fs.existsSync(path.join(root, 'REMOTE_WORK.md')), true, 'work entry point is missing');
+assert.equal(fs.existsSync(path.join(root, 'REMOTE_THOUGHT.md')), true, 'shareable thought location is missing');
 assert.equal(snapshot.state.blocker_count, 0);
 assert.ok(Array.isArray(snapshot.state.messages));
 console.log(JSON.stringify({
   discovery: '.well-known/sideways-remote.json',
   publicState: manifest.state,
   publicMessages: manifest.messages,
+  report: manifest.weave.report,
+  thought: manifest.weave.thought,
   terminal: '#live-work',
   chromeOwner: 'title actions',
   browserCredentials: 'absent'
