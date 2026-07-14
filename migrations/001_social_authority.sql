@@ -75,10 +75,12 @@ CREATE TABLE IF NOT EXISTS social_mutation_receipts (
   idempotency_key text NOT NULL,
   operation text NOT NULL,
   actor_id text REFERENCES social_users(id) ON DELETE RESTRICT,
+  request_digest text NOT NULL,
   status integer NOT NULL,
   body jsonb NOT NULL,
   created_at timestamptz NOT NULL,
-  PRIMARY KEY (scope, idempotency_key)
+  PRIMARY KEY (scope, idempotency_key),
+  CONSTRAINT social_mutation_receipts_request_digest_shape CHECK (request_digest ~ '^[a-f0-9]{64}$')
 );
 
 CREATE INDEX IF NOT EXISTS social_sessions_user_active_idx
