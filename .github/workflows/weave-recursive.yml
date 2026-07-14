@@ -1,0 +1,56 @@
+name: Verify recursive weave cognition
+
+on:
+  pull_request:
+    paths:
+      - scripts/weave-cognition.mjs
+      - scripts/weave-memory.mjs
+      - scripts/weave-deliberation.mjs
+      - scripts/weave-dispatch.mjs
+      - scripts/weave-synthesis.mjs
+      - scripts/weave-recursive-runtime.mjs
+      - scripts/tests/weave-recursive-baseline.test.mjs
+      - .github/workflows/weave-recursive.yml
+      - package.json
+      - WEAVE_PROTOCOL.md
+  push:
+    branches: [main]
+    paths:
+      - scripts/weave-cognition.mjs
+      - scripts/weave-memory.mjs
+      - scripts/weave-deliberation.mjs
+      - scripts/weave-dispatch.mjs
+      - scripts/weave-synthesis.mjs
+      - scripts/weave-recursive-runtime.mjs
+      - scripts/tests/weave-recursive-baseline.test.mjs
+      - .github/workflows/weave-recursive.yml
+      - package.json
+      - WEAVE_PROTOCOL.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recursive-weave-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify bounded recursive cognition
+        run: |
+          node --check scripts/weave-cognition.mjs
+          node --check scripts/weave-memory.mjs
+          node --check scripts/weave-deliberation.mjs
+          node --check scripts/weave-dispatch.mjs
+          node --check scripts/weave-synthesis.mjs
+          node --check scripts/weave-recursive-runtime.mjs
+          node --test scripts/tests/weave-recursive-baseline.test.mjs scripts/tests/recursive-weave-sprawl-contract.test.mjs
