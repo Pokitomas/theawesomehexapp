@@ -1,24 +1,27 @@
-version: 32
-updated_at: 2026-07-13T22:38:00-07:00
+version: 33
+updated_at: 2026-07-13T22:40:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
 active_pr: none
 integration_pr: 84 merged
 integration_merge: 739ae16f1a931ad16958dabb10c6a668a0bb676b
 final_fix_pr: 87 merged
-merge_commit: 0fa45593c53a2e2fe60c46c52f6b558ca6f4d355
+runtime_merge_commit: 0fa45593c53a2e2fe60c46c52f6b558ca6f4d355
+documentation_pr: 88 merged
+documentation_merge: d0077efb10b75d30e28cfd53ad9afd6d48b1950c
+documentation_correction: a8008ce04304c08c245c53d460ddadb0dd3ddff0
 exact_tested_head: 2cfeb265fc9fb73b0cd62196cedf3a03f9ecb237
 previous_remote_merge: 316901b10f809067f71568141aae3b240099240b
 previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
 previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
-previous_verified_deployment_receipt: 76
+previous_verified_deployment_receipt: 85
 superseded_pr: 73 closed locked resolved
 
 owner: GPT-5.6 Thinking
-mode: completed repository closure with Drop-safe starter and user-owned Ark recovery
+mode: completed repository closure with Drop-safe starter user-owned Ark recovery and current documentation
 
 current_subtask:
-  summary: Re-reviewed the full repository, repaired static Drop onboarding, integrated user-owned recovery, removed the final visible-control race, and closed every implementation lane.
+  summary: Re-reviewed the full repository, repaired static Drop onboarding, integrated user-owned recovery, removed the final visible-control race, documented the actual architecture, and closed every implementation lane.
   completed:
     - kept one vendorless universal remote and added compact non-authoritative generation discovery metadata
     - preserved append-only cursor messages generic capabilities optional claims exact-head completion and public-only LIVE projection
@@ -33,6 +36,8 @@ current_subtask:
     - exposed PIN CHECK BACKUP and RESTORE as ordinary action-contracted Library controls
     - fixed the Ark rail so all four controls exist synchronously whenever the rail is visible
     - made asynchronous durability and audit work update only status text and counts
+    - replaced the stale repository README with the actual Sideways product architecture and corrected importer reload claims
+    - corrected visible mode terminology to Feed Full Desktop and separated static local profiles from function-backed uniqueness and synchronization
     - closed and locked superseded Ark PR 73
     - confirmed there are no open pull requests or active-generation issues
   verification:
@@ -52,12 +57,14 @@ current_subtask:
     - final Ark artifact 8301247165 digest sha256:7d1daf3f7e3dc4ee3996e8a92997fdf92e4cbee32935e2be4b5fe4fc60b998d5
     - merged integration PR 84 as 739ae16f1a931ad16958dabb10c6a668a0bb676b
     - merged final race fix PR 87 as 0fa45593c53a2e2fe60c46c52f6b558ca6f4d355
+    - merged documentation PR 88 as d0077efb10b75d30e28cfd53ad9afd6d48b1950c and corrected two factual terms on main as a8008ce04304c08c245c53d460ddadb0dd3ddff0
   production:
+    - latest verified Pages receipt remains issue 85 for merge 03992fa66c1d81f05145faefa0910f666496e332
     - no external deployment receipt currently names 739ae16f1a931ad16958dabb10c6a668a0bb676b or 0fa45593c53a2e2fe60c46c52f6b558ca6f4d355
     - the existing creative-profiterole-c6b236.netlify.app Drop remains the contents of its last manual upload until replaced
     - a newly uploaded static build can run the starter fallback profile-local social feed imports media LIVE snapshot and Ark backup restore without Netlify Functions
     - profile uniqueness durable profile synchronization live remote writes Netlify Blobs and production terminal receipts require a Git-connected function-capable Netlify deployment
-    - do not claim either new merge deployed until an external receipt identifies it
+    - do not claim either new runtime merge deployed until an external receipt identifies it
     - credentials pasted into chat were not used stored printed or committed
   done_when: complete
 
@@ -73,7 +80,7 @@ invariants:
   - Magic bytes and content outrank absent or contradictory MIME metadata.
   - Unknown binary must never be decoded into feed text.
   - Every local record may be deleted; shared assets may not be removed while referenced.
-  - FEED FULL and DESKTOP may change layout physics but never ranking records or action semantics.
+  - Feed Full and Desktop may change layout physics but never ranking records or action semantics.
   - Every visible custom product control must come from the action contract and exist when its surface becomes visible.
   - Fixed chrome must never make a physically covered control count as a passing touch target.
   - Temporary proof content may exist only inside test journeys and must be gone before the browser context closes.
