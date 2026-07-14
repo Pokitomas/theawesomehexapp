@@ -52,13 +52,22 @@ jobs:
             exit 1
           }
           cat social-postgres-test.log
-      - name: Upload PostgreSQL contract log
+      - name: Preserve existing in-memory contract
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:social > social-in-memory-test.log 2>&1 || {
+            tail -n 120 social-in-memory-test.log
+            exit 1
+          }
+          cat social-in-memory-test.log
+      - name: Upload relational contract logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: relational-social-postgres-log
-          path: social-postgres-test.log
+          name: relational-social-contract-logs
+          path: |
+            social-postgres-test.log
+            social-in-memory-test.log
           if-no-files-found: error
           retention-days: 5
-      - name: Preserve existing in-memory contract
-        run: npm run test:social
