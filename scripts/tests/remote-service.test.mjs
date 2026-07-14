@@ -30,6 +30,9 @@ const ROOT = 'operator';
 const KEY = 'test-root-key';
 const SESSION = 'Pokitomas/theawesomehexapp:test';
 const FIXED_NOW = Date.parse('2026-07-14T03:00:00.000Z');
+const HEAD = 'a'.repeat(40);
+const OTHER_HEAD = 'c'.repeat(40);
+const MERGE = 'b'.repeat(40);
 
 function signedRequest({ method = 'POST', path = '/api/remote', bodyObject, nonce = randomUUID(), timestamp = new Date(FIXED_NOW).toISOString(), principal = ROOT }) {
   const body = bodyObject === undefined ? '' : JSON.stringify(bodyObject);
@@ -74,7 +77,7 @@ function message(id, payload = {}, overrides = {}) {
     generation: 1,
     issuer: ROOT,
     issued_at: new Date(FIXED_NOW).toISOString(),
-    head_sha: 'head-1',
+    head_sha: HEAD,
     scope: [],
     payload,
     visibility: 'public',
@@ -132,7 +135,7 @@ test('claims are optional, exclusive while live, releasable, and terminalization
   const setHeadNonce = 'set-head';
   const setHead = {
     message: { ...message('set-head-message', { summary: 'Exact work head' }), nonce: setHeadNonce },
-    control: { op: 'set-head', head_sha: 'head-1' }
+    control: { op: 'set-head', head_sha: HEAD }
   };
   assert.equal((await handler(signedRequest({ bodyObject: setHead, nonce: setHeadNonce }))).status, 200);
 
@@ -144,12 +147,12 @@ test('claims are optional, exclusive while live, releasable, and terminalization
   assert.equal((await handler(signedRequest({ bodyObject: claim, nonce: claimNonce }))).status, 200);
 
   const badEvidence = {
-    head_sha: 'head-1',
-    checks: [{ name: 'remote', conclusion: 'success' }],
+    head_sha: HEAD,
+    checks: [{ name: 'remote', conclusion: 'success', head_sha: HEAD }],
     artifacts: [{ digest: 'sha256:abc' }],
     remaining_test_records: 1,
     active_blockers: 0,
-    merge: { state: 'merged', sha: 'merge-1' },
+    merge: { state: 'merged', sha: MERGE },
     production: { state: 'unverified', receipt: null }
   };
   const badNonce = 'bad-proposal';
@@ -184,11 +187,66 @@ test('claims are optional, exclusive while live, releasable, and terminalization
   const terminalResult = await json(await handler(signedRequest({ bodyObject: terminal, nonce: terminalNonce })));
   assert.equal(terminalResult.response.status, 200);
   assert.equal(terminalResult.data.state.terminal, true);
-  assert.equal(terminalResult.data.state.terminal_receipt.merge_sha, 'merge-1');
+  assert.equal(terminalResult.data.state.terminal_receipt.merge_sha, MERGE);
 
   const afterNonce = 'after-terminal';
   const after = { message: { ...message('after-message', { summary: 'Should not append' }), nonce: afterNonce } };
   assert.equal((await handler(signedRequest({ bodyObject: after, nonce: afterNonce }))).status, 409);
+});
+
+test('terminal evidence binds successful checks to the exact head and deployed receipts to the merge SHA', async () => {
+  const { handler } = setup();
+  const baseEvidence = {
+    head_sha: HEAD,
+    checks: [{ name: 'remote', conclusion: 'success', head_sha: HEAD }],
+    artifacts: [{ digest: 'sha256:exact-head-proof' }],
+    remaining_test_records: 0,
+    active_blockers: 0,
+    merge: { state: 'merged', sha: MERGE },
+    production: { state: 'unverified', receipt: null }
+  };
+
+  const missingHeadNonce = 'missing-check-head';
+  const missingHead = {
+    message: { ...message('missing-check-head-message', { summary: 'Check is not bound to a head' }), nonce: missingHeadNonce },
+    control: { op: 'propose-terminal', evidence: { ...baseEvidence, checks: [{ name: 'remote', conclusion: 'success' }] } }
+  };
+  const missingResult = await json(await handler(signedRequest({ bodyObject: missingHead, nonce: missingHeadNonce })));
+  assert.equal(missingResult.response.status, 409);
+  assert.ok(missingResult.data.detail.some(value => value.includes('exact tested head')));
+
+  const wrongHeadNonce = 'wrong-check-head';
+  const wrongHead = {
+    message: { ...message('wrong-check-head-message', { summary: 'Check belongs to another head' }), nonce: wrongHeadNonce },
+    control: { op: 'propose-terminal', evidence: { ...baseEvidence, checks: [{ name: 'remote', conclusion: 'success', head_sha: OTHER_HEAD }] } }
+  };
+  const wrongResult = await json(await handler(signedRequest({ bodyObject: wrongHead, nonce: wrongHeadNonce })));
+  assert.equal(wrongResult.response.status, 409);
+  assert.ok(wrongResult.data.detail.some(value => value.includes('exact tested head')));
+
+  const badReceiptNonce = 'bad-deployment-receipt';
+  const badReceipt = {
+    message: { ...message('bad-deployment-receipt-message', { summary: 'Deployment receipt is unrelated' }), nonce: badReceiptNonce },
+    control: {
+      op: 'propose-terminal',
+      evidence: { ...baseEvidence, production: { state: 'deployed', receipt: 'receipt-for-another-merge' } }
+    }
+  };
+  const badReceiptResult = await json(await handler(signedRequest({ bodyObject: badReceipt, nonce: badReceiptNonce })));
+  assert.equal(badReceiptResult.response.status, 409);
+  assert.ok(badReceiptResult.data.detail.some(value => value.includes('merge SHA')));
+
+  const goodReceiptNonce = 'good-deployment-receipt';
+  const goodReceipt = {
+    message: { ...message('good-deployment-receipt-message', { summary: 'Deployment receipt names the merge' }), nonce: goodReceiptNonce },
+    control: {
+      op: 'propose-terminal',
+      evidence: { ...baseEvidence, production: { state: 'deployed', receipt: { commit: MERGE, url: 'https://example.test/receipt' } } }
+    }
+  };
+  const goodReceiptResult = await json(await handler(signedRequest({ bodyObject: goodReceipt, nonce: goodReceiptNonce })));
+  assert.equal(goodReceiptResult.response.status, 200);
+  assert.equal(goodReceiptResult.data.state.terminal, false);
 });
 
 test('public state exposes digestible work and never leaks private payloads', async () => {
@@ -230,7 +288,7 @@ test('root can grant a vendorless Ed25519 principal with limited capabilities', 
       generation: 1,
       issuer: 'replacement-principal',
       issued_at: new Date(FIXED_NOW).toISOString(),
-      head_sha: 'head-1',
+      head_sha: HEAD,
       scope: [],
       payload: { summary: 'Replacement participant continued from the same session.' },
       visibility: 'public',
