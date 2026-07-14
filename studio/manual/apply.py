@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import os
 import runpy
 import shutil
 
@@ -135,7 +137,17 @@ def main() -> None:
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
     if REMOTE_SESSION.is_file():
-        shutil.copyfile(REMOTE_SESSION, MANUAL / "remote-session.json")
+        remote_data = json.loads(REMOTE_SESSION.read_text(encoding="utf-8"))
+        build_head = os.environ.get("GITHUB_SHA") or os.environ.get("COMMIT_REF")
+        if build_head:
+            remote_data["head_sha"] = build_head
+        remote_data.setdefault("decision", "proceed")
+        remote_data.setdefault("claims", [])
+        remote_data.setdefault("blocker_count", 0)
+        (MANUAL / "remote-session.json").write_text(
+            json.dumps(remote_data, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
     workspace_db = MANUAL / "workspace-db.js"
     workspace_db.write_text(
