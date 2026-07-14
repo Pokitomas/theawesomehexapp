@@ -188,7 +188,7 @@ export function activeBlockerCount(state) {
 export function publicMessageProjection(message) {
   const payload = message?.payload || {};
   const summary = clean(payload.summary || payload.action || payload.status || payload.note || 'Private work event').slice(0, 320);
-  const projection = {
+  return {
     id: message.id,
     session: message.session,
     generation: message.generation,
@@ -207,8 +207,6 @@ export function publicMessageProjection(message) {
       active_blockers: Number(payload.evidence.active_blockers ?? 0)
     } : null
   };
-  if (message.visibility === 'public') projection.payload = payload;
-  return projection;
 }
 
 export function publicStateProjection(state, messages = []) {
