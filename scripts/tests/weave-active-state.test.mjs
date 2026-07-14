@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { normalizeWeaveEvent, weavePayload } from '../weave-protocol.mjs';
 import { projectActiveWeaveState } from '../weave-active-state.mjs';
@@ -83,4 +87,28 @@ test('keeps recovery state separate for simultaneous sessions of one agent', () 
     state.openBeacons.filter(item => item.kind === 'agent_disappeared').map(item => item.beacon_id),
     ['recovery:session-a1', 'recovery:session-a2']
   );
+});
+
+test('CLI projects a real Remote page and preserves requested head', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'weave-active-'));
+  const input = path.join(directory, 'remote-page.json');
+  try {
+    fs.writeFileSync(input, JSON.stringify({
+      messages: [
+        remote({ id: '01', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'worker-a', session_id: 'session-a', state: 'coding', lease_expires_at: '2026-07-14T17:00:00Z' } })
+      ]
+    }));
+    const result = spawnSync(process.execPath, [
+      'scripts/weave-active.mjs',
+      input,
+      '--now', '2026-07-14T16:40:00Z',
+      '--head', 'abc123'
+    ], { cwd: process.cwd(), encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const state = JSON.parse(result.stdout);
+    assert.equal(state.head, 'abc123');
+    assert.deepEqual(state.activeSessions.map(item => item.session_id), ['session-a']);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
