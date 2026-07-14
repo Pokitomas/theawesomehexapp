@@ -19,6 +19,8 @@ NETWORK_TOGGLE = "{ className: 'network-secondary', label: 'I already have an ac
 NETWORK_TOGGLE_A11Y = "{ className: 'network-secondary', label: 'I already have an account', ariaLabel: 'I already have an account' }"
 NETWORK_MODE_COPY = "submit.textContent = signup ? 'Create account' : 'Log in';\n    toggle.textContent = signup ? 'I already have an account' : 'Create a new account';"
 NETWORK_MODE_A11Y = "submit.textContent = signup ? 'Create account' : 'Log in';\n    submit.setAttribute('aria-label', signup ? 'Create account' : 'Log in');\n    toggle.textContent = signup ? 'I already have an account' : 'Create a new account';\n    toggle.setAttribute('aria-label', signup ? 'I already have an account' : 'Create a new account');"
+NETWORK_AUTH_SYNC = "await SidewaysNetwork.sync.following();\n      setStatus(status, `Signed in as @${result.user.handle}.`, 'good');"
+NETWORK_AUTH_SYNC_ASYNC = "void SidewaysNetwork.sync.following().catch(error => console.warn('[network] initial sync failed', error));\n      setStatus(status, `Signed in as @${result.user.handle}.`, 'good');"
 
 
 def inject_once(text: str, marker: str, before: str) -> str:
@@ -55,9 +57,12 @@ def main() -> None:
         raise RuntimeError("network auth toggle shape changed unexpectedly")
     if NETWORK_MODE_COPY not in network_text and NETWORK_MODE_A11Y not in network_text:
         raise RuntimeError("network auth mode copy shape changed unexpectedly")
+    if NETWORK_AUTH_SYNC not in network_text and NETWORK_AUTH_SYNC_ASYNC not in network_text:
+        raise RuntimeError("network auth sync shape changed unexpectedly")
     network_text = network_text.replace(NETWORK_OBSERVER, NETWORK_EVENTS, 1)
     network_text = network_text.replace(NETWORK_TOGGLE, NETWORK_TOGGLE_A11Y, 1)
     network_text = network_text.replace(NETWORK_MODE_COPY, NETWORK_MODE_A11Y, 1)
+    network_text = network_text.replace(NETWORK_AUTH_SYNC, NETWORK_AUTH_SYNC_ASYNC, 1)
     network_ui.write_text(network_text, encoding="utf-8")
     shutil.copyfile(PRODUCT / "network.css", MANUAL / "network.css")
 
