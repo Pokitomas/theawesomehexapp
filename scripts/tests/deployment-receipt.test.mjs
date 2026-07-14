@@ -174,14 +174,20 @@ test('Pages workflow cannot record a receipt before the live commit is verified'
   const { workflow } = loadPagesWorkflow();
   const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
   const uploadArtifact = workflow.indexOf('uses: actions/upload-pages-artifact@v3');
-  const deployPages = workflow.indexOf('uses: actions/deploy-pages@v4');
-  const verifyLive = workflow.indexOf('node scripts/deployment-receipt.cjs verify-live');
-  const upsertReceipt = workflow.indexOf('const { upsertDeploymentReceipt } = require');
+  const deployJobStart = workflow.indexOf('\n  deploy:\n');
 
   assert.ok(writeSentinel >= 0, 'workflow must write a deployment sentinel');
   assert.ok(uploadArtifact > writeSentinel, 'sentinel must be inside the uploaded Pages artifact');
-  assert.ok(deployPages > uploadArtifact, 'deployment must consume the artifact after it is written');
+  assert.ok(deployJobStart > uploadArtifact, 'deploy job must follow artifact upload');
+
+  const deployJob = workflow.slice(deployJobStart);
+  const checkout = deployJob.indexOf('- uses: actions/checkout@v4');
+  const deployPages = deployJob.indexOf('uses: actions/deploy-pages@v4');
+  const verifyLive = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-live');
+  const upsertReceipt = deployJob.indexOf('const { upsertDeploymentReceipt } = require');
+
+  assert.ok(checkout >= 0, 'deploy job must check out the tested helper');
+  assert.ok(deployPages > checkout, 'Pages deployment must follow deploy-job checkout');
   assert.ok(verifyLive > deployPages, 'live verification must run after Pages deployment');
   assert.ok(upsertReceipt > verifyLive, 'receipt must be written only after live verification');
-  assert.match(workflow, /- uses: actions\/checkout@v4[\s\S]*?- name: Deploy to GitHub Pages/);
 });
