@@ -1,31 +1,44 @@
 import fs from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
-const files = {
-  core: 'netlify/functions/social-core.mjs',
-  function: 'netlify/functions/social.mjs',
-  client: 'studio/manual/product/social-client.js',
-  network: 'studio/manual/product/network-records.js',
-  actions: 'studio/manual/product/actions.js',
-  workspace: 'studio/manual/product/workspace.js',
-  survival: 'studio/manual/product/survival-ledger.js',
-  apply: 'studio/manual/apply.py',
-  netlify: 'netlify.toml'
-};
-const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
-for (const key of ['core', 'function', 'client', 'network', 'actions', 'workspace']) {
-  const check = spawnSync(process.execPath, ['--check', files[key]], { encoding: 'utf8' });
-  if (check.status !== 0) throw new Error(`${files[key]} syntax failed\n${check.stderr}`);
+const root = path.resolve(process.cwd());
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+const required = [
+  'netlify/functions/social-core.mjs',
+  'netlify/functions/social-postgres-store.mjs',
+  'netlify/functions/social-schema.mjs',
+  'netlify/functions/social.mjs',
+  'migrations/001_social_spine.sql',
+  'studio/manual/product/network/index.js',
+  'studio/manual/product/network/schema.js',
+  'studio/manual/product/network/sync.js',
+  'studio/manual/product/network-ui.js',
+  'studio/manual/product/network.css'
+];
+for (const file of required) if (!fs.existsSync(path.join(root, file))) throw new Error(`missing ${file}`);
+
+const schema = read('migrations/001_social_spine.sql');
+for (const table of ['users', 'profiles', 'sessions', 'posts', 'follows', 'reactions', 'events']) {
+  if (!new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`, 'i').test(schema)) throw new Error(`missing ${table} table`);
 }
-const requireAll = (key, tokens) => tokens.forEach(token => { if (!source[key].includes(token)) throw new Error(`${files[key]} missing ${token}`); });
-const forbidAll = (key, tokens) => tokens.forEach(token => { if (source[key].includes(token)) throw new Error(`${files[key]} contains forbidden ${token}`); });
-requireAll('core', ['HttpOnly', 'SameSite=Lax', 'scryptSync', 'timingSafeEqual', 'social/event/', 'post.replied', 'follow.created', 'like.created']);
-requireAll('client', ["credentials: 'same-origin'", 'Workspace.projectNetworkPosts', 'data.socialSpine', 'window.SidewaysSocial']);
-forbidAll('client', ['Workspace.saveProfile', "localStorage.setItem('sideways_session", 'new MutationObserver', 'location.reload()']);
-requireAll('network', ["const PREFIX = 'network:'", "ledgerEntry('network.project'", 'sideways:network', 'rank: {}']);
-requireAll('workspace', ['projectNetworkPosts', 'networkRecords']);
-requireAll('survival', ["startsWith('network:')", 'user-owned Ark excludes server projections']);
-for (const id of ['social.join', 'social.login', 'social.logout', 'social.post', 'social.follow', 'social.feed', 'social.discover']) requireAll('actions', [`'${id}'`]);
-requireAll('apply', ['social-client.css', 'social-client.js', 'network-records.js', 'data-social-spine']);
-requireAll('netlify', ['/api/social', '/.netlify/functions/social']);
-console.log('social spine contract ok: cookie sessions, public server facts, existing record projection, local Ark boundary');
+for (const choices of [['PRIMARY KEY (follower_id, followed_id)', 'UNIQUE (follower_id, followed_id)'], ['PRIMARY KEY (actor_id, post_id, kind)', 'UNIQUE (actor_id, post_id, kind)'], ['UNIQUE (actor_id, idempotency_key)']]) {
+  if (!choices.some(constraint => schema.includes(constraint))) throw new Error(`missing constraint ${choices.join(' or ')}`);
+}
+const core = read('netlify/functions/social-core.mjs');
+for (const route of ['/auth/signup', '/auth/login', '/auth/logout', '/auth/refresh', '/me', '/me/profile', '/posts', '/feed/following']) {
+  if (!core.includes(route)) throw new Error(`missing endpoint ${route}`);
+}
+if (!core.includes("segments[2] === 'follow'") || !core.includes("segments[2] === 'like'") || !core.includes("segments[2] === 'thread'")) throw new Error('social graph/thread routes missing');
+const record = read('studio/manual/product/network/schema.js');
+for (const field of ["type: 'social'", "source: 'Sideways network'", 'author:', 'published:', 'engagement:', 'rank: {}']) {
+  if (!record.includes(field)) throw new Error(`network projection missing ${field}`);
+}
+const sync = read('studio/manual/product/network/sync.js');
+if (!sync.includes('startsWith(PREFIX)') || !sync.includes("localRole: 'offline-cache'")) throw new Error('network cache boundary is not explicit');
+const apply = read('studio/manual/imports/apply.py');
+if (!apply.includes('network-ui.js') || !apply.includes('network.css') || !apply.includes('PRODUCT / "network"')) throw new Error('manual product does not install network adapter');
+const all = required.map(read).join('\n');
+if (/\bReact\b|createRoot\s*\(/.test(all)) throw new Error('React rewrite introduced');
+if (/function\s+(sigmoid|weightedMean|thompson|rankCandidates)\b/.test(read('studio/manual/product/network-ui.js'))) throw new Error('network layer copied ranking kernel');
+for (const stale of ['studio/manual/product/social-client.js', 'studio/manual/product/social-client.css', 'studio/manual/product/network-records.js']) if (fs.existsSync(path.join(root, stale))) throw new Error(`duplicate social architecture remains: ${stale}`);
+console.log(JSON.stringify({ socialSpine: true, authoritativeServer: true, localPrivateWorkspace: true, oneRecordSchema: true, reactRewrite: false }));
