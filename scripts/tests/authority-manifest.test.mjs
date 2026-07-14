@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import AUTHORITY_MANIFEST from '../../audit/authority-manifest.mjs';
 import {
@@ -10,6 +11,28 @@ import { auditRepository } from '../run-authority-audit.mjs';
 
 const ROOT = new URL('../..', import.meta.url);
 const manifest = () => structuredClone(AUTHORITY_MANIFEST);
+
+const repairedWitnesses = {
+  'remote.write': ['scripts/tests/remote-fail-closed.test.mjs', 'process-local serialization closes concurrent nonce and message-id races'],
+  'social.register': ['scripts/tests/social-cookie-provenance.test.mjs', 'the production boundary denies unproven cookie mutations before either authority runs'],
+  'social.login': ['scripts/tests/social-cookie-provenance.test.mjs', 'the production boundary denies unproven cookie mutations before either authority runs'],
+  'social.logout': ['scripts/tests/social-cookie-provenance.test.mjs', 'the production boundary denies unproven cookie mutations before either authority runs'],
+  'social.profile': ['scripts/tests/social-cookie-provenance.test.mjs', 'cookie mutation provenance accepts only an exact Origin or same-origin Fetch Metadata'],
+  'social.follow': ['scripts/tests/social-idempotency.test.mjs', 'receipt replay requires operation and digest, plus actor outside registration'],
+  'social.like': ['scripts/tests/social-idempotency.test.mjs', 'receipt replay requires operation and digest, plus actor outside registration'],
+  'social.post': ['scripts/tests/social-idempotency.test.mjs', 'receipt replay requires operation and digest, plus actor outside registration'],
+  'social.community-create-read': ['scripts/tests/community-postgres-contract.test.mjs', 'community authority survives removal, revision, appeal, tombstone, local hide, and fork'],
+  'social.community-membership': ['scripts/tests/community-postgres-contract.test.mjs', 'community authority survives removal, revision, appeal, tombstone, local hide, and fork'],
+  'social.community-role': ['scripts/tests/community-moderation-postgres.test.mjs', 'PostgreSQL moderation target and role matrix fails closed on current membership'],
+  'social.community-fork': ['scripts/tests/community-postgres-contract.test.mjs', 'community authority survives removal, revision, appeal, tombstone, local hide, and fork'],
+  'social.post-author-state': ['scripts/tests/community-postgres-contract.test.mjs', 'community authority survives removal, revision, appeal, tombstone, local hide, and fork'],
+  'social.moderation': ['scripts/tests/community-moderation-postgres.test.mjs', 'PostgreSQL moderation target and role matrix fails closed on current membership'],
+  'social.report': ['scripts/tests/community-postgres-contract.test.mjs', 'community authority survives removal, revision, appeal, tombstone, local hide, and fork'],
+  'social.appeal': ['scripts/tests/immutable-appeal-postgres.test.mjs', 'appeals reverse one immutable action and cannot ping-pong after resolution'],
+  'social.appeal-decide': ['scripts/tests/immutable-appeal-postgres.test.mjs', 'appeals reverse one immutable action and cannot ping-pong after resolution'],
+  'social.local-control': ['scripts/tests/community-viewer-controls-postgres.test.mjs', 'viewer controls change only the controlling viewer projection'],
+  'social.feeds': ['scripts/tests/community-viewer-controls-postgres.test.mjs', 'viewer controls change only the controlling viewer projection']
+};
 
 test('manifest covers every discovered in-repository authority surface', async () => {
   const result = await auditRepository(ROOT);
@@ -37,6 +60,17 @@ test('executive convergence leaves no stale tracked-gap rows', async () => {
     discoveredSurfaces: await discoverAuthoritySurfaces(ROOT)
   });
   assert.deepEqual(errors, []);
+});
+
+test('former repair rows bind current focused denial witnesses', async () => {
+  const value = manifest();
+  for (const [id, [relativePath, anchor]] of Object.entries(repairedWitnesses)) {
+    const row = value.rows.find(candidate => candidate.id === id);
+    assert.ok(row, id);
+    assert.equal(row.status, 'enforced', id);
+    const source = await readFile(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
+    assert.ok(source.includes(anchor), `${id}: ${relativePath} lost ${anchor}`);
+  }
 });
 
 test('declaration-only capability surfaces remain explicit', () => {
