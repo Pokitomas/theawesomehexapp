@@ -4,25 +4,67 @@
   "generation": 1,
   "branch": "agent/universal-remote-terminal",
   "base_head": "a2b4a318e46cca7fbe1c783a3d53cc6f2a950f5b",
-  "state": "building",
+  "head_sha": null,
+  "state": "testing",
+  "decision": "proceed",
+  "claims": [],
+  "blocker_count": 0,
   "human_report": "REMOTE_WORK.md",
   "thought_location": "remote/THOUGHT.md",
-  "conversation_location": "draft pull request conversation",
+  "conversation_location": "https://github.com/Pokitomas/theawesomehexapp/pull/78",
   "intent": "Build a vendorless universal project remote and expose a safe read-only live terminal for humans and programs.",
   "public_terminal": {
-    "planned": true,
-    "human_surface": "in-product terminal",
+    "implemented": true,
+    "human_surface": "LIVE button in the consumer app",
     "machine_surface": "/api/remote/state?session=theawesomehexapp/universal-remote&public=1",
+    "static_fallback": "./remote-session.json",
     "mutation_authority_in_browser": false
   },
   "current_atomic_task": [
-    "implement remote function and append-only storage",
-    "implement authentication and nonce replay protection",
-    "implement generic capabilities and optional expiring claims",
-    "implement cursor retrieval and public projection",
-    "implement CI gate outputs",
-    "implement visible terminal",
-    "prove security, cursor, completion, product, and cleanup behavior"
+    "finish exact-head workflow proof",
+    "inspect the live terminal phone artifact",
+    "remove bootstrap residue",
+    "merge and record production honestly"
   ],
-  "last_report_commit": "6ad2af1177ab018eff4a34d02b434eabcc5f9d82"
+  "messages": [
+    {
+      "id": "bootstrap-report",
+      "session": "theawesomehexapp/universal-remote",
+      "generation": 1,
+      "issuer": "repository",
+      "issued_at": "2026-07-14T03:56:00.000Z",
+      "head_sha": null,
+      "scope": ["report"],
+      "visibility": "public",
+      "payload": {
+        "action": "Published the first weave report and explicit thought location in PR 78."
+      }
+    },
+    {
+      "id": "remote-built",
+      "session": "theawesomehexapp/universal-remote",
+      "generation": 1,
+      "issuer": "repository",
+      "issued_at": "2026-07-14T04:16:00.000Z",
+      "head_sha": null,
+      "scope": ["backend", "ci", "product"],
+      "visibility": "public",
+      "payload": {
+        "action": "Implemented signed append-only messages, cursors, capabilities, expiring claims, CI gating, evidence-bound terminalization, a generic client, and the read-only LIVE terminal."
+      }
+    },
+    {
+      "id": "proof-running",
+      "session": "theawesomehexapp/universal-remote",
+      "generation": 1,
+      "issuer": "ci",
+      "issued_at": "2026-07-14T04:18:00.000Z",
+      "head_sha": null,
+      "scope": ["ci:read"],
+      "visibility": "public",
+      "payload": {
+        "summary": "Exact-head remote, product, media, kernel, and phone proofs are running."
+      }
+    }
+  ]
 }
