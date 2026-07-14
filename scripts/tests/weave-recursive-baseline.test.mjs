@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { foldCognitionEvents, normalizeCognitionEvent } from '../weave-cognition.mjs';
+import { foldCognitionEvents, normalizeCognitionEvent, unresolvedCognitionIds } from '../weave-cognition.mjs';
 import { planDeliberationWave } from '../weave-deliberation.mjs';
 import { retrieveCognitionMemory } from '../weave-memory.mjs';
 import { buildRolePacket, parseAdapterOutput } from '../weave-dispatch.mjs';
@@ -98,6 +98,7 @@ test('dispatch packets are advisory and output must cite targets and stay in sch
   assert.equal(packet.authority.merge, false);
   const parsed = parseAdapterOutput([{ kind: 'claim', source_event_ids: [question.id], body: { subject: 'Q', statement: 'A', confidence: 0.7, impact: 50 } }], packet, { issued_at: at(3) });
   assert.equal(parsed[0].kind, 'claim');
+  assert.ok(parsed[0].source_event_ids.includes(assignment.id));
   assert.throws(() => parseAdapterOutput([{ kind: 'claim', source_event_ids: [], body: { subject: 'Q', statement: 'A', confidence: 0.7, impact: 50 } }], packet), /missing assignment target citations/);
   assert.throws(() => parseAdapterOutput([{ kind: 'claim', authority: { repo_write: true }, source_event_ids: [question.id], body: { subject: 'Q', statement: 'A', confidence: 0.7, impact: 50 } }], packet), /Forbidden adapter authority/);
   assert.throws(() => parseAdapterOutput([{ kind: 'claim', source_event_ids: [question.id], body: { subject: 'Q', statement: 'token=leaked-value', confidence: 0.7, impact: 50 } }], packet), /secret-like material/);
@@ -113,6 +114,26 @@ test('critic blocks a synthesis that erases live contradiction or minority evide
   const critique = critiqueSynthesis({ id: 'critique:5', synthesis, state: stateWithSynthesis, issued_at: at(5) });
   assert.equal(critique.body.verdict, 'block');
   assert.ok(critique.body.blocking_event_ids.includes(contradiction.id));
+});
+
+test('non-accept critique is unresolved until a later independent accept receipt cites it', () => {
+  const claim = event('claim:1', 'claim', { subject: 'x', statement: 'A', confidence: 0.9, impact: 80 });
+  const firstSynthesis = buildSynthesis({ id: 'synthesis:2', issued_at: at(2), source_events: [claim], unresolved_ids: [], minority_report_ids: [], proposed_actions: [] });
+  const blocked = event('critique:3', 'critique', {
+    synthesis_id: firstSynthesis.id, verdict: 'block', findings: ['unsupported certainty'], required_corrections: ['add evidence'], blocking_event_ids: [claim.id]
+  }, [firstSynthesis.id, claim.id]);
+  const blockedState = foldCognitionEvents([claim, firstSynthesis, blocked]);
+  assert.deepEqual(blockedState.unresolved_critique_ids, [blocked.id]);
+  assert.ok(unresolvedCognitionIds(blockedState).includes(blocked.id));
+  const correctionPlan = planDeliberationWave(blockedState, { wave_index: 1, issued_at: at(4) });
+  assert.deepEqual(correctionPlan.assignments.map(value => value.body.role), ['integrator', 'critic']);
+
+  const revised = buildSynthesis({ id: 'synthesis:4', issued_at: at(4), source_events: [claim, blocked], unresolved_ids: [blocked.id], minority_report_ids: [], proposed_actions: ['correct'] });
+  const interim = foldCognitionEvents([claim, firstSynthesis, blocked, revised]);
+  const accepted = critiqueSynthesis({ id: 'critique:5', synthesis: revised, state: interim, issued_at: at(5) });
+  assert.equal(accepted.body.verdict, 'accept');
+  const acceptedState = foldCognitionEvents([claim, firstSynthesis, blocked, revised, accepted]);
+  assert.deepEqual(acceptedState.unresolved_critique_ids, []);
 });
 
 test('recursive runtime feeds outputs into later waves and terminates on resolved question', async () => {
@@ -138,12 +159,39 @@ test('recursive runtime feeds outputs into later waves and terminates on resolve
       }];
     }
   };
-  const result = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter }, budget: { max_waves: 4, max_events: 64 }, now: (() => { let i = 10; return () => at(i++); })() });
+  const result = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter }, budget: { max_waves: 4, max_events: 96 }, now: (() => { let i = 10; return () => at(i++); })() });
   assert.equal(result.terminal, 'converged');
   assert.ok(result.receipts.length >= 1);
   assert.equal(result.state.open_question_ids.length, 0);
   assert.ok(result.events.some(value => value.kind === 'synthesis'));
+  assert.ok(result.events.some(value => value.kind === 'dispatch.started'));
+  assert.ok(result.events.some(value => value.kind === 'dispatch.completed'));
   assert.ok(calls >= 2);
+});
+
+test('orphaned assignment resumes the same durable dispatch rather than deadlocking', async () => {
+  const question = event('question:1', 'question', { question: 'Resume?', priority: 90, answer_kinds: ['decision'] });
+  const plan = planDeliberationWave(foldCognitionEvents([question]), { wave_index: 0, issued_at: at(2), max_assignments: 1 });
+  const assignment = normalizeCognitionEvent((({ novelty_key, priority, ...value }) => value)(plan.assignments[0]));
+  let packetSeen = null;
+  const adapter = {
+    id: 'resumer',
+    async execute(packet) {
+      packetSeen = packet;
+      return [{
+        kind: 'decision', source_event_ids: [question.id],
+        body: { statement: 'resumed', supporting_ids: [question.id], opposing_ids: [], rationale: 'same durable dispatch', confidence: 0.9, resolves: [question.id], rollback_trigger: 'counterexample' }
+      }];
+    }
+  };
+  const result = await runRecursiveWeave({ initial_events: [question, assignment], adapters: { proposer: adapter, default: adapter }, budget: { max_waves: 3, max_events: 64 }, now: (() => { let i = 30; return () => at(i++); })() });
+  assert.equal(result.terminal, 'converged');
+  assert.equal(packetSeen.assignment.event_id, assignment.id);
+  const started = result.events.find(value => value.kind === 'dispatch.started');
+  const completed = result.events.find(value => value.kind === 'dispatch.completed');
+  assert.equal(started.body.idempotency_key, packetSeen.idempotency_key);
+  assert.equal(completed.body.idempotency_key, packetSeen.idempotency_key);
+  assert.equal(result.state.pending_assignment_event_ids.length, 0);
 });
 
 test('recursive runtime terminates cyclic nonprogress at finite budget', async () => {
@@ -154,9 +202,9 @@ test('recursive runtime terminates cyclic nonprogress at finite budget', async (
       return [{ kind: 'claim', source_event_ids: [packet.assignment.target_ids[0]], body: { subject: 'loop', statement: 'still unresolved', confidence: 0.5, impact: 10 } }];
     }
   };
-  const result = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter, default: adapter }, budget: { max_waves: 2, max_events: 48 }, now: (() => { let i = 20; return () => at(i++); })() });
+  const result = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter, default: adapter }, budget: { max_waves: 2, max_events: 96 }, now: (() => { let i = 50; return () => at(i++); })() });
   assert.ok(['blocked', 'budget_exhausted'].includes(result.terminal));
-  assert.ok(result.events.length <= 49);
+  assert.ok(result.events.length <= 97);
 });
 
 test('terminal receipt makes a retry an exact no-op', async () => {
@@ -171,16 +219,16 @@ test('terminal receipt makes a retry an exact no-op', async () => {
       }];
     }
   };
-  const now = (() => { let i = 40; return () => at(i++); })();
-  const first = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter }, now });
-  const second = await runRecursiveWeave({ initial_events: first.events, adapters: { proposer: adapter, verifier: adapter }, now });
+  const now = (() => { let i = 70; return () => at(i++); })();
+  const first = await runRecursiveWeave({ initial_events: [question], adapters: { proposer: adapter, verifier: adapter }, now, budget: { max_events: 96 } });
+  const second = await runRecursiveWeave({ initial_events: first.events, adapters: { proposer: adapter, verifier: adapter }, now, budget: { max_events: 96 } });
   assert.equal(second.terminal, first.terminal);
   assert.equal(second.events.length, first.events.length);
   assert.deepEqual(second.receipts.map(value => value.id), first.receipts.map(value => value.id));
 });
 
 test('invalid initial event terminates as typed invalid-state receipt', async () => {
-  const result = await runRecursiveWeave({ initial_events: [{ kind: 'claim', issuer: 'x', body: { subject: 'x', statement: 'x', scratchpad: 'hidden' } }], now: () => at(50) });
+  const result = await runRecursiveWeave({ initial_events: [{ kind: 'claim', issuer: 'x', body: { subject: 'x', statement: 'x', scratchpad: 'hidden' } }], now: () => at(90) });
   assert.equal(result.terminal, 'invalid_state');
   assert.equal(result.receipts[0].body.status, 'invalid_state');
 });
