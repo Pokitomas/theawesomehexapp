@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { COGNITION_KINDS, normalizeCognitionEvent } from './weave-cognition.mjs';
 
-const FORBIDDEN_AUTHORITY = new Set(['merge', 'deploy', 'grant', 'admin', 'canonical_mutation', 'repo:write']);
+const FORBIDDEN_AUTHORITY = new Set(['merge', 'deploy', 'grant', 'admin', 'canonical_mutation', 'repo_write', 'repo:write']);
 const SECRET_PATTERN = /(api[_-]?key|secret|token|password|private[_-]?key)\s*[:=]\s*[^\s]+/i;
 
 export function dispatchIdempotencyKey({ wave_id, assignment_id, adapter_id }) {
@@ -38,11 +38,16 @@ export function buildRolePacket(assignmentEvent, memory, adapterId) {
   });
 }
 
+function rejectSecretMaterial(value) {
+  const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+  if (SECRET_PATTERN.test(serialized)) throw new Error('Adapter output contains secret-like material.');
+}
+
 function parseRawOutput(raw) {
+  rejectSecretMaterial(raw);
   if (Array.isArray(raw)) return raw;
   if (raw && typeof raw === 'object' && Array.isArray(raw.events)) return raw.events;
   if (typeof raw === 'string') {
-    if (SECRET_PATTERN.test(raw)) throw new Error('Adapter output contains secret-like material.');
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : parsed.events;
   }
@@ -70,6 +75,10 @@ export function parseAdapterOutput(raw, packet, context = {}) {
       for (const artifact of candidate.body.artifacts) {
         if (!artifactScope.some(scope => String(artifact).startsWith(scope))) throw new Error(`Artifact is outside assignment scope: ${artifact}.`);
       }
+    }
+    if (candidate?.kind === 'artifact' && artifactScope.length) {
+      const uri = String(candidate?.body?.uri || '');
+      if (!artifactScope.some(scope => uri.startsWith(scope))) throw new Error(`Artifact is outside assignment scope: ${uri}.`);
     }
     return normalizeCognitionEvent({
       ...candidate,
