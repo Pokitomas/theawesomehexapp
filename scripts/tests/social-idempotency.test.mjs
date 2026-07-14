@@ -23,10 +23,12 @@ function request(op, body, key = 'same-key') {
   });
 }
 
-function oversizedRequest() {
+function oversizedRequest({ idempotent = true } = {}) {
+  const headers = { 'content-type': 'application/json' };
+  if (idempotent) headers['idempotency-key'] = 'oversized-request';
   return new Request('https://sideways.test/api/social?op=post', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: 'x'.repeat(MAX_MUTATION_BODY_BYTES + 1)
   });
 }
@@ -51,11 +53,21 @@ test('request identity rejects an oversized body even without a content-length h
   );
 });
 
-test('the relational HTTP service converts pre-handler identity denial into a 413 response', async () => {
+test('the relational HTTP service converts receipt-bearing pre-handler denial into a 413 response', async () => {
   const service = createRelationalSocialService({ authority: {}, sessionSecret: SECRET });
   const result = await service(oversizedRequest());
   assert.equal(result.status, 413);
   assert.deepEqual(await result.json(), { error: 'Request is too large.' });
+});
+
+test('non-idempotent mutations preserve the existing handler path', async () => {
+  let reached = false;
+  const result = await withSocialMutationContext(oversizedRequest({ idempotent: false }), SECRET, () => {
+    reached = true;
+    return 'unchanged';
+  });
+  assert.equal(reached, true);
+  assert.equal(result, 'unchanged');
 });
 
 test('mutation identity remains isolated across concurrent async request chains', async () => {
