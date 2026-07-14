@@ -69,6 +69,13 @@ test('a transient bootstrap failure clears readiness so the same runtime can rec
   assert.equal(pool.connectCount(), 2);
 });
 
+test('idempotency migration preserves legacy denial residue and enforces bound receipts', async () => {
+  const migration = await readFile(new URL('../../migrations/003_social_idempotency_identity.sql', import.meta.url), 'utf8');
+  assert.match(migration, /SET request_digest = repeat\('0', 64\)/);
+  assert.match(migration, /ALTER COLUMN request_digest SET NOT NULL/);
+  assert.match(migration, /CHECK \(request_digest ~ '\^\[a-f0-9\]\{64\}\$'\)/);
+});
+
 test('Netlify bundles migration SQL with the social function', async () => {
   const config = await readFile(new URL('../../netlify.toml', import.meta.url), 'utf8');
   assert.match(config, /included_files\s*=\s*\["migrations\/\*\.sql"\]/);

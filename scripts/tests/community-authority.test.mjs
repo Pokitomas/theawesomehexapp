@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
+  assertMemberModerationHierarchy,
+  assertModerationTargetAction,
   communitySlug,
   contentState,
   inverseModerationAction,
   postStatePatch,
   visibleText
 } from '../../netlify/functions/community-authority.mjs';
+
+const active = role => ({ role, status: 'active', reason: '' });
 
 test('community slugs become stable authority identifiers', () => {
   assert.equal(communitySlug('c/Anime Titties!!!'), 'anime-titties');
@@ -40,6 +44,41 @@ test('moderation and author state changes are reversible without collapsing thei
   assert.deepEqual(postStatePatch('lock', 't4'), { locked_at: 't4' });
   assert.equal(inverseModerationAction('remove'), 'restore');
   assert.equal(inverseModerationAction('ban'), 'unban');
+});
+
+test('moderation target discriminants and action families fail closed', () => {
+  assert.deepEqual(assertModerationTargetAction('post', 'remove'), { targetType: 'post', action: 'remove' });
+  assert.deepEqual(assertModerationTargetAction('member', 'ban'), { targetType: 'member', action: 'ban' });
+  assert.throws(() => assertModerationTargetAction('banana', 'ban'), /Unsupported moderation target or action/);
+  assert.throws(() => assertModerationTargetAction('member', 'remove'), /Unsupported moderation target or action/);
+  assert.throws(() => assertModerationTargetAction('post', 'ban'), /Unsupported moderation target or action/);
+});
+
+test('member moderation follows an explicit actor-target role hierarchy', () => {
+  assert.doesNotThrow(() => assertMemberModerationHierarchy({
+    actorId: 'moderator', actorMembership: active('moderator'),
+    targetId: 'member', targetMembership: active('member')
+  }));
+  assert.doesNotThrow(() => assertMemberModerationHierarchy({
+    actorId: 'owner', actorMembership: active('owner'),
+    targetId: 'moderator', targetMembership: active('moderator')
+  }));
+  assert.throws(() => assertMemberModerationHierarchy({
+    actorId: 'moderator', actorMembership: active('moderator'),
+    targetId: 'moderator', targetMembership: active('moderator')
+  }), /themselves/);
+  assert.throws(() => assertMemberModerationHierarchy({
+    actorId: 'moderator-a', actorMembership: active('moderator'),
+    targetId: 'moderator-b', targetMembership: active('moderator')
+  }), /Only an owner/);
+  assert.throws(() => assertMemberModerationHierarchy({
+    actorId: 'moderator', actorMembership: active('moderator'),
+    targetId: 'owner', targetMembership: active('owner')
+  }), /owners cannot be banned/);
+  assert.throws(() => assertMemberModerationHierarchy({
+    actorId: 'former-moderator', actorMembership: { role: 'member', status: 'active' },
+    targetId: 'member', targetMembership: active('member')
+  }), /Community authority required/);
 });
 
 test('the migration encodes authority objects and database-level conversation invariants', async () => {
