@@ -27,6 +27,7 @@ function candidate(state, role, targetIds, reason, priority, expectedKinds) {
 export function planDeliberationWave(state, config = {}) {
   const maxAssignments = Math.max(1, Math.min(32, Number(config.max_assignments ?? 8) || 8));
   const waveIndex = Math.max(0, Number(config.wave_index ?? Object.keys(state?.waves || {}).length) || 0);
+  const assignmentVisibility = config.visibility === 'public' ? 'public' : 'private';
   const candidates = [];
 
   for (const id of state?.open_question_ids || []) {
@@ -73,7 +74,7 @@ export function planDeliberationWave(state, config = {}) {
         kind: 'assignment',
         issuer: 'system:weave-planner',
         issued_at: config.issued_at || new Date(0 + waveIndex).toISOString(),
-        visibility: 'private',
+        visibility: assignmentVisibility,
         source_event_ids: [...value.target_ids],
         body: {
           assignment_id: assignmentId,
