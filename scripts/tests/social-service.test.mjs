@@ -80,6 +80,10 @@ test('two accounts can follow, post, reply, like, synchronize and return on a fr
 
   const events = await store.listEvents();
   assert.deepEqual(events.map(event => event.type), ['account.created', 'account.created', 'follow.created', 'post.created', 'post.created', 'reaction.created']);
+  const serializedEvents = JSON.stringify(events);
+  assert.equal(serializedEvents.includes('passwordHash'), false);
+  assert.equal(serializedEvents.includes('scrypt$'), false);
+  assert.equal(serializedEvents.includes('first@example.com'), false);
 });
 
 test('public identity stays separate from local preferences and profile updates are idempotent', async () => {
