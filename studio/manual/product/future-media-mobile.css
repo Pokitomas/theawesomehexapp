@@ -115,6 +115,27 @@
     padding-inline: .3rem !important;
   }
 
+  html.workspace-chrome #feed .studio-empty-hero {
+    background: var(--future-black) !important;
+  }
+
+  html.workspace-chrome #feed .studio-empty-hero .workspace-empty-mark {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    align-self: stretch !important;
+    aspect-ratio: auto !important;
+    border-radius: 0 !important;
+  }
+
+  html.workspace-chrome #feed .studio-empty-copy h1 {
+    color: var(--future-white) !important;
+  }
+
+  html.workspace-chrome #feed .studio-empty-copy .workspace-eyebrow {
+    color: var(--future-toxic) !important;
+  }
+
   html.workspace-chrome .feed,
   html.workspace-chrome #workspacePlacesView,
   html.workspace-chrome #addView,
