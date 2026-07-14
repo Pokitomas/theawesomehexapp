@@ -22,7 +22,7 @@
     grid-template-columns: 70px minmax(0, 1fr) !important;
     grid-template-rows: 48px !important;
     align-items: stretch !important;
-    gap: 4px !important;
+    gap: 8px !important;
   }
 
   html.workspace-chrome .workspace-commandbar .workspace-new-button {
@@ -34,7 +34,7 @@
     max-width: 70px !important;
     min-height: 48px !important;
     margin: 0 !important;
-    padding-inline: .35rem !important;
+    padding-inline: .55rem !important;
   }
 
   html.workspace-chrome .workspace-commandbar .workspace-nav {
@@ -47,7 +47,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     grid-template-rows: 48px !important;
     align-items: stretch !important;
-    gap: 4px !important;
+    gap: 8px !important;
     padding: 0 !important;
     margin: 0 !important;
     border: 0 !important;
@@ -60,7 +60,7 @@
     min-width: 0 !important;
     max-width: none !important;
     min-height: 48px !important;
-    padding-inline: .18rem !important;
+    padding-inline: .55rem !important;
     overflow: hidden;
     grid-column: auto !important;
     grid-row: 1 !important;
