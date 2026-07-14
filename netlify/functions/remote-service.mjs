@@ -86,12 +86,35 @@ async function loadPrincipal(store, env, principalId) {
   if (envSecret) {
     const capabilityKey = `REMOTE_CAPS_${clean(principalId).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
     const configured = envValue(env, capabilityKey).split(',').map(value => value.trim()).filter(Boolean);
-    return { id: principalId, algorithm: 'hmac-sha256', secret: envSecret, capabilities: configured.length ? normalizeCapabilities(configured) : [...CAPABILITIES] };
+    return { id: principalId, algorithm: 'hmac-sha256', secret: envSecret, capabilities: normalizeCapabilities(configured) };
   }
   const record = await getJSON(store, principalKey(principalId));
   if (!record || record.id !== principalId || record.revoked_at) return null;
   if (record.expires_at && Date.parse(record.expires_at) <= Date.now()) return null;
   return { ...record, capabilities: normalizeCapabilities(record.capabilities) };
+}
+
+function canonicalRemoteTarget(value) {
+  const text = clean(value);
+  if (!text.startsWith('/')) return '';
+  const parsed = new URL(text, 'https://sideways.invalid');
+  const functionPrefix = '/.netlify/functions/remote';
+  const pathname = parsed.pathname.startsWith(functionPrefix)
+    ? `/api/remote${parsed.pathname.slice(functionPrefix.length)}`
+    : parsed.pathname;
+  return `${pathname}${parsed.search}`;
+}
+
+function signedTarget(request) {
+  const url = new URL(request.url);
+  const actual = `${url.pathname}${url.search}`;
+  const supplied = clean(request.headers.get('x-remote-path')) || actual;
+  if (!canonicalRemoteTarget(supplied) || canonicalRemoteTarget(supplied) !== canonicalRemoteTarget(actual)) {
+    const error = new Error('Signed request target does not match the actual request target.');
+    error.status = 401;
+    throw error;
+  }
+  return supplied;
 }
 
 async function authenticate(request, bodyText, store, env, now) {
@@ -115,9 +138,8 @@ async function authenticate(request, bodyText, store, env, now) {
     error.status = 401;
     throw error;
   }
-  const url = new URL(request.url);
-  const signedPath = clean(request.headers.get('x-remote-path')) || `${url.pathname}${url.search}`;
-  const canonical = canonicalRequest({ method: request.method, path: signedPath, timestamp, nonce, bodyText });
+  const path = signedTarget(request);
+  const canonical = canonicalRequest({ method: request.method, path, timestamp, nonce, bodyText });
   let valid = false;
   if (principal.algorithm === 'hmac-sha256') valid = verifyHmacSignature({ secret: principal.secret, canonical, signature });
   if (principal.algorithm === 'ed25519') valid = verifyEd25519Signature({ publicKey: principal.public_key_pem, canonical, signature });
@@ -329,7 +351,9 @@ async function applyControl({ store, state, message, control, auth, now }) {
 
 export function createRemoteHandler({ store, env = process.env, now = () => Date.now() }) {
   if (!store) throw new Error('A Netlify Blob store is required.');
-  return async request => {
+  let mutationTail = Promise.resolve();
+
+  async function handle(request) {
     if (request.method === 'OPTIONS') return reply(204);
     try {
       const url = new URL(request.url);
@@ -407,5 +431,12 @@ export function createRemoteHandler({ store, env = process.env, now = () => Date
     } catch (error) {
       return fail(error.status || 500, error.message || 'Remote request failed.', error.detail);
     }
+  }
+
+  return request => {
+    if (request.method !== 'POST') return handle(request);
+    const run = mutationTail.catch(() => {}).then(() => handle(request));
+    mutationTail = run.then(() => undefined, () => undefined);
+    return run;
   };
 }
