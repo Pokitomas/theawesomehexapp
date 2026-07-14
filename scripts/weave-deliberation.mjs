@@ -11,7 +11,7 @@ function existingNoveltyKeys(state) {
 function substantiveFrontier(state, targetIds) {
   const targets = new Set(targetIds);
   return (state?.events || [])
-    .filter(event => !['assignment', 'wave.receipt', 'synthesis', 'critique'].includes(event.kind))
+    .filter(event => !['assignment', 'dispatch.started', 'dispatch.completed', 'wave.receipt'].includes(event.kind))
     .filter(event => targets.has(event.id) || (event.source_event_ids || []).some(id => targets.has(id)))
     .map(event => ({ id: event.id, kind: event.kind, digest: stableDigest(event) }))
     .sort((left, right) => left.id.localeCompare(right.id));
@@ -39,6 +39,12 @@ export function planDeliberationWave(state, config = {}) {
     const priority = Number(contradiction?.body.severity || 50);
     candidates.push(candidate(state, 'opponent', [id, contradiction.body.left_id, contradiction.body.right_id], 'preserve strongest countercase', priority + 30, ['evidence', 'critique', 'uncertainty']));
     candidates.push(candidate(state, 'integrator', [id, contradiction.body.left_id, contradiction.body.right_id], 'seek discriminating test or bounded resolution', priority + 20, ['test.result', 'decision', 'question']));
+  }
+  for (const id of state?.unresolved_critique_ids || []) {
+    const critique = state.critiques[id];
+    const targets = [id, critique.body.synthesis_id, ...critique.body.blocking_event_ids];
+    candidates.push(candidate(state, 'integrator', targets, 'repair blocked or revision-required synthesis', 98, ['synthesis', 'evidence', 'test.result', 'decision']));
+    candidates.push(candidate(state, 'critic', targets, 'independently re-evaluate corrected synthesis', 96, ['critique', 'evidence', 'test.result']));
   }
   for (const id of state?.unsupported_claim_ids || []) {
     const claim = state.claims[id];
@@ -88,9 +94,9 @@ export function planDeliberationWave(state, config = {}) {
       };
     });
 
-  const unresolved = unresolvedCognitionIds(state);
+  const unresolved = unresolvedCognitionIds(state).filter(id => !(state?.pending_assignment_event_ids || []).includes(id));
   let terminal = null;
-  if (!unresolved.length) terminal = 'converged';
-  else if (!assignments.length) terminal = 'human_required';
+  if (!unresolved.length && !(state?.pending_assignment_event_ids || []).length) terminal = 'converged';
+  else if (!assignments.length && !(state?.pending_assignment_event_ids || []).length) terminal = 'human_required';
   return { wave_id: `wave:${waveIndex}`, wave_index: waveIndex, assignments, unresolved_ids: unresolved, terminal };
 }
