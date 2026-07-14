@@ -1,0 +1,1 @@
+The frontier test validates profile setup, starter fetching, social actions, touch geometry, and complete proof-post cleanup.
