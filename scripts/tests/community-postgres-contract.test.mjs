@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import test, { after, before, beforeEach } from 'node:test';
 import pg from 'pg';
 import { createPostgresCommunityRuntime } from '../../netlify/functions/social-postgres-community-runtime.mjs';
+import { ensureSocialSchema } from '../../netlify/functions/social-postgres-migrations.mjs';
 import { createPostgresAuthority } from '../../netlify/functions/social-postgres-store.mjs';
 import { createRelationalSocialService } from '../../netlify/functions/social-relational-core.mjs';
 
@@ -38,11 +38,7 @@ function client(service) {
 }
 
 before(async () => {
-  if (!enabled) return;
-  for (const file of ['001_social_authority.sql', '002_community_conversation_authority.sql']) {
-    const migration = await readFile(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
-    await pool.query(migration);
-  }
+  if (enabled) await ensureSocialSchema(pool);
 });
 
 beforeEach(async () => {
