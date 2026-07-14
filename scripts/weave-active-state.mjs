@@ -31,7 +31,7 @@ export function projectActiveWeaveState(messages, options = {}) {
   const sessions = new Map();
   const intents = [];
   const expectedResponses = new Map();
-  const answered = new Set();
+  const responseTimes = new Map();
 
   for (const event of events) {
     const body = event.body || {};
@@ -50,13 +50,17 @@ export function projectActiveWeaveState(messages, options = {}) {
         reported_by: event.issuer
       });
     } else if (event.kind === 'intent') {
-      const session = [...sessions.values()]
-        .filter(candidate => candidate.agent_id === event.issuer && timeOf(candidate.reported_at) <= timeOf(event.issued_at))
-        .sort((left, right) => timeOf(right.reported_at) - timeOf(left.reported_at))[0] || null;
+      const eventTime = timeOf(event.issued_at);
+      const candidates = [...sessions.values()]
+        .filter(candidate => candidate.agent_id === event.issuer
+          && timeOf(candidate.reported_at) <= eventTime
+          && timeOf(candidate.lease_expires_at) > eventTime)
+        .sort((left, right) => left.session_id.localeCompare(right.session_id));
       intents.push({
         ...body,
         issuer: event.issuer,
-        session_id: session?.session_id || null,
+        session_id: candidates.length === 1 ? candidates[0].session_id : null,
+        ambiguous_session_ids: candidates.length > 1 ? candidates.map(candidate => candidate.session_id) : [],
         issued_at: event.issued_at,
         event_id: event.id,
         artifact_keys: artifactKeys(body)
@@ -68,7 +72,10 @@ export function projectActiveWeaveState(messages, options = {}) {
         issued_at: event.issued_at,
         event_id: event.id
       });
-      if (body.reply_to) answered.add(body.reply_to);
+      if (body.reply_to) {
+        const responseTime = timeOf(event.issued_at);
+        responseTimes.set(body.reply_to, Math.max(responseTimes.get(body.reply_to) || 0, responseTime));
+      }
     }
   }
 
@@ -80,6 +87,9 @@ export function projectActiveWeaveState(messages, options = {}) {
 
   const activeIntents = intents
     .filter(intent => intent.session_id && activeSessionIds.has(intent.session_id))
+    .sort((left, right) => left.event_id.localeCompare(right.event_id));
+  const unboundIntents = intents
+    .filter(intent => !intent.session_id)
     .sort((left, right) => left.event_id.localeCompare(right.event_id));
 
   const collisions = [];
@@ -116,7 +126,7 @@ export function projectActiveWeaveState(messages, options = {}) {
   ].sort((left, right) => clean(left.beacon_id).localeCompare(clean(right.beacon_id)));
 
   const unresolvedResponses = [...expectedResponses.values()]
-    .filter(message => !answered.has(message.event_id))
+    .filter(message => (responseTimes.get(message.event_id) || 0) <= timeOf(message.issued_at))
     .sort((left, right) => left.event_id.localeCompare(right.event_id));
 
   const recentTerminations = Object.values(terminalSessions)
@@ -128,6 +138,7 @@ export function projectActiveWeaveState(messages, options = {}) {
     generated_at: new Date(now).toISOString(),
     activeSessions,
     activeIntents,
+    unboundIntents,
     collisions,
     unresolvedResponses,
     recoveryNeeded,
