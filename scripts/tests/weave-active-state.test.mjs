@@ -46,14 +46,41 @@ test('projects sessions, collisions, responses, recovery, and beacons', () => {
   assert.deepEqual(state.recentTerminations.map(item => item.session_id), ['session-c']);
 });
 
-test('keeps same-agent sessions separate and refuses ambiguous intent binding', () => {
+test('binds intent to the latest live session reported by the signed issuer', () => {
   const messages = [
-    remote({ id: '01', kind: 'presence', issuer: 'agent-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'agent-a', session_id: 'session-a1', state: 'coding', lease_expires_at: '2026-07-14T17:00:00Z' } }),
-    remote({ id: '02', kind: 'presence', issuer: 'agent-a', issued_at: '2026-07-14T16:31:00Z', body: { agent_id: 'agent-a', session_id: 'session-a2', state: 'testing', lease_expires_at: '2026-07-14T17:00:00Z' } }),
-    remote({ id: '03', kind: 'intent', issuer: 'agent-a', issued_at: '2026-07-14T16:32:00Z', body: { artifact: 'ambiguous', intended_reality_change: 'Change one of two sessions.', expected_files: ['x.js'], collision_policy: 'avoid' } })
+    remote({ id: '01', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'worker-a', session_id: 'session-a1', state: 'coding', lease_expires_at: '2026-07-14T17:00:00Z' } }),
+    remote({ id: '02', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:31:00Z', body: { agent_id: 'worker-a', session_id: 'session-a2', state: 'testing', lease_expires_at: '2026-07-14T17:00:00Z' } }),
+    remote({ id: '03', kind: 'intent', issuer: 'principal-a', issued_at: '2026-07-14T16:32:00Z', body: { artifact: 'latest', intended_reality_change: 'Change the latest reported session.', expected_files: ['x.js'], collision_policy: 'avoid' } })
   ];
   const state = projectActiveWeaveState(messages, { now: Date.parse('2026-07-14T16:40:00Z') });
   assert.deepEqual(state.activeSessions.map(item => item.session_id), ['session-a1', 'session-a2']);
-  assert.equal(state.activeIntents.length, 0);
-  assert.deepEqual(state.unboundIntents[0].ambiguous_session_ids, ['session-a1', 'session-a2']);
+  assert.equal(state.activeIntents[0].session_id, 'session-a2');
+  assert.deepEqual(state.activeIntents[0].candidate_session_ids, ['session-a2', 'session-a1']);
+  assert.equal(state.unboundIntents.length, 0);
+});
+
+test('later presence renews a previously terminated session id', () => {
+  const messages = [
+    remote({ id: '01', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:10:00Z', body: { agent_id: 'worker-a', session_id: 'session-a', state: 'coding', lease_expires_at: '2026-07-14T16:20:00Z' } }),
+    remote({ id: '02', kind: 'session.handoff', issuer: 'principal-a', issued_at: '2026-07-14T16:15:00Z', body: { agent_id: 'worker-a', session_id: 'session-a', reason: 'paused', claimed_beacons: [], handoff_to: 'any' } }),
+    remote({ id: '03', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:30:00Z', body: { agent_id: 'worker-a', session_id: 'session-a', state: 'coding', lease_expires_at: '2026-07-14T17:00:00Z' } }),
+    remote({ id: '04', kind: 'intent', issuer: 'principal-a', issued_at: '2026-07-14T16:31:00Z', body: { artifact: 'renewed', intended_reality_change: 'Continue after renewal.', expected_files: ['renewed.js'], collision_policy: 'avoid' } })
+  ];
+  const state = projectActiveWeaveState(messages, { now: Date.parse('2026-07-14T16:40:00Z') });
+  assert.deepEqual(state.activeSessions.map(item => item.session_id), ['session-a']);
+  assert.equal(state.activeIntents[0].session_id, 'session-a');
+  assert.equal(state.recentTerminations.length, 0);
+});
+
+test('keeps recovery state separate for simultaneous sessions of one agent', () => {
+  const messages = [
+    remote({ id: '01', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:10:00Z', body: { agent_id: 'worker-a', session_id: 'session-a1', state: 'coding', lease_expires_at: '2026-07-14T16:20:00Z' } }),
+    remote({ id: '02', kind: 'presence', issuer: 'principal-a', issued_at: '2026-07-14T16:11:00Z', body: { agent_id: 'worker-a', session_id: 'session-a2', state: 'testing', lease_expires_at: '2026-07-14T16:21:00Z' } })
+  ];
+  const state = projectActiveWeaveState(messages, { now: Date.parse('2026-07-14T16:40:00Z') });
+  assert.deepEqual(state.recoveryNeeded.map(item => item.session_id), ['session-a1', 'session-a2']);
+  assert.deepEqual(
+    state.openBeacons.filter(item => item.kind === 'agent_disappeared').map(item => item.beacon_id),
+    ['recovery:session-a1', 'recovery:session-a2']
+  );
 });
