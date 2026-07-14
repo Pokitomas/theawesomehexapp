@@ -13,6 +13,8 @@ SCRIPT = '<script type="module" src="./import-studio.js" data-import-workbench><
 PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone></script>'
 NETWORK_STYLE = '<link rel="stylesheet" href="./network.css" data-sideways-network>'
 NETWORK_SCRIPT = '<script type="module" src="./network-ui.js" data-sideways-network></script>'
+NETWORK_OBSERVER = "new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });"
+NETWORK_EVENTS = "document.addEventListener('click', () => setTimeout(schedule, 0), true);"
 
 
 def inject_once(text: str, marker: str, before: str) -> str:
@@ -40,7 +42,12 @@ def main() -> None:
     if network_target.exists():
         shutil.rmtree(network_target)
     shutil.copytree(network_source, network_target)
-    shutil.copyfile(PRODUCT / "network-ui.js", MANUAL / "network-ui.js")
+    network_ui = MANUAL / "network-ui.js"
+    shutil.copyfile(PRODUCT / "network-ui.js", network_ui)
+    network_text = network_ui.read_text(encoding="utf-8")
+    if NETWORK_OBSERVER not in network_text and NETWORK_EVENTS not in network_text:
+        raise RuntimeError("network scheduler shape changed unexpectedly")
+    network_ui.write_text(network_text.replace(NETWORK_OBSERVER, NETWORK_EVENTS, 1), encoding="utf-8")
     shutil.copyfile(PRODUCT / "network.css", MANUAL / "network.css")
 
     index = MANUAL / "index.html"
