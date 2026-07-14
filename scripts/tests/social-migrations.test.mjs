@@ -1,14 +1,20 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { MIGRATIONS, ensureSocialSchema } from '../../netlify/functions/social-postgres-migrations.mjs';
 
-function fakePool(applied = []) {
+function fakePool(applied = [], failures = 0) {
   const calls = [];
   let connects = 0;
+  let failuresLeft = failures;
   const client = {
     async query(sql, params = []) {
       const text = String(sql);
       calls.push({ text, params });
+      if (failuresLeft > 0 && text.includes('pg_advisory_lock')) {
+        failuresLeft -= 1;
+        throw new Error('transient database failure');
+      }
       if (text === 'SELECT name FROM social_schema_migrations') {
         return { rows: applied.map(name => ({ name })) };
       }
@@ -54,4 +60,16 @@ test('schema bootstrap skips migrations already recorded by the database', async
   assert.doesNotMatch(text, /CREATE TABLE IF NOT EXISTS social_users/);
   assert.doesNotMatch(text, /CREATE TABLE IF NOT EXISTS social_communities/);
   assert.equal(pool.calls.filter(call => call.text.startsWith('INSERT INTO social_schema_migrations')).length, 0);
+});
+
+test('a transient bootstrap failure clears readiness so the same runtime can recover', async () => {
+  const pool = fakePool([], 1);
+  await assert.rejects(ensureSocialSchema(pool), /transient database failure/);
+  await ensureSocialSchema(pool);
+  assert.equal(pool.connectCount(), 2);
+});
+
+test('Netlify bundles migration SQL with the social function', async () => {
+  const config = await readFile(new URL('../../netlify.toml', import.meta.url), 'utf8');
+  assert.match(config, /included_files\s*=\s*\["migrations\/\*\.sql"\]/);
 });
