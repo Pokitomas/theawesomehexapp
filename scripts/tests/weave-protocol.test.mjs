@@ -23,6 +23,57 @@ function remoteMessage(event, overrides = {}) {
   };
 }
 
+function presence(id, sessionId, issuedAt, leaseExpiresAt, agentId = 'agent-a') {
+  return remoteMessage({
+    id,
+    kind: 'presence',
+    issuer: agentId,
+    issued_at: issuedAt,
+    body: {
+      agent_id: agentId,
+      session_id: sessionId,
+      state: 'coding',
+      lease_expires_at: leaseExpiresAt
+    }
+  });
+}
+
+function sessionEvent(id, kind, sessionId, issuedAt, agentId = 'agent-a') {
+  const common = { agent_id: agentId, session_id: sessionId };
+  if (kind === 'session.handoff') {
+    return remoteMessage({
+      id,
+      kind,
+      issuer: agentId,
+      issued_at: issuedAt,
+      body: {
+        ...common,
+        reason: 'completed',
+        claimed_beacons: [],
+        beliefs_worth_preserving: [],
+        unresolved_concerns: [],
+        recommended_next_actions: [],
+        handoff_to: 'any'
+      }
+    });
+  }
+  if (kind === 'session.lost') {
+    return remoteMessage({ id, kind, issuer: 'observer', issued_at: issuedAt, body: common });
+  }
+  return remoteMessage({
+    id,
+    kind: 'session.recover',
+    issuer: 'agent-b',
+    issued_at: issuedAt,
+    body: {
+      ...common,
+      recovered_by: 'agent-b',
+      outcome: 'continue',
+      statement: 'Recovered the workspace.'
+    }
+  });
+}
+
 test('normalizes typed beacons without imposing exclusive ownership', () => {
   const event = normalizeWeaveEvent({
     kind: 'beacon.emit',
@@ -92,17 +143,17 @@ test('session handoff releases beacon participation while preserving residue', (
 });
 
 test('expired presence leases generate recovery beacons unless recovery is recorded', () => {
-  const presence = remoteMessage({ id: '1', kind: 'presence', issuer: 'agent-a', body: {
+  const presenceMessage = remoteMessage({ id: '1', kind: 'presence', issuer: 'agent-a', body: {
     agent_id: 'agent-a',
     session_id: 'session-a',
     state: 'coding',
     lease_expires_at: '2026-07-14T14:05:00Z'
   } });
-  const lost = foldWeaveMessages([presence], Date.parse('2026-07-14T14:06:00Z'));
+  const lost = foldWeaveMessages([presenceMessage], Date.parse('2026-07-14T14:06:00Z'));
   assert.equal(lost.recovery_beacons[0].beacon_id, 'recovery:session-a');
 
   const recovered = foldWeaveMessages([
-    presence,
+    presenceMessage,
     remoteMessage({ id: '2', kind: 'session.recover', issuer: 'agent-b', issued_at: '2026-07-14T14:06:30Z', body: {
       agent_id: 'agent-a',
       session_id: 'session-a',
@@ -113,6 +164,49 @@ test('expired presence leases generate recovery beacons unless recovery is recor
   ], Date.parse('2026-07-14T14:07:00Z'));
   assert.equal(recovered.recovery_beacons.length, 0);
   assert.equal(recovered.sessions['session-a'].state, 'recovered');
+});
+
+test('recovery obligations follow session identity and issued-time ordering', () => {
+  const now = Date.parse('2026-07-14T14:10:00Z');
+
+  const renewedBeforeExpiry = foldWeaveMessages([
+    presence('p1', 'renew-before', '2026-07-14T14:00:00Z', '2026-07-14T14:05:00Z'),
+    presence('p2', 'renew-before', '2026-07-14T14:04:00Z', '2026-07-14T14:20:00Z')
+  ], now);
+  assert.equal(renewedBeforeExpiry.recovery_beacons.length, 0);
+
+  const renewedAfterExpiry = foldWeaveMessages([
+    presence('p1', 'renew-after', '2026-07-14T14:00:00Z', '2026-07-14T14:05:00Z'),
+    presence('p2', 'renew-after', '2026-07-14T14:06:00Z', '2026-07-14T14:20:00Z')
+  ], now);
+  assert.equal(renewedAfterExpiry.recovery_beacons.length, 0);
+
+  for (const kind of ['session.handoff', 'session.lost', 'session.recover']) {
+    const explained = foldWeaveMessages([
+      presence(`p-${kind}`, kind, '2026-07-14T14:00:00Z', '2026-07-14T14:05:00Z'),
+      sessionEvent(`e-${kind}`, kind, kind, '2026-07-14T14:06:00Z')
+    ], now);
+    assert.equal(explained.recovery_beacons.length, 0, kind);
+  }
+
+  const reordered = foldWeaveMessages([
+    sessionEvent('handoff-late', 'session.handoff', 'reordered', '2026-07-14T14:06:00Z'),
+    presence('presence-first', 'reordered', '2026-07-14T14:00:00Z', '2026-07-14T14:05:00Z')
+  ], now);
+  assert.equal(reordered.recovery_beacons.length, 0);
+
+  const staleExplanation = foldWeaveMessages([
+    presence('presence-new', 'stale-explanation', '2026-07-14T14:02:00Z', '2026-07-14T14:05:00Z'),
+    sessionEvent('handoff-old', 'session.handoff', 'stale-explanation', '2026-07-14T14:01:00Z')
+  ], now);
+  assert.deepEqual(staleExplanation.recovery_beacons.map(item => item.beacon_id), ['recovery:stale-explanation']);
+
+  const simultaneous = foldWeaveMessages([
+    presence('old-session', 'session-old', '2026-07-14T14:00:00Z', '2026-07-14T14:05:00Z'),
+    presence('live-session', 'session-live', '2026-07-14T14:01:00Z', '2026-07-14T14:20:00Z')
+  ], now);
+  assert.equal(simultaneous.presence['agent-a'].session_id, 'session-live');
+  assert.deepEqual(simultaneous.recovery_beacons.map(item => item.beacon_id), ['recovery:session-old']);
 });
 
 test('defaults coordination signals public and sensitive residue private', () => {
