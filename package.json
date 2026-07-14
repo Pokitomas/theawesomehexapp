@@ -10,7 +10,6 @@
     "remote:gate": "node scripts/remote-gate.mjs"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.1",
     "@netlify/blobs": "^9.1.2"
   }
 }
