@@ -3,6 +3,7 @@ import { createHash, createHmac, randomUUID, sign as signBytes } from 'node:cryp
 import fs from 'node:fs/promises';
 import process from 'node:process';
 import {
+  defaultWeaveVisibility,
   foldWeaveMessages,
   normalizeWeaveEvent,
   weavePayload
@@ -93,7 +94,7 @@ async function request(method, url, bodyObject, authenticated = true) {
   return data;
 }
 
-function remoteEnvelope(payload, { timestamp, nonce }) {
+function remoteEnvelope(payload, { timestamp, nonce, visibility }) {
   const principal = clean(process.env.REMOTE_PRINCIPAL);
   const session = clean(process.env.REMOTE_SESSION);
   if (!session) throw new Error('REMOTE_SESSION is required.');
@@ -108,7 +109,7 @@ function remoteEnvelope(payload, { timestamp, nonce }) {
     head_sha: clean(process.env.GITHUB_SHA) || null,
     scope: ['weave'],
     payload,
-    visibility: 'public',
+    visibility,
     nonce
   };
 }
@@ -117,8 +118,9 @@ async function postEvent(input) {
   const principal = clean(process.env.REMOTE_PRINCIPAL);
   const timestamp = new Date().toISOString();
   const nonce = randomUUID();
+  const visibility = defaultWeaveVisibility(input.kind, input.visibility);
   const event = normalizeWeaveEvent(input, { issuer: principal, issued_at: timestamp });
-  const message = remoteEnvelope(weavePayload(event), { timestamp, nonce });
+  const message = remoteEnvelope(weavePayload(event), { timestamp, nonce, visibility });
   const url = baseURL();
   const body = JSON.stringify({ message });
   const headers = await signedHeaders('POST', url, body, timestamp, nonce);
@@ -144,7 +146,10 @@ function parseFlags(args) {
 }
 
 function event(kind, body) {
-  return { kind, body };
+  const source = body && typeof body === 'object' && !Array.isArray(body) ? { ...body } : {};
+  const visibility = source.visibility;
+  delete source.visibility;
+  return { kind, body: source, ...(visibility ? { visibility } : {}) };
 }
 
 const [command = 'help', ...rest] = process.argv.slice(2);
