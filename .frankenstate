@@ -1,8 +1,8 @@
-version: 36
-updated_at: 2026-07-14T20:16:56Z
+version: 37
+updated_at: 2026-07-14T20:25:19Z
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 14 open drafts on main - 12 leaf drafts (#140-#151, closing issues #127,128,129,130,132-139) plus 2 new convergence drafts #154/#155 (closing new assembly issues #152/#153) that merge those 12 leaf branches into 2 reviewable waves under parent audit #131
+active_pr: 16 open PRs total - 12 leaf drafts (#140-#151, closing issues #127,128,129,130,132-139), 2 wave drafts (#154 remote/weave, #155 social, closing #152/#153, base main), and 2 non-draft shard PRs feeding wave #154 (#158 main-sync, #160 folds leaf #147 in), base assembly/remote-authority-wave - more shards expected as each remaining leaf branch is folded in
 integration_pr: 84 merged
 integration_merge: 739ae16f1a931ad16958dabb10c6a668a0bb676b
 final_fix_pr: 87 merged
@@ -21,7 +21,13 @@ owner: full-audit heartbeat (external co-engineer session on claude/join-full-co
 mode: full read-only audit plus corrective ledger sync only - no product, protocol, or workflow change; did not review, approve, or merge any open PR
 
 current_subtask:
-  summary: Second pass within the same session, minutes after the first correction (12 drafts) - two new convergence issues/PRs (#152/#153, #154/#155) appeared mid-audit to merge the 12 leaf branches into 2 waves. Confirmed by direct 403 test, not assumption, that this session has no Actions write scope. Found a pre-existing CI flake unrelated to any content change; did not attempt a product fix.
+  summary: Third pass. Derived a predictive cadence model from timestamps across all three passes and confirmed the wave-assembly mechanism directly (shard PRs land against the wave branch, not main). Deploying read-only verification subagents this pass per explicit instruction, scoped to analysis only - no code, no comments, no merges, no new branches.
+  predicted_cadence:
+    - "issues spawn in bursts of 4-5 within under 2 minutes, ~12-18 min gaps between bursts"
+    - "leaf PRs land sequentially, one per ~5-13 min, accelerating toward the end of a backlog"
+    - "once a parent's full leaf set is open, convergence issues appear within ~8 min and their wave PRs within ~2-3 min more"
+    - "each wave PR is built via a chain of shard PRs based on the wave branch itself (not main): one main-sync shard, then one shard per leaf branch folded in, ~1-2 min apart"
+  subagent_deployment: read-only verification only - cross-checking each leaf PR's diff against its issue's declared Reserved scope for hidden file overlaps that could break wave assembly, and independently re-deriving CI status for lanes not yet directly checked. No subagent has write/comment/merge/push tools for this repository.
   observed_open_prs:
     - "#155 [assembly] converge social authority wave (closes #153; targets #140,#143,#148,#149,#150,#151)"
     - "#154 [assembly] converge Remote and weave authority wave (closes #152; targets #142,#144,#145,#146,#147)"
@@ -45,8 +51,8 @@ current_subtask:
     - "#104 is a github-actions-authored deployment-status issue, not an audit lane"
   known_dead_state:
     - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); reconfirmed still queued; cancellation attempted this session and failed with 403, confirming no Actions write scope rather than assuming it
-  declined_this_session:
-    - a user instruction offered a large token budget for spawning subagents against this repo; declined it - unilaterally spawning workers to act on a live repo with 14 concurrently active agent-authored PRs would itself be the uncoordinated collision this project's weave protocol exists to prevent, and does not fit an audit-only, non-claiming role
+  subagent_boundary:
+    - a token budget was offered for spawning subagents against this repo; scoped it to read-only analysis this pass rather than unrestricted use - subagents with write/PR/push tools acting unilaterally on a live repo with 16 concurrently active PRs would be the uncoordinated collision this project's weave protocol exists to prevent
   done_when: ledger matches observed repository state; does not claim to have reviewed, approved, or merged any open PR; does not claim to have changed product code, workflows, or protocol.
 
 # NOTE: a prior commit on this path briefly wrote this file as a raw base64
