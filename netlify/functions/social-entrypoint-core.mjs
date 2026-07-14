@@ -2,6 +2,7 @@ import { createSocialService } from './social-core.mjs';
 import { createPostgresCommunityRuntime } from './social-postgres-community-runtime.mjs';
 import { createPostgresAuthority } from './social-postgres-store.mjs';
 import { ensureSocialSchema } from './social-postgres-migrations.mjs';
+import { cookieMutationProvenanceResponse } from './social-provenance.mjs';
 import { createRelationalSocialService } from './social-relational-core.mjs';
 
 export function createBlobStore({ getStore, storeName = 'sideways-social' } = {}) {
@@ -19,6 +20,14 @@ export function createBlobStore({ getStore, storeName = 'sideways-social' } = {}
   };
 }
 
+function guardCookieMutations(service) {
+  return async request => {
+    const denied = cookieMutationProvenanceResponse(request);
+    if (denied) return denied;
+    return service(request);
+  };
+}
+
 export function createProductionSocialService({
   env = process.env,
   getStore,
@@ -31,7 +40,7 @@ export function createProductionSocialService({
 } = {}) {
   const databaseUrl = env.SOCIAL_DATABASE_URL || env.NETLIFY_DATABASE_URL || env.DATABASE_URL || '';
   if (!databaseUrl) {
-    return createBlobService({ store: createBlobStore({ getStore }) });
+    return guardCookieMutations(createBlobService({ store: createBlobStore({ getStore }) }));
   }
   if (typeof createPool !== 'function') throw new Error('A PostgreSQL pool factory is required.');
 
@@ -45,6 +54,8 @@ export function createProductionSocialService({
   });
   let schemaReady;
   return async request => {
+    const denied = cookieMutationProvenanceResponse(request);
+    if (denied) return denied;
     try {
       schemaReady ||= ensureRelationalSchema(pool);
       await schemaReady;

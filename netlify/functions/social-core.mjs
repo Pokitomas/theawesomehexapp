@@ -18,6 +18,7 @@ const accountKey = id => `social/account/${id}`;
 const handleKey = handle => `social/handle/${handle}`;
 const sessionKey = token => `social/session/${sha256(token)}`;
 const postKey = id => `social/post/${id}`;
+const postStateKey = id => `social/post-state/${id}`;
 const followKey = (viewerId, targetId) => `social/follow/${viewerId}/${targetId}`;
 const likeKey = (viewerId, postId) => `social/like/${viewerId}/${postId}`;
 const likePostKey = (postId, viewerId) => `social/like-post/${postId}/${viewerId}`;
@@ -264,9 +265,34 @@ export function createSocialService({ store, now = Date.now } = {}) {
         const at = nowISO(now);
         const post = { id: `post_${randomId(14)}`, authorId: account.id, text, replyTo, createdAt: at, updatedAt: at };
         await store.set(postKey(post.id), post);
+        await store.set(postStateKey(post.id), { postId: post.id, authorId: account.id, state: 'active', updatedAt: at });
         await writeEvent(store, replyTo ? 'post.replied' : 'post.created', account.id, { postId: post.id, replyTo }, at);
         const [projected] = await projectPosts(store, [post], account.id);
         return response(201, { post: projected });
+      }
+
+      if (request.method === 'DELETE' && op === 'post') {
+        const { account } = await requireSession(store, request, now);
+        const body = await jsonBody(request);
+        const postId = clean(body.postId).slice(0, 80);
+        const post = await store.get(postKey(postId));
+        if (!post) throw fail(404, 'Post not found.');
+        if (post.authorId !== account.id) throw fail(403, 'Only the author can delete this post.');
+        const at = nowISO(now);
+        await store.set(postStateKey(postId), {
+          postId,
+          authorId: post.authorId,
+          state: 'author_deleted',
+          deletedAt: at,
+          updatedAt: at
+        });
+        await store.delete(postKey(postId));
+        for (const relation of await listObjects(store, `social/like-post/${postId}/`)) {
+          await store.delete(likePostKey(postId, relation.viewerId));
+          await store.delete(likeKey(relation.viewerId, postId));
+        }
+        await writeEvent(store, 'post.author_deleted', account.id, { postId }, at);
+        return response(200, { deleted: true, postId });
       }
 
       if (request.method === 'POST' && op === 'follow') {

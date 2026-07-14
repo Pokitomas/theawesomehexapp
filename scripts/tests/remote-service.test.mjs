@@ -262,7 +262,8 @@ test('public state exposes digestible work and never leaks private payloads', as
   assert.equal(state.response.status, 200);
   assert.equal(state.data.state.summary, 'Profile flow is being repaired');
   assert.equal(state.data.state.messages.length, 1);
-  assert.equal(state.data.state.messages[0].payload.summary, 'Profile flow is being repaired');
+  assert.equal(state.data.state.messages[0].summary, 'Profile flow is being repaired');
+  assert.equal('payload' in state.data.state.messages[0], false);
   assert.equal(JSON.stringify(state.data).includes('do-not-show'), false);
 });
 

@@ -8,9 +8,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-  issues: write
 
 concurrency:
   group: pages-${{ github.event_name }}-${{ github.ref }}
@@ -27,6 +24,8 @@ jobs:
       head_sha: ${{ steps.gate.outputs.head_sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -45,6 +44,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -321,6 +322,11 @@ jobs:
           path: dist
 
   deploy:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      issues: write
     if: github.event_name == 'push' && needs.remote-gate.outputs.decision == 'proceed'
     environment:
       name: github-pages
@@ -329,6 +335,8 @@ jobs:
     needs: [remote-gate, build]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Deploy to GitHub Pages
         id: deployment

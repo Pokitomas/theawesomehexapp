@@ -19,6 +19,7 @@ import {
   sha256
 } from './social-schema.mjs';
 import { communitySlug } from './community-authority.mjs';
+import { withSocialMutationContext } from './social-idempotency.mjs';
 
 export function createRelationalSocialService({ authority, sessionSecret, now = Date.now } = {}) {
   if (!authority) throw new Error('A relational social authority is required.');
@@ -45,7 +46,7 @@ export function createRelationalSocialService({ authority, sessionSecret, now = 
     return { token, tokenHash: sha256(token), at, expiresAt };
   }
 
-  return async function relationalSocialService(request) {
+  async function relationalSocialService(request) {
     try {
       assertSameOriginMutation(request);
       if (request.method === 'OPTIONS') return response(204, {});
@@ -398,5 +399,7 @@ export function createRelationalSocialService({ authority, sessionSecret, now = 
     } catch (error) {
       return response(Number(error?.status || 500), { error: error?.status ? error.message : 'Social service failed.' });
     }
-  };
+  }
+
+  return request => withSocialMutationContext(request, sessionSecret, () => relationalSocialService(request));
 }

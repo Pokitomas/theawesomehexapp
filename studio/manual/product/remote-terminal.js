@@ -99,7 +99,7 @@ function buildEvent(message) {
     el('span', 'remote-event-principal', message.issuer || 'principal'),
     el('time', 'remote-event-time', relativeTime(message.issued_at))
   );
-  const summary = el('p', 'remote-event-summary', message.summary || message.payload?.summary || message.payload?.action || 'Work updated.');
+  const summary = el('p', 'remote-event-summary', message.summary || 'Work updated.');
   row.append(top, summary);
   if (message.head_sha) row.append(el('code', 'remote-event-head', shortSha(message.head_sha)));
   return row;

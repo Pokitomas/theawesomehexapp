@@ -1,0 +1,45 @@
+name: Verify Remote authority assembly
+
+on:
+  pull_request:
+    paths:
+      - 'netlify/functions/remote*.mjs'
+      - 'netlify/functions/weave-lasso-service.mjs'
+      - 'scripts/weave-*.mjs'
+      - 'scripts/tests/remote*.test.mjs'
+      - 'scripts/tests/weave*.test.mjs'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/weave-lasso.yml'
+      - '.github/workflows/workflow-permissions.yml'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'netlify/functions/remote*.mjs'
+      - 'netlify/functions/weave-lasso-service.mjs'
+      - 'scripts/weave-*.mjs'
+      - 'scripts/tests/remote*.test.mjs'
+      - 'scripts/tests/weave*.test.mjs'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/weave-lasso.yml'
+      - '.github/workflows/workflow-permissions.yml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run test:remote
+      - run: npm run test:weave
+      - run: node --test scripts/tests/workflow-permissions.test.mjs
