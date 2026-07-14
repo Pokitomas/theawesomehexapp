@@ -1,5 +1,6 @@
 const MANIFEST_FALLBACK = Object.freeze({
   protocol: 'sideways-universal-remote/1',
+  live: false,
   state: '/api/remote/state?public=1',
   messages: '/api/remote?public=1',
   snapshot: './remote-snapshot.json',
@@ -73,14 +74,19 @@ function stateURL() {
   return url;
 }
 
+async function snapshotState() {
+  const snapshot = new URL(currentManifest.snapshot || MANIFEST_FALLBACK.snapshot, location.href);
+  const data = await fetchJSON(snapshot, 2500);
+  return { ...(data.state || data), source: 'snapshot' };
+}
+
 async function loadState() {
+  if (currentManifest.live === false) return snapshotState();
   try {
     const data = await fetchJSON(stateURL(), 5000);
     return { ...(data.state || data), source: 'live' };
   } catch {
-    const snapshot = new URL(currentManifest.snapshot || MANIFEST_FALLBACK.snapshot, location.href);
-    const data = await fetchJSON(snapshot, 2500);
-    return { ...(data.state || data), source: 'snapshot' };
+    return snapshotState();
   }
 }
 
