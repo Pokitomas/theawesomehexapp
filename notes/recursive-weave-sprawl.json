@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "root": "recursive-weave",
+  "goal": "event-sourced collective cognition with bounded recursive deliberation",
+  "lanes": [
+    {"id":"belief-graph","depends_on":[],"owns":["scripts/weave-protocol.mjs","scripts/tests/weave-belief-graph.test.mjs"]},
+    {"id":"deliberation-planner","depends_on":["belief-graph"],"owns":["scripts/weave-deliberation.mjs","scripts/tests/weave-deliberation.test.mjs"]},
+    {"id":"memory-retrieval","depends_on":["belief-graph"],"owns":["scripts/weave-memory.mjs","scripts/tests/weave-memory.test.mjs"]},
+    {"id":"role-dispatch","depends_on":["deliberation-planner"],"owns":["scripts/weave-dispatch.mjs","scripts/tests/weave-dispatch.test.mjs"]},
+    {"id":"synthesis-critic","depends_on":["belief-graph","memory-retrieval"],"owns":["scripts/weave-synthesis.mjs","scripts/tests/weave-synthesis.test.mjs"]},
+    {"id":"recursive-runtime","depends_on":["deliberation-planner","role-dispatch","synthesis-critic"],"owns":["scripts/weave-recursive-runtime.mjs",".github/workflows/weave-recursive.yml","scripts/tests/weave-recursive-runtime.test.mjs"]},
+    {"id":"safety-bounds","depends_on":["recursive-runtime"],"owns":["scripts/tests/weave-recursion-hostile.test.mjs","scripts/tests/weave-recursion-privacy.test.mjs"]},
+    {"id":"inspection-surface","depends_on":["belief-graph","recursive-runtime"],"owns":["netlify/functions/remote-core.mjs","studio/manual/product/remote-window.js","scripts/tests/weave-public-projection.test.mjs"]},
+    {"id":"assembly","depends_on":["belief-graph","deliberation-planner","memory-retrieval","role-dispatch","synthesis-critic","recursive-runtime","safety-bounds","inspection-surface"],"owns":["package.json","WEAVE_PROTOCOL.md","audit/authority-manifest.mjs"]}
+  ]
+}
