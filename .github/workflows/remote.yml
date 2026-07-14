@@ -1,0 +1,65 @@
+name: Universal remote contracts
+
+on:
+  pull_request:
+    paths:
+      - 'netlify/functions/remote*.mjs'
+      - 'scripts/remote-gate.mjs'
+      - 'tests/remote*.test.mjs'
+      - 'remote/**'
+      - 'REMOTE_WORK.md'
+      - 'studio/manual/product/remote-terminal.*'
+      - 'studio/manual/apply.py'
+      - 'studio/manual/verify.py'
+      - 'netlify.toml'
+      - '.github/workflows/remote.yml'
+      - '.github/workflows/pages.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'netlify/functions/remote*.mjs'
+      - 'scripts/remote-gate.mjs'
+      - 'tests/remote*.test.mjs'
+      - 'remote/**'
+      - 'REMOTE_WORK.md'
+      - 'studio/manual/product/remote-terminal.*'
+      - 'studio/manual/apply.py'
+      - 'studio/manual/verify.py'
+      - 'netlify.toml'
+      - '.github/workflows/remote.yml'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remote-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check remote modules
+        run: |
+          node --check netlify/functions/remote-engine.mjs
+          node --check netlify/functions/remote-core.mjs
+          node --check netlify/functions/remote.mjs
+          node --check scripts/remote-gate.mjs
+          node --check studio/manual/product/remote-terminal.js
+      - name: Prove security, cursors, claims, terminalization, and CI decisions
+        run: node --test tests/remote-core.test.mjs tests/remote-gate.test.mjs
+      - name: Prove the public terminal has no mutation authority
+        run: |
+          grep -q '/api/remote/state' studio/manual/product/remote-terminal.js
+          grep -q 'data-sideways-remote-state' studio/manual/product/remote-terminal.js
+          grep -q 'sideways:remoteupdate' studio/manual/product/remote-terminal.js
+          ! grep -q 'REMOTE_ROOT_KEY\|x-remote-signature\|method: .POST.' studio/manual/product/remote-terminal.js
+          grep -q 'from = "/api/remote/state"' netlify.toml
+          grep -q 'from = "/api/remote"' netlify.toml
