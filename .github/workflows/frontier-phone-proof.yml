@@ -57,15 +57,19 @@ jobs:
           python3 manual-kernel/patch.py
           python3 studio/manual/apply.py
 
-      - name: Verify the new product and backend contracts
+      - name: Verify the product, backend, and live terminal contracts
         run: |
           python3 studio/manual/verify.py
           node studio/manual/tests/frontier-contract.mjs
           node --check studio/manual/product/frontier.js
+          node --check studio/manual/product/remote-terminal.js
           node --check netlify/functions/profile.mjs
           node --check netlify/functions/starter.mjs
+          node --check netlify/functions/remote-engine.mjs
+          node --check netlify/functions/remote-core.mjs
+          node --test tests/remote-core.test.mjs tests/remote-gate.test.mjs
 
-      - name: Run the real phone journey
+      - name: Run the real phone journeys
         run: |
           python3 -m http.server 4173 --directory manual-app > /tmp/sideways-frontier-server.log 2>&1 &
           SERVER_PID=$!
@@ -75,6 +79,7 @@ jobs:
             sleep 1
           done
           node studio/manual/tests/frontier-onboarding-clickthrough.mjs http://127.0.0.1:4173/index.html
+          node studio/manual/tests/remote-terminal-clickthrough.mjs http://127.0.0.1:4173/index.html
 
       - name: Upload direct visual proof
         if: always()
@@ -85,6 +90,7 @@ jobs:
             frontier-profile-proof.png
             frontier-starter-proof.png
             frontier-phone-proof.png
+            remote-terminal-phone-proof.png
             /tmp/sideways-frontier-server.log
           if-no-files-found: warn
           retention-days: 5
