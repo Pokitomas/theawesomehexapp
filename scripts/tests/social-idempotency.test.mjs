@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  MAX_MUTATION_BODY_BYTES,
   assertSocialReceiptReplay,
   currentSocialMutationIdentity,
   mutationRequestDigest,
   withSocialMutationContext
 } from '../../netlify/functions/social-idempotency.mjs';
+
+const SECRET = 'social-idempotency-test-secret-at-least-32-bytes';
+const OTHER_SECRET = 'different-social-idempotency-secret-32-bytes';
 
 function request(op, body, key = 'same-key') {
   return new Request(`https://sideways.test/api/social?op=${op}`, {
@@ -18,27 +22,40 @@ function request(op, body, key = 'same-key') {
   });
 }
 
-test('request identity is deterministic, body-bound, operation-bound, and non-consuming', async () => {
+test('request identity is keyed, deterministic, body-bound, operation-bound, and non-consuming', async () => {
   const first = request('register', { handle: 'ida', password: 'secret one' });
   const second = request('register', { handle: 'ida', password: 'secret one' });
   const changedBody = request('register', { handle: 'ida', password: 'secret two' });
   const changedOperation = request('login', { handle: 'ida', password: 'secret one' });
 
-  assert.equal(await mutationRequestDigest(first), await mutationRequestDigest(second));
-  assert.notEqual(await mutationRequestDigest(second), await mutationRequestDigest(changedBody));
-  assert.notEqual(await mutationRequestDigest(second), await mutationRequestDigest(changedOperation));
+  assert.equal(await mutationRequestDigest(first, SECRET), await mutationRequestDigest(second, SECRET));
+  assert.notEqual(await mutationRequestDigest(second, SECRET), await mutationRequestDigest(changedBody, SECRET));
+  assert.notEqual(await mutationRequestDigest(second, SECRET), await mutationRequestDigest(changedOperation, SECRET));
+  assert.notEqual(await mutationRequestDigest(second, SECRET), await mutationRequestDigest(second, OTHER_SECRET));
   assert.deepEqual(await first.json(), { handle: 'ida', password: 'secret one' });
+});
+
+test('request identity rejects an oversized body even without a content-length header', async () => {
+  const oversized = new Request('https://sideways.test/api/social?op=post', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: 'x'.repeat(MAX_MUTATION_BODY_BYTES + 1)
+  });
+  await assert.rejects(
+    mutationRequestDigest(oversized, SECRET),
+    error => error.status === 413
+  );
 });
 
 test('mutation identity remains isolated across concurrent async request chains', async () => {
   const one = request('post', { text: 'one' });
   const two = request('post', { text: 'two' });
   const identities = await Promise.all([
-    withSocialMutationContext(one, async () => {
+    withSocialMutationContext(one, SECRET, async () => {
       await new Promise(resolve => setTimeout(resolve, 5));
       return currentSocialMutationIdentity('acct-one', 'post.create');
     }),
-    withSocialMutationContext(two, async () => {
+    withSocialMutationContext(two, SECRET, async () => {
       await Promise.resolve();
       return currentSocialMutationIdentity('acct-two', 'post.create');
     })
@@ -51,7 +68,7 @@ test('mutation identity remains isolated across concurrent async request chains'
 
 test('receipt replay requires operation and digest, plus actor outside registration', async () => {
   const registration = request('register', { handle: 'ida', password: 'secret one' });
-  const registrationIdentity = await withSocialMutationContext(registration, () =>
+  const registrationIdentity = await withSocialMutationContext(registration, SECRET, () =>
     currentSocialMutationIdentity('new-attempt-id', 'register'));
   const storedRegistration = {
     operation: 'register',
@@ -61,7 +78,7 @@ test('receipt replay requires operation and digest, plus actor outside registrat
   assert.doesNotThrow(() => assertSocialReceiptReplay(storedRegistration, registrationIdentity));
 
   const post = request('post', { text: 'hello' });
-  const postIdentity = await withSocialMutationContext(post, () =>
+  const postIdentity = await withSocialMutationContext(post, SECRET, () =>
     currentSocialMutationIdentity('acct-a', 'post.create'));
   const storedPost = {
     operation: 'post.create',
