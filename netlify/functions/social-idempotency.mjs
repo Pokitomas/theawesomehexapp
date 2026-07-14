@@ -39,7 +39,7 @@ async function boundedBody(request) {
       chunks.push(chunk);
     }
   } finally {
-    reader.releaseLock();
+    try { reader.releaseLock(); } catch {}
   }
   return Buffer.concat(chunks, total);
 }
@@ -62,7 +62,8 @@ export async function mutationRequestDigest(request, secret) {
 export async function withSocialMutationContext(request, secret, work) {
   if (typeof work !== 'function') throw new TypeError('A social mutation callback is required.');
   const method = clean(request?.method).toUpperCase() || 'GET';
-  if (SAFE_METHODS.has(method)) return work();
+  const idempotencyKey = clean(request?.headers?.get?.('idempotency-key'));
+  if (SAFE_METHODS.has(method) || !idempotencyKey) return work();
   try {
     const requestDigest = await mutationRequestDigest(request, secret);
     return mutationContext.run(Object.freeze({ requestDigest }), work);
