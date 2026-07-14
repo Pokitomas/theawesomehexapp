@@ -46,6 +46,7 @@ jobs:
           python studio/manual/apply.py
           python studio/manual/verify.py
           node studio/manual/tests/social-spine-contract.mjs
+          node studio/manual/tests/network-authority-contract.mjs
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
       - name: Install browser driver
