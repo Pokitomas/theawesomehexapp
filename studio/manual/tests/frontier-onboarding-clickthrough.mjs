@@ -77,6 +77,36 @@ await page.route('**/api/profile**', async route => {
   });
 });
 
+await page.route('**/api/remote/state**', async route => {
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      state: {
+        protocol_version: 1,
+        session: 'Pokitomas/theawesomehexapp:proof',
+        generation: 1,
+        decision: 'proceed',
+        head_sha: 'proof-head-123456789',
+        claims: [{ scope: 'repo:branch:proof', holder: 'principal-proof', expires_at: new Date(Date.now() + 300000).toISOString() }],
+        blocker_count: 0,
+        terminal: false,
+        summary: 'The profile-first social feed is being proven on a phone.',
+        updated_at: new Date().toISOString(),
+        updated_by: 'principal-proof',
+        messages: [{
+          id: 'proof-work-1',
+          issuer: 'principal-proof',
+          issued_at: new Date().toISOString(),
+          head_sha: 'proof-head-123456789',
+          summary: 'Nine temporary posts are exercising the real feed and will be removed.',
+          visibility: 'public'
+        }]
+      }
+    })
+  });
+});
+
 await page.route('**/api/starter', async route => {
   starterRequests += 1;
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: 99, items: fixture }) });
@@ -132,6 +162,16 @@ await composer.getByRole('button', { name: 'Close' }).click();
 
 await page.screenshot({ path: 'frontier-phone-proof.png', fullPage: false });
 
+const live = page.locator('[data-sideways-remote-launch]');
+await touch(live);
+const liveDialog = page.locator('[data-sideways-remote-terminal]');
+await liveDialog.waitFor({ state: 'visible', timeout: 10000 });
+await liveDialog.locator('[data-remote-summary]').getByText('The profile-first social feed is being proven on a phone.', { exact: true }).waitFor({ state: 'visible' });
+const machineState = await liveDialog.locator('[data-sideways-remote-state]').textContent();
+if (!machineState?.includes('proof-head-123456789')) throw new Error('machine-readable live state is missing the exact head');
+await page.screenshot({ path: 'frontier-live-work-proof.png', fullPage: false });
+await liveDialog.getByRole('button', { name: 'Close live work' }).click();
+
 const removeProofPosts = () => page.evaluate(async () => {
   const records = (await window.SidewaysWorkspace.listRecords()).filter(record => String(record.nativeId || '').startsWith('starter:proof-'));
   for (const record of records) await window.SidewaysWorkspace.deleteEntry(record.id);
@@ -161,7 +201,7 @@ console.log(JSON.stringify({
   temporaryPostsRemaining: cleanup.remaining,
   socialActions: ['Like', 'Reply', 'Remix', 'Save', 'Share'],
   closeTarget: closeBox,
-  screenshots: ['frontier-profile-proof.png', 'frontier-starter-proof.png', 'frontier-phone-proof.png']
+  screenshots: ['frontier-profile-proof.png', 'frontier-starter-proof.png', 'frontier-phone-proof.png', 'frontier-live-work-proof.png']
 }, null, 2));
 
 await context.close();
