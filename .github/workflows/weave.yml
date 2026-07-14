@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - 'scripts/weave-*.mjs'
-      - 'scripts/tests/weave-protocol.test.mjs'
+      - 'scripts/tests/weave-*.test.mjs'
       - 'WEAVE_PROTOCOL.md'
+      - 'PROGRAM_ONTOLOGY.md'
       - '.github/workflows/weave.yml'
+      - '.github/workflows/weave-lasso.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/weave-*.mjs'
-      - 'scripts/tests/weave-protocol.test.mjs'
+      - 'scripts/tests/weave-*.test.mjs'
       - 'WEAVE_PROTOCOL.md'
+      - 'PROGRAM_ONTOLOGY.md'
       - '.github/workflows/weave.yml'
+      - '.github/workflows/weave-lasso.yml'
 
 permissions:
   contents: read
@@ -30,4 +34,5 @@ jobs:
         run: |
           node --check scripts/weave-protocol.mjs
           node --check scripts/weave-client.mjs
-          node --test scripts/tests/weave-protocol.test.mjs
+          node --check scripts/weave-lasso.mjs
+          node --test scripts/tests/weave-*.test.mjs
