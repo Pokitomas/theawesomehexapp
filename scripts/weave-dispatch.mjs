@@ -17,6 +17,7 @@ export function buildRolePacket(assignmentEvent, memory, adapterId) {
     idempotency_key: dispatchIdempotencyKey({ wave_id: body.wave_id, assignment_id: body.assignment_id, adapter_id: adapterId }),
     adapter_id: adapterId,
     assignment: {
+      event_id: assignmentEvent.id,
       id: body.assignment_id,
       wave_id: body.wave_id,
       role: body.role,
@@ -86,7 +87,7 @@ export function parseAdapterOutput(raw, packet, context = {}) {
       issuer: candidate.issuer || context.issuer || `adapter:${packet.adapter_id}`,
       issued_at: candidate.issued_at || context.issued_at || new Date().toISOString(),
       visibility: candidate.visibility || 'private',
-      source_event_ids: candidate.source_event_ids
+      source_event_ids: [...new Set([...(candidate.source_event_ids || []), packet.assignment.event_id])]
     });
   });
 }
