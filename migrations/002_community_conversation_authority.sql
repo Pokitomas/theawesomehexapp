@@ -45,6 +45,44 @@ ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS moderator_removed_at timestamp
 ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS legal_restricted_at timestamptz;
 ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS locked_at timestamptz;
 
+CREATE OR REPLACE FUNCTION social_enforce_conversation_authority()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  parent_row social_posts%ROWTYPE;
+BEGIN
+  IF NEW.reply_to_id IS NULL THEN
+    IF NEW.community_id IS NOT NULL THEN NEW.thread_root_id := NEW.id; END IF;
+    RETURN NEW;
+  END IF;
+
+  SELECT * INTO parent_row FROM social_posts WHERE id = NEW.reply_to_id;
+  IF NOT FOUND THEN RETURN NEW; END IF;
+
+  IF parent_row.community_id IS NOT NULL THEN
+    IF NEW.community_id IS NULL OR NEW.community_id <> parent_row.community_id THEN
+      RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Replies inherit the parent community authority.';
+    END IF;
+    IF parent_row.author_deleted_at IS NOT NULL
+       OR parent_row.moderator_removed_at IS NOT NULL
+       OR parent_row.legal_restricted_at IS NOT NULL
+       OR parent_row.locked_at IS NOT NULL THEN
+      RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'This conversation cannot receive new replies.';
+    END IF;
+    NEW.thread_root_id := COALESCE(parent_row.thread_root_id, parent_row.id);
+  ELSIF NEW.community_id IS NOT NULL THEN
+    RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Community replies require a community parent.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS social_posts_conversation_authority ON social_posts;
+CREATE TRIGGER social_posts_conversation_authority
+BEFORE INSERT OR UPDATE OF reply_to_id, community_id ON social_posts
+FOR EACH ROW EXECUTE FUNCTION social_enforce_conversation_authority();
+
 UPDATE social_posts
 SET thread_root_id = id
 WHERE thread_root_id IS NULL AND reply_to_id IS NULL;
