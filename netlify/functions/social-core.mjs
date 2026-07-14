@@ -90,7 +90,8 @@ export function createMemorySocialStore() {
     state.events.set(dedupe, row);
     return row;
   };
-  const userView = user => ({ id: user.id, email: user.email, handle: user.handle, status: user.status, profile: { ...user.profile } });
+  const privateUserView = user => ({ id: user.id, email: user.email, handle: user.handle, status: user.status, profile: { ...user.profile } });
+  const publicUserView = user => ({ id: user.id, handle: user.handle, status: user.status, profile: { ...user.profile } });
 
   return {
     state,
@@ -101,20 +102,20 @@ export function createMemorySocialStore() {
       const user = { id: id('usr'), email: text(email).toLowerCase(), handle, password_hash: hashPassword(password), status: 'active', created_at: nowIso(), profile: { ...normalizePublicProfile(profile), handle } };
       state.users.set(user.id, user);
       event(user.id, 'user.created', 'user', user.id, { handle }, idempotencyKey);
-      return userView(user);
+      return privateUserView(user);
     },
     async login({ email, password }) {
       const user = [...state.users.values()].find(item => item.email === text(email).toLowerCase());
       if (!user || !verifyPassword(password, user.password_hash) || user.status !== 'active') throw new Error('Invalid credentials.');
       const token = makeSessionToken();
       state.sessions.set(hashToken(token), { user_id: user.id, expires_at: Date.now() + 30 * 86400000 });
-      return { token, user: userView(user) };
+      return { token, user: privateUserView(user) };
     },
     async authenticate(token) {
       const session = state.sessions.get(hashToken(token));
       if (!session || session.expires_at <= Date.now()) return null;
       const user = state.users.get(session.user_id);
-      return user ? userView(user) : null;
+      return user ? privateUserView(user) : null;
     },
     async logout(token) { state.sessions.delete(hashToken(token)); },
     async updateProfile(actorId, profile, idempotencyKey) {
@@ -123,12 +124,12 @@ export function createMemorySocialStore() {
       const next = normalizePublicProfile({ ...user.profile, ...profile, handle: user.handle });
       user.profile = next;
       event(actorId, 'profile.updated', 'user', actorId, next, idempotencyKey);
-      return userView(user);
+      return privateUserView(user);
     },
     async getUser(handle) {
       const user = [...state.users.values()].find(item => item.handle === normalizeHandle(handle));
       if (!user) return null;
-      return userView(user);
+      return publicUserView(user);
     },
     async createPost(actorId, input, idempotencyKey) {
       const body = text(input.body);
