@@ -1,6 +1,5 @@
 import { ACCENTS, clearDraft, deletePlace, listPlaces, readDraft, readProfile, recordPlaceId, saveDraft, savePlace, saveProfile } from './workspace-profile.js';
 import { deleteEntry, getAsset, getAssets, getRecord, listRecords, ownedEntries, prepareImage, publishEntry, recordsByPlace, updateEntry } from './workspace-records.js';
-import { projectNetworkPosts, networkRecords } from './network-records.js';
 import { readCorpusLedger, storageDurability } from './workspace-db.js';
 import { migrateLegacySocial } from './workspace-migration.js';
 import { Survival } from './survival-ledger.js';
@@ -30,8 +29,6 @@ export const Workspace = Object.freeze({
   listRecords,
   ownedEntries,
   recordsByPlace,
-  projectNetworkPosts,
-  networkRecords,
   durability: storageDurability,
   ledger: readCorpusLedger,
   survival: Survival,
