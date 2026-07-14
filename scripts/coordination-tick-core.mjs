@@ -1,6 +1,6 @@
 export const STATE_MARKER = '<!-- coordination-tick-state:v1';
 export const STATE_SUFFIX = '-->';
-export const DEFAULT_POLICY = Object.freeze({ quietTicks: 3, staleTicks: 8, seenLimit: 128, signalLimit: 40 });
+export const DEFAULT_POLICY = Object.freeze({ quietTicks: 3, staleTicks: 8, seenLimit: 128, signalLimit: 40, completedLaneLimit: 64, claimLimit: 256 });
 
 const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
 const unique = values => [...new Set(values.filter(Boolean))];
@@ -144,7 +144,7 @@ function applyDeclarations(state, declarations, tick) {
     const issue = Number(declaration.issue);
     const actor = clean(declaration.actor || 'unknown');
     const branch = clean(declaration.branch || '');
-    const identity = `${issue}|${actor}|${branch || 'actor-only'}`;
+    const identity = `${issue}|${actor}`;
     if (declaration.type === 'release') {
       for (const claim of Object.values(state.claims)) {
         if (claim.issue !== issue || !claim.active) continue;
@@ -212,6 +212,33 @@ function advanceActivityAndStasis(state, touched, tick, newSignals, event) {
       if (lane.phase === 'active' && ['quiet', 'stale'].includes(priorPhase)) newSignals.push(makeSignal('reactivated', lane.key, tick, `activity after ${priorPhase}`, event));
     }
   }
+}
+
+function retireCompletedBranchClaims(state, tick) {
+  const completedBranches = new Set(
+    Object.values(state.lanes)
+      .filter(lane => lane.state === 'complete' && lane.branch)
+      .map(lane => lane.branch)
+  );
+  for (const claim of Object.values(state.claims)) {
+    if (!claim.active || !claim.branch || !completedBranches.has(claim.branch)) continue;
+    claim.active = false;
+    claim.released_tick = tick;
+    claim.release_source = 'completed-branch';
+  }
+}
+
+function pruneBoundedHistory(state) {
+  const completed = Object.values(state.lanes)
+    .filter(lane => lane.state === 'complete')
+    .sort((a, b) => Number(b.completed_tick || 0) - Number(a.completed_tick || 0));
+  const keepCompleted = new Set(completed.slice(0, state.policy.completedLaneLimit).map(lane => lane.key));
+  for (const lane of completed) if (!keepCompleted.has(lane.key)) delete state.lanes[lane.key];
+
+  const claims = Object.values(state.claims)
+    .sort((a, b) => Number(b.last_seen_tick || b.released_tick || 0) - Number(a.last_seen_tick || a.released_tick || 0));
+  const keepClaims = new Set(claims.slice(0, state.policy.claimLimit).map(claim => claim.id));
+  for (const claim of claims) if (!keepClaims.has(claim.id)) delete state.claims[claim.id];
 }
 
 function detectCollisions(state, tick, newSignals, event) {
@@ -282,7 +309,9 @@ export function reduceCoordinationTick(previous, input = {}) {
   applyDeclarations(state, input.declarations || [], tick);
   const touched = touchedLaneKeys(state, event);
   advanceActivityAndStasis(state, touched, tick, newSignals, event);
+  retireCompletedBranchClaims(state, tick);
   detectCollisions(state, tick, newSignals, event);
+  pruneBoundedHistory(state);
 
   state.signals = [...newSignals.reverse(), ...(state.signals || [])].slice(0, state.policy.signalLimit);
   return { state, changed: true, duplicate: false, newSignals: newSignals.reverse() };
