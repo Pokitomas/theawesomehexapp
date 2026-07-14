@@ -6,8 +6,9 @@ import { createRelationalSocialService } from './social-relational-core.mjs';
 
 const { Pool } = pg;
 
-function blobStore() {
-  const store = getStore('sideways-social');
+export function createBlobStore({ getStore: getStoreImpl = getStore, storeName = 'sideways-social' } = {}) {
+  const store = getStoreImpl(storeName);
+  if (!store) throw new Error('A Netlify Blob store is required.');
   return {
     async get(key) { return store.get(key, { type: 'json' }); },
     async set(key, value) { await store.setJSON(key, value); },
@@ -19,15 +20,28 @@ function blobStore() {
   };
 }
 
-const databaseUrl = process.env.SOCIAL_DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || '';
+export function createProductionSocialService({
+  env = process.env,
+  getStore: getStoreImpl = getStore,
+  createPool = options => new Pool(options),
+  createBlobService = createSocialService,
+  createRelationalAuthority = createPostgresAuthority,
+  createRelationalService = createRelationalSocialService
+} = {}) {
+  const databaseUrl = env.SOCIAL_DATABASE_URL || env.NETLIFY_DATABASE_URL || env.DATABASE_URL || '';
+  if (!databaseUrl) {
+    return createBlobService({ store: createBlobStore({ getStore: getStoreImpl }) });
+  }
 
-const service = databaseUrl
-  ? createRelationalSocialService({
-      authority: createPostgresAuthority({
-        pool: new Pool({ connectionString: databaseUrl, max: 4, idleTimeoutMillis: 20_000 })
-      }),
-      sessionSecret: process.env.SOCIAL_SESSION_SECRET
-    })
-  : createSocialService({ store: blobStore() });
+  const pool = createPool({ connectionString: databaseUrl, max: 4, idleTimeoutMillis: 20_000 });
+  return createRelationalService({
+    authority: createRelationalAuthority({ pool }),
+    sessionSecret: env.SOCIAL_SESSION_SECRET
+  });
+}
 
-export default service;
+let defaultService;
+export default function social(request) {
+  defaultService ||= createProductionSocialService();
+  return defaultService(request);
+}
