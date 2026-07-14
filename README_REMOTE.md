@@ -12,6 +12,12 @@ Programs can discover the live projection from:
 
 The consumer app exposes the same public state through the **LIVE** button and `window.SidewaysRemote`. The browser receives only public projections. Credentials, private payloads, signatures, and administrative controls never enter consumer code.
 
+The discovery manifest also exposes stable weaving pointers:
+
+- `REMOTE_WORK.md` — where a joining principal starts and finds the live report surfaces.
+- `REMOTE_THOUGHT.md` — shareable rationale and boundaries, not private reasoning or live state.
+- the active GitHub pull-request conversation — durable discussion and evidence.
+
 ```js
 await window.SidewaysRemote.refresh();
 window.SidewaysRemote.state();
@@ -139,13 +145,13 @@ When no remote is configured, the gate proceeds. Native GitHub concurrency remai
 
 A terminate-capable principal may propose exact-head evidence. An admin-capable principal may write the terminal receipt only when:
 
-- required checks all report success,
+- required checks all report success and each names the exact tested 40-character Git head,
 - at least one artifact identifier or digest is present,
 - temporary test record count is zero,
 - active blocker count is zero,
 - no live claims remain,
 - the tested head matches the session head,
-- merge state is `merged` with a merge SHA,
-- production is explicitly `deployed` with a receipt or `unverified`.
+- merge state is `merged` with a 40-character merge SHA,
+- production is explicitly `deployed` with a receipt that names the merge SHA, or `unverified`.
 
 A terminal generation is immutable. More work requires `new-generation` or a new session.
