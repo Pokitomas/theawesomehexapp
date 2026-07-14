@@ -1,0 +1,21 @@
+[build]
+  command = "python3 studio/manual/prepare-kernel.py && python3 studio/manual/apply.py"
+  publish = "manual-app"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/profile"
+  to = "/.netlify/functions/profile"
+  status = 200
+
+[[redirects]]
+  from = "/api/starter"
+  to = "/.netlify/functions/starter"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self)"
