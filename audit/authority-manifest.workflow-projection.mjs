@@ -16,7 +16,7 @@ export default [
     ],
     impl: [['.github/workflows/pages.yml', 'permissions:', "if: github.event_name == 'push'", 'pages: write', 'id-token: write', 'issues: write']],
     allow: [['scripts/tests/deployment-receipt.test.mjs', 'deployment']],
-    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'Pages write authority is push-only']]
+    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'Pages, OIDC, and issue mutation authority exist only in the push-only deploy job']]
   },
   {
     id: 'workflow.lasso-authority', f: 'workflow', op: 'Sign and append lasso arrivals from repository events',
@@ -33,9 +33,9 @@ export default [
       'workflow-secret:.github/workflows/weave-lasso.yml:REMOTE_SESSION',
       'workflow-secret:.github/workflows/weave-lasso.yml:REMOTE_GENERATION'
     ],
-    impl: [['.github/workflows/weave-lasso.yml', 'Check out trusted default-branch code', 'REMOTE_KEY: ${{ secrets.REMOTE_KEY }}', 'node "$TRUSTED_DIR/scripts/weave-lasso.mjs" github-event']],
+    impl: [['.github/workflows/weave-lasso.yml', 'Verify trusted lasso before execution', 'REMOTE_KEY: ${{ secrets.REMOTE_KEY }}', 'node scripts/weave-lasso.mjs github-event']],
     allow: [['scripts/tests/weave-lasso-adversarial.test.mjs', 'repeated delivery']],
-    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'secret-bearing lasso execution uses trusted default-branch code']]
+    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'secret-bearing lasso execution uses only trusted default-branch code']]
   },
   {
     id: 'workflow.coordination-ticks', f: 'workflow', op: 'Reduce repository events into one bounded coordination-state comment',
@@ -87,8 +87,8 @@ export default [
       'workflow-permission:.github/workflows/coordination-tick-ci.yml:contents:read'
     ],
     impl: [['.github/workflows/coordination-tick-ci.yml', 'contents: read'], ['.github/workflows/remote-authority-assembly.yml', 'contents: read'], ['.github/workflows/social-authority-assembly.yml', 'contents: read'], ['.github/workflows/social-authority-schema.yml', 'contents: read'], ['.github/workflows/workflow-permissions.yml', 'contents: read'], ['.github/workflows/weave.yml', 'contents: read']],
-    allow: [['scripts/tests/authority-manifest.test.mjs', 'read-only workflows remain explicitly mapped']],
-    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'workflow-level permissions remain read-only']]
+    allow: [['scripts/tests/authority-manifest.test.mjs', 'read-only and coordination workflows remain explicitly mapped']],
+    denyW: [['scripts/tests/authority-manifest.test.mjs', 'read-only and coordination workflows remain explicitly mapped']]
   },
   {
     id: 'projection.remote-public', f: 'projection', op: 'Project private Remote operational state into public LIVE and state payloads',
@@ -101,6 +101,6 @@ export default [
     s: ['public-projection:publicMessageProjection', 'public-projection:publicStateProjection', 'public-projection:publicTerminalReceiptProjection'],
     impl: [['netlify/functions/remote-core.mjs', 'export function publicMessageProjection', 'export function publicStateProjection', 'export function publicTerminalReceiptProjection']],
     allow: [['scripts/tests/remote-public-privacy.test.mjs', 'public projections preserve explicit summaries']],
-    denyW: [['scripts/tests/remote-public-privacy.test.mjs', 'public terminal receipts expose only explicit deployment state']]
+    denyW: [['scripts/tests/remote-public-privacy.test.mjs', 'the production-edge public response allowlists state and terminal receipt fields']]
   }
 ];
