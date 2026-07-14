@@ -18,6 +18,10 @@ test('two accounts can follow, post, reply, like, and receive normalized followi
   assert.equal((await store.authenticate(aliceSession.token)).id, alice.id);
   assert.equal((await store.authenticate(bobSession.token)).id, bob.id);
 
+  const publicAlice = await store.getUser('alice');
+  assert.equal(publicAlice.handle, 'alice');
+  assert.equal(Object.hasOwn(publicAlice, 'email'), false, 'public profile lookup must never expose account email');
+
   await store.follow(bob.id, alice.id, true, 'bob-follows-alice');
   const root = await store.createPost(alice.id, { body: 'The public fact lives on the server.' }, 'alice-post-1');
   const duplicate = await store.createPost(alice.id, { body: 'ignored duplicate body' }, 'alice-post-1');
