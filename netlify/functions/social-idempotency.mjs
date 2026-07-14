@@ -32,10 +32,7 @@ async function boundedBody(request) {
       if (done) break;
       const chunk = Buffer.from(value);
       total += chunk.length;
-      if (total > MAX_MUTATION_BODY_BYTES) {
-        await reader.cancel().catch(() => {});
-        throw fail(413, 'Request is too large.');
-      }
+      if (total > MAX_MUTATION_BODY_BYTES) throw fail(413, 'Request is too large.');
       chunks.push(chunk);
     }
   } finally {
