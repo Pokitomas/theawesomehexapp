@@ -22,5 +22,9 @@ jobs:
       - name: Check server and client syntax
         run: |
           node --check netlify/functions/social-core.mjs
+          node --check studio/manual/product/network/client.js
+          node --check studio/manual/product/network/index.js
       - name: Prove two-account authoritative social contract
         run: node --test scripts/tests/social-spine.test.mjs
+      - name: Prove the built client mounts SidewaysNetwork
+        run: node scripts/tests/network-build-contract.mjs
