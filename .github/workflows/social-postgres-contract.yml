@@ -1,0 +1,48 @@
+name: Prove relational social authority
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/001_social_authority.sql'
+      - 'netlify/functions/social*.mjs'
+      - 'scripts/tests/social-postgres-contract.test.mjs'
+      - 'package.json'
+      - '.github/workflows/social-postgres-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sideways
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sideways"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
+      SOCIAL_SESSION_SECRET: ci-relational-social-session-secret-32-bytes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install runtime dependencies
+        run: npm install
+      - name: Prove PostgreSQL transactions and HTTP parity
+        run: npm run test:social:postgres
+      - name: Preserve existing in-memory contract
+        run: npm run test:social
