@@ -9,9 +9,13 @@ on:
       - scripts/weave-dispatch.mjs
       - scripts/weave-synthesis.mjs
       - scripts/weave-recursive-runtime.mjs
+      - netlify/functions/weave-cognition-public.mjs
+      - netlify/functions/weave-collective.mjs
       - scripts/tests/weave-recursive-baseline.test.mjs
+      - scripts/tests/weave-public-projection.test.mjs
       - scripts/tests/recursive-weave-sprawl-contract.test.mjs
       - .github/workflows/weave-recursive.yml
+      - netlify.toml
       - package.json
       - WEAVE_PROTOCOL.md
   push:
@@ -23,9 +27,13 @@ on:
       - scripts/weave-dispatch.mjs
       - scripts/weave-synthesis.mjs
       - scripts/weave-recursive-runtime.mjs
+      - netlify/functions/weave-cognition-public.mjs
+      - netlify/functions/weave-collective.mjs
       - scripts/tests/weave-recursive-baseline.test.mjs
+      - scripts/tests/weave-public-projection.test.mjs
       - scripts/tests/recursive-weave-sprawl-contract.test.mjs
       - .github/workflows/weave-recursive.yml
+      - netlify.toml
       - package.json
       - WEAVE_PROTOCOL.md
   workflow_dispatch:
@@ -47,6 +55,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install runtime dependencies
+        run: npm install --ignore-scripts
       - name: Check recursive weave modules
         run: |
           node --check scripts/weave-cognition.mjs
@@ -55,6 +65,8 @@ jobs:
           node --check scripts/weave-dispatch.mjs
           node --check scripts/weave-synthesis.mjs
           node --check scripts/weave-recursive-runtime.mjs
+          node --check netlify/functions/weave-cognition-public.mjs
+          node --check netlify/functions/weave-collective.mjs
       - name: Verify belief graph preservation
         run: node --test --test-name-pattern='belief graph preserves' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify hidden reasoning and dangling rejection
@@ -77,5 +89,7 @@ jobs:
         run: node --test --test-name-pattern='non-accept critique' scripts/tests/weave-recursive-baseline.test.mjs
       - name: Verify recursive runtime and replay
         run: node --test --test-name-pattern='recursive runtime|orphaned assignment|terminal receipt|invalid initial' scripts/tests/weave-recursive-baseline.test.mjs
+      - name: Verify bounded public inspection
+        run: node --test scripts/tests/weave-public-projection.test.mjs
       - name: Verify finite sprawl graph
         run: node --test scripts/tests/recursive-weave-sprawl-contract.test.mjs
