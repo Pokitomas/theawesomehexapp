@@ -107,8 +107,8 @@ test('bounds recent terminations by deterministic window and limit', () => {
   const messages = [
     remote({ id: '01', kind: 'session.handoff', issuer: 'principal-a', issued_at: '2026-07-14T15:39:59Z', body: { agent_id: 'worker-a', session_id: 'too-old', reason: 'old', claimed_beacons: [], handoff_to: 'any' } }),
     remote({ id: '02', kind: 'session.handoff', issuer: 'principal-a', issued_at: '2026-07-14T15:40:00Z', body: { agent_id: 'worker-a', session_id: 'boundary', reason: 'boundary', claimed_beacons: [], handoff_to: 'any' } }),
-    remote({ id: '03', kind: 'session.lost', issuer: 'principal-b', issued_at: '2026-07-14T16:10:00Z', body: { agent_id: 'worker-b', session_id: 'middle', reason: 'lost' } }),
-    remote({ id: '04', kind: 'session.recover', issuer: 'principal-c', issued_at: '2026-07-14T16:20:00Z', body: { agent_id: 'worker-c', session_id: 'newest', recovery_for: 'middle', claim: 'recovered' } }),
+    remote({ id: '03', kind: 'session.lost', issuer: 'principal-b', issued_at: '2026-07-14T16:10:00Z', body: { agent_id: 'worker-b', session_id: 'middle' } }),
+    remote({ id: '04', kind: 'session.recover', issuer: 'principal-c', issued_at: '2026-07-14T16:20:00Z', body: { agent_id: 'worker-c', session_id: 'newest', recovered_by: 'principal-c', outcome: 'recovered', statement: 'Recovered newest session.' } }),
     remote({ id: '05', kind: 'session.handoff', issuer: 'principal-d', issued_at: '2026-07-14T16:41:00Z', body: { agent_id: 'worker-d', session_id: 'future', reason: 'future', claimed_beacons: [], handoff_to: 'any' } })
   ];
   const state = projectActiveWeaveState(messages, {
