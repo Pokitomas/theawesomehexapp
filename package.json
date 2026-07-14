@@ -4,7 +4,8 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "test:remote": "node --test scripts/tests/remote-service.test.mjs scripts/tests/remote-public-privacy.test.mjs",
+    "test:remote": "node --test scripts/tests/remote-service.test.mjs scripts/tests/remote-public-privacy.test.mjs scripts/tests/remote-fail-closed.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs",
+    "test:weave": "node --test scripts/tests/weave-protocol.test.mjs scripts/tests/weave-lasso.test.mjs scripts/tests/weave-lasso-service.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs",
     "test:social": "node --test scripts/tests/social-service.test.mjs scripts/tests/social-entrypoint.test.mjs scripts/tests/community-authority.test.mjs scripts/tests/social-migrations.test.mjs",
     "test:social:postgres": "node --test --test-concurrency=1 scripts/tests/social-schema-bootstrap-postgres.test.mjs scripts/tests/social-postgres-contract.test.mjs scripts/tests/community-postgres-contract.test.mjs",
     "remote": "node scripts/remote-client.mjs",
