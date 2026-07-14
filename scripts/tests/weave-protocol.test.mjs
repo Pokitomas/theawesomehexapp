@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  defaultWeaveVisibility,
   foldWeaveMessages,
   normalizeWeaveEvent,
   weavePayload
@@ -112,6 +113,15 @@ test('expired presence leases generate recovery beacons unless recovery is recor
   ], Date.parse('2026-07-14T14:07:00Z'));
   assert.equal(recovered.recovery_beacons.length, 0);
   assert.equal(recovered.sessions['session-a'].state, 'recovered');
+});
+
+test('defaults coordination signals public and sensitive residue private', () => {
+  assert.equal(defaultWeaveVisibility('beacon.emit'), 'public');
+  assert.equal(defaultWeaveVisibility('presence'), 'public');
+  assert.equal(defaultWeaveVisibility('recode.declare'), 'private');
+  assert.equal(defaultWeaveVisibility('session.handoff'), 'private');
+  assert.equal(defaultWeaveVisibility('session.handoff', 'public'), 'public');
+  assert.throws(() => defaultWeaveVisibility('message', 'friends-only'), /Unknown weave visibility/);
 });
 
 test('rejects malformed protocol events before they enter remote payloads', () => {
