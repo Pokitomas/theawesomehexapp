@@ -1,47 +1,54 @@
-version: 29
-updated_at: 2026-07-13T21:49:00-07:00
+version: 30
+updated_at: 2026-07-13T21:56:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 81 merged
-merge_commit: eb94c52323224106c665a77e452a06d329f75e3d
-exact_tested_head: ce77cf4ce2e54887f8792bd9355529fb39d783f8
-previous_product_merge: 316901b10f809067f71568141aae3b240099240b
+active_pr: 82 merged
+merge_commit: fc4810c0610d82fdb09de56b5b2ff24047167690
+exact_tested_head: eb4d1d84f232085313326d6d2491b5a6f943f485
+previous_static_compatibility_merge: eb94c52323224106c665a77e452a06d329f75e3d
+previous_remote_merge: 316901b10f809067f71568141aae3b240099240b
+previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
 previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
 previous_verified_deployment_receipt: 76
 superseded_pr: 66 closed locked zero-diff
 
 owner: GPT-5.6 Thinking
-mode: completed static Drop starter compatibility
+mode: completed universal remote terminal honesty
 
 current_subtask:
-  summary: Repaired the real Netlify Drop onboarding failure so START ME OFF works without serverless functions while preserving the live backend as first choice.
+  summary: Closed the last mechanical honesty gaps in the vendorless universal remote and made the report and shareable thought locations permanently discoverable.
   trigger:
-    - actual iPhone screenshot showed Request failed 404 after tapping Make it alive on creative-profiterole-c6b236.netlify.app
-    - the deployment was a static Netlify Drop and therefore had no executable /api/starter function
+    - post-merge audit found that successful checks were not required to identify the exact proposed head
+    - a deployed production claim required a receipt but did not require that receipt to name the merge SHA
+    - co-agent weaving needed stable repository pointers without creating a second live-state ledger
   completed:
-    - added a narrow browser compatibility adapter for POST /api/starter only
-    - preserved successful live function responses unchanged
-    - replaced missing unreachable or failed starter endpoints with the same profile-aware eight-post built-in pack
-    - marked fallback responses with x-sideways-source built-in
-    - left profile sync remote control imports and all unrelated fetches untouched
-    - added a contract assertion preventing future static packages from returning to the 404 screen
-    - never used stored or persisted the password pasted into chat
+    - required every successful terminal check to name the exact 40-character tested Git head
+    - required the tested head and merge SHA to be valid 40-character Git SHAs
+    - rejected deployed production claims unless their receipt contains the exact merge SHA
+    - added negative proofs for missing check heads wrong check heads and unrelated deployment receipts
+    - added a positive proof for an object receipt that names the merge SHA
+    - added REMOTE_WORK.md as the stable joining entry point
+    - added REMOTE_THOUGHT.md as the explicit shareable rationale location
+    - exposed report thought conversation live-state and static-state pointers through the well-known remote manifest
+    - kept live state in the remote service and exact-build snapshot rather than inventing a second engineering ledger
+    - preserved PR 81 static Drop starter compatibility unchanged
   verification:
-    - direct Node simulation proved one 404 live attempt becomes a 200 built-in response
-    - direct simulation returned eight items and a profile-aware welcome
-    - all six repository workflows passed on exact head ce77cf4ce2e54887f8792bd9355529fb39d783f8
+    - all six repository workflows passed on exact head eb4d1d84f232085313326d6d2491b5a6f943f485
     - kernel parity passed
     - overlay validation passed
     - universal media phone proof passed
-    - profile-first starter phone proof passed
-    - workspace phone proof passed
+    - profile-first starter and LIVE terminal phone proof passed
+    - workspace import deletion reload and persistence phone proof passed after one transient rerun
     - build and manual gate passed
-    - squash-merged PR 81 as eb94c52323224106c665a77e452a06d329f75e3d
+    - downloaded the exact failed-run build artifact and independently reran its 390x844 journey successfully before rerunning CI
+    - direct artifact inspection confirmed readable LIVE state session generation head claims blockers source and public work
+    - frontier phone proof artifact 8300551015 digest sha256:8f66a043746b3eeda71b5f84af14de0b6e438d9294776ec32cc8239cef90a19a
+    - squash-merged PR 82 as fc4810c0610d82fdb09de56b5b2ff24047167690
   production:
-    - the existing creative-profiterole-c6b236.netlify.app Drop still contains the older ZIP until the replacement ZIP is redeployed
-    - replacement Drop ZIP sha256 is ba40b61004d2477027c0e2277feae4551312098c183158fb7f262737105ac6ab
-    - a static Drop now supports local profile creation starter content posting imports media and the truthful LIVE snapshot
-    - live profile uniqueness remote writes and Netlify Blobs still require a Git-connected function-capable Netlify deployment
+    - do not claim fc4810c0610d82fdb09de56b5b2ff24047167690 deployed without an external receipt naming that merge commit
+    - the existing creative-profiterole-c6b236.netlify.app Drop remains whatever ZIP was last manually deployed
+    - static builds expose an honest exact-build snapshot and stable weave pointers
+    - live remote writes Netlify Blobs profile uniqueness and production terminal receipts still require a function-capable Netlify deployment
   done_when: complete
 
 invariants:
@@ -66,7 +73,10 @@ invariants:
   - Remote messages are append-only and retrieval is cursor-based.
   - Private credentials signatures private payloads and write authority must never enter consumer code or repository content.
   - A terminal session generation cannot silently resume; further work requires a new generation or session.
+  - Every successful terminal check must identify the exact tested Git head.
+  - A deployed production receipt must name the exact merge SHA.
   - The public LIVE terminal may expose only explicitly public projections.
+  - REMOTE_WORK.md and REMOTE_THOUGHT.md are discovery and rationale pointers not live-state ledgers.
   - Static compatibility may replace only a missing starter endpoint and must not impersonate profile or remote persistence.
   - Do not add a second engineering-belief ledger or duplicate runtime schema authority.
   - Never use or persist credentials pasted into chat.
