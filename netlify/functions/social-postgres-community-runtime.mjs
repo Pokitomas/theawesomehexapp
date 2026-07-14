@@ -3,7 +3,8 @@ import {
   communitySlug,
   contentState,
   inverseModerationAction,
-  postStatePatch
+  postStatePatch,
+  visibleText
 } from './community-authority.mjs';
 import { createPostgresCommunityAuthority } from './social-postgres-community.mjs';
 import { SOCIAL_VERSION, fail, randomId, sha256 } from './social-schema.mjs';
@@ -152,6 +153,21 @@ export function createPostgresCommunityRuntime({ pool, afterMutation = async () 
     };
   }
 
+  async function postProjection(client, postId) {
+    const target = await postTarget(client, postId);
+    if (!target) return null;
+    const state = contentState(target.row);
+    return {
+      id: target.row.id,
+      text: visibleText(target.row),
+      rawTextAvailable: state.visibility === 'visible',
+      state,
+      updatedAt: iso(target.row.updated_at),
+      revision: target.evidence.revision,
+      contentDigest: target.evidence.contentDigest
+    };
+  }
+
   async function memberTarget(client, communityId, userId, lock = false) {
     const row = await membership(client, communityId, userId, lock);
     return row ? {
@@ -238,7 +254,7 @@ export function createPostgresCommunityRuntime({ pool, afterMutation = async () 
         body: {
           case: { id: caseId, status: 'actioned', targetType, targetId, policyVersion: Number(community.current_policy_version), evidence: caseEvidence },
           action: moderationAction,
-          ...(postId ? { post: await authority.thread({ postId, viewerId: actorId }).then(value => value?.posts.find(post => post.id === postId) || null) } : {})
+          ...(postId ? { post: await postProjection(client, postId) } : {})
         }
       };
     }));
@@ -368,7 +384,8 @@ export function createPostgresCommunityRuntime({ pool, afterMutation = async () 
             createdAt: iso(appealRow.appealed_created_at)
           },
           reversalAction,
-          currentTarget: await currentTarget(client, appealRow)
+          currentTarget: await currentTarget(client, appealRow),
+          ...(appealRow.post_id ? { post: await postProjection(client, appealRow.post_id) } : {})
         }
       };
     }));
