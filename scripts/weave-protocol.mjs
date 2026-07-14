@@ -86,6 +86,14 @@ const BEACON_RESOLUTIONS = new Set([
   'invalidated'
 ]);
 
+const PUBLIC_DEFAULT_KINDS = new Set([
+  'beacon.emit',
+  'beacon.join',
+  'beacon.release',
+  'beacon.resolve',
+  'presence'
+]);
+
 const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
 const cleanList = (value, limit = 64) => (Array.isArray(value) ? value : [])
   .map(clean)
@@ -310,6 +318,13 @@ const BODY_NORMALIZERS = Object.freeze({
   'session.lost': normalizeSessionLost,
   'session.recover': normalizeSessionRecover
 });
+
+export function defaultWeaveVisibility(kind, requested) {
+  const normalizedKind = exactKind(kind);
+  const explicit = clean(requested);
+  if (explicit && !['public', 'private'].includes(explicit)) fail(`Unknown weave visibility: ${explicit}.`);
+  return explicit || (PUBLIC_DEFAULT_KINDS.has(normalizedKind) ? 'public' : 'private');
+}
 
 export function normalizeWeaveEvent(input = {}, context = {}) {
   const source = object(input);
