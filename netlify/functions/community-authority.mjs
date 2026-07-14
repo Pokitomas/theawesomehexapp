@@ -3,6 +3,10 @@ import { clean, fail } from './social-schema.mjs';
 export const COMMUNITY_ROLES = Object.freeze(['member', 'moderator', 'owner']);
 export const COMMUNITY_STATES = Object.freeze(['active', 'forked', 'archived']);
 export const MODERATION_ACTIONS = Object.freeze(['remove', 'restore', 'lock', 'unlock', 'ban', 'unban', 'restrict', 'unrestrict']);
+export const MODERATION_TARGET_ACTIONS = Object.freeze({
+  post: Object.freeze(['remove', 'restore', 'lock', 'unlock']),
+  member: Object.freeze(['ban', 'unban'])
+});
 
 export function communitySlug(value) {
   return clean(value)
@@ -45,6 +49,23 @@ export function assertCommunityRole(membership, allowed, message = 'Community au
   const roles = new Set(Array.isArray(allowed) ? allowed : [allowed]);
   if (!membership || membership.status !== 'active' || !roles.has(membership.role)) throw fail(403, message);
   return membership;
+}
+
+export function assertModerationTargetAction(targetType, action) {
+  const actions = MODERATION_TARGET_ACTIONS[targetType];
+  if (!actions || !actions.includes(action)) throw fail(400, 'Unsupported moderation target or action.');
+  return { targetType, action };
+}
+
+export function assertMemberModerationHierarchy({ actorId, actorMembership, targetId, targetMembership }) {
+  assertCommunityRole(actorMembership, ['moderator', 'owner']);
+  if (!targetMembership) throw fail(404, 'Community member not found.');
+  if (actorId === targetId) throw fail(409, 'Community moderators cannot moderate themselves.');
+  if (targetMembership.role === 'owner') throw fail(409, 'Community owners cannot be banned through moderation.');
+  if (actorMembership.role === 'moderator' && targetMembership.role !== 'member') {
+    throw fail(403, 'Only an owner can moderate another moderator.');
+  }
+  return { actorMembership, targetMembership };
 }
 
 export function postStatePatch(action, at) {

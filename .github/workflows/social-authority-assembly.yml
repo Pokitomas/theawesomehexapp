@@ -1,0 +1,77 @@
+name: Verify social authority assembly
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/*.sql'
+      - 'netlify/functions/social*.mjs'
+      - 'netlify/functions/community-authority.mjs'
+      - 'scripts/tests/social*.test.mjs'
+      - 'scripts/tests/community*.test.mjs'
+      - '.github/workflows/social-authority-assembly.yml'
+      - '.github/workflows/social-postgres-contract.yml'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/*.sql'
+      - 'netlify/functions/social*.mjs'
+      - 'netlify/functions/community-authority.mjs'
+      - 'scripts/tests/social*.test.mjs'
+      - 'scripts/tests/community*.test.mjs'
+      - '.github/workflows/social-authority-assembly.yml'
+      - '.github/workflows/social-postgres-contract.yml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sideways
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sideways"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
+      SOCIAL_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Run in-memory and boundary contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:social 2>&1 | tee social-authority-in-memory.log
+      - name: Run relational authority contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:social:postgres 2>&1 | tee social-authority-postgres.log
+      - name: Preserve social authority evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-authority-assembly-logs
+          path: |
+            social-authority-in-memory.log
+            social-authority-postgres.log
+          if-no-files-found: error
+          retention-days: 5
