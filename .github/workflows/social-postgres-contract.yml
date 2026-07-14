@@ -4,9 +4,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'migrations/001_social_authority.sql'
+      - 'migrations/*.sql'
       - 'netlify/functions/social*.mjs'
       - 'scripts/tests/social-postgres-contract.test.mjs'
+      - 'scripts/tests/social-idempotency*.mjs'
       - 'package.json'
       - '.github/workflows/social-postgres-contract.yml'
   workflow_dispatch:
