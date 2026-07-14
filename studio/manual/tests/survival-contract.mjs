@@ -15,11 +15,11 @@ for (const key of ['ledger', 'ui', 'actions', 'workspace']) {
 }
 const requireAll = (key, needles) => needles.forEach(needle => { if (!source[key].includes(needle)) throw new Error(`${files[key]} missing ${needle}`); });
 const forbidAll = (key, needles) => needles.forEach(needle => { if (source[key].includes(needle)) throw new Error(`${files[key]} contains forbidden ${needle}`); });
-requireAll('ledger', ['SIDEWAYS-ARK/1', 'survival.mirror.checkpoint', 'survival.ark.export', 'survival.ark.restore', 'survival.audit', 'externalBackup: false', 'LEDGER_STORE']);
+requireAll('ledger', ['SIDEWAYS-ARK/1', 'sideways-workspace-profile-v1', 'survival.mirror.checkpoint', 'survival.ark.export', 'survival.ark.restore', 'survival.audit', 'externalBackup: false', 'LEDGER_STORE']);
 requireAll('ui', ["section[data-survival-vault]", "action('vault.persist'", "action('vault.audit'", "action('vault.export'", "action('vault.restore'"]);
 requireAll('actions', ["'vault.persist'", "'vault.audit'", "'vault.export'", "'vault.restore'"]);
 requireAll('workspace', ['survival: Survival', 'durability: storageDurability', 'ledger: readCorpusLedger']);
 requireAll('apply', ['survival-ledger.css', 'survival-ledger.js', 'vault-ui.js', 'data-survival-ledger']);
 forbidAll('ledger', ['Authorization', 'location.reload()', 'new MutationObserver']);
 forbidAll('ui', ["document.querySelector('[data-survival-vault]')", 'document.documentElement.replaceChildren', 'document.body.replaceChildren', 'location.reload()', 'new MutationObserver']);
-console.log('survival contract ok: atomic ledger, same-origin mirror, user-owned Ark, scoped vault chrome');
+console.log('survival contract ok: atomic ledger, owned profile, same-origin mirror, user-owned Ark, scoped vault chrome');
