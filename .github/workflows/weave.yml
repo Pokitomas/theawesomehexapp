@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/weave-*.mjs'
       - 'scripts/tests/weave-*.test.mjs'
+      - 'netlify/functions/weave-lasso-service.mjs'
+      - 'netlify/functions/remote-service.mjs'
       - 'WEAVE_PROTOCOL.md'
       - 'PROGRAM_ONTOLOGY.md'
       - '.github/workflows/weave.yml'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'scripts/weave-*.mjs'
       - 'scripts/tests/weave-*.test.mjs'
+      - 'netlify/functions/weave-lasso-service.mjs'
+      - 'netlify/functions/remote-service.mjs'
       - 'WEAVE_PROTOCOL.md'
       - 'PROGRAM_ONTOLOGY.md'
       - '.github/workflows/weave.yml'
@@ -35,4 +39,6 @@ jobs:
           node --check scripts/weave-protocol.mjs
           node --check scripts/weave-client.mjs
           node --check scripts/weave-lasso.mjs
+          node --check netlify/functions/weave-lasso-service.mjs
+          node --check netlify/functions/remote-service.mjs
           node --test scripts/tests/weave-*.test.mjs
