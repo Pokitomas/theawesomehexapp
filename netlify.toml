@@ -14,6 +14,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/social"
+  to = "/.netlify/functions/social"
+  status = 200
+
+[[redirects]]
   from = "/api/remote/state"
   to = "/.netlify/functions/remote?mode=state"
   status = 200

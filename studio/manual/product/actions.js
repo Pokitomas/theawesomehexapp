@@ -69,6 +69,16 @@ export const ACTIONS = Object.freeze({
   'remote.close': define('remote.close', 'Close live work', 'remote', 'close_live_work'),
   'remote.refresh': define('remote.refresh', 'Refresh live work', 'remote', 'refresh_live_work'),
 
+  'social.join': define('social.join', 'JOIN', 'social', 'register_account'),
+  'social.login': define('social.login', 'SIGN IN', 'social', 'start_session'),
+  'social.logout': define('social.logout', 'SIGN OUT', 'social', 'end_session'),
+  'social.close': define('social.close', 'Close', 'social', 'close_dialog'),
+  'social.post': define('social.post', 'POST', 'social', 'publish_public_post', { fields: ['text', 'replyTo'] }),
+  'social.refresh': define('social.refresh', 'REFRESH', 'social', 'refresh_public_feed'),
+  'social.follow': define('social.follow', 'FOLLOW', 'social', 'toggle_follow', { recordId: 'number' }),
+  'social.feed': define('social.feed', 'FOLLOWING', 'social', 'open_following_feed'),
+  'social.discover': define('social.discover', 'EXPLORE', 'social', 'open_public_feed'),
+
   'import.instagram': define('import.instagram', 'IMPORT INSTAGRAM', 'import', 'pick_import', { platform: 'instagram' }),
   'import.reddit': define('import.reddit', 'IMPORT REDDIT', 'import', 'pick_import', { platform: 'reddit' }),
   'import.tiktok': define('import.tiktok', 'IMPORT TIKTOK', 'import', 'pick_import', { platform: 'tiktok' }),
