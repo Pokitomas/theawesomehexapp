@@ -11,8 +11,6 @@ MANUAL = ROOT / "manual-app"
 STYLE = '<link rel="stylesheet" href="./import-studio.css" data-import-workbench>'
 SCRIPT = '<script type="module" src="./import-studio.js" data-import-workbench></script>'
 PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone></script>'
-NETWORK_STYLE = '<link rel="stylesheet" href="./network.css" data-sideways-network>'
-NETWORK_SCRIPT = '<script type="module" src="./network-ui.js" data-sideways-network></script>'
 
 
 def inject_once(text: str, marker: str, before: str) -> str:
@@ -35,23 +33,13 @@ def main() -> None:
     shutil.copyfile(PRODUCT / "import-studio.css", MANUAL / "import-studio.css")
     shutil.copyfile(PRODUCT / "import-phone.js", MANUAL / "import-phone.js")
 
-    network_source = PRODUCT / "network"
-    network_target = MANUAL / "network"
-    if network_target.exists():
-        shutil.rmtree(network_target)
-    shutil.copytree(network_source, network_target)
-    shutil.copyfile(PRODUCT / "network-ui.js", MANUAL / "network-ui.js")
-    shutil.copyfile(PRODUCT / "network.css", MANUAL / "network.css")
-
     index = MANUAL / "index.html"
     html = index.read_text(encoding="utf-8")
     html = inject_once(html, STYLE, "</head>")
-    html = inject_once(html, NETWORK_STYLE, "</head>")
     html = inject_once(html, SCRIPT, "</body>")
     html = inject_once(html, PHONE_SCRIPT, "</body>")
-    html = inject_once(html, NETWORK_SCRIPT, "</body>")
     index.write_text(html, encoding="utf-8")
-    print("applied import workbench plus the authoritative public social-network adapter")
+    print("applied manual import workbench with byte-first classification and off-thread hashing")
 
 
 if __name__ == "__main__":
