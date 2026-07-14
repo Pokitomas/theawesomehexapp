@@ -168,8 +168,6 @@ CREATE TABLE IF NOT EXISTS social_appeals (
   id text PRIMARY KEY,
   case_id text NOT NULL REFERENCES social_moderation_cases(id) ON DELETE CASCADE,
   appellant_id text NOT NULL REFERENCES social_users(id) ON DELETE RESTRICT,
-  appealed_action_id text REFERENCES social_moderation_actions(id) ON DELETE RESTRICT,
-  appeal_target jsonb NOT NULL DEFAULT '{}'::jsonb,
   text text NOT NULL,
   status text NOT NULL DEFAULT 'pending',
   decided_by text REFERENCES social_users(id) ON DELETE RESTRICT,
@@ -178,10 +176,6 @@ CREATE TABLE IF NOT EXISTS social_appeals (
   decided_at timestamptz,
   CONSTRAINT social_appeals_status CHECK (status IN ('pending', 'upheld', 'reversed'))
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS social_appeals_appealed_action_unique
-  ON social_appeals(appealed_action_id)
-  WHERE appealed_action_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS social_local_controls (
   actor_id text NOT NULL REFERENCES social_users(id) ON DELETE CASCADE,
