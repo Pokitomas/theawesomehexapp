@@ -22,12 +22,14 @@ FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" da
 FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-polish.css" data-future-media-polish>'
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
 FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
+FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-frontier-product>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
 CORE_ACTIONS_SCRIPT_MARKER = '<script type="module" src="./core-actions.js" data-core-actions></script>'
 CHROME_SCRIPT_MARKER = '<script type="module" src="./workspace-chrome.js" data-workspace-chrome></script>'
 UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js" data-universal-media></script>'
 MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
+FRONTIER_SCRIPT_MARKER = '<script type="module" src="./frontier.js" data-frontier-product></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -108,6 +110,7 @@ def main() -> None:
         "future-media-polish.css",
         "future-media-final.css",
         "future-media-mobile.css",
+        "frontier.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -121,6 +124,7 @@ def main() -> None:
         "workspace-chrome.js",
         "universal-media.js",
         "media-modes.js",
+        "frontier.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
@@ -149,12 +153,14 @@ def main() -> None:
     text = inject_once(text, FUTURE_MEDIA_POLISH_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_FINAL_STYLE_MARKER, "</head>")
     text = inject_once(text, FUTURE_MEDIA_MOBILE_STYLE_MARKER, "</head>")
+    text = inject_once(text, FRONTIER_STYLE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CORE_ACTIONS_SCRIPT_MARKER, "</body>")
     text = inject_once(text, CHROME_SCRIPT_MARKER, "</body>")
     text = inject_once(text, UNIVERSAL_MEDIA_SCRIPT_MARKER, "</body>")
     text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, FRONTIER_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     app = MANUAL / "app.js"
@@ -164,7 +170,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, and River Focus Field physics")
+    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, and the profile-first frontier surface")
 
 
 if __name__ == "__main__":
