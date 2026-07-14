@@ -111,7 +111,8 @@ if (openBox.width < 44 || openBox.height < 36 || openBox.x < 0 || openBox.x + op
 const terminal = page.locator('[data-remote-terminal]');
 await terminal.waitFor({ state: 'visible', timeout: 10000 });
 await terminal.getByText('moving', { exact: true }).waitFor({ state: 'visible' });
-await terminal.getByText('fffffffff', { exact: true }).waitFor({ state: 'visible' });
+const renderedHead = await terminal.locator('[data-remote-head]').textContent();
+if (renderedHead !== 'fffffffff') throw new Error(`head summary is wrong: ${renderedHead}`);
 await terminal.getByText('Phone proof is running.', { exact: true }).waitFor({ state: 'visible' });
 
 const terminalBox = await terminal.boundingBox();
@@ -146,7 +147,7 @@ console.log(JSON.stringify({
   remoteWrites,
   state: 'moving',
   generation: 4,
-  head: 'fffffffff',
+  head: renderedHead,
   claimCount: 1,
   terminalBox,
   openBox,
