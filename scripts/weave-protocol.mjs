@@ -395,6 +395,7 @@ export function foldWeaveMessages(messages, now = Date.now()) {
     version: WEAVE_VERSION,
     beacons: {},
     presence: {},
+    presence_sessions: {},
     intents: [],
     recodes: {},
     sessions: {},
@@ -432,7 +433,9 @@ export function foldWeaveMessages(messages, now = Date.now()) {
         beacon.resolution = { ...body, resolved_by: event.issuer, resolved_at: event.issued_at };
       }
     } else if (event.kind === 'presence') {
-      state.presence[body.agent_id] = { ...body, reported_by: event.issuer, reported_at: event.issued_at };
+      const presence = { ...body, reported_by: event.issuer, reported_at: event.issued_at, event_id: event.id };
+      state.presence_sessions[body.session_id] = presence;
+      state.presence[body.agent_id] = presence;
     } else if (event.kind === 'intent') {
       state.intents.push({ ...body, issuer: event.issuer, issued_at: event.issued_at, event_id: event.id });
     } else if (event.kind === 'message') {
@@ -491,11 +494,17 @@ export function foldWeaveMessages(messages, now = Date.now()) {
     }
   }
 
-  for (const presence of Object.values(state.presence)) {
+  for (const presence of Object.values(state.presence_sessions)) {
     const expiry = Date.parse(presence.lease_expires_at);
     if (Number.isFinite(expiry) && expiry <= now && presence.state !== 'terminating') {
       const explained = state.sessions[presence.session_id];
-      if (!explained) {
+      const presenceIssuedAt = Date.parse(presence.reported_at);
+      const explanationIssuedAt = Date.parse(explained?.issued_at || '');
+      const explanationIsCurrent = explained
+        && Number.isFinite(explanationIssuedAt)
+        && Number.isFinite(presenceIssuedAt)
+        && explanationIssuedAt >= presenceIssuedAt;
+      if (!explanationIsCurrent) {
         state.recovery_beacons.push({
           beacon_id: `recovery:${presence.session_id}`,
           kind: 'agent_disappeared',
