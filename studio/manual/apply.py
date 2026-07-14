@@ -27,6 +27,7 @@ FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-f
 FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
 FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-frontier-product>'
 REMOTE_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
+SURVIVAL_STYLE_MARKER = '<link rel="stylesheet" href="./survival-ledger.css" data-survival-ledger>'
 REMOTE_SERVICE_MARKER = '<link rel="service-desc" href="./.well-known/sideways-remote.json" type="application/json" data-sideways-remote>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
@@ -36,6 +37,7 @@ UNIVERSAL_MEDIA_SCRIPT_MARKER = '<script type="module" src="./universal-media.js
 MEDIA_MODES_SCRIPT_MARKER = '<script type="module" src="./media-modes.js" data-media-modes></script>'
 FRONTIER_SCRIPT_MARKER = '<script type="module" src="./frontier.js" data-frontier-product></script>'
 REMOTE_SCRIPT_MARKER = '<script type="module" src="./remote-terminal.js" data-remote-terminal></script>'
+VAULT_SCRIPT_MARKER = '<script type="module" src="./vault-ui.js" data-survival-ledger></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -103,10 +105,16 @@ def remote_snapshot() -> tuple[dict, dict]:
     summary_match = re.search(r"(?m)^\s+summary:\s*(.+)$", text)
     summary = summary_match.group(1).strip() if summary_match else "The repository is ready for its next exact-head work session."
     session = os.environ.get("REMOTE_PUBLIC_SESSION", "Pokitomas/theawesomehexapp:main")
-    generation = int(os.environ.get("REMOTE_GENERATION", "1") or "1")
+    generation = int(os.environ.get("REMOTE_GENERATION", "2") or "2")
     head = os.environ.get("GITHUB_SHA") or field("merge_commit") or field("previous_product_merge")
     updated = field("updated_at") or os.environ.get("SOURCE_DATE_EPOCH") or ""
     live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("REMOTE_LIVE_ENDPOINT", "") == "1"
+    repo = os.environ.get("GITHUB_REPOSITORY", "Pokitomas/theawesomehexapp")
+    git_ref = os.environ.get("GITHUB_REF", "")
+    pull_match = re.match(r"^refs/pull/(\d+)/", git_ref)
+    branch = os.environ.get("REMOTE_GENERATION_BRANCH") or os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME") or "main"
+    pull_number = os.environ.get("REMOTE_PULL_REQUEST") or (pull_match.group(1) if pull_match else "")
+    pull_url = f"https://github.com/{repo}/pull/{pull_number}" if pull_number else None
     message = {
         "id": f"build-{head[:12] or 'snapshot'}",
         "session": session,
@@ -146,6 +154,15 @@ def remote_snapshot() -> tuple[dict, dict]:
         "snapshot": "./remote-snapshot.json",
         "terminal": "#live-work",
         "documentation": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/README_REMOTE.md",
+        "generation": {
+            "protocol": "sideways-universal-remote-generation/1",
+            "number": generation,
+            "branch": branch,
+            "pull_request": pull_url,
+            "authoritative": False,
+            "state_ledger": False,
+            "semantics": "discovery metadata only; live and static remote state remain authoritative",
+        },
         "weave": {
             "report": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/REMOTE_WORK.md",
             "thought": "https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/REMOTE_THOUGHT.md",
@@ -187,6 +204,7 @@ def main() -> None:
         "future-media-mobile.css",
         "frontier.css",
         "remote-terminal.css",
+        "survival-ledger.css",
         "studio.js",
         "copy.js",
         "actions.js",
@@ -194,6 +212,7 @@ def main() -> None:
         "workspace-profile.js",
         "workspace-records.js",
         "workspace-migration.js",
+        "survival-ledger.js",
         "workspace.js",
         "workspace-ui.js",
         "core-actions.js",
@@ -202,6 +221,7 @@ def main() -> None:
         "media-modes.js",
         "frontier.js",
         "remote-terminal.js",
+        "vault-ui.js",
         "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
@@ -232,6 +252,7 @@ def main() -> None:
     text = inject_once(text, FUTURE_MEDIA_MOBILE_STYLE_MARKER, "</head>")
     text = inject_once(text, FRONTIER_STYLE_MARKER, "</head>")
     text = inject_once(text, REMOTE_STYLE_MARKER, "</head>")
+    text = inject_once(text, SURVIVAL_STYLE_MARKER, "</head>")
     text = inject_once(text, REMOTE_SERVICE_MARKER, "</head>")
     text = inject_once(text, SCRIPT_MARKER, "</body>")
     text = inject_once(text, WORKSPACE_SCRIPT_MARKER, "</body>")
@@ -241,6 +262,7 @@ def main() -> None:
     text = inject_once(text, MEDIA_MODES_SCRIPT_MARKER, "</body>")
     text = inject_once(text, FRONTIER_SCRIPT_MARKER, "</body>")
     text = inject_once(text, REMOTE_SCRIPT_MARKER, "</body>")
+    text = inject_once(text, VAULT_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
     write_remote_projection()
@@ -252,7 +274,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied one-owner corpus schema, durable ledger, off-thread hashing, viewport media hydration, the profile-first frontier surface, and the public live-work terminal")
+    print("applied one-owner corpus schema, atomic ledger, off-thread hashing, viewport hydration, OPFS mirror, Ark recovery, the profile-first frontier surface, and the public live-work terminal")
 
 
 if __name__ == "__main__":
