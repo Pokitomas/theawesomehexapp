@@ -46,6 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify exact-head deployment receipt contract
+        run: node --test scripts/tests/deployment-receipt.test.mjs
+
       - name: Extract base product layers
         run: |
           set -euo pipefail
@@ -88,10 +95,6 @@ jobs:
           python studio/manual/prepare-kernel.py
           python manual-kernel/patch.py
           cp manual-phone-check.mjs manual-kernel/phone-check.mjs
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - uses: actions/setup-python@v5
         with:
@@ -253,7 +256,6 @@ jobs:
           node --check scripts/remote-gate.mjs
           node --check scripts/deployment-receipt.cjs
           node --test scripts/tests/remote-service.test.mjs
-          node --test scripts/tests/deployment-receipt.test.mjs
           python studio/manual/verify.py
           node studio/manual/tests/remote-terminal-contract.mjs
           node manual-kernel/verify-kernel.mjs
