@@ -73,7 +73,7 @@ test('production factory executes a complete request through the Blob fallback',
 
   const response = await service(new Request('http://sideways.test/api/social?op=register', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', origin: 'http://sideways.test' },
     body: JSON.stringify({
       name: 'Adapter Alice',
       handle: 'adapter-alice',
