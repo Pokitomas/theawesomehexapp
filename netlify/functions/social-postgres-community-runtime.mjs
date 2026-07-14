@@ -1,4 +1,5 @@
 import { createPostgresCommunityAuthority } from './social-postgres-community.mjs';
+import { assertSocialReceiptReplay, currentSocialMutationIdentity } from './social-idempotency.mjs';
 import { SOCIAL_VERSION, fail, randomId } from './social-schema.mjs';
 
 const iso = value => value instanceof Date ? value.toISOString() : String(value);
@@ -67,22 +68,24 @@ export function createPostgresCommunityRuntime({ pool, afterMutation = async () 
 
   async function receipt(client, { scope, operation, actorId, key, at }, mutate) {
     if (!key) return mutate();
+    const identity = currentSocialMutationIdentity(actorId, operation);
     const lockKey = JSON.stringify([scope, key]);
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0::bigint))', [lockKey]);
     const prior = await client.query(
-      'SELECT operation, status, body FROM social_mutation_receipts WHERE scope = $1 AND idempotency_key = $2',
+      `SELECT operation, actor_id, request_digest, status, body
+       FROM social_mutation_receipts WHERE scope = $1 AND idempotency_key = $2`,
       [scope, key]
     );
     if (prior.rows[0]) {
-      if (prior.rows[0].operation !== operation) throw fail(409, 'That idempotency key belongs to another operation.');
+      assertSocialReceiptReplay(prior.rows[0], identity);
       return { status: Number(prior.rows[0].status), body: prior.rows[0].body, replayed: true };
     }
     const result = await mutate();
     await client.query(
       `INSERT INTO social_mutation_receipts
-       (scope, idempotency_key, operation, actor_id, status, body, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)`,
-      [scope, key, operation, actorId, result.status, JSON.stringify(result.body), at]
+       (scope, idempotency_key, operation, actor_id, request_digest, status, body, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
+      [scope, key, operation, actorId, identity.requestDigest, result.status, JSON.stringify(result.body), at]
     );
     return result;
   }
