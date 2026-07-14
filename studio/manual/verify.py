@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 
@@ -9,6 +10,7 @@ PRODUCT = HERE / "product"
 IMPORTS = HERE / "imports"
 SHARED = HERE / "shared"
 MANUAL = ROOT / "manual-app"
+REMOTE_SESSION = ROOT / "remote" / "session.json"
 
 SOURCE_FILES = (
     PRODUCT / "copy.js",
@@ -23,10 +25,14 @@ SOURCE_FILES = (
     PRODUCT / "core-actions.js",
     PRODUCT / "universal-media.js",
     PRODUCT / "media-modes.js",
+    PRODUCT / "frontier.js",
+    PRODUCT / "remote-terminal.js",
     PRODUCT / "studio.css",
     PRODUCT / "studio-components.css",
     PRODUCT / "studio-reset.css",
     PRODUCT / "workspace.css",
+    PRODUCT / "frontier.css",
+    PRODUCT / "remote-terminal.css",
     PRODUCT / "system-icons.svg",
     PRODUCT / "import-studio.js",
     PRODUCT / "import-studio.css",
@@ -100,6 +106,13 @@ def main() -> None:
             '"workspace-records.js"',
             '"universal-media.js"',
             '"media-modes.js"',
+            '"frontier.js"',
+            '"remote-terminal.js"',
+            '"remote-terminal.css"',
+            "REMOTE_TERMINAL_SCRIPT_MARKER",
+            "REMOTE_TERMINAL_STYLE_MARKER",
+            "REMOTE_SESSION",
+            '"remote-session.json"',
             "shared_target",
             '"corpus-db.js"',
             '"workspace-sync.js"',
@@ -161,26 +174,50 @@ def main() -> None:
     forbid(media_source, ("Promise.all(cards.map(renderCard))", "for (const delay of", "new MutationObserver"), "full-feed hydration")
 
     actions_source = source[PRODUCT / "actions.js"]
-    for action_id in ("nav.feed", "feed.post", "post.delete", "record.open", "places.create", "import.anything"):
+    for action_id in ("nav.feed", "feed.post", "post.delete", "record.open", "places.create", "import.anything", "remote.open", "remote.close", "remote.refresh"):
         if actions_source.count(f"'{action_id}'") < 2:
             raise AssertionError(f"action contract is incomplete: {action_id}")
 
+    remote_source = source[PRODUCT / "remote-terminal.js"]
+    require(
+        remote_source,
+        (
+            "/api/remote/state",
+            "public",
+            "data-sideways-remote-state",
+            "sideways:remoteupdate",
+            "remote-session.json",
+            "window.SidewaysRemoteTerminal",
+        ),
+        "public live terminal",
+    )
+    forbid(remote_source, ("REMOTE_ROOT_KEY", "x-remote-signature", "localStorage.setItem(\'remote", "method: \'POST\'"), "browser remote authority")
+
+    if not REMOTE_SESSION.is_file():
+        raise AssertionError("machine-readable remote session pointer is missing")
+    remote_bootstrap = json.loads(read_clean(REMOTE_SESSION))
+    if not remote_bootstrap.get("thought_location") or not remote_bootstrap.get("human_report"):
+        raise AssertionError("remote bootstrap does not expose report and thought locations")
+
     if not MANUAL.exists():
-        print("local-first runtime sources verified")
+        print("local-first runtime and public live terminal sources verified")
         return
 
     generated_js = (
         "app.js", "profile.js", "kernel.js", "studio.js", "copy.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "workspace-migration.js",
         "workspace.js", "workspace-ui.js", "core-actions.js", "universal-media.js", "media-modes.js",
-        "import-studio.js", "import-phone.js", "shared/corpus-db.js", "imports/registry.js",
-        "imports/runtime.js", "imports/file-hash.js", "imports/hash-worker.js", "imports/corpus-writer.js",
-        "imports/record-normalizer.js",
+        "frontier.js", "remote-terminal.js", "import-studio.js", "import-phone.js", "shared/corpus-db.js",
+        "imports/registry.js", "imports/runtime.js", "imports/file-hash.js", "imports/hash-worker.js",
+        "imports/corpus-writer.js", "imports/record-normalizer.js",
     )
     for name in generated_js:
         path = MANUAL / name
         read_clean(path)
         node_check(path)
+
+    for generated in ("frontier.css", "remote-terminal.css", "remote-session.json"):
+        read_clean(MANUAL / generated)
 
     for retired in ("social.js", "social.css", "workspace-sync.js"):
         if (MANUAL / retired).exists():
@@ -198,9 +235,11 @@ def main() -> None:
             raise AssertionError(f"stable DOM hook missing: {hook}")
     if index.count("data-workspace-product") != 2 or index.count("data-universal-media") != 1 or index.count("data-media-modes") != 1:
         raise AssertionError("generated runtime layers are duplicated or missing")
+    if index.count("data-frontier-product") != 2 or index.count("data-remote-terminal") != 2:
+        raise AssertionError("generated frontier or live terminal layers are duplicated or missing")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
-    print("local-first runtime, one-owner schema, atomic ledger, and viewport media contracts verified")
+    print("local-first runtime, atomic ledger, profile frontier, and public live terminal contracts verified")
 
 
 if __name__ == "__main__":
