@@ -240,32 +240,46 @@ export function publicStateProjection(state, messages = []) {
   };
 }
 
-function checkResultSuccess(check) {
-  return clean(check?.conclusion || check?.status).toLowerCase() === 'success';
+function exactGitSha(value) {
+  const sha = clean(value).toLowerCase();
+  return /^[a-f0-9]{40}$/.test(sha) ? sha : '';
+}
+
+function checkResultSuccess(check, headSha) {
+  const conclusion = clean(check?.conclusion || check?.status).toLowerCase();
+  const checkHead = exactGitSha(check?.head_sha || check?.commit || check?.sha);
+  return conclusion === 'success' && checkHead === headSha;
+}
+
+function receiptNamesMerge(receipt, mergeSha) {
+  if (!receipt || !mergeSha) return false;
+  const text = typeof receipt === 'string' ? receipt : JSON.stringify(receipt);
+  return text.includes(mergeSha);
 }
 
 export function validateTerminalEvidence({ evidence = {}, state, proposedHead }) {
   const errors = [];
-  const headSha = clean(evidence.head_sha || proposedHead);
+  const headSha = exactGitSha(evidence.head_sha || proposedHead);
   const checks = Array.isArray(evidence.checks) ? evidence.checks : [];
   const artifacts = Array.isArray(evidence.artifacts) ? evidence.artifacts : [];
   const remaining = Number(evidence.remaining_test_records ?? evidence.temporary_test_records ?? NaN);
   const blockerCount = Number(evidence.active_blockers ?? activeBlockerCount(state));
   const merge = evidence.merge && typeof evidence.merge === 'object' ? evidence.merge : {};
+  const mergeSha = exactGitSha(merge.sha || merge.merge_sha);
   const production = evidence.production && typeof evidence.production === 'object' ? evidence.production : {};
   const current = pruneExpiredClaims(state);
 
-  if (!headSha) errors.push('Exact tested head is required.');
+  if (!headSha) errors.push('Exact tested head must be a 40-character Git SHA.');
   if (current.head_sha && headSha && current.head_sha !== headSha) errors.push('Proposed head is stale.');
-  if (!checks.length || checks.some(check => !checkResultSuccess(check))) errors.push('All required checks must be successful.');
+  if (!checks.length || checks.some(check => !checkResultSuccess(check, headSha))) errors.push('All required checks must be successful on the exact tested head.');
   if (!artifacts.length || artifacts.some(item => !clean(item?.id || item?.digest || item?.name))) errors.push('Artifact identifiers or digests are required.');
   if (!Number.isFinite(remaining) || remaining !== 0) errors.push('Temporary test records must be zero.');
   if (!Number.isFinite(blockerCount) || blockerCount !== 0 || activeBlockerCount(current) !== 0) errors.push('Active blockers remain.');
   if (Object.keys(current.claims || {}).length) errors.push('Active mutation claims remain.');
-  if (clean(merge.state).toLowerCase() !== 'merged' || !clean(merge.sha)) errors.push('Merge state must be merged with a merge SHA.');
+  if (clean(merge.state).toLowerCase() !== 'merged' || !mergeSha) errors.push('Merge state must be merged with a 40-character merge SHA.');
   const productionState = clean(production.state).toLowerCase();
   if (!['deployed', 'unverified'].includes(productionState)) errors.push('Production state must be deployed or unverified.');
-  if (productionState === 'deployed' && !clean(production.receipt)) errors.push('A deployed production state requires a receipt.');
+  if (productionState === 'deployed' && !receiptNamesMerge(production.receipt, mergeSha)) errors.push('A deployed production receipt must name the merge SHA.');
 
   return {
     ok: errors.length === 0,
@@ -276,7 +290,7 @@ export function validateTerminalEvidence({ evidence = {}, state, proposedHead })
       artifacts,
       remaining_test_records: remaining,
       active_blockers: blockerCount,
-      merge: { state: clean(merge.state).toLowerCase(), sha: clean(merge.sha) },
+      merge: { state: clean(merge.state).toLowerCase(), sha: mergeSha },
       production: { state: productionState, receipt: production.receipt ?? null }
     }
   };
