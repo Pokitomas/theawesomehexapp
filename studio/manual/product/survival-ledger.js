@@ -12,7 +12,8 @@ import {
   transactionDone
 } from './workspace-db.js';
 
-const PROFILE_KEY = 'sideways-local-profile-v1';
+const PROFILE_KEY = 'sideways-workspace-profile-v1';
+const LEGACY_PROFILE_KEY = 'sideways-local-profile-v1';
 const ARK_MAGIC = 'SIDEWAYS-ARK/1\n';
 const VAULT_DIR = 'sideways-vault';
 const ASSET_DIR = 'assets';
@@ -37,7 +38,9 @@ async function snapshot() {
     readStore(openWorkspaceDB, PLACE_STORE).catch(() => [])
   ]);
   let profile = {};
-  try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'); } catch {}
+  try {
+    profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || localStorage.getItem(LEGACY_PROFILE_KEY) || '{}');
+  } catch {}
   return { records: records || [], assets: assets || [], ledger: ledger || [], places: places || [], profile };
 }
 
@@ -168,7 +171,10 @@ export async function restoreArk(file) {
     ledger.add(ledgerEntry('survival.ark.restore', { added, skipped, assets: Number(manifest.assets?.length || 0), ledgerEntries: Number(manifest.ledger?.length || 0), sourceCreatedAt: manifest.createdAt || '' }));
     await transactionDone(tx);
   } finally { db.close(); }
-  if (manifest.profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(manifest.profile));
+  if (manifest.profile) {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(manifest.profile));
+    localStorage.setItem(LEGACY_PROFILE_KEY, JSON.stringify({ name: manifest.profile.name || 'You', handle: manifest.profile.handle || '' }));
+  }
   if (manifest.places?.length) {
     const workspace = await openWorkspaceDB();
     try {
@@ -181,6 +187,7 @@ export async function restoreArk(file) {
   const result = { added, skipped, assets: Number(manifest.assets?.length || 0), ledgerEntries: Number(manifest.ledger?.length || 0) };
   window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: { source: 'ark', ...result } }));
   window.dispatchEvent(new CustomEvent('sideways:survivalchange', { detail: { op: 'survival.ark.restore', ...result } }));
+  window.dispatchEvent(new CustomEvent('sideways:profilechange', { detail: manifest.profile || {} }));
   return result;
 }
 
