@@ -1,66 +1,47 @@
-version: 28
-updated_at: 2026-07-13T21:36:00-07:00
+version: 29
+updated_at: 2026-07-13T21:49:00-07:00
 repository: Pokitomas/theawesomehexapp
 branch: main
-active_pr: 79 merged
-merge_commit: 316901b10f809067f71568141aae3b240099240b
-exact_tested_head: 5143168fe3ab4c7ffc26178604dd086d20ee293d
-previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
+active_pr: 81 merged
+merge_commit: eb94c52323224106c665a77e452a06d329f75e3d
+exact_tested_head: ce77cf4ce2e54887f8792bd9355529fb39d783f8
+previous_product_merge: 316901b10f809067f71568141aae3b240099240b
 previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
 previous_verified_deployment_receipt: 76
 superseded_pr: 66 closed locked zero-diff
 
 owner: GPT-5.6 Thinking
-mode: completed vendorless universal remote with public live-work terminal
+mode: completed static Drop starter compatibility
 
 current_subtask:
-  summary: Built a vendorless universal project remote and exposed its public projection as an active full-stack LIVE window inside the Sideways social product.
-  directive:
-    - no companies model names assigned minds permanent roles or mandatory choreography
-    - every participant is an opaque temporary principal with granted capabilities
-    - transport open-ended project payloads without pretending to understand their intelligence
-    - keep messages append-only cursorable authenticated expiring and generation-bound
-    - make current public work instantly visible to people and discoverable by programs
-    - preserve the social product ranking corpus media profile starter and cleanup invariants
-    - terminate only after exact-head proof direct phone inspection merge and honest deployment accounting
+  summary: Repaired the real Netlify Drop onboarding failure so START ME OFF works without serverless functions while preserving the live backend as first choice.
+  trigger:
+    - actual iPhone screenshot showed Request failed 404 after tapping Make it alive on creative-profiterole-c6b236.netlify.app
+    - the deployment was a static Netlify Drop and therefore had no executable /api/starter function
   completed:
-    - added one generic Netlify remote endpoint backed by the existing Blob infrastructure
-    - added HMAC bootstrap authentication and replaceable Ed25519 principals without company-specific identities
-    - signed method path timestamp nonce and body digest and rejected stale timestamps replays duplicate ids expired credentials and insufficient capabilities
-    - added generic read write claim release pause resume terminate admin repository CI and deployment capabilities
-    - implemented append-only messages with application cursors and correct blob.key pagination over the installed Netlify Blobs API
-    - added optional renewable releasable expiring claims over opaque scopes without enforcing turns
-    - added session state blockers exact repository heads terminal proposals immutable terminal receipts and explicit new generations
-    - added a vendorless command-line client for humans tools CI and future software
-    - added a remote gate job that emits proceed pause stop superseded or terminal and gates later jobs through needs and if
-    - preserved native GitHub concurrency cancellation as the authoritative stale-run mechanism
-    - added machine discovery at .well-known/sideways-remote.json
-    - added window.SidewaysRemote a sideways:remoteupdate event and a machine-readable public state output
-    - mounted the visible LIVE control in owned title chrome so it never covers feed actions
-    - exposed only public projections to browser code and kept signatures credentials private payloads and control authority server-side
-    - made static builds truthfully use a repository snapshot while function-capable builds may opt into the live endpoint
-    - preserved ordinary consumer labels and the profile-first social feed
-    - detached video and audio sources before object URL revocation to eliminate intermittent media lifecycle failures
+    - added a narrow browser compatibility adapter for POST /api/starter only
+    - preserved successful live function responses unchanged
+    - replaced missing unreachable or failed starter endpoints with the same profile-aware eight-post built-in pack
+    - marked fallback responses with x-sideways-source built-in
+    - left profile sync remote control imports and all unrelated fetches untouched
+    - added a contract assertion preventing future static packages from returning to the 404 screen
+    - never used stored or persisted the password pasted into chat
   verification:
-    - all six required workflows passed on exact final head 5143168fe3ab4c7ffc26178604dd086d20ee293d
+    - direct Node simulation proved one 404 live attempt becomes a 200 built-in response
+    - direct simulation returned eight items and a profile-aware welcome
+    - all six repository workflows passed on exact head ce77cf4ce2e54887f8792bd9355529fb39d783f8
     - kernel parity passed
-    - overlay shard validation passed
-    - universal media phone journey passed after atomic source teardown before blob revocation
-    - profile-first starter and live terminal phone journey passed
-    - workspace creation deletion reload ledger and action-contract journey passed
-    - build and manual phone gate passed
-    - remote service tests passed cursor pagination nonce replay rejection duplicate id rejection optional claims exact terminalization private payload isolation and replaceable Ed25519 principals
-    - direct 390 by 844 artifact inspection confirmed LIVE is contained in the titlebar and covers no post action
-    - direct artifact inspection confirmed readable session generation head claim blocker source and recent-work fields
-    - phone proof inserted nine temporary posts twice exercised Like Reply Remix Save Share and removed every proof record after both cycles
-    - frontier proof artifact 8300267987 digest sha256:b4bc2edebaf016a9df2a709cec4890eaaae287b491b62c351b13528a45c2aa8f
-    - squash-merged PR 79 as 316901b10f809067f71568141aae3b240099240b
+    - overlay validation passed
+    - universal media phone proof passed
+    - profile-first starter phone proof passed
+    - workspace phone proof passed
+    - build and manual gate passed
+    - squash-merged PR 81 as eb94c52323224106c665a77e452a06d329f75e3d
   production:
-    - previous verified Pages receipt is issue 76 for product merge b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
-    - the GitHub Pages deployment for merge 316901b10f809067f71568141aae3b240099240b is not yet externally receipted here
-    - the static Pages build can expose only the truthful build snapshot because GitHub Pages cannot execute Netlify Functions
-    - the live Netlify Functions and Blobs remote remains externally unverified
-    - do not claim the live remote deployed until a Netlify receipt identifies merge 316901b10f809067f71568141aae3b240099240b
+    - the existing creative-profiterole-c6b236.netlify.app Drop still contains the older ZIP until the replacement ZIP is redeployed
+    - replacement Drop ZIP sha256 is ba40b61004d2477027c0e2277feae4551312098c183158fb7f262737105ac6ab
+    - a static Drop now supports local profile creation starter content posting imports media and the truthful LIVE snapshot
+    - live profile uniqueness remote writes and Netlify Blobs still require a Git-connected function-capable Netlify deployment
   done_when: complete
 
 invariants:
@@ -86,6 +67,6 @@ invariants:
   - Private credentials signatures private payloads and write authority must never enter consumer code or repository content.
   - A terminal session generation cannot silently resume; further work requires a new generation or session.
   - The public LIVE terminal may expose only explicitly public projections.
-  - Do not expand the universal remote or profile and starter services into generic product sync without a real service contract.
+  - Static compatibility may replace only a missing starter endpoint and must not impersonate profile or remote persistence.
   - Do not add a second engineering-belief ledger or duplicate runtime schema authority.
   - Never use or persist credentials pasted into chat.
