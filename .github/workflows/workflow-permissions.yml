@@ -1,0 +1,28 @@
+name: Verify workflow authority
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/*.yml'
+      - 'scripts/tests/workflow-permissions.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/*.yml'
+      - 'scripts/tests/workflow-permissions.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/tests/workflow-permissions.test.mjs
