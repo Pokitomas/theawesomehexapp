@@ -29,6 +29,7 @@ const dbFail = error => {
     return fail(409, 'That community mutation conflicts with existing state.');
   }
   if (error?.code === '23503') return fail(404, 'The referenced community object no longer exists.');
+  if (error?.code === '23514') return fail(409, error.message || 'That conversation mutation violates community authority.');
   return error;
 };
 
@@ -86,7 +87,7 @@ export function createPostgresCommunityRuntime({ pool, afterMutation = async () 
     return result;
   }
 
-  return createPostgresCommunityAuthority({
+  const authority = createPostgresCommunityAuthority({
     pool,
     transaction,
     receipt,
@@ -94,4 +95,17 @@ export function createPostgresCommunityRuntime({ pool, afterMutation = async () 
     accountBy,
     afterMutation
   });
+
+  return {
+    ...authority,
+    async communityPostContext(postId) {
+      const { rows } = await pool.query(
+        `SELECT c.slug FROM social_posts p
+         JOIN social_communities c ON c.id = p.community_id
+         WHERE p.id = $1 LIMIT 1`,
+        [postId]
+      );
+      return rows[0] ? { slug: rows[0].slug } : null;
+    }
+  };
 }
