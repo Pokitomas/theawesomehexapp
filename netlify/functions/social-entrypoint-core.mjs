@@ -1,4 +1,5 @@
 import { createSocialService } from './social-core.mjs';
+import { createPostgresCommunityRuntime } from './social-postgres-community-runtime.mjs';
 import { createPostgresAuthority } from './social-postgres-store.mjs';
 import { createRelationalSocialService } from './social-relational-core.mjs';
 
@@ -23,6 +24,7 @@ export function createProductionSocialService({
   createPool,
   createBlobService = createSocialService,
   createRelationalAuthority = createPostgresAuthority,
+  createCommunityAuthority = createPostgresCommunityRuntime,
   createRelationalService = createRelationalSocialService
 } = {}) {
   const databaseUrl = env.SOCIAL_DATABASE_URL || env.NETLIFY_DATABASE_URL || env.DATABASE_URL || '';
@@ -33,7 +35,10 @@ export function createProductionSocialService({
 
   const pool = createPool({ connectionString: databaseUrl, max: 4, idleTimeoutMillis: 20_000 });
   return createRelationalService({
-    authority: createRelationalAuthority({ pool }),
+    authority: {
+      ...createRelationalAuthority({ pool }),
+      ...createCommunityAuthority({ pool })
+    },
     sessionSecret: env.SOCIAL_SESSION_SECRET
   });
 }
