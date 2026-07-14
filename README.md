@@ -35,9 +35,9 @@ OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS
 
 ## Profiles, posts, places, and media
 
-Profiles persist locally with a display name, handle, biography, accent, avatar treatment, and portable state. The app supports text and image posts, social actions, saved records, deletable local content, place creation and selection, Flow/Full/Desktop media modes, intrinsic image/video/audio/PDF/archive surfaces, and zero-overflow phone layouts.
+Profiles persist locally with a display name, handle, biography, accent, avatar treatment, and portable state. The app supports text and image posts, social actions, saved records, deletable local content, place creation and selection, Feed/Full/Desktop media modes, intrinsic image/video/audio/PDF/archive surfaces, and zero-overflow phone layouts.
 
-A static deployment can install the same profile-aware eight-item starter pack without a backend. When Netlify functions are available, the profile and starter endpoints are used first and fall back locally when unavailable.
+A static deployment saves the profile locally and can install the same profile-aware eight-item starter pack without a backend. A function-capable Netlify deployment adds unique-handle checks, durable profile synchronization, the starter endpoint, and live remote state; the starter still falls back locally when its endpoint is unavailable.
 
 ## LIVE work surface
 
@@ -55,7 +55,7 @@ The repository gates changes with:
 - universal-media phone proof
 - profile-first starter and static-drop proof
 - Ark mirror → backup → delete → restore → audit proof
-- exact-head build/deployment receipts
+- exact-head build and deployment accounting
 
 The concentrated-corpus phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
 
