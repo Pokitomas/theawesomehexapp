@@ -77,6 +77,22 @@ await page.route('**/api/profile**', async route => {
   });
 });
 
+await page.route('**/.well-known/sideways-remote.json', async route => {
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      protocol: 'sideways-universal-remote/1',
+      session: 'Pokitomas/theawesomehexapp:proof',
+      live: true,
+      messages: '/api/remote?public=1',
+      state: '/api/remote/state?public=1',
+      snapshot: './remote-snapshot.json',
+      terminal: '#live-work'
+    })
+  });
+});
+
 await page.route('**/api/remote/state**', async route => {
   await route.fulfill({
     status: 200,
