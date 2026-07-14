@@ -401,5 +401,5 @@ export function createRelationalSocialService({ authority, sessionSecret, now = 
     }
   }
 
-  return request => withSocialMutationContext(request, () => relationalSocialService(request));
+  return request => withSocialMutationContext(request, sessionSecret, () => relationalSocialService(request));
 }
