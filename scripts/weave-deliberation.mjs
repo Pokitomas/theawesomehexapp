@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { unresolvedCognitionIds } from './weave-cognition.mjs';
+import { stableDigest, unresolvedCognitionIds } from './weave-cognition.mjs';
 
 const roleOrder = ['proposer', 'opponent', 'verifier', 'implementer', 'integrator', 'historian', 'critic'];
 const assignmentKey = value => createHash('sha256').update(value).digest('hex').slice(0, 24);
@@ -8,9 +8,20 @@ function existingNoveltyKeys(state) {
   return new Set(Object.values(state?.assignments || {}).map(event => event.body?.novelty_key).filter(Boolean));
 }
 
-function candidate(role, targetIds, reason, priority, expectedKinds) {
-  const novelty = `novelty:${role}:${[...targetIds].sort().join(',')}`;
-  return { role, target_ids: [...targetIds].sort(), reason, priority, expected_kinds: expectedKinds, novelty_key: novelty };
+function substantiveFrontier(state, targetIds) {
+  const targets = new Set(targetIds);
+  return (state?.events || [])
+    .filter(event => !['assignment', 'wave.receipt', 'synthesis', 'critique'].includes(event.kind))
+    .filter(event => targets.has(event.id) || (event.source_event_ids || []).some(id => targets.has(id)))
+    .map(event => ({ id: event.id, kind: event.kind, digest: stableDigest(event) }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function candidate(state, role, targetIds, reason, priority, expectedKinds) {
+  const sortedTargets = [...targetIds].sort();
+  const frontier = stableDigest(substantiveFrontier(state, sortedTargets)).slice(0, 16);
+  const novelty = `novelty:${role}:${sortedTargets.join(',')}:${frontier}`;
+  return { role, target_ids: sortedTargets, reason, priority, expected_kinds: expectedKinds, novelty_key: novelty };
 }
 
 export function planDeliberationWave(state, config = {}) {
@@ -20,22 +31,22 @@ export function planDeliberationWave(state, config = {}) {
 
   for (const id of state?.open_question_ids || []) {
     const priority = Number(state.questions[id]?.body.priority || 50);
-    candidates.push(candidate('proposer', [id], 'answer unresolved question', priority + 20, ['claim', 'evidence', 'decision']));
-    candidates.push(candidate('verifier', [id], 'verify answerability and evidence', priority + 10, [...new Set(['evidence', 'test.result', 'uncertainty', ...(state.questions[id]?.body.answer_kinds || [])]) ]));
+    candidates.push(candidate(state, 'proposer', [id], 'answer unresolved question', priority + 20, ['claim', 'evidence', 'decision']));
+    candidates.push(candidate(state, 'verifier', [id], 'verify answerability and evidence', priority + 10, [...new Set(['evidence', 'test.result', 'uncertainty', ...(state.questions[id]?.body.answer_kinds || [])]) ]));
   }
   for (const id of state?.unresolved_contradiction_ids || []) {
     const contradiction = state.contradictions[id];
     const priority = Number(contradiction?.body.severity || 50);
-    candidates.push(candidate('opponent', [id, contradiction.body.left_id, contradiction.body.right_id], 'preserve strongest countercase', priority + 30, ['evidence', 'critique', 'uncertainty']));
-    candidates.push(candidate('integrator', [id, contradiction.body.left_id, contradiction.body.right_id], 'seek discriminating test or bounded resolution', priority + 20, ['test.result', 'decision', 'question']));
+    candidates.push(candidate(state, 'opponent', [id, contradiction.body.left_id, contradiction.body.right_id], 'preserve strongest countercase', priority + 30, ['evidence', 'critique', 'uncertainty']));
+    candidates.push(candidate(state, 'integrator', [id, contradiction.body.left_id, contradiction.body.right_id], 'seek discriminating test or bounded resolution', priority + 20, ['test.result', 'decision', 'question']));
   }
   for (const id of state?.unsupported_claim_ids || []) {
     const claim = state.claims[id];
-    candidates.push(candidate('verifier', [id], 'seek evidence for unsupported claim', Number(claim?.body.impact || 50) + (1 - Number(claim?.body.confidence || 0.5)) * 40, ['evidence', 'test.result', 'uncertainty']));
+    candidates.push(candidate(state, 'verifier', [id], 'seek evidence for unsupported claim', Number(claim?.body.impact || 50) + (1 - Number(claim?.body.confidence || 0.5)) * 40, ['evidence', 'test.result', 'uncertainty']));
   }
-  for (const id of state?.failed_test_ids || []) candidates.push(candidate('implementer', [id], 'repair failed executable witness', 90, ['artifact', 'test.result', 'plan']));
+  for (const id of state?.failed_test_ids || []) candidates.push(candidate(state, 'implementer', [id], 'repair failed executable witness', 90, ['artifact', 'test.result', 'plan']));
   for (const id of state?.active_plan_ids || []) {
-    if (state.plans[id]?.body.state === 'blocked') candidates.push(candidate('integrator', [id], 'unblock active plan', 85, ['plan', 'decision', 'question']));
+    if (state.plans[id]?.status === 'blocked') candidates.push(candidate(state, 'integrator', [id], 'unblock active plan', 85, ['plan', 'decision', 'question']));
   }
 
   const existing = existingNoveltyKeys(state);
