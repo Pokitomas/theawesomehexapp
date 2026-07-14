@@ -49,11 +49,21 @@ async function chooseArk() {
   });
 }
 
+function syncBusy() {
+  document.querySelectorAll('section[data-survival-vault] [data-action-id^="vault."]').forEach(button => {
+    button.disabled = busy;
+  });
+}
+
 async function run(task) {
   if (busy) return { cancelled: true };
   busy = true;
-  schedule();
-  try { return await task(); } finally { busy = false; schedule(); }
+  syncBusy();
+  try { return await task(); } finally {
+    busy = false;
+    syncBusy();
+    schedule();
+  }
 }
 
 function action(id, handler) {
@@ -62,12 +72,7 @@ function action(id, handler) {
   return button;
 }
 
-async function render(host) {
-  if (!host?.isConnected) return;
-  const [status, audit] = await Promise.all([Survival.status(), Survival.audit({ record: false })]);
-  if (!host.isConnected) return;
-  const state = node('div', 'survival-vault-state');
-  state.append(node('strong', 'survival-vault-grade', status.grade), node('span', 'survival-vault-count', `${audit.records}/${audit.assets}`), node('span', 'survival-vault-bytes', formatBytes(audit.bytes)));
+function buildActions() {
   const actions = node('div', 'survival-vault-actions');
   actions.append(
     action('vault.persist', async () => ({ durability: await window.SidewaysWorkspace.durability({ request: true }), mirror: await Survival.mirrorAll() })),
@@ -79,7 +84,32 @@ async function render(host) {
       return Survival.restoreArk(file);
     })
   );
-  host.replaceChildren(state, actions);
+  return actions;
+}
+
+function ensureShell(host) {
+  let state = host.querySelector('.survival-vault-state');
+  if (!state) {
+    state = node('div', 'survival-vault-state');
+    state.append(
+      node('strong', 'survival-vault-grade', 'HOT'),
+      node('span', 'survival-vault-count', '0/0'),
+      node('span', 'survival-vault-bytes', '0B')
+    );
+  }
+  let actions = host.querySelector('.survival-vault-actions');
+  if (!actions) actions = buildActions();
+  if (state.parentElement !== host || actions.parentElement !== host) host.replaceChildren(state, actions);
+  syncBusy();
+  return state;
+}
+
+async function refreshState(host, state) {
+  const [status, audit] = await Promise.all([Survival.status(), Survival.audit({ record: false })]);
+  if (!host.isConnected || state !== host.querySelector('.survival-vault-state')) return;
+  state.querySelector('.survival-vault-grade').textContent = status.grade;
+  state.querySelector('.survival-vault-count').textContent = `${audit.records}/${audit.assets}`;
+  state.querySelector('.survival-vault-bytes').textContent = formatBytes(audit.bytes);
   host.dataset.grade = status.grade;
   host.setAttribute('aria-label', `Storage ${status.grade}. ${audit.records} records. ${audit.assets} assets.`);
 }
@@ -95,7 +125,8 @@ function mount() {
     if (importHost) importHost.before(host);
     else addView.prepend(host);
   }
-  void render(host).catch(error => console.warn('[vault] render failed', error));
+  const state = ensureShell(host);
+  void refreshState(host, state).catch(error => console.warn('[vault] render failed', error));
   document.documentElement.dataset.vaultReady = 'yes';
 }
 
