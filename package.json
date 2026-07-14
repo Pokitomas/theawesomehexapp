@@ -7,6 +7,7 @@
     "test:remote": "node --test scripts/tests/remote-service.test.mjs",
     "test:social": "node --test scripts/tests/social-service.test.mjs scripts/tests/social-entrypoint.test.mjs scripts/tests/community-authority.test.mjs scripts/tests/social-migrations.test.mjs",
     "test:social:postgres": "node --test --test-concurrency=1 scripts/tests/social-schema-bootstrap-postgres.test.mjs scripts/tests/social-postgres-contract.test.mjs scripts/tests/community-postgres-contract.test.mjs",
+    "test:authority": "node --test scripts/tests/authority-manifest.test.mjs && node scripts/run-authority-audit.mjs",
     "remote": "node scripts/remote-client.mjs",
     "remote:gate": "node scripts/remote-gate.mjs"
   },
