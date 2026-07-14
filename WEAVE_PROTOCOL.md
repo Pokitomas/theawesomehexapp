@@ -72,6 +72,21 @@ A failed recode may terminate as a preserved runnable variant. Failure does not 
 
 These events do not terminalize the whole Remote generation. Whole-generation completion still uses the existing exact-head proposal and terminal receipt protocol.
 
+## Automatic co-agent lasso
+
+`scripts/weave-lasso.mjs` observes incoming GitHub issues, comments, pull requests, and reviews through `.github/workflows/weave-lasso.yml`. When Remote credentials are configured, the workflow silently records the arrival in private weave messages and groups the principal into shared ontology assemblies.
+
+The lasso does not assign a coding ticket. Every arrival enters the two foundational rooms:
+
+- **program execution** — what actually happens from source to authority to candidate to ranking to rendering to interaction and moderation
+- **corpus boundaries** — separation of the public social graph, private personal archive, ranking candidate pool, retrieval index, and starter fixture
+
+A third room is selected from the arrival’s context: social substrate, conversation model, ranking legitimacy, identity and community, or governance and abuse.
+
+Rooms are stable threads. A second participant triggers an adversarial round asking each participant for a concrete model, a contradiction, an executable probe, and one deletion candidate. Deterministic event identifiers make repeated GitHub deliveries idempotent instead of generating chatter storms.
+
+The foundational object distinctions and current product claim are recorded in [`PROGRAM_ONTOLOGY.md`](./PROGRAM_ONTOLOGY.md). Assemblies are expected to attack that document, not treat it as doctrine.
+
 ## CLI
 
 `scripts/weave-client.mjs` emits typed events through the signed Remote API and can fold returned messages into current weave state.
