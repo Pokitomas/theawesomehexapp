@@ -6,6 +6,8 @@ const define = (id, label, surface, intent, payload = {}) => Object.freeze({
   payload: Object.freeze(payload)
 });
 
+const HANDLERS = new Map();
+
 export const ACTIONS = Object.freeze({
   'nav.feed': define('nav.feed', 'Feed', 'navigation', 'navigate', { route: '#/feed' }),
   'nav.places': define('nav.places', 'Places', 'navigation', 'navigate', { route: '#/places' }),
@@ -28,6 +30,15 @@ export const ACTIONS = Object.freeze({
   'profile.start': define('profile.start', 'Make it alive', 'profile', 'install_starter_pack'),
   'profile.skip_start': define('profile.skip_start', 'Not yet', 'profile', 'skip_starter_pack'),
 
+  'network.account': define('network.account', 'Join', 'network', 'open_account'),
+  'network.close': define('network.close', 'Close', 'network', 'close_account'),
+  'network.signup': define('network.signup', 'Create account', 'network', 'signup', { fields: ['email', 'password', 'handle', 'displayName', 'bio'] }),
+  'network.login': define('network.login', 'Log in', 'network', 'login', { fields: ['email', 'password'] }),
+  'network.logout': define('network.logout', 'Log out', 'network', 'logout'),
+  'network.sync': define('network.sync', 'Sync feed', 'network', 'sync_public_feed'),
+  'user.follow': define('user.follow', 'Follow', 'network', 'follow_user', { userId: 'string' }),
+  'user.unfollow': define('user.unfollow', 'Unfollow', 'network', 'unfollow_user', { userId: 'string' }),
+
   'post.open': define('post.open', 'New post', 'composer', 'open_composer'),
   'post.publish': define('post.publish', 'Publish', 'composer', 'publish_entry', { fields: ['text', 'image', 'placeId'] }),
   'post.cancel': define('post.cancel', 'Close', 'composer', 'close_composer'),
@@ -37,8 +48,8 @@ export const ACTIONS = Object.freeze({
   'post.delete': define('post.delete', 'Delete', 'post', 'delete_entry', { recordId: 'number' }),
   'post.save': define('post.save', 'Save', 'post', 'toggle_save', { recordId: 'number' }),
   'post.share': define('post.share', 'Share', 'post', 'share', { recordId: 'number' }),
-  'post.like': define('post.like', 'Like', 'post', 'toggle_like', { recordId: 'number' }),
-  'post.reply': define('post.reply', 'Reply', 'post', 'open_reply', { recordId: 'number' }),
+  'post.like': define('post.like', 'Like', 'post', 'toggle_like', { recordId: 'number', postId: 'string' }),
+  'post.reply': define('post.reply', 'Reply', 'post', 'open_reply', { recordId: 'number', postId: 'string' }),
   'post.remix': define('post.remix', 'Remix', 'post', 'open_remix', { recordId: 'number' }),
 
   'record.source': define('record.source', 'Open source', 'record', 'open_source', { recordId: 'number' }),
@@ -89,6 +100,20 @@ export function action(id) {
   return value;
 }
 
+export function registerActionHandler(id, handler) {
+  action(id);
+  if (typeof handler !== 'function') throw new TypeError('action handler must be a function');
+  HANDLERS.set(id, handler);
+  return () => HANDLERS.delete(id);
+}
+
+export async function run(id, detail = {}, fallback = null) {
+  const definition = action(id);
+  const handler = HANDLERS.get(id);
+  if (handler) return handler(detail, definition);
+  return typeof fallback === 'function' ? fallback(detail, definition) : undefined;
+}
+
 export function emitAction(id, detail = {}) {
   const definition = action(id);
   const event = Object.freeze({
@@ -113,7 +138,7 @@ export function bindAction(node, id, handler, options = {}) {
     const payload = typeof options.payload === 'function' ? options.payload(event) : (options.payload || {});
     emitAction(id, { phase: 'start', ...payload });
     try {
-      const result = await handler?.(event, definition);
+      const result = await run(id, payload, () => handler?.(event, definition));
       const phase = result?.cancelled === true ? 'cancelled' : 'success';
       emitAction(id, { phase, result: result ?? null, ...payload });
     } catch (error) {
@@ -144,4 +169,4 @@ export function actionContract() {
   }));
 }
 
-window.SidewaysActions = Object.freeze({ ACTIONS, action, emitAction, bindAction, actionButton, actionContract });
+window.SidewaysActions = Object.freeze({ ACTIONS, action, run, registerActionHandler, emitAction, bindAction, actionButton, actionContract });
