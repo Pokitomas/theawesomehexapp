@@ -43,6 +43,21 @@ function routeLabel() {
   return ROUTE_LABELS[prefix] || 'Sideways';
 }
 
+function installNavigationFallback() {
+  if (document.documentElement.dataset.sidewaysNavigationFallback === 'ready') return;
+  document.documentElement.dataset.sidewaysNavigationFallback = 'ready';
+  document.addEventListener('click', event => {
+    const button = event.target instanceof Element ? event.target.closest('#navAdd') : null;
+    if (!button) return;
+    queueMicrotask(() => {
+      const addView = document.getElementById('addView');
+      if (!addView?.hidden) return;
+      if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo('#/add');
+      else location.hash = '#/add';
+    });
+  });
+}
+
 function separateDeveloperSurfaces() {
   if (explicitDeveloperView()) {
     document.documentElement.dataset.sidewaysDeveloperView = 'explicit';
@@ -158,6 +173,7 @@ function exposeExistingProvenance() {
 }
 
 function install() {
+  installNavigationFallback();
   const developer = explicitDeveloperView();
   document.documentElement.classList.toggle('sideways-human-web', !developer);
   document.documentElement.dataset.sidewaysHuman = 'ready';
