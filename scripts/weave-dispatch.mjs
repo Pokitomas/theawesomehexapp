@@ -122,7 +122,7 @@ export function parseAdapterOutput(raw, packet, context = {}) {
     for (const [key, value] of Object.entries(authority)) {
       if (value && FORBIDDEN_AUTHORITY.has(key)) throw new Error(`Forbidden adapter authority: ${key}.`);
     }
-    if (FORBIDDEN_EVENT_KINDS.has(candidate?.kind)) throw new Error(`Adapter cannot emit lifecycle, decision, or authority event kind: ${candidate?.kind}.`);
+    if (FORBIDDEN_EVENT_KINDS.has(candidate?.kind)) throw new Error(`Adapter cannot emit lifecycle or authority event kind (including decision): ${candidate?.kind}.`);
     if (!allowed.has(candidate?.kind) || !COGNITION_KINDS.includes(candidate?.kind)) throw new Error(`Unexpected adapter event kind: ${candidate?.kind}.`);
     const cited = new Set(candidate?.source_event_ids || []);
     if (![...targetSet].some(id => cited.has(id))) throw new Error('Adapter event is missing assignment target citations.');
