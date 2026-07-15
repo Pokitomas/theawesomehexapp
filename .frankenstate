@@ -1,77 +1,106 @@
-version: 34
-updated_at: 2026-07-14T19:52:00Z
+version: 36
+updated_at: 2026-07-15T01:08:00Z
 repository: Pokitomas/theawesomehexapp
-branch: main
-active_pr: 10 open drafts on main (#140-#149), each closing a numbered issue in the #127-#139 authority-hardening backlog, all with full green CI as of this check
-integration_pr: 84 merged
-integration_merge: 739ae16f1a931ad16958dabb10c6a668a0bb676b
-final_fix_pr: 87 merged
-runtime_merge_commit: 0fa45593c53a2e2fe60c46c52f6b558ca6f4d355
-documentation_pr: 88 merged
-documentation_merge: d0077efb10b75d30e28cfd53ad9afd6d48b1950c
-documentation_correction: a8008ce04304c08c245c53d460ddadb0dd3ddff0
-exact_tested_head: 2cfeb265fc9fb73b0cd62196cedf3a03f9ecb237
-previous_remote_merge: 316901b10f809067f71568141aae3b240099240b
-previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
-previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
-previous_verified_deployment_receipt: 85
-superseded_pr: 73 closed locked resolved
+canonical_branch: assembly/recursive-weave-cognition
+canonical_pr: 188
+base_branch: main
+observed_head_before_ledger: 75e5d430d14383004c13e25abe90ecc47e3d7df9
+state: implementation_complete_pending_exact_head_receipt
 
-owner: heartbeat-audit (claude-sonnet-5, external co-engineer session)
-mode: corrective ledger sync only - no product, protocol, or workflow change
+owner: GPT-5.6 Thinking
+mode: executive convergence with restored bounded grunt review
+heartbeat:
+  live_owner_receipt_found: false
+  takeover_reason: no bounded ownership receipt answered the coordination beacon
 
-current_subtask:
-  summary: Found this ledger claiming active_pr: none while 10 draft PRs were actually open and passing on main. Corrected the stale fields only; did not rewrite prior-generation history.
-  observed_open_prs:
-    - "#149 moderation role hierarchy (closes #137)"
-    - "#148 social deletion witness (closes #130)"
-    - "#147 remote fail-closed capability (closes #133)"
-    - "#146 recovery ordering (closes #128)"
-    - "#145 public LIVE privacy (closes #129)"
-    - "#144 workflow authority hardening (closes #132)"
-    - "#143 cookie provenance (closes #138)"
-    - "#142 lasso idempotency proof (closes #127)"
-    - "#141 authority manifest drift check (closes #139)"
-    - "#140 social idempotency authority (closes #136)"
-  known_dead_state:
-    - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); not cancelled - auditing session lacked Actions write scope
-  done_when: ledger matches observed repository state; does not claim to have reviewed or merged any open PR
+active_surface:
+  assembly_pr: 188
+  assembly_branch: assembly/recursive-weave-cognition
+  parent_program: 189
+  recursive_parent: 178
+  assembly_issue: 187
+  terminal_decision: HOLD
 
-# NOTE: a prior commit on this path briefly wrote this file as a raw base64
-# blob due to a tool-input mistake (content was pre-encoded before calling
-# create_or_update_file, which expects plain text). This commit restores
-# plain-text YAML and corrects the mistake.
+grunt_corps:
+  shared_baseline: 75e5d430d14383004c13e25abe90ecc47e3d7df9
+  operating_contract: GRUNT_OPERATING_CONTRACT:v3 on issue 178
+  status: restored_waiting_for_lane_receipts
+  lanes:
+    - issue: 179
+      branch: agent/weave-belief-graph
+      state: restored
+    - issue: 180
+      branch: agent/weave-deliberation-planner
+      state: restored
+    - issue: 181
+      branch: agent/weave-memory-retrieval
+      state: restored
+    - issue: 182
+      branch: agent/weave-role-dispatch
+      state: restored
+    - issue: 183
+      branch: agent/weave-synthesis-critic
+      state: restored
+    - issue: 184
+      branch: agent/weave-recursive-runtime
+      state: restored
+    - issue: 185
+      branch: agent/weave-recursion-hostile
+      state: restored
+    - issue: 186
+      branch: agent/weave-inspection-surface
+      state: restored
+  first_receipt_requires:
+    - exact branch and HEAD
+    - worktree status
+    - owned and non-owned paths
+    - parent and adjacent lanes read
+    - existing witnesses read
+    - status NO DEFECT, RED WITNESS, or PATCH PLANNED
+    - first local command
+  local_test_receipt_requires:
+    - exact local HEAD
+    - exact command and exit code
+    - concise output summary
+    - duration when known
+    - environment differences
+    - artifact or log paths
+    - relation to remote exact-head CI
+  policy:
+    - broad reading is required
+    - broad editing is forbidden
+    - local green is advisory until pushed and visible in Actions
+    - generic tests-pass prose is not evidence
 
-# Prior generation's full closure record (version 33 current_subtask /
-# verification / production blocks) remains available in git history at
-# this path, commit 05fbc53 and earlier.
+sprawl_consolidation:
+  single_ledger: .frankenstate
+  superseded_ledger_pr: 156
+  duplicate_implementation_branches_created: 0
+  duplicate_pull_requests_created: 0
+  merge_performed: false
+  child_branches_are_restored_original_lanes: true
+  child_pull_requests_open: 0
+  assembly_pull_requests_open: 1
+
+verification:
+  previous_green_head: 75e5d430d14383004c13e25abe90ecc47e3d7df9
+  status: exact_head_actions_required_after_topology_receipt
+  witness_substitution_allowed: false
+
+completion_receipt:
+  implementation_baseline: complete
+  grunt_restoration: complete
+  grunt_review: active_waiting_for_receipts
+  merge_decision: HOLD
+
+done_when:
+  - every restored lane posts a fast-read receipt
+  - every local test is visible with command, HEAD, and exit status
+  - exact-head workflows are green after this ledger commit
+  - no competing assembly PR exists
+  - no merge has been performed
 
 invariants:
-  - Preserve the exact root ranking kernel and stable debug hooks.
-  - IndexedDB is canonical working state, not a promise against browser eviction.
-  - One shared corpus module owns schema upgrades; root clients open the current version without pinning it.
-  - Request persistent storage and report best-effort status honestly.
-  - Corpus mutations and compatibility receipts commit atomically.
-  - Full-file hashing must not run on the main thread when Worker and Web Crypto exist.
-  - Heavy media hydrates near the viewport only and releases object URLs when cold.
-  - Video and audio sources must be detached before their object URLs are revoked.
-  - Magic bytes and content outrank absent or contradictory MIME metadata.
-  - Unknown binary must never be decoded into feed text.
-  - Every local record may be deleted; shared assets may not be removed while referenced.
-  - Feed Full and Desktop may change layout physics but never ranking records or action semantics.
-  - Every visible custom product control must come from the action contract and exist when its surface becomes visible.
-  - Fixed chrome must never make a physically covered control count as a passing touch target.
-  - Temporary proof content may exist only inside test journeys and must be gone before the browser context closes.
-  - Static compatibility may replace only a missing starter endpoint and must not impersonate profile or remote persistence.
-  - Backend identity must not persist the raw local device secret.
-  - Remote principals are opaque capability holders and must not encode vendors models companies or permanent collaboration roles.
-  - Remote message payloads remain project-defined and open-ended.
-  - Remote messages are append-only and retrieval is cursor-based.
-  - Private credentials signatures private payloads and write authority must never enter consumer code or repository content.
-  - A terminal session generation cannot silently resume; further work requires a new generation or session.
-  - Every successful terminal check must identify the exact tested Git head.
-  - A deployed production receipt must name the exact merge SHA.
-  - The public LIVE terminal may expose only explicitly public projections.
-  - REMOTE_WORK.md REMOTE_THOUGHT.md and generation metadata are discovery pointers not live-state ledgers.
-  - Do not add a second engineering-belief ledger or duplicate runtime schema authority.
-  - Never use or persist credentials pasted into chat.
+  - Do not infer completion from issue prose.
+  - A moved branch head invalidates earlier green receipts until exact-head checks complete.
+  - No model, comment, or MATCHED receipt grants merge authority.

@@ -11,7 +11,9 @@ jobs:
   shards:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Parts 000 to 004
         run: cat manual-overlay.b64.part.00{0,1,2,3,4} | sha256sum | grep -q '^65847d83817b58a1a7d90d8738eff7708063c3e401ff5b471cae1e52346cc406 '
       - name: Parts 005 to 009

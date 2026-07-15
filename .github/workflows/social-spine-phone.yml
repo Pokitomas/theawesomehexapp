@@ -17,10 +17,15 @@ jobs:
     env:
       SOCIAL_LIVE_ENDPOINT: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+          cache: npm
+      - name: Install locked runtime and browser tooling
+        run: npm ci --ignore-scripts
       - name: Prove server social contract
         run: npm run test:social
       - name: Assemble the manual product
@@ -48,8 +53,6 @@ jobs:
           node studio/manual/tests/social-spine-contract.mjs
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
-      - name: Install browser driver
-        run: npm install --no-save playwright-core@1.55.0
       - name: Prove two isolated accounts on phone
         run: |
           set -euo pipefail
@@ -60,7 +63,7 @@ jobs:
           node studio/manual/tests/social-spine-clickthrough.mjs http://127.0.0.1:4174/manual/ 2>&1 | tee social-spine-check.log
       - name: Upload social phone proof
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: authoritative-social-spine-phone
           path: |

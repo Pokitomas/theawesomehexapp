@@ -11,6 +11,7 @@ on:
       - '.github/workflows/social-authority-assembly.yml'
       - '.github/workflows/social-postgres-contract.yml'
       - 'package.json'
+      - 'package-lock.json'
   push:
     branches: [main]
     paths:
@@ -22,6 +23,7 @@ on:
       - '.github/workflows/social-authority-assembly.yml'
       - '.github/workflows/social-postgres-contract.yml'
       - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -48,13 +50,15 @@ jobs:
       POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
       SOCIAL_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/sideways
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - run: npm install
+          cache: npm
+      - name: Install locked runtime dependencies
+        run: npm ci --ignore-scripts
       - name: Run in-memory and boundary contracts
         shell: bash
         run: |
@@ -67,7 +71,7 @@ jobs:
           npm run test:social:postgres 2>&1 | tee social-authority-postgres.log
       - name: Preserve social authority evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: social-authority-assembly-logs
           path: |

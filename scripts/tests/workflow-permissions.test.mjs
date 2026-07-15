@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const pagesPath = new URL('../../.github/workflows/pages.yml', import.meta.url);
 const lassoPath = new URL('../../.github/workflows/weave-lasso.yml', import.meta.url);
+const checkoutRef = /uses:\s*actions\/checkout@[0-9a-f]{40}(?:\s+#\s*v4)?\s*$/;
 
 function job(source, name, next = '') {
   const start = source.indexOf(`\n  ${name}:`);
@@ -16,7 +17,7 @@ function checkoutBlocks(source) {
   const lines = source.split(/\r?\n/);
   const blocks = [];
   for (let index = 0; index < lines.length; index += 1) {
-    if (!/uses:\s*actions\/checkout@v4\s*$/.test(lines[index])) continue;
+    if (!checkoutRef.test(lines[index])) continue;
     const indent = lines[index].match(/^\s*/)?.[0].length || 0;
     let end = index + 1;
     while (end < lines.length) {

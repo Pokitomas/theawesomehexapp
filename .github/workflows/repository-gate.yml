@@ -1,0 +1,51 @@
+name: Verify exact repository tree
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-gate-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked runtime dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify exact repository tree
+        env:
+          CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
+        run: npm run verify:repository
+      - name: Generate dependency and action provenance
+        if: always()
+        env:
+          CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/generate-supply-chain-inventory.mjs supply-chain-inventory.json
+      - name: Upload exact-tree receipt, provenance, lock, and workflow sources
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: repository-verification-${{ github.sha }}
+          path: |
+            repository-verification.json
+            supply-chain-inventory.json
+            package-lock.json
+            .github/workflows
+          if-no-files-found: error
+          retention-days: 14

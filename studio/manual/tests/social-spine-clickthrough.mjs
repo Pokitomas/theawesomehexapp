@@ -36,8 +36,22 @@ async function join(page, { name, handle, password }) {
   await dialog.locator('input[name="name"]').fill(name);
   await dialog.locator('input[name="handle"]').fill(handle);
   await dialog.locator('input[name="password"]').fill(password);
+  const responsePromise = page.waitForResponse(response => {
+    const target = new URL(response.url());
+    return response.request().method() === 'POST' && target.pathname === '/api/social' && target.searchParams.get('op') === 'register';
+  }, { timeout: 15000 });
   await dialog.locator('button.social-primary').filter({ hasText: 'Join' }).click();
-  await page.locator('section[data-social-spine]').getByText(`@${handle}`, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  const response = await responsePromise;
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok()) throw new Error(`register @${handle} failed (${response.status()}): ${payload.error || JSON.stringify(payload)}`);
+  if (payload.account?.handle !== handle) throw new Error(`register @${handle} returned wrong account: ${JSON.stringify(payload)}`);
+  try {
+    await page.locator('section[data-social-spine]').getByText(`@${handle}`, { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
+  } catch (error) {
+    const status = await dialog.locator('.social-dialog-status').textContent().catch(() => '');
+    const shell = await page.locator('section[data-social-spine]').innerText().catch(() => '');
+    throw new Error(`register @${handle} succeeded but identity did not render; dialog=${JSON.stringify(status)} shell=${JSON.stringify(shell)} cause=${error.message}`);
+  }
 }
 
 async function publicPost(page, text) {
