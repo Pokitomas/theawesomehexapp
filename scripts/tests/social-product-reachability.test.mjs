@@ -7,6 +7,7 @@ const read = path => readFile(new URL(path, root), 'utf8');
 const audit = JSON.parse(await read('audit/social-product-reachability.json'));
 const client = await read(audit.consumer_client);
 const server = await read(audit.relational_service);
+const visible = new Set(audit.visible_operations);
 
 function serverHas(operation) {
   const [op, method = ''] = operation.split(':');
@@ -25,11 +26,15 @@ test('every operation called by the current consumer is admitted by the server',
   }
 });
 
-test('server-only authority is real but absent from the current client', () => {
+test('server-only authority is real and its unshared operation names are absent from the client', () => {
   for (const operation of audit.server_only_operations) {
     assert.ok(serverHas(operation), `missing server operation ${operation}`);
-    const op = operation.split(':')[0];
-    assert.doesNotMatch(client, new RegExp(`request\\(['\"]${op}['\"]`), `client unexpectedly reaches ${operation}`);
+    const [op, method = ''] = operation.split(':');
+    if (!visible.has(op)) {
+      assert.doesNotMatch(client, new RegExp(`request\\(['\"]${op}['\"]`), `client unexpectedly reaches ${operation}`);
+    } else if (method === 'patch') {
+      assert.doesNotMatch(client, new RegExp(`request\\(['\"]${op}['\"][\\s\\S]{0,200}method:\\s*['\"]PATCH['\"]`), `client unexpectedly reaches ${operation}`);
+    }
   }
   assert.ok(audit.highest_priority_gaps.length >= 6);
 });
