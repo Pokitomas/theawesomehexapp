@@ -95,31 +95,46 @@ test('Maker collision gate uses trusted default-branch code with read-only permi
   assert.match(section, /core\.setFailed/);
 });
 
-test('native Maker write authority is preflight-gated, trusted-main, and draft-PR bounded', async () => {
+test('native Maker write authority is preflight-gated, trusted-main, draft-PR bounded, and has a zero-secret GitHub Models fallback', async () => {
   const source = await readFile(makerWorkerPath, 'utf8');
   const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
   assert.match(top, /^  contents: read$/m);
   assert.doesNotMatch(top, /write/);
 
-  const preflight = job(source, 'preflight', 'blocked');
+  const preflight = job(source, 'preflight', 'github-models-worker');
   assert.match(preflight, /^      contents: read$/m);
   assert.match(preflight, /^      issues: read$/m);
-  assert.doesNotMatch(preflight, /contents: write|issues: write|pull-requests: write/);
+  assert.doesNotMatch(preflight, /contents: write|issues: write|pull-requests: write|models: read/);
   assert.match(preflight, /ownerAuthored/);
   assert.match(preflight, /makerTitle/);
   assert.match(preflight, /ownerActor/);
   assert.match(preflight, /core\.setOutput\('allowed', String\(allowed\)\)/);
   assert.match(preflight, /\^\\\[maker:\(build\|fix\|explore\|audit\)/);
 
+  const githubModels = job(source, 'github-models-worker', 'blocked');
+  assert.match(githubModels, /vars\.SIDEWAYS_MODEL_MODE == ''/);
+  assert.match(githubModels, /vars\.SIDEWAYS_MODEL_MODE == 'github-models'/);
+  assert.match(githubModels, /^      models: read$/m);
+  assert.match(githubModels, /SIDEWAYS_MODEL_BASE_URL: https:\/\/models\.github\.ai\/inference\/chat\/completions/);
+  assert.match(githubModels, /SIDEWAYS_MODEL_NAME: \$\{\{ vars\.SIDEWAYS_MODEL_NAME \|\| 'openai\/gpt-4\.1' \}\}/);
+  assert.match(githubModels, /SIDEWAYS_MODEL_API_KEY: \$\{\{ github\.token \}\}/);
+  assert.doesNotMatch(githubModels, /secrets\.SIDEWAYS_MODEL_API_KEY/);
+
   const blocked = job(source, 'blocked', 'hosted-worker');
   assert.match(blocked, /needs: preflight/);
   assert.match(blocked, /needs\.preflight\.outputs\.allowed == 'true'/);
+  assert.match(blocked, /vars\.SIDEWAYS_MODEL_MODE != 'github-models'/);
   assert.match(blocked, /^      contents: read$/m);
   assert.match(blocked, /^      issues: write$/m);
-  assert.doesNotMatch(blocked, /pull-requests: write|contents: write/);
+  assert.doesNotMatch(blocked, /pull-requests: write|contents: write|models: read/);
+  assert.match(blocked, /unsupported model execution mode/);
   assert.match(blocked, /no engineering model, workspace, branch, patch, or PR ran/);
 
-  for (const [name, next] of [['hosted-worker', 'self-hosted-worker'], ['self-hosted-worker', '']]) {
+  for (const [name, next] of [
+    ['github-models-worker', 'blocked'],
+    ['hosted-worker', 'self-hosted-worker'],
+    ['self-hosted-worker', '']
+  ]) {
     const section = job(source, name, next);
     assert.match(section, /needs: preflight/);
     assert.match(section, /needs\.preflight\.outputs\.allowed == 'true'/);
