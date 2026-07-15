@@ -133,8 +133,25 @@ export function createMakerTerminalRelease({
   return api;
 }
 
+function runtimeGeneration(value) {
+  if (clean(value) && value !== 'native-agent') return clean(value);
+  const runId = clean(process.env.GITHUB_RUN_ID);
+  const attempt = clean(process.env.GITHUB_RUN_ATTEMPT || '1');
+  return runId ? `maker-run:${runId}:${attempt}` : 'native-agent';
+}
+
+function runtimeOuterReceipt(value) {
+  if (clean(value) && value !== 'native-agent-result') return clean(value);
+  const issue = clean(process.env.SIDEWAYS_ISSUE_NUMBER);
+  return issue ? `maker-issue:${issue}` : 'native-agent-result';
+}
+
 export function terminalReleaseForNativeAgent({ status, generation_id = 'native-agent', outer_receipt_id = 'native-agent-result', now } = {}) {
-  const lifecycle = createMakerTerminalRelease({ generation_id, outer_receipt_id, now });
+  const lifecycle = createMakerTerminalRelease({
+    generation_id: runtimeGeneration(generation_id),
+    outer_receipt_id: runtimeOuterReceipt(outer_receipt_id),
+    now
+  });
   lifecycle.prepare(status === 'finished' ? 'implementation admitted finish' : 'implementation budget exhausted');
   lifecycle.account('implementation', status === 'finished' ? 'completed' : 'quarantined', status);
   lifecycle.release('native-implementation', status);
