@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11110f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Maker">
+  <meta name="description" content="A phone-first founder command surface for building Sideways without operating GitHub machinery directly.">
+  <title>Sideways Maker</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./maker.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">SIDEWAYS / MAKER / PHONE CONTROL</p>
+        <h1>Tell the machine what should exist.</h1>
+      </div>
+      <div class="thesis">
+        <p>Your phone writes the command. GitHub carries it. Co-engineers build and prove it.</p>
+        <p class="small">No repository token or model key is stored here.</p>
+      </div>
+    </header>
+
+    <section class="state-panel" aria-labelledby="state-heading">
+      <div class="state-heading-row">
+        <div>
+          <p class="eyebrow">LIVE PUBLIC STATE</p>
+          <h2 id="state-heading">What is moving right now?</h2>
+        </div>
+        <button id="refresh-state" class="secondary" type="button">REFRESH</button>
+      </div>
+      <div class="state-grid">
+        <article><span>MAIN HEAD</span><strong id="repo-head">reading…</strong></article>
+        <article><span>OPEN ISSUES</span><strong id="open-issues">—</strong></article>
+        <article><span>OPEN PRS</span><strong id="open-prs">—</strong></article>
+      </div>
+      <div id="active-work" class="active-work" aria-label="Recent open work"></div>
+      <p id="state-status" class="status" role="status" aria-live="polite">Reading public repository state…</p>
+    </section>
+
+    <section class="command-panel" aria-labelledby="command-heading">
+      <div class="command-copy">
+        <p class="eyebrow">FOUNDER COMMAND</p>
+        <h2 id="command-heading">What should change?</h2>
+        <label for="maker-request">Say it normally. Complaint, desire, impossible direction, whatever.</label>
+        <textarea id="maker-request" maxlength="2400" placeholder="The app feels like a tool. Make it feel like entering a living scene, but do not lose my archive."></textarea>
+
+        <fieldset>
+          <legend>What kind of move is this?</legend>
+          <div class="mode-grid">
+            <button type="button" data-mode="build" aria-pressed="true"><b>BUILD</b><span>make the thing</span></button>
+            <button type="button" data-mode="fix" aria-pressed="false"><b>FIX</b><span>repair what is broken</span></button>
+            <button type="button" data-mode="explore" aria-pressed="false"><b>EXPLORE</b><span>bring opposing worlds</span></button>
+            <button type="button" data-mode="audit" aria-pressed="false"><b>AUDIT</b><span>tell me what is fake</span></button>
+          </div>
+        </fieldset>
+
+        <label for="maker-protect">What must survive?</label>
+        <textarea id="maker-protect" class="short-field" maxlength="1200" placeholder="Keep private imports private. Do not rewrite the ranking kernel. Do not merge without me."></textarea>
+
+        <label for="maker-proof">What do you need to see before believing it?</label>
+        <textarea id="maker-proof" class="short-field" maxlength="1200" placeholder="A runnable phone version, a before/after screen, and the exact failure it fixes."></textarea>
+      </div>
+
+      <aside class="dispatch-panel">
+        <div>
+          <p class="eyebrow">COMMAND RECEIPT</p>
+          <p class="dispatch-explain">This opens GitHub with a typed command already filled in. You still tap Submit. That issue becomes the janky command bus.</p>
+        </div>
+        <div class="actions">
+          <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">SEND TO CO-ENGINEERS</a>
+          <button id="copy-receipt" type="button">COPY RECEIPT</button>
+          <button id="reset-maker" class="quiet" type="button">CLEAR</button>
+        </div>
+        <p id="command-status" class="status" role="status" aria-live="polite">Drafts stay on this phone.</p>
+        <details>
+          <summary>SHOW MACHINE RECEIPT</summary>
+          <pre id="receipt-preview"></pre>
+        </details>
+      </aside>
+    </section>
+
+    <footer>
+      <a href="../founder/">FOUNDER ROOM</a>
+      <a href="../">OPEN SIDEWAYS</a>
+      <a href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">RAW GITHUB</a>
+      <p>Add this page to your Home Screen for the least dignified possible developer environment.</p>
+    </footer>
+  </main>
+  <script type="module" src="./maker.js"></script>
+</body>
+</html>
