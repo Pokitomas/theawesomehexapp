@@ -1,0 +1,106 @@
+name: Prove human Sideways boundary
+
+on:
+  pull_request:
+    paths:
+      - 'studio/manual/product/sideways-human.css'
+      - 'studio/manual/product/sideways-human.js'
+      - 'studio/manual/apply.py'
+      - 'scripts/tests/sideways-human-boundary.test.mjs'
+      - 'scripts/tests/sideways-human-phone.mjs'
+      - '.github/workflows/sideways-human.yml'
+      - 'maker/leases/issue-294-29455288231-1.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sideways-human-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  human-sideways:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify source boundary before assembly
+        run: node --test scripts/tests/sideways-human-boundary.test.mjs
+
+      - name: Extract canonical product layers
+        run: |
+          set -euo pipefail
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
+          cat manual-overlay.b64.part.* > manual-overlay.b64
+          test "$(wc -c < manual-overlay.b64)" = "44760"
+          echo "0d45c1ed47cdf73667f554e45c60c76f4fabd799fe7b4a0523dfa5adc58651d5  manual-overlay.b64" | sha256sum -c -
+          base64 -d manual-overlay.b64 > manual-overlay.tar.xz
+          echo "b18d2e3ca6dc53efb8286f3162aae6c8d6320875a8699346886c8621022c00af  manual-overlay.tar.xz" | sha256sum -c -
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
+          cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.b64
+          test "$(wc -c < manual-kernel-overlay.b64)" = "13724"
+          echo "d22c6b2b2cca69f1c6da08e0dcd7d8088d880aec1f0d030fb52bcac41a5df8d4  manual-kernel-overlay.b64" | sha256sum -c -
+          base64 -d manual-kernel-overlay.b64 > manual-kernel-overlay.tar.xz
+          echo "ecfd092ff68c5562eca2e8228c3eed62e2089af79006bac991b15b79c23bf1ce  manual-kernel-overlay.tar.xz" | sha256sum -c -
+          tar -xJf manual-kernel-overlay.tar.xz
+          python studio/manual/prepare-kernel.py
+          python manual-kernel/patch.py
+
+      - name: Apply and verify human Sideways product
+        run: |
+          set -euo pipefail
+          python studio/manual/apply.py
+          python studio/manual/verify.py
+          node --check manual-app/sideways-human.js
+          test -s manual-app/sideways-human.css
+          test -s manual-app/sideways-human.js
+          grep -q 'data-sideways-human' manual-app/index.html
+          node --test scripts/tests/sideways-human-boundary.test.mjs
+
+      - name: Install locked browser tooling
+        run: npm ci --ignore-scripts --include=dev
+
+      - name: Prove phone and desktop assembled product
+        run: |
+          set -euo pipefail
+          python -m http.server 4176 >/tmp/sideways-human-http.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          node scripts/tests/sideways-human-phone.mjs
+
+      - name: Verify exact diff hygiene
+        run: |
+          git diff --check
+          node scripts/native-changed-check.mjs
+
+      - name: Upload human Sideways witnesses
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sideways-human-witnesses
+          path: |
+            sideways-human-phone.png
+            sideways-human-desktop.png
+            sideways-human-proof.json
