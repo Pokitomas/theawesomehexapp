@@ -9,6 +9,7 @@ on:
       - 'scripts/tests/social-postgres-contract.test.mjs'
       - 'scripts/tests/social-idempotency*.mjs'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/social-postgres-contract.yml'
   workflow_dispatch:
 
@@ -38,11 +39,14 @@ jobs:
       SOCIAL_SESSION_SECRET: ci-relational-social-session-secret-32-bytes
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install runtime dependencies
-        run: npm install
+          cache: npm
+      - name: Install locked runtime dependencies
+        run: npm ci --ignore-scripts
       - name: Prove PostgreSQL transactions and HTTP parity
         shell: bash
         run: |
