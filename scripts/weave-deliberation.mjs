@@ -39,18 +39,32 @@ function candidate(state, role, targetIds, reason, priority, expectedKinds) {
   return { role, target_ids: sortedTargets, reason, priority, expected_kinds: [...new Set(expectedKinds.filter(kind => kind !== 'decision'))], novelty_key: novelty };
 }
 
+function pendingAdmissionTargets(state) {
+  const targets = new Set();
+  for (const critiqueId of state?.unresolved_critique_ids || []) {
+    const critique = state.critiques[critiqueId];
+    if (!critique || critique.body.verdict !== 'revise' || !critique.body.findings.includes(INDEPENDENT_REVIEW_FINDING)) continue;
+    const synthesis = state.syntheses[critique.body.synthesis_id];
+    for (const id of synthesis?.body?.unresolved_ids || []) targets.add(id);
+  }
+  return targets;
+}
+
 export function planDeliberationWave(state, config = {}) {
   const maxAssignments = Math.max(1, Math.min(32, Number(config.max_assignments ?? 8) || 8));
   const waveIndex = Math.max(0, Number(config.wave_index ?? Object.keys(state?.waves || {}).length) || 0);
   const assignmentVisibility = config.visibility === 'public' ? 'public' : 'private';
   const candidates = [];
+  const admissionTargets = pendingAdmissionTargets(state);
 
   for (const id of state?.open_question_ids || []) {
+    if (admissionTargets.has(id)) continue;
     const priority = Number(state.questions[id]?.body.priority || 50);
     candidates.push(candidate(state, 'proposer', [id], 'answer unresolved question with candidate material', priority + 20, ['claim', 'evidence', 'uncertainty']));
     candidates.push(candidate(state, 'verifier', [id], 'verify answerability and evidence', priority + 10, [...new Set(['evidence', 'test.result', 'uncertainty', ...(state.questions[id]?.body.answer_kinds || [])])]));
   }
   for (const id of state?.unresolved_contradiction_ids || []) {
+    if (admissionTargets.has(id)) continue;
     const contradiction = state.contradictions[id];
     const priority = Number(contradiction?.body.severity || 50);
     candidates.push(candidate(state, 'opponent', [id, contradiction.body.left_id, contradiction.body.right_id], 'preserve strongest countercase', priority + 30, ['evidence', 'critique', 'uncertainty']));
@@ -65,12 +79,15 @@ export function planDeliberationWave(state, config = {}) {
     candidates.push(candidate(state, 'critic', targets, independenceOnly ? 'independently review structurally valid synthesis' : 'independently re-evaluate corrected synthesis', 96, ['critique', 'evidence', 'test.result']));
   }
   for (const id of state?.unsupported_claim_ids || []) {
+    if (admissionTargets.has(id)) continue;
     const claim = state.claims[id];
     candidates.push(candidate(state, 'verifier', [id], 'seek evidence for unsupported claim', Number(claim?.body.impact || 50) + (1 - Number(claim?.body.confidence || 0.5)) * 40, ['evidence', 'test.result', 'uncertainty']));
   }
-  for (const id of state?.failed_test_ids || []) candidates.push(candidate(state, 'implementer', [id], 'repair failed executable witness', 90, ['artifact', 'test.result', 'plan']));
+  for (const id of state?.failed_test_ids || []) {
+    if (!admissionTargets.has(id)) candidates.push(candidate(state, 'implementer', [id], 'repair failed executable witness', 90, ['artifact', 'test.result', 'plan']));
+  }
   for (const id of state?.active_plan_ids || []) {
-    if (state.plans[id]?.status === 'blocked') candidates.push(candidate(state, 'integrator', [id], 'unblock active plan', 85, ['plan', 'claim', 'evidence', 'question']));
+    if (state.plans[id]?.status === 'blocked' && !admissionTargets.has(id)) candidates.push(candidate(state, 'integrator', [id], 'unblock active plan', 85, ['plan', 'claim', 'evidence', 'question']));
   }
   for (const completion of Object.values(state?.dispatch_completed || {})) {
     if (completion.body.status === 'completed' || state?.superseded?.[completion.id]) continue;
