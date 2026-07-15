@@ -11,6 +11,7 @@
     "test:social:postgres": "node --test --test-concurrency=1 scripts/tests/social-schema-bootstrap-postgres.test.mjs scripts/tests/social-authority-schema-bootstrap.test.mjs scripts/tests/social-postgres-contract.test.mjs scripts/tests/community-postgres-contract.test.mjs scripts/tests/social-idempotency-postgres.test.mjs scripts/tests/community-moderation-postgres.test.mjs scripts/tests/community-viewer-controls-postgres.test.mjs scripts/tests/immutable-appeal-postgres.test.mjs",
     "test:authority": "node --test scripts/tests/authority-manifest.test.mjs && node scripts/check-authority-manifest.mjs",
     "verify:quality": "node --test scripts/tests/human-quality-report.test.mjs && node scripts/human-quality-report.mjs",
+    "verify:ranking": "node --test scripts/tests/ranking-evaluation.test.mjs && node scripts/ranking-evaluation.mjs",
     "verify:frankenstate": "node --test scripts/tests/frankenstate-validator.test.mjs && node scripts/verify-frankenstate.mjs",
     "verify:repository": "node scripts/verify-repository.mjs",
     "remote": "node scripts/remote-client.mjs",
