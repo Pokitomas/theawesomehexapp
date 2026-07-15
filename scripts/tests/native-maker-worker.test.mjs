@@ -35,6 +35,11 @@ function sequenceClient(actions) {
   };
 }
 
+function deterministicNow(start = Date.parse('2026-07-15T06:00:00.000Z')) {
+  let tick = 0;
+  return () => new Date(start + tick++).toISOString();
+}
+
 test('open model adapter supports OpenAI-compatible JSON without a vendor SDK', async () => {
   const calls = [];
   const client = createOpenModelClient({
@@ -110,7 +115,7 @@ test('recursive open-model planning fans one Maker command across typed roles', 
     }
   };
   const intent = { request: 'Build the native issue worker.', protect: 'No merge authority.', proof: 'Draft PR and tests.' };
-  const seed = makerPlanningSeed(intent, () => '2026-07-15T06:00:00.000Z');
+  const seed = makerPlanningSeed(intent, deterministicNow());
   assert.equal(seed.length, 2);
   assert.equal(seed[0].kind, 'goal');
   assert.equal(seed[1].kind, 'question');
@@ -120,7 +125,7 @@ test('recursive open-model planning fans one Maker command across typed roles', 
     max_waves: 1,
     max_events: 96,
     max_assignments_per_wave: 4,
-    now: () => '2026-07-15T06:00:00.000Z'
+    now: deterministicNow()
   });
   assert.ok(calls >= 2);
   assert.equal(result.terminal, 'budget_exhausted');
