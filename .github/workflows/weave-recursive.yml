@@ -21,6 +21,7 @@ on:
       - .github/workflows/weave-recursive.yml
       - netlify.toml
       - package.json
+      - package-lock.json
       - WEAVE_PROTOCOL.md
   push:
     branches: [main]
@@ -43,6 +44,7 @@ on:
       - .github/workflows/weave-recursive.yml
       - netlify.toml
       - package.json
+      - package-lock.json
       - WEAVE_PROTOCOL.md
   workflow_dispatch:
 
@@ -63,8 +65,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install runtime dependencies
-        run: npm install --ignore-scripts
+          cache: npm
+      - name: Install locked runtime dependencies
+        run: npm ci --ignore-scripts
       - name: Check recursive weave modules
         run: |
           node --check scripts/weave-cognition.mjs
