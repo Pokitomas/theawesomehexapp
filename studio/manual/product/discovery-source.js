@@ -77,10 +77,11 @@ export function normalizeDiscoveryRecord(input = {}, provenance = {}) {
   const text = clean(input.text || input.body || input.content || input.summary || '').slice(0, 50_000);
   const published = input.published || input.date || input.createdAt || null;
   const date = published ? new Date(published) : null;
+  const state = Object.values(CAPABILITY_STATES).includes(provenance.state) ? provenance.state : CAPABILITY_STATES.WEB;
   return Object.freeze({
     schema: 'sideways-discovery-record/v1',
     id: clean(input.id || input.nativeId || canonical || `${title}:${published || ''}`).slice(0, 300),
-    state: provenance.state || CAPABILITY_STATES.WEB,
+    state,
     type: ['article', 'forum', 'social', 'media'].includes(input.type) ? input.type : 'article',
     title,
     summary: clean(input.summary || text).slice(0, 900),
@@ -100,6 +101,18 @@ export function normalizeDiscoveryRecord(input = {}, provenance = {}) {
   });
 }
 
+export function saveDiscoveryRecord(record, { explicit = false, savedAt = new Date().toISOString() } = {}) {
+  if (!record || record.schema !== 'sideways-discovery-record/v1') throw new Error('Only normalized discovery records can be saved.');
+  if (!explicit) throw new Error('Saving public or connected material requires an explicit user action.');
+  if (![CAPABILITY_STATES.WEB, CAPABILITY_STATES.CONNECTED].includes(record.state)) throw new Error('Only readable Web or Connected material can be promoted to Private.');
+  return Object.freeze({
+    ...record,
+    state: CAPABILITY_STATES.PRIVATE,
+    savedAt,
+    saveReceipt: Object.freeze({ schema: 'sideways-explicit-save/v1', from: record.state, to: CAPABILITY_STATES.PRIVATE, explicit: true, savedAt })
+  });
+}
+
 export function materializeCandidates(records, { enabledSourceIds = [], limit = DEFAULT_LIMITS.records } = {}) {
   const enabled = new Set(enabledSourceIds.map(clean).filter(Boolean));
   const seen = new Set();
@@ -116,14 +129,25 @@ export function materializeCandidates(records, { enabledSourceIds = [], limit = 
   return Object.freeze(output);
 }
 
+function generatedSourceId(parsed) {
+  return clean(`${parsed.hostname}${parsed.pathname}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 160) || parsed.hostname;
+}
+
 function normalizedSource(source) {
   const parsed = safePublicURL(source.url);
+  const kind = ['website', 'feed', 'sitemap', 'activitypub', 'search'].includes(source.kind) ? source.kind : classifyAddInput(parsed.href);
   return Object.freeze({
-    id: clean(source.id || parsed.hostname).slice(0, 160),
+    id: clean(source.id || generatedSourceId(parsed)).slice(0, 160),
     name: clean(source.name || parsed.hostname).slice(0, 160),
     url: parsed.href,
     enabled: source.enabled !== false,
-    kind: ['website', 'feed', 'sitemap', 'activitypub', 'search'].includes(source.kind) ? source.kind : classifyAddInput(parsed.href)
+    kind,
+    capability: kind === 'search' && source.publicEndpoint !== true ? 'unavailable' : 'available',
+    unavailableReason: kind === 'search' && source.publicEndpoint !== true ? 'A configured credential-free public search endpoint is required.' : ''
   });
 }
 
