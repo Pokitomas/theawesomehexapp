@@ -29,6 +29,7 @@ FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-front
 SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
 REMOTE_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
 SURVIVAL_STYLE_MARKER = '<link rel="stylesheet" href="./survival-ledger.css" data-survival-ledger>'
+HUMAN_STYLE_MARKER = '<link rel="stylesheet" href="./sideways-human.css" data-sideways-human>'
 REMOTE_SERVICE_MARKER = '<link rel="service-desc" href="./.well-known/sideways-remote.json" type="application/json" data-sideways-remote>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
@@ -40,6 +41,7 @@ FRONTIER_SCRIPT_MARKER = '<script type="module" src="./frontier.js" data-frontie
 SOCIAL_SCRIPT_MARKER = '<script type="module" src="./social-client.js" data-social-spine></script>'
 REMOTE_SCRIPT_MARKER = '<script type="module" src="./remote-terminal.js" data-remote-terminal></script>'
 VAULT_SCRIPT_MARKER = '<script type="module" src="./vault-ui.js" data-survival-ledger></script>'
+HUMAN_SCRIPT_MARKER = '<script type="module" src="./sideways-human.js" data-sideways-human></script>'
 CORE_ANCHOR = "window.SidewaysCore={"
 CORE_REFRESH_MARKER = "sideways:corpusrefresh"
 CORE_REFRESH_BRIDGE = (
@@ -169,11 +171,11 @@ def main() -> None:
         "studio.css", "studio-components.css", "studio-reset.css", "workspace.css", "card-layout.css",
         "workspace-chrome.css", "workspace-chrome-polish.css", "future-media.css", "future-media-polish.css",
         "future-media-final.css", "future-media-mobile.css", "frontier.css", "social-client.css",
-        "remote-terminal.css", "survival-ledger.css", "studio.js", "copy.js", "starter-pack.js", "actions.js",
+        "remote-terminal.css", "survival-ledger.css", "sideways-human.css", "studio.js", "copy.js", "starter-pack.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "network-records.js",
         "workspace-migration.js", "survival-ledger.js", "workspace.js", "workspace-ui.js", "core-actions.js",
         "workspace-chrome.js", "universal-media.js", "media-modes.js", "frontier.js", "social-client.js",
-        "remote-terminal.js", "vault-ui.js", "system-icons.svg",
+        "remote-terminal.js", "vault-ui.js", "sideways-human.js", "system-icons.svg",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
@@ -191,13 +193,13 @@ def main() -> None:
         STYLE_MARKER, COMPONENT_STYLE_MARKER, RESET_STYLE_MARKER, WORKSPACE_STYLE_MARKER, CARD_LAYOUT_STYLE_MARKER,
         CHROME_STYLE_MARKER, CHROME_POLISH_STYLE_MARKER, FUTURE_MEDIA_STYLE_MARKER, FUTURE_MEDIA_POLISH_STYLE_MARKER,
         FUTURE_MEDIA_FINAL_STYLE_MARKER, FUTURE_MEDIA_MOBILE_STYLE_MARKER, FRONTIER_STYLE_MARKER, SOCIAL_STYLE_MARKER,
-        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, REMOTE_SERVICE_MARKER,
+        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, HUMAN_STYLE_MARKER, REMOTE_SERVICE_MARKER,
     ):
         text = inject_once(text, marker, "</head>")
     for marker in (
         SCRIPT_MARKER, WORKSPACE_SCRIPT_MARKER, CORE_ACTIONS_SCRIPT_MARKER, CHROME_SCRIPT_MARKER,
         UNIVERSAL_MEDIA_SCRIPT_MARKER, MEDIA_MODES_SCRIPT_MARKER, FRONTIER_SCRIPT_MARKER, SOCIAL_SCRIPT_MARKER,
-        REMOTE_SCRIPT_MARKER, VAULT_SCRIPT_MARKER,
+        REMOTE_SCRIPT_MARKER, VAULT_SCRIPT_MARKER, HUMAN_SCRIPT_MARKER,
     ):
         text = inject_once(text, marker, "</body>")
     index.write_text(text, encoding="utf-8")
@@ -211,7 +213,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied local ownership, public social projection, Ark recovery, profile-first media, and public live-work terminal")
+    print("applied human Sideways presentation, local ownership, public social projection, Ark recovery, profile-first media, and public live-work terminal")
 
 
 if __name__ == "__main__":
