@@ -1,0 +1,39 @@
+name: Verify exact repository tree
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-gate-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install declared runtime dependencies
+        run: npm install --ignore-scripts
+      - name: Verify exact repository tree
+        env:
+          REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
+        run: npm run verify:repository
+      - name: Upload exact-tree receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-verification-${{ github.sha }}
+          path: repository-verification.json
+          if-no-files-found: error
+          retention-days: 14
