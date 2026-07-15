@@ -110,34 +110,82 @@ export function createDraftStorage(storage) {
   });
 }
 
-export function normalizeRepositoryState(commitPayload = {}, issuesPayload = []) {
+export function normalizeRepositoryState(commitPayload = {}, issuesPayload = [], runsPayload = {}) {
   const issues = Array.isArray(issuesPayload) ? issuesPayload : [];
+  const rawRuns = Array.isArray(runsPayload?.workflow_runs) ? runsPayload.workflow_runs : [];
   const openPullRequests = issues.filter(item => item?.pull_request).length;
   const openIssues = issues.length - openPullRequests;
+  const runs = rawRuns.map(item => ({
+    id: Number(item?.id) || 0,
+    name: clean(item?.name || item?.display_title || 'workflow', 180),
+    status: clean(item?.status || 'unknown', 40),
+    conclusion: clean(item?.conclusion || '', 40),
+    event: clean(item?.event || '', 40),
+    branch: clean(item?.head_branch || '', 120),
+    head: clean(item?.head_sha || '', 40).slice(0, 12),
+    created_at: clean(item?.created_at || '', 64),
+    url: typeof item?.html_url === 'string' ? item.html_url : null
+  }));
   return {
     repository: REPOSITORY,
     head: typeof commitPayload?.sha === 'string' ? commitPayload.sha : null,
     short_head: typeof commitPayload?.sha === 'string' ? commitPayload.sha.slice(0, 12) : 'unknown',
     open_issues: Math.max(0, openIssues),
     open_pull_requests: Math.max(0, openPullRequests),
-    active: issues.slice(0, 8).map(item => ({
+    running_workflows: runs.filter(item => item.status === 'queued' || item.status === 'in_progress' || item.status === 'waiting').length,
+    active: issues.map(item => ({
       number: Number(item?.number) || 0,
       title: clean(item?.title, 240),
       kind: item?.pull_request ? 'pull_request' : 'issue',
+      updated_at: clean(item?.updated_at || '', 64),
       url: typeof item?.html_url === 'string' ? item.html_url : null
-    }))
+    })),
+    runs
   };
 }
 
 export async function fetchRepositoryState(fetchImpl = fetch) {
   const headers = { Accept: 'application/vnd.github+json' };
-  const [commitResponse, issuesResponse] = await Promise.all([
+  const [commitResponse, issuesResponse, runsResponse] = await Promise.all([
     fetchImpl(`https://api.github.com/repos/${REPOSITORY}/commits/main`, { headers, cache: 'no-store' }),
-    fetchImpl(`https://api.github.com/repos/${REPOSITORY}/issues?state=open&per_page=100`, { headers, cache: 'no-store' })
+    fetchImpl(`https://api.github.com/repos/${REPOSITORY}/issues?state=open&per_page=100&sort=updated&direction=desc`, { headers, cache: 'no-store' }),
+    fetchImpl(`https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=30`, { headers, cache: 'no-store' })
   ]);
   if (!commitResponse?.ok) throw new Error(`main state unavailable (${commitResponse?.status || 'network'})`);
   if (!issuesResponse?.ok) throw new Error(`open work unavailable (${issuesResponse?.status || 'network'})`);
-  return normalizeRepositoryState(await commitResponse.json(), await issuesResponse.json());
+  if (!runsResponse?.ok) throw new Error(`workflow state unavailable (${runsResponse?.status || 'network'})`);
+  return normalizeRepositoryState(
+    await commitResponse.json(),
+    await issuesResponse.json(),
+    await runsResponse.json()
+  );
+}
+
+function operationLink(doc, item, kind) {
+  const link = doc.createElement('a');
+  link.className = 'operation-row';
+  link.href = item.url || `https://github.com/${REPOSITORY}`;
+  link.target = '_blank';
+  link.rel = 'noreferrer';
+
+  const badge = doc.createElement('span');
+  badge.className = `badge ${kind}`;
+  badge.textContent = kind === 'pull_request' ? 'PR' : kind === 'issue' ? 'ISSUE' : (item.conclusion || item.status || 'RUN').toUpperCase();
+
+  const text = doc.createElement('span');
+  text.className = 'operation-text';
+  text.textContent = kind === 'run'
+    ? `${item.name}${item.branch ? ` · ${item.branch}` : ''}`
+    : `#${item.number} ${item.title}`;
+
+  const meta = doc.createElement('span');
+  meta.className = 'operation-meta';
+  meta.textContent = kind === 'run'
+    ? [item.status, item.event, item.head].filter(Boolean).join(' · ')
+    : item.updated_at ? `updated ${new Date(item.updated_at).toLocaleString()}` : '';
+
+  link.append(badge, text, meta);
+  return link;
 }
 
 export function mountMakerConsole(doc = document, storage = localStorage, fetchImpl = fetch) {
@@ -179,7 +227,7 @@ export function mountMakerConsole(doc = document, storage = localStorage, fetchI
   const commit = next => {
     intent = normalizeIntent(next);
     const saved = persistence.save(intent);
-    setCommandStatus(saved ? 'Draft saved on this phone.' : 'Phone storage is blocked. Keep this tab open or copy the receipt.');
+    setCommandStatus(saved ? 'Draft saved locally.' : 'Storage blocked. Keep this tab open or copy the receipt.');
     renderIntent();
   };
 
@@ -196,9 +244,9 @@ export function mountMakerConsole(doc = document, storage = localStorage, fetchI
   send?.addEventListener('click', event => {
     if (!send.href || send.getAttribute('aria-disabled') === 'true') {
       event.preventDefault();
-      setCommandStatus(intent.request ? 'Remove secret-like material before sending.' : 'Tell the machine what should exist first.');
+      setCommandStatus(intent.request ? 'Remove secret-like material.' : 'Enter a request first.');
     } else {
-      setCommandStatus('Opening GitHub with the command prefilled. Tap Submit there.');
+      setCommandStatus('GitHub opened. Submit the issue there.');
     }
   });
 
@@ -208,14 +256,14 @@ export function mountMakerConsole(doc = document, storage = localStorage, fetchI
       await navigator.clipboard.writeText(stableReceipt(intent));
       setCommandStatus('Receipt copied.');
     } catch {
-      setCommandStatus('Clipboard unavailable. Select the receipt text below.');
+      setCommandStatus('Clipboard unavailable. Open RECEIPT and select it.');
     }
   });
 
   doc.querySelector('#reset-maker')?.addEventListener('click', () => {
     const cleared = persistence.clear();
     intent = normalizeIntent();
-    setCommandStatus(cleared ? 'Draft cleared.' : 'Draft cleared in this tab; phone storage could not be changed.');
+    setCommandStatus(cleared ? 'Draft cleared.' : 'Cleared in this tab only.');
     renderIntent();
   });
 
@@ -223,31 +271,28 @@ export function mountMakerConsole(doc = document, storage = localStorage, fetchI
     const head = doc.querySelector('#repo-head');
     const issues = doc.querySelector('#open-issues');
     const prs = doc.querySelector('#open-prs');
+    const running = doc.querySelector('#running-workflows');
     const work = doc.querySelector('#active-work');
+    const workflows = doc.querySelector('#workflow-runs');
     if (head) head.textContent = state.short_head;
     if (issues) issues.textContent = String(state.open_issues);
     if (prs) prs.textContent = String(state.open_pull_requests);
-    if (work) {
-      work.replaceChildren(...state.active.slice(0, 4).map(item => {
-        const link = doc.createElement('a');
-        link.textContent = `#${item.number} ${item.title}`;
-        link.href = item.url || `https://github.com/${REPOSITORY}/${item.kind === 'pull_request' ? 'pull' : 'issues'}/${item.number}`;
-        link.target = '_blank';
-        link.rel = 'noreferrer';
-        return link;
-      }));
-    }
-    setStateStatus(`Live public state loaded from ${state.repository}.`);
+    if (running) running.textContent = String(state.running_workflows);
+    if (work) work.replaceChildren(...state.active.map(item => operationLink(doc, item, item.kind)));
+    if (work && state.active.length === 0) work.textContent = 'No open work.';
+    if (workflows) workflows.replaceChildren(...state.runs.map(item => operationLink(doc, item, 'run')));
+    if (workflows && state.runs.length === 0) workflows.textContent = 'No workflow runs returned.';
+    setStateStatus(`Updated ${new Date().toLocaleTimeString()} · ${state.active.length} open objects · ${state.runs.length} recent runs`);
   };
 
   const refreshState = async () => {
-    setStateStatus(navigator.onLine === false ? 'Offline. Drafting still works; live repository state cannot refresh.' : 'Reading public repository state…');
+    setStateStatus(navigator.onLine === false ? 'Offline. Command drafting still works.' : 'Reading GitHub…');
     try { renderState(await fetchRepositoryState(fetchImpl)); }
-    catch (error) { setStateStatus(`Live state unavailable. Drafting still works. ${error.message}`); }
+    catch (error) { setStateStatus(`Live state unavailable. ${error.message}`); }
   };
 
   doc.querySelector('#refresh-state')?.addEventListener('click', refreshState);
-  globalThis.addEventListener?.('offline', () => setStateStatus('Offline. Drafting still works; sending waits for a connection.'));
+  globalThis.addEventListener?.('offline', () => setStateStatus('Offline. Command drafting still works.'));
   globalThis.addEventListener?.('online', refreshState);
 
   renderIntent();
