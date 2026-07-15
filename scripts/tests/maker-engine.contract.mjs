@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
+import { runAutonomousMakerAgent } from '../../maker/runtime/autonomous-agent.mjs';
 import {
   MakerEngine,
   assertNoLeaseCollision,
@@ -14,6 +15,7 @@ import {
   verifyEventChain
 } from '../maker-engine.mjs';
 import { buildMakerModelRegistry, evaluateNativeCheckpoint, selectMakerProvider } from '../maker-foundry-adapter.mjs';
+import { nativeCommandPolicy, parseMakerLeaseMarker } from '../maker-native-worker.mjs';
 
 const execFileAsync = promisify(execFile);
 const BASE = 'a'.repeat(40);
@@ -37,6 +39,17 @@ function task(branch = 'maker/test') {
 
 function lease(branch = 'maker/test') {
   return { base_sha: BASE, branch, writer_count: 1, owned_paths: ['src/**'], authority: { merge: 'human', deploy: 'human' } };
+}
+
+function sequenceClient(actions) {
+  let index = 0;
+  return {
+    async complete() {
+      const action = actions[Math.min(index, actions.length - 1)];
+      index += 1;
+      return { text: JSON.stringify(action) };
+    }
+  };
 }
 
 const policy = [
@@ -76,6 +89,37 @@ test('autonomous Maker executes fail, diagnose, repair, resume, verify, and rece
   assert.doesNotThrow(() => verifyEventChain(resumed.snapshot().events));
 });
 
+test('model-driven Maker loop must lease, observe failure, repair, verify, and finish', async t => {
+  const root = await fixture();
+  const statePath = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'maker-agent-state-')), 'task.json');
+  t.after(() => Promise.all([fs.rm(root, { recursive: true, force: true }), fs.rm(path.dirname(statePath), { recursive: true, force: true })]));
+  const model = sequenceClient([
+    { tool: 'read', path: 'src/answer.mjs', start: 1, end: 20 },
+    { tool: 'lease', owned_paths: ['src/**'], summary: 'Only the failing source file needs mutation.' },
+    { tool: 'run', program: 'node', args: ['test.mjs'] },
+    { tool: 'repair_start', failure_id: 'failure-1', hypothesis: 'The exported answer is one too low.' },
+    { tool: 'replace', path: 'src/answer.mjs', before: '41', after: '42', expected: 1 },
+    { tool: 'repair_complete', failure_id: 'failure-1', evidence: 'Replaced the exact failing literal.' },
+    { tool: 'verify', commands: [{ program: 'node', args: ['test.mjs'] }, { program: 'git', args: ['diff', '--check'] }] },
+    { tool: 'finish', summary: 'Repaired and verified the fixture.', risks: [] }
+  ]);
+  const result = await runAutonomousMakerAgent({
+    root,
+    state_path: statePath,
+    task: task('maker/model-loop'),
+    model_client: model,
+    command_policy: policy,
+    budget: { max_turns: 12, max_model_tokens: 1000 }
+  });
+  assert.equal(result.status, 'finished');
+  assert.deepEqual(result.lease.owned_paths, ['src/**']);
+  assert.equal(result.failures.length, 1);
+  assert.equal(result.failures[0].repaired, true);
+  assert.equal(result.verification.length, 2);
+  assert.match(result.receipt.receipt_digest, /^[0-9a-f]{64}$/);
+  assert.equal(await fs.readFile(path.join(root, 'src', 'answer.mjs'), 'utf8'), 'export const answer = 42;\n');
+});
+
 test('autonomous Maker rejects unleased paths and commands and restores rollback', async t => {
   const root = await fixture();
   const statePath = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'maker-state-')), 'task.json');
@@ -87,6 +131,34 @@ test('autonomous Maker rejects unleased paths and commands and restores rollback
   await engine.rollback('hostile test');
   assert.equal(await fs.readFile(path.join(root, 'src', 'answer.mjs'), 'utf8'), 'export const answer = 41;\n');
   assert.equal(redactSecrets('Bearer abcdefghijklmnopqrstuvwxyz'), '[REDACTED]');
+});
+
+test('worker understands authoritative and legacy Maker lease receipts', () => {
+  const authoritative = parseMakerLeaseMarker(`<!-- sideways-maker-lease:v1\n${JSON.stringify({
+    schema: 'sideways-maker-lease/v1',
+    session_id: 'session-1',
+    base_branch: 'main',
+    base_sha: BASE,
+    branch: 'maker/one',
+    writer_count: 1,
+    owned_paths: ['maker/**'],
+    authority: { merge: 'human', deploy: 'human' }
+  })}\n-->`);
+  assert.equal(authoritative.session_id, 'session-1');
+  assert.equal(authoritative.base_branch, 'main');
+  assert.deepEqual(authoritative.owned_paths, ['maker/**']);
+  const legacy = parseMakerLeaseMarker(`<!-- sideways-maker-lease/v1\n${JSON.stringify({
+    base_sha: BASE,
+    branch: 'maker/legacy',
+    writer_count: 1,
+    owned_paths: ['src/**'],
+    authority: { merge: 'human', deploy: 'human' }
+  })}\n-->`);
+  assert.equal(legacy.branch, 'maker/legacy');
+  assert.equal(parseMakerLeaseMarker('no marker'), null);
+  const commandPolicy = nativeCommandPolicy();
+  assert.ok(commandPolicy.some(rule => rule.program === 'node' && rule.args[0] === '--test' && rule.prefix));
+  assert.ok(commandPolicy.some(rule => rule.program === 'npm' && rule.args[0] === 'run' && rule.prefix));
 });
 
 test('Foundry proposals and proxies cannot masquerade as admitted models', () => {
