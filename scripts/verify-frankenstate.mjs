@@ -18,7 +18,7 @@ const allowedStates = new Set([
 ]);
 
 function scalar(text, key) {
-  const match = String(text).match(new RegExp(`^\s*${key}:\s*(.*?)\s*$`, 'm'));
+  const match = String(text).match(new RegExp(`^[ \\t]*${key}:[ \\t]*(.*?)[ \\t]*$`, 'm'));
   return match ? match[1] : null;
 }
 
@@ -67,8 +67,8 @@ export function validateFrankenstate({ text, trackedPaths, isAncestor }) {
     if (scalar(value, 'merged_against_terminal_decision') !== 'HOLD') fail('a merge performed against HOLD must remain explicit');
   }
 
-  if (/^\s*active_pr:/m.test(value)) fail('stale active_pr schema is forbidden');
-  if (/^\s*branch:\s*main\s*$/m.test(value)) fail('stale branch: main claim is forbidden');
+  if (/^[ \t]*active_pr:/m.test(value)) fail('stale active_pr schema is forbidden');
+  if (/^[ \t]*branch:[ \t]*main[ \t]*$/m.test(value)) fail('stale branch: main claim is forbidden');
 
   const ledgers = [...trackedPaths].filter(path => path === '.frankenstate' || path.endsWith('/.frankenstate'));
   if (ledgers.length !== 1 || ledgers[0] !== '.frankenstate') {
