@@ -1,7 +1,8 @@
 {
   "schema": "sideways-social-product-reachability/v1",
   "base": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
-  "consumer_client": "studio/manual/product/social-client.js + studio/manual/product/social-author-controls.js",
+  "consumer_client": "studio/manual/product/social-client.js",
+  "consumer_client_extensions": ["studio/manual/product/social-author-controls.js"],
   "relational_service": "netlify/functions/social-relational-core.mjs",
   "visible_operations": ["session:get", "register:post", "login:post", "logout:post", "discover:get", "feed:get", "post:post", "post-state:post", "like:post", "follow:post", "profile:get", "profile:patch"],
   "server_only_operations": ["community:get", "community:post", "community-member:post", "community-role:post", "community-fork:post", "post:patch", "moderate:post", "report:post", "appeal:post", "appeal-decide:post", "local-control:post", "community-feed:get", "thread:get"],
@@ -10,6 +11,7 @@
     "blob": "account, profile, post, reply, follow, like, discover, and following feed; author removal is visibly unavailable",
     "postgres": "relational profiles, author post removal, communities, moderation, appeals, viewer controls, event history, and idempotent mutations"
   },
+  "profile_journey": "signed-in user opens PROFILE, reads the server profile, edits public name handle and bio, saves through PATCH profile, and retains the separate local archive identity",
   "newly_visible_journey": "signed-in author sees REMOVE only on their own public projection, confirms that private archive records are unaffected, deactivates through POST post-state, and refreshes the active server projection",
   "highest_priority_gaps": [
     "no visible community creation, membership, role, or fork journey",
