@@ -1,0 +1,51 @@
+{
+  "version": "sideways-maker-lease/v1",
+  "issue": 294,
+  "base_branch": "main",
+  "base_sha": "36666d4288fca28a0a76324f6cb7906050d7e11e",
+  "branch": "maker/issue-294-29455288231-1",
+  "writer_count": 1,
+  "owner": "Pokitomas direct operator",
+  "purpose": "Complete the collision-free human Sideways presentation and ordinary-surface vocabulary boundary before final full-push composition.",
+  "owned_paths": [
+    ".github/workflows/sideways-human.yml",
+    "maker/leases/issue-294-29455288231-1.json",
+    "scripts/tests/sideways-human-boundary.test.mjs",
+    "scripts/tests/sideways-human-phone.mjs",
+    "studio/manual/apply.py",
+    "studio/manual/product/sideways-human.css",
+    "studio/manual/product/sideways-human.js"
+  ],
+  "frozen_sources": {
+    "discovery_import": {
+      "pull_request": 290,
+      "head_sha": "6a1de5e2157bb2133a931011a60292c6fca0cd2f"
+    },
+    "maker_runtime": {
+      "pull_request": 293,
+      "head_sha": "abcad85f30ca1dc054d1a6d8365ee816a39fe40f"
+    }
+  },
+  "excluded_paths": [
+    ".github/workflows/pages.yml",
+    "audit/repository-verification.json",
+    "package.json",
+    "studio/manual/imports/apply.py",
+    "studio/manual/verify.py",
+    "foundry/**",
+    "maker/** except maker/leases/issue-294-29455288231-1.json",
+    "all paths leased by PR #290 or PR #293"
+  ],
+  "integration": {
+    "issue": 291,
+    "branch": "agent/full-push-integration",
+    "pull_request": 297
+  },
+  "authority": {
+    "merge_main": "human",
+    "deploy": "human",
+    "production_data": "none",
+    "secrets": "none",
+    "training_spend": "none"
+  }
+}

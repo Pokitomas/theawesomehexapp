@@ -1,5 +1,5 @@
 // Proves the consumer import path on a real iPhone viewport:
-// launchpad → IMPORT → Reddit picker → completion, with no reload or late DOM churn.
+// Add to Sideways → Import files → picker → Private completion, with no reload or late DOM churn.
 
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -17,11 +17,7 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
-const browser = await chromium.launch({
-  headless: true,
-  executablePath,
-  args: ['--no-sandbox', '--disable-dev-shm-usage']
-});
+const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 1,
@@ -39,15 +35,6 @@ async function touch(locator) {
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-async function waitForImportOutcome() {
-  await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
-  const error = page.locator('.import-error-panel');
-  if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
-  const panel = page.locator('.import-complete-panel');
-  await panel.waitFor({ state: 'visible', timeout: 5000 });
-  await panel.locator('.import-workbench-kicker').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
-}
-
 await page.addInitScript(() => {
   window.__sidewaysObserverFires = 0;
   const NativeObserver = window.MutationObserver;
@@ -59,6 +46,7 @@ await page.addInitScript(() => {
       });
     }
   };
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({ name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff' }));
 });
 
 const errors = [];
@@ -66,12 +54,6 @@ page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 let unexpectedLoads = 0;
 page.on('load', () => { unexpectedLoads += 1; });
-
-await page.addInitScript(() => {
-  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
-    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
-  }));
-});
 
 await page.goto(url, { waitUntil: 'networkidle' });
 unexpectedLoads = 0;
@@ -81,11 +63,15 @@ await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
 await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 if (await page.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
 if (await page.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
-if ((await page.locator('.source-card').count()) !== 8) throw new Error('app chooser is incomplete');
+if ((await page.locator('.add-sideways-choice').count()) !== 4) throw new Error('Add to Sideways choices are incomplete');
+for (const label of ['Connect an account', 'Add a website or feed', 'Import files', 'Restore a Sideways backup']) {
+  await page.getByRole('heading', { name: label, exact: true }).waitFor({ state: 'visible' });
+}
 
-const picker = page.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
+await touch(page.locator('.add-sideways-choice[data-choice="files"] button'));
+await page.locator('.add-sideways-dropzone').waitFor({ state: 'visible' });
 const chooserPromise = page.waitForEvent('filechooser', { timeout: 10000 });
-await touch(picker);
+await touch(page.getByRole('button', { name: 'Choose files', exact: true }));
 const chooser = await chooserPromise;
 await chooser.setFiles({
   name: 'comments.csv',
@@ -93,8 +79,9 @@ await chooser.setFiles({
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"touch path works",sideways,/r/sideways/comments/touch,1700000000,touch-test,touch-1\n')
 });
 
-await waitForImportOutcome();
-if (await page.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
+await page.locator('.import-complete-panel .capability-private').waitFor({ state: 'visible', timeout: 15000 });
+if (!/Private on this device/i.test(await page.locator('.import-complete-panel').innerText())) throw new Error('completion did not state private ownership');
+if (await page.locator('.add-sideways-choice').count()) throw new Error('choice surface remains visible behind completion');
 const firesBeforeQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
 await page.waitForTimeout(2600);
 const firesAfterQuietWindow = await page.evaluate(() => window.__sidewaysObserverFires);
@@ -105,7 +92,8 @@ if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-onboarding-touch.png', fullPage: true });
 console.log(JSON.stringify({
-  touchJourney: 'IMPORT launchpad → Reddit picker → completion',
+  touchJourney: 'Add to Sideways → Import files → picker → Private completion',
+  choices: 4,
   profileGate: false,
   duplicateIntro: false,
   chooserBehindCompletion: false,

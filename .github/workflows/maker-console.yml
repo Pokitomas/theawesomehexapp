@@ -38,9 +38,11 @@ jobs:
           test -s maker/index.html
           test -s maker/maker.css
           test -s maker/icon.svg
-          grep -q 'SEND TO CO-ENGINEERS' maker/index.html
+          grep -q 'OPEN AUTHORIZED TASK' maker/index.html
+          ! grep -q 'SEND TO CO-ENGINEERS' maker/index.html
+          grep -q 'Task author only' maker/index.html
           grep -q 'viewport-fit=cover' maker/index.html
-      - name: Prove founder command journey at 390x844
+      - name: Prove authorized task journey at 390x844
         run: |
           python -m http.server 4175 >/tmp/maker-http.log 2>&1 &
           server=$!
@@ -51,7 +53,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sideways-maker-console
+          name: maker-engineering-console
           path: |
             maker
             maker-console-phone.png

@@ -6,9 +6,9 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
+import { runAutonomousMakerAgent } from '../maker/runtime/autonomous-agent.mjs';
 import { createOpenModelClient } from './open-model-adapter.mjs';
 import { runOpenModelPlanning } from './open-model-planning.mjs';
-import { runNativeDevAgent } from './native-dev-agent.mjs';
 
 const execFileAsync = promisify(execFile);
 const clean = (value, limit = 20000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
@@ -27,15 +27,17 @@ export function parseMakerIssue(issue = {}, repository = '') {
     } catch {}
   }
   const mode = title.match(/^\[maker:([^\]]+)\]/i)?.[1]?.toLowerCase() || receipt?.mode || 'build';
-  const fallbackRequest = body.match(/## Founder command\s+([\s\S]*?)(?=\n## |$)/i)?.[1]?.trim();
+  const fallbackRequest = body.match(/## (?:Founder|Engineering) command\s+([\s\S]*?)(?=\n## |$)/i)?.[1]?.trim();
   const intent = {
     version: 'sideways-maker/v1',
     repository: clean(receipt?.repository || repository, 500),
+    base_revision: clean(receipt?.base_revision || 'main', 200),
+    backend: clean(receipt?.backend || 'auto', 80),
     mode,
-    request: clean(receipt?.request || fallbackRequest || title.replace(/^\[maker:[^\]]+\]\s*/i, ''), 4000),
-    protect: clean(receipt?.protect, 2400),
-    proof: clean(receipt?.proof, 2400),
-    device_requirement: clean(receipt?.device_requirement || 'phone-first', 100),
+    request: clean(receipt?.request || fallbackRequest || title.replace(/^\[maker:[^\]]+\]\s*/i, ''), 8000),
+    protect: clean(receipt?.protect, 4000),
+    proof: clean(receipt?.proof, 4000),
+    device_requirement: clean(receipt?.device_requirement || 'phone-first-and-desktop', 100),
     authority: {
       human_merge_required: true,
       human_deploy_required: true,
@@ -66,11 +68,46 @@ export function normalizeWorkerConfig(env = process.env) {
     planning_max_waves: Number(env.SIDEWAYS_PLANNING_MAX_WAVES || 2),
     planning_max_events: Number(env.SIDEWAYS_PLANNING_MAX_EVENTS || 160),
     planning_max_assignments: Number(env.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || 6),
-    max_turns: Number(env.SIDEWAYS_AGENT_MAX_TURNS || 24),
-    max_writes: Number(env.SIDEWAYS_AGENT_MAX_WRITES || 12),
-    max_total_write_bytes: Number(env.SIDEWAYS_AGENT_MAX_WRITE_BYTES || 600000),
+    max_turns: Number(env.SIDEWAYS_AGENT_MAX_TURNS || 32),
+    max_writes: Number(env.SIDEWAYS_AGENT_MAX_WRITES || 24),
+    max_total_write_bytes: Number(env.SIDEWAYS_AGENT_MAX_WRITE_BYTES || 1200000),
     max_model_tokens: Number(env.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || 4096)
   };
+}
+
+export function parseMakerLeaseMarker(body = '') {
+  const matches = [...String(body).matchAll(/<!--\s*sideways-(?:maker|path)-lease(?::|\/)v1\s*([\s\S]*?)-->/gi)];
+  for (const match of matches.reverse()) {
+    try {
+      const value = JSON.parse(match[1].trim());
+      if (!Array.isArray(value.owned_paths) || !value.owned_paths.length) continue;
+      return {
+        version: 'sideways-maker-lease/v1',
+        schema: 'sideways-maker-lease/v1',
+        session_id: clean(value.session_id || value.branch || value.owner || 'active-lease', 300),
+        base_branch: clean(value.base_branch || 'main', 200),
+        base_sha: clean(value.base_sha, 40),
+        branch: clean(value.branch || value.owner || 'unknown-active-lease', 240),
+        writer_count: Number(value.writer_count ?? 1),
+        owned_paths: value.owned_paths,
+        authority: {
+          merge: clean(value.authority?.merge || 'human', 40),
+          deploy: clean(value.authority?.deploy || 'human', 40)
+        }
+      };
+    } catch {}
+  }
+  return null;
+}
+
+export function nativeCommandPolicy() {
+  return Object.freeze([
+    { program: 'git', args: ['diff', '--check'] },
+    { program: 'git', args: ['status', '--short', '--untracked-files=all'] },
+    { program: 'node', args: ['--test'], prefix: true },
+    { program: 'node', args: ['scripts/native-changed-check.mjs'] },
+    { program: 'npm', args: ['run'], prefix: true }
+  ]);
 }
 
 function apiClient({ token, repository, fetchImpl = fetch }) {
@@ -95,6 +132,7 @@ function apiClient({ token, repository, fetchImpl = fetch }) {
   return {
     getIssue: number => request(`/issues/${Number(number)}`),
     comment: (number, body) => request(`/issues/${Number(number)}/comments`, { method: 'POST', body: { body } }),
+    listOpenPulls: () => request('/pulls?state=open&per_page=100'),
     async findOpenPull(headOwner, branch) {
       const values = await request(`/pulls?state=open&head=${encodeURIComponent(`${headOwner}:${branch}`)}&per_page=10`);
       return values[0] || null;
@@ -111,7 +149,7 @@ function runURL(env = process.env) {
 }
 
 function receiptComment(title, fields = {}) {
-  const lines = [`<!-- sideways-native-worker:v1 -->`, `## ${title}`, ''];
+  const lines = ['<!-- sideways-native-worker:v1 -->', `## ${title}`, ''];
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined || value === null || value === '') continue;
     lines.push(`**${key}:** ${String(value)}`);
@@ -130,22 +168,10 @@ async function verifyCandidate() {
     ['npm', ['run', 'verify:repository']]
   ];
   const results = [];
-  const env = {
-    PATH: process.env.PATH || '',
-    HOME: process.env.HOME || '',
-    CI: '1',
-    NODE_ENV: 'test',
-    NO_COLOR: '1'
-  };
+  const env = { PATH: process.env.PATH || '', HOME: process.env.HOME || '', CI: '1', NODE_ENV: 'test', NO_COLOR: '1' };
   for (const [program, args] of commands) {
     try {
-      const value = await execFileAsync(program, args, {
-        cwd: process.cwd(),
-        env,
-        timeout: 30 * 60 * 1000,
-        maxBuffer: 12 * 1024 * 1024,
-        windowsHide: true
-      });
+      const value = await execFileAsync(program, args, { cwd: process.cwd(), env, timeout: 30 * 60 * 1000, maxBuffer: 12 * 1024 * 1024, windowsHide: true });
       results.push({ command: [program, ...args].join(' '), ok: true, output: clean(`${value.stdout || ''}\n${value.stderr || ''}`, 4000) });
     } catch (error) {
       results.push({ command: [program, ...args].join(' '), ok: false, output: clean(`${error.stdout || ''}\n${error.stderr || error.message}`, 8000) });
@@ -195,18 +221,29 @@ async function main() {
   }
 
   const branch = branchFor(issueNumber, process.env.GITHUB_RUN_ID, process.env.GITHUB_RUN_ATTEMPT);
+  const { stdout: baseShaOutput } = await git(['rev-parse', 'HEAD']);
+  const baseSha = clean(baseShaOutput, 40);
+  const openPulls = await github.listOpenPulls();
+  const activeLeases = openPulls
+    .filter(pull => clean(pull.head?.ref, 240) !== branch)
+    .map(pull => parseMakerLeaseMarker(pull.body))
+    .filter(Boolean);
   const endpointHost = new URL(config.base_url).host;
+  const statePath = path.join(clean(process.env.RUNNER_TEMP, 4000) || os.tmpdir(), 'sideways-maker-state.json');
   const episode = {
-    schema: 'sideways-native-maker-episode/v1',
+    schema: 'sideways-native-maker-episode/v2',
     repository,
     issue_number: issueNumber,
     run_url: runURL(),
     branch,
+    base_sha: baseSha,
+    active_leases: activeLeases,
     provider: { protocol: config.protocol, model: config.model, endpoint_host: endpointHost },
     intent,
     started_at: new Date().toISOString(),
     planning: null,
     implementation: null,
+    engine_state: null,
     verification: null,
     outcome: 'started'
   };
@@ -214,9 +251,12 @@ async function main() {
 
   await github.comment(issueNumber, receiptComment('Native worker started', {
     branch,
+    base_sha: baseSha,
+    active_leases: activeLeases.length,
     provider: `${config.protocol}:${config.model}`,
     endpoint_host: endpointHost,
     planning: config.planning_enabled ? 'recursive role planning enabled' : 'disabled by configuration',
+    execution: 'lease-first durable Maker engine',
     run: runURL(),
     authority: 'branch and draft PR only; no merge or deploy'
   }));
@@ -253,17 +293,24 @@ async function main() {
     await writeEpisode(episode);
   }
 
-  const agent = await runNativeDevAgent({
+  const taskRequest = [intent.request, planningBrief ? `Planning brief: ${JSON.stringify(planningBrief)}` : ''].filter(Boolean).join('\n\n').slice(0, 8000);
+  const agent = await runAutonomousMakerAgent({
     root: process.cwd(),
-    intent: { ...intent, planning: planningBrief },
+    task: { repository, base_sha: baseSha, branch, request: taskRequest, protect: intent.protect, proof: intent.proof },
     model_client: model,
+    state_path: statePath,
+    active_leases: activeLeases,
+    command_policy: nativeCommandPolicy(),
     budget: config,
     on_turn: async ({ turn, action, observation }) => {
+      try { episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch {}
+      await writeEpisode(episode);
       process.stdout.write(`${JSON.stringify({ turn, tool: action?.tool || null, ok: observation.ok, finished: observation.finished || false })}\n`);
     }
   });
   episode.implementation = agent;
   episode.outcome = agent.status;
+  try { episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch {}
   await writeEpisode(episode);
 
   if (agent.status !== 'finished') {
@@ -272,6 +319,7 @@ async function main() {
       branch,
       planning_terminal: planningBrief?.terminal,
       writes: agent.writes,
+      lease: agent.lease ? agent.lease.owned_paths.join(', ') : 'none acquired',
       action: 'No PR was created.',
       run: runURL()
     }));
@@ -312,18 +360,32 @@ async function main() {
   }
 
   await git(['add', '--all']);
-  await git(['commit', '-m', `[maker:${intent.mode}] issue #${issueNumber} native worker patch`]);
+  await git(['commit', '-m', `[maker:${intent.mode}] issue #${issueNumber} autonomous worker patch`]);
   await git(['push', '--set-upstream', 'origin', branch]);
 
   let pull = await github.findOpenPull(owner, branch);
   if (!pull) {
+    const prLease = {
+      schema: 'sideways-maker-lease/v1',
+      session_id: `issue-${issueNumber}-${clean(process.env.GITHUB_RUN_ID || 'local', 80)}`,
+      selected_lane: `maker-${intent.mode}`,
+      base_branch: config.default_branch,
+      base_sha: baseSha,
+      branch,
+      writer_count: 1,
+      owned_paths: agent.lease.owned_paths,
+      authority: { merge: 'human', deploy: 'human' }
+    };
+    const leaseMarker = `<!-- sideways-maker-lease:v1\n${JSON.stringify(prLease)}\n-->`;
     pull = await github.createPull({
       title: `[maker:${intent.mode}] ${clean(intent.request.split(/\r?\n/)[0], 96)}`,
       head: branch,
       base: config.default_branch,
       draft: true,
       body: [
-        `Generated from #${issueNumber} by the provider-neutral native Maker worker.`,
+        `Generated from #${issueNumber} by the provider-neutral autonomous Maker worker.`,
+        '',
+        leaseMarker,
         '',
         '## Model receipt',
         `- protocol: ${config.protocol}`,
@@ -333,6 +395,7 @@ async function main() {
         `- planning events: ${planningBrief?.event_count || 0}`,
         `- implementation turns: ${agent.transcript.length}`,
         `- writes: ${agent.writes}`,
+        `- engine receipt: ${agent.receipt?.receipt_digest || 'missing'}`,
         '',
         '## Worker summary',
         agent.summary || '_No summary returned._',
@@ -357,6 +420,8 @@ async function main() {
   await github.comment(issueNumber, receiptComment('Native worker produced a draft PR', {
     branch,
     pull_request: pull.html_url,
+    lease: agent.lease?.owned_paths?.join(', '),
+    engine_receipt: agent.receipt?.receipt_digest,
     planning_terminal: planningBrief?.terminal,
     commit_witnesses: verification.results.map(value => value.command).join(' · '),
     episode_artifact: 'sideways-native-maker-episode',

@@ -18,6 +18,7 @@ const iphone = {
   hasTouch: true,
   userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Version/18.5 Mobile/15E148 Safari/604.1'
 };
+const desktop = { viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 };
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 
 function collectErrors(page) {
@@ -29,130 +30,134 @@ function collectErrors(page) {
 
 async function touch(page, locator) {
   await locator.waitFor({ state: 'visible', timeout: 10000 });
-  await locator.scrollIntoViewIfNeeded();
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('touch target has no bounding box');
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.tap({ timeout: 10000 });
 }
 
-async function waitForImportOutcome(page) {
-  await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
-  const error = page.locator('.import-error-panel');
-  if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
-  const panel = page.locator('.import-complete-panel');
-  await panel.waitFor({ state: 'visible', timeout: 5000 });
-  await panel.locator('.import-workbench-kicker').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+async function openAdd(page, mobile = false) {
+  const add = page.getByRole('button', { name: 'ADD', exact: true });
+  if (mobile) await touch(page, add); else await add.click();
+  await page.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
+  await page.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
 }
 
-const gateContext = await browser.newContext(iphone);
-await gateContext.addInitScript(() => {
-  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
-    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
-  }));
+async function assertFourChoices(page) {
+  const labels = ['Connect an account', 'Add a website or feed', 'Import files', 'Restore a Sideways backup'];
+  const choices = page.locator('.add-sideways-choice');
+  if (await choices.count() !== 4) throw new Error(`expected four Add to Sideways choices, got ${await choices.count()}`);
+  for (const label of labels) await page.getByRole('heading', { name: label, exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  for (const forbidden of ['corpus', 'projection', 'relational-mode', 'Maker', 'weave', 'lasso', 'protocol']) {
+    const text = (await page.locator('#importWorkbenchHost').innerText()).toLowerCase();
+    if (text.includes(forbidden.toLowerCase())) throw new Error(`ordinary Add surface exposes internal vocabulary: ${forbidden}`);
+  }
+}
+
+async function returnHome(page) {
+  const addAnother = page.getByRole('button', { name: 'Add something else', exact: true });
+  if (await addAnother.count()) await addAnother.click();
+  else await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.locator('.add-sideways-choice').first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
+const phoneContext = await browser.newContext(iphone);
+await phoneContext.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({ name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff' }));
 });
-const gatePage = await gateContext.newPage();
-const gateErrors = collectErrors(gatePage);
-await gatePage.goto('http://127.0.0.1:4173/manual/?debug=1&test=1&autorun=1', { waitUntil: 'networkidle' });
-await gatePage.waitForFunction(() => document.documentElement.dataset.gateMoved === 'yes', { timeout: 20000 });
-const count = (await gatePage.locator('#corpusStatus').textContent())?.trim();
-const policy = (await gatePage.locator('#debugPolicy').textContent()) || '';
-const state = (await gatePage.locator('#debugState').textContent()) || '';
-const gate = Number((policy.match(/gate=([0-9.]+)/) || [])[1]);
-if (count !== '20 THINGS') throw new Error(`expected 20 THINGS, got ${count}`);
-if (!(gate > .05)) throw new Error(`gate did not visibly move: ${policy}`);
-if (!/state=(saturation|deep_saturation)/.test(state)) throw new Error(`state did not change: ${state}`);
-for (const label of ['ADD', 'MOVE GATE']) {
-  if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing core button ${label}`);
-}
-const commandbar = gatePage.locator('[data-workspace-commandbar]');
-await commandbar.waitFor({ state: 'visible', timeout: 10000 });
-for (const label of ['New', 'Feed', 'Places', 'Library']) {
-  if (!(await commandbar.getByText(label, { exact: true }).count())) throw new Error(`missing workspace command ${label}`);
-}
-await touch(gatePage, gatePage.getByRole('button', { name: 'ADD', exact: true }));
-await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
-const coreFilesContract = await gatePage.locator('#addView').evaluate(node => node.textContent.includes('FILES +'));
-if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
-await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
-await gatePage.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
-const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children]
+const phone = await phoneContext.newPage();
+const phoneErrors = collectErrors(phone);
+let phoneLoads = 0;
+phone.on('load', () => { phoneLoads += 1; });
+await phone.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
+phoneLoads = 0;
+await phone.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await openAdd(phone, true);
+await assertFourChoices(phone);
+await phone.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
+
+const visibleLegacyChildren = await phone.locator('#addView.studio-add-modern').evaluate(node => [...node.children]
   .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header], [data-survival-vault]'))
   .filter(child => getComputedStyle(child).display !== 'none').length);
 if (visibleLegacyChildren !== 0) throw new Error(`legacy ADD surface still visible: ${visibleLegacyChildren} child node(s)`);
-if (gateErrors.length) throw new Error(gateErrors.join(' | '));
-await gatePage.screenshot({ path: 'manual-phone-gate.png', fullPage: true });
-await gateContext.close();
 
-const consumerContext = await browser.newContext(iphone);
-await consumerContext.addInitScript(() => {
-  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
-    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
-  }));
-});
-const consumer = await consumerContext.newPage();
-const consumerErrors = collectErrors(consumer);
-let loads = 0;
-consumer.on('load', () => { loads += 1; });
-await consumer.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
-loads = 0;
-await consumer.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
-await touch(consumer, consumer.getByRole('button', { name: 'ADD', exact: true }));
-await consumer.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
-await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
-await consumer.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
-await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
-if (await consumer.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
-if ((await consumer.locator('.source-card').count()) !== 8) throw new Error('expected exactly eight app cards');
-for (const id of ['instagram', 'reddit', 'tiktok', 'youtube', 'spotify', 'x', 'browser', 'anything']) {
-  if ((await consumer.locator(`.source-card[data-platform="${id}"]`).count()) !== 1) throw new Error(`missing app card: ${id}`);
-}
-for (const forbidden of ['SAVE AND CHOOSE AN APP', 'I HAVE THE FILES', 'ADD TO MY FEED', 'PICK MORE FILES', 'PICK FOLDER']) {
-  if (await consumer.getByText(forbidden, { exact: true }).count()) throw new Error(`old setup UI still visible: ${forbidden}`);
-}
-if (await consumer.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
+await touch(phone, phone.locator('.add-sideways-choice[data-choice="connect"] button'));
+await phone.getByRole('heading', { name: 'Connect an account', exact: true }).waitFor({ state: 'visible' });
+const unavailable = phone.getByRole('button', { name: 'Unavailable', exact: true });
+if (await unavailable.count() !== 5) throw new Error(`static connection fallback expected five unavailable providers, got ${await unavailable.count()}`);
+if (!/cannot hold account tokens/i.test(await phone.locator('#importWorkbenchHost').innerText())) throw new Error('static token boundary is not explained');
+await returnHome(phone);
 
-const redditImport = consumer.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
-const chooserPromise = consumer.waitForEvent('filechooser', { timeout: 10000 });
-await touch(consumer, redditImport);
+await touch(phone, phone.locator('.add-sideways-choice[data-choice="web"] button'));
+await phone.locator('input[name="sourceURL"]').fill('https://example.com/feed.xml');
+await phone.getByRole('button', { name: 'Add source', exact: true }).click();
+await phone.locator('.capability-web').waitFor({ state: 'visible' });
+if (!/not Private until you explicitly save/i.test(await phone.locator('#importWorkbenchHost').innerText())) throw new Error('public/private boundary is missing');
+await returnHome(phone);
+await touch(phone, phone.locator('.add-sideways-choice[data-choice="web"] button'));
+await phone.locator('.source-list article').waitFor({ state: 'visible' });
+await phone.getByRole('button', { name: 'Turn off', exact: true }).click();
+await phone.getByRole('button', { name: 'Turn on', exact: true }).waitFor({ state: 'visible' });
+await phone.getByRole('button', { name: 'Turn on', exact: true }).click();
+await phone.getByRole('button', { name: 'Remove', exact: true }).click();
+if (await phone.locator('.source-list article').count()) throw new Error('source removal did not update the collection');
+await returnHome(phone);
+
+await touch(phone, phone.locator('.add-sideways-choice[data-choice="files"] button'));
+await phone.locator('.add-sideways-dropzone').waitFor({ state: 'visible' });
+const chooserPromise = phone.waitForEvent('filechooser', { timeout: 10000 });
+await touch(phone, phone.getByRole('button', { name: 'Choose files', exact: true }));
 const chooser = await chooserPromise;
 await chooser.setFiles({
   name: 'comments.csv',
   mimeType: 'text/csv',
   buffer: Buffer.from('body,subreddit,permalink,created_utc,author,id\n"hello from reddit",sideways,/r/sideways/comments/1,1700000000,kai,abc123\n')
 });
+await phone.locator('.import-complete-panel .capability-private').waitFor({ state: 'visible', timeout: 15000 });
+if (!/Private on this device/i.test(await phone.locator('.import-complete-panel').innerText())) throw new Error('file result did not state private ownership');
+if (phoneLoads !== 0) throw new Error(`file import triggered ${phoneLoads} automatic page load(s)`);
 
-await waitForImportOutcome(consumer);
-if (await consumer.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
-const refreshedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
-if (!/^[1-9]\d* THING/.test(refreshedCount)) throw new Error(`core did not refresh after import: ${refreshedCount}`);
-await consumer.getByRole('button', { name: 'OPEN FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-await consumer.waitForTimeout(2500);
-if (loads !== 0) throw new Error(`import triggered ${loads} automatic page load(s)`);
-await consumer.screenshot({ path: 'manual-onboarding-phone.png', fullPage: true });
+const ark = await phone.evaluate(async () => {
+  const result = await window.SidewaysSurvival.exportArk({ download: false });
+  const bytes = new Uint8Array(await result.blob.arrayBuffer());
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return { name: result.filename, base64: btoa(binary) };
+});
+await returnHome(phone);
+await touch(phone, phone.locator('.add-sideways-choice[data-choice="restore"] button'));
+const restoreChooserPromise = phone.waitForEvent('filechooser', { timeout: 10000 });
+await touch(phone, phone.getByRole('button', { name: 'Choose backup', exact: true }));
+const restoreChooser = await restoreChooserPromise;
+await restoreChooser.setFiles({ name: ark.name, mimeType: 'application/x-sideways-ark', buffer: Buffer.from(ark.base64, 'base64') });
+await phone.locator('.import-complete-panel .capability-private').waitFor({ state: 'visible', timeout: 15000 });
+if (!/restored transactionally/i.test(await phone.locator('.import-complete-panel').innerText())) throw new Error('Ark restore did not reach committed result');
+if (phoneLoads !== 0) throw new Error(`Ark restore triggered ${phoneLoads} automatic page load(s)`);
+if (phoneErrors.length) throw new Error(phoneErrors.join(' | '));
+await phone.screenshot({ path: 'add-to-sideways-phone.png', fullPage: true });
+await phoneContext.close();
 
-await touch(consumer, consumer.getByRole('button', { name: 'OPEN FEED', exact: true }));
-await consumer.waitForURL(/#\/feed$/, { timeout: 10000 });
-await consumer.locator('#feed').waitFor({ state: 'visible', timeout: 10000 });
-await consumer.waitForFunction(() => /^[1-9]\d* THING/.test(document.getElementById('corpusStatus')?.textContent || ''), { timeout: 10000 });
-const importedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
-if (loads !== 0) throw new Error(`OPEN FEED reloaded the page ${loads} time(s)`);
-if (consumerErrors.length) throw new Error(consumerErrors.join(' | '));
-await consumerContext.close();
+const desktopContext = await browser.newContext(desktop);
+await desktopContext.addInitScript(() => {
+  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({ name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff' }));
+});
+const desktopPage = await desktopContext.newPage();
+const desktopErrors = collectErrors(desktopPage);
+await desktopPage.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
+await desktopPage.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await openAdd(desktopPage);
+await assertFourChoices(desktopPage);
+const first = await desktopPage.locator('.add-sideways-choice').nth(0).boundingBox();
+const second = await desktopPage.locator('.add-sideways-choice').nth(1).boundingBox();
+if (!first || !second || Math.abs(first.y - second.y) > 4 || second.x <= first.x) throw new Error('desktop Add choices did not form the expected two-column row');
+await desktopPage.locator('.add-sideways-choice[data-choice="files"] button').click();
+await desktopPage.locator('.add-sideways-dropzone').waitFor({ state: 'visible' });
+if (desktopErrors.length) throw new Error(desktopErrors.join(' | '));
+await desktopPage.screenshot({ path: 'add-to-sideways-desktop.png', fullPage: true });
+await desktopContext.close();
 
 console.log(JSON.stringify({
-  count,
-  gate,
-  state: state.split('\n').find(line => line.startsWith('state=')),
-  visibleLegacyAddSurface: false,
-  workspaceLibraryHeader: true,
-  survivalVault: true,
-  duplicateIntro: false,
-  chooserBehindCompletion: false,
-  firstRun: 'Profile, write, or one-tap starter',
-  consumerJourney: 'Library → Reddit picker → automatic import → in-place feed',
-  automaticReloads: 0,
-  refreshedCount,
-  importedCount,
-  screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png']
+  schema: 'sideways-add-journey-receipt/v1',
+  phone: { viewport: '390x844', choices: 4, staticConnections: 'unavailable-honest', sourceControls: true, fileImport: 'private', arkRestore: 'transactional', automaticReloads: phoneLoads },
+  desktop: { viewport: '1280x900', choices: 4, twoColumn: true, dropzone: true },
+  screenshots: ['add-to-sideways-phone.png', 'add-to-sideways-desktop.png']
 }, null, 2));
 await browser.close();
