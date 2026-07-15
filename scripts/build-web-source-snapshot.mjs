@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const DEFAULT_LIMITS = Object.freeze({ sources: 24, recordsPerSource: 250, totalRecords: 1800, bytesPerSource: 2_000_000, timeoutMs: 20_000 });
 const ALLOWED_TYPES = ['application/json', 'application/rss+xml', 'application/atom+xml', 'application/xml', 'text/xml', 'text/html'];
 
-function clean(value = '') { return String(value).replace(/\u0000/g, '').replace(/\s+/g, ' ').trim(); }
+function clean(value = '') { return value == null ? '' : String(value).replace(/\u0000/g, '').replace(/\s+/g, ' ').trim(); }
 function stripTags(value = '') { return clean(String(value).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')); }
 function decodeEntities(value = '') { return String(value).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"); }
 
@@ -39,21 +39,27 @@ function stableId(provider, canonical, title, published) {
   return crypto.createHash('sha256').update(`${provider}\n${canonical}\n${title}\n${published}`).digest('hex').slice(0, 24);
 }
 
+function authorName(input, fallback) {
+  if (typeof input.author === 'string') return input.author;
+  return input.author?.name || input.author?.display_name || input.account?.display_name || input.account?.username || input.contributor || fallback;
+}
+
 export function normalizeWebRecord(input = {}, provider = {}) {
-  const sourceURL = (() => { try { return safeSourceURL(input.url || input.link || input.sourceUrl || provider.url).href; } catch { return ''; } })();
-  const title = clean(decodeEntities(input.title || input.name || input.text || sourceURL || 'Untitled')).slice(0, 240);
-  const summary = clean(decodeEntities(stripTags(input.summary || input.description || input.content || input.text || ''))).slice(0, 900);
-  const published = isoDate(input.published || input.pubDate || input.updated || input.createdAt || provider.fetchedAt);
-  const kind = ['article', 'forum', 'social'].includes(input.kind || input.type) ? (input.kind || input.type) : (provider.kind || 'article');
+  const sourceURL = (() => { try { return safeSourceURL(input.url || input.link || input.sourceUrl || input.fullurl || input.story_url || provider.url).href; } catch { return ''; } })();
   const providerName = clean(provider.name || provider.id || (sourceURL ? new URL(sourceURL).hostname : 'Web'));
   const providerId = clean(provider.id || providerName.toLowerCase().replace(/[^a-z0-9]+/g, '-')).slice(0, 100);
+  const rawText = input.summary || input.description || input.extract || input.content || input.text || input.story_text || '';
+  const title = clean(decodeEntities(input.title || input.story_title || input.name || stripTags(rawText) || sourceURL || 'Untitled')).slice(0, 240);
+  const summary = clean(decodeEntities(stripTags(rawText))).slice(0, 900);
+  const published = isoDate(input.published || input.pubDate || input.updated || input.createdAt || input.created_at || input.timestamp || provider.fetchedAt);
+  const kind = ['article', 'forum', 'social'].includes(input.kind || input.type) ? (input.kind || input.type) : (provider.kind || 'article');
   return Object.freeze({
     id: stableId(providerId, sourceURL, title, published),
     kind,
     title,
     published,
     revision: 'bounded public source snapshot',
-    contributor: clean(input.author || input.contributor || providerName).slice(0, 160),
+    contributor: clean(authorName(input, providerName)).slice(0, 160),
     categories: [...new Set([providerId, ...(Array.isArray(input.categories) ? input.categories : [])].map(clean).filter(Boolean))].slice(0, 24),
     dek: summary || title,
     body: [summary || title],
@@ -62,9 +68,9 @@ export function normalizeWebRecord(input = {}, provider = {}) {
     license: clean(provider.license || 'source-defined'),
     attribution: providerName,
     community: clean(provider.community || providerName),
-    score: Math.max(0, Number(input.score || 0)),
-    comments: Math.max(0, Number(input.comments || 0)),
-    resurfaced: new Date().toISOString().slice(0, 10),
+    score: Math.max(0, Number(input.score || input.points || input.favourites_count || 0)),
+    comments: Math.max(0, Number(input.comments || input.num_comments || input.replies_count || 0)),
+    resurfaced: (provider.fetchedAt || new Date().toISOString()).slice(0, 10),
     synthetic: false,
     provenance: {
       schema: 'sideways-web-provenance/v1',
@@ -102,8 +108,30 @@ export function parseSyndication(text) {
   })).filter(item => item.title || item.url);
 }
 
+function mediaWikiRecords(payload) {
+  const pages = payload?.query?.pages;
+  if (!pages || typeof pages !== 'object') return [];
+  return Object.values(pages).map(page => ({ title: page.title, description: page.extract, url: page.fullurl, published: page.touched, nativeId: page.pageid }));
+}
+
+function activityPubRecords(payload) {
+  const rows = payload?.orderedItems || payload?.items;
+  return Array.isArray(rows) ? rows.map(item => ({
+    title: item.name || stripTags(item.content || item.summary || ''),
+    description: item.content || item.summary,
+    url: typeof item.url === 'string' ? item.url : item.id,
+    published: item.published || item.updated,
+    author: typeof item.attributedTo === 'string' ? item.attributedTo : item.attributedTo?.name
+  })) : [];
+}
+
 function jsonRecords(payload) {
-  const rows = Array.isArray(payload) ? payload : payload.items || payload.entries || payload.hits || payload.data || payload.posts || [];
+  if (Array.isArray(payload)) return payload;
+  const mediaWiki = mediaWikiRecords(payload);
+  if (mediaWiki.length) return mediaWiki;
+  const activityPub = activityPubRecords(payload);
+  if (activityPub.length) return activityPub;
+  const rows = payload.items || payload.entries || payload.hits || payload.data || payload.posts || [];
   return Array.isArray(rows) ? rows : [];
 }
 
