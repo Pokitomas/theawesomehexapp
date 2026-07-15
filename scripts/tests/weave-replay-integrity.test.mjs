@@ -42,6 +42,23 @@ function remoteMessage(event, overrides = {}) {
   };
 }
 
+function legacyRemoteMessage(event, visibility) {
+  return {
+    id: `legacy-remote:${event.id}`,
+    session: 'repo:main',
+    generation: 1,
+    issuer: event.issuer,
+    parent: null,
+    issued_at: event.issued_at,
+    visibility,
+    payload: {
+      summary: 'legacy weave event',
+      action: event.kind,
+      weave: structuredClone(event)
+    }
+  };
+}
+
 test('persisted validation never invents identity or time', () => {
   assert.throws(() => normalizePersistedWeaveEvent({
     protocol: 'sideways-weave', version: 1,
@@ -90,7 +107,7 @@ test('public Remote envelope cannot carry a private weave event', () => {
 test('legacy event without visibility may narrow to private but cannot widen a private-default kind to public', () => {
   const oldBeacon = beacon('beacon:event:legacy');
   delete oldBeacon.visibility;
-  const narrowed = normalizePersistedWeaveMessage(remoteMessage(oldBeacon, { visibility: 'private' }));
+  const narrowed = normalizePersistedWeaveMessage(legacyRemoteMessage(oldBeacon, 'private'));
   assert.equal(narrowed.payload.weave.visibility, 'private');
 
   const oldMessage = createWeaveEvent({
@@ -99,7 +116,7 @@ test('legacy event without visibility may narrow to private but cannot widen a p
   });
   delete oldMessage.visibility;
   assert.throws(
-    () => normalizePersistedWeaveMessage(remoteMessage(oldMessage, { visibility: 'public' })),
+    () => normalizePersistedWeaveMessage(legacyRemoteMessage(oldMessage, 'public')),
     error => error?.code === 'WEAVE_VISIBILITY_MISMATCH'
   );
 });
