@@ -13,8 +13,11 @@
     "scripts/maker-foundry-adapter.mjs",
     "scripts/native-dev-agent.mjs",
     "scripts/maker-native-worker.mjs",
+    "scripts/tests/maker-engine.contract.mjs",
     "scripts/tests/maker-terminal-release.test.mjs",
+    "scripts/tests/native-maker-worker.test.mjs",
     "scripts/tests/maker-console.test.mjs",
+    "scripts/tests/maker-console-phone.mjs",
     "src/**"
   ],
   "excluded_active_paths": [
