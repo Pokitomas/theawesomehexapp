@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "suites": [
+    { "id": "remote", "command": ["npm", "run", "test:remote"] },
+    { "id": "weave-v1", "command": ["npm", "run", "test:weave"] },
+    { "id": "recursive-weave", "command": ["npm", "run", "test:recursive-weave"] },
+    { "id": "social-memory", "command": ["npm", "run", "test:social"] },
+    { "id": "authority-manifest", "command": ["npm", "run", "test:authority"] },
+    { "id": "workflow-permissions", "command": ["node", "--test", "scripts/tests/workflow-permissions.test.mjs"] },
+    { "id": "deployment-receipt", "command": ["node", "--test", "scripts/tests/deployment-receipt.test.mjs"] },
+    { "id": "coordination-reducer", "command": ["node", "--test", "scripts/tests/coordination-tick.test.mjs", "scripts/tests/coordination-tick-hardening.test.mjs"] }
+  ],
+  "external_suites": [
+    "social-postgres",
+    "manual-phone",
+    "social-phone",
+    "profile-phone",
+    "ark-phone",
+    "media-phone",
+    "pages-build"
+  ]
+}
