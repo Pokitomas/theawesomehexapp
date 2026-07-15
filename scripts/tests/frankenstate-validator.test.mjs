@@ -2,34 +2,39 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateFrankenstate } from '../verify-frankenstate.mjs';
 
-const valid = `version: 35
+const valid = `version: 37
 repository: Pokitomas/theawesomehexapp
-canonical_branch: assembly/recursive-weave-cognition
-canonical_pr: 188
+canonical_branch: repair/post-merge-full-pass
+canonical_pr: 212
 observed_head_before_ledger: 4339baecaa44f8811f0fa2377fc7ebe6e9d248de
-state: implementation_complete_pending_exact_head_receipt
+state: corrective_active_pending_terminal_audit
 owner: GPT-5.6 Thinking
 heartbeat:
-  live_owner_receipt_found: false
+  live_owner_receipt_found: true
 sprawl_consolidation:
   single_ledger: .frankenstate
   duplicate_implementation_branches_created: 0
   duplicate_pull_requests_created: 0
-  merge_performed: false
+  merge_performed: true
+  historical_merge_pr: 188
+  historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
+  merged_against_terminal_decision: HOLD
 verification:
   witness_substitution_allowed: false
 invariants:
   - No model, comment, or MATCHED receipt grants merge authority.
 `;
 
-test('accepts one current root ledger anchored to an ancestor', () => {
+test('accepts one current corrective ledger anchored to an ancestor', () => {
   const result = validateFrankenstate({
     text: valid,
     trackedPaths: ['.frankenstate', 'README.md'],
     isAncestor: sha => sha === '4339baecaa44f8811f0fa2377fc7ebe6e9d248de'
   });
-  assert.equal(result.version, 35);
-  assert.equal(result.canonical_pr, 188);
+  assert.equal(result.version, 37);
+  assert.equal(result.canonical_pr, 212);
+  assert.equal(result.merge_performed, true);
+  assert.equal(result.live_owner_receipt_found, true);
   assert.equal(result.tracked_ledger, '.frankenstate');
 });
 
@@ -43,7 +48,7 @@ test('rejects duplicate ledgers', () => {
 
 test('rejects stale generation schema and historical owner takeover', () => {
   const stale = valid
-    .replace('version: 35', 'version: 34')
+    .replace('version: 37', 'version: 34')
     .replace('owner: GPT-5.6 Thinking', 'owner: heartbeat-audit (claude-sonnet-5, external co-engineer session)');
   assert.throws(() => validateFrankenstate({
     text: stale,
@@ -69,4 +74,26 @@ test('rejects witness substitution or merge-authority broadening', () => {
     trackedPaths: ['.frankenstate'],
     isAncestor: () => true
   }), /witness substitution denial is required/);
+});
+
+test('rejects a recorded merge without exact historical evidence', () => {
+  const missing = valid
+    .replace('historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058', 'historical_merge_commit: unknown')
+    .replace('merged_against_terminal_decision: HOLD', 'merged_against_terminal_decision: MERGE RECOMMENDED');
+  assert.throws(() => validateFrankenstate({
+    text: missing,
+    trackedPaths: ['.frankenstate'],
+    isAncestor: () => true
+  }), /historical_merge_commit must record the exact merged SHA/);
+});
+
+test('rejects main as the active vehicle or a nonnumeric PR', () => {
+  const invalid = valid
+    .replace('canonical_branch: repair/post-merge-full-pass', 'canonical_branch: main')
+    .replace('canonical_pr: 212', 'canonical_pr: none');
+  assert.throws(() => validateFrankenstate({
+    text: invalid,
+    trackedPaths: ['.frankenstate'],
+    isAncestor: () => true
+  }), /canonical_branch must identify a non-main/);
 });
