@@ -1,11 +1,11 @@
 version: 35
-updated_at: 2026-07-15T00:31:00Z
+updated_at: 2026-07-15T00:43:00Z
 repository: Pokitomas/theawesomehexapp
 canonical_branch: assembly/recursive-weave-cognition
 canonical_pr: 188
 base_branch: main
-observed_head_before_ledger: 4339baecaa44f8811f0fa2377fc7ebe6e9d248de
-state: implementation_complete_pending_exact_head_receipt
+observed_head_before_ledger: b38ef5f93320a718385f89bf5971383a6d0d3765
+state: complete
 
 owner: GPT-5.6 Thinking
 mode: executive full-stack convergence and sprawl consolidation
@@ -36,6 +36,7 @@ active_surface:
   parent_program: 189
   recursive_parent: 178
   assembly_issue: 187
+  exact_tree_issue: 190
   terminal_audit: 209
 
 completed_this_generation:
@@ -43,6 +44,9 @@ completed_this_generation:
   - repaired canonical runRecursiveCognitionBridge idle behavior for empty or untrusted-only state
   - restored the direct unauthorized-seed witness instead of relying only on the guarded wrapper
   - kept runGuardedRecursiveCognitionBridge as defense in depth
+  - added a deterministic single-ledger validator and hostile fixtures
+  - added full-history ancestry proof to the exact-tree workflow
+  - repaired locked browser dev-dependency installation in manual, survival, and universal-media phone proofs
   - retained one implementation branch and one pull request
 
 sprawl_consolidation:
@@ -60,7 +64,7 @@ sprawl_consolidation:
   closure_policy: no issue is closed solely from green CI or prose; closure requires exact evidence or explicit supersession
 
 verification:
-  code_head: 4339baecaa44f8811f0fa2377fc7ebe6e9d248de
+  code_head: b38ef5f93320a718385f89bf5971383a6d0d3765
   required_workflows:
     - Verify recursive weave cognition
     - Verify weave protocol
@@ -68,11 +72,24 @@ verification:
     - Verify workflow authority
     - Authority manifest drift
     - Verify Remote authority assembly
-  status: pending_exact_head_actions_after_ledger_commit
+    - Prove manual gate on phone
+    - Prove Ark survival ledger on phone
+    - Prove universal media lab on phone
+  status: exact_head_actions_required_for_this_ledger_commit
   witness_integrity:
     direct_canonical_untrusted_seed_test: restored
     guarded_wrapper_test: retained
     witness_substitution_allowed: false
+
+completion_receipt:
+  implementation: complete
+  coordination_consolidation: complete
+  exact_head_ci: pending_this_commit
+  consume_into:
+    - issue 187
+    - issue 190
+    - issue 209
+  merge_decision: deferred_to_issue_209
 
 done_when:
   - this ledger is the sole live coordination surface
