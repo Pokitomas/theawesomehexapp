@@ -105,8 +105,14 @@ jobs:
         run: node --test --test-name-pattern='public closure drops' scripts/tests/weave-public-projection.test.mjs
       - name: Verify read-only collective endpoint
         run: node --test --test-name-pattern='collective endpoint reads' scripts/tests/weave-public-projection.test.mjs
-      - name: Verify event-driven recursive bridge
-        run: node --test scripts/tests/weave-recursive-bridge.test.mjs
+      - name: Verify typed bridge envelopes
+        run: node --test --test-name-pattern='trusted output parser' scripts/tests/weave-recursive-bridge.test.mjs
+      - name: Verify shared bridge convergence
+        run: node --test --test-name-pattern='one seed fans out' scripts/tests/weave-recursive-bridge.test.mjs
+      - name: Verify untrusted seed rejection
+        run: node --test --test-name-pattern='unauthorized seed' scripts/tests/weave-recursive-bridge.test.mjs
+      - name: Verify private bridge fail-closed behavior
+        run: node --test --test-name-pattern='private assignments' scripts/tests/weave-recursive-bridge.test.mjs
       - name: Verify bridge recovery
         run: node --test scripts/tests/weave-recursive-bridge-recovery.test.mjs
       - name: Verify finite sprawl graph
