@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMakerTerminalRelease, terminalReleaseForNativeAgent } from '../maker-terminal-release.mjs';
+import './maker-engine.contract.mjs';
 
 function deterministicNow() {
   let tick = 0;
