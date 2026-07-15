@@ -15,6 +15,10 @@ function privateIPv4(hostname) {
   return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
 }
 
+function publicHostname(value = '') {
+  try { return safePublicURL(value).hostname; } catch { return ''; }
+}
+
 export function safePublicURL(value) {
   const parsed = new URL(String(value));
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Only public HTTP or HTTPS sources are supported.');
@@ -28,7 +32,8 @@ export function safePublicURL(value) {
 }
 
 export function classifyAddInput(value) {
-  if (value instanceof File || value instanceof Blob) return 'file';
+  if (typeof File !== 'undefined' && value instanceof File) return 'file';
+  if (typeof Blob !== 'undefined' && value instanceof Blob) return 'file';
   const text = clean(value);
   if (!text) return 'unknown';
   if (/\.sideways(?:$|[?#])/i.test(text)) return 'backup';
@@ -48,6 +53,7 @@ function canonicalURL(value, fallback = '') {
 export function normalizeDiscoveryRecord(input = {}, provenance = {}) {
   const sourceURL = canonicalURL(input.sourceUrl || input.url, provenance.sourceUrl);
   const canonical = canonicalURL(input.canonicalUrl || input.outboundUrl, sourceURL);
+  const hostname = publicHostname(sourceURL || canonical);
   const title = clean(input.title || input.name || input.text || canonical || 'Untitled').slice(0, 240);
   const text = clean(input.text || input.body || input.content || input.summary || '').slice(0, 50_000);
   const published = input.published || input.date || input.createdAt || null;
@@ -62,8 +68,8 @@ export function normalizeDiscoveryRecord(input = {}, provenance = {}) {
     text,
     canonicalUrl: canonical,
     source: Object.freeze({
-      id: clean(provenance.sourceId || input.sourceId || new URL(sourceURL || canonical).hostname).slice(0, 160),
-      name: clean(provenance.sourceName || input.source || new URL(sourceURL || canonical).hostname).slice(0, 160),
+      id: clean(provenance.sourceId || input.sourceId || hostname || 'unknown-source').slice(0, 160),
+      name: clean(provenance.sourceName || input.source || hostname || 'Unknown source').slice(0, 160),
       url: sourceURL || canonical,
       method: clean(provenance.method || 'web'),
       fetchedAt: provenance.fetchedAt || new Date().toISOString(),
@@ -102,7 +108,8 @@ export function createSourceCollection(initial = []) {
   return Object.freeze({
     list: () => [...sources],
     add(source) {
-      const next = Object.freeze({ id: clean(source.id || safePublicURL(source.url).hostname), name: clean(source.name || safePublicURL(source.url).hostname), url: safePublicURL(source.url).href, enabled: true, kind: source.kind || classifyAddInput(source.url) });
+      const parsed = safePublicURL(source.url);
+      const next = Object.freeze({ id: clean(source.id || parsed.hostname), name: clean(source.name || parsed.hostname), url: parsed.href, enabled: true, kind: source.kind || classifyAddInput(parsed.href) });
       sources = [...sources.filter(item => item.id !== next.id && item.url !== next.url), next];
       return next;
     },
