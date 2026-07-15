@@ -1,5 +1,5 @@
-version: 39
-updated_at: 2026-07-15T06:38:00Z
+version: 40
+updated_at: 2026-07-15T07:48:00Z
 repository: Pokitomas/theawesomehexapp
 canonical_branch: revival/repository-wide-generation
 canonical_pr: 233
@@ -35,40 +35,40 @@ lane_claims:
   product:
     issue: 224
     branch: revival/product-journey
-    state: declared_pending_stakeout
+    state: executable_audit_green_head_eeaf6a292049a309a3bad5e5b1b32e56d1f25ce2
   archive:
     issue: 225
     branch: revival/archive-survival
-    state: declared_pending_stakeout
+    state: executable_audit_green_head_eec8f79220dc011bd314fb5b4db12b8e6086847b
   social:
     issue: 226
     branch: revival/social-product
-    state: declared_pending_stakeout
+    state: executable_audit_green_head_1b8b1410c16ceb08af19441dcba4139142d600a3
   ranking:
     issue: 227
     branch: revival/ranking-evaluation
-    state: declared_pending_stakeout
+    state: executable_evaluation_green_head_49b5dbc319d6bf1435fa7e4994ea05d4f8439bda
   weave:
     issue: 228
     candidate_pull_requests: 216,217
-    state: exact_head_selection_required
+    state: converged_green_head_33bd3d68588b605e833c43b6353ef26a06c723d9
   maker:
     issue: 229
-    candidate_pull_request: 222
-    state: runtime_configuration_required
+    candidate_pull_request: 244
+    state: worker_green_head_0f8238b098264c791d5f4e5537f8d9d1bde11864_delta_green_5b20bd5f7c2bb93aa23ded842e8c26d049d166a4
   operations:
     issue: 230
     branch: revival/operations-proof
-    state: declared_pending_stakeout
+    state: executable_report_green_head_60fdd708af77ef4239aee3f5a4d1592d8b8f0408
   quality:
     issue: 231
     branch: revival/human-quality
-    state: declared_pending_stakeout
+    state: executable_evidence_green_head_5183e6d3ed5e3d3dd3e4a5f308930ef7c0ef7667
   assembly:
     issue: 232
     branch: revival/repository-wide-generation
     pull_request: 233
-    state: active
+    state: active_children_unmerged
 
 collision_policy:
   duplicate_ownership_allowed: false
@@ -93,13 +93,13 @@ corrective_history:
 
 repository_truth:
   root_reader: implemented
-  private_archive: implemented_but_product_and_quality_followups_open
-  public_social_authority: implemented_but_consumer_journeys_incomplete
-  ranking_kernel: deterministic_demo_proxy_not_outcome_validated
-  weave: implemented_with_open_lifecycle_and_privacy_candidate_prs
+  private_archive: implemented_with_failure_witnesses_open
+  public_social_authority: implemented_with_visible_reachability_gap
+  ranking_kernel: deterministic_with_synthetic_evaluation_not_outcome_validated
+  weave: lifecycle_contract_converged_activation_open
   maker_phone_console: implemented
-  native_open_model_worker: draft_pr_222_not_merged_or_configured
-  external_operations: partly_unknown
+  native_open_model_worker: implemented_unmerged_and_not_runtime_configured
+  external_operations: repository_facts_measured_external_facts_unknown
 
 sprawl_consolidation:
   single_ledger: .frankenstate
@@ -114,21 +114,21 @@ sprawl_consolidation:
 
 verification:
   observed_main_head: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
-  canonical_revival_head: pending_exact_head_ci
-  child_exact_heads: pending
-  whole_repository_matrix: pending
+  canonical_revival_head: pending_exact_head_ci_after_ledger_update
+  child_exact_heads: recorded_in_lane_states
+  whole_repository_matrix: pending_combined_tree
   witness_substitution_allowed: false
 
 completion_requirements:
   - coherent product journey on phone and desktop
-  - private archive survival under destructive and degraded conditions
-  - public social and community journeys against honest capability modes
-  - ranking explanation and reproducible evaluation separated from demo rewards
-  - weave running, dispatch, drain, terminal, and new-generation receipts
-  - one real configured open-model Maker episode
-  - dated external operations and recovery evidence
-  - accessibility, browser, performance, and degraded-state acceptance
-  - exact assembled head with explicit MERGE RECOMMENDED, HOLD, or REJECT decision
+  - private archive failure evidence
+  - visible server-only social journey
+  - ranking outcome evidence beyond synthetic geometry
+  - weave runtime activation
+  - real Maker episode
+  - dated external operations evidence
+  - runtime quality matrix
+  - exact assembled head with explicit decision
 
 invariants:
   - Do not infer completion from issue prose.
