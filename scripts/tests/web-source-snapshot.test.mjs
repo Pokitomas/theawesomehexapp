@@ -7,6 +7,7 @@ import zlib from 'node:zlib';
 
 import {
   buildSnapshot,
+  fetchBoundedSource,
   isPublicAddress,
   normalizeWebRecord,
   parseSitemap,
@@ -43,6 +44,29 @@ test('source URL and resolved-address policy reject local, reserved, and credent
   );
 });
 
+test('every redirect hop is resolved and rejected when DNS changes to a private address', async () => {
+  const attempts = [];
+  const lookup = async hostname => hostname === 'start.example'
+    ? [{ address: '8.8.8.8', family: 4 }]
+    : [{ address: '127.0.0.1', family: 4 }];
+  const requestOnce = async (target, options) => {
+    attempts.push(new URL(target).hostname);
+    const resolved = await resolvePublicTarget(target, { lookup: options.lookup });
+    return {
+      status: 302,
+      headers: { location: 'https://redirect.example/private' },
+      body: Buffer.alloc(0),
+      url: resolved.url,
+      address: resolved.selected.address
+    };
+  };
+  await assert.rejects(
+    () => requestPublicResource('https://start.example/feed', { lookup, requestOnce, redirects: 2 }),
+    /non-public/
+  );
+  assert.deepEqual(attempts, ['start.example', 'redirect.example']);
+});
+
 test('robots policy uses longest matching rule and allow wins equal specificity', () => {
   const robots = `User-agent: *\nDisallow: /private\nAllow: /private/public\nDisallow: /same\nAllow: /same`;
   assert.equal(robotsAllows(robots, '/'), true);
@@ -69,6 +93,52 @@ test('RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenan
   assert.equal(html.description, 'A summary');
   assert.deepEqual(parseSitemap('<urlset><url><loc>https://example.com/a</loc><lastmod>2026-07-01</lastmod></url></urlset>'), [{ title: 'https://example.com/a', url: 'https://example.com/a', published: '2026-07-01' }]);
   assert.throws(() => parseSourcePayload('binary', 'application/octet-stream', {}), /unsupported/);
+});
+
+test('live MIME admission ignores parser hints and HTML canonicals use the final fetched URL', async () => {
+  const jsonProvider = {
+    id: 'json-source',
+    name: 'JSON Source',
+    kind: 'article',
+    format: 'json',
+    method: 'public-api',
+    robots: 'not-applicable',
+    url: 'https://source.example/data'
+  };
+  await assert.rejects(
+    () => fetchBoundedSource(jsonProvider, {
+      now: '2026-07-15T00:00:00.000Z',
+      requestPublicResource: async () => ({
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream' },
+        body: Buffer.from('{"items":[]}'),
+        hops: [],
+        url: new URL(jsonProvider.url)
+      })
+    }),
+    /content type is not allowed/
+  );
+
+  const configuredURL = 'https://source.example/start';
+  const result = await fetchBoundedSource({
+    id: 'html-source',
+    name: 'HTML Source',
+    kind: 'article',
+    format: 'html',
+    robots: 'not-applicable',
+    url: configuredURL
+  }, {
+    now: '2026-07-15T00:00:00.000Z',
+    requestPublicResource: async () => ({
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+      body: Buffer.from('<html><head><title>Redirected</title><link rel="canonical" href="../canonical"></head></html>'),
+      hops: [{ url: configuredURL, status: 302, address: '8.8.8.8' }],
+      url: new URL('https://redirected.example/news/item')
+    })
+  });
+  assert.equal(result.records[0].url, 'https://redirected.example/canonical');
+  assert.equal(result.records[0].provenance.source_url, configuredURL);
 });
 
 test('snapshot build is bounded, deduplicated, provenance-bearing, and fails providers honestly', async () => {
