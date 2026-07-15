@@ -1,53 +1,76 @@
-version: 35
-updated_at: 2026-07-15T00:43:00Z
+version: 36
+updated_at: 2026-07-15T01:08:00Z
 repository: Pokitomas/theawesomehexapp
 canonical_branch: assembly/recursive-weave-cognition
 canonical_pr: 188
 base_branch: main
-observed_head_before_ledger: b38ef5f93320a718385f89bf5971383a6d0d3765
-state: complete
+observed_head_before_ledger: 75e5d430d14383004c13e25abe90ecc47e3d7df9
+state: implementation_complete_pending_exact_head_receipt
 
 owner: GPT-5.6 Thinking
-mode: executive full-stack convergence and sprawl consolidation
+mode: executive convergence with restored bounded grunt review
 heartbeat:
-  searched:
-    - open issue titles, bodies, and comments
-    - repository code search
-    - recent commit messages
-    - issue 210 beacon replies
   live_owner_receipt_found: false
-  historical_record:
-    owner: heartbeat-audit
-    status: superseded_historical_generation
-    commits:
-      - 73d68ceca8011125ce1f95dfe5ff7f04a4d3914a
-      - f7b59de7bdd4aeeac7c6f6b92648dbd05d27d83c
-  takeover_reason: no current branch, head, dirty-state, owned-path, or consume-into receipt answered the coordination beacon
+  takeover_reason: no bounded ownership receipt answered the coordination beacon
 
 active_surface:
-  pull_requests:
-    - number: 188
-      branch: assembly/recursive-weave-cognition
-      base: main
-      draft: true
-      merge_authority: false
-      role: canonical recursive-weave proposal and repository-gate branch
-  coordination_issue: 210
+  assembly_pr: 188
+  assembly_branch: assembly/recursive-weave-cognition
   parent_program: 189
   recursive_parent: 178
   assembly_issue: 187
-  exact_tree_issue: 190
-  terminal_audit: 209
+  terminal_decision: HOLD
 
-completed_this_generation:
-  - preserved all already-pushed dependency-lock and exact-tree-gate work
-  - repaired canonical runRecursiveCognitionBridge idle behavior for empty or untrusted-only state
-  - restored the direct unauthorized-seed witness instead of relying only on the guarded wrapper
-  - kept runGuardedRecursiveCognitionBridge as defense in depth
-  - added a deterministic single-ledger validator and hostile fixtures
-  - added full-history ancestry proof to the exact-tree workflow
-  - repaired locked browser dev-dependency installation in manual, survival, and universal-media phone proofs
-  - retained one implementation branch and one pull request
+grunt_corps:
+  shared_baseline: 75e5d430d14383004c13e25abe90ecc47e3d7df9
+  operating_contract: GRUNT_OPERATING_CONTRACT:v3 on issue 178
+  status: restored_waiting_for_lane_receipts
+  lanes:
+    - issue: 179
+      branch: agent/weave-belief-graph
+      state: restored
+    - issue: 180
+      branch: agent/weave-deliberation-planner
+      state: restored
+    - issue: 181
+      branch: agent/weave-memory-retrieval
+      state: restored
+    - issue: 182
+      branch: agent/weave-role-dispatch
+      state: restored
+    - issue: 183
+      branch: agent/weave-synthesis-critic
+      state: restored
+    - issue: 184
+      branch: agent/weave-recursive-runtime
+      state: restored
+    - issue: 185
+      branch: agent/weave-recursion-hostile
+      state: restored
+    - issue: 186
+      branch: agent/weave-inspection-surface
+      state: restored
+  first_receipt_requires:
+    - exact branch and HEAD
+    - worktree status
+    - owned and non-owned paths
+    - parent and adjacent lanes read
+    - existing witnesses read
+    - status NO DEFECT, RED WITNESS, or PATCH PLANNED
+    - first local command
+  local_test_receipt_requires:
+    - exact local HEAD
+    - exact command and exit code
+    - concise output summary
+    - duration when known
+    - environment differences
+    - artifact or log paths
+    - relation to remote exact-head CI
+  policy:
+    - broad reading is required
+    - broad editing is forbidden
+    - local green is advisory until pushed and visible in Actions
+    - generic tests-pass prose is not evidence
 
 sprawl_consolidation:
   single_ledger: .frankenstate
@@ -55,64 +78,29 @@ sprawl_consolidation:
   duplicate_implementation_branches_created: 0
   duplicate_pull_requests_created: 0
   merge_performed: false
-  active_issue_policy:
-    - issues 179 through 186 remain specialization contracts until independently evidenced or explicitly superseded
-    - issue 187 remains the only recursive assembly target
-    - issues 203 through 208 remain hostile review requirements, not separate assembly authority
-    - issue 210 owns coordination representation only
-    - issue 209 remains terminal review and explicit merge-decision authority
-  closure_policy: no issue is closed solely from green CI or prose; closure requires exact evidence or explicit supersession
+  child_branches_are_restored_original_lanes: true
+  child_pull_requests_open: 0
+  assembly_pull_requests_open: 1
 
 verification:
-  code_head: b38ef5f93320a718385f89bf5971383a6d0d3765
-  required_workflows:
-    - Verify recursive weave cognition
-    - Verify weave protocol
-    - Verify exact repository tree
-    - Verify workflow authority
-    - Authority manifest drift
-    - Verify Remote authority assembly
-    - Prove manual gate on phone
-    - Prove Ark survival ledger on phone
-    - Prove universal media lab on phone
-  status: exact_head_actions_required_for_this_ledger_commit
-  witness_integrity:
-    direct_canonical_untrusted_seed_test: restored
-    guarded_wrapper_test: retained
-    witness_substitution_allowed: false
+  previous_green_head: 75e5d430d14383004c13e25abe90ecc47e3d7df9
+  status: exact_head_actions_required_after_topology_receipt
+  witness_substitution_allowed: false
 
 completion_receipt:
-  implementation: complete
-  coordination_consolidation: complete
-  exact_head_ci: pending_this_commit
-  consume_into:
-    - issue 187
-    - issue 190
-    - issue 209
-  merge_decision: deferred_to_issue_209
+  implementation_baseline: complete
+  grunt_restoration: complete
+  grunt_review: active_waiting_for_receipts
+  merge_decision: HOLD
 
 done_when:
-  - this ledger is the sole live coordination surface
+  - every restored lane posts a fast-read receipt
+  - every local test is visible with command, HEAD, and exit status
   - exact-head workflows are green after this ledger commit
-  - PR 188 body and issue 210 receipt identify the final pushed head
-  - no sibling implementation PR exists
+  - no competing assembly PR exists
   - no merge has been performed
 
 invariants:
-  - Preserve the exact root ranking kernel and stable debug hooks.
-  - IndexedDB is canonical working state, not a promise against browser eviction.
-  - One shared corpus module owns schema upgrades; root clients open the current version without pinning it.
-  - Corpus mutations and compatibility receipts commit atomically.
-  - Every local record may be deleted; shared assets may not be removed while referenced.
-  - Feed Full and Desktop may change layout physics but never ranking records or action semantics.
-  - Backend identity must not persist the raw local device secret.
-  - Remote principals are opaque capability holders and must not encode vendors, models, companies, or permanent collaboration roles.
-  - Remote messages are append-only and retrieval is cursor-based.
-  - Private credentials, signatures, private payloads, and write authority must never enter consumer code or repository content.
-  - A terminal session generation cannot silently resume; further work requires a new generation or session.
-  - Every successful terminal check must identify the exact tested Git head.
-  - The public LIVE terminal may expose only explicitly public projections.
-  - Do not add a second engineering-belief ledger or duplicate runtime schema authority.
   - Do not infer completion from issue prose.
   - A moved branch head invalidates earlier green receipts until exact-head checks complete.
   - No model, comment, or MATCHED receipt grants merge authority.
