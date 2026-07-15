@@ -29,11 +29,13 @@ jobs:
         env:
           REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
         run: npm run verify:repository
-      - name: Upload exact-tree receipt
+      - name: Upload exact-tree receipt and resolved lock
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: repository-verification-${{ github.sha }}
-          path: repository-verification.json
+          path: |
+            repository-verification.json
+            package-lock.json
           if-no-files-found: error
           retention-days: 14
