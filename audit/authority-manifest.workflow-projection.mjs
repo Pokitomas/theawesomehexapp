@@ -60,6 +60,40 @@ export default [
     denyW: [['scripts/tests/native-maker-worker.test.mjs', 'rejects path escape, secrets, authority writes, and arbitrary witnesses'], ['scripts/tests/workflow-permissions.test.mjs', 'preflight-gated, trusted-main, and draft-PR bounded']]
   },
   {
+    id: 'workflow.maker-sprawl', f: 'workflow', op: 'Admit one exclusive Maker writer lease and fan repository witnesses across four read-only lanes',
+    actor: 'Actor opening or updating a maker/* pull request',
+    principal: 'Read-only GitHub Actions token inspecting pull-request metadata and exact candidate code',
+    auth: 'contents:read globally; pull-requests:read only in the collision gate; no write permission',
+    object: 'Open Maker lease table and candidate check results', owner: 'GitHub repository; the draft PR author owns the unmerged branch',
+    deny: 'head is not maker/*|lease marker missing or malformed|writer_count is not one|lease overlaps another open Maker PR|candidate witness lane fails',
+    replay: 'Exact pull request, head SHA, machine-readable lease marker, compared open PR set, and four lane check results.',
+    pub: 'Lease paths, branch identity, and check status are public in the draft PR.', priv: 'No secrets or local model credentials enter Actions.', st: 'e',
+    s: [
+      'workflow-permission:.github/workflows/maker-sprawl.yml:contents:read',
+      'workflow-permission:.github/workflows/maker-sprawl.yml:pull-requests:read'
+    ],
+    impl: [['.github/workflows/maker-sprawl.yml', "startsWith(github.head_ref, 'maker/')", 'writer_count !== 1', 'github.paginate(github.rest.pulls.list', 'leasesOverlap(current, lease)', 'fail-fast: false', 'persist-credentials: false']],
+    allow: [['scripts/tests/maker-actions-sprawl.test.mjs', 'Maker Actions owns collision and verification sprawl without write authority']],
+    denyW: [['scripts/tests/maker-core.test.mjs', 'lease normalization is prefix-aware and fail-closed'], ['scripts/tests/maker-actions-sprawl.test.mjs', 'Maker candidate checkout is exact and credential-free']]
+  },
+  {
+    id: 'workflow.maker-path-collision', f: 'workflow', op: 'Fail concurrent Maker and agent pull requests whose declared path leases overlap',
+    actor: 'GitHub pull-request actor opening, synchronizing, editing, reopening, or marking a pull request ready',
+    principal: 'Trusted default-branch collision evaluator with a read-only GitHub Actions token',
+    auth: 'contents:read and pull-requests:read only',
+    object: 'Pull-request path lease and collision check result', owner: 'Repository coordination policy; merge authority remains human and branch-protection policy',
+    deny: 'Maker or agent PR has no lease|lease is malformed|base SHA moved|changed file is undeclared|another open Maker or agent lease overlaps|peer Maker PR has no valid lease',
+    replay: 'Pull request number, exact base SHA, changed-file list, open-PR snapshot, declared owned paths, and exact workflow run.',
+    pub: 'Lease declarations, collisions, and check status are public.', priv: 'No secrets are consumed and pull-request contents are already repository-visible.', st: 'e',
+    s: [
+      'workflow-permission:.github/workflows/maker-pr-collision-gate.yml:contents:read',
+      'workflow-permission:.github/workflows/maker-pr-collision-gate.yml:pull-requests:read'
+    ],
+    impl: [['.github/workflows/maker-pr-collision-gate.yml', 'pull_request_target:', 'contents: read', 'pull-requests: read', 'Check out trusted default-branch gate', 'persist-credentials: false', 'gate.evaluatePathLease', 'core.setFailed']],
+    allow: [['scripts/tests/maker-pr-collision-gate.test.mjs', 'a covered non-overlapping Maker PR clears'], ['scripts/tests/workflow-permissions.test.mjs', 'Maker collision gate uses trusted default-branch code with read-only permissions']],
+    denyW: [['scripts/tests/maker-pr-collision-gate.test.mjs', 'overlapping peer leases block both exact-file and directory collisions'], ['scripts/tests/maker-pr-collision-gate.test.mjs', 'unleased or invalid open Maker peers fail closed']]
+  },
+  {
     id: 'workflow.coordination-ticks', f: 'workflow', op: 'Reduce repository events into one bounded coordination-state comment',
     actor: 'GitHub repository event actor', principal: 'Trusted default-branch reducer with the workflow GITHUB_TOKEN',
     auth: 'contents:read, pull-requests:read, actions:read, and issues:write', object: 'One machine-readable state comment on issue #131', owner: 'Repository coordination workflow',
@@ -90,7 +124,7 @@ export default [
     id: 'workflow.read-only-ci', f: 'workflow', op: 'Run repository verification workflows with read-only contents access',
     actor: 'GitHub push or pull-request actor', principal: 'Read-only GitHub Actions token', auth: 'contents:read only',
     object: 'Check results and proof artifacts', owner: 'Repository CI configuration', deny: 'event or path filter does not match|checkout or test fails',
-    replay: 'GitHub run and exact commit SHA.', pub: 'Public check status and intentional proof artifacts.', priv: 'No repository mutation or secret authority is declared.', st: 'e',
+    replay: 'Exact workflow run and commit SHA.', pub: 'Public check status and intentional proof artifacts.', priv: 'No repository mutation or secret authority is declared.', st: 'e',
     s: [
       'workflow-permission:.github/workflows/repository-gate.yml:contents:read',
       'workflow-permission:.github/workflows/weave.yml:contents:read',

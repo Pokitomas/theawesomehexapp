@@ -2,21 +2,23 @@
   "schema": "sideways-social-product-reachability/v1",
   "base": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
   "consumer_client": "studio/manual/product/social-client.js",
+  "consumer_client_extensions": ["studio/manual/product/social-author-controls.js"],
   "relational_service": "netlify/functions/social-relational-core.mjs",
-  "visible_operations": ["session:get", "register:post", "login:post", "logout:post", "discover:get", "feed:get", "post:post", "like:post", "follow:post", "profile:get", "profile:patch"],
-  "server_only_operations": ["community:get", "community:post", "community-member:post", "community-role:post", "community-fork:post", "post:patch", "post-state:post", "moderate:post", "report:post", "appeal:post", "appeal-decide:post", "local-control:post", "community-feed:get", "thread:get"],
+  "visible_operations": ["session:get", "register:post", "login:post", "logout:post", "discover:get", "feed:get", "post:post", "post-state:post", "like:post", "follow:post", "profile:get", "profile:patch"],
+  "server_only_operations": ["community:get", "community:post", "community-member:post", "community-role:post", "community-fork:post", "post:patch", "moderate:post", "report:post", "appeal:post", "appeal-decide:post", "local-control:post", "community-feed:get", "thread:get"],
   "mode_contract": {
     "static": "social client may become unavailable and must not simulate shared mutation",
-    "blob": "account, profile, post, reply, follow, like, discover, and following feed",
-    "postgres": "relational profiles, communities, moderation, appeals, viewer controls, event history, and idempotent mutations"
+    "blob": "account, profile, post, reply, follow, like, discover, and following feed; author removal is visibly unavailable",
+    "postgres": "relational profiles, author post removal, communities, moderation, appeals, viewer controls, event history, and idempotent mutations"
   },
-  "newly_visible_journey": "signed-in user opens PROFILE, reads the server profile, edits public name handle and bio, saves through PATCH profile, and retains the separate local archive identity",
+  "profile_journey": "signed-in user opens PROFILE, reads the server profile, edits public name handle and bio, saves through PATCH profile, and retains the separate local archive identity",
+  "newly_visible_journey": "signed-in author sees REMOVE only on their own public projection, confirms that private archive records are unaffected, deactivates through POST post-state, and refreshes the active server projection",
   "highest_priority_gaps": [
     "no visible community creation, membership, role, or fork journey",
     "no visible thread route beyond inline replies",
     "no visible report, moderation, appeal, or appeal-decision journey",
     "no visible viewer-local mute or block controls",
-    "no visible author edit or delete control despite server authority"
+    "no visible author edit control despite server authority"
   ],
   "release_rule": "A capability is not a product feature until the consumer can reach its exact operation and HTTP method and its unavailable mode is explicit."
 }

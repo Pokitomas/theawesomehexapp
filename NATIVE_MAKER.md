@@ -1,119 +1,119 @@
-# Native Maker runtime
+# Maker runtime
 
-## What the issue trigger does
+Maker is now split into two parts:
 
-`[maker:*]` issue creation can start three independent paths:
+- **local intelligence**: Codex or another user-selected coding agent receives the full repository checkout and terminal inside isolated git worktrees;
+- **GitHub Actions control**: open-PR path leases prevent writer collisions and four read-only verification lanes run in parallel.
 
-1. the lasso records the GitHub arrival in the weave when Remote credentials exist;
-2. coordination workflows update repository state;
-3. the native Maker workflow may run an actual engineering model.
+The default path does not require a hosted model endpoint, a model API key in GitHub, or a self-hosted Actions runner.
 
-The lasso is not the engineering model. A lasso success does not mean a model inspected files, edited code, ran tests, created a branch, or opened a pull request.
+## Use it
 
-The native path is:
-
-`owner Maker issue -> read-only authority preflight -> model planning roles -> bounded repository tool loop -> independent repository verification -> pushed branch -> draft pull request`
-
-Merge and deployment remain human actions.
-
-## Hosted open-model-compatible endpoint
-
-Set repository variables:
-
-- `SIDEWAYS_MODEL_MODE=hosted`
-- `SIDEWAYS_MODEL_PROTOCOL=openai` or `ollama`
-- `SIDEWAYS_MODEL_BASE_URL=<endpoint base URL>`
-- `SIDEWAYS_MODEL_NAME=<model identifier>`
-
-Set repository secret only when the endpoint requires bearer authentication:
-
-- `SIDEWAYS_MODEL_API_KEY=<manual provider key>`
-
-The implementation uses HTTP request shapes directly. It does not install or import a proprietary provider SDK.
-
-Optional limits:
-
-- `SIDEWAYS_MODEL_TIMEOUT_MS`
-- `SIDEWAYS_PLANNING_ENABLED`
-- `SIDEWAYS_PLANNING_MAX_WAVES`
-- `SIDEWAYS_PLANNING_MAX_EVENTS`
-- `SIDEWAYS_PLANNING_MAX_ASSIGNMENTS`
-- `SIDEWAYS_AGENT_MAX_TURNS`
-- `SIDEWAYS_AGENT_MAX_WRITES`
-- `SIDEWAYS_AGENT_MAX_WRITE_BYTES`
-- `SIDEWAYS_AGENT_MAX_MODEL_TOKENS`
-
-## Fully local model path
-
-The local model does not run on the phone. The phone creates the Maker issue. A computer you control runs the model and GitHub runner.
-
-Required manual actions:
-
-1. Install an open-model server on the computer.
-2. Download or mount the chosen model weights using that server's normal method.
-3. Start an Ollama-compatible endpoint, or another endpoint with an OpenAI-compatible chat-completions route.
-4. Probe it from the repository checkout:
+From a clean checkout:
 
 ```bash
-node scripts/check-open-model-runtime.mjs \
-  --protocol ollama \
-  --base-url http://127.0.0.1:11434 \
-  --model YOUR_MODEL_NAME
+npm ci --ignore-scripts
+npm run maker -- "complete the remaining product path end to end"
 ```
 
-5. In GitHub repository settings, create a self-hosted Actions runner for this repository.
-6. GitHub will display a temporary runner registration token and exact setup commands. Enter those manually on the computer. Never post that token in an issue, commit, screenshot, or chat transcript.
-7. Add the custom runner label `sideways-maker`.
-8. Set repository variables:
+The default adapter is Codex CLI. Install and authenticate it locally, then authenticate GitHub CLI:
 
-- `SIDEWAYS_MODEL_MODE=self-hosted`
-- `SIDEWAYS_MODEL_PROTOCOL=ollama`
-- `SIDEWAYS_MODEL_NAME=YOUR_MODEL_NAME`
-- optionally `SIDEWAYS_MODEL_BASE_URL` when the server is not at `http://127.0.0.1:11434`
+```bash
+npm install -g @openai/codex
+codex login
+gh auth login
+```
 
-Public model downloads commonly need no API key. Private model registries or hosted endpoints may require authentication supplied manually to that registry or as `SIDEWAYS_MODEL_API_KEY`. No authentication value belongs in repository text.
+Maker checks both sessions before doing work. The user-facing interface remains one request string; the orchestration is automatic.
 
-## Execution authority
+## What one run does
 
-The model receives these tools only:
+1. Fetches `origin` and binds the run to an exact default-branch SHA.
+2. Starts four read-only agents in parallel:
+   - product journey and frontend UX;
+   - social API to visible-product reachability;
+   - Maker and coding-agent runtime;
+   - hostile full-stack, security, test, and operations review.
+3. Runs one read-only integrator that selects the highest-leverage code-local lane and the smallest plausible path lease.
+4. Creates one `maker/*` branch and one isolated worktree.
+5. Pushes a temporary lease commit and opens a draft PR before implementation.
+6. Waits for `.github/workflows/maker-sprawl.yml` to compare the lease against every other open Maker PR.
+7. Gives exactly one writer workspace-write authority in the isolated worktree.
+8. Runs `git diff --check`, `scripts/native-changed-check.mjs`, and `npm run verify:repository` independently of the agent.
+9. Commits and pushes only a verified patch, updates the draft PR receipt, and waits for the final Actions sprawl run.
 
-- list tracked repository files;
-- read bounded UTF-8 ranges;
-- search tracked text;
-- write bounded files inside the checkout;
-- run fixed allowlisted witnesses;
-- inspect git status and diff;
-- finish with a typed receipt.
+A failed run preserves its worktree, branch, and draft PR when available so recovery does not destroy evidence.
 
-The tool runtime blocks path traversal, secret-like files, `.git`, dependency caches, workflow files, Actions definitions, authority manifests, arbitrary shell commands, package installers, network tools, destructive git operations, merge, and deployment.
+## Collision model
 
-The outer trusted worker independently runs:
+Every draft Maker PR contains a hidden `sideways-maker-lease/v1` JSON marker. The marker includes:
 
-- `git diff --check`
-- changed-file syntax and JSON checks
-- `npm run verify:repository`
+- exact base SHA;
+- session and branch identity;
+- one selected implementation lane;
+- repository-relative owned paths;
+- `writer_count: 1`;
+- human-only merge and deployment authority.
 
-Only a passing patch is committed, pushed, and opened as a draft pull request.
+Paths are exclusive by exact file or directory prefix. `src` collides with `src/app.mjs`; `src` does not collide with `scripts`; `**` collides with everything. The Actions gate has read-only repository and pull-request permissions and cannot merge or mutate code.
 
-## Planning sprawl
+Open Maker PRs are the live lease table. Closing a PR releases its lease.
 
-Before editing, the configured model is reused through typed proposer, opponent, verifier, implementer, integrator, historian, and critic adapters. Their outputs enter the existing recursive weave event model and are reduced into a bounded planning brief. Planning failure is recorded and the direct implementation path may still proceed.
+## Actions sprawl
 
-This is model-assisted planning, not a new trained model.
+After collision admission, Actions fans out four independent witness lanes:
 
-## Episode dataset
+- product: human-quality verification;
+- social: social-memory and reachability tests;
+- operator: native worker plus Maker orchestrator tests;
+- hostile: workflow permissions, supply chain, and operations reality.
 
-Every configured run writes a non-secret structured Actions artifact named `sideways-native-maker-episode-*` containing:
+The ordinary repository gate remains the final exact-tree verifier. Actions coordinates and verifies sprawl; it does not host the primary engineering model.
 
-- Maker intent;
-- provider protocol, model name, and endpoint host;
-- typed planning results;
-- bounded tool actions and observations;
-- verification witnesses;
-- final outcome and draft pull-request URL when produced.
+## Codex adapter
 
-This creates raw material for later evaluation or distillation. No fine-tuning, weight update, model download, or architecture search currently happens automatically. Those require a separately admitted training pipeline, compute, model weights, dataset policy, and any necessary manual credentials.
+Maker uses stable non-interactive Codex execution:
 
-## Missing configuration behavior
+- read-only assessment agents run with a read-only sandbox;
+- the sole writer runs with a workspace-write sandbox;
+- approval prompts are disabled for the unattended invocation;
+- structured assessment and planning outputs use JSON schemas;
+- prompts are sent on stdin and final receipts are written to files.
 
-When no model mode is configured, the workflow posts a blocked receipt on the Maker issue. It explicitly states that no engineering model, workspace, branch, patch, or pull request ran. This prevents a successful lasso receipt from being mistaken for autonomous development.
+Codex authentication remains on the user's computer. It is not copied into GitHub Actions.
+
+## Any-agent adapter
+
+A different coding agent can be used without adding a provider SDK:
+
+```bash
+MAKER_AGENT_COMMAND_JSON='["your-agent","--workspace","{workspace}","--output","{output}"]' \
+  npm run maker -- --agent command "complete the request"
+```
+
+The command is a JSON argv array, never a shell string. Maker sends the prompt on stdin and provides:
+
+- placeholders: `{workspace}`, `{output}`, `{schema}`, `{role}`;
+- environment: `MAKER_WORKSPACE`, `MAKER_OUTPUT`, `MAKER_SCHEMA`, `MAKER_ROLE`, `MAKER_SANDBOX`.
+
+Read-only roles must return JSON matching the supplied schema. The writer may use the repository terminal and leave the completed patch in its worktree.
+
+## Local-only escape hatch
+
+`--local-only` skips push, draft PR creation, and the Actions collision gate. It exists for offline experiments, but it does not provide cross-machine collision protection and is not the default.
+
+`--dry-run` completes the four assessments and synthesis without creating a branch.
+
+## Legacy provider-neutral issue worker
+
+The existing `[maker:*]` issue-triggered worker remains available as an optional constrained runtime for an OpenAI-compatible or Ollama-compatible endpoint. It still requires either hosted endpoint configuration or a self-hosted runner. It is no longer the primary Maker path.
+
+That worker deliberately exposes a small fixed tool surface. The local Maker path is the full-repository operator requested here: the selected local agent can inspect the whole checkout, run git/npm/tests, and implement custom code inside its isolated writer worktree.
+
+## Model improvement boundary
+
+Maker records structured assessments, plans, leases, test evidence, and final receipts. That material can support later evaluation or distillation, but Maker does not pretend to train a new RWKV-style or hybrid foundation model during an ordinary repository run. Weight training requires separately admitted data policy, model code, compute, evaluation, and artifact authority.
+
+## Authority
+
+Maker may create branches, commits, draft PRs, and local temporary worktrees. Human review, merge, deployment, secrets, production data, runner registration, and repository settings remain outside its authority.

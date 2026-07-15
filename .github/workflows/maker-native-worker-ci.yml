@@ -1,19 +1,29 @@
-name: Verify native Maker worker
+name: Verify Maker runtimes
 
 on:
   pull_request:
     paths:
+      - 'AGENTS.md'
       - 'NATIVE_MAKER.md'
+      - 'maker/leases/**'
       - 'scripts/open-model-adapter.mjs'
       - 'scripts/open-model-planning.mjs'
       - 'scripts/native-dev-agent.mjs'
       - 'scripts/native-changed-check.mjs'
       - 'scripts/check-open-model-runtime.mjs'
       - 'scripts/maker-native-worker.mjs'
+      - 'scripts/maker-pr-collision-gate.mjs'
+      - 'scripts/maker-core.mjs'
+      - 'scripts/maker.mjs'
       - 'scripts/tests/native-maker-worker.test.mjs'
+      - 'scripts/tests/maker-pr-collision-gate.test.mjs'
+      - 'scripts/tests/maker-core.test.mjs'
+      - 'scripts/tests/maker-actions-sprawl.test.mjs'
       - 'scripts/tests/workflow-permissions.test.mjs'
       - '.github/workflows/maker-native-worker.yml'
       - '.github/workflows/maker-native-worker-ci.yml'
+      - '.github/workflows/maker-pr-collision-gate.yml'
+      - '.github/workflows/maker-sprawl.yml'
       - 'audit/authority-manifest.workflow-projection.mjs'
       - 'audit/repository-verification.json'
       - 'package.json'
@@ -36,7 +46,7 @@ jobs:
           cache: npm
       - name: Install locked repository dependencies
         run: npm ci --ignore-scripts
-      - name: Check native worker modules
+      - name: Check Maker modules
         run: |
           node --check scripts/open-model-adapter.mjs
           node --check scripts/open-model-planning.mjs
@@ -44,11 +54,16 @@ jobs:
           node --check scripts/native-changed-check.mjs
           node --check scripts/check-open-model-runtime.mjs
           node --check scripts/maker-native-worker.mjs
-      - name: Verify provider-neutral planning, worker, and hostile boundaries
+          node --check scripts/maker-pr-collision-gate.mjs
+          node --check scripts/maker-core.mjs
+          node --check scripts/maker.mjs
+      - name: Verify provider-neutral worker, local orchestrator, and collision evaluator
         run: |
           set -o pipefail
           npm run test:native-maker 2>&1 | tee native-maker-test.log
-      - name: Verify workflow authority fence
+          npm run test:maker 2>&1 | tee maker-orchestrator-test.log
+          node --test scripts/tests/maker-pr-collision-gate.test.mjs 2>&1 | tee maker-collision-test.log
+      - name: Verify workflow authority fences
         run: |
           set -o pipefail
           node --test scripts/tests/workflow-permissions.test.mjs 2>&1 | tee workflow-permissions-test.log
@@ -56,13 +71,15 @@ jobs:
         run: |
           set -o pipefail
           npm run test:authority 2>&1 | tee authority-manifest-test.log
-      - name: Upload exact native worker receipts
+      - name: Upload exact Maker receipts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: native-maker-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          name: maker-verification-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             native-maker-test.log
+            maker-orchestrator-test.log
+            maker-collision-test.log
             workflow-permissions-test.log
             authority-manifest-test.log
           if-no-files-found: ignore
