@@ -131,10 +131,11 @@ async function requestOnce(target, { lookup, timeoutMs, byteLimit, accept }) {
 export async function requestPublicResource(value, options = {}) {
   const limits = { ...DEFAULT_FETCH_LIMITS, ...options };
   const lookup = options.lookup || dns.lookup;
+  const request = options.requestOnce || requestOnce;
   let current = safeSourceURL(value);
   const hops = [];
   for (let hop = 0; hop <= limits.redirects; hop += 1) {
-    const response = await requestOnce(current, {
+    const response = await request(current, {
       lookup,
       timeoutMs: limits.timeoutMs,
       byteLimit: limits.bytes,
