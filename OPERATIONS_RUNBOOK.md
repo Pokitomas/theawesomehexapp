@@ -8,7 +8,7 @@ This runbook separates repository proof from live infrastructure proof. Default 
 export GITHUB_REPOSITORY=Pokitomas/theawesomehexapp
 export SHA="$(git rev-parse HEAD)"
 node --version                    # Node 20+
-npm ci                           # repository lockfile only
+npm ci --ignore-scripts          # repository lockfile only
 npm run verify:repository
 npm run verify:operations
 ```
@@ -35,7 +35,7 @@ The command emits one deterministic JSON receipt to stdout. A partial receipt ex
 1. Confirm `main` points at the intended exact SHA.
 2. Run `npm run verify:repository`.
 3. Dispatch or allow the Pages workflow for that SHA.
-4. Read the deployed `/sideways-deployment.json` sentinel and compare it to `SHA`:
+4. Read the deployed `/.well-known/sideways-deployment.json` sentinel and compare it to `SHA`:
 
 ```bash
 export PUBLIC_URL="https://<authorized-host>"
