@@ -48,8 +48,13 @@ jobs:
           cache: npm
       - name: Install locked browser tooling
         run: |
-          npm ci --ignore-scripts --include=dev
-          node -e "import('playwright-core')"
+          set +e
+          npm ci --ignore-scripts --include=dev >npm-ci-browser.log 2>&1
+          install_status=$?
+          set -e
+          cat npm-ci-browser.log
+          if [ "$install_status" -ne 0 ]; then exit "$install_status"; fi
+          node -e "import('playwright-core')" 2>&1 | tee playwright-import.log
       - name: Prove byte classification surfaces modes and imported deletion
         run: |
           set -euo pipefail
@@ -79,6 +84,8 @@ jobs:
           path: |
             manual-universal-media-grid.png
             manual-universal-media-empty.png
+            npm-ci-browser.log
+            playwright-import.log
             universal-media-check.log
             runtime-hardening-check.log
             /tmp/universal-media-http.log
