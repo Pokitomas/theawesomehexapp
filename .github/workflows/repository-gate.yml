@@ -29,6 +29,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify exact repository tree
         env:
+          CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
         run: npm run verify:repository
       - name: Upload exact-tree receipt and resolved lock
