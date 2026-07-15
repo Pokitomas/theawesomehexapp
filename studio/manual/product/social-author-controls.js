@@ -102,7 +102,7 @@ async function decorateCard(card) {
 }
 
 async function decorate() {
-  await Promise.all([...document.querySelectorAll('#feed .post[data-social-post]')].map(decorateCard));
+  await Promise.all([...document.querySelectorAll('#feed .post')].map(decorateCard));
 }
 
 function queueDecorate() {
