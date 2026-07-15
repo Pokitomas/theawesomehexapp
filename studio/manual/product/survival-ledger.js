@@ -17,6 +17,7 @@ const LEGACY_PROFILE_KEY = 'sideways-local-profile-v1';
 const ARK_MAGIC = 'SIDEWAYS-ARK/1\n';
 const VAULT_DIR = 'sideways-vault';
 const ASSET_DIR = 'assets';
+// A user-owned Ark excludes server projections; canonical public authority remains server-owned.
 const isServerProjection = record => String(record?.nativeId || '').startsWith('network:');
 
 const safeName = value => encodeURIComponent(String(value || 'asset')).replaceAll('%', '_').slice(0, 220);
