@@ -102,6 +102,16 @@ def remove_retired_social(text: str) -> str:
     return text
 
 
+def place_human_layer_last() -> None:
+    index = MANUAL / "index.html"
+    text = index.read_text(encoding="utf-8")
+    for marker in (HUMAN_STYLE_MARKER, HUMAN_SCRIPT_MARKER):
+        text = text.replace(f"  {marker}\n", "").replace(marker, "")
+    text = inject_once(text, HUMAN_STYLE_MARKER, "</head>")
+    text = inject_once(text, HUMAN_SCRIPT_MARKER, "</body>")
+    index.write_text(text, encoding="utf-8")
+
+
 def remote_snapshot() -> tuple[dict, dict]:
     state_path = ROOT / ".frankenstate"
     text = state_path.read_text(encoding="utf-8") if state_path.is_file() else ""
@@ -213,6 +223,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
+    place_human_layer_last()
     print("applied local ownership, public social projection, Ark recovery, human Sideways presentation, and separated developer surfaces")
 
 
