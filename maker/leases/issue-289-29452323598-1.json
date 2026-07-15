@@ -1,0 +1,43 @@
+{
+  "version": "sideways-maker-lease/v1",
+  "issue": 289,
+  "base_branch": "main",
+  "base_sha": "36666d4288fca28a0a76324f6cb7906050d7e11e",
+  "branch": "maker/issue-289-29452323598-1",
+  "writer_count": 1,
+  "owner": "Pokitomas direct operator",
+  "purpose": "Separate human Sideways from a repository-general autonomous Maker and add truthful Foundry model admission.",
+  "owned_paths": [
+    "maker/**",
+    "scripts/maker-engine.mjs",
+    "scripts/maker-foundry-adapter.mjs",
+    "scripts/native-dev-agent.mjs",
+    "scripts/maker-native-worker.mjs",
+    "scripts/tests/maker-terminal-release.test.mjs",
+    "scripts/tests/maker-console.test.mjs",
+    "src/**"
+  ],
+  "excluded_active_paths": [
+    "scripts/build-web-source-snapshot.mjs",
+    "scripts/web-source-security.mjs",
+    "scripts/web-source-records.mjs",
+    "scripts/tests/web-source-snapshot.test.mjs",
+    "scripts/tests/discovery-connected-import.test.mjs",
+    "studio/manual/product/account-connections.js",
+    "studio/manual/product/discovery-source.js",
+    "studio/manual/product/add-to-sideways.css",
+    "studio/manual/product/add-to-sideways-runtime.js",
+    "studio/manual/product/import-studio.js",
+    "studio/manual/imports/apply.py",
+    "studio/manual/verify.py",
+    "package.json",
+    "audit/repository-verification.json"
+  ],
+  "read_only_paths": ["foundry/**"],
+  "authority": {
+    "merge": "human",
+    "deploy": "human",
+    "training_spend": "human",
+    "production_data": "none"
+  }
+}
