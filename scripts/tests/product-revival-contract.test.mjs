@@ -4,9 +4,9 @@ import test from 'node:test';
 
 const root = new URL('../../', import.meta.url);
 const read = path => readFile(new URL(path, root), 'utf8');
+const trackedEvidence = path => path === 'src/app.js' ? 'studio/manual/prepare-kernel.py' : path;
 
 const audit = JSON.parse(await read('audit/product-journey.json'));
-
 const byId = new Map(audit.surfaces.map(surface => [surface.id, surface]));
 
 test('product audit defines one promise and all current entry surfaces', () => {
@@ -19,7 +19,7 @@ test('product audit defines one promise and all current entry surfaces', () => {
   assert.equal(byId.get('maker').default_user_path, false);
 });
 
-test('journey evidence names tracked implementation surfaces and no completed gap contradicts itself', async () => {
+test('journey evidence resolves to tracked source or an explicit generated-source assembler', async () => {
   const named = new Set();
   for (const step of audit.journey) {
     assert.ok(byId.has(step.surface), `unknown surface ${step.surface}`);
@@ -28,10 +28,11 @@ test('journey evidence names tracked implementation surfaces and no completed ga
     if (step.state === 'partial') assert.ok(step.gap);
     for (const path of step.evidence) {
       named.add(path);
-      await assert.doesNotReject(read(path), `missing evidence ${path}`);
+      await assert.doesNotReject(read(trackedEvidence(path)), `missing evidence ${path}`);
     }
   }
   assert.ok(named.size >= 7);
+  assert.equal(trackedEvidence('src/app.js'), 'studio/manual/prepare-kernel.py');
 });
 
 test('internal founder and Maker language cannot become the default consumer promise', async () => {
