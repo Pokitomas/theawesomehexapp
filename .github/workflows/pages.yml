@@ -102,12 +102,14 @@ jobs:
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
 
-      - name: Install locked tooling and run ingestion contracts
-        run: |
-          git checkout -- package-lock.json
-          npm ci --ignore-scripts --include=dev
-          npm run test:ingestion
-          node -e "import('playwright-core')"
+      - name: Install locked tooling
+        run: npm ci --ignore-scripts --include=dev
+
+      - name: Run discovery and connected-import contracts
+        run: npm run test:ingestion
+
+      - name: Verify browser tooling import
+        run: node -e "import('playwright-core')"
 
       - name: Build bounded provider-neutral web source snapshot
         if: github.event_name == 'push'
