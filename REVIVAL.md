@@ -1,54 +1,41 @@
 # Sideways repository revival
 
-Issue #223 is the parent generation. This document is the human map. The single root `.frankenstate` remains the canonical coordination ledger.
+Issue #223 is the parent generation. This document is the human map; `.frankenstate` is the canonical machine-readable ledger.
 
-## Current executable lanes
+## Assembly state
 
-| Lane | Issue | Draft PR | Exact reviewed head | Current state |
-|---|---:|---:|---|---|
-| product | #224 | #234 | `eeaf6a292049a309a3bad5e5b1b32e56d1f25ce2` | journey audit green; runnable variants pending |
-| archive | #225 | #235 | `eec8f79220dc011bd314fb5b4db12b8e6086847b` | survival audit green; quota/interruption/rollback witnesses pending |
-| social | #226 | #236 | `1b8b1410c16ceb08af19441dcba4139142d600a3` | method-specific reachability green; missing visible capability pending |
-| ranking | #227 | #237 | `49b5dbc319d6bf1435fa7e4994ea05d4f8439bda` | synthetic baseline comparison green; real outcome evidence pending |
-| weave | #228 | #238 | `33bd3d68588b605e833c43b6353ef26a06c723d9` | replay/privacy and terminal lifecycle green; runtime activation pending |
-| Maker | #229 | #239 | `0f8238b098264c791d5f4e5537f8d9d1bde11864` | worker green; real model episode pending |
-| operations | #230 | #240 | `60fdd708af77ef4239aee3f5a4d1592d8b8f0408` | repository facts green; external facts pending |
-| quality | #231 | #241 | `5183e6d3ed5e3d3dd3e4a5f308930ef7c0ef7667` | static and measured-phone evidence green; runtime matrix pending |
-| assembly | #232 | #233 | current branch | coordination current; child heads not transported |
+All eight child implementation lanes have been transported into PR #233 using expected-head checks and history-preserving merges or exact blob overlays where shared manifests conflicted.
 
-Maker issue #242 and draft PR #244 form a review delta against PR #239. Head `5b20bd5f7c2bb93aa23ded842e8c26d049d166a4` gives each planning role a distinct bounded contract and passed all 14 triggered workflows. It is reviewed evidence, not yet part of PR #239.
+| Lane | Source PR | Transported exact head | Assembly result |
+|---|---:|---|---|
+| product | #234 | `eeaf6a292049a309a3bad5e5b1b32e56d1f25ce2` | journey audit and admission present |
+| archive | #235 | `3b816a76c8705a63ef6563691f8192065255d8dc` | survival truth and failure witnesses present |
+| social | #236 | `00d78fa41acd336db82f026081cb691aaff59b7f` | reachability audit plus concurrent profile/diagnostic repairs present |
+| ranking | #237 | `49b5dbc319d6bf1435fa7e4994ea05d4f8439bda` | deterministic evaluation and cumulative exact-tree admission present |
+| weave | #238 | `33bd3d68588b605e833c43b6353ef26a06c723d9` | replay privacy, complete lasso history, and terminal lifecycle present |
+| Maker | #239 | `10ee0cd41b4ae5373db1e905651b5b62f27a7179` | provider-neutral worker, distinct role contracts, and terminal release present |
+| operations | #240 | `fddfd0d0cd8afe499201f5f5656ad0669eb1a8b8` | fail-honest operations report and exact-tree admission present |
+| quality | #241 | `5183e6d3ed5e3d3dd3e4a5f308930ef7c0ef7667` | Founder accessibility repair and human-quality admission present |
 
-## Superseded source vehicles
+The current assembly includes cumulative `package.json` and `audit/repository-verification.json` composition. No lane’s suite was removed to admit another.
 
-PRs #216, #217, and #222 supplied reviewed implementation now preserved by #238 and #239. The active revival PRs are the only intended mainline vehicles for those lanes.
+## Collision handling
 
-## Parallel execution rule
+- Product and quality both touched Founder-facing surfaces; the reviewed label and focus treatment was preserved.
+- Ranking, Maker, operations, and quality all changed exact-tree controls; their suites are cumulative.
+- Weave and Maker modified shared execution tests; exact source blobs were overlaid on the live assembly tree while `.frankenstate` remained assembly-owned.
+- Concurrent social profile actions and manual-assembly diagnostics moved the branch during transport; both movements interrupted the pending ref update and were preserved before integration resumed.
+- No force-push was used.
 
-1. Every lane reads current main and active overlapping PRs before editing.
-2. Every lane owns a unique branch and declared files.
-3. Distinct lanes may move simultaneously.
-4. Overlap is a collision requiring written resolution, never silent overwrite.
-5. A moved head invalidates earlier proof until exact-head workflows complete.
-6. Assembly transports reviewed child heads; it does not recreate their work.
-7. No coordination receipt grants merge or deployment permission.
+## Deployment boundary
 
-## Current collisions
+The code-local assembly proceeds to merge only after the final combined head passes its complete triggered workflow matrix. Merge uses an expected-head lock. The resulting push to `main` must independently pass the Pages deployment workflow and exact served-commit verification before a live deployment is claimed.
 
-- Product #234 and quality #241 both touch the human-facing Founder surface. Assembly must preserve #241’s reviewed label/focus correction when product variants move.
-- Maker delta #244 targets the #239 branch and must be reviewed as a child integration, not opened as a second mainline Maker vehicle.
-- Several child lanes modify exact-tree suite manifests. Assembly must combine suite additions without last-writer loss.
+The following are not manufactured as repository facts and remain post-merge operational work:
 
-## Generation completion
+- a real Maker model endpoint or self-hosted runner episode;
+- dated production backup/restore, rollback, rate-limit, environment, and database observations;
+- delayed-feedback ranking outcomes beyond the synthetic fixture;
+- broader runtime browser, screen-reader, network, quota, and storage-pressure evidence.
 
-The final decision remains blocked until:
-
-- one coherent root-to-archive journey is runnable on phone and desktop;
-- archive rollback, quota, and interrupted-write evidence exists;
-- one currently server-only social capability is reachable through a real user journey;
-- ranking has outcome evidence beyond a synthetic geometry fixture;
-- weave dispatch and external participant activation are proven;
-- one real configured Maker episode creates a draft PR;
-- dated external operations evidence exists;
-- runtime accessibility, browser, performance, network, and storage acceptance exists;
-- the combined exact head passes the full matrix;
-- issue #232 posts `MERGE RECOMMENDED`, `HOLD`, or `REJECT` against that exact head.
+Those external gaps do not erase the implemented code, but the repository must continue to label them as unknown until observed.
