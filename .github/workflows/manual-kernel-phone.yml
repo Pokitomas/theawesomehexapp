@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
       - name: Build only the manual product
@@ -50,7 +50,7 @@ jobs:
           cp -a manual-app/. dist/manual/
       - name: Upload verifier diagnostic
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: workspace-verify-log
           path: /tmp/workspace-verify.log
@@ -60,12 +60,12 @@ jobs:
         run: |
           tar -czf /tmp/manual-kernel-built.tar.gz manual-app manual-kernel studio/manual dist/manual
       - name: Upload exact built source
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: manual-kernel-built
           path: /tmp/manual-kernel-built.tar.gz
           retention-days: 2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -102,7 +102,7 @@ jobs:
           fi
       - name: Upload phone proof and diagnostic
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: manual-workspace-phone
           path: |
