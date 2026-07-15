@@ -144,6 +144,7 @@ async function openProfile() {
   closeDialog(profileDialog);
   const dialog = el('dialog', 'social-dialog');
   dialog.dataset.socialProfile = 'true';
+  dialog.dataset.profileReady = 'loading';
   const windowNode = el('section', 'social-window');
   const bar = el('header', 'social-titlebar');
   bar.append(el('strong', '', 'Public profile'), actionButton('social.close', () => closeDialog(dialog), { className: 'social-close', label: 'Close' }));
@@ -156,6 +157,7 @@ async function openProfile() {
   handle.input.maxLength = 30;
   bio.input.maxLength = 180;
   bio.input.rows = 4;
+  for (const input of [name.input, handle.input, bio.input]) input.disabled = true;
   body.append(message, name.wrap, handle.wrap, bio.wrap);
   const save = actionButton('social.profile.save', () => run(async () => {
     message.hidden = false;
@@ -177,6 +179,7 @@ async function openProfile() {
       return { cancelled: true };
     }
   }), { className: 'social-primary', label: 'Save profile' });
+  save.disabled = true;
   const footer = el('footer', 'social-window-footer');
   footer.append(save);
   windowNode.append(bar, body, footer);
@@ -190,9 +193,13 @@ async function openProfile() {
     name.input.value = profile.name || '';
     handle.input.value = profile.handle || '';
     bio.input.value = profile.bio || '';
+    for (const input of [name.input, handle.input, bio.input]) input.disabled = false;
+    save.disabled = false;
+    dialog.dataset.profileReady = 'true';
     message.hidden = true;
     setTimeout(() => name.input.focus(), 50);
   } catch (error) {
+    dialog.dataset.profileReady = 'error';
     message.dataset.tone = 'error';
     message.textContent = error.message;
     save.disabled = true;
