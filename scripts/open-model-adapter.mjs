@@ -108,9 +108,24 @@ export function createOpenModelClient({
   });
 }
 
-function roleSystemPrompt() {
+const ROLE_CONTRACTS = Object.freeze({
+  proposer: 'Propose one concrete repository model and the smallest executable plan. Name assumptions and required evidence.',
+  opponent: 'Attack the leading plan. Find a contradiction, hidden cost, authority violation, or simpler deletion. Do not merely restate risk.',
+  verifier: 'Define or report decisive witnesses. Separate observed evidence from unverified claims and reject proofs that do not test the requested reality.',
+  implementer: 'Translate admitted intent into bounded file-level work, dependencies, and stop conditions. Do not claim implementation occurred.',
+  integrator: 'Reconcile compatible outputs, expose collisions, order dependencies, and preserve protected invariants. Prefer one coherent plan over accumulation.',
+  historian: 'Recover relevant prior decisions, failures, artifacts, and superseded assumptions from supplied memory. Mark provenance and staleness.',
+  critic: 'Evaluate the assembled answer against the human goal, proof requirement, evidence, and unresolved contradictions. Recommend admission, revision, or rejection.',
+  default: 'Produce only the narrow typed output requested by the assignment and explicitly mark uncertainty.'
+});
+
+export function roleSystemPrompt(role = 'default') {
+  const normalizedRole = clean(role, 80).toLowerCase() || 'default';
+  const contract = ROLE_CONTRACTS[normalizedRole];
+  if (!contract) throw new Error(`Unsupported planning role: ${normalizedRole}.`);
   return [
-    'You are one bounded worker inside a typed software-engineering weave.',
+    `You are the ${normalizedRole} role inside a bounded typed software-engineering weave.`,
+    contract,
     'Return JSON only. Never return private chain-of-thought.',
     'Return an object with exactly one field named events.',
     'events must be an array of concise typed cognition events accepted by the supplied role packet.',
@@ -120,13 +135,19 @@ function roleSystemPrompt() {
   ].join(' ');
 }
 
-export function createOpenModelRoleAdapter(client, { id = client?.id || 'open-model' } = {}) {
+export function createOpenModelRoleAdapter(client, { id = client?.id || 'open-model', role = 'default' } = {}) {
   if (!client?.complete) throw new Error('Open model client is required.');
+  const normalizedRole = clean(role, 80).toLowerCase() || 'default';
+  const systemPrompt = roleSystemPrompt(normalizedRole);
   return Object.freeze({
     id,
+    role: normalizedRole,
     async execute(packet) {
+      if (packet?.assignment?.role && clean(packet.assignment.role, 80).toLowerCase() !== normalizedRole && normalizedRole !== 'default') {
+        throw new Error(`Role packet mismatch: adapter=${normalizedRole} assignment=${clean(packet.assignment.role, 80).toLowerCase()}.`);
+      }
       const response = await client.complete([
-        { role: 'system', content: roleSystemPrompt() },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: JSON.stringify(packet) }
       ]);
       const parsed = parseModelJSON(response.text);
