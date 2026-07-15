@@ -3,9 +3,12 @@ name: Verify native Maker worker
 on:
   pull_request:
     paths:
+      - 'NATIVE_MAKER.md'
       - 'scripts/open-model-adapter.mjs'
+      - 'scripts/open-model-planning.mjs'
       - 'scripts/native-dev-agent.mjs'
       - 'scripts/native-changed-check.mjs'
+      - 'scripts/check-open-model-runtime.mjs'
       - 'scripts/maker-native-worker.mjs'
       - 'scripts/tests/native-maker-worker.test.mjs'
       - 'scripts/tests/workflow-permissions.test.mjs'
@@ -36,10 +39,12 @@ jobs:
       - name: Check native worker modules
         run: |
           node --check scripts/open-model-adapter.mjs
+          node --check scripts/open-model-planning.mjs
           node --check scripts/native-dev-agent.mjs
           node --check scripts/native-changed-check.mjs
+          node --check scripts/check-open-model-runtime.mjs
           node --check scripts/maker-native-worker.mjs
-      - name: Verify provider-neutral worker and hostile boundaries
+      - name: Verify provider-neutral planning, worker, and hostile boundaries
         run: npm run test:native-maker
       - name: Verify workflow authority fence
         run: node --test scripts/tests/workflow-permissions.test.mjs
