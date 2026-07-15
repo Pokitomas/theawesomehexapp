@@ -45,7 +45,6 @@ async function snapshot() {
   try {
     profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || localStorage.getItem(LEGACY_PROFILE_KEY) || '{}');
   } catch {}
-  // The user-owned Ark excludes server projections; those public facts can be fetched again.
   return { records, assets, ledger: ledger || [], places: places || [], profile };
 }
 
@@ -63,30 +62,46 @@ async function writeFile(directory, name, value) {
   try { await writable.write(value); } finally { await writable.close(); }
 }
 
-export async function mirrorAll() {
-  const { records, assets } = await snapshot();
-  const dirs = await opfs(true).catch(() => null);
+export async function mirrorAll({ capture = snapshot, open = opfs, write = writeFile, record = appendLedger } = {}) {
+  const { records, assets } = await capture();
+  const dirs = await open(true).catch(() => null);
   if (!dirs) {
     const result = { status: 'unavailable', records: records.length, assets: assets.length, sameOrigin: true };
-    await appendLedger('survival.mirror.unavailable', result);
+    await record('survival.mirror.unavailable', result);
     return result;
   }
   let bytes = 0;
-  for (const asset of assets) {
-    await writeFile(dirs.assets, `${safeName(asset.key)}.bin`, asset.blob);
-    bytes += Number(asset.blob?.size || 0);
-    await new Promise(resolve => setTimeout(resolve, 0));
+  let writtenAssets = 0;
+  try {
+    for (const asset of assets) {
+      await write(dirs.assets, `${safeName(asset.key)}.bin`, asset.blob);
+      writtenAssets += 1;
+      bytes += Number(asset.blob?.size || 0);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    await write(dirs.vault, 'manifest.json', JSON.stringify({
+      version: 1,
+      at: new Date().toISOString(),
+      sameOrigin: true,
+      externalBackup: false,
+      records: records.map(record => ({ id: record.id, hash: record.hash, assetKey: record.assetKey || '' })),
+      assets: assets.map(asset => ({ key: asset.key, size: Number(asset.blob?.size || 0), mime: asset.mime || asset.blob?.type || '' }))
+    }, null, 2));
+  } catch (error) {
+    const failure = {
+      status: 'failed',
+      records: records.length,
+      assets: assets.length,
+      writtenAssets,
+      bytes,
+      sameOrigin: true,
+      error: String(error?.message || error).slice(0, 500)
+    };
+    await record('survival.mirror.failed', failure);
+    throw error;
   }
-  await writeFile(dirs.vault, 'manifest.json', JSON.stringify({
-    version: 1,
-    at: new Date().toISOString(),
-    sameOrigin: true,
-    externalBackup: false,
-    records: records.map(record => ({ id: record.id, hash: record.hash, assetKey: record.assetKey || '' })),
-    assets: assets.map(asset => ({ key: asset.key, size: Number(asset.blob?.size || 0), mime: asset.mime || asset.blob?.type || '' }))
-  }, null, 2));
   const result = { status: 'ready', records: records.length, assets: assets.length, bytes, sameOrigin: true };
-  await appendLedger('survival.mirror.checkpoint', result);
+  await record('survival.mirror.checkpoint', result);
   return result;
 }
 
