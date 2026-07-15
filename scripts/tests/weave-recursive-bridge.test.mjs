@@ -78,11 +78,16 @@ test('one seed fans out to parallel agents, folds outputs, and converges idempot
   assert.deepEqual([remote.events.length, github.comments.length], [eventCount, commentCount]);
 });
 
-test('unauthorized seed leaves the guarded bridge idle', async () => {
+test('unauthorized seed leaves the canonical bridge idle', async () => {
   const remote = new Remote();
   const github = new Issue([{ id: 1, body: seed, created_at: at(1), author_association: 'NONE', user: { login: 'stranger' } }]);
-  const result = await runGuardedRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now: () => at(2) });
+  const result = await runRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now: () => at(2) });
   assert.equal(result.status, 'idle');
+  assert.equal(remote.events.length, 0);
+  assert.equal(github.comments.length, 1);
+
+  const guarded = await runGuardedRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now: () => at(3) });
+  assert.equal(guarded.status, 'idle');
   assert.equal(remote.events.length, 0);
   assert.equal(github.comments.length, 1);
 });
