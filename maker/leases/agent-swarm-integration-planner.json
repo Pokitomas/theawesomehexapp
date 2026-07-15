@@ -1,7 +1,7 @@
 {
   "version": "sideways-path-lease/v1",
   "base_branch": "main",
-  "base_sha": "c19d3f638a10d27bd2d1b897b037a204a4d0ea95",
+  "base_sha": "f660fa4ed7e4b686a3e4d2907c4d8d606076638f",
   "owner": "GPT-5.6 Thinking",
   "purpose": "Add a deterministic read-only planner for composing concurrent pull requests, preserving collisions, exact-head receipts, and human merge authority.",
   "owned_paths": [
@@ -17,5 +17,5 @@
     "force_push": false,
     "secrets": "never-in-snapshot-plan-or-receipt"
   },
-  "state": "mainline_verification_pending"
+  "state": "final_mainline_verification_pending"
 }
