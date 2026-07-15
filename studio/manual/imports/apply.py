@@ -10,6 +10,7 @@ PRODUCT = HERE.parent / "product"
 MANUAL = ROOT / "manual-app"
 
 STYLE = '<link rel="stylesheet" href="./import-studio.css" data-import-workbench>'
+FINAL_EXPERIENCE_STYLE = '<link rel="stylesheet" href="./experience-final.css" data-sideways-experience-final>'
 SCRIPT = '<script type="module" src="./import-studio.js" data-import-workbench></script>'
 PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone></script>'
 SOCIAL_STYLE = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
@@ -46,7 +47,8 @@ def main() -> None:
 
     index = MANUAL / "index.html"
     html = index.read_text(encoding="utf-8")
-    html = inject_once(html, STYLE, "</head>")
+    style_anchor = FINAL_EXPERIENCE_STYLE if FINAL_EXPERIENCE_STYLE in html else "</head>"
+    html = inject_once(html, STYLE, style_anchor)
     html = inject_once(html, SCRIPT, "</body>")
     html = inject_once(html, PHONE_SCRIPT, "</body>")
     social_live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("SOCIAL_LIVE_ENDPOINT", "") == "1"
@@ -59,7 +61,7 @@ def main() -> None:
         html = remove_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT)
         html = remove_once(html, SOCIAL_GOVERNANCE_CONTROLS_SCRIPT)
     index.write_text(html, encoding="utf-8")
-    print("applied manual import workbench and gated the complete live social client to server-backed builds")
+    print("applied manual import workbench beneath the final consumer skin and gated live social controls to server-backed builds")
 
 
 if __name__ == "__main__":
