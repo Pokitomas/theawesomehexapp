@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - 'NATIVE_MAKER.md'
+      - 'maker/leases/**'
       - 'scripts/open-model-adapter.mjs'
       - 'scripts/open-model-planning.mjs'
       - 'scripts/native-dev-agent.mjs'
       - 'scripts/native-changed-check.mjs'
       - 'scripts/check-open-model-runtime.mjs'
       - 'scripts/maker-native-worker.mjs'
+      - 'scripts/maker-pr-collision-gate.mjs'
       - 'scripts/tests/native-maker-worker.test.mjs'
+      - 'scripts/tests/maker-pr-collision-gate.test.mjs'
       - 'scripts/tests/workflow-permissions.test.mjs'
       - '.github/workflows/maker-native-worker.yml'
       - '.github/workflows/maker-native-worker-ci.yml'
+      - '.github/workflows/maker-pr-collision-gate.yml'
       - 'audit/authority-manifest.workflow-projection.mjs'
       - 'audit/repository-verification.json'
       - 'package.json'
@@ -44,11 +48,12 @@ jobs:
           node --check scripts/native-changed-check.mjs
           node --check scripts/check-open-model-runtime.mjs
           node --check scripts/maker-native-worker.mjs
+          node --check scripts/maker-pr-collision-gate.mjs
       - name: Verify provider-neutral planning, worker, and hostile boundaries
         run: |
           set -o pipefail
           npm run test:native-maker 2>&1 | tee native-maker-test.log
-      - name: Verify workflow authority fence
+      - name: Verify workflow authority and collision fences
         run: |
           set -o pipefail
           node --test scripts/tests/workflow-permissions.test.mjs 2>&1 | tee workflow-permissions-test.log
