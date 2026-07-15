@@ -21,7 +21,7 @@
     ".github/workflows/maker-console.yml",
     ".github/workflows/maker-platform.yml",
     "audit/repository-verification.json",
-    "audit/authority-manifest.json",
+    "audit/authority-manifest.mjs",
     "audit/authority-manifest.workflow-projection.mjs",
     "package.json",
     "scripts/maker-native-worker.mjs",
