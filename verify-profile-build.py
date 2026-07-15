@@ -20,6 +20,8 @@ def require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+subprocess.run(["node", "scripts/root-product-completion.cjs", str(ROOT)], check=True)
+
 manifest = load(DATA / "manifest.json")
 mix = load(DATA / "mix.json")
 authors = load(DATA / "author-index.json")
@@ -85,18 +87,33 @@ require(required_customization <= set(profile.get("customization", [])), "profil
 for relative in (
     "profile.js",
     "profile.css",
+    "root-product-completion.js",
+    "root-product-completion.css",
     "assets/sideways-mark.svg",
     "assets/sideways-mask.svg",
     "assets/site.webmanifest",
 ):
-    require((ROOT / relative).is_file(), f"missing profile asset: {relative}")
+    require((ROOT / relative).is_file(), f"missing profile or product asset: {relative}")
+
+index = (ROOT / "index.html").read_text(encoding="utf-8")
+require('data-root-product-completion' in index, "ordinary root product completion was not installed")
+require('./manual/' in (ROOT / "root-product-completion.js").read_text(encoding="utf-8"), "direct private archive route missing")
+require('Why this is here' in (ROOT / "root-product-completion.js").read_text(encoding="utf-8"), "ordinary ranking explanation control missing")
 
 subprocess.run(["node", "--check", str(ROOT / "app.js")], check=True)
 subprocess.run(["node", "--check", str(ROOT / "profile.js")], check=True)
+subprocess.run(["node", "--check", str(ROOT / "root-product-completion.js")], check=True)
+subprocess.run(["node", "scripts/root-product-phone.mjs", str(ROOT)], check=True)
 
 print(json.dumps({
     "candidates": manifest["count"],
     "authors": len(authors),
     "profileSchema": profile["schema"],
     "customization": profile["customization"],
+    "rootProduct": {
+        "promise": True,
+        "directArchive": "./manual/",
+        "ordinaryExplanation": True,
+        "browserProof": ["390x844", "1440x1000", "200%", "400%", "reduced-motion", "offline"],
+    },
 }, indent=2))
