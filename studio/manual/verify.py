@@ -31,6 +31,7 @@ SOURCE_FILES = (
     PRODUCT / "studio-components.css",
     PRODUCT / "studio-reset.css",
     PRODUCT / "workspace.css",
+    PRODUCT / "experience.css",
     PRODUCT / "system-icons.svg",
     PRODUCT / "import-studio.js",
     PRODUCT / "import-studio.css",
@@ -104,6 +105,9 @@ def main() -> None:
             '"workspace-records.js"',
             '"universal-media.js"',
             '"media-modes.js"',
+            '"experience.css"',
+            "EXPERIENCE_STYLE_MARKER",
+            "data-sideways-experience",
             "shared_target",
             '"corpus-db.js"',
             '"workspace-sync.js"',
@@ -113,6 +117,20 @@ def main() -> None:
             "db.onversionchange=()=>db.close()",
         ),
         "workspace installer",
+    )
+
+    experience_source = source[PRODUCT / "experience.css"]
+    require(
+        experience_source,
+        (
+            "--experience-paper",
+            "--experience-violet",
+            "html.workspace-chrome .post",
+            "html.workspace-chrome .workspace-window",
+            "@media (max-width: 520px)",
+            "@media (prefers-reduced-motion: reduce)",
+        ),
+        "consumer experience layer",
     )
 
     db_source = source[SHARED / "corpus-db.js"]
@@ -174,7 +192,7 @@ def main() -> None:
     forbid(remote_source, ("REMOTE_ROOT_KEY", "REMOTE_PRIVATE_KEY", "x-remote-signature"), "browser credential leak")
 
     if not MANUAL.exists():
-        print("local-first runtime sources verified")
+        print("local-first runtime sources and cohesive experience verified")
         return
 
     generated_js = (
@@ -190,6 +208,8 @@ def main() -> None:
         path = MANUAL / name
         read_clean(path)
         node_check(path)
+
+    read_clean(MANUAL / "experience.css")
 
     for retired in ("social.js", "social.css", "workspace-sync.js"):
         if (MANUAL / retired).exists():
@@ -207,6 +227,8 @@ def main() -> None:
             raise AssertionError(f"stable DOM hook missing: {hook}")
     if index.count("data-workspace-product") != 2 or index.count("data-universal-media") != 1 or index.count("data-media-modes") != 1:
         raise AssertionError("generated runtime layers are duplicated or missing")
+    if index.count("data-sideways-experience") != 1:
+        raise AssertionError("consumer experience layer is duplicated or missing")
     if index.count("data-remote-terminal") != 2 or index.count("data-sideways-remote") != 1:
         raise AssertionError("public live-work terminal is duplicated or missing")
     for name in ("remote-snapshot.json", ".well-known/sideways-remote.json"):
@@ -214,7 +236,7 @@ def main() -> None:
             raise AssertionError(f"remote discovery projection missing: {name}")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
-    print("local-first runtime, one-owner schema, atomic ledger, and viewport media contracts verified")
+    print("local-first runtime, one-owner schema, atomic ledger, viewport media, and cohesive experience contracts verified")
 
 
 if __name__ == "__main__":
