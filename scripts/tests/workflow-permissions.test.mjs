@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const pagesPath = new URL('../../.github/workflows/pages.yml', import.meta.url);
 const lassoPath = new URL('../../.github/workflows/weave-lasso.yml', import.meta.url);
+const makerWorkerPath = new URL('../../.github/workflows/maker-native-worker.yml', import.meta.url);
 const checkoutRef = /uses:\s*actions\/checkout@[0-9a-f]{40}(?:\s+#\s*v4)?\s*$/;
 
 function job(source, name, next = '') {
@@ -69,4 +70,37 @@ test('secret-bearing lasso execution uses only trusted default-branch code', asy
   assert.match(source, /name: Verify trusted lasso before execution\n        working-directory: trusted-lasso/);
   assert.match(source, /name: Group the incoming principal[\s\S]*?working-directory: trusted-lasso[\s\S]*?node scripts\/weave-lasso\.mjs github-event/);
   assert.doesNotMatch(source, /working-directory: (?!trusted-lasso)/);
+});
+
+test('native Maker write authority is owner-gated, trusted-main, and draft-PR bounded', async () => {
+  const source = await readFile(makerWorkerPath, 'utf8');
+  const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
+  assert.match(top, /^  contents: read$/m);
+  assert.doesNotMatch(top, /write/);
+
+  const blocked = job(source, 'blocked', 'hosted-worker');
+  assert.match(blocked, /github\.actor == github\.repository_owner/);
+  assert.match(blocked, /startsWith\(github\.event\.issue\.title, '\[maker:'\)/);
+  assert.match(blocked, /^      contents: read$/m);
+  assert.match(blocked, /^      issues: write$/m);
+  assert.doesNotMatch(blocked, /pull-requests: write|contents: write/);
+  assert.match(blocked, /no engineering model, workspace, branch, patch, or PR ran/);
+
+  for (const [name, next] of [['hosted-worker', 'self-hosted-worker'], ['self-hosted-worker', '']]) {
+    const section = job(source, name, next);
+    assert.match(section, /github\.actor == github\.repository_owner/);
+    assert.match(section, /startsWith\(github\.event\.issue\.title, '\[maker:'\)/);
+    assert.match(section, /^      contents: write$/m);
+    assert.match(section, /^      pull-requests: write$/m);
+    assert.match(section, /^      issues: write$/m);
+    assert.match(section, /name: Verify native worker before write authority[\s\S]*?node --test scripts\/tests\/native-maker-worker\.test\.mjs/);
+    assert.match(section, /run: node scripts\/maker-native-worker\.mjs/);
+    const checkouts = checkoutBlocks(section);
+    assert.equal(checkouts.length, 1);
+    assert.match(checkouts[0], /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+    assert.match(checkouts[0], /persist-credentials: true/);
+  }
+
+  assert.match(job(source, 'self-hosted-worker'), /runs-on: \[self-hosted, sideways-maker\]/);
+  assert.match(source, /SIDEWAYS_MODEL_API_KEY: \$\{\{ secrets\.SIDEWAYS_MODEL_API_KEY \}\}/);
 });
