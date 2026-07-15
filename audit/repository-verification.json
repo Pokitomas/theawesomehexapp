@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "suites": [
     { "id": "remote", "command": ["npm", "run", "test:remote"] },
     { "id": "weave-v1", "command": ["npm", "run", "test:weave"] },
@@ -8,6 +8,7 @@
     { "id": "authority-manifest", "command": ["npm", "run", "test:authority"] },
     { "id": "workflow-permissions", "command": ["node", "--test", "scripts/tests/workflow-permissions.test.mjs"] },
     { "id": "deployment-receipt", "command": ["node", "--test", "scripts/tests/deployment-receipt.test.mjs"] },
+    { "id": "ranking-evaluation", "command": ["npm", "run", "verify:ranking"] },
     { "id": "coordination-reducer", "command": ["node", "--test", "scripts/tests/coordination-tick.test.mjs", "scripts/tests/coordination-tick-hardening.test.mjs"] },
     { "id": "supply-chain", "command": ["node", "--test", "scripts/tests/supply-chain-contract.test.mjs"] },
     { "id": "frankenstate", "command": ["npm", "run", "verify:frankenstate"] }
