@@ -92,7 +92,7 @@ The automatic ranking score is
 S_i(t)=B_i+g_tV_i+g_tU_i+\eta_i
 \]
 
-where \(U_i\) is the sampled posterior advantage of the candidate’s latent family and \(\eta_i\) is bounded exploration noise. A greedy set-diversity pass then penalizes repeated source clusters and duplicate families inside the served slate.
+where \(U_i\) is the sampled posterior advantage of the candidate’s latent family and \(\eta_i\) is bounded exploration noise. A greedy set-diversity pass then penalizes repeated source clusters, topics, and duplicate families inside the served slate.
 
 There is no branch that says “now show good posts.” There is one candidate union and one score whose geometry changes after the phase boundary.
 
@@ -110,7 +110,7 @@ This is deliberately a demo proxy, not a claim to measure wellbeing. A productio
 
 ## 5. Deep saturation
 
-Repeated rejection of lateral candidates while the original load remains high changes state to `deep_saturation`. The system does not return immediately to ordinary ranking. It raises exploration temperature and broadens underexposed axis retrieval. This prevents the normal → saturation → normal limit cycle caused by exposure-only exit rules.
+Repeated rejection of lateral candidates while the original load remains high changes state to `deep_saturation`. The system does not return immediately to ordinary ranking. It raises exploration temperature and broadens underexposed axis retrieval. This prevents the normal → saturation → normal limit cycle caused by exposure-only exit rules. The target gate has a floor of \(0.48\) in this state.
 
 ## 6. Measurements implemented in the prototype
 
@@ -124,3 +124,36 @@ Repeated rejection of lateral candidates while the original load remains high ch
 - Passive-consumption proxy: prolonged exposure without deliberate actions.
 
 All classifier-like fields in the corpus are synthetic metadata. `?debug=1` exposes the state, equations’ inputs, thresholds, posterior, gate, and top ranking components.
+
+## 7. Deterministic shipped-kernel evaluation
+
+`node scripts/ranking-evaluation.mjs audit/ranking-evaluation-fixture.json` evaluates a fixed, integrity-digested candidate pool. The receipt includes:
+
+- eligibility and exact candidate-pool identity;
+- hysteresis state and the top-three positive load test;
+- posterior delta, risk floor, target gate, elapsed-time smoothing, and final bounded gate;
+- the \(B_i\), \(V_i\), \(g_tU_i\), bounded seeded \(\eta_i\), and greedy diversity contribution for each selected item;
+- a matched baseline using the same candidate pool, seeds, exploration function, slate size, and diversity pass with the lateral and posterior gate terms set to zero;
+- source and topic breadth, mean base utility proxy, mean lateral value, final-score proxy, and replay instability across multiple explicit seeds.
+
+The root/manual parity workflow passes the actual generated `src/app.js` and `manual-app/kernel.js` source into the evaluator. Admission fails when either source loses a load-bearing equation marker. The standalone repository command reports `pending-build-source-check`; only the assembled parity run may report `root-and-manual` source binding.
+
+The fixture refuses a missing seed, a nonfinite feature or score, duplicate candidate IDs, candidate-pool mismatch, payload mutation, feedback-contract mutation, or a baseline ID mismatch.
+
+## 8. Delayed-feedback event contract
+
+The versioned `sideways-delayed-feedback/v1` contract records only bounded metadata:
+
+- `event_id` and `occurred_at`;
+- an anonymous session identifier;
+- `candidate_id`, eligibility state, and served rank position;
+- whether the explanation was closed or opened;
+- event type: impression, save, hide, follow, dwell, or later outcome;
+- a coarse dwell bucket;
+- a later-outcome enum such as unknown, returned, or did-not-return.
+
+Raw private archive content, public post text, profile fields, asset bytes, email addresses, cookies, tokens, credentials, and server authority are forbidden. Private archive facts remain local; public social authority remains server-owned. The fixture is synthetic and does not collect live user data.
+
+## 9. Claim boundary
+
+The ranking receipt is a deterministic engineering witness for implemented score geometry and proxy tradeoffs. It can show which synthetic candidates move, how much source/topic breadth is present, and how stable the slate is under bounded replay seeds. It cannot establish satisfaction, wellbeing, truthfulness, political balance, long-term benefit, or production causality. Those remain empirical questions requiring consented delayed outcomes and an independently reviewed measurement design.

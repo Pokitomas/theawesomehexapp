@@ -1,22 +1,29 @@
 {
   "schema": "sideways-product-journey-audit/v1",
-  "base": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
-  "primary_promise": "A person-owned memory system that can participate in a public social world without surrendering source ownership.",
+  "base": "e94c763ea5ece377276b732173d06711a22f38bd",
+  "primary_promise": "Discover the public world, then keep what matters in a private archive that belongs to you.",
   "surfaces": [
-    { "id": "root-reader", "entry": "/", "role": "public discovery and ranking laboratory", "default_user_path": true, "status": "implemented" },
-    { "id": "private-archive", "entry": "/manual/", "role": "local profile, archive, import, creation, recovery, and mixed feed", "default_user_path": true, "status": "implemented" },
+    { "id": "root-reader", "entry": "/", "role": "public discovery with ordinary recommendation explanations and a direct private-archive route", "default_user_path": true, "status": "implemented" },
+    { "id": "private-archive", "entry": "/manual/", "role": "person-owned local profile, archive, import, creation, recovery, mixed feed, and explicit public-social actions", "default_user_path": true, "status": "implemented" },
     { "id": "founder-room", "entry": "/founder/", "role": "local product-direction review instrument", "default_user_path": false, "status": "internal" },
     { "id": "maker", "entry": "/maker/", "role": "phone issue command console", "default_user_path": false, "status": "developer" },
     { "id": "live", "entry": "/manual/#live-work", "role": "read-only repository and Remote work projection", "default_user_path": false, "status": "advanced" }
   ],
   "journey": [
-    { "step": 1, "intent": "understand the product", "surface": "root-reader", "evidence": ["README.md"], "state": "partial", "gap": "The root reader and private archive are explained as separate realities before a normal user receives one plain-language promise." },
+    { "step": 1, "intent": "understand the product", "surface": "root-reader", "evidence": ["scripts/root-product-completion.cjs", "verify-profile-build.py", "scripts/tests/product-revival-contract.test.mjs"], "state": "implemented", "gap": null },
     { "step": 2, "intent": "create a local self", "surface": "private-archive", "evidence": ["studio/manual/product/workspace-profile.js"], "state": "implemented", "gap": null },
     { "step": 3, "intent": "bring in personal history", "surface": "private-archive", "evidence": ["studio/manual/imports/apply.py"], "state": "implemented", "gap": null },
-    { "step": 4, "intent": "read and control recommendations", "surface": "private-archive", "evidence": ["MATH.md", "studio/manual/tests/kernel-parity.mjs"], "state": "partial", "gap": "Kernel parity is proved, but eligibility and score explanations are not yet the ordinary interaction model." },
-    { "step": 5, "intent": "publish or join public conversation", "surface": "private-archive", "evidence": ["studio/manual/product/social-client.js"], "state": "partial", "gap": "Server authority exceeds the currently exposed consumer journey." },
-    { "step": 6, "intent": "protect and recover private memory", "surface": "private-archive", "evidence": ["studio/manual/product/survival-ledger.js", "studio/manual/product/vault-ui.js"], "state": "implemented", "gap": null },
-    { "step": 7, "intent": "inspect development state", "surface": "live", "evidence": ["studio/manual/product/remote-terminal.js"], "state": "advanced", "gap": "This is useful evidence, not part of the normal product promise." }
+    { "step": 4, "intent": "read and control recommendations", "surface": "root-reader", "evidence": ["scripts/root-product-completion.cjs", "scripts/root-product-phone.mjs", "MATH.md", "studio/manual/tests/kernel-parity.mjs"], "state": "implemented", "gap": null },
+    { "step": 5, "intent": "publish or join public conversation", "surface": "private-archive", "evidence": ["studio/manual/product/social-client.js", "studio/manual/product/social-author-controls.js", "studio/manual/product/social-governance-controls.js", "audit/social-product-reachability.json", "scripts/tests/social-product-reachability.test.mjs"], "state": "implemented", "gap": null },
+    { "step": 6, "intent": "protect and recover private memory", "surface": "private-archive", "evidence": ["studio/manual/product/survival-ledger.js", "studio/manual/product/vault-ui.js", "audit/archive-survival.json", "scripts/tests/archive-revival-contract.test.mjs"], "state": "implemented", "gap": null },
+    { "step": 7, "intent": "inspect development state", "surface": "live", "evidence": ["studio/manual/product/remote-terminal.js"], "state": "advanced", "gap": "This is inspectable evidence, not part of the ordinary product promise." }
   ],
-  "release_rule": "The default journey must keep Founder Room, Maker, protocol vocabulary, and repository coordination outside the normal user path while retaining them as inspectable advanced surfaces."
+  "offline_contract": "The root promise, direct archive navigation, and recommendation explanations are static assets and require no shared mutation. Public actions remain explicitly server-backed and fail visibly when unavailable.",
+  "explanation_contract": {
+    "eligibility": "name the public source pool that admitted the item without reading private archive data",
+    "score": "show only exposed per-item values and otherwise describe the shipped score families without inventing numbers",
+    "set_effects": "separate saturation and diversity effects from per-item base score",
+    "presence": "state that eligibility, score, set effects, and bounded exploration selected the item without granting public authority"
+  },
+  "release_rule": "The default journey contains only the public reader and direct person-owned archive path. Founder Room, Maker, protocol vocabulary, repository coordination, and debug surfaces remain outside the normal user path while staying separately inspectable."
 }

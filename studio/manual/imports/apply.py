@@ -15,6 +15,7 @@ PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone>
 SOCIAL_STYLE = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
 SOCIAL_SCRIPT = '<script type="module" src="./social-client.js" data-social-spine></script>'
 SOCIAL_AUTHOR_CONTROLS_SCRIPT = '<script type="module" src="./social-author-controls.js" data-social-author-controls></script>'
+SOCIAL_GOVERNANCE_CONTROLS_SCRIPT = '<script type="module" src="./social-governance-controls.js" data-social-governance-controls></script>'
 
 
 def inject_once(text: str, marker: str, before: str) -> str:
@@ -41,6 +42,7 @@ def main() -> None:
     shutil.copyfile(PRODUCT / "import-studio.css", MANUAL / "import-studio.css")
     shutil.copyfile(PRODUCT / "import-phone.js", MANUAL / "import-phone.js")
     shutil.copyfile(PRODUCT / "social-author-controls.js", MANUAL / "social-author-controls.js")
+    shutil.copyfile(PRODUCT / "social-governance-controls.js", MANUAL / "social-governance-controls.js")
 
     index = MANUAL / "index.html"
     html = index.read_text(encoding="utf-8")
@@ -50,12 +52,14 @@ def main() -> None:
     social_live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("SOCIAL_LIVE_ENDPOINT", "") == "1"
     if social_live:
         html = inject_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT, "</body>")
+        html = inject_once(html, SOCIAL_GOVERNANCE_CONTROLS_SCRIPT, "</body>")
     else:
         html = remove_once(html, SOCIAL_STYLE)
         html = remove_once(html, SOCIAL_SCRIPT)
         html = remove_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT)
+        html = remove_once(html, SOCIAL_GOVERNANCE_CONTROLS_SCRIPT)
     index.write_text(html, encoding="utf-8")
-    print("applied manual import workbench and gated the live social client to server-backed builds")
+    print("applied manual import workbench and gated the complete live social client to server-backed builds")
 
 
 if __name__ == "__main__":

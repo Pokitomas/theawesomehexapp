@@ -1,30 +1,47 @@
 {
   "schema": "sideways-archive-survival-audit/v1",
-  "base": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
+  "base": "d046cc8d9f70679c726fdbb52106a959cc43242f",
   "canonical_private_store": "IndexedDB",
   "same_origin_copy": "OPFS",
   "portable_copy": ".sideways Ark",
   "states": [
-    { "id": "hot", "meaning": "browser-managed storage only", "portable": false },
-    { "id": "pinned", "meaning": "persistent storage requested", "portable": false },
-    { "id": "mirror", "meaning": "same-origin OPFS copy exists", "portable": false },
-    { "id": "ark", "meaning": "browser download was requested", "portable": "not_proven" },
-    { "id": "external", "meaning": "file-system save completed", "portable": true }
+    { "id": "hot", "meaning": "browser-managed IndexedDB only", "portable": false },
+    { "id": "pinned", "meaning": "persistent browser storage requested", "portable": false },
+    { "id": "mirror", "meaning": "a fully promoted same-origin OPFS generation exists", "portable": false },
+    { "id": "ark", "meaning": "a browser download was requested", "portable": "not_proven" },
+    { "id": "external", "meaning": "a File System Access save closed successfully", "portable": true }
   ],
   "failure_contracts": [
     { "condition": "OPFS unavailable", "required_result": "survival.mirror.unavailable receipt" },
-    { "condition": "OPFS write interruption", "required_result": "survival.mirror.failed receipt and no checkpoint" },
+    { "condition": "OPFS interruption or quota exhaustion", "required_result": "survival.mirror.failed receipt, promoted=false, generation cleanup, and no checkpoint" },
     { "condition": "save picker cancelled", "required_result": "cancelled with no false export receipt" },
+    { "condition": "Ark exceeds non-streaming fallback limit", "required_result": "survival.ark.export.failed with ARK_MEMORY_LIMIT" },
     { "condition": "invalid Ark magic", "required_result": "NOT A SIDEWAYS ARK" },
     { "condition": "invalid Ark header", "required_result": "ARK HEADER IS INVALID" },
     { "condition": "unsupported Ark version", "required_result": "ARK VERSION IS NOT SUPPORTED" },
+    { "condition": "truncated Ark payload", "required_result": "ARK PAYLOAD IS TRUNCATED" },
+    { "condition": "invalid asset range", "required_result": "ARK ASSET RANGE IS INVALID" },
     { "condition": "duplicate hash during restore", "required_result": "skip duplicate and report count" },
+    { "condition": "forced corpus, place, profile, or receipt failure during restore", "required_result": "restore the prior records, assets, ledger, places, and profile, then emit survival.ark.restore.failed and no success checkpoint" },
     { "condition": "server projection in cache", "required_result": "exclude it from private Ark" }
   ],
-  "open_gaps": [
-    "restore needs an explicit rollback witness for transaction failure",
-    "download-issued does not prove the file was retained",
-    "large Ark creation currently materializes one Blob in memory",
-    "real browser quota pressure still needs a browser-level witness"
+  "streaming_contract": {
+    "file_system_access": "header, manifest, and each asset are written sequentially to the chosen file without creating one complete Ark Blob",
+    "fallback": "browser-download and in-memory creation are bounded to 268435456 bytes and fail closed above that limit",
+    "retention": "download-issued remains not_proven; only a successfully closed File System Access save is external"
+  },
+  "restore_contract": {
+    "staging": "validate header, payload, asset ranges, and duplicate hashes before mutation",
+    "commit": "apply corpus, places, profile, and success receipt as one rollback-governed procedure",
+    "rollback": "on any mid-restore failure replace every touched store and profile key from the pre-restore snapshot before recording failure"
+  },
+  "mirror_contract": {
+    "promotion": "write assets into a new immutable generation, write manifest.pending.json, then promote manifest.json last",
+    "failure": "clean the unpromoted generation and pending manifest, report exact writtenAssets and bytes, and keep IndexedDB canonical"
+  },
+  "open_gaps": [],
+  "external_observation_limits": [
+    "The browser does not expose whether a conventional download was retained after the download request; download-issued therefore remains not_proven.",
+    "Repository tests can deterministically inject quota and interruption failures, but device-specific eviction policy and available storage remain browser and operating-system facts."
   ]
 }

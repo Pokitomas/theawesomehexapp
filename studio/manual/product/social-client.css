@@ -31,7 +31,7 @@
 .social-command.is-active { background: currentColor; color: var(--studio-surface, #fff); }
 .social-spine-status { grid-column: 1 / -1; margin: 0; font: 700 11px/1.25 ui-monospace, monospace; }
 .social-spine-status[data-tone="error"], .social-dialog-status[data-tone="error"] { color: #b00020; }
-.social-spine-status[data-tone="good"] { color: #157347; }
+.social-spine-status[data-tone="good"], .social-dialog-status[data-tone="good"] { color: #157347; }
 .social-dialog {
   width: min(94vw, 520px);
   max-height: min(88dvh, 720px);
@@ -57,10 +57,25 @@ textarea.social-input { resize: vertical; }
 .social-dialog-status { flex: 1 1 100%; margin: 0; font: 700 12px/1.3 ui-monospace, monospace; }
 .social-reply-source { margin: 0; padding: 10px; border-left: 3px solid currentColor; background: #f3f3f3; max-height: 110px; overflow: auto; }
 .social-follow.is-active { font-weight: 900; }
+.social-governance-dialog { width: min(96vw, 760px); }
+.social-governance-section { display: grid; gap: 10px; padding: 12px; border: 1px solid currentColor; }
+.social-governance-section > h2,
+.social-governance-section > h3 { margin: 0; font: 800 13px/1.2 ui-monospace, monospace; text-transform: uppercase; }
+.social-governance-list { display: grid; gap: 8px; }
+.social-governance-post { display: grid; gap: 4px; padding: 10px; border: 1px solid currentColor; overflow-wrap: anywhere; }
+.social-governance-post p { margin: 0; white-space: pre-wrap; }
+.social-community-details { display: grid; gap: 6px; }
+.social-community-details h2,
+.social-community-details p { margin: 0; }
+.social-authority-label,
+.social-boundary-note,
+.social-empty { margin: 0; font: 700 12px/1.4 ui-monospace, monospace; }
+.social-boundary-note { padding: 10px; border-left: 3px solid currentColor; background: #f3f3f3; }
 @media (max-width: 640px) {
   .social-spine { grid-template-columns: 1fr; padding: 9px; }
   .social-spine-actions { justify-content: flex-start; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .social-command { width: 100%; padding: 0 6px; }
   .social-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .social-window-footer > button { flex: 1 1 auto; }
+  .social-governance-section { padding: 10px; }
 }

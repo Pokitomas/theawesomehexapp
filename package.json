@@ -17,6 +17,7 @@
     "verify:quality": "node --test scripts/tests/human-quality-report.test.mjs && node scripts/human-quality-report.mjs",
     "verify:ranking": "node --test scripts/tests/ranking-evaluation.test.mjs && node scripts/ranking-evaluation.mjs",
     "verify:operations": "node --test scripts/tests/operations-reality-report.test.mjs scripts/tests/operations-reality.test.mjs && node scripts/operations-reality-report.mjs",
+    "verify:release": "node --test scripts/tests/release-completion.test.mjs && node scripts/release-completion.mjs",
     "verify:frankenstate": "node --test scripts/tests/frankenstate-validator.test.mjs && node scripts/verify-frankenstate.mjs",
     "verify:repository": "node scripts/verify-repository.mjs",
     "remote": "node scripts/remote-client.mjs",

@@ -14,6 +14,7 @@ const files = {
   core: 'netlify/functions/social-core.mjs',
   function: 'netlify/functions/social.mjs',
   client: 'studio/manual/product/social-client.js',
+  governance: 'studio/manual/product/social-governance-controls.js',
   network: 'studio/manual/product/network-records.js',
   db: 'studio/manual/product/workspace-db.js',
   actions: 'studio/manual/product/actions.js',
@@ -24,7 +25,7 @@ const files = {
   netlify: 'netlify.toml'
 };
 const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
-for (const key of ['core', 'function', 'client', 'network', 'db', 'actions', 'workspace']) {
+for (const key of ['core', 'function', 'client', 'governance', 'network', 'db', 'actions', 'workspace', 'survival']) {
   const check = spawnSync(process.execPath, ['--check', files[key]], { encoding: 'utf8' });
   if (check.status !== 0) throw new Error(`${files[key]} syntax failed\n${check.stderr}`);
 }
@@ -48,6 +49,23 @@ forbidAll('client', [
   'new MutationObserver',
   'location.reload()',
   'Workspace.projectNetworkPosts(data.posts || [], { mode })'
+]);
+requireAll('governance', [
+  "community: Object.freeze(['GET', 'POST'])",
+  "'community-member': Object.freeze(['POST'])",
+  "'community-role': Object.freeze(['POST'])",
+  "'community-fork': Object.freeze(['POST'])",
+  "'community-feed': Object.freeze(['GET'])",
+  "thread: Object.freeze(['GET'])",
+  "post: Object.freeze(['POST', 'PATCH'])",
+  "report: Object.freeze(['POST'])",
+  "moderate: Object.freeze(['POST'])",
+  "appeal: Object.freeze(['POST'])",
+  "'appeal-decide': Object.freeze(['POST'])",
+  "'local-control': Object.freeze(['POST'])",
+  'window.SidewaysSocialGovernance',
+  'Private archive unchanged',
+  'requires the relational PostgreSQL social deployment. No shared change was simulated.'
 ]);
 requireAll('network', [
   "const PREFIX = 'network:'",
@@ -76,10 +94,10 @@ requireAll('db', [
   'request.onblocked'
 ]);
 requireAll('workspace', ['projectNetworkPosts', 'networkRecords']);
-requireAll('survival', ["startsWith('network:')", 'user-owned Ark excludes server projections']);
+requireAll('survival', ["startsWith('network:')", 'filter(record => !isServerProjection(record))']);
 for (const id of ['social.join', 'social.login', 'social.logout', 'social.post', 'social.follow', 'social.feed', 'social.discover']) requireAll('actions', [`'${id}'`]);
 requireAll('apply', ['social-client.css', 'social-client.js', 'network-records.js', 'data-social-spine']);
-requireAll('importApply', ['SOCIAL_LIVE_ENDPOINT', 'NETLIFY', 'SOCIAL_STYLE', 'SOCIAL_SCRIPT', 'remove_once']);
+requireAll('importApply', ['SOCIAL_LIVE_ENDPOINT', 'NETLIFY', 'SOCIAL_STYLE', 'SOCIAL_SCRIPT', 'SOCIAL_GOVERNANCE_CONTROLS_SCRIPT', 'social-governance-controls.js', 'data-social-governance-controls', 'remove_once']);
 requireAll('netlify', ['/api/social', '/.netlify/functions/social']);
 
 const legacyCandidates = [
@@ -198,4 +216,4 @@ assert.deepEqual(materialized, [{ mode: 'following', posts: ['F'] }]);
 assert.deepEqual(statusWrites, ['following']);
 assert.deepEqual(renderWrites, ['following']);
 
-console.log('social spine contract ok: public cache is authority-safe, activation epochs break equal-timestamp ties, stale observations cannot overwrite fresh records, and late loads cannot replace current eligibility or UI state');
+console.log('social spine contract ok: public cache stays authority-safe, complete relational controls are assembled only for live server builds, private Ark filtering is executable, activation epochs break equal-timestamp ties, and stale loads cannot replace current eligibility or UI state');

@@ -44,14 +44,24 @@ if (!record?.assetKey) throw new Error('imported witness has no asset');
 const mirror = await page.evaluate(() => window.SidewaysWorkspace.survival.mirrorAll());
 if (!['ready', 'unavailable'].includes(mirror.status)) throw new Error(`unexpected mirror result ${JSON.stringify(mirror)}`);
 if (mirror.status === 'ready') {
-  const mirroredSize = await page.evaluate(async assetKey => {
+  const mirrored = await page.evaluate(async assetKey => {
     const root = await navigator.storage.getDirectory();
     const vault = await root.getDirectoryHandle('sideways-vault');
-    const assets = await vault.getDirectoryHandle('assets');
+    const manifestFile = await (await vault.getFileHandle('manifest.json')).getFile();
+    const manifest = JSON.parse(await manifestFile.text());
+    let assets;
+    if (manifest.generation) {
+      const generations = await vault.getDirectoryHandle('generations');
+      const generation = await generations.getDirectoryHandle(manifest.generation);
+      assets = await generation.getDirectoryHandle('assets');
+    } else {
+      assets = await vault.getDirectoryHandle('assets');
+    }
     const name = `${encodeURIComponent(String(assetKey)).replaceAll('%', '_').slice(0, 220)}.bin`;
-    return (await (await assets.getFileHandle(name)).getFile()).size;
+    return { size: (await (await assets.getFileHandle(name)).getFile()).size, generation: manifest.generation || null };
   }, record.assetKey);
-  if (mirroredSize !== png.length) throw new Error(`mirror size mismatch ${mirroredSize}`);
+  if (mirrored.size !== png.length) throw new Error(`mirror size mismatch ${mirrored.size}`);
+  if (mirror.generation && mirrored.generation !== mirror.generation) throw new Error(`mirror generation mismatch ${JSON.stringify({ mirror, mirrored })}`);
 }
 
 const ark = await page.evaluate(async () => {
@@ -102,6 +112,6 @@ if (overflow > 1) throw new Error(`horizontal overflow ${overflow}`);
 if (errors.length) throw new Error(errors.join(' | '));
 
 await page.screenshot({ path: 'manual-survival-ledger.png', fullPage: true });
-console.log(JSON.stringify({ mirror: mirror.status, ark, restored, restoredProfile, audit, ledgerOps: [...new Set(ledger.map(entry => entry.op))].filter(op => op.startsWith('survival.')), vaultActions, horizontalOverflow: overflow }, null, 2));
+console.log(JSON.stringify({ mirror: mirror.status, generation: mirror.generation || null, ark, restored, restoredProfile, audit, ledgerOps: [...new Set(ledger.map(entry => entry.op))].filter(op => op.startsWith('survival.')), vaultActions, horizontalOverflow: overflow }, null, 2));
 await context.close();
 await browser.close();
