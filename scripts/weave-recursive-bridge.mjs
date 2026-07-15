@@ -537,6 +537,12 @@ export async function runRecursiveCognitionBridge({
 }) {
   const comments = await github.listComments(issue_number);
   let snapshot = await reload(remote);
+  const hasTrustedSeed = comments.some(comment =>
+    trustedCognitionComment(comment, allow_logins) && parseCognitionSeedComment(comment)
+  );
+  if (!snapshot.events.length && !hasTrustedSeed) {
+    return { status: 'idle', seeded: 0, ingested: 0, pending: 0, comments_posted: 0 };
+  }
   const seeded = await ingestSeeds({ remote, snapshot, comments, allowLogins: allow_logins, now });
   if (seeded.length) snapshot = await reload(remote);
   const ingested = await ingestOutputs({ remote, snapshot, comments, allowLogins: allow_logins, now });
@@ -610,18 +616,14 @@ export async function runRecursiveCognitionBridge({
     return { status: plan.terminal, wave: waveIndex };
   }
 
-  const assignments = plan.assignments.map(value => {
-    const { novelty_key, priority, ...event } = value;
-    const targetsPublic = event.body.target_ids.every(id => snapshot.state.by_id[id]?.visibility === 'public');
-    return normalizeCognitionEvent({ ...event, visibility: targetsPublic ? 'public' : 'private' });
-  });
+  const assignments = plan.assignments;
   await appendMissing(remote, snapshot.state, assignments, snapshot.generation);
   snapshot = await reload(remote);
   const dispatched = await dispatchPending({
     remote,
     github,
     snapshot,
-    comments: await github.listComments(issue_number),
+    comments,
     issueNumber: issue_number,
     roleMentionMap: roleMentions({ role_mentions }),
     now
@@ -631,54 +633,6 @@ export async function runRecursiveCognitionBridge({
     wave: waveIndex,
     assignments: assignments.length,
     comments_posted: dispatched.commentsPosted,
-    seeded: seeded.length,
-    ingested: ingested.length,
-    finalized: finalized.length
+    state_digest: stableDigest(snapshot.state.events.map(event => event.id))
   };
-}
-
-function parseJSONEnv(value, fallback) {
-  try { return value ? JSON.parse(value) : fallback; }
-  catch { return fallback; }
-}
-
-async function main() {
-  const required = ['REMOTE_URL', 'REMOTE_SESSION', 'REMOTE_PRINCIPAL', 'REMOTE_KEY', 'GITHUB_TOKEN', 'GITHUB_REPOSITORY'];
-  const missing = required.filter(name => !clean(process.env[name]));
-  if (missing.length) {
-    console.log(JSON.stringify({ status: 'disabled', missing }));
-    return;
-  }
-  const remote = createSignedRemoteCognitionClient({
-    remoteUrl: process.env.REMOTE_URL,
-    session: process.env.REMOTE_SESSION,
-    principal: process.env.REMOTE_PRINCIPAL,
-    key: process.env.REMOTE_KEY,
-    generation: Number(process.env.REMOTE_GENERATION || 1),
-    headSha: process.env.GITHUB_SHA || null
-  });
-  const github = createGitHubIssueCognitionClient({
-    token: process.env.GITHUB_TOKEN,
-    repository: process.env.GITHUB_REPOSITORY
-  });
-  const owner = clean(process.env.GITHUB_REPOSITORY).split('/')[0];
-  const result = await runRecursiveCognitionBridge({
-    remote,
-    github,
-    issue_number: Number(process.env.WEAVE_COGNITION_ISSUE || 178),
-    allow_logins: unique([owner, ...clean(process.env.WEAVE_AGENT_LOGINS).split(',').map(value => value.trim())]),
-    role_mentions: parseJSONEnv(process.env.WEAVE_ROLE_MENTIONS, {}),
-    budget: {
-      max_waves: Number(process.env.WEAVE_MAX_WAVES || 8),
-      max_events: Number(process.env.WEAVE_MAX_EVENTS || 512),
-      max_assignments_per_wave: Number(process.env.WEAVE_MAX_ASSIGNMENTS || 8),
-      max_events_per_assignment: Number(process.env.WEAVE_MAX_OUTPUT_EVENTS || 4),
-      max_chars_per_assignment: Number(process.env.WEAVE_MAX_OUTPUT_CHARS || 12000)
-    }
-  });
-  console.log(JSON.stringify(result));
-}
-
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  await main();
 }
