@@ -74,5 +74,7 @@ export function createWeaveCollectiveHandler({ store, env = process.env } = {}) 
   };
 }
 
-const handler = createWeaveCollectiveHandler({ store: getStore('sideways-remote') });
-export default handler;
+export default async function handler(request) {
+  const runtime = createWeaveCollectiveHandler({ store: getStore('sideways-remote') });
+  return runtime(request);
+}
