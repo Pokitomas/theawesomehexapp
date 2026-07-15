@@ -5,7 +5,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "test:remote": "node --test scripts/tests/remote-service.test.mjs scripts/tests/remote-public-privacy.test.mjs scripts/tests/remote-weave-envelope.test.mjs scripts/tests/remote-fail-closed.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs",
-    "test:weave": "node --test scripts/tests/weave-protocol.test.mjs scripts/tests/weave-replay-integrity.test.mjs scripts/tests/weave-lasso.test.mjs scripts/tests/weave-lasso-service.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs scripts/tests/weave-active-state.test.mjs",
+    "test:weave": "node --test scripts/tests/weave-protocol.test.mjs scripts/tests/weave-replay-integrity.test.mjs scripts/tests/weave-lasso.test.mjs scripts/tests/weave-lasso-service.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs scripts/tests/weave-active-state.test.mjs scripts/tests/weave-terminal-drain.test.mjs",
     "test:recursive-weave": "node --test scripts/tests/weave-recursive-baseline.test.mjs scripts/tests/weave-public-projection.test.mjs scripts/tests/weave-recursive-bridge.test.mjs scripts/tests/weave-recursive-bridge-recovery.test.mjs scripts/tests/weave-full-pass-hardening.test.mjs scripts/tests/recursive-weave-sprawl-contract.test.mjs",
     "test:native-maker": "node --test scripts/tests/native-maker-worker.test.mjs scripts/tests/open-model-role-contracts.test.mjs scripts/tests/maker-terminal-release.test.mjs",
     "maker:model:check": "node scripts/check-open-model-runtime.mjs",
@@ -14,6 +14,7 @@
     "test:authority": "node --test scripts/tests/authority-manifest.test.mjs && node scripts/check-authority-manifest.mjs",
     "verify:quality": "node --test scripts/tests/human-quality-report.test.mjs && node scripts/human-quality-report.mjs",
     "verify:ranking": "node --test scripts/tests/ranking-evaluation.test.mjs && node scripts/ranking-evaluation.mjs",
+    "verify:operations": "node --test scripts/tests/operations-reality-report.test.mjs scripts/tests/operations-reality.test.mjs && node scripts/operations-reality-report.mjs",
     "verify:frankenstate": "node --test scripts/tests/frankenstate-validator.test.mjs && node scripts/verify-frankenstate.mjs",
     "verify:repository": "node scripts/verify-repository.mjs",
     "remote": "node scripts/remote-client.mjs",
