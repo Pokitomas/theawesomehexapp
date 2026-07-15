@@ -2,7 +2,7 @@ import { foldCognitionEvents, normalizeCognitionEvent, unresolvedCognitionIds } 
 import { planDeliberationWave } from './weave-deliberation.mjs';
 import { retrieveCognitionMemory } from './weave-memory.mjs';
 import { buildRolePacket, parseAdapterOutput } from './weave-dispatch.mjs';
-import { buildSynthesis, critiqueSynthesis } from './weave-synthesis.mjs';
+import { buildAcceptanceDecision, buildSynthesis, critiqueSynthesis, isIndependentAcceptance, SYNTHESIS_REVIEW } from './weave-synthesis.mjs';
 
 export function normalizeRecursiveBudget(input = {}) {
   const bounded = (name, fallback, min, max) => {
@@ -87,6 +87,42 @@ function waveIndexOfAssignment(assignment, fallback) {
   return match ? Number(match[1]) : fallback;
 }
 
+function structuralCritiqueFor(state, synthesisId) {
+  return Object.values(state?.critiques || {}).find(event =>
+    event.body.synthesis_id === synthesisId && event.issuer === SYNTHESIS_REVIEW.structural_critic
+  ) || null;
+}
+
+function resolvableSynthesisTargets(state, synthesis) {
+  return synthesis.body.unresolved_ids.filter(id => {
+    const event = state.by_id[id];
+    return event && ['question', 'contradiction'].includes(event.kind) && !state.superseded[id];
+  });
+}
+
+function admissionDecisions({ state, outputs, waveIndex, now }) {
+  const decisions = [];
+  for (const critique of outputs.filter(event => event.kind === 'critique' && event.body.verdict === 'accept')) {
+    const synthesis = state.syntheses[critique.body.synthesis_id];
+    const structural = synthesis ? structuralCritiqueFor(state, synthesis.id) : null;
+    if (!isIndependentAcceptance({ synthesis, critique, structuralCritique: structural })) continue;
+    decisions.push(buildAcceptanceDecision({
+      id: `decision:admission:${waveIndex}:${decisions.length}`,
+      synthesis,
+      critique,
+      structural_critique: structural,
+      issuer: 'system:weave-integrator',
+      issued_at: now(),
+      resolves: resolvableSynthesisTargets(state, synthesis)
+    }));
+  }
+  return decisions;
+}
+
+function requiredDispatchCapacity(assignments) {
+  return assignments.reduce((sum, assignment) => sum + assignment.body.budget.max_events + 2, 0);
+}
+
 export async function runRecursiveWeave({ initial_events = [], adapters = {}, budget: budgetInput = {}, now = () => new Date().toISOString() }) {
   const budget = normalizeRecursiveBudget(budgetInput);
   let events;
@@ -101,9 +137,7 @@ export async function runRecursiveWeave({ initial_events = [], adapters = {}, bu
   if (terminalReceiptEvent) {
     return { terminal: terminalReceiptEvent.body.status, events, receipts, state: foldCognitionEvents(events), budget };
   }
-  const startWave = receipts.length
-    ? Math.max(...receipts.map(event => Number(event.body.index || 0))) + 1
-    : 0;
+  const startWave = receipts.length ? Math.max(...receipts.map(event => Number(event.body.index || 0))) + 1 : 0;
   let terminal = null;
 
   waves: for (let loopIndex = startWave; loopIndex < budget.max_waves; loopIndex += 1) {
@@ -146,6 +180,14 @@ export async function runRecursiveWeave({ initial_events = [], adapters = {}, bu
       });
       events.push(...assignmentEvents);
       state = foldCognitionEvents(events);
+    }
+
+    if (events.length + requiredDispatchCapacity(assignmentEvents) + 1 > budget.max_events) {
+      terminal = 'budget_exhausted';
+      const receipt = terminalReceipt({ waveIndex, status: terminal, assignments: assignmentEvents, unresolved: unresolvedCognitionIds(state), events, now });
+      events.push(receipt);
+      receipts.push(receipt);
+      break;
     }
 
     const memories = {};
@@ -221,8 +263,11 @@ export async function runRecursiveWeave({ initial_events = [], adapters = {}, bu
     }
 
     let stateAfterOutputs = foldCognitionEvents(events);
-    let waveCritique = null;
-    if (outputs.length) {
+    const admissions = admissionDecisions({ state: stateAfterOutputs, outputs, waveIndex, now });
+    if (admissions.length) {
+      events.push(...admissions);
+      stateAfterOutputs = foldCognitionEvents(events);
+    } else if (outputs.some(event => event.kind !== 'critique')) {
       const unresolved = unresolvedCognitionIds(stateAfterOutputs);
       const priorCritiques = stateAfterOutputs.unresolved_critique_ids.map(id => stateAfterOutputs.by_id[id]).filter(Boolean);
       const material = [...new Map([...outputs, ...priorCritiques].map(event => [event.id, event])).values()];
@@ -232,26 +277,23 @@ export async function runRecursiveWeave({ initial_events = [], adapters = {}, bu
         source_events: material,
         unresolved_ids: unresolved,
         minority_report_ids: stateAfterOutputs.dissent_event_ids.filter(id => material.some(value => value.id === id)),
-        proposed_actions: unresolved.length ? ['derive another bounded wave'] : ['terminalize convergence']
+        proposed_actions: unresolved.length ? ['derive another bounded wave'] : ['seek independent critic admission']
       });
       events.push(synthesis);
       stateAfterOutputs = foldCognitionEvents(events);
-      waveCritique = critiqueSynthesis({
-        id: `critique:wave:${waveIndex}`,
+      const structuralCritique = critiqueSynthesis({
+        id: `critique:wave:${waveIndex}:structural`,
         synthesis,
         state: stateAfterOutputs,
         issued_at: now()
       });
-      events.push(waveCritique);
+      events.push(structuralCritique);
     }
 
     const finalState = foldCognitionEvents(events);
     const unresolved = unresolvedCognitionIds(finalState);
-    const accepted = !waveCritique || waveCritique.body.verdict === 'accept';
-    const status = events.length >= budget.max_events
-      ? 'budget_exhausted'
-      : (unresolved.length || !accepted ? 'advanced' : 'converged');
-    const receipt = terminalReceipt({ waveIndex, status, assignments: assignmentEvents, outputs, unresolved, events, now });
+    const status = events.length >= budget.max_events ? 'budget_exhausted' : (unresolved.length ? 'advanced' : 'converged');
+    const receipt = terminalReceipt({ waveIndex, status, assignments: assignmentEvents, outputs: [...outputs, ...admissions], unresolved, events, now });
     events.push(receipt);
     receipts.push(receipt);
     if (status !== 'advanced') {
