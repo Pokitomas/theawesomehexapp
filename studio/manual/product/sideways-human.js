@@ -106,9 +106,15 @@ function flattenStructuralSurfaces() {
 }
 
 function installLocationBar() {
+  const existing = document.querySelector('[data-sideways-location]');
+  if (explicitDeveloperView()) {
+    existing?.remove();
+    return;
+  }
+
   const topbar = document.querySelector('.topbar');
   if (!topbar) return;
-  let bar = document.querySelector('[data-sideways-location]');
+  let bar = existing;
   if (!bar) {
     bar = document.createElement('nav');
     bar.className = 'sideways-location-bar';
@@ -185,3 +191,5 @@ for (const eventName of [
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
 else schedule();
 for (const delay of [80, 280, 900, 1800]) setTimeout(schedule, delay);
+
+window.SidewaysHuman = Object.freeze({ refresh: schedule, routeLabel, explicitDeveloperView });
