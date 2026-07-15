@@ -1,13 +1,13 @@
-version: 41
-updated_at: 2026-07-15T09:07:00Z
+version: 42
+updated_at: 2026-07-15T09:11:00Z
 repository: Pokitomas/theawesomehexapp
 canonical_branch: revival/repository-wide-generation
 canonical_pr: 233
 base_branch: main
-observed_head_before_ledger: f306edcf444d36302a15c70fd69539d68f6366a7
-state: assembly_complete_pending_exact_head_ci
+observed_head_before_ledger: cbb27dcc0991aa070b58f43b4a6544ebce5cf3c1
+state: revival_active_pending_exact_head_receipts
 
-owner: GPT-5.6 Thinking repository-wide revival generation
+owner: GPT-5.6 Thinking repository-wide revival and deployment generation
 mode: liberal integration with expected-head fences, beat interruption, and exact-head deployment proof
 heartbeat:
   live_owner_receipt_found: true
@@ -46,7 +46,7 @@ lane_claims:
     issue: 226
     source_branch: revival/social-product
     source_head: 00d78fa41acd336db82f026081cb691aaff59b7f
-    state: transported_into_assembly_with_concurrent_profile_and_diagnostic_repairs
+    state: transported_into_assembly_with_profile_and_typed_action_repairs
   ranking:
     issue: 227
     source_branch: revival/ranking-evaluation
@@ -61,11 +61,13 @@ lane_claims:
     issue: 229
     source_branch: revival/maker-activation
     source_head: 10ee0cd41b4ae5373db1e905651b5b62f27a7179
+    role_contract_head: 5b20bd5f7c2bb93aa23ded842e8c26d049d166a4
+    terminal_release_head: dc10dd1334c54bb423a16c80fd62fe4756112c42
     state: history_preserving_transport_complete_runtime_configuration_external
   operations:
     issue: 230
     source_branch: revival/operations-proof
-    source_head: fddfd0d0cd8afe499201f5f5656ad0669eb1a8b8
+    source_head: 9f4e442d5a25e5ac27ffee2e66d84ac4e1d05340
     state: history_preserving_transport_complete_external_facts_unknown
   quality:
     issue: 231
@@ -104,7 +106,7 @@ corrective_history:
 repository_truth:
   root_reader: implemented
   private_archive: implemented_with_survival_and_failure_truth_audits
-  public_social_authority: implemented_with_reachability_audit_and_profile_journey_repairs
+  public_social_authority: implemented_with_reachability_profile_and_two_account_journeys
   ranking_kernel: deterministic_with_synthetic_evaluation_not_outcome_validated
   weave: replay_privacy_and_terminal_lifecycle_implemented
   maker_phone_console: implemented
@@ -118,11 +120,15 @@ sprawl_consolidation:
   duplicate_implementation_branches_created: 0
   duplicate_pull_requests_created: 0
   history_preserving_child_transports: true
+  merge_performed: true
+  historical_merge_pr: 188
+  historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
+  merged_against_terminal_decision: HOLD
   current_revival_pull_request: 233
 
 verification:
   observed_main_head: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
-  assembly_head_before_ledger: f306edcf444d36302a15c70fd69539d68f6366a7
+  assembly_head_before_ledger: cbb27dcc0991aa070b58f43b4a6544ebce5cf3c1
   canonical_revival_head: pending_exact_head_ci_after_ledger_update
   child_exact_heads: recorded_in_lane_states
   whole_repository_matrix: pending_combined_tree
@@ -132,13 +138,14 @@ merge_boundary:
   code_local_scope: complete_pending_exact_head_matrix
   external_runtime_configuration: explicitly_not_fabricated
   external_infrastructure_observations: explicitly_not_fabricated
+  authorized_deployment: github_pages_after_green_matrix
   decision_after_green_matrix: merge_and_deploy_with_expected_head_lock
 
 post_merge_followups:
   - validate a real configured Maker episode when an endpoint or runner credential exists
-  - collect dated production backup, restore, rollback, rate-limit, and environment evidence
+  - collect dated production backup restore rollback rate-limit and environment evidence
   - collect real delayed-feedback ranking outcome evidence
-  - extend runtime browser, screen-reader, network, quota, and storage-pressure coverage
+  - extend runtime browser screen-reader network quota and storage-pressure coverage
 
 invariants:
   - Do not infer completion from issue prose.
