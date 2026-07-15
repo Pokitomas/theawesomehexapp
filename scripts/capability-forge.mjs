@@ -14,6 +14,8 @@ export const INSTALL_LEASE_SCHEMA = 'sideways-capability-install-lease/v1';
 export const RECEIPT_SCHEMA = 'sideways-capability-forge-receipt/v1';
 const ALLOWED_PROGRAMS = new Set(['ollama', 'uv', 'python', 'python3', 'npm']);
 const SECRET = /\b(?:ghp_|github_pat_|sk-|Bearer\s+|DATABASE_URL\s*=|SESSION_SECRET\s*=)/i;
+const FORBIDDEN_INSTALL_ARG = /^(?:-g|--global|--user|--system|--break-system-packages|--prefix(?:=|$)|--target(?:=|$)|--root(?:=|$)|--cache-dir(?:=|$))$/i;
+const ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\/)/;
 const clean = (value, limit = 12000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
 const CANDIDATES = Object.freeze([
@@ -92,11 +94,17 @@ export function createTemporaryInstallLease({
     if (!Array.isArray(args) || args.some(value => typeof value !== 'string')) throw new Error(`${label} must be an argv string array.`);
     const values = args.map(value => clean(value, 1000));
     if (values.some(value => !value || SECRET.test(value))) throw new Error(`${label} contains empty or secret-like arguments.`);
-    if (values.some(value => /(?:^|\s)(?:--prefix|--target|--root|--cache-dir)(?:=|\s)/.test(value))) {
-      throw new Error(`${label} cannot choose its own filesystem target.`);
+    if (values.some(value => FORBIDDEN_INSTALL_ARG.test(value) || /^(?:--prefix|--target|--root|--cache-dir)=/i.test(value))) {
+      throw new Error(`${label} cannot request global, user, system, or self-selected filesystem installation.`);
     }
+    if (values.some(value => ABSOLUTE_PATH.test(value))) throw new Error(`${label} cannot contain absolute filesystem paths.`);
     return values;
   };
+  const normalizedInstallArgs = normalizeArgs(install_args, 'install_args');
+  const normalizedCleanupArgs = normalizeArgs(cleanup_args, 'cleanup_args');
+  if (executable === 'ollama' && normalizedCleanupArgs.length === 0) {
+    throw new Error('ollama leases require an explicit cleanup command because the model store may outlive the workspace.');
+  }
   const cost = Number(budget_cost);
   if (!Number.isFinite(cost) || cost < 0) throw new Error('budget_cost must be finite and non-negative.');
   const workspace = path.join(os.tmpdir(), 'sideways-capability-forge', leaseId);
@@ -105,8 +113,8 @@ export function createTemporaryInstallLease({
     lease_id: leaseId,
     candidate_id: candidateId,
     program: executable,
-    install_args: Object.freeze(normalizeArgs(install_args, 'install_args')),
-    cleanup_args: Object.freeze(normalizeArgs(cleanup_args, 'cleanup_args')),
+    install_args: Object.freeze(normalizedInstallArgs),
+    cleanup_args: Object.freeze(normalizedCleanupArgs),
     workspace,
     isolated: true,
     production_target: false,
@@ -116,11 +124,21 @@ export function createTemporaryInstallLease({
   });
 }
 
-function minimalEnvironment(env = process.env) {
+function minimalEnvironment(workspace, env = process.env) {
   return {
     PATH: env.PATH || '',
-    HOME: env.HOME || '',
-    TMPDIR: env.TMPDIR || os.tmpdir(),
+    HOME: workspace,
+    USERPROFILE: workspace,
+    TMPDIR: workspace,
+    TEMP: workspace,
+    TMP: workspace,
+    XDG_CACHE_HOME: path.join(workspace, '.cache'),
+    npm_config_prefix: path.join(workspace, '.npm-global'),
+    npm_config_cache: path.join(workspace, '.npm-cache'),
+    PIP_TARGET: path.join(workspace, '.python'),
+    PIP_CACHE_DIR: path.join(workspace, '.pip-cache'),
+    UV_CACHE_DIR: path.join(workspace, '.uv-cache'),
+    OLLAMA_MODELS: path.join(workspace, '.ollama-models'),
     NO_COLOR: '1',
     CI: env.CI || '1'
   };
@@ -143,11 +161,12 @@ export async function runTemporaryInstallLease(leaseInput, {
 
   const receipts = [];
   await mkdir(workspace, { recursive: true });
+  const isolatedEnv = minimalEnvironment(workspace, env);
   let installError = null;
   try {
     const installed = await execute(lease.program, lease.install_args, {
       cwd: workspace,
-      env: minimalEnvironment(env),
+      env: isolatedEnv,
       shell: false,
       timeout: 30 * 60 * 1000,
       maxBuffer: 4 * 1024 * 1024,
@@ -180,7 +199,7 @@ export async function runTemporaryInstallLease(leaseInput, {
       try {
         const cleaned = await execute(lease.program, lease.cleanup_args, {
           cwd: workspace,
-          env: minimalEnvironment(env),
+          env: isolatedEnv,
           shell: false,
           timeout: 15 * 60 * 1000,
           maxBuffer: 4 * 1024 * 1024,
