@@ -5,6 +5,7 @@ import {
   createGitHubIssueCognitionClient,
   createSignedRemoteCognitionClient,
   extractRemoteCognitionEvents,
+  parseCognitionOutputComment,
   parseCognitionSeedComment,
   runRecursiveCognitionBridge,
   trustedCognitionComment
@@ -13,19 +14,53 @@ import {
 const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
 const unique = values => [...new Set(values.filter(Boolean))];
 
+function commentOrder(comment) {
+  const stamp = Date.parse(comment?.created_at || '');
+  return [Number.isFinite(stamp) ? stamp : 0, Number(comment?.id || 0)];
+}
+
+function latestTrustedOutputComments(comments, allowLogins) {
+  const latest = new Map();
+  for (const comment of comments) {
+    if (!trustedCognitionComment(comment, allowLogins)) continue;
+    const output = parseCognitionOutputComment(comment);
+    if (!output) continue;
+    const previous = latest.get(output.assignment_id);
+    if (!previous) {
+      latest.set(output.assignment_id, comment);
+      continue;
+    }
+    const [stamp, id] = commentOrder(comment);
+    const [previousStamp, previousId] = commentOrder(previous);
+    if (stamp > previousStamp || (stamp === previousStamp && id > previousId)) latest.set(output.assignment_id, comment);
+  }
+  const selected = new Set([...latest.values()].map(comment => Number(comment.id)));
+  return comments.filter(comment => {
+    if (!trustedCognitionComment(comment, allowLogins)) return true;
+    const output = parseCognitionOutputComment(comment);
+    return !output || selected.has(Number(comment.id));
+  });
+}
+
 export async function runGuardedRecursiveCognitionBridge(options) {
+  const issueNumber = options.issue_number || 178;
+  const allowLogins = options.allow_logins || [];
   const [comments, remoteState] = await Promise.all([
-    options.github.listComments(options.issue_number || 178),
+    options.github.listComments(issueNumber),
     options.remote.listMessages()
   ]);
   const events = extractRemoteCognitionEvents(remoteState.messages);
   const hasTrustedSeed = comments.some(comment =>
-    trustedCognitionComment(comment, options.allow_logins || []) && parseCognitionSeedComment(comment)
+    trustedCognitionComment(comment, allowLogins) && parseCognitionSeedComment(comment)
   );
   if (!events.length && !hasTrustedSeed) {
     return { status: 'idle', seeded: 0, ingested: 0, pending: 0, comments_posted: 0 };
   }
-  return runRecursiveCognitionBridge(options);
+  const github = {
+    listComments: async number => latestTrustedOutputComments(await options.github.listComments(number), allowLogins),
+    postComment: (...args) => options.github.postComment(...args)
+  };
+  return runRecursiveCognitionBridge({ ...options, github });
 }
 
 function parseJSON(value, fallback = {}) {
