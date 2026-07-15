@@ -3,8 +3,8 @@
   "base": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
   "consumer_client": "studio/manual/product/social-client.js",
   "relational_service": "netlify/functions/social-relational-core.mjs",
-  "visible_operations": ["session", "register", "login", "logout", "discover", "feed", "post", "like", "follow"],
-  "server_only_operations": ["profile:get", "profile:patch", "community:get", "community:create", "community-member", "community-role", "community-fork", "post:patch", "post-state", "moderate", "report", "appeal", "appeal-decide", "local-control", "community-feed", "thread"],
+  "visible_operations": ["session:get", "register:post", "login:post", "logout:post", "discover:get", "feed:get", "post:post", "like:post", "follow:post"],
+  "server_only_operations": ["profile:get", "profile:patch", "community:get", "community:post", "community-member:post", "community-role:post", "community-fork:post", "post:patch", "post-state:post", "moderate:post", "report:post", "appeal:post", "appeal-decide:post", "local-control:post", "community-feed:get", "thread:get"],
   "mode_contract": {
     "static": "social client may become unavailable and must not simulate shared mutation",
     "blob": "basic account, post, reply, follow, like, discover, and following feed",
@@ -18,5 +18,5 @@
     "no visible viewer-local mute or block controls",
     "no visible author edit or delete control despite server authority"
   ],
-  "release_rule": "A capability is not a product feature until the consumer can reach it and its unavailable mode is explicit."
+  "release_rule": "A capability is not a product feature until the consumer can reach its exact operation and HTTP method and its unavailable mode is explicit."
 }
