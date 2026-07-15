@@ -8,16 +8,18 @@ Discover across the web, connect accounts you authorize, and keep anything you c
 - Archive debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
 - Phone gate: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
 
-## One product, four states
+## One product, four visible states
 
-Sideways presents four ordinary states while preserving stricter authority boundaries underneath:
+The interface uses four ordinary labels without creating four authorities:
 
-- **Web** — public material discovered through bounded public sources such as websites, RSS/Atom, sitemaps, public APIs, and ActivityPub-compatible endpoints.
-- **Connected** — material available through an account connection the user explicitly authorizes.
-- **Private** — material deliberately saved or imported into the person-owned local archive.
-- **Shared** — material deliberately published through configured canonical public authority.
+- **Web** — public material discovered through bounded websites, feeds, public APIs, and ActivityPub-compatible endpoints.
+- **Connected** — material transported through an account connection the user explicitly authorizes.
+- **Private** — material deliberately saved or imported into the person-owned archive.
+- **Shared** — material deliberately published through the canonical public social authority.
 
-A Web or Connected item does not silently become Private. A Private import does not silently become Shared. Public caches and ranking candidate windows remain rebuildable delivery state, not canonical memory or public authority.
+Connected is an ingestion transport state, not a new owner of data. A Web or Connected item does not silently become Private. A Private import does not silently become Shared.
+
+The ranking candidate pool is temporary. Public source cache, connected-account responses, and current-request candidates are rebuildable delivery state until a person deliberately saves something. They are not canonical private memory and are not the canonical public social authority.
 
 ## Bounded web discovery
 
@@ -25,7 +27,7 @@ The Pages release builds one normalized, provenance-bearing public source snapsh
 
 The default snapshot can consume Hacker News, Wikinews, and public Mastodon-shaped records. Deployments may provide an explicit `SIDEWAYS_PUBLIC_SOURCES` configuration for additional lawful public feeds and APIs. Existing sources are ordinary providers rather than the definition of the product.
 
-The root ranking build still materializes a large deterministic delivery pool from the bounded snapshot so the shipped saturation kernel can be evaluated at scale. The source snapshot itself is not a permanent downloaded web corpus.
+The root ranking build still materializes a large deterministic delivery pool from the bounded snapshot so the shipped saturation kernel can be evaluated at scale. The snapshot itself is not a permanent downloaded web corpus.
 
 ## Add to Sideways
 
@@ -44,16 +46,16 @@ Account connection support uses an adapter contract for OAuth/OIDC authorization
 
 Sideways does not collect provider passwords, automate login forms, replay browser sessions, scrape cookies, defeat MFA, or place access/refresh tokens in repository files, logs, URLs, public browser storage, generated Pages assets, public projections, or Ark backups.
 
-## Private ownership and recovery
+## Private personal archive
 
-IndexedDB is the canonical hot store for the private archive. Sideways exposes four Library controls:
+IndexedDB is the canonical hot store for the private personal archive. Sideways exposes four Library controls:
 
 - **PIN** requests persistent browser storage and mirrors the private archive into OPFS where supported.
 - **CHECK** audits records, assets, references, bytes, and durability state.
 - **BACKUP** creates a versioned user-owned `.sideways` Ark.
 - **RESTORE** transactionally restores an Ark and records the survival receipt.
 
-OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can be evicted together; the downloaded Ark is the portability boundary that survives origin loss. Public social authority, connected-account tokens, and rebuildable public projections are excluded.
+OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can be evicted together; the downloaded Ark is the portability boundary that survives origin loss. Public authority, connected-account tokens, and rebuildable public projections are excluded.
 
 ## Public social authority
 
@@ -75,16 +77,6 @@ Maker performs bounded read-only assessment, synthesizes one lane, grants exactl
 
 ## Verification
 
-The repository gate covers:
+The repository gate covers provider-neutral normalization and provenance, public URL safety, bounded source snapshots, OAuth callback and redaction contracts, resumable sync state, file import, profile/media/Ark journeys, exact root/manual kernel parity, social authority, workflow authority, and exact-head release receipts.
 
-- provider-neutral normalization and provenance;
-- public URL and private-network rejection;
-- bounded source snapshots and fail-honest providers;
-- OAuth PKCE/state/nonce/callback/redaction contracts;
-- resumable connected sync state;
-- file import, profile, media, Ark recovery, and phone journeys;
-- exact root/manual kernel parity;
-- social and workflow authority;
-- exact-head release and deployment receipts.
-
-External hosting configuration, real provider credentials, production PostgreSQL/backup state, browser download retention, device-specific eviction, screen-reader journeys, additional browsers, and representative-device performance remain explicit external evidence boundaries rather than repository claims.
+External hosting configuration, real provider credentials, production PostgreSQL and backup state, browser download retention, device-specific eviction, screen-reader journeys, additional browsers, and representative-device performance remain explicit external evidence boundaries rather than repository claims.
