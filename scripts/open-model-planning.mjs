@@ -67,8 +67,11 @@ export async function runOpenModelPlanning({
 } = {}) {
   if (!model_client?.complete) throw new Error('A model client is required for planning.');
   const roles = ['proposer', 'opponent', 'verifier', 'implementer', 'integrator', 'historian', 'critic'];
-  const adapters = Object.fromEntries(roles.map(role => [role, createOpenModelRoleAdapter(model_client, { id: `open-model:${role}` })]));
-  adapters.default = createOpenModelRoleAdapter(model_client, { id: 'open-model:default' });
+  const adapters = Object.fromEntries(roles.map(role => [role, createOpenModelRoleAdapter(model_client, {
+    id: `open-model:${role}`,
+    role
+  })]));
+  adapters.default = createOpenModelRoleAdapter(model_client, { id: 'open-model:default', role: 'default' });
   const result = await runRecursiveWeave({
     initial_events: makerPlanningSeed(intent, now),
     adapters,
