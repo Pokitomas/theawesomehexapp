@@ -16,5 +16,5 @@
     "force_push": false,
     "secrets": "never-in-snapshot-plan-or-receipt"
   },
-  "state": "lease_only"
+  "state": "implemented_pending_exact_head_verification"
 }
