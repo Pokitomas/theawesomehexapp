@@ -1,13 +1,13 @@
 {
-  "name": "Sideways Maker",
+  "name": "Maker Engineering",
   "short_name": "Maker",
-  "description": "A phone-first founder command surface for Sideways.",
+  "description": "Repository-general engineering task authoring and execution truth.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#f4efe4",
-  "theme_color": "#11110f",
+  "orientation": "any",
+  "background_color": "#f6f3eb",
+  "theme_color": "#10233f",
   "icons": [
     {
       "src": "./icon.svg",
