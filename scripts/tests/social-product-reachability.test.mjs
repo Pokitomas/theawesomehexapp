@@ -32,12 +32,13 @@ function clientHas(operation) {
   if (method === 'GET' && ['discover', 'feed'].includes(op)) {
     return client.includes("requestedMode === 'following' ? 'feed' : 'discover'");
   }
-  const direct = new RegExp(`request\\(['\"]${escape(op)}['\"]\\s*(?:,\\s*\\{([\\s\\S]{0,220}?))?\\)`);
-  const match = client.match(direct);
-  if (!match) return false;
-  const options = match[1] || '';
-  if (method === 'GET') return !/method:\s*['\"]/.test(options);
-  return new RegExp(`method:\\s*['\"]${method}['\"]`).test(options);
+  const direct = new RegExp(`request\\(['\"]${escape(op)}['\"]\\s*(?:,\\s*\\{([\\s\\S]{0,500}?))?\\)`, 'g');
+  const calls = [...client.matchAll(direct)];
+  return calls.some(match => {
+    const options = match[1] || '';
+    if (method === 'GET') return !/method:\s*['\"]/.test(options);
+    return new RegExp(`method:\\s*['\"]${method}['\"]`).test(options);
+  });
 }
 
 test('every visible consumer capability is admitted by the server with the same method', () => {
@@ -52,7 +53,15 @@ test('server-only authority is real and absent from the current client at that m
     assert.ok(serverHas(operation), `missing server operation ${operation}`);
     assert.equal(clientHas(operation), false, `client unexpectedly reaches ${operation}`);
   }
-  assert.ok(audit.highest_priority_gaps.length >= 6);
+  assert.ok(audit.highest_priority_gaps.length >= 5);
+});
+
+test('public profile editing is a visible server-backed journey with local identity separation', () => {
+  assert.ok(clientHas('profile:get'));
+  assert.ok(clientHas('profile:patch'));
+  assert.match(client, /data\.socialProfile|dataset\.socialProfile/);
+  assert.match(client, /Local archive identity was not changed/);
+  assert.match(audit.newly_visible_journey, /retains the separate local archive identity/);
 });
 
 test('static mode fails unavailable instead of simulating shared state', () => {
