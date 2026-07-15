@@ -6,10 +6,23 @@ const PROVIDERS = Object.freeze([
   { id: 'instagram', name: 'Instagram', scopes: ['instagram_graph_user_profile', 'instagram_graph_user_media'], authorizationPath: '/api/connections/instagram/authorize' }
 ]);
 
-const SENSITIVE_KEY = /(?:access|refresh|id)?token|secret|password|cookie|authorizationcode|codeverifier|credential/i;
+const SENSITIVE_KEYS = Object.freeze(new Set([
+  'accesstoken', 'refreshtoken', 'idtoken', 'token', 'bearertoken', 'secret', 'clientsecret',
+  'password', 'cookie', 'setcookie', 'authorization', 'authorizationcode', 'code',
+  'codeverifier', 'verifier', 'credential', 'credentials'
+]));
 
 function clean(value = '') {
   return value == null ? '' : String(value).replace(/[\u0000-\u001f\u007f]/g, '').trim();
+}
+
+function normalizedKey(value = '') {
+  return String(value).replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function sensitiveKey(value = '') {
+  const key = normalizedKey(value);
+  return SENSITIVE_KEYS.has(key) || /(?:access|refresh|id|bearer)?token$/.test(key) || /(?:secret|password|cookie|credential)$/.test(key);
 }
 
 function base64url(bytes) {
@@ -22,12 +35,26 @@ function secureBytes(length, cryptoObject = globalThis.crypto) {
   return cryptoObject.getRandomValues(new Uint8Array(length));
 }
 
+function normalizeAllowedRedirects(values = []) {
+  return Object.freeze([...new Set((Array.isArray(values) ? values : []).map(value => {
+    const parsed = new URL(value);
+    if (parsed.username || parsed.password || parsed.hash) throw new Error('OAuth callback allowlist contains an invalid URL.');
+    return `${parsed.origin}${parsed.pathname}`;
+  }))]);
+}
+
 export function providerCatalog(configuration = {}) {
-  return PROVIDERS.map(provider => Object.freeze({
-    ...provider,
-    configured: Boolean(configuration[provider.id]?.clientId && configuration[provider.id]?.redirectUri && configuration[provider.id]?.authorizationEndpoint),
-    redirectUri: clean(configuration[provider.id]?.redirectUri || '')
-  }));
+  return PROVIDERS.map(provider => {
+    const config = configuration[provider.id] || {};
+    const allowedRedirects = normalizeAllowedRedirects(config.allowedRedirects || (config.redirectUri ? [config.redirectUri] : []));
+    return Object.freeze({
+      ...provider,
+      configured: Boolean(config.clientId && config.redirectUri && config.authorizationEndpoint && allowedRedirects.length),
+      redirectUri: clean(config.redirectUri || ''),
+      authorizationEndpoint: clean(config.authorizationEndpoint || ''),
+      allowedRedirects
+    });
+  });
 }
 
 export function providerById(id, configuration = {}) {
@@ -43,16 +70,15 @@ export async function createPKCE(cryptoObject = globalThis.crypto) {
   return Object.freeze({ verifier, challenge: base64url(new Uint8Array(digest)), method: 'S256' });
 }
 
-export function validateRedirectURI(redirectUri, allowedRedirects = []) {
+export function validateRedirectURI(redirectUri, allowedRedirects = [], { requireAllowlist = true } = {}) {
   const redirect = new URL(redirectUri);
   const local = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(redirect.hostname);
   if (redirect.protocol !== 'https:' && !(local && redirect.protocol === 'http:')) throw new Error('OAuth callbacks require HTTPS except loopback development callbacks.');
   if (redirect.username || redirect.password || redirect.hash) throw new Error('OAuth callback URL is invalid.');
+  const allowed = normalizeAllowedRedirects(allowedRedirects);
+  if (requireAllowlist && !allowed.length) throw new Error('OAuth callback allowlist is required.');
   const normalized = `${redirect.origin}${redirect.pathname}`;
-  if (allowedRedirects.length && !allowedRedirects.some(value => {
-    const allowed = new URL(value);
-    return `${allowed.origin}${allowed.pathname}` === normalized;
-  })) throw new Error('OAuth callback URL is not allowlisted.');
+  if (allowed.length && !allowed.includes(normalized)) throw new Error('OAuth callback URL is not allowlisted.');
   return redirect;
 }
 
@@ -71,11 +97,12 @@ export function createConnectionState({ providerId, redirectUri, allowedRedirect
 }
 
 export function buildAuthorizationURL({ provider, endpoint, clientId, redirectUri, allowedRedirects = [], scopes, state, nonce, challenge }) {
+  if (!provider || !PROVIDERS.some(item => item.id === provider.id)) throw new Error('A known OAuth provider is required.');
   const target = new URL(endpoint);
   if (target.protocol !== 'https:' || target.username || target.password || target.hash) throw new Error('Authorization endpoint must use clean HTTPS.');
   const callback = validateRedirectURI(redirectUri, allowedRedirects);
-  const allowedScopes = new Set(provider?.scopes || []);
-  const requestedScopes = [...new Set(scopes || provider?.scopes || [])];
+  const allowedScopes = new Set(provider.scopes || []);
+  const requestedScopes = [...new Set(scopes || provider.scopes || [])];
   if (!requestedScopes.length || requestedScopes.some(scope => !allowedScopes.has(scope))) throw new Error('Requested OAuth scopes exceed the provider allowlist.');
   for (const [name, value] of Object.entries({ clientId, state, nonce, challenge })) {
     if (!clean(value)) throw new Error(`OAuth ${name} is required.`);
@@ -111,12 +138,26 @@ function redactValue(value) {
   if (Array.isArray(value)) return value.map(redactValue);
   if (!value || typeof value !== 'object') return typeof value === 'string' ? clean(value) : value;
   return Object.fromEntries(Object.entries(value)
-    .filter(([key]) => !SENSITIVE_KEY.test(key.replace(/[^a-z0-9]/gi, '')))
+    .filter(([key]) => !sensitiveKey(key))
     .map(([key, child]) => [key, redactValue(child)]));
 }
 
 export function redactConnection(connection = {}) {
   return Object.freeze(redactValue(connection));
+}
+
+export function serverTokenBoundary({ provider, encrypted = true } = {}) {
+  if (!PROVIDERS.some(item => item.id === provider)) throw new Error('Unknown account provider.');
+  return Object.freeze({
+    schema: 'sideways-server-token-boundary/v1',
+    provider,
+    storage: encrypted ? 'encrypted-server-only' : 'unavailable',
+    browserReadable: false,
+    publicProjection: false,
+    arkExport: false,
+    logs: 'redacted',
+    refresh: 'server-only'
+  });
 }
 
 export function createDisconnectReceipt({ provider, connectionId, revoked = false, deletedServerState = false, at = new Date().toISOString() } = {}) {
@@ -139,30 +180,32 @@ export function reduceSyncState(current = {}, event = {}) {
     provider: clean(current.provider || event.provider),
     status: current.status || 'idle',
     cursor: current.cursor || null,
+    recoveryCursor: current.recoveryCursor || current.cursor || null,
     imported: Math.max(0, Number(current.imported || 0)),
     seenIds: [...seen].slice(-1000),
     lastSyncAt: current.lastSyncAt || null,
+    cancelledAt: current.cancelledAt || null,
     error: null
   };
-  if (event.type === 'start') return Object.freeze({ ...base, status: 'syncing', error: null });
+  if (event.type === 'start') return Object.freeze({ ...base, status: 'syncing', recoveryCursor: base.cursor, cancelledAt: null, error: null });
   if (event.type === 'page') {
     const ids = [...new Set((Array.isArray(event.ids) ? event.ids : []).map(clean).filter(Boolean))];
     const unique = ids.filter(id => !seen.has(id));
     unique.forEach(id => seen.add(id));
     const added = ids.length ? unique.length : Math.max(0, Number(event.added || 0));
-    return Object.freeze({ ...base, status: 'syncing', cursor: event.cursor ?? base.cursor, imported: base.imported + added, seenIds: [...seen].slice(-1000) });
+    return Object.freeze({ ...base, status: 'syncing', cursor: event.cursor ?? base.cursor, recoveryCursor: event.cursor ?? base.cursor, imported: base.imported + added, seenIds: [...seen].slice(-1000) });
   }
-  if (event.type === 'complete') return Object.freeze({ ...base, status: 'connected', cursor: event.cursor ?? base.cursor, lastSyncAt: event.at || new Date().toISOString(), error: null });
-  if (event.type === 'cancel') return Object.freeze({ ...base, status: 'connected', error: null });
-  if (event.type === 'disconnect') return Object.freeze({ ...base, status: 'disconnected', cursor: null, seenIds: [], error: null });
-  if (event.type === 'error') return Object.freeze({ ...base, status: 'error', error: clean(event.message || 'Sync failed.') });
+  if (event.type === 'complete') return Object.freeze({ ...base, status: 'connected', cursor: event.cursor ?? base.cursor, recoveryCursor: event.cursor ?? base.cursor, lastSyncAt: event.at || new Date().toISOString(), cancelledAt: null, error: null });
+  if (event.type === 'cancel') return Object.freeze({ ...base, status: 'connected', cursor: base.recoveryCursor, cancelledAt: event.at || new Date().toISOString(), error: null });
+  if (event.type === 'disconnect') return Object.freeze({ ...base, status: 'disconnected', cursor: null, recoveryCursor: null, seenIds: [], cancelledAt: null, error: null });
+  if (event.type === 'error') return Object.freeze({ ...base, status: 'error', recoveryCursor: base.cursor, error: clean(event.message || 'Sync failed.') });
   throw new Error('Unknown connection sync event.');
 }
 
 export function connectionCapability({ staticDeployment = true, configured = false } = {}) {
   if (staticDeployment) return Object.freeze({ state: 'unavailable', reason: 'Account connections require a configured server callback. File import and public feeds remain available.' });
   if (!configured) return Object.freeze({ state: 'unavailable', reason: 'This provider is not configured for this deployment.' });
-  return Object.freeze({ state: 'available', reason: 'Authorization opens on the provider and can be revoked.' });
+  return Object.freeze({ state: 'available', reason: 'Authorization opens on the provider. Tokens remain encrypted on the server and the connection can be revoked.' });
 }
 
 export { PROVIDERS };
