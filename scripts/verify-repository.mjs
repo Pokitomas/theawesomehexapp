@@ -12,6 +12,11 @@ function checkedHeadSha() {
   return result.status === 0 ? result.stdout.trim() : 'unknown';
 }
 
+function tail(value, limit = 6000) {
+  const text = String(value || '');
+  return text.length <= limit ? text : text.slice(-limit);
+}
+
 const checkedHead = checkedHeadSha();
 const receipt = {
   schema: 'sideways-repository-verification/v1',
@@ -44,7 +49,11 @@ for (const suite of manifest.suites || []) {
     command: [command, ...args],
     status,
     exit_code: result.status ?? 1,
-    duration_ms: Date.now() - started
+    duration_ms: Date.now() - started,
+    ...(status === 'failed' ? {
+      stdout_tail: tail(result.stdout),
+      stderr_tail: tail(result.stderr)
+    } : {})
   });
   if (status === 'failed') failed = true;
 }
