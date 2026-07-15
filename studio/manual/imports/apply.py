@@ -12,6 +12,7 @@ MANUAL = ROOT / "manual-app"
 STYLE = '<link rel="stylesheet" href="./import-studio.css" data-import-workbench>'
 ADD_STYLE = '<link rel="stylesheet" href="./add-to-sideways.css" data-add-to-sideways>'
 SCRIPT = '<script type="module" src="./import-studio.js" data-import-workbench></script>'
+RUNTIME_SCRIPT = '<script type="module" src="./add-to-sideways-runtime.js" data-add-to-sideways-runtime></script>'
 PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone></script>'
 SOCIAL_STYLE = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
 SOCIAL_SCRIPT = '<script type="module" src="./social-client.js" data-social-spine></script>'
@@ -41,8 +42,8 @@ def main() -> None:
         shutil.copyfile(HERE / name, target / name)
     for name in (
         "import-studio.js", "import-studio.css", "import-phone.js", "add-to-sideways.css",
-        "discovery-source.js", "account-connections.js", "social-author-controls.js",
-        "social-governance-controls.js",
+        "add-to-sideways-runtime.js", "discovery-source.js", "account-connections.js",
+        "social-author-controls.js", "social-governance-controls.js",
     ):
         shutil.copyfile(PRODUCT / name, MANUAL / name)
 
@@ -51,6 +52,7 @@ def main() -> None:
     html = inject_once(html, STYLE, "</head>")
     html = inject_once(html, ADD_STYLE, "</head>")
     html = inject_once(html, SCRIPT, "</body>")
+    html = inject_once(html, RUNTIME_SCRIPT, "</body>")
     html = inject_once(html, PHONE_SCRIPT, "</body>")
     social_live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("SOCIAL_LIVE_ENDPOINT", "") == "1"
     if social_live:
