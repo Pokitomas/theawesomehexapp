@@ -1,84 +1,90 @@
 # Sideways
 
-A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel.
+Discover across the web, connect accounts you authorize, and keep anything you choose in a private archive you own.
 
-- Root feed: `https://pokitomas.github.io/theawesomehexapp/`
-- Sideways consumer app: `https://pokitomas.github.io/theawesomehexapp/manual/`
+- Root reader: `https://pokitomas.github.io/theawesomehexapp/`
+- Private archive: `https://pokitomas.github.io/theawesomehexapp/manual/`
 - Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
-- Sideways debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
+- Archive debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
 - Phone gate: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
 
-## Three product realities, one ranking kernel
+## One product, four states
 
-The root product is a reproducible one-million-candidate reader and ranking laboratory. It combines article, forum, and social-shaped records from Wikinews, Hacker News, and public Mastodon sources while preserving canonical links, authorship, replies, media provenance, and deterministic recommendation features. These delivery candidates are not the canonical public social graph.
+Sideways presents four ordinary states while preserving stricter authority boundaries underneath:
 
-`/manual/` contains the user-owned private personal archive. A person can create a local profile, install the small built-in starter fixture, write unpublished local posts, attach images and places, save and delete private material, import personal archives, and move through Feed, Places, Library, Saved, Full, and Desktop modes.
+- **Web** — public material discovered through bounded public sources such as websites, RSS/Atom, sitemaps, public APIs, and ActivityPub-compatible endpoints.
+- **Connected** — material available through an account connection the user explicitly authorizes.
+- **Private** — material deliberately saved or imported into the person-owned local archive.
+- **Shared** — material deliberately published through configured canonical public authority.
 
-A function-capable deployment also exposes a canonical public social authority. Cookie-authenticated actors can create accounts and profiles, publish and delete posts, follow and react; the relational PostgreSQL authority additionally owns communities, membership, moderation actions, immutable appeals, viewer-local controls, event history, and idempotent mutation receipts. Browser caches and feed responses are projections of that authority, never substitutes for it.
+A Web or Connected item does not silently become Private. A Private import does not silently become Shared. Public caches and ranking candidate windows remain rebuildable delivery state, not canonical memory or public authority.
 
-The ranking candidate pool is temporary. Sideways may assemble eligible public projections beside private archive records for one viewer and one feed request, but the kernel owns neither source. Public cache retention, view membership, and active candidate materialization are stored separately so switching feeds changes eligibility without deleting public authority or private archive content.
+## Bounded web discovery
 
-The manual app does not contain a second approximation of the recommender. During every build, `manual-app/kernel.js` is generated from the root `src/app.js` declarations. A brace-aware extractor, syntax verification, kernel-parity workflow, and the phone gate prevent formatting drift or an incomplete copied kernel from shipping.
+The Pages release builds one normalized, provenance-bearing public source snapshot through `scripts/build-web-source-snapshot.mjs`. Sources are bounded by count, bytes, records, and timeout. Credentials are omitted, private-network targets and credential-bearing URLs are rejected, content types are allowlisted, and individual unavailable providers fail honestly without manufacturing records.
 
-## Import anything useful
+The default snapshot can consume Hacker News, Wikinews, and public Mastodon-shaped records. Deployments may provide an explicit `SIDEWAYS_PUBLIC_SOURCES` configuration for additional lawful public feeds and APIs. Existing sources are ordinary providers rather than the definition of the product.
 
-The Sideways importer recognizes exports from Instagram, Reddit, TikTok, YouTube, Spotify, X/Twitter, Mastodon, browser bookmarks, RSS/Atom, JSON, JSONL, NDJSON, CSV, plain text, Markdown, and HTML. The normal Library path also preserves PDF, ZIP, Office documents, images, audio, video, and unknown binary files.
+The root ranking build still materializes a large deterministic delivery pool from the bounded snapshot so the shipped saturation kernel can be evaluated at scale. The source snapshot itself is not a permanent downloaded web corpus.
 
-Imports are classified by bytes rather than trusted file extensions, hashed in a worker, deduplicated, written in bounded IndexedDB transactions, cancellable between chunks, and reflected in the feed without an automatic page reload. Images and other assets remain blobs with reference-safe deletion and honest fallbacks. Imported social history remains private evidence; it does not become a live identity, publication, or engagement count in the public graph.
+## Add to Sideways
+
+The archive exposes one ingestion surface with four choices:
+
+1. **Connect an account**
+2. **Add a website or feed**
+3. **Import files**
+4. **Restore a Sideways backup**
+
+Files remain local and use byte-based classification, worker hashing, deduplication, bounded IndexedDB transactions, cancellation, quota checks, media blobs, reference-safe deletion, and in-place feed refresh.
+
+Public websites and feeds are stored as enabled source definitions separately from the private archive. Their records become private only after an explicit save/import action.
+
+Account connection support uses an adapter contract for OAuth/OIDC authorization with PKCE, state and nonce validation, exact callback paths, least-privilege scopes, expiry, refresh, revocation, incremental cursors, cancellation, and disconnect receipts. Static GitHub Pages cannot safely hold provider tokens, so it shows an honest unavailable state and retains file/public-feed alternatives. No provider is presented as connected until a server deployment has its exact client, callback, scopes, and official API contract configured.
+
+Sideways does not collect provider passwords, automate login forms, replay browser sessions, scrape cookies, defeat MFA, or place access/refresh tokens in repository files, logs, URLs, public browser storage, generated Pages assets, public projections, or Ark backups.
 
 ## Private ownership and recovery
 
-IndexedDB is the canonical hot store for the private personal archive. Sideways exposes four compact Library controls:
+IndexedDB is the canonical hot store for the private archive. Sideways exposes four Library controls:
 
-- **PIN** requests persistent browser storage and mirrors the current private archive into OPFS where supported.
-- **CHECK** audits private records, assets, missing references, orphaned blobs, bytes, and durability status.
-- **BACKUP** creates a versioned, user-owned `.sideways` Ark containing private records, assets, the compatibility ledger, local profile, and places.
+- **PIN** requests persistent browser storage and mirrors the private archive into OPFS where supported.
+- **CHECK** audits records, assets, references, bytes, and durability state.
+- **BACKUP** creates a versioned user-owned `.sideways` Ark.
 - **RESTORE** transactionally restores an Ark and records the survival receipt.
 
-OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can still be evicted together; the downloaded `.sideways` Ark is the boundary that survives origin loss. Public social authority is not silently copied into that private backup; cached public projections are rebuildable delivery state.
+OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can be evicted together; the downloaded Ark is the portability boundary that survives origin loss. Public social authority, connected-account tokens, and rebuildable public projections are excluded.
 
-## Profiles, posts, places, and media
+## Public social authority
 
-Local profiles persist with a display name, handle, biography, accent, avatar treatment, and portable state. The private archive supports text and image records, saved material, deletable local content, place creation and selection, Feed/Full/Desktop media modes, intrinsic image/video/audio/PDF/archive surfaces, and zero-overflow phone layouts.
+A static deployment remains a local archive and public reader. A configured function deployment may expose cookie-authenticated canonical public operations for accounts, profiles, posts, follows, reactions, communities, membership, roles, moderation, appeals, and viewer-local controls. The interface must fail visibly when that authority is unavailable and never simulate shared success from a browser cache.
 
-A static deployment remains a local-only product and can install the same profile-aware starter fixture without a backend. A configured function deployment adds the canonical public social operations described above. The interface currently exposes only part of that server authority; an implemented schema or endpoint is not evidence that every governance operation has a finished consumer UI.
+## One ranking kernel
 
-## LIVE work surface
+The root reader and manual archive use the same inspectable saturation-ranking declarations. During every build, the manual kernel is generated from the root declarations, syntax checked, and proved by kernel-parity and phone workflows. Eligibility, score families, saturation, diversity, and bounded exploration remain distinct from source ownership and publication authority.
 
-The **LIVE** window exposes public, read-only repository work state. `/.well-known/sideways-remote.json` is discovery metadata only; it is not a second state ledger and does not grant mutation authority. The browser receives no credentials, private payloads, signatures, nonce records, grants, deployment receipts, or remote mutation controls.
+## Engineering entrypoint
 
-See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) for the protocol boundaries.
-
-## Maker engineering surface
-
-From a clean checkout, the primary engineering entrypoint is intentionally small:
+From a clean checkout:
 
 ```bash
 npm run maker -- "describe the end state"
 ```
 
-Local Codex or another explicitly configured coding agent performs four parallel read-only assessments, one synthesis, and one isolated writer pass with full repository context. A draft PR is opened before mutation so `.github/workflows/maker-sprawl.yml` can reject path collisions with other open Maker PRs and fan verification across product, social, operator, and hostile lanes. Maker independently runs the exact repository gate and stops unmerged and undeployed.
-
-See [`NATIVE_MAKER.md`](./NATIVE_MAKER.md) for setup, custom-agent adapters, leases, recovery behavior, and the legacy endpoint-backed worker.
+Maker performs bounded read-only assessment, synthesizes one lane, grants exactly one isolated writer a path lease, runs focused tests and `npm run verify:repository`, and stops at a draft PR. Merge, deployment, secrets, repository settings, production data, and production credentials remain human authority.
 
 ## Verification
 
-The repository gates changes with:
+The repository gate covers:
 
-- manual overlay validation
-- exact kernel parity
-- the legacy 390×844 saturation phone gate
-- universal-media phone proof
-- profile-first starter and static-drop proof
-- Ark mirror → backup → delete → restore → audit proof
-- Remote, workflow-permission, social-authority, relational PostgreSQL, and migration-upgrade contracts
-- executable authority-surface drift detection
-- exact-head build and deployment accounting
+- provider-neutral normalization and provenance;
+- public URL and private-network rejection;
+- bounded source snapshots and fail-honest providers;
+- OAuth PKCE/state/nonce/callback/redaction contracts;
+- resumable connected sync state;
+- file import, profile, media, Ark recovery, and phone journeys;
+- exact root/manual kernel parity;
+- social and workflow authority;
+- exact-head release and deployment receipts.
 
-The concentrated private-archive phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
-
-## Capability boundary
-
-Sideways is a production-shaped hybrid, not a claim that every deployment has every authority. Static GitHub Pages cannot provide canonical shared mutations. A configured server deployment can provide the repository-defined public social graph, but external branch rules, environment protection, installed-app grants, secret values, hosting-team roles, and database grants remain outside repository proof. The private archive still has no automatic multi-device synchronization or upload CDN; portability requires an explicit Ark export.
-
-See [`PROGRAM_ONTOLOGY.md`](./PROGRAM_ONTOLOGY.md) for the authority, storage, eligibility, ranking, and portability vocabulary that governs new work.
+External hosting configuration, real provider credentials, production PostgreSQL/backup state, browser download retention, device-specific eviction, screen-reader journeys, additional browsers, and representative-device performance remain explicit external evidence boundaries rather than repository claims.
