@@ -14,6 +14,8 @@ const proof = {
   executablePath,
   viewport: '390x844',
   liveState: false,
+  allOpenWorkVisible: false,
+  workflowStateVisible: false,
   issueBridge: false,
   persisted: false,
   degraded: false,
@@ -44,11 +46,22 @@ const issuesRoute = async route => route.fulfill({
   status: 200,
   contentType: 'application/json',
   body: JSON.stringify([
-    { number: 218, title: 'Phone maker console', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' },
-    { number: 217, title: 'Replay repair', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/217', pull_request: {} },
-    { number: 216, title: 'Terminal drain', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/216', pull_request: {} },
-    { number: 215, title: 'Generation termination', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/215' }
+    { number: 219, title: 'Phone maker console', updated_at: '2026-07-15T05:02:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/219', pull_request: {} },
+    { number: 218, title: 'Maker issue', updated_at: '2026-07-15T05:01:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' },
+    { number: 217, title: 'Replay repair', updated_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/217', pull_request: {} },
+    { number: 215, title: 'Generation termination', updated_at: '2026-07-15T04:59:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/215' }
   ])
+});
+const runsRoute = async route => route.fulfill({
+  status: 200,
+  contentType: 'application/json',
+  body: JSON.stringify({
+    workflow_runs: [
+      { id: 3, name: 'Phone Maker', status: 'in_progress', conclusion: null, event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:03:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/3' },
+      { id: 2, name: 'Authority manifest', status: 'completed', conclusion: 'success', event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:02:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/2' },
+      { id: 1, name: 'Old failure', status: 'completed', conclusion: 'failure', event: 'push', head_branch: 'main', head_sha: '123456abcdef7890', created_at: '2026-07-15T04:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/1' }
+    ]
+  })
 });
 await context.route(url => {
   const matched = url.hostname === 'api.github.com' && url.pathname === '/repos/Pokitomas/theawesomehexapp/commits/main';
@@ -60,6 +73,11 @@ await context.route(url => {
   if (matched) apiRoutes.push(url.toString());
   return matched;
 }, issuesRoute);
+await context.route(url => {
+  const matched = url.hostname === 'api.github.com' && url.pathname === '/repos/Pokitomas/theawesomehexapp/actions/runs';
+  if (matched) apiRoutes.push(url.toString());
+  return matched;
+}, runsRoute);
 await context.route(url => url.hostname === 'github.com' && url.pathname === '/Pokitomas/theawesomehexapp/issues/new', route => route.fulfill({
   status: 200,
   contentType: 'text/html',
@@ -74,19 +92,24 @@ page.on('console', message => { if (message.type() === 'error') browserErrors.pu
 
 try {
   await page.goto('http://127.0.0.1:4175/maker/', { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: 'Tell the machine what should exist.' }).waitFor({ state: 'visible' });
+  await page.getByRole('heading', { name: 'Command.' }).waitFor({ state: 'visible' });
 
   await page.waitForFunction(() => document.querySelector('#repo-head')?.textContent === '634a511f68e8');
   proof.liveState =
     await page.locator('#open-issues').innerText() === '2'
     && await page.locator('#open-prs').innerText() === '2'
-    && apiRoutes.length >= 2;
-  if (!proof.liveState) throw new Error('mocked public repository state did not render exactly');
+    && await page.locator('#running-workflows').innerText() === '1'
+    && apiRoutes.length >= 3;
+  proof.allOpenWorkVisible = await page.locator('#active-work .operation-row').count() === 4;
+  proof.workflowStateVisible = await page.locator('#workflow-runs .operation-row').count() === 3;
+  if (!proof.liveState || !proof.allOpenWorkVisible || !proof.workflowStateVisible) {
+    throw new Error('mocked engineering state did not render completely');
+  }
 
   await page.locator('[data-mode="explore"]').click();
-  await page.locator('#maker-request').fill('Make Sideways feel like entering a living scene instead of operating a tool.');
-  await page.locator('#maker-protect').fill('Keep private imports private and require my merge approval.');
-  await page.locator('#maker-proof').fill('Show me a runnable phone world and the exact before/after journey.');
+  await page.locator('#maker-request').fill('Make the development system expose every active lane without consumer product noise.');
+  await page.locator('#maker-protect').fill('Keep credentials out of the browser and require my merge approval.');
+  await page.locator('#maker-proof').fill('Show the full open-work and workflow lists on a phone.');
 
   const bridgeHref = await page.locator('#send-command').getAttribute('href');
   if (!bridgeHref) throw new Error('maker did not generate a GitHub issue bridge');
@@ -95,7 +118,7 @@ try {
     throw new Error(`unexpected bridge target ${bridgeHref}`);
   }
   if (!bridge.searchParams.get('title')?.startsWith('[maker:explore]')) throw new Error('bridge title does not preserve mode');
-  if (!bridge.searchParams.get('body')?.includes('Keep private imports private')) throw new Error('bridge body lost protected reality');
+  if (!bridge.searchParams.get('body')?.includes('Keep credentials out of the browser')) throw new Error('bridge body lost protected reality');
 
   const popupPromise = context.waitForEvent('page');
   await page.locator('#send-command').click();
@@ -109,7 +132,7 @@ try {
   await page.reload({ waitUntil: 'networkidle' });
   const persistedRequest = await page.locator('#maker-request').inputValue();
   const explorePressed = await page.locator('[data-mode="explore"]').getAttribute('aria-pressed');
-  proof.persisted = persistedRequest.startsWith('Make Sideways feel like entering a living scene') && explorePressed === 'true';
+  proof.persisted = persistedRequest.startsWith('Make the development system expose every active lane') && explorePressed === 'true';
   if (!proof.persisted) throw new Error('founder command did not survive phone reload');
 
   if (browserErrors.length) throw new Error(`unexpected browser errors before degraded-state test: ${browserErrors.join(' | ')}`);
