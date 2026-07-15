@@ -12,9 +12,6 @@ on:
       - 'maker/leases/issue-294-29455288231-1.json'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: sideways-human-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -81,12 +78,18 @@ jobs:
 
       - name: Install locked browser tooling
         run: |
+          set -euo pipefail
           npm ci --ignore-scripts --include=dev
           node -e "import('playwright-core')"
-          command -v google-chrome | tee /tmp/sideways-human-browser-path.log || \
-            command -v google-chrome-stable | tee /tmp/sideways-human-browser-path.log || \
-            command -v chromium | tee /tmp/sideways-human-browser-path.log || \
-            command -v chromium-browser | tee /tmp/sideways-human-browser-path.log
+          {
+            echo "CHROME_BIN=${CHROME_BIN:-}"
+            echo "CHROME_PATH=${CHROME_PATH:-}"
+            command -v google-chrome || true
+            command -v google-chrome-stable || true
+            command -v chromium || true
+            command -v chromium-browser || true
+            find /opt /usr -maxdepth 5 -type f \( -name chrome -o -name chromium -o -name google-chrome \) 2>/dev/null | head -40 || true
+          } | tee /tmp/sideways-human-browser-path.log
 
       - name: Prove phone and desktop assembled product
         run: |
