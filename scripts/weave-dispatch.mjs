@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { COGNITION_KINDS, normalizeCognitionEvent } from './weave-cognition.mjs';
 
 const FORBIDDEN_AUTHORITY = new Set(['merge', 'deploy', 'grant', 'admin', 'canonical_mutation', 'repo_write', 'repo:write']);
-const FORBIDDEN_EVENT_KINDS = new Set(['assignment', 'dispatch.started', 'dispatch.completed', 'wave.receipt', 'supersede']);
+const FORBIDDEN_EVENT_KINDS = new Set(['decision', 'assignment', 'dispatch.started', 'dispatch.completed', 'wave.receipt', 'supersede']);
 const SECRET_KEY_PATTERN = /(^|[_-])(api[_-]?key|secret|token|password|private[_-]?key|credential|authorization|cookie)($|[_-])/i;
 const SECRET_VALUE_PATTERNS = [
   /(api[_-]?key|secret|token|password|private[_-]?key)\s*[:=]\s*[^\s]+/i,
@@ -122,7 +122,7 @@ export function parseAdapterOutput(raw, packet, context = {}) {
     for (const [key, value] of Object.entries(authority)) {
       if (value && FORBIDDEN_AUTHORITY.has(key)) throw new Error(`Forbidden adapter authority: ${key}.`);
     }
-    if (FORBIDDEN_EVENT_KINDS.has(candidate?.kind)) throw new Error(`Adapter cannot emit lifecycle or authority event kind: ${candidate?.kind}.`);
+    if (FORBIDDEN_EVENT_KINDS.has(candidate?.kind)) throw new Error(`Adapter cannot emit lifecycle, decision, or authority event kind: ${candidate?.kind}.`);
     if (!allowed.has(candidate?.kind) || !COGNITION_KINDS.includes(candidate?.kind)) throw new Error(`Unexpected adapter event kind: ${candidate?.kind}.`);
     const cited = new Set(candidate?.source_event_ids || []);
     if (![...targetSet].some(id => cited.has(id))) throw new Error('Adapter event is missing assignment target citations.');
