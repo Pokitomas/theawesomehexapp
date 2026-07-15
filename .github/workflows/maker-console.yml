@@ -1,0 +1,60 @@
+name: Prove phone Maker console
+
+on:
+  pull_request:
+    paths:
+      - 'maker/**'
+      - 'scripts/tests/maker-console*.mjs'
+      - '.github/workflows/maker-console.yml'
+      - '.github/workflows/pages.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  maker-console:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked browser tooling
+        run: npm ci --ignore-scripts
+      - name: Verify maker command model
+        run: node scripts/tests/maker-console.test.mjs
+      - name: Verify static phone assets
+        run: |
+          node --check maker/maker.js
+          node --check maker/sw.js
+          node --check scripts/tests/maker-console-phone.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('maker/manifest.webmanifest', 'utf8'))"
+          test -s maker/index.html
+          test -s maker/maker.css
+          test -s maker/icon.svg
+          grep -q 'SEND TO CO-ENGINEERS' maker/index.html
+          grep -q 'viewport-fit=cover' maker/index.html
+      - name: Prove founder command journey at 390x844
+        run: |
+          python -m http.server 4175 >/tmp/maker-http.log 2>&1 &
+          server=$!
+          trap 'kill $server || true' EXIT
+          sleep 2
+          node scripts/tests/maker-console-phone.mjs
+      - name: Upload phone Maker proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sideways-maker-console
+          path: |
+            maker
+            maker-console-phone.png
+            maker-console-proof.json
+          if-no-files-found: error
+          retention-days: 5
