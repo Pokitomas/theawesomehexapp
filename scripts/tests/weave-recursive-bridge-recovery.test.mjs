@@ -25,8 +25,8 @@ class GitHub {
     this.comments.push(value);
     return value;
   }
-  owner(body) {
-    this.comments.push({ id: this.id++, body, created_at: at(this.id), author_association: 'OWNER', user: { login: 'Pokitomas' } });
+  owner(body, login = 'Pokitomas') {
+    this.comments.push({ id: this.id++, body, created_at: at(this.id), author_association: 'OWNER', user: { login } });
   }
 }
 
@@ -41,6 +41,32 @@ function outputEnvelope(assignmentId, events) {
   return `<!-- ${OUTPUT_MARKER} -->\n${fenced({ assignment_id: assignmentId, events })}`;
 }
 
+function validEvents(value, index) {
+  const target = value.target_event_ids[0];
+  if (value.role === 'proposer') {
+    return [
+      { id: `claim:recover:${index}`, kind: 'claim', source_event_ids: [target], body: { subject: 'recovery', statement: 'A later valid output can recover.', confidence: 0.8, impact: 80, tags: [] } },
+      { id: `evidence:recover:${index}`, kind: 'evidence', source_event_ids: [target, `claim:recover:${index}`], body: { statement: 'The bridge ignores a non-envelope attempt.', supports: [`claim:recover:${index}`], opposes: [], artifacts: [], strength: 0.9 } }
+    ];
+  }
+  if (value.role === 'critic') {
+    const structuralId = value.target_event_ids.find(id => id.startsWith('critique:'));
+    const synthesisId = value.target_event_ids.find(id => id.startsWith('synthesis:'));
+    return [{
+      id: `critique:recover:${index}`,
+      kind: 'critique',
+      source_event_ids: [structuralId, synthesisId],
+      body: { synthesis_id: synthesisId, verdict: 'accept', findings: [], required_corrections: [], blocking_event_ids: [] }
+    }];
+  }
+  return [{
+    id: `test:recover:${index}`,
+    kind: 'test.result',
+    source_event_ids: [target],
+    body: { name: 'corrected output', status: 'passed', statement: 'Malformed prose stayed noncanonical.', targets: [target], artifacts: [] }
+  }];
+}
+
 test('latest valid typed output is ingested after an earlier malformed attempt', async () => {
   const remote = new Remote();
   const github = new GitHub();
@@ -49,28 +75,25 @@ test('latest valid typed output is ingested after an earlier malformed attempt',
   const now = () => at(clock++);
   const first = await runGuardedRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now });
   assert.equal(first.status, 'dispatched');
-  const assignments = github.comments.filter(comment => comment.body.includes(ASSIGNMENT_MARKER)).map(comment => packet(comment));
+  let assignments = github.comments.filter(comment => comment.body.includes(ASSIGNMENT_MARKER)).map(comment => packet(comment));
   assert.equal(assignments.length, 2);
 
   for (let index = 0; index < assignments.length; index += 1) {
     const value = assignments[index];
-    const target = value.target_event_ids[0];
-    github.owner(outputEnvelope(value.assignment_id, [{ kind: 'claim', source_event_ids: [], body: { subject: 'bad', statement: 'missing citation', confidence: 0.5, impact: 1 } }]));
-    const events = value.role === 'proposer'
-      ? [
-          { id: `claim:recover:${index}`, kind: 'claim', source_event_ids: [target], body: { subject: 'recovery', statement: 'A later valid output can recover.', confidence: 0.8, impact: 80, tags: [] } },
-          { id: `evidence:recover:${index}`, kind: 'evidence', source_event_ids: [target, `claim:recover:${index}`], body: { statement: 'The bridge selects the latest valid envelope.', supports: [`claim:recover:${index}`], opposes: [], artifacts: [], strength: 0.9 } }
-        ]
-      : [{
-          id: `decision:recover:${index}`, kind: 'decision', source_event_ids: [target],
-          body: { statement: 'Accept corrected output.', supporting_ids: [target], opposing_ids: [], rationale: 'Malformed attempts remain noncanonical.', confidence: 0.9, resolves: [target], rollback_trigger: 'invalid retry selection' }
-        }];
-    github.owner(outputEnvelope(value.assignment_id, events));
+    github.owner(`<!-- ${OUTPUT_MARKER} -->\nnot a JSON envelope`);
+    github.owner(outputEnvelope(value.assignment_id, validEvents(value, index)));
   }
 
   const second = await runGuardedRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now });
-  assert.equal(second.status, 'converged');
-  assert.ok(remote.events.some(event => event.id.startsWith('decision:recover:')));
+  assert.equal(second.status, 'dispatched');
+  assignments = github.comments.filter(comment => comment.body.includes(ASSIGNMENT_MARKER)).map(comment => packet(comment));
+  const critic = assignments.find(value => value.role === 'critic');
+  github.owner(`<!-- ${OUTPUT_MARKER} -->\nnot a JSON envelope`, 'IndependentReviewer');
+  github.owner(outputEnvelope(critic.assignment_id, validEvents(critic, 99)), 'IndependentReviewer');
+
+  const third = await runGuardedRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas', 'IndependentReviewer'], now });
+  assert.equal(third.status, 'converged');
+  assert.ok(remote.events.some(event => event.kind === 'decision' && event.issuer === 'system:weave-integrator'));
   assert.ok(!remote.events.some(event => event.body?.statement === 'missing citation'));
   assert.ok(remote.events.every(event => !String(event.body?.error || '').includes('invalid output comment')));
 });
