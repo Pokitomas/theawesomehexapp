@@ -1,0 +1,29 @@
+{
+  "schema": "sideways-archive-survival-audit/v1",
+  "base": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
+  "canonical_private_store": "IndexedDB",
+  "same_origin_copy": "OPFS",
+  "portable_copy": ".sideways Ark",
+  "states": [
+    { "id": "hot", "meaning": "browser-managed storage only", "portable": false },
+    { "id": "pinned", "meaning": "persistent storage requested", "portable": false },
+    { "id": "mirror", "meaning": "same-origin OPFS copy exists", "portable": false },
+    { "id": "ark", "meaning": "browser download was requested", "portable": "not_proven" },
+    { "id": "external", "meaning": "file-system save completed", "portable": true }
+  ],
+  "failure_contracts": [
+    { "condition": "OPFS unavailable", "required_result": "survival.mirror.unavailable receipt" },
+    { "condition": "save picker cancelled", "required_result": "cancelled with no false export receipt" },
+    { "condition": "invalid Ark magic", "required_result": "NOT A SIDEWAYS ARK" },
+    { "condition": "invalid Ark header", "required_result": "ARK HEADER IS INVALID" },
+    { "condition": "unsupported Ark version", "required_result": "ARK VERSION IS NOT SUPPORTED" },
+    { "condition": "duplicate hash during restore", "required_result": "skip duplicate and report count" },
+    { "condition": "server projection in cache", "required_result": "exclude it from private Ark" }
+  ],
+  "open_gaps": [
+    "restore needs an explicit rollback witness for transaction failure",
+    "download-issued does not prove the file was retained",
+    "large Ark creation currently materializes one Blob in memory",
+    "quota pressure and interrupted OPFS writes need dedicated witnesses"
+  ]
+}
