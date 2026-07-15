@@ -32,8 +32,8 @@ class Issue {
     this.comments.push(comment);
     return structuredClone(comment);
   }
-  owner(body, index = this.id % 60) {
-    this.comments.push({ id: this.id++, body, created_at: at(index), author_association: 'OWNER', user: { login: 'Pokitomas' } });
+  owner(body, index = this.id % 60, login = 'Pokitomas') {
+    this.comments.push({ id: this.id++, body, created_at: at(index), author_association: 'OWNER', user: { login } });
   }
 }
 
@@ -42,12 +42,29 @@ const seed = `<!-- ${SEED_MARKER} -->\n${fenced({ events: [{ id: 'question:seed'
 const packet = comment => JSON.parse(String(comment.body).match(/```json\s*([\s\S]*?)```/i)[1]);
 const envelope = (assignment, index) => {
   const target = assignment.target_event_ids[0];
-  const events = assignment.role === 'proposer'
-    ? [
-        { id: `claim:${index}`, kind: 'claim', source_event_ids: [target], body: { subject: 'recursion', statement: 'Stop when unresolved state is empty.', confidence: 0.8, impact: 90, tags: [] } },
-        { id: `evidence:${index}`, kind: 'evidence', source_event_ids: [target, `claim:${index}`], body: { statement: 'The terminal receipt is replayable.', supports: [`claim:${index}`], opposes: [], artifacts: [], strength: 0.9 } }
-      ]
-    : [{ id: `decision:${index}`, kind: 'decision', source_event_ids: [target], body: { statement: 'Stop after resolution.', supporting_ids: [target], opposing_ids: [], rationale: 'No unresolved state remains.', confidence: 0.9, resolves: [target], rollback_trigger: 'new contradiction' } }];
+  let events;
+  if (assignment.role === 'proposer') {
+    events = [
+      { id: `claim:${index}`, kind: 'claim', source_event_ids: [target], body: { subject: 'recursion', statement: 'Stop when unresolved state is empty.', confidence: 0.8, impact: 90, tags: [] } },
+      { id: `evidence:${index}`, kind: 'evidence', source_event_ids: [target, `claim:${index}`], body: { statement: 'The terminal receipt is replayable.', supports: [`claim:${index}`], opposes: [], artifacts: [], strength: 0.9 } }
+    ];
+  } else if (assignment.role === 'critic') {
+    const structuralId = assignment.target_event_ids.find(id => id.startsWith('critique:'));
+    const synthesisId = assignment.target_event_ids.find(id => id.startsWith('synthesis:'));
+    events = [{
+      id: `critique:independent:${index}`,
+      kind: 'critique',
+      source_event_ids: [structuralId, synthesisId],
+      body: { synthesis_id: synthesisId, verdict: 'accept', findings: [], required_corrections: [], blocking_event_ids: [] }
+    }];
+  } else {
+    events = [{
+      id: `test:${index}`,
+      kind: 'test.result',
+      source_event_ids: [target],
+      body: { name: 'bridge witness', status: 'passed', statement: 'Candidate material passed a bounded witness.', targets: [target], artifacts: [] }
+    }];
+  }
   return `<!-- ${OUTPUT_MARKER} -->\n${fenced({ assignment_id: assignment.assignment_id, events })}`;
 };
 
@@ -58,7 +75,7 @@ test('trusted output parser requires a typed envelope', () => {
   assert.equal(trustedCognitionComment({ author_association: 'NONE', user: { login: 'stranger' } }), false);
 });
 
-test('one seed fans out to parallel agents, folds outputs, and converges idempotently', async () => {
+test('one seed fans out, requires an independent critic tick, and converges idempotently', async () => {
   const remote = new Remote();
   const github = new Issue();
   github.owner(seed, 1);
@@ -66,15 +83,26 @@ test('one seed fans out to parallel agents, folds outputs, and converges idempot
   const now = () => at(clock++);
   const first = await runRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now });
   assert.deepEqual([first.status, first.assignments, first.comments_posted], ['dispatched', 2, 2]);
-  const assignments = github.comments.filter(comment => comment.body.includes(ASSIGNMENT_MARKER));
-  assert.equal(assignments.length, 2);
+  let assignments = github.comments.filter(comment => comment.body.includes(ASSIGNMENT_MARKER));
   assignments.forEach((comment, index) => github.owner(envelope(packet(comment), index + 1), 20 + index));
+
   const second = await runRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now });
-  assert.equal(second.status, 'converged');
-  assert.ok(remote.events.some(event => event.kind === 'critique' && event.body.verdict === 'accept'));
+  assert.equal(second.status, 'dispatched');
+  assert.equal(second.assignments, 1);
+  assert.ok(remote.events.some(event => event.kind === 'critique' && event.issuer === 'system:weave-critic' && event.body.verdict === 'revise'));
+  assert.ok(!remote.events.some(event => event.kind === 'decision'));
+
+  assignments = github.comments.filter(comment => comment.body.includes(ASSIGNMENT_MARKER));
+  const criticComment = assignments.find(comment => packet(comment).role === 'critic');
+  github.owner(envelope(packet(criticComment), 3), 30, 'IndependentReviewer');
+  const third = await runRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas', 'IndependentReviewer'], now });
+  assert.equal(third.status, 'converged');
+  assert.ok(remote.events.some(event => event.kind === 'critique' && event.issuer === 'github:IndependentReviewer' && event.body.verdict === 'accept'));
+  assert.ok(remote.events.some(event => event.kind === 'decision' && event.issuer === 'system:weave-integrator'));
+
   const eventCount = remote.events.length;
   const commentCount = github.comments.length;
-  assert.equal((await runRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas'], now })).status, 'converged');
+  assert.equal((await runRecursiveCognitionBridge({ remote, github, issue_number: 178, allow_logins: ['Pokitomas', 'IndependentReviewer'], now })).status, 'converged');
   assert.deepEqual([remote.events.length, github.comments.length], [eventCount, commentCount]);
 });
 
