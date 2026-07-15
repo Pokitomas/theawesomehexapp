@@ -79,8 +79,16 @@ jobs:
       - name: Install locked browser tooling
         run: |
           set -euo pipefail
-          npm ci --ignore-scripts --include=dev
+          git checkout -- package.json package-lock.json
+          set +e
+          npm ci --ignore-scripts --include=dev > /tmp/sideways-human-npm-ci.log 2>&1
+          npm_status=$?
+          set -e
+          cat /tmp/sideways-human-npm-ci.log
+          test "$npm_status" -eq 0
           node -e "import('playwright-core')"
+          npx playwright-core install chromium > /tmp/sideways-human-browser-install.log 2>&1
+          cat /tmp/sideways-human-browser-install.log
           {
             echo "CHROME_BIN=${CHROME_BIN:-}"
             echo "CHROME_PATH=${CHROME_PATH:-}"
@@ -88,7 +96,7 @@ jobs:
             command -v google-chrome-stable || true
             command -v chromium || true
             command -v chromium-browser || true
-            find /opt /usr -maxdepth 5 -type f \( -name chrome -o -name chromium -o -name google-chrome \) 2>/dev/null | head -40 || true
+            node --input-type=module -e "import { chromium } from 'playwright-core'; console.log(chromium.executablePath())"
           } | tee /tmp/sideways-human-browser-path.log
 
       - name: Prove phone and desktop assembled product
@@ -124,5 +132,7 @@ jobs:
             /tmp/sideways-human-http.log
             /tmp/sideways-human-browser.log
             /tmp/sideways-human-browser-path.log
+            /tmp/sideways-human-browser-install.log
+            /tmp/sideways-human-npm-ci.log
           if-no-files-found: warn
           retention-days: 5
