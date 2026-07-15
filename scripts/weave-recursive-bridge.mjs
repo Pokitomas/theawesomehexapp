@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import { createHash, createHmac, randomUUID } from 'node:crypto';
-import process from 'node:process';
-import { pathToFileURL } from 'node:url';
 import {
   foldCognitionEvents,
   normalizeCognitionEvent,
@@ -11,7 +9,13 @@ import {
 import { planDeliberationWave } from './weave-deliberation.mjs';
 import { buildRolePacket, dispatchIdempotencyKey, parseAdapterOutput } from './weave-dispatch.mjs';
 import { retrieveCognitionMemory } from './weave-memory.mjs';
-import { buildSynthesis, critiqueSynthesis } from './weave-synthesis.mjs';
+import {
+  buildAcceptanceDecision,
+  buildSynthesis,
+  critiqueSynthesis,
+  isIndependentAcceptance,
+  SYNTHESIS_REVIEW
+} from './weave-synthesis.mjs';
 import { publicCognitionEventProjection } from '../netlify/functions/weave-cognition-public.mjs';
 
 export const ASSIGNMENT_MARKER = 'sideways-cognition-assignment:v1';
@@ -62,10 +66,7 @@ export function trustedCognitionComment(comment, allowLogins = []) {
 
 function summaryForEvent(event) {
   const body = event?.body || {};
-  return clean(
-    body.statement || body.question || body.name || body.role || body.status || `${event.kind} ${event.id}`,
-    300
-  );
+  return clean(body.statement || body.question || body.name || body.role || body.status || `${event.kind} ${event.id}`, 300);
 }
 
 function eventMessageId(event) {
@@ -251,7 +252,7 @@ export function renderCognitionAssignmentComment({ assignment, memory, mention =
     artifact_scope: body.artifact_scope,
     memory: (memory?.events || []).map(value => memorySummaryEntry(value)).slice(0, 48)
   };
-  return `<!-- ${ASSIGNMENT_MARKER} assignment=${body.assignment_id} -->\n${mention}\n\nExecute the typed role packet below. Return concise claims, evidence, tests, artifacts, decisions, syntheses, or critiques only; do not return private chain-of-thought. Every event must cite at least one target event ID.\n\n\`\`\`json\n${JSON.stringify(packet, null, 2)}\n\`\`\`\n\nReturn exactly one output envelope:\n\n<!-- ${OUTPUT_MARKER} -->\n\`\`\`json\n{\n  "assignment_id": "${body.assignment_id}",\n  "events": []\n}\n\`\`\``;
+  return `<!-- ${ASSIGNMENT_MARKER} assignment=${body.assignment_id} -->\n${mention}\n\nExecute the typed role packet below. Return concise claims, evidence, tests, artifacts, syntheses, or critiques only; do not return decisions, authority actions, or private chain-of-thought. Every event must cite at least one target event ID.\n\n\`\`\`json\n${JSON.stringify(packet, null, 2)}\n\`\`\`\n\nReturn exactly one output envelope:\n\n<!-- ${OUTPUT_MARKER} -->\n\`\`\`json\n{\n  "assignment_id": "${body.assignment_id}",\n  "events": []\n}\n\`\`\``;
 }
 
 function roleMentions(config = {}) {
@@ -423,6 +424,38 @@ function waveIndexFromId(value) {
   return match ? Number(match[1]) : 0;
 }
 
+function structuralCritiqueFor(state, synthesisId) {
+  return Object.values(state.critiques).find(event =>
+    event.body.synthesis_id === synthesisId && event.issuer === SYNTHESIS_REVIEW.structural_critic
+  ) || null;
+}
+
+function resolvableSynthesisTargets(state, synthesis) {
+  return synthesis.body.unresolved_ids.filter(id => {
+    const target = state.by_id[id];
+    return target && ['question', 'contradiction'].includes(target.kind) && !state.superseded[id];
+  });
+}
+
+function buildBridgeAdmissions(state, outputs, waveIndex, now) {
+  const decisions = [];
+  for (const critique of outputs.filter(event => event.kind === 'critique' && event.body.verdict === 'accept')) {
+    const synthesis = state.syntheses[critique.body.synthesis_id];
+    const structural = synthesis ? structuralCritiqueFor(state, synthesis.id) : null;
+    if (!isIndependentAcceptance({ synthesis, critique, structuralCritique: structural })) continue;
+    decisions.push(buildAcceptanceDecision({
+      id: `decision:bridge-admission:${waveIndex}:${decisions.length}`,
+      synthesis,
+      critique,
+      structural_critique: structural,
+      issuer: 'system:weave-integrator',
+      issued_at: now(),
+      resolves: resolvableSynthesisTargets(state, synthesis)
+    }));
+  }
+  return decisions;
+}
+
 async function finalizeCompletedWave({ remote, snapshot, now }) {
   const assignmentsByWave = new Map();
   for (const assignment of Object.values(snapshot.state.assignments)) {
@@ -440,42 +473,50 @@ async function finalizeCompletedWave({ remote, snapshot, now }) {
   const completions = assignments.map(event => snapshot.state.dispatch_completed[event.body.assignment_id]);
   const outputs = unique(completions.flatMap(event => event.body.output_ids)).map(id => snapshot.state.by_id[id]).filter(Boolean);
   const additions = [];
-  let critique = null;
-  if (outputs.length) {
+
+  let projected = snapshot.state;
+  const admissions = buildBridgeAdmissions(projected, outputs, waveIndex, now);
+  if (admissions.length) {
+    additions.push(...admissions);
+    projected = foldCognitionEvents([...snapshot.state.events, ...additions]);
+  } else if (outputs.some(event => event.kind !== 'critique')) {
     const unresolvedBefore = unresolvedCognitionIds(snapshot.state).filter(id => !snapshot.state.pending_assignment_event_ids.includes(id));
+    const priorCritiques = snapshot.state.unresolved_critique_ids.map(id => snapshot.state.by_id[id]).filter(Boolean);
+    const material = [...new Map([...outputs, ...priorCritiques].map(event => [event.id, event])).values()];
     const synthesis = buildSynthesis({
       id: `synthesis:bridge-wave:${waveIndex}`,
       issuer: 'system:weave-synthesizer',
       issued_at: now(),
-      source_events: outputs,
+      source_events: material,
       unresolved_ids: unresolvedBefore,
-      minority_report_ids: snapshot.state.dissent_event_ids.filter(id => outputs.some(event => event.id === id)),
-      proposed_actions: unresolvedBefore.length ? ['derive another bounded wave'] : ['terminalize convergence']
+      minority_report_ids: snapshot.state.dissent_event_ids.filter(id => material.some(event => event.id === id)),
+      proposed_actions: unresolvedBefore.length ? ['derive another bounded wave'] : ['seek independent critic admission']
     });
     synthesis.visibility = assignments.every(event => event.visibility === 'public') ? 'public' : 'private';
     additions.push(synthesis);
-    const projected = foldCognitionEvents([...snapshot.state.events, synthesis]);
-    critique = critiqueSynthesis({
-      id: `critique:bridge-wave:${waveIndex}`,
+    projected = foldCognitionEvents([...snapshot.state.events, ...additions]);
+    const structuralCritique = critiqueSynthesis({
+      id: `critique:bridge-wave:${waveIndex}:structural`,
       synthesis,
       state: projected,
-      issuer: 'system:weave-critic',
+      issuer: SYNTHESIS_REVIEW.structural_critic,
       issued_at: now()
     });
-    critique.visibility = synthesis.visibility;
-    additions.push(critique);
+    structuralCritique.visibility = synthesis.visibility;
+    additions.push(structuralCritique);
+    projected = foldCognitionEvents([...snapshot.state.events, ...additions]);
   }
-  const projected = foldCognitionEvents([...snapshot.state.events, ...additions]);
+
   const unresolved = unresolvedCognitionIds(projected).filter(id => !projected.pending_assignment_event_ids.includes(id));
-  const failed = completions.some(event => event.body.status === 'failed');
+  const failed = completions.some(event => event.body.status !== 'completed');
   const status = failed && !outputs.length
     ? 'blocked'
-    : (unresolved.length || (critique && critique.body.verdict !== 'accept') ? 'advanced' : 'converged');
+    : (unresolved.length ? 'advanced' : 'converged');
   additions.push(waveReceiptEvent({
     waveIndex,
     status,
     assignments,
-    outputs,
+    outputs: [...outputs, ...admissions],
     unresolved,
     issuedAt: now(),
     visibility: assignments.every(event => event.visibility === 'public') ? 'public' : 'private'
@@ -524,6 +565,10 @@ function terminalReceipt(state) {
   return Object.values(state.waves)
     .sort((left, right) => Number(left.body.index) - Number(right.body.index))
     .findLast(event => event.body.status !== 'advanced') || null;
+}
+
+function requiredDispatchCapacity(assignments) {
+  return assignments.reduce((sum, assignment) => sum + assignment.body.budget.max_events + 2, 0);
 }
 
 export async function runRecursiveCognitionBridge({
@@ -581,8 +626,9 @@ export async function runRecursiveCognitionBridge({
   }
 
   const maxWaves = Math.max(1, Math.min(32, Number(budget.max_waves ?? 8) || 8));
+  const maxEvents = Math.max(1, Number(budget.max_events ?? 512) || 512);
   const waveIndex = nextWaveIndex(snapshot.state);
-  if (waveIndex >= maxWaves || snapshot.state.events.length >= Math.max(1, Number(budget.max_events ?? 512) || 512)) {
+  if (waveIndex >= maxWaves || snapshot.state.events.length >= maxEvents) {
     const receipt = waveReceiptEvent({
       waveIndex,
       status: 'budget_exhausted',
@@ -616,7 +662,22 @@ export async function runRecursiveCognitionBridge({
     return { status: plan.terminal, wave: waveIndex };
   }
 
-  const assignments = plan.assignments;
+  const assignments = plan.assignments.map(value => {
+    const { novelty_key, priority, ...raw } = value;
+    return normalizeCognitionEvent(raw);
+  });
+  if (snapshot.state.events.length + requiredDispatchCapacity(assignments) + assignments.length + 1 > maxEvents) {
+    const receipt = waveReceiptEvent({
+      waveIndex,
+      status: 'budget_exhausted',
+      assignments: [],
+      outputs: [],
+      unresolved: plan.unresolved_ids,
+      issuedAt: now()
+    });
+    await appendMissing(remote, snapshot.state, [receipt], snapshot.generation);
+    return { status: 'budget_exhausted', wave: waveIndex };
+  }
   await appendMissing(remote, snapshot.state, assignments, snapshot.generation);
   snapshot = await reload(remote);
   const dispatched = await dispatchPending({
