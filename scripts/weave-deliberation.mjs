@@ -3,16 +3,31 @@ import { stableDigest, unresolvedCognitionIds } from './weave-cognition.mjs';
 
 const roleOrder = ['proposer', 'opponent', 'verifier', 'implementer', 'integrator', 'historian', 'critic'];
 const assignmentKey = value => createHash('sha256').update(value).digest('hex').slice(0, 24);
+const INDEPENDENT_REVIEW_FINDING = 'independent semantic review is required before admission';
+
+function assignmentIsLive(state, event) {
+  if (!event || state?.superseded?.[event.id]) return false;
+  const completion = state?.dispatch_completed?.[event.body.assignment_id];
+  return !completion || completion.body.status === 'completed';
+}
 
 function existingNoveltyKeys(state) {
-  return new Set(Object.values(state?.assignments || {}).map(event => event.body?.novelty_key).filter(Boolean));
+  return new Set(Object.values(state?.assignments || {})
+    .filter(event => assignmentIsLive(state, event))
+    .map(event => event.body?.novelty_key)
+    .filter(Boolean));
 }
 
 function substantiveFrontier(state, targetIds) {
   const targets = new Set(targetIds);
   return (state?.events || [])
-    .filter(event => !['assignment', 'dispatch.started', 'dispatch.completed', 'wave.receipt'].includes(event.kind))
-    .filter(event => targets.has(event.id) || (event.source_event_ids || []).some(id => targets.has(id)))
+    .filter(event => {
+      if (!['assignment', 'dispatch.started', 'dispatch.completed', 'wave.receipt'].includes(event.kind)) return true;
+      return event.kind === 'dispatch.completed' && event.body.status !== 'completed';
+    })
+    .filter(event => targets.has(event.id)
+      || (event.source_event_ids || []).some(id => targets.has(id))
+      || (event.kind === 'dispatch.completed' && targets.has(event.body.assignment_event_id)))
     .map(event => ({ id: event.id, kind: event.kind, digest: stableDigest(event) }))
     .sort((left, right) => left.id.localeCompare(right.id));
 }
@@ -21,7 +36,7 @@ function candidate(state, role, targetIds, reason, priority, expectedKinds) {
   const sortedTargets = [...targetIds].sort();
   const frontier = stableDigest(substantiveFrontier(state, sortedTargets)).slice(0, 16);
   const novelty = `novelty:${role}:${sortedTargets.join(',')}:${frontier}`;
-  return { role, target_ids: sortedTargets, reason, priority, expected_kinds: expectedKinds, novelty_key: novelty };
+  return { role, target_ids: sortedTargets, reason, priority, expected_kinds: [...new Set(expectedKinds.filter(kind => kind !== 'decision'))], novelty_key: novelty };
 }
 
 export function planDeliberationWave(state, config = {}) {
@@ -32,20 +47,22 @@ export function planDeliberationWave(state, config = {}) {
 
   for (const id of state?.open_question_ids || []) {
     const priority = Number(state.questions[id]?.body.priority || 50);
-    candidates.push(candidate(state, 'proposer', [id], 'answer unresolved question', priority + 20, ['claim', 'evidence', 'decision']));
-    candidates.push(candidate(state, 'verifier', [id], 'verify answerability and evidence', priority + 10, [...new Set(['evidence', 'test.result', 'uncertainty', ...(state.questions[id]?.body.answer_kinds || [])]) ]));
+    candidates.push(candidate(state, 'proposer', [id], 'answer unresolved question with candidate material', priority + 20, ['claim', 'evidence', 'uncertainty']));
+    candidates.push(candidate(state, 'verifier', [id], 'verify answerability and evidence', priority + 10, [...new Set(['evidence', 'test.result', 'uncertainty', ...(state.questions[id]?.body.answer_kinds || [])])]));
   }
   for (const id of state?.unresolved_contradiction_ids || []) {
     const contradiction = state.contradictions[id];
     const priority = Number(contradiction?.body.severity || 50);
     candidates.push(candidate(state, 'opponent', [id, contradiction.body.left_id, contradiction.body.right_id], 'preserve strongest countercase', priority + 30, ['evidence', 'critique', 'uncertainty']));
-    candidates.push(candidate(state, 'integrator', [id, contradiction.body.left_id, contradiction.body.right_id], 'seek discriminating test or bounded resolution', priority + 20, ['test.result', 'decision', 'question']));
+    candidates.push(candidate(state, 'integrator', [id, contradiction.body.left_id, contradiction.body.right_id], 'seek discriminating test or bounded candidate resolution', priority + 20, ['test.result', 'claim', 'evidence', 'question']));
   }
   for (const id of state?.unresolved_critique_ids || []) {
     const critique = state.critiques[id];
+    if (!critique) continue;
     const targets = [id, critique.body.synthesis_id, ...critique.body.blocking_event_ids];
-    candidates.push(candidate(state, 'integrator', targets, 'repair blocked or revision-required synthesis', 98, ['synthesis', 'evidence', 'test.result', 'decision']));
-    candidates.push(candidate(state, 'critic', targets, 'independently re-evaluate corrected synthesis', 96, ['critique', 'evidence', 'test.result']));
+    const independenceOnly = critique.body.verdict === 'revise' && critique.body.findings.includes(INDEPENDENT_REVIEW_FINDING);
+    if (!independenceOnly) candidates.push(candidate(state, 'integrator', targets, 'repair blocked or revision-required synthesis', 98, ['synthesis', 'evidence', 'test.result', 'claim']));
+    candidates.push(candidate(state, 'critic', targets, independenceOnly ? 'independently review structurally valid synthesis' : 'independently re-evaluate corrected synthesis', 96, ['critique', 'evidence', 'test.result']));
   }
   for (const id of state?.unsupported_claim_ids || []) {
     const claim = state.claims[id];
@@ -53,7 +70,20 @@ export function planDeliberationWave(state, config = {}) {
   }
   for (const id of state?.failed_test_ids || []) candidates.push(candidate(state, 'implementer', [id], 'repair failed executable witness', 90, ['artifact', 'test.result', 'plan']));
   for (const id of state?.active_plan_ids || []) {
-    if (state.plans[id]?.status === 'blocked') candidates.push(candidate(state, 'integrator', [id], 'unblock active plan', 85, ['plan', 'decision', 'question']));
+    if (state.plans[id]?.status === 'blocked') candidates.push(candidate(state, 'integrator', [id], 'unblock active plan', 85, ['plan', 'claim', 'evidence', 'question']));
+  }
+  for (const completion of Object.values(state?.dispatch_completed || {})) {
+    if (completion.body.status === 'completed' || state?.superseded?.[completion.id]) continue;
+    const assignment = state.assignments[completion.body.assignment_id];
+    if (!assignment) continue;
+    candidates.push(candidate(
+      state,
+      assignment.body.role,
+      [assignment.id, ...assignment.body.target_ids, completion.id],
+      `retry ${completion.body.status} dispatch within bounded wave budget`,
+      94,
+      assignment.body.expected_kinds
+    ));
   }
 
   const existing = existingNoveltyKeys(state);
