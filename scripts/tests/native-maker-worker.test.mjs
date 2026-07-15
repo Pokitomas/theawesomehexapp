@@ -6,8 +6,9 @@ import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import { createOpenModelClient, createOpenModelRoleAdapter, parseModelJSON } from '../open-model-adapter.mjs';
+import { makerPlanningSeed, runOpenModelPlanning } from '../open-model-planning.mjs';
 import { normalizeAgentBudget, resolveWorkspacePath, runNativeDevAgent } from '../native-dev-agent.mjs';
-import { normalizeWorkerConfig, parseMakerIssue } from '../maker-native-worker.mjs';
+import { branchFor, nativeEpisodePath, normalizeWorkerConfig, parseMakerIssue } from '../maker-native-worker.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -84,6 +85,51 @@ test('role adapter admits only an events array', async () => {
   assert.deepEqual(parseModelJSON('[1,2]'), [1, 2]);
 });
 
+test('recursive open-model planning fans one Maker command across typed roles', async () => {
+  let calls = 0;
+  const client = {
+    async complete(messages) {
+      calls += 1;
+      const packet = JSON.parse(messages.at(-1).content);
+      const target = packet.assignment.target_ids[0];
+      const role = packet.assignment.role;
+      return {
+        text: JSON.stringify({
+          events: [{
+            id: `uncertainty:${role}:${calls}`,
+            kind: 'uncertainty',
+            source_event_ids: [target],
+            body: {
+              target_id: target,
+              confidence: 0.4,
+              statement: `${role} requires repository evidence before admission.`
+            }
+          }]
+        })
+      };
+    }
+  };
+  const intent = { request: 'Build the native issue worker.', protect: 'No merge authority.', proof: 'Draft PR and tests.' };
+  const seed = makerPlanningSeed(intent, () => '2026-07-15T06:00:00.000Z');
+  assert.equal(seed.length, 2);
+  assert.equal(seed[0].kind, 'goal');
+  assert.equal(seed[1].kind, 'question');
+  const result = await runOpenModelPlanning({
+    intent,
+    model_client: client,
+    max_waves: 1,
+    max_events: 96,
+    max_assignments_per_wave: 4,
+    now: () => '2026-07-15T06:00:00.000Z'
+  });
+  assert.ok(calls >= 2);
+  assert.equal(result.terminal, 'budget_exhausted');
+  assert.ok(result.brief.event_count > seed.length);
+  assert.ok(result.brief.outputs.some(event => event.kind === 'uncertainty'));
+  assert.ok(result.brief.outputs.some(event => event.kind === 'synthesis'));
+  assert.ok(result.brief.outputs.some(event => event.kind === 'critique'));
+});
+
 test('Maker issue parser uses the typed phone receipt and preserves human authority', () => {
   const receipt = {
     version: 'sideways-maker/v1',
@@ -108,13 +154,26 @@ test('Maker issue parser uses the typed phone receipt and preserves human author
 test('worker config names missing manual runtime values exactly', () => {
   const missing = normalizeWorkerConfig({});
   assert.deepEqual(missing.missing, ['SIDEWAYS_MODEL_BASE_URL', 'SIDEWAYS_MODEL_NAME']);
+  assert.equal(missing.planning_enabled, true);
+  assert.equal(missing.default_branch, 'main');
   const local = normalizeWorkerConfig({
     SIDEWAYS_MODEL_BASE_URL: 'http://127.0.0.1:11434',
     SIDEWAYS_MODEL_NAME: 'qwen',
-    SIDEWAYS_MODEL_PROTOCOL: 'ollama'
+    SIDEWAYS_MODEL_PROTOCOL: 'ollama',
+    SIDEWAYS_DEFAULT_BRANCH: 'trunk',
+    SIDEWAYS_PLANNING_ENABLED: '0'
   });
   assert.deepEqual(local.missing, []);
   assert.equal(local.protocol, 'ollama');
+  assert.equal(local.default_branch, 'trunk');
+  assert.equal(local.planning_enabled, false);
+});
+
+test('reruns receive separate branches and episode artifacts stay outside the checkout', () => {
+  assert.equal(branchFor(221, '999', '1'), 'maker/issue-221-999-1');
+  assert.equal(branchFor(221, '999', '2'), 'maker/issue-221-999-2');
+  assert.notEqual(branchFor(221, '999', '1'), branchFor(221, '999', '2'));
+  assert.equal(nativeEpisodePath({ RUNNER_TEMP: '/tmp/runner' }), path.join('/tmp/runner', 'sideways-native-episode.json'));
 });
 
 test('native dev agent reads, writes, witnesses, inspects, and finishes in one checkout', async t => {
