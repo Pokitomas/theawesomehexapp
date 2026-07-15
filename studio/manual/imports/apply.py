@@ -47,6 +47,7 @@ def main() -> None:
 
     index = MANUAL / "index.html"
     html = index.read_text(encoding="utf-8")
+    html = remove_once(html, STYLE)
     style_anchor = FINAL_EXPERIENCE_STYLE if FINAL_EXPERIENCE_STYLE in html else "</head>"
     html = inject_once(html, STYLE, style_anchor)
     html = inject_once(html, SCRIPT, "</body>")
@@ -61,7 +62,7 @@ def main() -> None:
         html = remove_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT)
         html = remove_once(html, SOCIAL_GOVERNANCE_CONTROLS_SCRIPT)
     index.write_text(html, encoding="utf-8")
-    print("applied manual import workbench beneath the final consumer skin and gated live social controls to server-backed builds")
+    print("normalized the manual import workbench beneath the final consumer skin and gated live social controls to server-backed builds")
 
 
 if __name__ == "__main__":
