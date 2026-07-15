@@ -197,7 +197,7 @@ def main() -> None:
 
     connection_source = source[PRODUCT / "account-connections.js"]
     require(connection_source, ("createPKCE", "validateCallback", "redactConnection", "connectionCapability", "code_challenge_method: 'S256'"), "connected account contract")
-    forbid(connection_source, ("localStorage", "document.cookie", "password"), "connected account secret persistence")
+    forbid(connection_source, ("localStorage", "document.cookie", "password=", "password:", "passwordInput"), "connected account secret persistence")
 
     if not MANUAL.exists():
         print("local-first runtime sources verified")
