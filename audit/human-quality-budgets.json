@@ -1,0 +1,30 @@
+{
+  "schema": "sideways-human-quality-budgets/v1",
+  "viewports": [
+    { "id": "phone-portrait", "width": 390, "height": 844, "automated": true },
+    { "id": "phone-landscape", "width": 844, "height": 390, "automated": false },
+    { "id": "tablet", "width": 768, "height": 1024, "automated": false },
+    { "id": "desktop", "width": 1440, "height": 900, "automated": false }
+  ],
+  "automated_budgets": {
+    "horizontal_overflow_px": 0,
+    "minimum_touch_target_px": 44,
+    "uncaught_page_errors": 0,
+    "failed_primary_actions": 0,
+    "startup_dom_content_loaded_ms": 3000
+  },
+  "manual_acceptance": [
+    "keyboard traversal and visible focus",
+    "screen-reader names and reading order",
+    "text zoom to 200 percent",
+    "reduced-motion behavior",
+    "contrast review",
+    "Firefox journey",
+    "WebKit journey",
+    "offline and stale-cache recovery",
+    "blocked storage and quota pressure",
+    "large archive responsiveness",
+    "long conversation responsiveness"
+  ],
+  "rule": "An item requiring human or unavailable-browser review remains pending; an unrelated phone screenshot cannot satisfy it."
+}
