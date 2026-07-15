@@ -54,7 +54,7 @@ export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date(
       'verify-profile-build.py': ['scripts/root-product-phone.mjs', 'ordinaryExplanation']
     }, 'browser-workflow'),
     inspect(root, 'manual_primary_phone_journey', {
-      'studio/manual/tests/frontier-onboarding-clickthrough.mjs': ['390', 'pageerror', 'scrollWidth', 'screenshot'],
+      'studio/manual/tests/frontier-onboarding-clickthrough.mjs': ['width: 390, height: 844', "page.on('pageerror'", 'touch target is physically obstructed', 'profile close is clipped or undersized', 'fileChoosers !== 0', 'errors.length'],
       '.github/workflows/frontier-phone-proof.yml': ['Run the real phone journey', 'frontier-onboarding-clickthrough.mjs']
     }, 'browser-workflow'),
     inspect(root, 'social_phone_authority_and_overflow', {
