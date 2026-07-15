@@ -27,6 +27,13 @@ invariants:
   - No model, comment, or MATCHED receipt grants merge authority.
 `;
 
+const revival = valid
+  .replace('version: 38', 'version: 39')
+  .replace('canonical_branch: main', 'canonical_branch: revival/repository-wide-generation')
+  .replace('canonical_pr: 212', 'canonical_pr: 233')
+  .replace('state: complete', 'state: revival_active_pending_exact_head_receipts')
+  .replace('owner: GPT-5.6 Thinking', 'owner: GPT-5.6 Thinking repository-wide revival generation');
+
 test('accepts one terminal main ledger anchored to an ancestor', () => {
   const result = validateFrankenstate({
     text: valid,
@@ -40,6 +47,19 @@ test('accepts one terminal main ledger anchored to an ancestor', () => {
   assert.equal(result.merge_performed, true);
   assert.equal(result.live_owner_receipt_found, true);
   assert.equal(result.tracked_ledger, '.frankenstate');
+});
+
+test('accepts an active repository-wide revival on a non-main vehicle', () => {
+  const result = validateFrankenstate({
+    text: revival,
+    trackedPaths: ['.frankenstate', 'REVIVAL.md'],
+    isAncestor: sha => sha === '4339baecaa44f8811f0fa2377fc7ebe6e9d248de'
+  });
+  assert.equal(result.version, 39);
+  assert.equal(result.canonical_branch, 'revival/repository-wide-generation');
+  assert.equal(result.canonical_pr, 233);
+  assert.equal(result.state, 'revival_active_pending_exact_head_receipts');
+  assert.equal(result.merge_performed, true);
 });
 
 test('rejects duplicate ledgers', () => {
