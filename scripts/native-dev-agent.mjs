@@ -149,7 +149,7 @@ async function toolObservation({ root, action, counters }) {
   }
   if (tool === 'status') {
     const [{ stdout: status }, { stdout: diff }] = await Promise.all([
-      execFileAsync('git', ['status', '--short'], { cwd: root, maxBuffer: 1024 * 1024 }),
+      execFileAsync('git', ['status', '--short', '--untracked-files=all'], { cwd: root, maxBuffer: 1024 * 1024 }),
       execFileAsync('git', ['diff', '--stat'], { cwd: root, maxBuffer: 1024 * 1024 })
     ]);
     counters.saw_status = true;
@@ -222,7 +222,7 @@ export async function runNativeDevAgent({
     if (on_turn) await on_turn({ turn, action, observation });
     if (observation.finished) {
       const [{ stdout: status }, { stdout: diff }] = await Promise.all([
-        execFileAsync('git', ['status', '--short'], { cwd: root, maxBuffer: 1024 * 1024 }),
+        execFileAsync('git', ['status', '--short', '--untracked-files=all'], { cwd: root, maxBuffer: 1024 * 1024 }),
         execFileAsync('git', ['diff', '--stat'], { cwd: root, maxBuffer: 1024 * 1024 })
       ]);
       return {
