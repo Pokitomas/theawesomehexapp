@@ -158,13 +158,15 @@ function exposeExistingProvenance() {
 }
 
 function install() {
-  document.documentElement.classList.add('sideways-human-web');
+  const developer = explicitDeveloperView();
+  document.documentElement.classList.toggle('sideways-human-web', !developer);
   document.documentElement.dataset.sidewaysHuman = 'ready';
   separateDeveloperSurfaces();
+  installLocationBar();
+  if (developer) return;
   normalizeExternalLinks();
   normalizeChromeLanguage();
   flattenStructuralSurfaces();
-  installLocationBar();
   exposeExistingProvenance();
 }
 
