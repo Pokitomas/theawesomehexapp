@@ -1,40 +1,140 @@
-version: 39
-updated_at: 2026-07-15T04:18:00Z
+version: 40
+updated_at: 2026-07-15T07:48:00Z
 repository: Pokitomas/theawesomehexapp
-canonical_branch: repair/weave-envelope-integrity
-canonical_pr: 217
+canonical_branch: revival/repository-wide-generation
+canonical_pr: 233
 base_branch: main
-observed_head_before_ledger: ab78ce5611ad2f83953406810d3f01190ace9f63
-state: corrective_active_pending_terminal_audit
-owner: GPT-5.6 Thinking
+observed_head_before_ledger: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
+state: revival_active_pending_exact_head_receipts
+
+owner: GPT-5.6 Thinking repository-wide revival generation
+mode: aggressive parallel revival with explicit collisions and human merge authority
 heartbeat:
   live_owner_receipt_found: true
-active_surface:
-  current_vehicle: pull_request_217
-  base_head: 634a511f68e80db708d890a86f757332819f1e5c
+  root_issue: 223
+  current_vehicle: revival/repository-wide-generation
+  current_pull_request: 233
+
+revival_generation:
+  generation: 1
+  parent_issue: 223
+  product_issue: 224
+  archive_issue: 225
+  social_issue: 226
+  ranking_issue: 227
+  weave_issue: 228
+  maker_issue: 229
+  operations_issue: 230
+  quality_issue: 231
+  assembly_issue: 232
+  active_lane_count: 9
+  canonical_assembly_branch: revival/repository-wide-generation
+  canonical_assembly_pr: 233
+
+lane_claims:
+  product:
+    issue: 224
+    branch: revival/product-journey
+    state: executable_audit_green_head_eeaf6a292049a309a3bad5e5b1b32e56d1f25ce2
+  archive:
+    issue: 225
+    branch: revival/archive-survival
+    state: executable_audit_green_head_eec8f79220dc011bd314fb5b4db12b8e6086847b
+  social:
+    issue: 226
+    branch: revival/social-product
+    state: executable_audit_green_head_1b8b1410c16ceb08af19441dcba4139142d600a3
+  ranking:
+    issue: 227
+    branch: revival/ranking-evaluation
+    state: executable_evaluation_green_head_49b5dbc319d6bf1435fa7e4994ea05d4f8439bda
+  weave:
+    issue: 228
+    candidate_pull_requests: 216,217
+    state: converged_green_head_33bd3d68588b605e833c43b6353ef26a06c723d9
+  maker:
+    issue: 229
+    candidate_pull_request: 244
+    state: worker_green_head_0f8238b098264c791d5f4e5537f8d9d1bde11864_delta_green_5b20bd5f7c2bb93aa23ded842e8c26d049d166a4
+  operations:
+    issue: 230
+    branch: revival/operations-proof
+    state: executable_report_green_head_60fdd708af77ef4239aee3f5a4d1592d8b8f0408
+  quality:
+    issue: 231
+    branch: revival/human-quality
+    state: executable_evidence_green_head_5183e6d3ed5e3d3dd3e4a5f308930ef7c0ef7667
+  assembly:
+    issue: 232
+    branch: revival/repository-wide-generation
+    pull_request: 233
+    state: active_children_unmerged
+
+collision_policy:
+  duplicate_ownership_allowed: false
+  overlapping_paths_require_written_resolution: true
+  candidate_prs_are_not_accepted_automatically: true
+  moved_head_invalidates_prior_receipt: true
+
 historical_assembly:
   historical_merge_pr: 188
   historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
+  merged_candidate_head: 78615a96484581bb44744a115e4a2c6ebdd57679
   merged_against_terminal_decision: HOLD
-  corrective_merge_pr: 212
+  merge_authority_receipt_found: false
+  disposition: preserve_proven_changes_and_keep_authority_violation_explicit
+
+corrective_history:
+  corrective_pr: 212
+  corrective_branch: repair/post-merge-full-pass
   corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-second_pass:
-  - bind Remote envelope visibility to weave event visibility
-  - require complete persisted transport identity
-  - read complete paginated lasso history
-  - add hostile replay and pagination witnesses
+  coordination_truth_pr: 213
+  prior_terminal_main: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
+
+repository_truth:
+  root_reader: implemented
+  private_archive: implemented_with_failure_witnesses_open
+  public_social_authority: implemented_with_visible_reachability_gap
+  ranking_kernel: deterministic_with_synthetic_evaluation_not_outcome_validated
+  weave: lifecycle_contract_converged_activation_open
+  maker_phone_console: implemented
+  native_open_model_worker: implemented_unmerged_and_not_runtime_configured
+  external_operations: repository_facts_measured_external_facts_unknown
+
 sprawl_consolidation:
   single_ledger: .frankenstate
+  superseded_ledger_pr: 156
   duplicate_implementation_branches_created: 0
   duplicate_pull_requests_created: 0
   merge_performed: true
   historical_merge_pr: 188
   historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
   merged_against_terminal_decision: HOLD
+  current_revival_pull_request: 233
+
 verification:
-  status: exact_head_actions_required
+  observed_main_head: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
+  canonical_revival_head: pending_exact_head_ci_after_ledger_update
+  child_exact_heads: recorded_in_lane_states
+  whole_repository_matrix: pending_combined_tree
   witness_substitution_allowed: false
-completion_receipt:
-  merge_decision: HOLD
+
+completion_requirements:
+  - coherent product journey on phone and desktop
+  - private archive failure evidence
+  - visible server-only social journey
+  - ranking outcome evidence beyond synthetic geometry
+  - weave runtime activation
+  - real Maker episode
+  - dated external operations evidence
+  - runtime quality matrix
+  - exact assembled head with explicit decision
+
 invariants:
+  - Do not infer completion from issue prose.
+  - A moved branch head invalidates earlier green receipts until exact-head checks complete.
+  - Existing candidate pull requests are inputs, not accepted commits.
+  - Parallel lanes must declare unique ownership before editing.
+  - Collisions remain visible until written resolution.
+  - A historical merge does not retroactively authorize itself.
   - No model, comment, or MATCHED receipt grants merge authority.
