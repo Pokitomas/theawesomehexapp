@@ -4,10 +4,12 @@ import fs from 'node:fs/promises';
 import process from 'node:process';
 import {
   defaultWeaveVisibility,
-  foldWeaveMessages,
-  normalizeWeaveEvent,
   weavePayload
 } from './weave-protocol.mjs';
+import {
+  createWeaveEvent,
+  foldWeaveMessages
+} from './weave-replay-integrity.mjs';
 
 const clean = value => String(value ?? '').trim();
 const sha256 = value => createHash('sha256').update(value).digest('hex');
@@ -119,7 +121,7 @@ async function postEvent(input) {
   const timestamp = new Date().toISOString();
   const nonce = randomUUID();
   const visibility = defaultWeaveVisibility(input.kind, input.visibility);
-  const event = normalizeWeaveEvent(input, { issuer: principal, issued_at: timestamp });
+  const event = createWeaveEvent(input, { issuer: principal, issued_at: timestamp });
   const message = remoteEnvelope(weavePayload(event), { timestamp, nonce, visibility });
   const url = baseURL();
   const body = JSON.stringify({ message });
