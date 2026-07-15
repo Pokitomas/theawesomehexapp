@@ -1,0 +1,20 @@
+{
+  "version": "sideways-path-lease/v1",
+  "base_sha": "5bc28784e1634334dacba624d19fcb87ee8c2cd7",
+  "owner": "GPT-5.6 Thinking",
+  "purpose": "Add a deterministic read-only planner for composing concurrent pull requests, preserving collisions, exact-head receipts, and human merge authority.",
+  "owned_paths": [
+    "SWARM_INTEGRATION.md",
+    "maker/leases/agent-swarm-integration-planner.json",
+    "scripts/swarm-integration-plan.mjs",
+    "scripts/tests/swarm-integration-plan.test.mjs"
+  ],
+  "writer_count": 1,
+  "authority": {
+    "merge": "human",
+    "deploy": "human",
+    "force_push": false,
+    "secrets": "never-in-snapshot-plan-or-receipt"
+  },
+  "state": "lease_only"
+}
