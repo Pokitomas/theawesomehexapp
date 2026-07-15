@@ -22,7 +22,7 @@ concurrency:
 jobs:
   human-sideways:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -90,10 +90,12 @@ jobs:
           trap 'kill "$server" 2>/dev/null || true' EXIT
           node scripts/tests/sideways-human-phone.mjs
 
-      - name: Verify exact diff hygiene
+      - name: Verify exact diff and repository
         run: |
+          set -euo pipefail
           git diff --check
           node scripts/native-changed-check.mjs
+          npm run verify:repository
 
       - name: Upload human Sideways witnesses
         if: always()
@@ -104,3 +106,6 @@ jobs:
             sideways-human-phone.png
             sideways-human-desktop.png
             sideways-human-proof.json
+            /tmp/sideways-human-http.log
+          if-no-files-found: warn
+          retention-days: 5
