@@ -1,89 +1,40 @@
-version: 38
-updated_at: 2026-07-15T03:40:00Z
+version: 39
+updated_at: 2026-07-15T04:18:00Z
 repository: Pokitomas/theawesomehexapp
-canonical_branch: main
-canonical_pr: 212
+canonical_branch: repair/weave-envelope-integrity
+canonical_pr: 217
 base_branch: main
-observed_head_before_ledger: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-state: complete
-
+observed_head_before_ledger: ab78ce5611ad2f83953406810d3f01190ace9f63
+state: corrective_active_pending_terminal_audit
 owner: GPT-5.6 Thinking
-mode: operator-authorized liberal break-fast full pass
 heartbeat:
   live_owner_receipt_found: true
-  merge_receipt_comment: 4976628053
-  current_vehicle: main
-
-terminal_surface:
-  corrective_pr: 212
-  corrective_branch: repair/post-merge-full-pass
-  corrective_source_head: 1e9cd26657fe134fe9088a712606c9c4ff2ab518
-  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-  live_main_verified: true
-  open_pull_requests_after_merge: 0
-  terminal_audit_issue: 209
-  operator_policy: liberal_break_fast
-
+active_surface:
+  current_vehicle: pull_request_217
+  base_head: 634a511f68e80db708d890a86f757332819f1e5c
 historical_assembly:
   historical_merge_pr: 188
   historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
-  merged_candidate_head: 78615a96484581bb44744a115e4a2c6ebdd57679
   merged_against_terminal_decision: HOLD
-  merge_authority_receipt_found: false
-  disposition: preserve_proven_changes_and_audit_authority_violation
-
-full_pass_delivered:
-  - deterministic recursive cognition identity and business-lifecycle collision checks
-  - truthful memory recency, truncation, diversity, dependency closure, and transitive public privacy
-  - deep immutable role packets, normalized artifact scope, secret denial, and retry-safe dispatch
-  - two-stage structural critique, independent semantic acceptance, and trusted decision admission
-  - runtime and GitHub/Remote bridge recovery with bounded capacity and critic-only admission waves
-  - hostile full-pass witnesses wired into focused and exact-tree CI
-  - immutable GitHub Action SHAs and exact-head dependency inventory
-  - strict persisted v1 replay for operational folds and lasso history selection
-  - truthful post-merge coordination state
-
-residuals:
-  - legacy normalizeWeaveEvent remains available to creation-oriented internal callers
-  - v1 paginated dependency closure remains undefined because the schema has no explicit causal reference contract
-  - external production roles, backups, restore evidence, and environment protections remain independently auditable facts
-  - product lifecycle, accessibility, performance, and degraded-state acceptance remain open program contracts
-
+  corrective_merge_pr: 212
+  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
+second_pass:
+  - bind Remote envelope visibility to weave event visibility
+  - require complete persisted transport identity
+  - read complete paginated lasso history
+  - add hostile replay and pagination witnesses
 sprawl_consolidation:
   single_ledger: .frankenstate
-  superseded_ledger_pr: 156
   duplicate_implementation_branches_created: 0
   duplicate_pull_requests_created: 0
   merge_performed: true
   historical_merge_pr: 188
   historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
   merged_against_terminal_decision: HOLD
-  corrective_merge_pr: 212
-  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-  corrective_pull_requests_open: 0
-
 verification:
-  corrective_source_head: 1e9cd26657fe134fe9088a712606c9c4ff2ab518
-  live_main_head: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-  unique_source_head_workflows: 18
-  successful_source_head_workflows: 18
-  status: remote_merge_verified
+  status: exact_head_actions_required
   witness_substitution_allowed: false
-
 completion_receipt:
-  recursive_full_pass: merged
-  strict_replay_corrective: merged
-  lasso_strict_history: merged
-  coordination_truth_repair: complete
-  merge_decision: operator_authorized_break_fast
-
-followup_contracts:
-  - define paginated v1 causal dependency closure through issue 193 or a successor
-  - continue independent product lifecycle, accessibility, performance, degraded-state, and operations acceptance
-  - verify external production roles, secrets, backups, retention, and environment protections outside repository code
-
+  merge_decision: HOLD
 invariants:
-  - Do not infer completion from issue prose.
-  - A moved branch head invalidates earlier green receipts until exact-head checks complete.
-  - A historical merge does not retroactively authorize itself.
   - No model, comment, or MATCHED receipt grants merge authority.
