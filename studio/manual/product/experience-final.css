@@ -1,0 +1,415 @@
+/* Last-mile product skin. Loaded after every subsystem stylesheet so legacy
+   mobile !important rules cannot pull Sideways back into developer chrome. */
+html.workspace-chrome {
+  --experience-final-ink: #17181d;
+  --experience-final-paper: #f3f0e8;
+  --experience-final-card: #fffef9;
+  --experience-final-violet: #6459ff;
+  --experience-final-violet-soft: #e9e6ff;
+  --experience-final-lime: #d7ff68;
+  --experience-final-coral: #ff805f;
+  --experience-final-muted: #686a72;
+  --experience-final-line: rgba(23,24,29,.15);
+  --experience-final-line-strong: rgba(23,24,29,.3);
+}
+
+html.workspace-chrome .topbar {
+  background: rgba(248,246,240,.9) !important;
+  border-bottom: 1px solid var(--experience-final-line) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.92), 0 14px 42px rgba(35,31,51,.09) !important;
+  backdrop-filter: blur(24px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+}
+
+html.workspace-chrome .workspace-title-brand {
+  color: var(--experience-final-ink) !important;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-weight: 790 !important;
+  letter-spacing: -.035em !important;
+}
+
+html.workspace-chrome .workspace-brand-icon {
+  stroke: var(--experience-final-violet) !important;
+  filter: none !important;
+}
+
+html.workspace-chrome .corpus-status {
+  color: #3c6200 !important;
+  text-shadow: none !important;
+}
+
+html.workspace-chrome .workspace-commandbar {
+  border-color: var(--experience-final-line) !important;
+  background: rgba(248,246,240,.92) !important;
+  box-shadow: 0 -12px 36px rgba(35,31,51,.09), inset 0 1px 0 rgba(255,255,255,.92) !important;
+  backdrop-filter: blur(24px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+}
+
+html.workspace-chrome .workspace-commandbar .workspace-new-button {
+  border: 1px solid var(--experience-final-violet) !important;
+  border-radius: 14px !important;
+  background: var(--experience-final-violet) !important;
+  color: white !important;
+  box-shadow: 0 8px 20px rgba(100,89,255,.22), inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+
+html.workspace-chrome .workspace-commandbar .workspace-nav {
+  border: 1px solid var(--experience-final-line) !important;
+  border-radius: 14px !important;
+  background: rgba(255,255,255,.56) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85) !important;
+}
+
+html.workspace-chrome .workspace-commandbar .workspace-nav-button {
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  color: #5a5d65 !important;
+  box-shadow: none !important;
+}
+
+html.workspace-chrome .workspace-commandbar .workspace-nav-button:hover,
+html.workspace-chrome .workspace-commandbar .workspace-nav-button:focus-visible {
+  border-color: var(--experience-final-line-strong) !important;
+  background: rgba(255,255,255,.84) !important;
+  color: var(--experience-final-ink) !important;
+}
+
+html.workspace-chrome .workspace-commandbar .workspace-nav-button.is-active,
+html.workspace-chrome .workspace-commandbar .workspace-nav-button[aria-current="page"] {
+  border-color: rgba(100,89,255,.28) !important;
+  background: var(--experience-final-violet-soft) !important;
+  color: #30265f !important;
+}
+
+html.workspace-chrome .type-nav {
+  border-color: var(--experience-final-line) !important;
+  background: rgba(243,240,232,.94) !important;
+  box-shadow: 0 8px 26px rgba(35,31,51,.06) !important;
+  backdrop-filter: blur(20px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(145%) !important;
+}
+
+html.workspace-chrome .type-nav > button,
+html.workspace-chrome .type-nav .future-mode-button {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--experience-final-muted) !important;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-weight: 760 !important;
+}
+
+html.workspace-chrome .type-nav > button[aria-pressed="true"] {
+  border-color: var(--experience-final-ink) !important;
+  background: var(--experience-final-ink) !important;
+  color: white !important;
+  box-shadow: 0 5px 14px rgba(23,24,29,.14) !important;
+}
+
+html.workspace-chrome .type-nav .future-mode-rail {
+  border-color: var(--experience-final-line) !important;
+  background: transparent !important;
+}
+
+html.workspace-chrome .type-nav .future-mode-button.is-active {
+  border-color: rgba(100,89,255,.34) !important;
+  background: var(--experience-final-violet-soft) !important;
+  color: #30265f !important;
+  box-shadow: none !important;
+}
+
+html.workspace-chrome .survival-vault {
+  overflow: hidden !important;
+  margin: 0 auto 16px !important;
+  border: 1px solid var(--experience-final-line) !important;
+  border-radius: 17px !important;
+  background: rgba(255,254,249,.84) !important;
+  color: var(--experience-final-ink) !important;
+  box-shadow: 0 12px 34px rgba(35,31,51,.08), inset 0 1px 0 rgba(255,255,255,.9) !important;
+}
+
+html.workspace-chrome .survival-vault-state {
+  border-color: var(--experience-final-line) !important;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+html.workspace-chrome .survival-vault-grade {
+  color: #4c6c00 !important;
+}
+
+html.workspace-chrome .survival-vault-count,
+html.workspace-chrome .survival-vault-bytes {
+  color: var(--experience-final-muted) !important;
+}
+
+html.workspace-chrome .survival-vault-action {
+  border-color: var(--experience-final-line) !important;
+  background: rgba(255,255,255,.42) !important;
+  color: var(--experience-final-ink) !important;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-weight: 740 !important;
+}
+
+html.workspace-chrome .survival-vault-action:hover,
+html.workspace-chrome .survival-vault-action:focus-visible {
+  background: var(--experience-final-violet-soft) !important;
+  color: #30265f !important;
+}
+
+html.workspace-chrome .remote-terminal-launch,
+html.workspace-chrome .workspace-title-actions > .remote-terminal-launch {
+  border: 1px solid var(--experience-final-line-strong) !important;
+  border-radius: 999px !important;
+  background: rgba(255,254,249,.86) !important;
+  color: var(--experience-final-ink) !important;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-weight: 760 !important;
+  box-shadow: 0 5px 16px rgba(35,31,51,.1), inset 0 1px 0 white !important;
+}
+
+html.workspace-chrome .remote-launch-dot {
+  border-color: var(--experience-final-violet) !important;
+  background: var(--experience-final-violet) !important;
+  box-shadow: 0 0 0 3px rgba(100,89,255,.11) !important;
+}
+
+html.workspace-chrome .remote-terminal {
+  border: 1px solid var(--experience-final-line-strong) !important;
+  background: var(--experience-final-paper) !important;
+  color: var(--experience-final-ink) !important;
+  box-shadow: 0 30px 100px rgba(35,31,51,.24) !important;
+}
+
+html.workspace-chrome .remote-terminal-bar,
+html.workspace-chrome .remote-events-header,
+html.workspace-chrome .remote-terminal-footer {
+  border-color: var(--experience-final-line) !important;
+  background: rgba(243,240,232,.94) !important;
+}
+
+html.workspace-chrome .remote-terminal-hero,
+html.workspace-chrome .remote-event {
+  border-color: var(--experience-final-line) !important;
+  background: var(--experience-final-card) !important;
+  box-shadow: 0 10px 28px rgba(35,31,51,.08) !important;
+}
+
+html.workspace-chrome .remote-terminal-title,
+html.workspace-chrome .remote-terminal-fact dt,
+html.workspace-chrome .remote-terminal-fact dd,
+html.workspace-chrome .remote-events-header,
+html.workspace-chrome .remote-event-principal,
+html.workspace-chrome .remote-event-time,
+html.workspace-chrome .remote-event-head,
+html.workspace-chrome .remote-terminal-refresh,
+html.workspace-chrome .remote-terminal-manifest {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+html.workspace-chrome .import-workbench-card,
+html.workspace-chrome .import-progress-panel,
+html.workspace-chrome .import-error-panel,
+html.workspace-chrome .import-complete-panel {
+  border: 1px solid var(--experience-final-line) !important;
+  border-radius: 22px !important;
+  background: rgba(255,254,249,.9) !important;
+  color: var(--experience-final-ink) !important;
+  box-shadow: 0 22px 70px rgba(35,31,51,.12), inset 0 1px 0 rgba(255,255,255,.92) !important;
+}
+
+html.workspace-chrome .import-complete-panel {
+  background:
+    radial-gradient(circle at 86% 10%, rgba(215,255,104,.58), transparent 18rem),
+    radial-gradient(circle at 2% 100%, rgba(100,89,255,.1), transparent 20rem),
+    var(--experience-final-card) !important;
+}
+
+html.workspace-chrome .source-chooser {
+  gap: 12px !important;
+  padding: 14px !important;
+}
+
+html.workspace-chrome .source-chooser-copy {
+  border-color: var(--experience-final-line) !important;
+}
+
+html.workspace-chrome .source-card-grid {
+  gap: 10px !important;
+}
+
+html.workspace-chrome .source-card {
+  border: 1px solid var(--experience-final-line) !important;
+  border-radius: 17px !important;
+  background: rgba(255,255,255,.58) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 6px 18px rgba(35,31,51,.05) !important;
+}
+
+html.workspace-chrome .source-card:hover,
+html.workspace-chrome .source-card:focus-within,
+html.workspace-chrome .source-card.is-selected {
+  border-color: var(--experience-final-line-strong) !important;
+  background: white !important;
+  box-shadow: 0 12px 28px rgba(35,31,51,.1) !important;
+}
+
+html.workspace-chrome .source-mark {
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--source-color) 18%, transparent) !important;
+}
+
+html.workspace-chrome .source-import,
+html.workspace-chrome .import-primary {
+  border: 1px solid var(--experience-final-violet) !important;
+  border-radius: 12px !important;
+  background: var(--experience-final-violet) !important;
+  color: white !important;
+  box-shadow: 0 8px 20px rgba(100,89,255,.2), inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+
+html.workspace-chrome .source-help,
+html.workspace-chrome .import-secondary {
+  border: 1px solid var(--experience-final-line-strong) !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,.68) !important;
+  color: var(--experience-final-ink) !important;
+  box-shadow: inset 0 1px 0 white !important;
+}
+
+html.workspace-chrome .studio-empty-hero,
+html.workspace-chrome #feed .studio-empty-hero {
+  overflow: hidden !important;
+  border: 1px solid var(--experience-final-line) !important;
+  border-radius: 24px !important;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(215,255,104,.6), transparent 20rem),
+    radial-gradient(circle at 2% 100%, rgba(100,89,255,.12), transparent 22rem),
+    var(--experience-final-card) !important;
+  color: var(--experience-final-ink) !important;
+  box-shadow: 0 24px 76px rgba(35,31,51,.13) !important;
+}
+
+html.workspace-chrome #feed .studio-empty-hero .workspace-empty-mark {
+  border-radius: 18px !important;
+  background: var(--experience-final-violet-soft) !important;
+  color: var(--experience-final-violet) !important;
+}
+
+html.workspace-chrome #feed .studio-empty-copy h1 {
+  color: var(--experience-final-ink) !important;
+}
+
+html.workspace-chrome #feed .studio-empty-copy .workspace-eyebrow {
+  color: var(--experience-final-violet) !important;
+}
+
+html.workspace-chrome .studio-launch-button.is-post,
+html.workspace-chrome .workspace-primary {
+  border-color: var(--experience-final-ink) !important;
+  background: var(--experience-final-ink) !important;
+  color: white !important;
+}
+
+html.workspace-chrome .studio-launch-button.is-import,
+html.workspace-chrome .workspace-secondary {
+  border-color: var(--experience-final-line-strong) !important;
+  background: rgba(255,255,255,.7) !important;
+  color: var(--experience-final-ink) !important;
+}
+
+@media (max-width: 760px) {
+  html.workspace-chrome .topbar {
+    background: rgba(248,246,240,.96) !important;
+    backdrop-filter: blur(18px) saturate(135%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(135%) !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar {
+    inset: auto 0 0 0 !important;
+    grid-template-columns: 68px minmax(0,1fr) !important;
+    grid-template-rows: 54px !important;
+    gap: 8px !important;
+    padding: 8px 9px calc(8px + env(safe-area-inset-bottom)) !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-new-button {
+    width: 68px !important;
+    min-width: 68px !important;
+    max-width: 68px !important;
+    min-height: 54px !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav {
+    grid-template-rows: 54px !important;
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav-button {
+    min-height: 46px !important;
+  }
+
+  html.workspace-chrome .type-nav {
+    min-height: 76px !important;
+    gap: 5px !important;
+    padding: 7px 10px !important;
+  }
+
+  html.workspace-chrome .type-nav > button,
+  html.workspace-chrome .type-nav .future-mode-button {
+    min-height: 32px !important;
+    color: var(--experience-final-muted) !important;
+  }
+
+  html.workspace-chrome .type-nav > button[aria-pressed="true"] {
+    color: white !important;
+  }
+
+  html.workspace-chrome .type-nav .future-mode-button.is-active {
+    color: #30265f !important;
+  }
+
+  html.workspace-chrome .survival-vault {
+    grid-template-columns: 82px minmax(0,1fr) !important;
+    margin-inline: 10px !important;
+  }
+
+  html.workspace-chrome .survival-vault-action {
+    min-height: 52px !important;
+  }
+
+  html.workspace-chrome .source-card {
+    padding: 12px !important;
+  }
+
+  html.workspace-chrome .source-import {
+    min-height: 48px !important;
+  }
+
+  html.workspace-chrome .import-complete-panel {
+    min-height: 300px !important;
+    padding: 28px 24px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  html.workspace-chrome .workspace-title-brand {
+    max-width: 9.5rem !important;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-button-label {
+    font-size: .64rem !important;
+  }
+
+  html.workspace-chrome .source-card {
+    border-radius: 15px !important;
+  }
+
+  html.workspace-chrome .import-workbench-card,
+  html.workspace-chrome .import-progress-panel,
+  html.workspace-chrome .import-error-panel,
+  html.workspace-chrome .import-complete-panel {
+    border-radius: 18px !important;
+  }
+}
