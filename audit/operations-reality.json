@@ -1,0 +1,24 @@
+{
+  "schema": "sideways-operations-reality/v1",
+  "observed_repository_head": "ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a",
+  "facts": [
+    { "id": "pages-build", "scope": "repository", "state": "verified", "evidence": [".github/workflows/pages.yml", "scripts/tests/deployment-receipt.test.mjs"] },
+    { "id": "static-public-url", "scope": "external", "state": "previously_verified", "evidence": ["issue:104"], "recheck_required": true },
+    { "id": "function-host", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "postgres-instance", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "database-backup", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "database-restore", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "environment-rules", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "branch-rules", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "application-grants", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "rollback-procedure", "scope": "external", "state": "unknown", "evidence": [] },
+    { "id": "incident-procedure", "scope": "external", "state": "unknown", "evidence": [] }
+  ],
+  "admission_rule": "Repository tests verify code and workflow contracts but cannot turn an unknown external configuration into a verified fact.",
+  "next_proof": [
+    "re-read the live deployment sentinel and bind it to an authorized commit",
+    "inventory repository and hosting settings with dated receipts",
+    "run one disposable database migration, backup, restore, and rollback exercise",
+    "record endpoint, cookie, rate-limit, and service-unavailable behavior"
+  ]
+}
