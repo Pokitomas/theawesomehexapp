@@ -118,7 +118,9 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             python -m pip install --disable-pip-version-check pillow
           fi
-          npm ci --ignore-scripts
+          git checkout -- package.json package-lock.json
+          npm ci --ignore-scripts --include=dev
+          node -e "import('playwright-core')"
 
       - name: Cache source mirror and compressed media
         if: github.event_name == 'push'
