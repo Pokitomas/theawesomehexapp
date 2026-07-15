@@ -15,6 +15,13 @@ import {
 
 const revision = 'b'.repeat(40);
 
+function deterministicRuntime() {
+  return {
+    clock: (() => { let value = 0; return () => value += 10; })(),
+    memory_usage: (() => { let value = 1024; return () => value += 64; })()
+  };
+}
+
 test('generation-zero mission rejects disguised architecture and parameter caps', () => {
   const mission = generationZeroMission();
   assert.doesNotThrow(() => validateGenerationZeroMission(mission));
@@ -60,15 +67,12 @@ test('candidate genomes serialize non-token representations, dynamics, learning,
 
 test('proxy execution retains failures and never promotes a final model', async () => {
   const genomes = generationZeroGenomes(revision).slice(0, 4);
-  const results = runGenerationZeroProxies({
-    genomes,
-    clock: (() => { let value = 0; return () => value += 10; })(),
-    memory_usage: (() => { let value = 1024; return () => value += 64; })()
-  });
+  const results = runGenerationZeroProxies({ genomes, ...deterministicRuntime() });
   assert.equal(results.length, 4);
   assert.ok(results.every(result => result.per_seed.length === 2));
   assert.ok(results.every(result => result.resource_receipt.wall_time_ms === 10));
   assert.ok(results.every(result => result.resource_receipt.external_calls === 0));
+  assert.ok(results.every(result => result.resource_receipt.observed_scalar_operation_count > 0));
   assert.ok(results.some(result => result.status.startsWith('falsified')));
 
   const full = await runGenerationZero({
@@ -82,6 +86,37 @@ test('proxy execution retains failures and never promotes a final model', async 
   assert.ok(full.admissions.every(admission => admission.admitted === false));
   assert.ok(full.negative_results.retained.length > 0);
   assert.ok(full.negative_results.admission_blocks.length === full.proxy_results.length);
+});
+
+test('proxy scores are derived from mechanisms rather than candidate identity', () => {
+  const original = generationZeroGenomes(revision).find(genome => genome.evaluation.proxy_suite === 'event-field-dual');
+  const renamed = structuredClone(original);
+  renamed.identity.candidate_id = 'candidate:renamed-without-changing-mechanism';
+  const first = runGenerationZeroProxies({ genomes: [original], ...deterministicRuntime() })[0];
+  const second = runGenerationZeroProxies({ genomes: [renamed], ...deterministicRuntime() })[0];
+  assert.deepEqual(first.metrics, second.metrics);
+  assert.deepEqual(first.per_seed, second.per_seed);
+  assert.equal(first.evidence_integrity.candidate_id_used_for_scoring, false);
+  assert.equal(first.evidence_integrity.train_holdout_separated, true);
+  assert.equal(first.evidence_integrity.holdout_ood_separated, true);
+});
+
+test('candidate suites execute distinct mechanisms and preserve their resource cost', () => {
+  const bySuite = new Map(generationZeroGenomes(revision).map(genome => [genome.evaluation.proxy_suite, genome]));
+  const results = runGenerationZeroProxies({
+    genomes: ['sequence-baseline', 'event-field-dual', 'program-memory'].map(suite => bySuite.get(suite)),
+    ...deterministicRuntime()
+  });
+  assert.notDeepEqual(results[0].metrics, results[1].metrics);
+  assert.ok(results.every(result => result.resource_receipt.sampled_peak_rss_bytes >= result.resource_receipt.rss_before_bytes));
+  assert.ok(results.every(result => result.per_seed.every(seed => seed.train_dataset_digest !== seed.holdout_dataset_digest)));
+  assert.ok(results[2].resource_receipt.observed_scalar_operation_count > results[1].resource_receipt.observed_scalar_operation_count);
+});
+
+test('unknown proxy suites fail closed', () => {
+  const genome = structuredClone(generationZeroGenomes(revision)[0]);
+  genome.evaluation.proxy_suite = 'made-up-suite';
+  assert.throws(() => runGenerationZeroProxies({ genomes: [genome], ...deterministicRuntime() }), /Unknown generation-zero proxy suite/);
 });
 
 test('corpus plan is internet-scale planning, not an acquisition or plaintext-only claim', () => {
