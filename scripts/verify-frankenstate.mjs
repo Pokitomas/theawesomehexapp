@@ -14,6 +14,7 @@ const requiredScalars = Object.freeze({
 const allowedStates = new Set([
   'implementation_complete_pending_exact_head_receipt',
   'corrective_active_pending_terminal_audit',
+  'revival_active_pending_exact_head_receipts',
   'complete'
 ]);
 
