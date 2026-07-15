@@ -49,6 +49,7 @@ jobs:
           cache: npm
       - name: Install locked browser tooling
         run: |
+          git checkout -- package.json package-lock.json
           npm ci --ignore-scripts --include=dev
           node -e "import('playwright-core')"
       - name: Prove mirror backup delete restore audit and vault chrome
