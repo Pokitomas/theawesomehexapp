@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/linux-relay.schema.json",
+  "title": "Sideways Linux GitHub migration and relay packets",
+  "oneOf": [
+    { "$ref": "#/$defs/migrationPlan" },
+    { "$ref": "#/$defs/relayPacket" }
+  ],
+  "$defs": {
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "ownedPath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "^(?:/|\\.\\.?/|.*(?:^|/)\\.git(?:/|$))" }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "supported", "kind", "distro"],
+      "properties": {
+        "platform": { "type": "string" },
+        "supported": { "type": "boolean" },
+        "kind": { "enum": ["wsl", "container", "linux", "unsupported"] },
+        "distro": { "type": ["string", "null"] }
+      }
+    },
+    "migrationPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "repository", "base_sha", "branch", "issue_number", "owned_paths", "runtime", "mode", "reason", "authority", "actions", "plan_digest"],
+      "properties": {
+        "schema": { "const": "sideways-linux-migration/v1" },
+        "repository": { "$ref": "#/$defs/repository" },
+        "base_sha": { "$ref": "#/$defs/sha" },
+        "branch": { "type": "string", "minLength": 1 },
+        "issue_number": { "type": ["integer", "null"], "minimum": 1 },
+        "owned_paths": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ownedPath" } },
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "mode": { "enum": ["native-git", "gh-cli", "rest-git-data", "relay-packet"] },
+        "reason": { "type": "string" },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["merge", "deploy", "secrets"],
+          "properties": {
+            "merge": { "const": "human" },
+            "deploy": { "const": "human" },
+            "secrets": { "const": "external-only" }
+          }
+        },
+        "actions": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+        "plan_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "path", "before_sha", "encoding", "content", "mutation_digest"],
+      "properties": {
+        "operation": { "enum": ["create", "update", "delete"] },
+        "path": { "$ref": "#/$defs/ownedPath" },
+        "before_sha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40,64}$" },
+        "encoding": { "enum": ["utf-8", null] },
+        "content": { "type": ["string", "null"] },
+        "mutation_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "relayPacket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "repository", "base_sha", "branch", "issue_number", "owned_paths", "mutations", "reason", "preconditions", "packet_digest"],
+      "properties": {
+        "schema": { "const": "sideways-github-relay/v1" },
+        "repository": { "$ref": "#/$defs/repository" },
+        "base_sha": { "$ref": "#/$defs/sha" },
+        "branch": { "type": "string", "minLength": 1 },
+        "issue_number": { "type": ["integer", "null"], "minimum": 1 },
+        "owned_paths": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ownedPath" } },
+        "mutations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/mutation" } },
+        "reason": { "type": "string" },
+        "preconditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["branch_must_not_exist", "base_must_equal", "force_update_forbidden", "merge_forbidden", "deploy_forbidden"],
+          "properties": {
+            "branch_must_not_exist": { "const": true },
+            "base_must_equal": { "$ref": "#/$defs/sha" },
+            "force_update_forbidden": { "const": true },
+            "merge_forbidden": { "const": true },
+            "deploy_forbidden": { "const": true }
+          }
+        },
+        "packet_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}
