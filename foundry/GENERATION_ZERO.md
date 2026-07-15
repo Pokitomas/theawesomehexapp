@@ -33,6 +33,28 @@ The output directory contains:
 - `negative-results.json`
 - `corpus-plan.json`
 - `receipt.json`
+- `artifact-manifest.json`
+
+## Artifact integrity
+
+Canonical JSON files are written through temporary paths. Any previous completion manifest is removed before mutation, and `artifact-manifest.json` is written last. Therefore:
+
+- a missing manifest means the run is incomplete;
+- a byte-length mismatch means the artifact changed after the manifest was created;
+- a SHA-256 mismatch means the parsed evidence does not match the completed run;
+- a receipt/manifest revision or digest mismatch means the bundle must not be consumed.
+
+The manifest excludes itself from its artifact map to avoid a circular digest. It records the exact code revision, every canonical artifact's byte length and digest, the base protocol receipt digest, and the full generation receipt digest.
+
+Programmatic verification:
+
+```js
+import { verifyGenerationZeroArtifactBundle } from './foundry/generation-zero.mjs';
+
+await verifyGenerationZeroArtifactBundle('/tmp/sideways-generation-zero');
+```
+
+`receipt.json` has two identities. `receipt_digest` covers the reusable base Foundry protocol receipt. `generation_receipt_digest` covers the complete generation-zero receipt, including the exact revision, executed proxy outcomes, and truth-boundary fields. The CLI's top-level `receipt_digest` points to the full generation digest and separately emits `protocol_receipt_digest`.
 
 ## Executable evidence boundary
 
