@@ -1,0 +1,47 @@
+name: Verify native Maker worker
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/open-model-adapter.mjs'
+      - 'scripts/native-dev-agent.mjs'
+      - 'scripts/native-changed-check.mjs'
+      - 'scripts/maker-native-worker.mjs'
+      - 'scripts/tests/native-maker-worker.test.mjs'
+      - 'scripts/tests/workflow-permissions.test.mjs'
+      - '.github/workflows/maker-native-worker.yml'
+      - '.github/workflows/maker-native-worker-ci.yml'
+      - 'audit/authority-manifest.workflow-projection.mjs'
+      - 'audit/repository-verification.json'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked repository dependencies
+        run: npm ci --ignore-scripts
+      - name: Check native worker modules
+        run: |
+          node --check scripts/open-model-adapter.mjs
+          node --check scripts/native-dev-agent.mjs
+          node --check scripts/native-changed-check.mjs
+          node --check scripts/maker-native-worker.mjs
+      - name: Verify provider-neutral worker and hostile boundaries
+        run: npm run test:native-maker
+      - name: Verify workflow authority fence
+        run: node --test scripts/tests/workflow-permissions.test.mjs
+      - name: Verify authority manifest ownership
+        run: npm run test:authority
