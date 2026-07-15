@@ -45,8 +45,25 @@ jobs:
           node --check scripts/check-open-model-runtime.mjs
           node --check scripts/maker-native-worker.mjs
       - name: Verify provider-neutral planning, worker, and hostile boundaries
-        run: npm run test:native-maker
+        run: |
+          set -o pipefail
+          npm run test:native-maker 2>&1 | tee native-maker-test.log
       - name: Verify workflow authority fence
-        run: node --test scripts/tests/workflow-permissions.test.mjs
+        run: |
+          set -o pipefail
+          node --test scripts/tests/workflow-permissions.test.mjs 2>&1 | tee workflow-permissions-test.log
       - name: Verify authority manifest ownership
-        run: npm run test:authority
+        run: |
+          set -o pipefail
+          npm run test:authority 2>&1 | tee authority-manifest-test.log
+      - name: Upload exact native worker receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-maker-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            native-maker-test.log
+            workflow-permissions-test.log
+            authority-manifest-test.log
+          if-no-files-found: ignore
+          retention-days: 5
