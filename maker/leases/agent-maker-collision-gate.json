@@ -14,5 +14,5 @@
     "scripts/tests/workflow-permissions.test.mjs"
   ],
   "shared_paths": [],
-  "state": "leased_before_implementation"
+  "state": "implementation_complete"
 }
