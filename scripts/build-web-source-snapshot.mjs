@@ -55,21 +55,32 @@ export async function fetchBoundedSource(provider, options = {}) {
   if (response.status === 429) throw new Error('source rate limit exceeded');
   if (response.status < 200 || response.status >= 300) throw new Error(`source responded ${response.status}`);
   const contentType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-  if (!ALLOWED_TYPES.includes(contentType)) throw new Error(`source content type is not allowed: ${contentType || '(missing)'}`);
+  if (!ALLOWED_TYPES.includes(contentType)) {
+    throw new Error(`source content type is not allowed: ${contentType || '(missing)'}`);
+  }
   const fetchedAt = options.now || new Date().toISOString();
   const parseProvider = { ...provider, url: response.url?.href || source.href };
-  const rows = parseSourcePayload(response.body.toString('utf8'), contentType, parseProvider).slice(0, limits.recordsPerSource);
+  const rows = parseSourcePayload(response.body.toString('utf8'), contentType, parseProvider)
+    .slice(0, limits.recordsPerSource);
   return Object.freeze({
     records: Object.freeze(rows.map(row => normalizeWebRecord(row, { ...provider, fetchedAt }))),
-    receipt: Object.freeze({ robots, hops: response.hops, bytes: response.body.length, contentType })
+    receipt: Object.freeze({
+      robots,
+      hops: response.hops,
+      bytes: response.body.length,
+      contentType
+    })
   });
 }
 
 export async function buildSnapshot(providers, options = {}) {
   const limits = { ...DEFAULT_LIMITS, ...(options.limits || {}) };
-  const selected = (Array.isArray(providers) ? providers : []).filter(provider => provider?.enabled !== false).slice(0, limits.sources);
+  const selected = (Array.isArray(providers) ? providers : [])
+    .filter(provider => provider?.enabled !== false)
+    .slice(0, limits.sources);
   const records = [];
   const receipts = [];
+  const seen = new Set();
   for (const provider of selected) {
     try {
       if (provider.kind === 'search' && provider.publicEndpoint !== true) {
@@ -79,20 +90,33 @@ export async function buildSnapshot(providers, options = {}) {
       const fetchedAt = options.now || '2026-07-15T00:00:00.000Z';
       const result = fixture
         ? {
-            records: parseSourcePayload(fixture.text, fixture.contentType, provider).map(row => normalizeWebRecord(row, { ...provider, fetchedAt })),
+            records: parseSourcePayload(fixture.text, fixture.contentType, provider)
+              .map(row => normalizeWebRecord(row, { ...provider, fetchedAt })),
             receipt: { fixture: true, robots: { policy: 'fixture', allowed: true }, hops: [] }
           }
         : await fetchBoundedSource(provider, { ...options, limits });
       let admitted = 0;
       for (const record of result.records) {
         if (records.length >= limits.totalRecords) break;
-        if (records.some(existing => existing.url && existing.url === record.url)) continue;
+        const key = record.url || `${record.kind}:${record.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         records.push(record);
         admitted += 1;
       }
-      receipts.push(Object.freeze({ provider: provider.id, status: 'ready', admitted, evidence: result.receipt }));
+      receipts.push(Object.freeze({
+        provider: provider.id,
+        status: 'ready',
+        admitted,
+        evidence: result.receipt
+      }));
     } catch (error) {
-      receipts.push(Object.freeze({ provider: provider.id, status: 'unavailable', admitted: 0, error: clean(error.message) }));
+      receipts.push(Object.freeze({
+        provider: provider.id,
+        status: 'unavailable',
+        admitted: 0,
+        error: clean(error.message)
+      }));
     }
     if (records.length >= limits.totalRecords) break;
   }
@@ -105,13 +129,72 @@ export async function buildSnapshot(providers, options = {}) {
   });
 }
 
+function wikinewsProvider(id, start) {
+  const query = new URLSearchParams({
+    action: 'query',
+    generator: 'allpages',
+    gapnamespace: '0',
+    gaplimit: '250',
+    gapfrom: start,
+    prop: 'extracts|info',
+    exintro: '1',
+    inprop: 'url',
+    format: 'json',
+    origin: '*'
+  });
+  return {
+    id,
+    name: 'Wikinews',
+    kind: 'article',
+    format: 'json',
+    method: 'mediawiki-api',
+    robots: 'not-applicable',
+    license: 'CC BY 2.5',
+    url: `https://en.wikinews.org/w/api.php?${query}`
+  };
+}
+
+function hackerNewsProvider(page) {
+  return {
+    id: `hacker-news-${page}`,
+    name: 'Hacker News',
+    kind: 'forum',
+    format: 'json',
+    method: 'public-api',
+    robots: 'not-applicable',
+    url: `https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250&page=${page}`
+  };
+}
+
+function mastodonProvider(id, host) {
+  return {
+    id,
+    name: host,
+    kind: 'social',
+    format: 'json',
+    method: 'public-api',
+    robots: 'not-applicable',
+    url: `https://${host}/api/v1/timelines/public?limit=40`
+  };
+}
+
 export function defaultProviders() {
-  const configured = process.env.SIDEWAYS_PUBLIC_SOURCES ? JSON.parse(process.env.SIDEWAYS_PUBLIC_SOURCES) : [];
+  const configured = process.env.SIDEWAYS_PUBLIC_SOURCES
+    ? JSON.parse(process.env.SIDEWAYS_PUBLIC_SOURCES)
+    : [];
   if (Array.isArray(configured) && configured.length) return configured;
   return [
-    { id: 'hacker-news', name: 'Hacker News', kind: 'forum', format: 'json', method: 'public-api', robots: 'not-applicable', url: 'https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250' },
-    { id: 'wikinews', name: 'Wikinews', kind: 'article', format: 'json', method: 'mediawiki-api', robots: 'not-applicable', url: 'https://en.wikinews.org/w/api.php?action=query&generator=categorymembers&gcmtitle=Category:Published&gcmtype=page&gcmlimit=250&prop=extracts|info&exintro=1&inprop=url&format=json&origin=*' },
-    { id: 'mastodon', name: 'Mastodon', kind: 'social', format: 'json', method: 'public-api', robots: 'not-applicable', url: 'https://mastodon.social/api/v1/timelines/public?limit=40' }
+    wikinewsProvider('wikinews-a', 'A'),
+    wikinewsProvider('wikinews-i', 'I'),
+    wikinewsProvider('wikinews-q', 'Q'),
+    hackerNewsProvider(0),
+    hackerNewsProvider(1),
+    hackerNewsProvider(2),
+    mastodonProvider('mastodon-social', 'mastodon.social'),
+    mastodonProvider('mstdn-social', 'mstdn.social'),
+    mastodonProvider('fosstodon', 'fosstodon.org'),
+    mastodonProvider('hachyderm', 'hachyderm.io'),
+    mastodonProvider('techhub', 'techhub.social')
   ];
 }
 
@@ -126,10 +209,17 @@ function parseArgs(argv) {
 
 export async function runSnapshotCLI(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  const providers = args.providers ? JSON.parse(fs.readFileSync(args.providers, 'utf8')) : defaultProviders();
+  const providers = args.providers
+    ? JSON.parse(fs.readFileSync(args.providers, 'utf8'))
+    : defaultProviders();
   const snapshot = await buildSnapshot(providers);
   writeSnapshot(snapshot, args.output);
-  process.stdout.write(`${JSON.stringify({ schema: snapshot.schema, output: args.output, records: snapshot.records.length, receipts: snapshot.receipts })}\n`);
+  process.stdout.write(`${JSON.stringify({
+    schema: snapshot.schema,
+    output: args.output,
+    records: snapshot.records.length,
+    receipts: snapshot.receipts
+  })}\n`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
