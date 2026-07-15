@@ -2,15 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateFrankenstate } from '../verify-frankenstate.mjs';
 
-const valid = `version: 37
+const valid = `version: 38
 repository: Pokitomas/theawesomehexapp
-canonical_branch: repair/post-merge-full-pass
+canonical_branch: main
 canonical_pr: 212
 observed_head_before_ledger: 4339baecaa44f8811f0fa2377fc7ebe6e9d248de
-state: corrective_active_pending_terminal_audit
+state: complete
 owner: GPT-5.6 Thinking
 heartbeat:
   live_owner_receipt_found: true
+terminal_surface:
+  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
 sprawl_consolidation:
   single_ledger: .frankenstate
   duplicate_implementation_branches_created: 0
@@ -25,14 +27,16 @@ invariants:
   - No model, comment, or MATCHED receipt grants merge authority.
 `;
 
-test('accepts one current corrective ledger anchored to an ancestor', () => {
+test('accepts one terminal main ledger anchored to an ancestor', () => {
   const result = validateFrankenstate({
     text: valid,
     trackedPaths: ['.frankenstate', 'README.md'],
     isAncestor: sha => sha === '4339baecaa44f8811f0fa2377fc7ebe6e9d248de'
   });
-  assert.equal(result.version, 37);
+  assert.equal(result.version, 38);
+  assert.equal(result.canonical_branch, 'main');
   assert.equal(result.canonical_pr, 212);
+  assert.equal(result.corrective_merge_commit, 'a5c4c5d663a8bec5c6698e1da4df366abca8b433');
   assert.equal(result.merge_performed, true);
   assert.equal(result.live_owner_receipt_found, true);
   assert.equal(result.tracked_ledger, '.frankenstate');
@@ -48,7 +52,7 @@ test('rejects duplicate ledgers', () => {
 
 test('rejects stale generation schema and historical owner takeover', () => {
   const stale = valid
-    .replace('version: 37', 'version: 34')
+    .replace('version: 38', 'version: 34')
     .replace('owner: GPT-5.6 Thinking', 'owner: heartbeat-audit (claude-sonnet-5, external co-engineer session)');
   assert.throws(() => validateFrankenstate({
     text: stale,
@@ -87,13 +91,25 @@ test('rejects a recorded merge without exact historical evidence', () => {
   }), /historical_merge_commit must record the exact merged SHA/);
 });
 
-test('rejects main as the active vehicle or a nonnumeric PR', () => {
+test('rejects main as an active vehicle or a nonnumeric PR', () => {
   const invalid = valid
-    .replace('canonical_branch: repair/post-merge-full-pass', 'canonical_branch: main')
+    .replace('state: complete', 'state: corrective_active_pending_terminal_audit')
     .replace('canonical_pr: 212', 'canonical_pr: none');
   assert.throws(() => validateFrankenstate({
     text: invalid,
     trackedPaths: ['.frankenstate'],
     isAncestor: () => true
-  }), /canonical_branch must identify a non-main/);
+  }), /active ledger must identify a non-main canonical branch/);
+});
+
+test('rejects a complete ledger without the exact corrective merge', () => {
+  const missing = valid.replace(
+    'corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433',
+    'corrective_merge_commit: pending'
+  );
+  assert.throws(() => validateFrankenstate({
+    text: missing,
+    trackedPaths: ['.frankenstate'],
+    isAncestor: () => true
+  }), /complete ledger must record the exact corrective_merge_commit/);
 });

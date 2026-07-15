@@ -44,13 +44,19 @@ export function validateFrankenstate({ text, trackedPaths, isAncestor }) {
     if (actual !== expected) fail(`${key} must equal ${expected}; received ${actual}`);
   }
 
-  const canonicalBranch = scalar(value, 'canonical_branch');
-  if (!canonicalBranch || canonicalBranch === 'main') fail('canonical_branch must identify a non-main active or terminal vehicle');
-  const canonicalPr = Number(scalar(value, 'canonical_pr'));
-  if (!Number.isInteger(canonicalPr) || canonicalPr < 1) fail('canonical_pr must be a positive integer');
-
   const state = scalar(value, 'state');
   if (!allowedStates.has(state)) fail(`unsupported state ${state}`);
+
+  const canonicalBranch = scalar(value, 'canonical_branch');
+  if (!canonicalBranch) fail('canonical_branch is required');
+  if (state === 'complete' && canonicalBranch !== 'main') {
+    fail('a complete ledger must identify main as the terminal canonical branch');
+  }
+  if (state !== 'complete' && canonicalBranch === 'main') {
+    fail('an active ledger must identify a non-main canonical branch');
+  }
+  const canonicalPr = Number(scalar(value, 'canonical_pr'));
+  if (!Number.isInteger(canonicalPr) || canonicalPr < 1) fail('canonical_pr must be a positive integer');
 
   const owner = scalar(value, 'owner');
   if (!owner || owner === 'heartbeat-audit (claude-sonnet-5, external co-engineer session)') {
@@ -65,6 +71,11 @@ export function validateFrankenstate({ text, trackedPaths, isAncestor }) {
     if (!/^[0-9a-f]{40}$/.test(historicalMergeCommit || '')) fail('historical_merge_commit must record the exact merged SHA');
     if (!Number.isInteger(historicalMergePr) || historicalMergePr < 1) fail('historical_merge_pr must record the merged pull request');
     if (scalar(value, 'merged_against_terminal_decision') !== 'HOLD') fail('a merge performed against HOLD must remain explicit');
+  }
+
+  const correctiveMergeCommit = scalar(value, 'corrective_merge_commit');
+  if (state === 'complete' && !/^[0-9a-f]{40}$/.test(correctiveMergeCommit || '')) {
+    fail('a complete ledger must record the exact corrective_merge_commit');
   }
 
   if (/^[ \t]*active_pr:/m.test(value)) fail('stale active_pr schema is forbidden');
@@ -91,6 +102,7 @@ export function validateFrankenstate({ text, trackedPaths, isAncestor }) {
     state,
     live_owner_receipt_found: liveOwnerReceiptFound,
     merge_performed: mergePerformed,
+    corrective_merge_commit: correctiveMergeCommit,
     observed_head_before_ledger: observed,
     ledger_sha256: createHash('sha256').update(value).digest('hex'),
     tracked_ledger: ledgers[0]

@@ -1,28 +1,28 @@
-version: 37
-updated_at: 2026-07-15T03:26:00Z
+version: 38
+updated_at: 2026-07-15T03:40:00Z
 repository: Pokitomas/theawesomehexapp
-canonical_branch: repair/post-merge-full-pass
+canonical_branch: main
 canonical_pr: 212
 base_branch: main
-observed_head_before_ledger: 48e78ee5070955f2a8d0071b4218f48141508072
-state: corrective_active_pending_terminal_audit
+observed_head_before_ledger: a5c4c5d663a8bec5c6698e1da4df366abca8b433
+state: complete
 
 owner: GPT-5.6 Thinking
-mode: full-pass co-engineering after premature HOLD merge
+mode: operator-authorized liberal break-fast full pass
 heartbeat:
   live_owner_receipt_found: true
-  claim_comment: 4976127644
-  current_vehicle: pull_request_212
+  merge_receipt_comment: 4976628053
+  current_vehicle: main
 
-active_surface:
+terminal_surface:
   corrective_pr: 212
   corrective_branch: repair/post-merge-full-pass
-  base_head: 655d1c91108c4ba5670e411ebe817d6330a09f62
+  corrective_source_head: 1e9cd26657fe134fe9088a712606c9c4ff2ab518
+  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
+  live_main_verified: true
+  open_pull_requests_after_merge: 0
   terminal_audit_issue: 209
-  terminal_audit_state: reopened
-  terminal_decision: HOLD
-  related_replay_issue: 193
-  related_recursive_identity_issue: 203
+  operator_policy: liberal_break_fast
 
 historical_assembly:
   historical_merge_pr: 188
@@ -39,27 +39,12 @@ full_pass_delivered:
   - two-stage structural critique, independent semantic acceptance, and trusted decision admission
   - runtime and GitHub/Remote bridge recovery with bounded capacity and critic-only admission waves
   - hostile full-pass witnesses wired into focused and exact-tree CI
-  - immutable GitHub Action SHAs across every workflow
-  - workflow drift tests rejecting floating actions and mutable package installation
-  - exact-head dependency and action inventory artifact
-  - strict v1 persisted replay boundary for operational folds
-
-corrective_scope:
-  strict_v1_replay:
-    - persisted id, issuer, and issued_at are mandatory
-    - deterministic creation is separate from validation
-    - exact duplicate delivery is idempotent
-    - same id with changed content is rejected
-    - event identity is bound to Remote session, generation, issuer, time, and visibility
-    - operational active-state and CLI folds are input-order invariant
-  coordination_truth:
-    - validator no longer hard-codes a closed PR as active
-    - historical HOLD merge remains explicit
-    - terminal audit reopened before any further merge decision
+  - immutable GitHub Action SHAs and exact-head dependency inventory
+  - strict persisted v1 replay for operational folds and lasso history selection
+  - truthful post-merge coordination state
 
 residuals:
   - legacy normalizeWeaveEvent remains available to creation-oriented internal callers
-  - internal lasso history selection is not yet routed through strict replay validation
   - v1 paginated dependency closure remains undefined because the schema has no explicit causal reference contract
   - external production roles, backups, restore evidence, and environment protections remain independently auditable facts
   - product lifecycle, accessibility, performance, and degraded-state acceptance remain open program contracts
@@ -73,29 +58,29 @@ sprawl_consolidation:
   historical_merge_pr: 188
   historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
   merged_against_terminal_decision: HOLD
-  corrective_pull_requests_open: 1
+  corrective_merge_pr: 212
+  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
+  corrective_pull_requests_open: 0
 
 verification:
-  previous_corrective_green_head: 61334581f65cb80235fc64440a618084f7c7a00c
-  current_pre_ledger_head: 48e78ee5070955f2a8d0071b4218f48141508072
-  status: exact_head_actions_required_after_ledger_truth_update
+  corrective_source_head: 1e9cd26657fe134fe9088a712606c9c4ff2ab518
+  live_main_head: a5c4c5d663a8bec5c6698e1da4df366abca8b433
+  unique_source_head_workflows: 18
+  successful_source_head_workflows: 18
+  status: remote_merge_verified
   witness_substitution_allowed: false
-  previous_exact_head_matrix:
-    total_workflows: 18
-    successful_workflows: 18
 
 completion_receipt:
-  merged_full_pass_baseline: complete_but_merged_against_hold
-  strict_replay_corrective: implemented_pending_new_exact_head
-  coordination_truth_repair: implemented_pending_new_exact_head
-  terminal_audit: reopened
-  merge_decision: HOLD
+  recursive_full_pass: merged
+  strict_replay_corrective: merged
+  lasso_strict_history: merged
+  coordination_truth_repair: complete
+  merge_decision: operator_authorized_break_fast
 
-next_decision_requires:
-  - every workflow on the ledger-updated corrective head has a terminal conclusion
-  - exact-tree artifact identifies the same corrective head
-  - issue 209 records HOLD, REJECT, or MERGE RECOMMENDED against that exact head
-  - no merge or auto-merge occurs before the explicit decision
+followup_contracts:
+  - define paginated v1 causal dependency closure through issue 193 or a successor
+  - continue independent product lifecycle, accessibility, performance, degraded-state, and operations acceptance
+  - verify external production roles, secrets, backups, retention, and environment protections outside repository code
 
 invariants:
   - Do not infer completion from issue prose.
