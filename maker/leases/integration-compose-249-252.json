@@ -1,0 +1,38 @@
+{
+  "version": "sideways-path-lease/v1",
+  "base_sha": "5bc28784e1634334dacba624d19fcb87ee8c2cd7",
+  "branch": "integration/compose-249-252",
+  "owner": "GPT-5.6 Thinking coordinator",
+  "purpose": "Compose the accepted social, collision-control, and full Maker runtime lanes into one exact-tree candidate.",
+  "owned_paths": [
+    ".github/workflows/maker-native-worker-ci.yml",
+    ".github/workflows/maker-pr-collision-gate.yml",
+    ".github/workflows/maker-sprawl.yml",
+    "AGENTS.md",
+    "INTEGRATION_RECEIPT_249_251.md",
+    "NATIVE_MAKER.md",
+    "README.md",
+    "audit/authority-manifest.workflow-projection.mjs",
+    "audit/repository-verification.json",
+    "audit/social-product-reachability.json",
+    "maker/leases/integration-compose-249-252.json",
+    "package.json",
+    "scripts/maker-core.mjs",
+    "scripts/maker-pr-collision-gate.mjs",
+    "scripts/maker.mjs",
+    "scripts/tests/maker-actions-sprawl.test.mjs",
+    "scripts/tests/maker-core.test.mjs",
+    "scripts/tests/maker-pr-collision-gate.test.mjs",
+    "scripts/tests/social-author-controls.test.mjs",
+    "scripts/tests/social-product-reachability.test.mjs",
+    "scripts/tests/workflow-permissions.test.mjs",
+    "studio/manual/imports/apply.py",
+    "studio/manual/product/social-author-controls.js"
+  ],
+  "shared_paths_resolved": [
+    "package.json",
+    ".github/workflows/maker-native-worker-ci.yml",
+    "audit/authority-manifest.workflow-projection.mjs"
+  ],
+  "state": "combined_tree_pending_exact_head_ci"
+}
