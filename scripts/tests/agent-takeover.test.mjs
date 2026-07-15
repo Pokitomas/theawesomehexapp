@@ -46,17 +46,19 @@ test('parseArgs accepts only documented switches', () => {
   assert.throws(() => parseArgs(['--launch']), /Unknown argument/);
 });
 
-test('assessment distinguishes a clean exact main checkout from dirty state', () => {
+test('assessment distinguishes checkout readiness, Codex readiness, and dirty state', () => {
   const repo = createFixtureRepo();
   const clean = assessCheckout(repo);
   assert.equal(clean.branch, 'main');
   assert.equal(clean.clean, true);
   assert.equal(clean.readyForAssessment, true);
-  assert.equal(clean.readyForMutation, true);
+  assert.equal(clean.checkoutReadyForMutation, true);
+  assert.equal(clean.readyForMutation, clean.codexInstalled);
 
   writeFileSync(path.join(repo, 'README.md'), 'changed\n');
   const dirty = assessCheckout(repo);
   assert.equal(dirty.clean, false);
+  assert.equal(dirty.checkoutReadyForMutation, false);
   assert.equal(dirty.readyForMutation, false);
   assert.match(dirty.warnings.join('\n'), /Working tree is dirty/);
 });
