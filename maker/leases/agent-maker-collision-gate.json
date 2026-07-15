@@ -1,0 +1,17 @@
+{
+  "version": "sideways-path-lease/v1",
+  "base_sha": "5bc28784e1634334dacba624d19fcb87ee8c2cd7",
+  "branch": "agent/maker-collision-gate",
+  "owner": "GPT-5.6 Thinking",
+  "purpose": "Add a read-only GitHub Actions gate that blocks overlapping Maker and agent pull requests before review or merge.",
+  "owned_paths": [
+    ".github/workflows/maker-native-worker-ci.yml",
+    ".github/workflows/maker-pr-collision-gate.yml",
+    "maker/leases/agent-maker-collision-gate.json",
+    "scripts/maker-pr-collision-gate.mjs",
+    "scripts/tests/maker-pr-collision-gate.test.mjs",
+    "scripts/tests/workflow-permissions.test.mjs"
+  ],
+  "shared_paths": [],
+  "state": "leased_before_implementation"
+}
