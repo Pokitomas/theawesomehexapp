@@ -11,6 +11,7 @@ on:
       - '.github/workflows/social-authority-assembly.yml'
       - '.github/workflows/social-postgres-contract.yml'
       - 'package.json'
+      - 'package-lock.json'
   push:
     branches: [main]
     paths:
@@ -22,6 +23,7 @@ on:
       - '.github/workflows/social-authority-assembly.yml'
       - '.github/workflows/social-postgres-contract.yml'
       - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -54,7 +56,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+          cache: npm
+      - name: Install locked runtime dependencies
+        run: npm ci --ignore-scripts
       - name: Run in-memory and boundary contracts
         shell: bash
         run: |
