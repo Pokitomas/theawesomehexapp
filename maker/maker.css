@@ -52,7 +52,7 @@ a { color: inherit; }
 h1 { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: clamp(50px, 9vw, 104px); line-height: .86; letter-spacing: -.065em; }
 .lede { max-width: 760px; margin: 22px 0 0; color: #d7e0ef; font-family: Arial, Helvetica, sans-serif; font-size: clamp(15px, 2vw, 20px); line-height: 1.45; }
 .repo-link, .secondary {
-  min-height: 50px;
+  min-height: 56px;
   border: 2px solid currentColor;
   padding: 11px 14px;
   display: inline-flex;
@@ -87,7 +87,7 @@ textarea { min-height: 170px; resize: vertical; font-family: Arial, Helvetica, s
 .short-field { min-height: 108px; }
 textarea:focus, input:focus, select:focus, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 2px solid var(--line); }
-.mode-grid button { min-height: 54px; border: 0; border-right: 1px solid var(--line); padding: 8px; background: transparent; color: var(--ink); font-size: 11px; font-weight: 900; }
+.mode-grid button { min-height: 56px; border: 0; border-right: 1px solid var(--line); padding: 8px; background: transparent; color: var(--ink); font-size: 11px; font-weight: 900; }
 .mode-grid button:last-child { border-right: 0; }
 .mode-grid button[aria-pressed="true"] { background: var(--navy); color: white; }
 .capability-card { margin-top: 18px; border: 2px solid var(--line); background: white; }
@@ -127,7 +127,7 @@ pre { max-width: 100%; max-height: 360px; overflow: auto; white-space: pre-wrap;
 .badge.queued, .badge.in_progress, .badge.waiting { background: var(--amber); }
 .operation-text { min-width: 0; font-size: 12px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
 .operation-meta { min-width: 0; font-size: 9px; color: var(--muted); overflow-wrap: anywhere; }
-@media (max-width: 820px) {
+@media (max-width: 760px) {
   .masthead, .command-panel, .live-columns { grid-template-columns: 1fr; }
   .repo-link { justify-self: start; }
   .dispatch-panel { border-left: 0; border-top: 2px solid var(--line); }
