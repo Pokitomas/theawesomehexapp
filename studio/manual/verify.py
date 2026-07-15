@@ -35,6 +35,10 @@ SOURCE_FILES = (
     PRODUCT / "import-studio.js",
     PRODUCT / "import-studio.css",
     PRODUCT / "import-phone.js",
+    PRODUCT / "add-to-sideways.css",
+    PRODUCT / "add-to-sideways-runtime.js",
+    PRODUCT / "discovery-source.js",
+    PRODUCT / "account-connections.js",
     SHARED / "corpus-db.js",
     IMPORTS / "registry.js",
     IMPORTS / "runtime.js",
@@ -173,6 +177,28 @@ def main() -> None:
     require(remote_source, ("service-desc", "sideways:remoteupdate", "data-sideways-remote-state", "window.SidewaysRemote"), "public live-work terminal")
     forbid(remote_source, ("REMOTE_ROOT_KEY", "REMOTE_PRIVATE_KEY", "x-remote-signature"), "browser credential leak")
 
+    import_source = source[PRODUCT / "import-studio.js"]
+    require(
+        import_source,
+        (
+            "Connect an account",
+            "Add a website or feed",
+            "Import files",
+            "Restore a Sideways backup",
+            "sideways:websourceschanged",
+            "sideways:restorefile",
+        ),
+        "unified ingestion surface",
+    )
+    forbid(import_source, ("document.cookie", "accessToken", "refreshToken", "password="), "ingestion credential leak")
+
+    discovery_source = source[PRODUCT / "discovery-source.js"]
+    require(discovery_source, ("safePublicURL", "normalizeDiscoveryRecord", "materializeCandidates", "credentials: 'omit'"), "bounded discovery source")
+
+    connection_source = source[PRODUCT / "account-connections.js"]
+    require(connection_source, ("createPKCE", "validateCallback", "redactConnection", "connectionCapability", "code_challenge_method: 'S256'"), "connected account contract")
+    forbid(connection_source, ("localStorage", "document.cookie", "password"), "connected account secret persistence")
+
     if not MANUAL.exists():
         print("local-first runtime sources verified")
         return
@@ -181,10 +207,10 @@ def main() -> None:
         "app.js", "profile.js", "kernel.js", "studio.js", "copy.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "workspace-migration.js",
         "workspace.js", "workspace-ui.js", "core-actions.js", "universal-media.js", "media-modes.js",
-        "frontier.js", "remote-terminal.js",
-        "import-studio.js", "import-phone.js", "shared/corpus-db.js", "imports/registry.js",
-        "imports/runtime.js", "imports/file-hash.js", "imports/hash-worker.js", "imports/corpus-writer.js",
-        "imports/record-normalizer.js",
+        "frontier.js", "remote-terminal.js", "import-studio.js", "import-phone.js",
+        "add-to-sideways-runtime.js", "discovery-source.js", "account-connections.js",
+        "shared/corpus-db.js", "imports/registry.js", "imports/runtime.js", "imports/file-hash.js",
+        "imports/hash-worker.js", "imports/corpus-writer.js", "imports/record-normalizer.js",
     )
     for name in generated_js:
         path = MANUAL / name
@@ -209,12 +235,17 @@ def main() -> None:
         raise AssertionError("generated runtime layers are duplicated or missing")
     if index.count("data-remote-terminal") != 2 or index.count("data-sideways-remote") != 1:
         raise AssertionError("public live-work terminal is duplicated or missing")
+    if index.count("data-add-to-sideways") != 1 or index.count("data-add-to-sideways-runtime") != 1:
+        raise AssertionError("unified ingestion assets are duplicated or missing")
+    for name in ("add-to-sideways.css", "add-to-sideways-runtime.js", "discovery-source.js", "account-connections.js"):
+        if not (MANUAL / name).is_file():
+            raise AssertionError(f"unified ingestion asset missing: {name}")
     for name in ("remote-snapshot.json", ".well-known/sideways-remote.json"):
         if not (MANUAL / name).is_file():
             raise AssertionError(f"remote discovery projection missing: {name}")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
-    print("local-first runtime, one-owner schema, atomic ledger, and viewport media contracts verified")
+    print("local-first runtime, bounded discovery, connected import, atomic ledger, and viewport media contracts verified")
 
 
 if __name__ == "__main__":
