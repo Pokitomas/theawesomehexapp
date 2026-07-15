@@ -1,0 +1,51 @@
+{
+  "schema": "sideways-release-completion-policy/v1",
+  "program": "Sideways",
+  "integration_pr": 265,
+  "completion_issue": 264,
+  "prerequisite_issues": [257, 258, 259, 260, 261, 262],
+  "code_local_contracts": {
+    "product": "audit/product-journey.json",
+    "archive": "audit/archive-survival.json",
+    "social": "audit/social-product-reachability.json",
+    "ranking": "audit/ranking-evaluation-fixture.json",
+    "operations": "audit/operations-reality.json",
+    "quality": "scripts/human-quality-report.mjs",
+    "repository": "audit/repository-verification.json"
+  },
+  "required_exact_head_workflows": [
+    "Verify exact repository tree",
+    "Kernel parity check",
+    "Build and deploy manual root-kernel feed",
+    "Prove profile-first starter on phone",
+    "Prove manual gate on phone",
+    "Prove authoritative social spine on phone",
+    "Prove Ark survival ledger on phone",
+    "Prove universal media lab on phone",
+    "Verify social authority assembly",
+    "Authority manifest drift",
+    "Verify workflow authority",
+    "Verify Maker runtimes",
+    "Validate manual overlay shards",
+    "Lasso incoming co-agents"
+  ],
+  "allowed_unsupported_boundaries": [
+    "screen_reader_journeys",
+    "cross_browser_behavior",
+    "startup_and_scale_performance",
+    "conventional_download_retention",
+    "device_specific_storage_eviction",
+    "function_host_configuration",
+    "postgres_instance_and_backup_restore",
+    "provider_branch_environment_and_application_grants",
+    "production_rate_limits_and_cookie_behavior"
+  ],
+  "post_merge_requirements": [
+    "all required main-commit workflows pass",
+    "the live /.well-known/sideways-deployment.json sentinel equals the final merge commit",
+    "the deployment receipt issue records that exact served commit",
+    "completion issues and superseded coordination tasks close with exact transport receipts",
+    "no competing Maker or agent lease remains open"
+  ],
+  "termination_rule": "After code-local admission, exact-head workflow success, final main deployment identity, and issue/lease closure are proved, terminate the completion swarm. Do not spawn speculative follow-on work."
+}
