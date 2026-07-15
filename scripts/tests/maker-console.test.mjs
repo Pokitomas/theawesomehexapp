@@ -21,6 +21,9 @@ import {
 
 const html = fs.readFileSync('maker/index.html', 'utf8');
 const css = fs.readFileSync('maker/maker.css', 'utf8');
+const manifest = JSON.parse(fs.readFileSync('maker/manifest.webmanifest', 'utf8'));
+const worker = fs.readFileSync('maker/sw.js', 'utf8');
+const icon = fs.readFileSync('maker/icon.svg', 'utf8');
 
 for (const id of [
   'maker-request', 'maker-protect', 'maker-proof', 'maker-budget', 'maker-runtime',
@@ -33,12 +36,26 @@ for (const runtime of RUNTIMES) assert.ok(html.includes(`value="${runtime}"`), `
 assert.ok(html.includes('Make it able.'));
 assert.ok(html.includes('From brawl to product'));
 assert.ok(html.includes('remove temporary installs'));
+assert.ok(html.includes('apple-mobile-web-app-capable'));
+assert.ok(html.includes('rel="manifest"'));
+assert.ok(html.includes('viewport-fit=cover'));
 assert.ok(!html.includes('SIDEWAYS / DEV / LIVE'));
 assert.ok(!html.includes('Live engineering'));
 assert.ok(!html.includes('../founder/'));
 assert.ok(css.includes('@media (max-width: 620px)'));
+assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
 assert.ok(css.includes('min-height: 54px'));
+assert.equal(manifest.display, 'standalone');
+assert.equal(manifest.start_url, './');
+assert.match(manifest.description, /capability forge/i);
+assert.equal(manifest.background_color, '#f3f0e8');
+assert.ok(manifest.icons.some(entry => entry.src === './icon.svg'));
+assert.ok(worker.includes("const CACHE = 'sideways-maker-v3'"));
+assert.ok(worker.includes("url.origin !== self.location.origin"));
+assert.ok(worker.includes("request.mode === 'navigate'"));
+assert.ok(icon.startsWith('<svg'));
+assert.ok(icon.includes('#6459ff'));
 
 const normalized = normalizeIntent({
   mode: 'DISTILL',
@@ -153,4 +170,4 @@ const fetched = await fetchRepositoryState(async url => {
 assert.equal(calls.length, 3);
 assert.deepEqual(fetched, state);
 
-console.log('maker capability surface contract ok: phone plan emits architecture brawl, budget, lifecycle, product proof, and cleanup authority');
+console.log('maker capability surface contract ok: phone plan emits architecture brawl, budget, lifecycle, product proof, cleanup authority, and offline shell identity');
