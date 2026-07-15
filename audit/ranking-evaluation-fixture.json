@@ -1,13 +1,67 @@
 {
-  "schema": "sideways-ranking-evaluation-fixture/v1",
-  "gate": 0.72,
-  "slate_size": 4,
+  "schema": "sideways-ranking-evaluation-fixture/v2",
+  "seed": 20260715,
+  "replay_seeds": [20260715, 20260716, 20260717],
+  "slate_size": 5,
+  "exploration_bound": 0.035,
+  "diversity_penalties": {
+    "same_source": 0.12,
+    "same_topic": 0.08,
+    "same_duplicate_family": 0.14
+  },
+  "session": {
+    "previous_state": "saturation",
+    "previous_gate": 0.22,
+    "elapsed_seconds": 180,
+    "gate_tau_seconds": 240,
+    "axes": {
+      "topic_concentration": 1.78,
+      "source_concentration": 1.62,
+      "viewpoint_concentration": 1.16,
+      "graphic_intensity": 0.34,
+      "arousal": 0.92,
+      "low_novelty": 1.08,
+      "repetition": 1.49,
+      "passive_consumption": 0.74
+    },
+    "high_threshold": 1.35,
+    "joint_threshold": 3.8,
+    "low_threshold": 0.48,
+    "exposures_since_boundary": 12,
+    "min_exit_exposures": 8,
+    "interacted_with_new_axis": true,
+    "lateral_rejections": 1,
+    "deep_rejection_threshold": 3,
+    "posterior_sample_base": 0.41,
+    "posterior_sample_lateral": 0.73
+  },
   "candidates": [
-    { "id": "a", "source": "cluster-1", "topic": "politics", "engagement": 0.95, "affinity": 0.95, "relevance": 0.94, "axisDistance": 0.05, "sourceNovelty": 0.05, "viewpointGap": 0.04, "context": 0.20, "motive": 0.74, "place": 0.10, "topicDistance": 0.05, "duplicateRisk": 0.90, "graphicRisk": 0.30 },
-    { "id": "b", "source": "cluster-1", "topic": "politics", "engagement": 0.93, "affinity": 0.92, "relevance": 0.91, "axisDistance": 0.08, "sourceNovelty": 0.04, "viewpointGap": 0.07, "context": 0.20, "motive": 0.70, "place": 0.10, "topicDistance": 0.07, "duplicateRisk": 0.88, "graphicRisk": 0.20 },
-    { "id": "c", "source": "cluster-1", "topic": "politics", "engagement": 0.90, "affinity": 0.91, "relevance": 0.89, "axisDistance": 0.10, "sourceNovelty": 0.03, "viewpointGap": 0.08, "context": 0.22, "motive": 0.68, "place": 0.10, "topicDistance": 0.08, "duplicateRisk": 0.86, "graphicRisk": 0.10 },
-    { "id": "d", "source": "cluster-2", "topic": "local-science", "engagement": 0.70, "affinity": 0.72, "relevance": 0.76, "axisDistance": 0.94, "sourceNovelty": 0.96, "viewpointGap": 0.84, "context": 0.88, "motive": 0.81, "place": 0.72, "topicDistance": 0.82, "duplicateRisk": 0.04, "graphicRisk": 0.05 },
-    { "id": "e", "source": "cluster-3", "topic": "labor-history", "engagement": 0.68, "affinity": 0.70, "relevance": 0.74, "axisDistance": 0.90, "sourceNovelty": 0.92, "viewpointGap": 0.80, "context": 0.91, "motive": 0.84, "place": 0.40, "topicDistance": 0.78, "duplicateRisk": 0.06, "graphicRisk": 0.02 },
-    { "id": "f", "source": "cluster-4", "topic": "art-process", "engagement": 0.66, "affinity": 0.68, "relevance": 0.72, "axisDistance": 0.88, "sourceNovelty": 0.89, "viewpointGap": 0.76, "context": 0.85, "motive": 0.79, "place": 0.32, "topicDistance": 0.86, "duplicateRisk": 0.03, "graphicRisk": 0.04 }
-  ]
+    { "id": "a", "family": "base", "eligible": true, "source": "cluster-1", "topic": "politics", "duplicateFamily": "election-1", "engagement": 0.96, "affinity": 0.95, "relevance": 0.94, "axisDistance": 0.05, "sourceNovelty": 0.04, "viewpointGap": 0.04, "context": 0.25, "motive": 0.8, "place": 0.1, "topicDistance": 0.05, "duplicateRisk": 0.92, "graphicRisk": 0.25 },
+    { "id": "b", "family": "base", "eligible": true, "source": "cluster-1", "topic": "politics", "duplicateFamily": "election-1", "engagement": 0.94, "affinity": 0.93, "relevance": 0.91, "axisDistance": 0.07, "sourceNovelty": 0.05, "viewpointGap": 0.06, "context": 0.24, "motive": 0.77, "place": 0.1, "topicDistance": 0.06, "duplicateRisk": 0.89, "graphicRisk": 0.18 },
+    { "id": "c", "family": "base", "eligible": true, "source": "cluster-1", "topic": "politics", "duplicateFamily": "election-2", "engagement": 0.91, "affinity": 0.91, "relevance": 0.89, "axisDistance": 0.1, "sourceNovelty": 0.06, "viewpointGap": 0.08, "context": 0.28, "motive": 0.74, "place": 0.12, "topicDistance": 0.08, "duplicateRisk": 0.83, "graphicRisk": 0.12 },
+    { "id": "d", "family": "base", "eligible": true, "source": "cluster-2", "topic": "politics", "duplicateFamily": "policy-1", "engagement": 0.86, "affinity": 0.88, "relevance": 0.9, "axisDistance": 0.18, "sourceNovelty": 0.32, "viewpointGap": 0.22, "context": 0.45, "motive": 0.7, "place": 0.18, "topicDistance": 0.15, "duplicateRisk": 0.35, "graphicRisk": 0.08 },
+    { "id": "e", "family": "lateral", "eligible": true, "source": "cluster-3", "topic": "labor-history", "duplicateFamily": "history-1", "engagement": 0.73, "affinity": 0.76, "relevance": 0.79, "axisDistance": 0.92, "sourceNovelty": 0.95, "viewpointGap": 0.82, "context": 0.91, "motive": 0.88, "place": 0.42, "topicDistance": 0.79, "duplicateRisk": 0.05, "graphicRisk": 0.03 },
+    { "id": "f", "family": "lateral", "eligible": true, "source": "cluster-4", "topic": "local-science", "duplicateFamily": "science-1", "engagement": 0.71, "affinity": 0.74, "relevance": 0.81, "axisDistance": 0.95, "sourceNovelty": 0.97, "viewpointGap": 0.78, "context": 0.87, "motive": 0.86, "place": 0.84, "topicDistance": 0.82, "duplicateRisk": 0.03, "graphicRisk": 0.02 },
+    { "id": "g", "family": "lateral", "eligible": true, "source": "cluster-5", "topic": "art-process", "duplicateFamily": "art-1", "engagement": 0.69, "affinity": 0.72, "relevance": 0.75, "axisDistance": 0.88, "sourceNovelty": 0.9, "viewpointGap": 0.75, "context": 0.84, "motive": 0.82, "place": 0.34, "topicDistance": 0.89, "duplicateRisk": 0.04, "graphicRisk": 0.04 },
+    { "id": "h", "family": "lateral", "eligible": true, "source": "cluster-6", "topic": "public-health", "duplicateFamily": "health-1", "engagement": 0.76, "affinity": 0.7, "relevance": 0.82, "axisDistance": 0.79, "sourceNovelty": 0.88, "viewpointGap": 0.68, "context": 0.9, "motive": 0.8, "place": 0.57, "topicDistance": 0.72, "duplicateRisk": 0.08, "graphicRisk": 0.06 },
+    { "id": "i", "family": "base", "eligible": true, "source": "cluster-2", "topic": "economics", "duplicateFamily": "policy-2", "engagement": 0.84, "affinity": 0.82, "relevance": 0.86, "axisDistance": 0.31, "sourceNovelty": 0.36, "viewpointGap": 0.28, "context": 0.55, "motive": 0.73, "place": 0.2, "topicDistance": 0.3, "duplicateRisk": 0.28, "graphicRisk": 0.05 },
+    { "id": "j", "family": "lateral", "eligible": true, "source": "cluster-7", "topic": "civic-design", "duplicateFamily": "design-1", "engagement": 0.72, "affinity": 0.73, "relevance": 0.77, "axisDistance": 0.9, "sourceNovelty": 0.94, "viewpointGap": 0.81, "context": 0.89, "motive": 0.85, "place": 0.63, "topicDistance": 0.86, "duplicateRisk": 0.02, "graphicRisk": 0.02 }
+  ],
+  "matched_candidate_ids": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+  "expected_baseline_ids": ["a", "i", "e", "h", "f"],
+  "delayed_feedback": {
+    "schema": "sideways-delayed-feedback/v1",
+    "required_fields": ["event_id", "occurred_at", "anonymous_session_id", "candidate_id", "event_type", "eligible", "rank_position", "explanation_state", "dwell_bucket", "later_outcome"],
+    "event_types": ["impression", "save", "hide", "follow", "dwell", "later_outcome"],
+    "eligibility_states": ["eligible", "ineligible"],
+    "explanation_states": ["closed", "opened"],
+    "dwell_buckets": ["none", "short", "medium", "long"],
+    "later_outcomes": ["unknown", "returned", "did_not_return"],
+    "privacy": "No raw private archive content, post text, asset bytes, profile fields, or public-authority credentials are permitted."
+  },
+  "integrity": {
+    "candidate_ids_digest": "2759223fa9044d57a713c8cc66c12be4cd68460785edf39f03dcfd6f870a9c2a",
+    "candidate_payload_digest": "27370fc86c5aff20112250612ddfe723609a2a763267171345c29b74d74f1393",
+    "feedback_contract_digest": "c46ea1f798285948c98c418f4c8da8507a40425b115a5f9250aed467540c1682"
+  }
 }
