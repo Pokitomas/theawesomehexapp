@@ -4,17 +4,17 @@ Issue #223 is the parent generation. This document is a human map only. The sing
 
 ## Active lanes
 
-| Lane | Issue | Purpose | Initial branch claim |
-|---|---:|---|---|
-| product | #224 | one coherent everyday Sideways journey | `revival/product-journey` |
-| archive | #225 | private import, memory, backup, restore, and recovery | `revival/archive-survival` |
-| social | #226 | public identity, publication, conversation, communities, and moderation | `revival/social-product` |
-| ranking | #227 | inspectable controls and outcome evaluation | `revival/ranking-evaluation` |
-| weave | #228 | complete running, dispatch, drain, terminal, and new-generation lifecycle | existing exact PR heads first |
-| Maker | #229 | one real configured open-model engineering run | PR #222 first |
-| operations | #230 | deployment, backup, restore, rollback, and external evidence | `revival/operations-proof` |
-| quality | #231 | accessibility, browsers, performance, and degraded states | `revival/human-quality` |
-| assembly | #232 | exact-head integration and final decision | `revival/repository-wide-generation` |
+| Lane | Issue | Draft PR | Purpose | Branch |
+|---|---:|---:|---|---|
+| product | #224 | #234 | one coherent everyday Sideways journey | `revival/product-journey` |
+| archive | #225 | #235 | private import, memory, backup, restore, and recovery | `revival/archive-survival` |
+| social | #226 | #236 | public identity, publication, conversation, communities, and moderation | `revival/social-product` |
+| ranking | #227 | #237 | inspectable controls and outcome evaluation | `revival/ranking-evaluation` |
+| weave | #228 | #238 | complete running, dispatch, drain, terminal, and new-generation lifecycle | `revival/weave-convergence` |
+| Maker | #229 | #239 | one real configured open-model engineering run | `revival/maker-activation` |
+| operations | #230 | #240 | deployment, backup, restore, rollback, and external evidence | `revival/operations-proof` |
+| quality | #231 | #241 | accessibility, browsers, performance, and degraded states | `revival/human-quality` |
+| assembly | #232 | #233 | exact-head integration and final decision | `revival/repository-wide-generation` |
 
 ## Existing candidate vehicles
 
