@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - 'founder/**'
+      - 'maker/**'
+      - 'audit/product-journey.json'
       - 'scripts/tests/founder-room*.mjs'
+      - 'scripts/tests/product-revival-contract.test.mjs'
       - '.github/workflows/founder-room.yml'
       - 'package.json'
       - 'package-lock.json'
@@ -28,6 +31,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify founder decision model
         run: node scripts/tests/founder-room.test.mjs
+      - name: Verify product journey surface separation
+        run: node --test scripts/tests/product-revival-contract.test.mjs
       - name: Verify browser assets
         run: |
           node --check founder/founder.js
@@ -51,6 +56,7 @@ jobs:
           name: sideways-founder-room
           path: |
             founder
+            audit/product-journey.json
             founder-room-phone.png
             founder-room-proof.json
           if-no-files-found: error
