@@ -6,11 +6,15 @@
     { "id": "tablet", "width": 768, "height": 1024, "automated": false },
     { "id": "desktop", "width": 1440, "height": 900, "automated": false }
   ],
-  "automated_budgets": {
+  "currently_measured": {
+    "profile_close_minimum_px": 42,
+    "selected_touch_targets_unobstructed": true,
+    "uncaught_page_errors": 0,
+    "primary_journey_completion": true
+  },
+  "declared_not_yet_enforced": {
     "horizontal_overflow_px": 0,
     "minimum_touch_target_px": 44,
-    "uncaught_page_errors": 0,
-    "failed_primary_actions": 0,
     "startup_dom_content_loaded_ms": 3000
   },
   "manual_acceptance": [
@@ -26,5 +30,5 @@
     "large archive responsiveness",
     "long conversation responsiveness"
   ],
-  "rule": "An item requiring human or unavailable-browser review remains pending; an unrelated phone screenshot cannot satisfy it."
+  "rule": "Only thresholds consumed by the browser journey may be reported as automated evidence. Declared but unenforced budgets and manual or unavailable-browser review remain pending."
 }
