@@ -49,6 +49,18 @@ The **LIVE** window exposes public, read-only repository work state. `/.well-kno
 
 See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) for the protocol boundaries.
 
+## Maker engineering surface
+
+From a clean checkout, the primary engineering entrypoint is intentionally small:
+
+```bash
+npm run maker -- "describe the end state"
+```
+
+Local Codex or another explicitly configured coding agent performs four parallel read-only assessments, one synthesis, and one isolated writer pass with full repository context. A draft PR is opened before mutation so `.github/workflows/maker-sprawl.yml` can reject path collisions with other open Maker PRs and fan verification across product, social, operator, and hostile lanes. Maker independently runs the exact repository gate and stops unmerged and undeployed.
+
+See [`NATIVE_MAKER.md`](./NATIVE_MAKER.md) for setup, custom-agent adapters, leases, recovery behavior, and the legacy endpoint-backed worker.
+
 ## Verification
 
 The repository gates changes with:
