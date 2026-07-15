@@ -6,7 +6,7 @@ const PROVIDERS = Object.freeze([
   { id: 'instagram', name: 'Instagram', scopes: ['instagram_graph_user_profile', 'instagram_graph_user_media'], authorizationPath: '/api/connections/instagram/authorize' }
 ]);
 
-const SENSITIVE_KEY = /(?:access|refresh|id)?token|secret|password|cookie|authorizationcode|codeverifier|credential/i;
+const SENSITIVE_KEY = /(?:access|refresh|id)?token|secret|password|cookie|authorization|codeverifier|credential/i;
 
 function clean(value = '') {
   return value == null ? '' : String(value).replace(/[\u0000-\u001f\u007f]/g, '').trim();
