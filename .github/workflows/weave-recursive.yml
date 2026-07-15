@@ -106,6 +106,8 @@ jobs:
       - name: Verify read-only collective endpoint
         run: node --test --test-name-pattern='collective endpoint reads' scripts/tests/weave-public-projection.test.mjs
       - name: Verify event-driven recursive bridge
-        run: node --test scripts/tests/weave-recursive-bridge.test.mjs scripts/tests/weave-recursive-bridge-recovery.test.mjs
+        run: node --test scripts/tests/weave-recursive-bridge.test.mjs
+      - name: Verify bridge recovery
+        run: node --test scripts/tests/weave-recursive-bridge-recovery.test.mjs
       - name: Verify finite sprawl graph
         run: node --test scripts/tests/recursive-weave-sprawl-contract.test.mjs
