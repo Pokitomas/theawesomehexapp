@@ -3,6 +3,7 @@ name: Prove profile-first starter on phone
 on:
   pull_request:
     paths:
+      - 'audit/human-quality-budgets.json'
       - 'studio/manual/**'
       - 'manual-phone-check.mjs'
       - 'netlify/**'
@@ -65,6 +66,9 @@ jobs:
           npm ci --ignore-scripts
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
 
+      - name: Verify explicit human-quality budgets
+        run: node --test scripts/tests/human-quality-budgets.test.mjs
+
       - name: Assemble the canonical manual product
         run: |
           set -euo pipefail
@@ -120,6 +124,7 @@ jobs:
         with:
           name: frontier-phone-proof
           path: |
+            audit/human-quality-budgets.json
             frontier-profile-proof.png
             frontier-starter-proof.png
             frontier-phone-proof.png
