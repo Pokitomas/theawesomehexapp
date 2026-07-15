@@ -55,6 +55,9 @@ jobs:
       - name: Verify exact-head deployment receipt contract
         run: node --test scripts/tests/deployment-receipt.test.mjs
 
+      - name: Verify bounded discovery and connected import
+        run: npm run test:ingestion
+
       - name: Extract base product layers
         run: |
           set -euo pipefail
@@ -122,84 +125,22 @@ jobs:
           npm ci --ignore-scripts --include=dev
           node -e "import('playwright-core')"
 
-      - name: Cache source mirror and compressed media
+      - name: Cache compressed media
         if: github.event_name == 'push'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: |
-            .cache/wikinews
-            corpus/media
-          key: general-content-media-v1-${{ runner.os }}
+          path: corpus/media
+          key: bounded-public-media-v1-${{ runner.os }}
 
-      - name: Retrieve article source records
+      - name: Build bounded public discovery snapshot
         if: github.event_name == 'push'
+        env:
+          SIDEWAYS_PUBLIC_SOURCES: ${{ vars.SIDEWAYS_PUBLIC_SOURCES }}
         run: |
           set -euo pipefail
           mkdir -p corpus
-          if timeout 300s python scripts/fetch_wikinews.py \
-            --min-date 2010-01-01 \
-            --cutoff "$(date -u +%F)" \
-            --output corpus/wikinews-current.jsonl.gz \
-            && python general/normalize_articles.py \
-            --input corpus/wikinews-current.jsonl.gz \
-            --output corpus/articles.jsonl.gz \
-            --max-records 1800; then
-            echo 'article source ready'
-          else
-            echo 'article source unavailable; writing a valid empty source' >&2
-            python - <<'PY'
-          import gzip
-          with gzip.open('corpus/articles.jsonl.gz', 'wt', encoding='utf-8'):
-              pass
-          PY
-          fi
-
-      - name: Retrieve forum source records
-        if: github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          if timeout 360s python general/fetch_forum.py \
-            --output corpus/forum.jsonl.gz \
-            --min-year 2007 \
-            --max-year "$(date -u +%Y)" \
-            --max-records 600 \
-            --detail-records 120; then
-            echo 'forum source ready'
-          else
-            echo 'forum source unavailable; continuing without it' >&2
-            python - <<'PY'
-          import gzip
-          with gzip.open('corpus/forum.jsonl.gz', 'wt', encoding='utf-8'):
-              pass
-          PY
-          fi
-
-      - name: Retrieve social source records
-        if: github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          if timeout 240s python general/fetch_social.py \
-            --output corpus/social.jsonl.gz \
-            --pages 4 \
-            --max-records 800; then
-            echo 'social source ready'
-          else
-            echo 'social source unavailable; continuing without it' >&2
-            python - <<'PY'
-          import gzip
-          with gzip.open('corpus/social.jsonl.gz', 'wt', encoding='utf-8'):
-              pass
-          PY
-          fi
-
-      - name: Normalize article forum social model
-        if: github.event_name == 'push'
-        run: |
-          python general/merge.py \
-            --articles corpus/articles.jsonl.gz \
-            --forums corpus/forum.jsonl.gz \
-            --social corpus/social.jsonl.gz \
-            --output corpus/general.jsonl.gz
+          timeout 900s node scripts/build-web-source-snapshot.mjs --output corpus/general.jsonl.gz
+          node scripts/verify-web-source-snapshot.mjs corpus/general.jsonl.gz corpus/general.jsonl.gz.meta.json
 
       - name: Retrieve and compress display media
         if: github.event_name == 'push'
@@ -213,11 +154,11 @@ jobs:
             --discover-forum 80; then
             echo 'display media ready'
           else
-            echo 'media retrieval unavailable; deploying text-first corpus' >&2
+            echo 'media retrieval unavailable; deploying text-first bounded snapshot' >&2
             cp corpus/general.jsonl.gz corpus/general-media.jsonl.gz
           fi
 
-      - name: Generate one million root candidates
+      - name: Materialize the existing root candidate projection from bounded sources
         if: github.event_name == 'push'
         env:
           POST_COUNT: 1000000
@@ -262,8 +203,15 @@ jobs:
           node --check manual-app/remote-terminal.js
           node --check manual-app/import-studio.js
           node --check manual-app/import-phone.js
+          node --check manual-app/add-to-sideways-runtime.js
+          node --check manual-app/discovery-source.js
+          node --check manual-app/account-connections.js
           node --check manual-app/imports/registry.js
           node --check manual-app/imports/runtime.js
+          node --check scripts/build-web-source-snapshot.mjs
+          node --check scripts/web-source-security.mjs
+          node --check scripts/web-source-records.mjs
+          node --check scripts/verify-web-source-snapshot.mjs
           node --check netlify/functions/remote-core.mjs
           node --check netlify/functions/remote-service.mjs
           node --check netlify/functions/remote.mjs
@@ -279,6 +227,8 @@ jobs:
           grep -q 'data-studio-product' dist/manual/index.html
           grep -q 'data-import-workbench' dist/manual/index.html
           grep -q 'data-import-phone' dist/manual/index.html
+          grep -q 'data-add-to-sideways' dist/manual/index.html
+          grep -q 'data-add-to-sideways-runtime' dist/manual/index.html
           grep -q 'data-remote-terminal' dist/manual/index.html
           grep -q 'data-sideways-remote' dist/manual/index.html
           test -f dist/manual/kernel.js
@@ -294,6 +244,10 @@ jobs:
           test -f dist/manual/import-studio.css
           test -f dist/manual/import-studio.js
           test -f dist/manual/import-phone.js
+          test -f dist/manual/add-to-sideways.css
+          test -f dist/manual/add-to-sideways-runtime.js
+          test -f dist/manual/discovery-source.js
+          test -f dist/manual/account-connections.js
           test -f dist/manual/imports/registry.js
           test -f dist/manual/imports/runtime.js
           test -f dist/founder/index.html
@@ -306,7 +260,7 @@ jobs:
           test -f dist/maker/sw.js
           test -f dist/maker/icon.svg
 
-      - name: Check manual gate and importer on a phone viewport
+      - name: Check Add to Sideways on phone and desktop
         run: |
           python -m http.server 4173 --directory dist >/tmp/manual-http.log 2>&1 &
           server=$!
@@ -314,14 +268,14 @@ jobs:
           sleep 2
           node manual-kernel/phone-check.mjs
 
-      - name: Upload phone proof
+      - name: Upload Add to Sideways proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: manual-phone-gate
           path: |
-            manual-phone-gate.png
-            manual-onboarding-phone.png
+            add-to-sideways-phone.png
+            add-to-sideways-desktop.png
           if-no-files-found: ignore
           retention-days: 5
 
