@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import process from 'node:process';
-import { projectActiveWeaveState } from './weave-active-state.mjs';
+import { projectActiveWeaveState } from './weave-active-state-strict.mjs';
 
 const args = process.argv.slice(2);
 if (!args.length || ['help', '--help', '-h'].includes(args[0])) {

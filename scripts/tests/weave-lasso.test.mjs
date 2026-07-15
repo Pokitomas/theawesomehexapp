@@ -121,6 +121,34 @@ test('forms an adversarial round when a second participant enters the same room'
   assert.match(round.body.statement, /one thing the program should delete/);
 });
 
+test('strict history rejects malformed and conflicting persisted weave events', () => {
+  const valid = remoteMessage({
+    id: 'strict-history',
+    kind: 'beacon.emit',
+    body: {
+      beacon_id: 'assembly:program-execution',
+      kind: 'join_me',
+      thread_id: 'assembly:program-execution',
+      signal: 'Trace execution.'
+    }
+  });
+
+  const missingIdentity = structuredClone(valid);
+  delete missingIdentity.payload.weave.id;
+  assert.throws(
+    () => buildLassoEvents(arrival, [missingIdentity]),
+    /event id is invalid/i
+  );
+
+  const conflicting = structuredClone(valid);
+  conflicting.id = 'remote-strict-history-conflict';
+  conflicting.payload.weave.body.signal = 'Rewrite inherited history.';
+  assert.throws(
+    () => buildLassoEvents(arrival, [valid, conflicting]),
+    error => error?.code === 'WEAVE_ID_CONFLICT'
+  );
+});
+
 test('event identifiers are deterministic so repeated hooks do not create chatter storms', () => {
   const left = buildLassoEvents(arrival).map(event => event.id);
   const right = buildLassoEvents(arrival).map(event => event.id);

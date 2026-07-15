@@ -8,6 +8,7 @@ import {
   normalizeWeaveEvent,
   weavePayload
 } from './weave-protocol.mjs';
+import { canonicalWeaveMessages } from './weave-replay-integrity.mjs';
 
 const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
 const sha256 = value => createHash('sha256').update(String(value)).digest('hex');
@@ -131,7 +132,7 @@ function eventFromMessage(message) {
 }
 
 function assemblyHistory(messages, assemblyId) {
-  return (Array.isArray(messages) ? messages : [])
+  return canonicalWeaveMessages(Array.isArray(messages) ? messages : [])
     .map(eventFromMessage)
     .filter(Boolean)
     .filter(event => event.body?.thread_id === assemblyThread(assemblyId) || event.body?.beacon_id === assemblyThread(assemblyId));
