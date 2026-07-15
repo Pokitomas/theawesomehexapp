@@ -216,7 +216,7 @@ export async function audit({ record = true } = {}) {
   const referenced = new Set(data.records.map(record => record.assetKey).filter(Boolean));
   const available = new Set(data.assets.map(asset => asset.key));
   const durability = await storageDurability();
-  const result = { records: data.records.length, assets: data.assets.length, bytes: data.assets.reduce((sum, asset) => sum + Number(asset.blob?.size || 0), 0), missingAssets: [...referenced].filter(key => !available.has(key)), orphanAssets: data.assets.filter(asset => !referferenced.has(asset.key)).map(asset => asset.key), durability };
+  const result = { records: data.records.length, assets: data.assets.length, bytes: data.assets.reduce((sum, asset) => sum + Number(asset.blob?.size || 0), 0), missingAssets: [...referenced].filter(key => !available.has(key)), orphanAssets: data.assets.filter(asset => !referenced.has(asset.key)).map(asset => asset.key), durability };
   if (record) await appendLedger('survival.audit', { ...result, durability: { persisted: durability.persisted, bestEffort: durability.bestEffort } });
   return result;
 }
