@@ -10,7 +10,7 @@
     "test:native-maker": "node --test scripts/tests/native-maker-worker.test.mjs scripts/tests/open-model-role-contracts.test.mjs scripts/tests/maker-terminal-release.test.mjs foundry/tests/generation-zero.test.mjs",
     "test:maker": "node --test scripts/tests/maker-core.test.mjs scripts/tests/maker-actions-sprawl.test.mjs",
     "test:foundry": "node --test foundry/tests/core.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs",
-    "test:ingestion": "node --test scripts/tests/discovery-connected-import.test.mjs scripts/tests/web-source-snapshot.test.mjs",
+    "test:ingestion": "node --test scripts/tests/discovery-connected-import.test.mjs scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs",
     "maker": "node scripts/maker.mjs",
     "maker:model:check": "node scripts/check-open-model-runtime.mjs",
     "foundry:generation-zero": "node foundry/generation-zero.mjs",
