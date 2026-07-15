@@ -59,6 +59,23 @@ function dependencyClosure(id, byId, allowedIds, selected = new Set(), visiting 
   return selected;
 }
 
+function safePublicEventIds(events) {
+  const publicEvents = events.filter(event => event.visibility === 'public');
+  const safeIds = new Set(publicEvents.map(event => event.id));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const event of publicEvents) {
+      if (!safeIds.has(event.id)) continue;
+      if ([...eventReferences(event)].some(id => !safeIds.has(id))) {
+        safeIds.delete(event.id);
+        changed = true;
+      }
+    }
+  }
+  return safeIds;
+}
+
 export function retrieveCognitionMemory(state, query = {}, options = {}) {
   const visibility = options.visibility === 'private' ? 'private' : 'public';
   const maxChars = Math.max(256, Math.min(64000, Number(options.max_chars ?? 12000) || 12000));
@@ -66,15 +83,13 @@ export function retrieveCognitionMemory(state, query = {}, options = {}) {
   const queryTokens = tokens([query.text, query.role, ...(query.tags || [])].filter(Boolean).join(' '));
   const requestedTargetIds = new Set((query.target_ids || []).map(String));
   const allEvents = Array.isArray(state?.events) ? state.events : [];
-  const publicIds = new Set(allEvents.filter(event => event.visibility === 'public').map(event => event.id));
+  const safePublicIds = safePublicEventIds(allEvents);
   const targetIds = visibility === 'private'
     ? requestedTargetIds
-    : new Set([...requestedTargetIds].filter(id => publicIds.has(id)));
-  const events = allEvents.filter(event => {
-    if (visibility === 'private') return true;
-    if (event.visibility !== 'public') return false;
-    return [...eventReferences(event)].every(id => publicIds.has(id));
-  });
+    : new Set([...requestedTargetIds].filter(id => safePublicIds.has(id)));
+  const events = visibility === 'private'
+    ? allEvents
+    : allEvents.filter(event => safePublicIds.has(event.id));
   const allowedIds = new Set(events.map(event => event.id));
   const byId = new Map(events.map(event => [event.id, event]));
   const orderedByTime = [...events].sort((left, right) => {
