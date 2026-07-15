@@ -131,6 +131,31 @@ test('memory preserves dissent diversity and private/public boundary under budge
   assert.ok(!JSON.stringify(packet).includes(privateClaim.id));
 });
 
+test('public memory rejects transitive public ancestry rooted in private state', () => {
+  const privateClaim = event('claim:10', 'claim', { subject: 'privacy', statement: 'private root', confidence: 0.8, impact: 90 });
+  const publicBridge = event('evidence:11', 'evidence', {
+    statement: 'public wrapper around private root', supports: [privateClaim.id], opposes: [], artifacts: [], strength: 0.7
+  }, [privateClaim.id], 'public');
+  const publicTop = event('claim:12', 'claim', {
+    subject: 'privacy', statement: 'transitively unsafe top-level claim', confidence: 0.6, impact: 70
+  }, [publicBridge.id], 'public');
+  const safePublicClaim = event('claim:13', 'claim', {
+    subject: 'privacy', statement: 'independent public claim', confidence: 0.7, impact: 50
+  }, [], 'public');
+  const state = foldCognitionEvents([privateClaim, publicBridge, publicTop, safePublicClaim]);
+  const packet = retrieveCognitionMemory(state, {
+    text: 'privacy',
+    target_ids: [publicTop.id, safePublicClaim.id]
+  }, { visibility: 'public', max_chars: 4000 });
+
+  assert.deepEqual(packet.query.target_ids, [safePublicClaim.id]);
+  assert.deepEqual(packet.events.map(value => value.id), [safePublicClaim.id]);
+  const serialized = JSON.stringify(packet);
+  for (const deniedId of [privateClaim.id, publicBridge.id, publicTop.id]) {
+    assert.ok(!serialized.includes(deniedId), `public packet leaked ${deniedId}`);
+  }
+});
+
 test('dispatch packets are advisory and output must cite targets and stay in schema', () => {
   const question = event('question:1', 'question', { question: 'Q?', priority: 80, answer_kinds: ['claim'] });
   const assignment = normalizeCognitionEvent({
