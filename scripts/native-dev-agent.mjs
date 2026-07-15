@@ -8,6 +8,13 @@ const execFileAsync = promisify(execFile);
 const clean = (value, limit = 20000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 const BLOCKED_SEGMENTS = new Set(['.git', 'node_modules', '.netlify', '.cache']);
 const BLOCKED_BASENAMES = [/^\.env(?:\.|$)/i, /(?:^|\.)private[-_]?key/i, /\.pem$/i, /\.p12$/i, /\.pfx$/i, /credentials?/i];
+const BLOCKED_WRITE_PREFIXES = [
+  '.github/workflows/',
+  '.github/actions/',
+  'audit/authority-manifest',
+  '.frankenstate',
+  'CODEOWNERS'
+];
 const MAX_FILE_BYTES = 240000;
 const MAX_OBSERVATION = 24000;
 
@@ -35,6 +42,12 @@ export function resolveWorkspacePath(root, relative) {
   const absolute = path.resolve(base, ...parts);
   if (absolute !== base && !absolute.startsWith(`${base}${path.sep}`)) throw new Error(`Path escapes repository: ${raw}.`);
   return { relative: parts.join('/'), absolute };
+}
+
+function assertWritable(target) {
+  if (BLOCKED_WRITE_PREFIXES.some(prefix => target.relative === prefix || target.relative.startsWith(prefix))) {
+    throw new Error(`Native worker cannot alter authority surface: ${target.relative}.`);
+  }
 }
 
 async function runFixed(root, witness, timeout = 180000) {
@@ -118,6 +131,7 @@ async function toolObservation({ root, action, counters }) {
   if (tool === 'write') {
     if (counters.writes >= counters.budget.max_writes) throw new Error('Write budget exhausted.');
     const target = resolveWorkspacePath(root, action.path);
+    assertWritable(target);
     const content = String(action.content ?? '').replace(/\u0000/g, '');
     const bytes = Buffer.byteLength(content);
     if (bytes > MAX_FILE_BYTES) throw new Error(`Single write exceeds ${MAX_FILE_BYTES} bytes.`);
@@ -128,20 +142,28 @@ async function toolObservation({ root, action, counters }) {
     counters.total_write_bytes += bytes;
     return { tool, path: target.relative, bytes, writes_used: counters.writes, total_write_bytes: counters.total_write_bytes };
   }
-  if (tool === 'run') return runFixed(root, action.witness);
+  if (tool === 'run') {
+    const result = await runFixed(root, action.witness);
+    if (result.ok) counters.successful_witnesses.add(result.witness);
+    return result;
+  }
   if (tool === 'status') {
     const [{ stdout: status }, { stdout: diff }] = await Promise.all([
       execFileAsync('git', ['status', '--short'], { cwd: root, maxBuffer: 1024 * 1024 }),
       execFileAsync('git', ['diff', '--stat'], { cwd: root, maxBuffer: 1024 * 1024 })
     ]);
+    counters.saw_status = true;
     return { tool, status: clean(status, MAX_OBSERVATION), diff_stat: clean(diff, MAX_OBSERVATION) };
   }
   if (tool === 'finish') {
+    if (!counters.saw_status) throw new Error('Finish rejected: inspect repository status first.');
+    if (!counters.successful_witnesses.size) throw new Error('Finish rejected: run at least one successful allowlisted witness.');
     return {
       tool,
       finished: true,
       summary: clean(action.summary, 4000),
-      tests: Array.isArray(action.tests) ? action.tests.map(value => clean(value, 500)).filter(Boolean).slice(0, 30) : [],
+      tests: [...counters.successful_witnesses],
+      claimed_tests: Array.isArray(action.tests) ? action.tests.map(value => clean(value, 500)).filter(Boolean).slice(0, 30) : [],
       risks: Array.isArray(action.risks) ? action.risks.map(value => clean(value, 500)).filter(Boolean).slice(0, 30) : []
     };
   }
@@ -159,10 +181,10 @@ function systemPrompt() {
     '{"tool":"write","path":"relative/file","content":"complete UTF-8 contents"}',
     '{"tool":"run","witness":"git-diff-check|node-check-changed|verify-repository|test-weave|test-recursive-weave|test-authority"}',
     '{"tool":"status"}',
-    '{"tool":"finish","summary":"what changed","tests":["actual witnesses"],"risks":["remaining risks"]}',
-    'You have no shell, network, package installation, credentials, merge, deploy, repository settings, or external messaging authority.',
+    '{"tool":"finish","summary":"what changed","tests":["claimed context only"],"risks":["remaining risks"]}',
+    'You have no shell, network, package installation, credentials, authority-surface write, merge, deploy, repository settings, or external messaging authority.',
     'Read before writing. Keep changes minimal. Never claim a witness passed unless its observation says ok=true.',
-    'Finish only after inspecting status and running relevant witnesses.'
+    'The runtime will reject finish until status was inspected and a fixed witness succeeded.'
   ].join('\n');
 }
 
@@ -175,7 +197,7 @@ export async function runNativeDevAgent({
 } = {}) {
   if (!model_client?.complete) throw new Error('A model client is required.');
   const budget = normalizeAgentBudget(budgetInput);
-  const counters = { budget, writes: 0, total_write_bytes: 0 };
+  const counters = { budget, writes: 0, total_write_bytes: 0, saw_status: false, successful_witnesses: new Set() };
   const conversation = [
     { role: 'system', content: systemPrompt() },
     { role: 'user', content: JSON.stringify({ intent, repository_root: '.', budget }) }
@@ -207,6 +229,7 @@ export async function runNativeDevAgent({
         status: 'finished',
         summary: observation.summary,
         tests: observation.tests,
+        claimed_tests: observation.claimed_tests,
         risks: observation.risks,
         writes: counters.writes,
         total_write_bytes: counters.total_write_bytes,
