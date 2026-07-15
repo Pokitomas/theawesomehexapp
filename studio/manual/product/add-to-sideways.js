@@ -319,7 +319,11 @@ function render({ force = false } = {}) {
 
 function boot() {
   scheduleRender();
-  for (const delay of [80, 280, 900, 1800]) setTimeout(scheduleRender, delay);
+  for (const delay of [80, 280, 900, 1800]) {
+    setTimeout(() => {
+      if (document.documentElement.dataset.addToSidewaysReady !== 'yes') scheduleRender();
+    }, delay);
+  }
 }
 
 window.addEventListener('sideways:importworkbench', () => {
