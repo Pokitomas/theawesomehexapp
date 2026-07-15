@@ -23,8 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install declared runtime dependencies
-        run: npm install --ignore-scripts
+          cache: npm
+      - name: Install locked runtime dependencies
+        run: npm ci --ignore-scripts
       - name: Verify exact repository tree
         env:
           REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
