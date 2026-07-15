@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Assemble the manual product
         run: |
           set -euo pipefail
@@ -44,8 +46,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install browser driver
-        run: npm install --no-save playwright-core@1.55.0
+          cache: npm
+      - name: Install locked browser tooling
+        run: npm ci --ignore-scripts
       - name: Prove mirror backup delete restore audit and vault chrome
         run: |
           set -euo pipefail
