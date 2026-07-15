@@ -13,6 +13,7 @@ let shell = null;
 let status = null;
 let accountDialog = null;
 let postDialog = null;
+let profileDialog = null;
 let decorateQueued = false;
 
 const el = (tag, className = '', text = '') => {
@@ -25,11 +26,16 @@ const el = (tag, className = '', text = '') => {
 async function request(op, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT);
+  const query = new URLSearchParams({ op });
+  for (const [key, value] of Object.entries(options.query || {})) {
+    if (value !== undefined && value !== null && String(value) !== '') query.set(key, String(value));
+  }
+  const { query: _query, ...fetchOptions } = options;
   try {
-    const response = await fetch(`${API}?op=${encodeURIComponent(op)}`, {
-      ...options,
+    const response = await fetch(`${API}?${query}`, {
+      ...fetchOptions,
       credentials: 'same-origin',
-      headers: { 'content-type': 'application/json', ...(options.headers || {}) },
+      headers: { 'content-type': 'application/json', ...(fetchOptions.headers || {}) },
       signal: controller.signal
     });
     const data = await response.json().catch(() => ({}));
@@ -133,6 +139,73 @@ function openAccount(kind = 'register') {
   setTimeout(() => (register ? name.input : handle.input).focus(), 50);
 }
 
+async function openProfile() {
+  if (!account) { openAccount('login'); return; }
+  closeDialog(profileDialog);
+  const dialog = el('dialog', 'social-dialog');
+  dialog.dataset.socialProfile = 'true';
+  dialog.dataset.profileReady = 'loading';
+  const windowNode = el('section', 'social-window');
+  const bar = el('header', 'social-titlebar');
+  bar.append(el('strong', '', 'Public profile'), actionButton('social.close', () => closeDialog(dialog), { className: 'social-close', label: 'Close' }));
+  const body = el('div', 'social-window-body');
+  const message = el('p', 'social-dialog-status', 'Loading profile…');
+  const name = field('Public name', 'name');
+  const handle = field('Public handle', 'handle');
+  const bio = field('Public bio', 'bio', 'textarea');
+  name.input.maxLength = 48;
+  handle.input.maxLength = 30;
+  bio.input.maxLength = 180;
+  bio.input.rows = 4;
+  for (const input of [name.input, handle.input, bio.input]) input.disabled = true;
+  body.append(message, name.wrap, handle.wrap, bio.wrap);
+  const save = actionButton('social.profile.save', () => run(async () => {
+    message.hidden = false;
+    message.dataset.tone = '';
+    message.textContent = 'Saving public profile…';
+    try {
+      const data = await request('profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ name: name.input.value, handle: handle.input.value, bio: bio.input.value })
+      });
+      account = data.account;
+      message.dataset.tone = 'good';
+      message.textContent = `Saved @${account.handle}. Local archive identity was not changed.`;
+      renderShell();
+      return { handle: account.handle };
+    } catch (error) {
+      message.dataset.tone = 'error';
+      message.textContent = error.message;
+      return { cancelled: true };
+    }
+  }), { className: 'social-primary', label: 'Save profile' });
+  save.disabled = true;
+  const footer = el('footer', 'social-window-footer');
+  footer.append(save);
+  windowNode.append(bar, body, footer);
+  dialog.append(windowNode);
+  document.body.append(dialog);
+  profileDialog = dialog;
+  if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
+  try {
+    const data = await request('profile', { query: { handle: account.handle } });
+    const profile = data.account || account;
+    name.input.value = profile.name || '';
+    handle.input.value = profile.handle || '';
+    bio.input.value = profile.bio || '';
+    for (const input of [name.input, handle.input, bio.input]) input.disabled = false;
+    save.disabled = false;
+    dialog.dataset.profileReady = 'true';
+    message.hidden = true;
+    setTimeout(() => name.input.focus(), 50);
+  } catch (error) {
+    dialog.dataset.profileReady = 'error';
+    message.dataset.tone = 'error';
+    message.textContent = error.message;
+    save.disabled = true;
+  }
+}
+
 function openPost(record = null) {
   if (!account) { openAccount('login'); return; }
   closeDialog(postDialog);
@@ -234,6 +307,7 @@ function renderShell() {
       actionButton('social.feed', () => load('following'), { className: `social-command${mode === 'following' ? ' is-active' : ''}`, label: 'FOLLOWING' }),
       actionButton('social.discover', () => load('discover'), { className: `social-command${mode === 'discover' ? ' is-active' : ''}`, label: 'EXPLORE' }),
       actionButton('social.post', () => openPost(), { className: 'social-command social-command-primary', label: 'POST' }),
+      actionButton('social.profile', () => openProfile(), { className: 'social-command', label: 'PROFILE' }),
       actionButton('social.refresh', () => load(mode), { className: 'social-command', label: 'REFRESH' }),
       actionButton('social.logout', () => run(signOut), { className: 'social-command', label: 'SIGN OUT' })
     );
@@ -368,5 +442,6 @@ window.SidewaysSocial = Object.freeze({
   following: () => load('following'),
   join: () => openAccount('register'),
   login: () => openAccount('login'),
+  profile: () => openProfile(),
   post: () => openPost()
 });

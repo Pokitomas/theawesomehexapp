@@ -105,7 +105,7 @@ function signedRequest(bodyObject, nonce = 'write-with-lasso-failure') {
   });
 }
 
-test('repeated delivery without refreshed history reports deterministic duplicates', async () => {
+test('repeated delivery is a deterministic no-op after complete history recovery', async () => {
   const store = new MemoryStore();
   const message = sourceMessage();
 
@@ -128,9 +128,10 @@ test('repeated delivery without refreshed history reports deterministic duplicat
 
   assert.equal(first.stored, first.planned);
   assert.ok(first.stored > 0);
-  assert.equal(second.planned, first.planned);
+  assert.equal(second.planned, 0);
   assert.equal(second.stored, 0);
-  assert.equal(second.duplicates, first.planned);
+  assert.equal(second.duplicates, 0);
+  assert.ok(second.history_messages >= first.stored);
   assert.deepEqual(store.messages(), storedAfterFirst);
 });
 

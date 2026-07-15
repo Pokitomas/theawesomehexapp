@@ -5,6 +5,7 @@
 // Catches silent kernel forks that `node --check` (syntax only) cannot.
 
 import fs from 'node:fs';
+import { evaluateRankingFixture } from '../../../scripts/ranking-evaluation.mjs';
 
 const CHECKS = [
   { name: 'baseScore weights',       re: /baseScore\s*=\s*\.55\*post\.base\s*\+\s*\.30\*f\.affinity\s*\+\s*\.15\*post\.relevance/ },
@@ -18,6 +19,23 @@ const CHECKS = [
 function extract(path) {
   const src = fs.readFileSync(path, 'utf8');
   return CHECKS.map(c => ({ name: c.name, present: c.re.test(src) }));
+}
+
+function evaluateFixture(path = 'audit/ranking-evaluation-fixture.json') {
+  if (!fs.existsSync(path)) return null;
+  const receipt = evaluateRankingFixture(JSON.parse(fs.readFileSync(path, 'utf8')));
+  if (receipt.deltas.unique_sources <= 0 || receipt.deltas.unique_topics <= 0) {
+    throw new Error('Saturation fixture did not increase source and topic breadth.');
+  }
+  if (receipt.deltas.mean_lateral_value <= 0) {
+    throw new Error('Saturation fixture did not increase lateral value.');
+  }
+  if (receipt.deltas.mean_base_score >= 0) {
+    throw new Error('Fixture no longer exposes the expected base-utility tradeoff.');
+  }
+  console.log('\nRanking evaluation receipt:');
+  console.log(JSON.stringify(receipt, null, 2));
+  return receipt;
 }
 
 function run(rootPath, kernelPath) {
@@ -45,6 +63,7 @@ function run(rootPath, kernelPath) {
     return 1;
   }
   console.log('\nKernel parity OK — all load-bearing constants match root exactly.');
+  evaluateFixture();
   return 0;
 }
 

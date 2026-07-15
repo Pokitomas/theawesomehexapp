@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const pagesPath = new URL('../../.github/workflows/pages.yml', import.meta.url);
 const lassoPath = new URL('../../.github/workflows/weave-lasso.yml', import.meta.url);
+const makerWorkerPath = new URL('../../.github/workflows/maker-native-worker.yml', import.meta.url);
 const checkoutRef = /uses:\s*actions\/checkout@[0-9a-f]{40}(?:\s+#\s*v4)?\s*$/;
 
 function job(source, name, next = '') {
@@ -69,4 +70,50 @@ test('secret-bearing lasso execution uses only trusted default-branch code', asy
   assert.match(source, /name: Verify trusted lasso before execution\n        working-directory: trusted-lasso/);
   assert.match(source, /name: Group the incoming principal[\s\S]*?working-directory: trusted-lasso[\s\S]*?node scripts\/weave-lasso\.mjs github-event/);
   assert.doesNotMatch(source, /working-directory: (?!trusted-lasso)/);
+});
+
+test('native Maker write authority is preflight-gated, trusted-main, and draft-PR bounded', async () => {
+  const source = await readFile(makerWorkerPath, 'utf8');
+  const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
+  assert.match(top, /^  contents: read$/m);
+  assert.doesNotMatch(top, /write/);
+
+  const preflight = job(source, 'preflight', 'blocked');
+  assert.match(preflight, /^      contents: read$/m);
+  assert.match(preflight, /^      issues: read$/m);
+  assert.doesNotMatch(preflight, /contents: write|issues: write|pull-requests: write/);
+  assert.match(preflight, /ownerAuthored/);
+  assert.match(preflight, /makerTitle/);
+  assert.match(preflight, /ownerActor/);
+  assert.match(preflight, /core\.setOutput\('allowed', String\(allowed\)\)/);
+  assert.match(preflight, /\^\\\[maker:\(build\|fix\|explore\|audit\)/);
+
+  const blocked = job(source, 'blocked', 'hosted-worker');
+  assert.match(blocked, /needs: preflight/);
+  assert.match(blocked, /needs\.preflight\.outputs\.allowed == 'true'/);
+  assert.match(blocked, /^      contents: read$/m);
+  assert.match(blocked, /^      issues: write$/m);
+  assert.doesNotMatch(blocked, /pull-requests: write|contents: write/);
+  assert.match(blocked, /no engineering model, workspace, branch, patch, or PR ran/);
+
+  for (const [name, next] of [['hosted-worker', 'self-hosted-worker'], ['self-hosted-worker', '']]) {
+    const section = job(source, name, next);
+    assert.match(section, /needs: preflight/);
+    assert.match(section, /needs\.preflight\.outputs\.allowed == 'true'/);
+    assert.match(section, /^      contents: write$/m);
+    assert.match(section, /^      pull-requests: write$/m);
+    assert.match(section, /^      issues: write$/m);
+    assert.match(section, /name: Verify native worker before write authority[\s\S]*?node --check scripts\/open-model-planning\.mjs[\s\S]*?node --test scripts\/tests\/native-maker-worker\.test\.mjs/);
+    assert.match(section, /run: node scripts\/maker-native-worker\.mjs/);
+    assert.match(section, /SIDEWAYS_DEFAULT_BRANCH: \$\{\{ needs\.preflight\.outputs\.default_branch \}\}/);
+    assert.match(section, /Preserve planning, implementation, and admission episode/);
+    assert.match(section, /path: \$\{\{ runner\.temp \}\}\/sideways-native-episode\.json/);
+    const checkouts = checkoutBlocks(section);
+    assert.equal(checkouts.length, 1);
+    assert.match(checkouts[0], /ref: \$\{\{ needs\.preflight\.outputs\.default_branch \}\}/);
+    assert.match(checkouts[0], /persist-credentials: true/);
+  }
+
+  assert.match(job(source, 'self-hosted-worker'), /runs-on: \[self-hosted, sideways-maker\]/);
+  assert.match(source, /SIDEWAYS_MODEL_API_KEY: \$\{\{ secrets\.SIDEWAYS_MODEL_API_KEY \}\}/);
 });

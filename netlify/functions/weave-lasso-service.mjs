@@ -2,18 +2,20 @@ import {
   buildLassoEvents
 } from '../../scripts/weave-lasso.mjs';
 import {
-  normalizeWeaveEvent,
-  weavePayload
-} from '../../scripts/weave-protocol.mjs';
+  createWeaveEvent,
+  strictWeavePayload
+} from '../../scripts/weave-replay-integrity.mjs';
 import {
   clean,
   messageIdKey,
   messageKey,
+  sessionDigest,
   sha256Hex
 } from './remote-core.mjs';
 
 export const LASSO_SYSTEM_PRINCIPAL = 'system:weave-lasso';
 const INTERNAL_PRINCIPALS = new Set([LASSO_SYSTEM_PRINCIPAL, 'weave-lasso']);
+const MAX_HISTORY_PAGES = 50;
 
 async function getJSON(store, key) {
   try { return await store.get(key, { type: 'json' }); }
@@ -28,6 +30,25 @@ function sessionParts(session) {
     repository: value.slice(0, split),
     branch: value.slice(split + 1) || 'main'
   };
+}
+
+async function completeHistory(store, session, generation) {
+  const prefix = `remote/${sessionDigest(session)}/messages/g${generation}/`;
+  const messages = [];
+  let cursor = null;
+  for (let page = 0; page < MAX_HISTORY_PAGES; page += 1) {
+    const listed = await store.list({ prefix, ...(cursor ? { cursor } : {}) });
+    for (const blob of listed?.blobs || []) {
+      if (!blob?.key) continue;
+      const message = await getJSON(store, blob.key);
+      if (message) messages.push(message);
+    }
+    const next = listed?.cursor || listed?.next_cursor || listed?.nextCursor || null;
+    if (!next) return messages;
+    if (next === cursor) throw new Error('Remote lasso history cursor did not advance.');
+    cursor = next;
+  }
+  throw new Error(`Remote lasso history exceeds ${MAX_HISTORY_PAGES} provider pages.`);
 }
 
 export function remoteArrival(message) {
@@ -48,10 +69,11 @@ export function remoteArrival(message) {
 }
 
 function internalMessage({ event, sourceMessage, state, issuedAt }) {
-  const normalized = normalizeWeaveEvent({
+  const normalized = createWeaveEvent({
     ...event,
     issuer: LASSO_SYSTEM_PRINCIPAL,
-    issued_at: issuedAt
+    issued_at: issuedAt,
+    visibility: 'private'
   });
   const id = `internal-${sha256Hex(normalized.id).slice(0, 48)}`;
   return {
@@ -64,7 +86,7 @@ function internalMessage({ event, sourceMessage, state, issuedAt }) {
     expires_at: null,
     head_sha: sourceMessage.head_sha || state?.head_sha || null,
     scope: ['weave', 'lasso', normalized.body?.thread_id || normalized.body?.beacon_id].filter(Boolean),
-    payload: weavePayload(normalized),
+    payload: strictWeavePayload(normalized),
     visibility: 'private',
     nonce: `internal:${normalized.id}`,
     signature: '',
@@ -86,7 +108,9 @@ export async function lassoRemoteArrival({
   }
 
   const arrival = remoteArrival(message);
-  const events = buildLassoEvents(arrival, existingMessages, {
+  const storedHistory = await completeHistory(store, message.session, message.generation);
+  const history = [...storedHistory, ...(Array.isArray(existingMessages) ? existingMessages : [])];
+  const events = buildLassoEvents(arrival, history, {
     principal: LASSO_SYSTEM_PRINCIPAL
   });
   let stored = 0;
@@ -119,6 +143,7 @@ export async function lassoRemoteArrival({
     planned: events.length,
     stored,
     duplicates,
-    keys
+    keys,
+    history_messages: storedHistory.length
   };
 }

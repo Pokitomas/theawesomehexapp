@@ -54,6 +54,30 @@ async function join(page, { name, handle, password }) {
   }
 }
 
+async function editProfile(page, { name, handle, bio }) {
+  await shellAction(page, 'social.profile').click();
+  const dialog = page.locator('[data-social-profile="true"]');
+  await dialog.waitFor({ state: 'visible' });
+  await dialog.locator('input[name="name"]').fill(name);
+  await dialog.locator('input[name="handle"]').fill(handle);
+  await dialog.locator('textarea[name="bio"]').fill(bio);
+  const responsePromise = page.waitForResponse(response => {
+    const target = new URL(response.url());
+    return response.request().method() === 'PATCH' && target.pathname === '/api/social' && target.searchParams.get('op') === 'profile';
+  }, { timeout: 15000 });
+  await dialog.getByRole('button', { name: 'Save profile', exact: true }).click();
+  const response = await responsePromise;
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok()) throw new Error(`profile edit failed (${response.status()}): ${payload.error || JSON.stringify(payload)}`);
+  if (payload.account?.name !== name || payload.account?.bio !== bio || payload.account?.handle !== handle) {
+    throw new Error(`profile edit returned wrong account: ${JSON.stringify(payload)}`);
+  }
+  await dialog.getByText(`Saved @${handle}. Local archive identity was not changed.`, { exact: true }).waitFor({ state: 'visible' });
+  await page.locator('section[data-social-spine]').getByText(name, { exact: true }).waitFor({ state: 'visible' });
+  await page.screenshot({ path: 'social-alice-profile.png', fullPage: false });
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+}
+
 async function publicPost(page, text) {
   await shellAction(page, 'social.post').click();
   const dialog = page.locator('[data-social-composer]');
@@ -81,6 +105,7 @@ async function networkRecords(page) {
 const alice = await contextFor('Local Alice', 'local-alice');
 const bob = await contextFor('Local Bob', 'local-bob');
 await join(alice.page, { name: 'Alice Public', handle: 'alice', password: 'correct horse battery staple' });
+await editProfile(alice.page, { name: 'Alice Edited', handle: 'alice', bio: 'Public profile edited on a phone.' });
 await publicPost(alice.page, 'hello from alice public');
 await alice.page.screenshot({ path: 'social-alice-post.png', fullPage: false });
 
@@ -126,8 +151,9 @@ const replyRecord = bobRecords.find(record => record.text === 'bob replies as a 
 if (!replyRecord?.social?.replyTo || replyRecord.social.likeCount !== 1) throw new Error(`reply did not remain first-class with server facts: ${JSON.stringify(replyRecord)}`);
 const localProfiles = await Promise.all([alice.page, bob.page].map(page => page.evaluate(() => JSON.parse(localStorage.getItem('sideways-workspace-profile-v1')))));
 if (localProfiles[0].handle !== 'local-alice' || localProfiles[1].handle !== 'local-bob') throw new Error(`public identity overwrote local preferences: ${JSON.stringify(localProfiles)}`);
-const sessions = await Promise.all([alice.page, bob.page].map(page => page.evaluate(() => window.SidewaysSocial.account()?.handle)));
-if (sessions[0] !== 'alice' || sessions[1] !== 'bob') throw new Error(`session isolation failed: ${sessions}`);
+const sessions = await Promise.all([alice.page, bob.page].map(page => page.evaluate(() => window.SidewaysSocial.account())));
+if (sessions[0]?.handle !== 'alice' || sessions[0]?.name !== 'Alice Edited' || sessions[0]?.bio !== 'Public profile edited on a phone.') throw new Error(`alice public profile did not persist: ${JSON.stringify(sessions[0])}`);
+if (sessions[1]?.handle !== 'bob') throw new Error(`session isolation failed: ${JSON.stringify(sessions)}`);
 for (const entry of [alice, bob]) {
   const overflow = await entry.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (overflow > 1) throw new Error(`phone overflow ${overflow}`);
@@ -135,11 +161,12 @@ for (const entry of [alice, bob]) {
 }
 
 console.log(JSON.stringify({
-  sessions,
+  sessions: sessions.map(session => session?.handle),
+  editedProfile: { name: sessions[0].name, handle: sessions[0].handle, bio: sessions[0].bio },
   localProfiles: localProfiles.map(profile => profile.handle),
   projectedRecords: { alice: aliceRecords.length, bob: bobRecords.length },
   reply: { replyTo: replyRecord.social.replyTo, likeCount: replyRecord.social.likeCount },
-  screenshots: ['social-alice-post.png', 'social-bob-following-reply.png', 'social-alice-like.png']
+  screenshots: ['social-alice-profile.png', 'social-alice-post.png', 'social-bob-following-reply.png', 'social-alice-like.png']
 }, null, 2));
 await alice.context.close();
 await bob.context.close();
