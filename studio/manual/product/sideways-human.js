@@ -13,6 +13,19 @@ const ROUTE_LABELS = Object.freeze({
 
 const DEVELOPER_PATH = /(^|\/)(maker|founder)(\/|$)/;
 const DEVELOPER_QUERY = 'developer';
+const STRUCTURAL_SURFACE = [
+  '.post',
+  '.studio-empty-hero',
+  '.workspace-place-card',
+  '.import-workbench-card',
+  '.import-progress-panel',
+  '.import-error-panel',
+  '.import-complete-panel',
+  '.add-panel',
+  '.detail-card',
+  '.profile-card',
+  '.empty'
+].join(',');
 let scheduled = false;
 
 function explicitDeveloperView() {
@@ -86,6 +99,15 @@ function normalizeChromeLanguage() {
   }
 }
 
+function flattenStructuralSurfaces() {
+  for (const node of document.querySelectorAll(STRUCTURAL_SURFACE)) {
+    node.style.setProperty('border-radius', '0', 'important');
+    node.style.setProperty('backdrop-filter', 'none', 'important');
+    node.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+    node.style.setProperty('transform', 'none', 'important');
+  }
+}
+
 function installLocationBar() {
   const topbar = document.querySelector('.topbar');
   if (!topbar) return;
@@ -138,6 +160,7 @@ function install() {
   separateDeveloperSurfaces();
   normalizeExternalLinks();
   normalizeChromeLanguage();
+  flattenStructuralSurfaces();
   installLocationBar();
   exposeExistingProvenance();
 }
