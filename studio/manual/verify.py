@@ -235,7 +235,7 @@ def main() -> None:
         raise AssertionError("generated runtime layers are duplicated or missing")
     if index.count("data-remote-terminal") != 2 or index.count("data-sideways-remote") != 1:
         raise AssertionError("public live-work terminal is duplicated or missing")
-    if index.count("data-add-to-sideways") != 1 or index.count("data-add-to-sideways-runtime") != 1:
+    if index.count("data-add-to-sideways>") != 1 or index.count("data-add-to-sideways-runtime>") != 1:
         raise AssertionError("unified ingestion assets are duplicated or missing")
     for name in ("add-to-sideways.css", "add-to-sideways-runtime.js", "discovery-source.js", "account-connections.js"):
         if not (MANUAL / name).is_file():
