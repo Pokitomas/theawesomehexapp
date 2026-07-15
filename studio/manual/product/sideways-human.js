@@ -87,9 +87,6 @@ function normalizeChromeLanguage() {
   const commandbar = document.querySelector('[data-workspace-commandbar]');
   if (commandbar) commandbar.setAttribute('aria-label', 'Site navigation');
 
-  const contract = document.querySelector('.future-status-contract');
-  if (contract && contract.textContent.trim().toLowerCase() === 'things') contract.textContent = ' items';
-
   const statusLaunch = document.querySelector('[data-sideways-remote-launch]');
   if (statusLaunch) {
     statusLaunch.setAttribute('aria-label', 'Open site status');
@@ -188,5 +185,3 @@ for (const eventName of [
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
 else schedule();
 for (const delay of [80, 280, 900, 1800]) setTimeout(schedule, delay);
-
-window.SidewaysHuman = Object.freeze({ refresh: schedule, routeLabel, explicitDeveloperView });
