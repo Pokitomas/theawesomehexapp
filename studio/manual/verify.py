@@ -32,6 +32,7 @@ SOURCE_FILES = (
     PRODUCT / "studio-reset.css",
     PRODUCT / "workspace.css",
     PRODUCT / "experience.css",
+    PRODUCT / "experience-final.css",
     PRODUCT / "system-icons.svg",
     PRODUCT / "import-studio.js",
     PRODUCT / "import-studio.css",
@@ -106,8 +107,11 @@ def main() -> None:
             '"universal-media.js"',
             '"media-modes.js"',
             '"experience.css"',
+            '"experience-final.css"',
             "EXPERIENCE_STYLE_MARKER",
+            "EXPERIENCE_FINAL_STYLE_MARKER",
             "data-sideways-experience",
+            "data-sideways-experience-final",
             "shared_target",
             '"corpus-db.js"',
             '"workspace-sync.js"',
@@ -131,6 +135,22 @@ def main() -> None:
             "@media (prefers-reduced-motion: reduce)",
         ),
         "consumer experience layer",
+    )
+
+    final_experience_source = source[PRODUCT / "experience-final.css"]
+    require(
+        final_experience_source,
+        (
+            "--experience-final-paper",
+            "html.workspace-chrome .workspace-commandbar",
+            "html.workspace-chrome .source-card",
+            "html.workspace-chrome .import-complete-panel",
+            "html.workspace-chrome .survival-vault",
+            "html.workspace-chrome .remote-terminal",
+            "@media (max-width: 760px)",
+            "!important",
+        ),
+        "final mobile consumer skin",
     )
 
     db_source = source[SHARED / "corpus-db.js"]
@@ -192,7 +212,7 @@ def main() -> None:
     forbid(remote_source, ("REMOTE_ROOT_KEY", "REMOTE_PRIVATE_KEY", "x-remote-signature"), "browser credential leak")
 
     if not MANUAL.exists():
-        print("local-first runtime sources and cohesive experience verified")
+        print("local-first runtime sources and final consumer experience verified")
         return
 
     generated_js = (
@@ -210,6 +230,7 @@ def main() -> None:
         node_check(path)
 
     read_clean(MANUAL / "experience.css")
+    read_clean(MANUAL / "experience-final.css")
 
     for retired in ("social.js", "social.css", "workspace-sync.js"):
         if (MANUAL / retired).exists():
@@ -227,8 +248,10 @@ def main() -> None:
             raise AssertionError(f"stable DOM hook missing: {hook}")
     if index.count("data-workspace-product") != 2 or index.count("data-universal-media") != 1 or index.count("data-media-modes") != 1:
         raise AssertionError("generated runtime layers are duplicated or missing")
-    if index.count("data-sideways-experience") != 1:
-        raise AssertionError("consumer experience layer is duplicated or missing")
+    if index.count("data-sideways-experience") != 1 or index.count("data-sideways-experience-final") != 1:
+        raise AssertionError("consumer experience layers are duplicated or missing")
+    if index.index("data-sideways-experience-final") < index.index("data-survival-ledger"):
+        raise AssertionError("final consumer skin must load after subsystem styles")
     if index.count("data-remote-terminal") != 2 or index.count("data-sideways-remote") != 1:
         raise AssertionError("public live-work terminal is duplicated or missing")
     for name in ("remote-snapshot.json", ".well-known/sideways-remote.json"):
@@ -236,7 +259,7 @@ def main() -> None:
             raise AssertionError(f"remote discovery projection missing: {name}")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
-    print("local-first runtime, one-owner schema, atomic ledger, viewport media, and cohesive experience contracts verified")
+    print("local-first runtime, one-owner schema, atomic ledger, viewport media, and final consumer experience contracts verified")
 
 
 if __name__ == "__main__":
