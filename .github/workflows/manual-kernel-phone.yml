@@ -71,6 +71,7 @@ jobs:
           cache: npm
       - name: Install locked browser driver
         run: |
+          git checkout -- package.json package-lock.json
           npm ci --ignore-scripts --include=dev
           node -e "import('playwright-core')"
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
