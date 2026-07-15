@@ -38,6 +38,27 @@ export default [
     denyW: [['scripts/tests/workflow-permissions.test.mjs', 'secret-bearing lasso execution uses only trusted default-branch code']]
   },
   {
+    id: 'workflow.native-maker-authority', f: 'workflow', op: 'Turn an owner-authored Maker issue into a bounded model patch and draft pull request',
+    actor: 'Repository owner opening/reopening a [maker:*] issue or manually dispatching an existing Maker issue',
+    principal: 'Trusted default-branch native worker with a scoped GitHub Actions token and optional model endpoint credential',
+    auth: 'contents:read globally; blocked receipts use issues:write; worker jobs use contents:write, pull-requests:write, and issues:write only after the owner/title gate',
+    object: 'Worker branch, commit, draft pull request, and source-issue receipts', owner: 'GitHub repository; merge and deployment remain human authority',
+    deny: 'actor is not repository owner|issue is not [maker:*]|mode is unconfigured|model endpoint/model missing|trusted worker tests fail|model tool request violates path, authority, write, or witness boundary|repository verification fails',
+    replay: 'Issue number, Actions run, generated branch, commit, draft PR, model endpoint host/model receipt, and repository verification witnesses.',
+    pub: 'Issue receipts, branch, draft PR, code diff, tests, and non-secret provider identity are public.',
+    priv: 'Model API key, runner registration token, local model process, bearer credentials, and raw endpoint response metadata remain private.', st: 'e',
+    s: [
+      'workflow-permission:.github/workflows/maker-native-worker.yml:contents:read',
+      'workflow-permission:.github/workflows/maker-native-worker.yml:contents:write',
+      'workflow-permission:.github/workflows/maker-native-worker.yml:issues:write',
+      'workflow-permission:.github/workflows/maker-native-worker.yml:pull-requests:write',
+      'workflow-secret:.github/workflows/maker-native-worker.yml:SIDEWAYS_MODEL_API_KEY'
+    ],
+    impl: [['.github/workflows/maker-native-worker.yml', 'github.actor == github.repository_owner', "startsWith(github.event.issue.title, '[maker:')", 'Check out trusted default-branch worker', 'Verify native worker before write authority', 'node scripts/maker-native-worker.mjs']],
+    allow: [['scripts/tests/native-maker-worker.test.mjs', 'native dev agent reads, writes, witnesses, inspects, and finishes'], ['scripts/tests/workflow-permissions.test.mjs', 'native Maker write authority is owner-gated']],
+    denyW: [['scripts/tests/native-maker-worker.test.mjs', 'rejects path escape, secrets, authority writes, and arbitrary witnesses'], ['scripts/tests/workflow-permissions.test.mjs', 'blocked receipts use no contents or pull-request write authority']]
+  },
+  {
     id: 'workflow.coordination-ticks', f: 'workflow', op: 'Reduce repository events into one bounded coordination-state comment',
     actor: 'GitHub repository event actor', principal: 'Trusted default-branch reducer with the workflow GITHUB_TOKEN',
     auth: 'contents:read, pull-requests:read, actions:read, and issues:write', object: 'One machine-readable state comment on issue #131', owner: 'Repository coordination workflow',
