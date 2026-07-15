@@ -6,6 +6,8 @@ on:
       - 'founder/**'
       - 'scripts/tests/founder-room*.mjs'
       - '.github/workflows/founder-room.yml'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -16,9 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - name: Install locked browser tooling
+        run: npm ci --ignore-scripts
       - name: Verify founder decision model
         run: node scripts/tests/founder-room.test.mjs
       - name: Verify browser assets
@@ -32,7 +39,6 @@ jobs:
           grep -q 'Scene-first social world' founder/index.html
       - name: Prove founder journey at 390x844
         run: |
-          npm install --no-save playwright-core@1.55.0
           python -m http.server 4174 >/tmp/founder-http.log 2>&1 &
           server=$!
           trap 'kill $server || true' EXIT
