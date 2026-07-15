@@ -35,8 +35,20 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify source boundary before assembly
-        run: node --test scripts/tests/sideways-human-boundary.test.mjs
+      - name: Install locked runtime dependencies
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --include=dev > /tmp/sideways-human-npm-ci.log 2>&1
+          cat /tmp/sideways-human-npm-ci.log
+          node -e "import('playwright-core')"
+
+      - name: Verify exact source tree before assembly
+        run: |
+          set -euo pipefail
+          git diff --check
+          node scripts/native-changed-check.mjs
+          npm run verify:repository
+          node --test scripts/tests/sideways-human-boundary.test.mjs
 
       - name: Extract canonical product layers
         run: |
@@ -76,13 +88,9 @@ jobs:
           grep -q 'data-sideways-human' manual-app/index.html
           node --test scripts/tests/sideways-human-boundary.test.mjs
 
-      - name: Install locked browser tooling
+      - name: Resolve hosted browser path
         run: |
           set -euo pipefail
-          git checkout -- package.json package-lock.json
-          npm ci --ignore-scripts --include=dev > /tmp/sideways-human-npm-ci.log 2>&1
-          cat /tmp/sideways-human-npm-ci.log
-          node -e "import('playwright-core')"
           {
             echo "CHROME_BIN=${CHROME_BIN:-}"
             echo "CHROME_PATH=${CHROME_PATH:-}"
@@ -107,13 +115,6 @@ jobs:
           cat /tmp/sideways-human-browser.log
           exit "$status"
 
-      - name: Verify exact diff and repository
-        run: |
-          set -euo pipefail
-          git diff --check
-          node scripts/native-changed-check.mjs
-          npm run verify:repository
-
       - name: Upload human Sideways witnesses
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -123,6 +124,7 @@ jobs:
             sideways-human-phone.png
             sideways-human-desktop.png
             sideways-human-proof.json
+            repository-verification.json
             /tmp/sideways-human-http.log
             /tmp/sideways-human-browser.log
             /tmp/sideways-human-browser-path.log
