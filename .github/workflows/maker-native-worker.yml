@@ -50,10 +50,73 @@ jobs:
             core.setOutput('default_branch', context.payload.repository?.default_branch || 'main');
             if (!allowed) core.notice(`Native Maker denied: ownerAuthored=${ownerAuthored} makerTitle=${makerTitle} ownerActor=${ownerActor}`);
 
+  github-models-worker:
+    needs: preflight
+    if: >-
+      needs.preflight.outputs.allowed == 'true' &&
+      (vars.SIDEWAYS_MODEL_MODE == '' || vars.SIDEWAYS_MODEL_MODE == 'github-models')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      models: read
+    steps:
+      - name: Check out trusted default-branch worker
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.preflight.outputs.default_branch }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked repository dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify native worker before write authority
+        run: |
+          node --check scripts/open-model-adapter.mjs
+          node --check scripts/open-model-planning.mjs
+          node --check scripts/native-dev-agent.mjs
+          node --check scripts/native-changed-check.mjs
+          node --check scripts/maker-native-worker.mjs
+          node --test scripts/tests/native-maker-worker.test.mjs
+      - name: Execute zero-configuration GitHub Models worker
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SIDEWAYS_ISSUE_NUMBER: ${{ needs.preflight.outputs.issue_number }}
+          SIDEWAYS_DEFAULT_BRANCH: ${{ needs.preflight.outputs.default_branch }}
+          SIDEWAYS_MODEL_PROTOCOL: openai
+          SIDEWAYS_MODEL_BASE_URL: https://models.github.ai/inference/chat/completions
+          SIDEWAYS_MODEL_NAME: ${{ vars.SIDEWAYS_MODEL_NAME || 'openai/gpt-4.1' }}
+          SIDEWAYS_MODEL_API_KEY: ${{ github.token }}
+          SIDEWAYS_MODEL_TIMEOUT_MS: ${{ vars.SIDEWAYS_MODEL_TIMEOUT_MS || '180000' }}
+          SIDEWAYS_PLANNING_ENABLED: ${{ vars.SIDEWAYS_PLANNING_ENABLED || '1' }}
+          SIDEWAYS_PLANNING_MAX_WAVES: ${{ vars.SIDEWAYS_PLANNING_MAX_WAVES || '2' }}
+          SIDEWAYS_PLANNING_MAX_EVENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_EVENTS || '160' }}
+          SIDEWAYS_PLANNING_MAX_ASSIGNMENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || '6' }}
+          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '24' }}
+          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '12' }}
+          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '600000' }}
+          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '4096' }}
+        run: node scripts/maker-native-worker.mjs
+      - name: Preserve planning, implementation, and admission episode
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sideways-native-maker-episode-${{ needs.preflight.outputs.issue_number }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sideways-native-episode.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   blocked:
     needs: preflight
     if: >-
       needs.preflight.outputs.allowed == 'true' &&
+      vars.SIDEWAYS_MODEL_MODE != '' &&
+      vars.SIDEWAYS_MODEL_MODE != 'github-models' &&
       vars.SIDEWAYS_MODEL_MODE != 'hosted' &&
       vars.SIDEWAYS_MODEL_MODE != 'self-hosted'
     runs-on: ubuntu-latest
@@ -61,10 +124,11 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Post exact missing-runtime receipt
+      - name: Post exact unsupported-runtime receipt
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           ISSUE_NUMBER: ${{ needs.preflight.outputs.issue_number }}
+          SIDEWAYS_MODEL_MODE: ${{ vars.SIDEWAYS_MODEL_MODE }}
         with:
           script: |
             const number = Number(process.env.ISSUE_NUMBER);
@@ -76,13 +140,10 @@ jobs:
                 '<!-- sideways-native-worker:v1 -->',
                 '## Native worker blocked',
                 '',
-                '**state:** no model execution mode configured',
+                `**state:** unsupported model execution mode: ${process.env.SIDEWAYS_MODEL_MODE || '(empty)'}`,
                 `**run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
                 '',
-                'Set repository variable `SIDEWAYS_MODEL_MODE` to `hosted` or `self-hosted`.',
-                '',
-                '- `hosted`: also set `SIDEWAYS_MODEL_BASE_URL`, `SIDEWAYS_MODEL_NAME`, and optionally secret `SIDEWAYS_MODEL_API_KEY`.',
-                '- `self-hosted`: register a runner carrying label `sideways-maker`, run an open model server on that machine, and set `SIDEWAYS_MODEL_NAME`. Local default endpoint is `http://127.0.0.1:11434` using the Ollama protocol.',
+                'Use `github-models`, `hosted`, or `self-hosted`.',
                 '',
                 'The lasso may still record this arrival, but no engineering model, workspace, branch, patch, or PR ran.'
               ].join('\n')
