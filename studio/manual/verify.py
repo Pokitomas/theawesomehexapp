@@ -186,18 +186,30 @@ def main() -> None:
             "Import files",
             "Restore a Sideways backup",
             "sideways:websourceschanged",
-            "sideways:restorefile",
+            "sidewaysImportFiles",
+            "addEventListener('drop'",
+            "Survival.restoreArk",
+            "setEnabled",
+            "remove",
         ),
         "unified ingestion surface",
     )
-    forbid(import_source, ("document.cookie", "accessToken", "refreshToken", "password="), "ingestion credential leak")
+    forbid(import_source, ("sessionStorage", "document.cookie", "accessToken", "refreshToken", "password="), "ingestion credential leak")
 
     discovery_source = source[PRODUCT / "discovery-source.js"]
-    require(discovery_source, ("safePublicURL", "normalizeDiscoveryRecord", "materializeCandidates", "credentials: 'omit'"), "bounded discovery source")
+    require(
+        discovery_source,
+        ("safePublicURL", "normalizeDiscoveryRecord", "materializeCandidates", "saveDiscoveryRecord", "explicit user action", "credentials: 'omit'", "separate-from-private-archive"),
+        "bounded discovery source",
+    )
 
     connection_source = source[PRODUCT / "account-connections.js"]
-    require(connection_source, ("createPKCE", "validateCallback", "redactConnection", "connectionCapability", "code_challenge_method: 'S256'"), "connected account contract")
-    forbid(connection_source, ("localStorage", "document.cookie", "password=", "password:", "passwordInput"), "connected account secret persistence")
+    require(
+        connection_source,
+        ("createPKCE", "validateCallback", "redactConnection", "serverTokenBoundary", "createDisconnectReceipt", "connectionCapability", "code_challenge_method: 'S256'", "encrypted-server-only"),
+        "connected account contract",
+    )
+    forbid(connection_source, ("localStorage", "sessionStorage", "document.cookie", "password=", "password:", "passwordInput"), "connected account secret persistence")
 
     if not MANUAL.exists():
         print("local-first runtime sources verified")
@@ -245,7 +257,7 @@ def main() -> None:
             raise AssertionError(f"remote discovery projection missing: {name}")
 
     subprocess.run(["node", str(IMPORTS / "verify.mjs")], check=True)
-    print("local-first runtime, bounded discovery, connected import, atomic ledger, and viewport media contracts verified")
+    print("local-first runtime, bounded discovery, connected import, transactional Ark, atomic ledger, and viewport media contracts verified")
 
 
 if __name__ == "__main__":
