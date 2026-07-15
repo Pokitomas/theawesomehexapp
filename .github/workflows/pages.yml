@@ -102,8 +102,10 @@ jobs:
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
 
-      - name: Install locked tooling
-        run: npm ci --ignore-scripts --include=dev
+      - name: Restore current package manifests and install locked tooling
+        run: |
+          git checkout -- package.json package-lock.json
+          npm ci --ignore-scripts --include=dev
 
       - name: Run discovery and connected-import contracts
         run: npm run test:ingestion
