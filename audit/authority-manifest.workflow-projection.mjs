@@ -40,24 +40,25 @@ export default [
   {
     id: 'workflow.native-maker-authority', f: 'workflow', op: 'Turn an owner-authored Maker issue into a bounded model patch and draft pull request',
     actor: 'Repository owner opening/reopening a [maker:*] issue or manually dispatching an existing Maker issue',
-    principal: 'Trusted default-branch native worker with a scoped GitHub Actions token and optional model endpoint credential',
-    auth: 'read-only preflight proves owner actor, owner issue author, and Maker title; blocked receipts use issues:write; admitted worker jobs use contents:write, pull-requests:write, and issues:write',
+    principal: 'Trusted default-branch native worker with a scoped GitHub Actions token, including GitHub Models inference when no external runtime is configured',
+    auth: 'read-only preflight proves owner actor, owner issue author, and Maker title; GitHub Models fallback adds models:read; admitted worker jobs use contents:write, pull-requests:write, and issues:write',
     object: 'Worker branch, commit, draft pull request, source-issue receipts, and non-secret Actions episode artifact', owner: 'GitHub repository; merge and deployment remain human authority',
-    deny: 'actor is not repository owner|issue author is not repository owner|issue is not [maker:*]|mode is unconfigured|model endpoint/model missing|trusted worker tests fail|model tool request violates path, authority, write, or witness boundary|repository verification fails',
+    deny: 'actor is not repository owner|issue author is not repository owner|issue is not [maker:*]|configured mode is unsupported|model endpoint/model missing|trusted worker tests fail|model tool request violates path, authority, write, or witness boundary|repository verification fails',
     replay: 'Issue number, preflight output, Actions run and attempt, generated branch, commit, draft PR, model endpoint host/model receipt, planning and implementation episode, and repository verification witnesses.',
     pub: 'Issue receipts, branch, draft PR, code diff, tests, non-secret provider identity, and structured episode artifact are public.',
-    priv: 'Model API key, runner registration token, local model process, bearer credentials, and endpoint authorization remain private.', st: 'e',
+    priv: 'GitHub token, optional model API key, runner registration token, local model process, bearer credentials, and endpoint authorization remain private.', st: 'e',
     s: [
       'workflow-permission:.github/workflows/maker-native-worker.yml:contents:read',
       'workflow-permission:.github/workflows/maker-native-worker.yml:issues:read',
       'workflow-permission:.github/workflows/maker-native-worker.yml:contents:write',
       'workflow-permission:.github/workflows/maker-native-worker.yml:issues:write',
       'workflow-permission:.github/workflows/maker-native-worker.yml:pull-requests:write',
+      'workflow-permission:.github/workflows/maker-native-worker.yml:models:read',
       'workflow-secret:.github/workflows/maker-native-worker.yml:SIDEWAYS_MODEL_API_KEY'
     ],
-    impl: [['.github/workflows/maker-native-worker.yml', 'Prove owner-authored Maker command', 'ownerAuthored', 'makerTitle', 'ownerActor', "needs.preflight.outputs.allowed == 'true'", 'Check out trusted default-branch worker', 'Verify native worker before write authority', 'node scripts/maker-native-worker.mjs']],
-    allow: [['scripts/tests/native-maker-worker.test.mjs', 'native dev agent reads, writes, witnesses, inspects, and finishes'], ['scripts/tests/workflow-permissions.test.mjs', 'native Maker write authority is preflight-gated']],
-    denyW: [['scripts/tests/native-maker-worker.test.mjs', 'rejects path escape, secrets, authority writes, and arbitrary witnesses'], ['scripts/tests/workflow-permissions.test.mjs', 'preflight-gated, trusted-main, and draft-PR bounded']]
+    impl: [['.github/workflows/maker-native-worker.yml', 'Prove owner-authored Maker command', 'ownerAuthored', 'makerTitle', 'ownerActor', "needs.preflight.outputs.allowed == 'true'", 'github-models-worker', 'models: read', 'https://models.github.ai/inference/chat/completions', 'Check out trusted default-branch worker', 'Verify native worker before write authority', 'node scripts/maker-native-worker.mjs']],
+    allow: [['scripts/tests/native-maker-worker.test.mjs', 'native dev agent reads, writes, witnesses, inspects, and finishes'], ['scripts/tests/workflow-permissions.test.mjs', 'zero-secret GitHub Models fallback']],
+    denyW: [['scripts/tests/native-maker-worker.test.mjs', 'rejects path escape, secrets, authority writes, and arbitrary witnesses'], ['scripts/tests/workflow-permissions.test.mjs', 'preflight-gated, trusted-main, draft-PR bounded']]
   },
   {
     id: 'workflow.maker-sprawl', f: 'workflow', op: 'Admit one exclusive Maker writer lease and fan repository witnesses across four read-only lanes',

@@ -104,11 +104,13 @@ Read-only roles must return JSON matching the supplied schema. The writer may us
 
 `--dry-run` completes the four assessments and synthesis without creating a branch.
 
-## Legacy provider-neutral issue worker
+## Issue-triggered native worker
 
-The existing `[maker:*]` issue-triggered worker remains available as an optional constrained runtime for an OpenAI-compatible or Ollama-compatible endpoint. It still requires either hosted endpoint configuration or a self-hosted runner. It is no longer the primary Maker path.
+Owner-authored `[maker:*]` issues also activate a constrained GitHub Actions worker. With no repository model mode configured, it uses GitHub Models through the run-scoped `GITHUB_TOKEN`, the official `models: read` permission, the OpenAI-compatible inference endpoint, and the default `openai/gpt-4.1` model. No separate model secret or self-hosted runner is required.
 
-That worker deliberately exposes a small fixed tool surface. The local Maker path is the full-repository operator requested here: the selected local agent can inspect the whole checkout, run git/npm/tests, and implement custom code inside its isolated writer worktree.
+Set `SIDEWAYS_MODEL_MODE=hosted` to use an explicitly configured OpenAI-compatible endpoint, or `SIDEWAYS_MODEL_MODE=self-hosted` to use a `sideways-maker` runner and an Ollama-compatible endpoint. `SIDEWAYS_MODEL_MODE=github-models` explicitly selects the zero-configuration path. Unsupported non-empty modes fail closed with an issue receipt.
+
+The issue worker deliberately exposes a small fixed tool surface and always checks out trusted default-branch code before gaining write authority. Its GitHub token may create a branch, commit, draft PR, issue receipts, and a non-secret episode artifact; merge and deployment remain human authority.
 
 ## Model improvement boundary
 
