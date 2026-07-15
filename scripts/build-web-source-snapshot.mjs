@@ -44,7 +44,8 @@ export async function fetchBoundedSource(provider, options = {}) {
   const source = safeSourceURL(provider.url);
   const lookup = options.lookup || dns.lookup;
   const robots = await enforceRobots(provider, source, { lookup, ...limits });
-  const response = await requestPublicResource(source, {
+  const fetchResource = options.requestPublicResource || requestPublicResource;
+  const response = await fetchResource(source, {
     lookup,
     timeoutMs: limits.timeoutMs,
     bytes: limits.bytesPerSource,
@@ -54,9 +55,10 @@ export async function fetchBoundedSource(provider, options = {}) {
   if (response.status === 429) throw new Error('source rate limit exceeded');
   if (response.status < 200 || response.status >= 300) throw new Error(`source responded ${response.status}`);
   const contentType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-  if (!ALLOWED_TYPES.includes(contentType) && !provider.format) throw new Error(`source content type is not allowed: ${contentType || '(missing)'}`);
+  if (!ALLOWED_TYPES.includes(contentType)) throw new Error(`source content type is not allowed: ${contentType || '(missing)'}`);
   const fetchedAt = options.now || new Date().toISOString();
-  const rows = parseSourcePayload(response.body.toString('utf8'), contentType, provider).slice(0, limits.recordsPerSource);
+  const parseProvider = { ...provider, url: response.url?.href || source.href };
+  const rows = parseSourcePayload(response.body.toString('utf8'), contentType, parseProvider).slice(0, limits.recordsPerSource);
   return Object.freeze({
     records: Object.freeze(rows.map(row => normalizeWebRecord(row, { ...provider, fetchedAt }))),
     receipt: Object.freeze({ robots, hops: response.hops, bytes: response.body.length, contentType })
