@@ -58,10 +58,10 @@ test('human-web layer rejects glass UI and preserves explicit links, structure, 
   assert.match(css, /sideways-location-bar/);
   assert.doesNotMatch(css, /radial-gradient|glassmorphism|vaporwave|CRT/i);
 
-  assert.match(runtime, /data\.sidewaysHuman = 'ready'/);
+  assert.match(runtime, /dataset\.sidewaysHuman = 'ready'/);
   assert.match(runtime, /sideways-location-bar/);
   assert.match(runtime, /\(maker\|founder\)/);
-  assert.match(runtime, /data\.developerBoundary = 'hidden'/);
+  assert.match(runtime, /dataset\.developerBoundary = 'hidden'/);
   assert.match(runtime, /MutationObserver/);
   assert.doesNotMatch(runtime, /innerHTML\s*=|insertAdjacentHTML|Math\.random|fake|synthetic/i);
 });
