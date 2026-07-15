@@ -47,7 +47,7 @@ export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date(
     }),
     inspect(root, 'root_phone_desktop_zoom_contrast_motion_keyboard_network', {
       'scripts/root-product-phone.mjs': [
-        "width: 390, height: 844", "width: 1440, height: 1000", 'for (const zoom of [200, 400])',
+        'width: 390, height: 844', 'width: 1440, height: 1000', 'for (const zoom of [200, 400])',
         'contrastRatio', 'computed contrast below 4.5', "reducedMotion: 'reduce'", 'context.setOffline(true)',
         "page.route('**/api/**'", "page.keyboard.press('Enter')", 'keyboard focus is trapped', 'horizontal overflow', "page.on('pageerror'"
       ],
@@ -63,7 +63,7 @@ export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date(
     }, 'browser-workflow'),
     inspect(root, 'blocked_storage_quota_and_restore_failure', {
       'scripts/tests/archive-mirror-failure.test.mjs': ['QuotaExceededError', 'promoted', 'survival.mirror.failed'],
-      'scripts/tests/archive-revival-contract.test.mjs': ['rollback', 'ARK_MEMORY_LIMIT', 'external_observation_limits'],
+      'scripts/tests/archive-revival-contract.test.mjs': ['rollback', 'ARK EXCEEDS BOUNDED MEMORY FALLBACK', 'external_observation_limits'],
       'studio/manual/tests/survival-ledger-clickthrough.mjs': ['width: 390, height: 844', 'mirror generation mismatch', 'horizontal overflow'],
       '.github/workflows/survival-ledger-phone.yml': ['survival-ledger-clickthrough.mjs']
     }, 'hostile-and-browser-workflow')
