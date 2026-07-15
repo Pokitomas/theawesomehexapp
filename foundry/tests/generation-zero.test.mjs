@@ -10,7 +10,8 @@ import {
   lawfulCorpusPlan,
   runGenerationZero,
   runGenerationZeroProxies,
-  validateGenerationZeroMission
+  validateGenerationZeroMission,
+  verifyGenerationZeroArtifactBundle
 } from '../generation-zero.mjs';
 
 const revision = 'b'.repeat(40);
@@ -130,7 +131,7 @@ test('corpus plan is internet-scale planning, not an acquisition or plaintext-on
   assert.equal(plan.controls.paywall_and_access_control_bypass, false);
 });
 
-test('generation-zero execution writes the complete artifact set', async () => {
+test('generation-zero execution writes and verifies the complete artifact set', async () => {
   const out = await fs.mkdtemp(path.join(os.tmpdir(), 'foundry-generation-zero-'));
   const result = await runGenerationZero({
     out_dir: out,
@@ -138,13 +139,29 @@ test('generation-zero execution writes the complete artifact set', async () => {
     clock: (() => { let value = 10; return () => value += 1; })(),
     memory_usage: () => 4096
   });
-  const expected = ['mission.json', 'assignments.json', 'reports.json', 'integration.json', 'portfolio.json', 'genomes.json', 'proxy-results.json', 'negative-results.json', 'corpus-plan.json', 'receipt.json'];
+  const expected = ['mission.json', 'assignments.json', 'reports.json', 'integration.json', 'portfolio.json', 'genomes.json', 'proxy-results.json', 'negative-results.json', 'corpus-plan.json', 'receipt.json', 'artifact-manifest.json'];
   for (const filename of expected) await fs.access(path.join(out, filename));
   const receipt = JSON.parse(await fs.readFile(path.join(out, 'receipt.json'), 'utf8'));
+  const verified = await verifyGenerationZeroArtifactBundle(out);
   assert.equal(receipt.code_revision, revision);
   assert.equal(receipt.winner_selected, false);
   assert.equal(receipt.final_model_weights_trained, false);
+  assert.notEqual(receipt.receipt_digest, receipt.generation_receipt_digest);
+  assert.equal(verified.manifest.code_revision, revision);
+  assert.equal(verified.manifest.protocol_receipt_digest, receipt.receipt_digest);
+  assert.equal(verified.manifest.generation_receipt_digest, receipt.generation_receipt_digest);
+  assert.deepEqual(new Set(verified.verified_files), new Set(expected.filter(filename => filename !== 'artifact-manifest.json')));
   assert.equal(result.outputs['proxy-results.json'].length, result.proxy_results.length);
+  assert.equal(result.outputs['artifact-manifest.json'].complete, true);
+});
+
+test('generation-zero artifact verification rejects partial or corrupted evidence', async () => {
+  const out = await fs.mkdtemp(path.join(os.tmpdir(), 'foundry-generation-zero-corrupt-'));
+  await runGenerationZero({ out_dir: out, code_revision: revision, ...deterministicRuntime() });
+  await fs.appendFile(path.join(out, 'proxy-results.json'), '\n');
+  await assert.rejects(() => verifyGenerationZeroArtifactBundle(out), /byte mismatch/);
+  await fs.rm(path.join(out, 'artifact-manifest.json'));
+  await assert.rejects(() => verifyGenerationZeroArtifactBundle(out), /ENOENT/);
 });
 
 test('report fixture itself is complete and read-only', () => {
