@@ -10,6 +10,7 @@ function commandPath(name) {
 const executablePath = [
   process.env.CHROME_BIN,
   process.env.CHROME_PATH,
+  chromium.executablePath(),
   commandPath('google-chrome'),
   commandPath('google-chrome-stable'),
   commandPath('chromium'),
@@ -128,7 +129,7 @@ async function inspect(viewport, name, options = {}) {
 }
 
 try {
-  if (!executablePath) throw new Error('no Chromium executable found in environment or runner paths');
+  if (!executablePath) throw new Error('no Chromium executable found in environment, Playwright cache, or runner paths');
   browser = await chromium.launch({
     headless: true,
     executablePath,
