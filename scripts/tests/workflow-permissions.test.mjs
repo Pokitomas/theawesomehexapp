@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import './maker-pr-collision-gate.test.mjs';
 
 const pagesPath = new URL('../../.github/workflows/pages.yml', import.meta.url);
 const lassoPath = new URL('../../.github/workflows/weave-lasso.yml', import.meta.url);
 const makerWorkerPath = new URL('../../.github/workflows/maker-native-worker.yml', import.meta.url);
+const makerCollisionPath = new URL('../../.github/workflows/maker-pr-collision-gate.yml', import.meta.url);
 const checkoutRef = /uses:\s*actions\/checkout@[0-9a-f]{40}(?:\s+#\s*v4)?\s*$/;
 
 function job(source, name, next = '') {
@@ -70,6 +72,27 @@ test('secret-bearing lasso execution uses only trusted default-branch code', asy
   assert.match(source, /name: Verify trusted lasso before execution\n        working-directory: trusted-lasso/);
   assert.match(source, /name: Group the incoming principal[\s\S]*?working-directory: trusted-lasso[\s\S]*?node scripts\/weave-lasso\.mjs github-event/);
   assert.doesNotMatch(source, /working-directory: (?!trusted-lasso)/);
+});
+
+test('Maker collision gate uses trusted default-branch code with read-only permissions', async () => {
+  const source = await readFile(makerCollisionPath, 'utf8');
+  assert.match(source, /^on:\n  pull_request_target:/m);
+  const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
+  assert.match(top, /^  contents: read$/m);
+  assert.match(top, /^  pull-requests: read$/m);
+  assert.doesNotMatch(top, /write/);
+  assert.doesNotMatch(source, /^\s+(?:contents|pull-requests|issues): write$/m);
+
+  const section = job(source, 'path-lease');
+  const checkouts = checkoutBlocks(section);
+  assert.equal(checkouts.length, 1);
+  assert.match(checkouts[0], /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(checkouts[0], /persist-credentials: false/);
+  assert.match(section, /actions\/github-script@[0-9a-f]{40}/);
+  assert.match(section, /github\.paginate\(github\.rest\.pulls\.listFiles/);
+  assert.match(section, /github\.paginate\(github\.rest\.pulls\.list/);
+  assert.match(section, /gate\.evaluatePathLease/);
+  assert.match(section, /core\.setFailed/);
 });
 
 test('native Maker write authority is preflight-gated, trusted-main, and draft-PR bounded', async () => {
