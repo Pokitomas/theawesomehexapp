@@ -13,6 +13,7 @@
   ],
   "failure_contracts": [
     { "condition": "OPFS unavailable", "required_result": "survival.mirror.unavailable receipt" },
+    { "condition": "OPFS write interruption", "required_result": "survival.mirror.failed receipt and no checkpoint" },
     { "condition": "save picker cancelled", "required_result": "cancelled with no false export receipt" },
     { "condition": "invalid Ark magic", "required_result": "NOT A SIDEWAYS ARK" },
     { "condition": "invalid Ark header", "required_result": "ARK HEADER IS INVALID" },
@@ -24,6 +25,6 @@
     "restore needs an explicit rollback witness for transaction failure",
     "download-issued does not prove the file was retained",
     "large Ark creation currently materializes one Blob in memory",
-    "quota pressure and interrupted OPFS writes need dedicated witnesses"
+    "real browser quota pressure still needs a browser-level witness"
   ]
 }
