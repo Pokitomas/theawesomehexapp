@@ -244,6 +244,12 @@ jobs:
           mkdir -p dist/founder
           cp founder/index.html founder/founder.css founder/founder.js dist/founder/
 
+      - name: Publish phone Maker console into product artifact
+        run: |
+          node scripts/tests/maker-console.test.mjs
+          mkdir -p dist/maker
+          cp maker/index.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
+
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
@@ -293,6 +299,12 @@ jobs:
           test -f dist/founder/index.html
           test -f dist/founder/founder.css
           test -f dist/founder/founder.js
+          test -f dist/maker/index.html
+          test -f dist/maker/maker.css
+          test -f dist/maker/maker.js
+          test -f dist/maker/manifest.webmanifest
+          test -f dist/maker/sw.js
+          test -f dist/maker/icon.svg
 
       - name: Check manual gate and importer on a phone viewport
         run: |

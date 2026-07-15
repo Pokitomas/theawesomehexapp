@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11110f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Maker">
+  <meta name="description" content="Phone command and live engineering state for the Sideways repository.">
+  <title>Sideways Dev</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./maker.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <p class="eyebrow">SIDEWAYS / DEV / LIVE</p>
+      <h1>Command.</h1>
+      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">GITHUB</a>
+    </header>
+
+    <section class="command-panel" aria-labelledby="command-heading">
+      <div class="command-copy">
+        <h2 id="command-heading">New work</h2>
+        <div class="mode-grid" role="group" aria-label="Command mode">
+          <button type="button" data-mode="build" aria-pressed="true">BUILD</button>
+          <button type="button" data-mode="fix" aria-pressed="false">FIX</button>
+          <button type="button" data-mode="explore" aria-pressed="false">EXPLORE</button>
+          <button type="button" data-mode="audit" aria-pressed="false">AUDIT</button>
+        </div>
+
+        <label for="maker-request">REQUEST</label>
+        <textarea id="maker-request" maxlength="2400" placeholder="What should exist or what is wrong?"></textarea>
+
+        <label for="maker-protect">DO NOT BREAK</label>
+        <textarea id="maker-protect" class="short-field" maxlength="1200" placeholder="Optional boundaries."></textarea>
+
+        <label for="maker-proof">PROOF REQUIRED</label>
+        <textarea id="maker-proof" class="short-field" maxlength="1200" placeholder="Optional evidence needed before acceptance."></textarea>
+      </div>
+
+      <aside class="dispatch-panel">
+        <div class="actions">
+          <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">SEND TO CO-ENGINEERS</a>
+          <button id="copy-receipt" type="button">COPY RECEIPT</button>
+          <button id="reset-maker" class="quiet" type="button">CLEAR</button>
+        </div>
+        <p id="command-status" class="status" role="status" aria-live="polite">Draft saved locally.</p>
+        <details>
+          <summary>RECEIPT</summary>
+          <pre id="receipt-preview"></pre>
+        </details>
+      </aside>
+    </section>
+
+    <section class="state-panel" aria-labelledby="state-heading">
+      <div class="state-heading-row">
+        <h2 id="state-heading">Live engineering</h2>
+        <button id="refresh-state" class="secondary" type="button">REFRESH</button>
+      </div>
+      <div class="state-grid">
+        <article><span>MAIN</span><strong id="repo-head">reading…</strong></article>
+        <article><span>ISSUES</span><strong id="open-issues">—</strong></article>
+        <article><span>PRS</span><strong id="open-prs">—</strong></article>
+        <article><span>RUNNING</span><strong id="running-workflows">—</strong></article>
+      </div>
+
+      <div class="live-columns">
+        <section>
+          <h3>OPEN WORK</h3>
+          <div id="active-work" class="operation-list" aria-label="All open issues and pull requests"></div>
+        </section>
+        <section>
+          <h3>ACTIONS</h3>
+          <div id="workflow-runs" class="operation-list" aria-label="Recent workflow runs"></div>
+        </section>
+      </div>
+      <p id="state-status" class="status" role="status" aria-live="polite">Reading GitHub…</p>
+    </section>
+  </main>
+  <script type="module" src="./maker.js"></script>
+</body>
+</html>
