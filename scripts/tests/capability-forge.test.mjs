@@ -42,7 +42,16 @@ assert.match(lease.workspace, /sideways-capability-forge/);
 assert.throws(() => createTemporaryInstallLease({ lease_id: 'x', candidate_id: 'x', program: 'bash' }), /not allowlisted/);
 assert.throws(() => createTemporaryInstallLease({
   lease_id: 'x', candidate_id: 'x', program: 'npm', install_args: ['install', '--prefix=/etc', 'x']
-}), /filesystem target/);
+}), /global, user, system/);
+assert.throws(() => createTemporaryInstallLease({
+  lease_id: 'x', candidate_id: 'x', program: 'npm', install_args: ['install', '-g', 'x']
+}), /global, user, system/);
+assert.throws(() => createTemporaryInstallLease({
+  lease_id: 'x', candidate_id: 'x', program: 'python', install_args: ['/tmp/installer.py']
+}), /absolute filesystem paths/);
+assert.throws(() => createTemporaryInstallLease({
+  lease_id: 'x', candidate_id: 'x', program: 'ollama', install_args: ['pull', 'example/model']
+}), /require an explicit cleanup command/);
 
 await assert.rejects(
   runTemporaryInstallLease(lease, { authorization: '' }),
@@ -63,6 +72,12 @@ const executed = await runTemporaryInstallLease(lease, {
 assert.equal(executed.ok, true);
 assert.equal(calls.length, 2);
 assert.equal(calls[0].options.shell, false);
+assert.equal(calls[0].options.cwd, lease.workspace);
+assert.equal(calls[0].options.env.HOME, lease.workspace);
+assert.equal(calls[0].options.env.USERPROFILE, lease.workspace);
+assert.ok(calls[0].options.env.npm_config_prefix.startsWith(lease.workspace));
+assert.ok(calls[0].options.env.PIP_TARGET.startsWith(lease.workspace));
+assert.ok(calls[0].options.env.OLLAMA_MODELS.startsWith(lease.workspace));
 assert.equal(removed.length, 1);
 assert.equal(executed.receipts[0].type, 'temporary-install');
 assert.equal(executed.receipts[1].type, 'temporary-cleanup');
@@ -99,4 +114,4 @@ const overspent = evaluateCapabilityTermination(plan, [
 assert.equal(overspent.ok, false);
 assert.equal(overspent.state, 'budget-exhausted');
 
-console.log('capability forge contract ok: architecture brawl, ephemeral installs, distillation, product proof, cleanup, and budget terminate deterministically');
+console.log('capability forge contract ok: architecture brawl, isolated installs, distillation, product proof, cleanup, and budget terminate deterministically');
