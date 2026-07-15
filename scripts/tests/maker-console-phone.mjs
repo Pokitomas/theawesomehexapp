@@ -17,6 +17,7 @@ const proof = {
   issueBridge: false,
   persisted: false,
   degraded: false,
+  expectedOfflineErrors: 0,
   overflow: null,
   errors: []
 };
@@ -67,6 +68,7 @@ await context.route(url => url.hostname === 'github.com' && url.pathname === '/P
 
 const page = await context.newPage();
 const browserErrors = [];
+const unexpectedBrowserErrors = () => browserErrors.filter(message => !/ERR_INTERNET_DISCONNECTED/.test(message));
 page.on('pageerror', error => browserErrors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
 
@@ -110,6 +112,7 @@ try {
   proof.persisted = persistedRequest.startsWith('Make Sideways feel like entering a living scene') && explorePressed === 'true';
   if (!proof.persisted) throw new Error('founder command did not survive phone reload');
 
+  if (browserErrors.length) throw new Error(`unexpected browser errors before degraded-state test: ${browserErrors.join(' | ')}`);
   await context.unrouteAll({ behavior: 'wait' });
   await context.setOffline(true);
   await page.locator('#refresh-state').click();
@@ -117,13 +120,14 @@ try {
   const degradedStatus = await page.locator('#state-status').innerText();
   proof.degraded = /offline|unavailable/i.test(degradedStatus);
   if (!proof.degraded) throw new Error(`offline state was not reported: ${degradedStatus}`);
+  proof.expectedOfflineErrors = browserErrors.filter(message => /ERR_INTERNET_DISCONNECTED/.test(message)).length;
 
   proof.overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (proof.overflow > 1) throw new Error(`maker console overflows phone viewport by ${proof.overflow}px`);
-  if (browserErrors.length) throw new Error(browserErrors.join(' | '));
+  if (unexpectedBrowserErrors().length) throw new Error(unexpectedBrowserErrors().join(' | '));
 } catch (error) {
   proof.errors.push(error instanceof Error ? error.message : String(error));
-  proof.errors.push(...browserErrors);
+  proof.errors.push(...unexpectedBrowserErrors());
   throw error;
 } finally {
   try { await page.screenshot({ path: 'maker-console-phone.png', fullPage: true }); }
