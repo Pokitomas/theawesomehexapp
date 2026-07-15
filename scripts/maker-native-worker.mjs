@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { createOpenModelClient } from './open-model-adapter.mjs';
+import { runOpenModelPlanning } from './open-model-planning.mjs';
 import { runNativeDevAgent } from './native-dev-agent.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -56,6 +61,11 @@ export function normalizeWorkerConfig(env = process.env) {
     model,
     api_key: clean(env.SIDEWAYS_MODEL_API_KEY, 10000),
     missing,
+    default_branch: clean(env.SIDEWAYS_DEFAULT_BRANCH || 'main', 200),
+    planning_enabled: clean(env.SIDEWAYS_PLANNING_ENABLED || '1', 20) !== '0',
+    planning_max_waves: Number(env.SIDEWAYS_PLANNING_MAX_WAVES || 2),
+    planning_max_events: Number(env.SIDEWAYS_PLANNING_MAX_EVENTS || 160),
+    planning_max_assignments: Number(env.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || 6),
     max_turns: Number(env.SIDEWAYS_AGENT_MAX_TURNS || 24),
     max_writes: Number(env.SIDEWAYS_AGENT_MAX_WRITES || 12),
     max_total_write_bytes: Number(env.SIDEWAYS_AGENT_MAX_WRITE_BYTES || 600000),
@@ -72,8 +82,8 @@ function apiClient({ token, repository, fetchImpl = fetch }) {
     'x-github-api-version': '2022-11-28',
     'user-agent': 'sideways-native-maker-worker'
   };
-  async function request(path, options = {}) {
-    const response = await fetchImpl(`${base}${path}`, {
+  async function request(apiPath, options = {}) {
+    const response = await fetchImpl(`${base}${apiPath}`, {
       method: options.method || 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body)
@@ -145,8 +155,20 @@ async function verifyCandidate() {
   return { ok: true, results };
 }
 
-function branchFor(issueNumber, runId) {
-  return `maker/issue-${Number(issueNumber)}-${clean(runId || Date.now(), 40).replace(/[^A-Za-z0-9._-]/g, '-')}`;
+export function branchFor(issueNumber, runId, runAttempt = '1') {
+  const identity = `${clean(runId || Date.now(), 40)}-${clean(runAttempt || '1', 10)}`.replace(/[^A-Za-z0-9._-]/g, '-');
+  return `maker/issue-${Number(issueNumber)}-${identity}`;
+}
+
+export function nativeEpisodePath(env = process.env) {
+  return path.join(clean(env.RUNNER_TEMP, 4000) || os.tmpdir(), 'sideways-native-episode.json');
+}
+
+async function writeEpisode(episode, env = process.env) {
+  const target = nativeEpisodePath(env);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, `${JSON.stringify(episode, null, 2)}\n`, 'utf8');
+  return target;
 }
 
 async function main() {
@@ -172,11 +194,29 @@ async function main() {
     return;
   }
 
-  const branch = branchFor(issueNumber, process.env.GITHUB_RUN_ID);
+  const branch = branchFor(issueNumber, process.env.GITHUB_RUN_ID, process.env.GITHUB_RUN_ATTEMPT);
+  const endpointHost = new URL(config.base_url).host;
+  const episode = {
+    schema: 'sideways-native-maker-episode/v1',
+    repository,
+    issue_number: issueNumber,
+    run_url: runURL(),
+    branch,
+    provider: { protocol: config.protocol, model: config.model, endpoint_host: endpointHost },
+    intent,
+    started_at: new Date().toISOString(),
+    planning: null,
+    implementation: null,
+    verification: null,
+    outcome: 'started'
+  };
+  await writeEpisode(episode);
+
   await github.comment(issueNumber, receiptComment('Native worker started', {
     branch,
     provider: `${config.protocol}:${config.model}`,
-    endpoint_host: new URL(config.base_url).host,
+    endpoint_host: endpointHost,
+    planning: config.planning_enabled ? 'recursive role planning enabled' : 'disabled by configuration',
     run: runURL(),
     authority: 'branch and draft PR only; no merge or deploy'
   }));
@@ -193,20 +233,44 @@ async function main() {
     timeout_ms: Number(process.env.SIDEWAYS_MODEL_TIMEOUT_MS || 180000),
     retries: Number(process.env.SIDEWAYS_MODEL_RETRIES || 1)
   });
+
+  let planningBrief = null;
+  if (config.planning_enabled) {
+    try {
+      const planning = await runOpenModelPlanning({
+        intent,
+        model_client: model,
+        max_waves: config.planning_max_waves,
+        max_events: config.planning_max_events,
+        max_assignments_per_wave: config.planning_max_assignments
+      });
+      planningBrief = planning.brief;
+      episode.planning = { status: 'completed', ...planningBrief };
+    } catch (error) {
+      planningBrief = { terminal: 'failed', event_count: 0, outputs: [], error: clean(error.message, 2000) };
+      episode.planning = { status: 'failed', ...planningBrief };
+    }
+    await writeEpisode(episode);
+  }
+
   const agent = await runNativeDevAgent({
     root: process.cwd(),
-    intent,
+    intent: { ...intent, planning: planningBrief },
     model_client: model,
     budget: config,
     on_turn: async ({ turn, action, observation }) => {
       process.stdout.write(`${JSON.stringify({ turn, tool: action?.tool || null, ok: observation.ok, finished: observation.finished || false })}\n`);
     }
   });
+  episode.implementation = agent;
+  episode.outcome = agent.status;
+  await writeEpisode(episode);
 
   if (agent.status !== 'finished') {
     await github.comment(issueNumber, receiptComment('Native worker stopped', {
       state: agent.status,
       branch,
+      planning_terminal: planningBrief?.terminal,
       writes: agent.writes,
       action: 'No PR was created.',
       run: runURL()
@@ -217,19 +281,27 @@ async function main() {
 
   const { stdout: dirty } = await git(['status', '--porcelain=v1']);
   if (!clean(dirty)) {
+    episode.outcome = 'finished_without_patch';
+    await writeEpisode(episode);
     await github.comment(issueNumber, receiptComment('Native worker finished without a patch', {
       summary: agent.summary || 'Model produced no repository changes.',
       branch,
+      planning_terminal: planningBrief?.terminal,
       run: runURL()
     }));
     return;
   }
 
   const verification = await verifyCandidate();
+  episode.verification = verification;
+  await writeEpisode(episode);
   if (!verification.ok) {
     const failed = verification.results.find(value => !value.ok);
+    episode.outcome = 'verification_blocked';
+    await writeEpisode(episode);
     await github.comment(issueNumber, receiptComment('Native worker patch blocked', {
       branch,
+      planning_terminal: planningBrief?.terminal,
       failed_witness: failed?.command,
       evidence: `\n\n\`\`\`text\n${clean(failed?.output, 6000)}\n\`\`\``,
       action: 'No commit, push, or PR was created.',
@@ -248,22 +320,24 @@ async function main() {
     pull = await github.createPull({
       title: `[maker:${intent.mode}] ${clean(intent.request.split(/\r?\n/)[0], 96)}`,
       head: branch,
-      base: issue.repository?.default_branch || 'main',
+      base: config.default_branch,
       draft: true,
       body: [
         `Generated from #${issueNumber} by the provider-neutral native Maker worker.`,
         '',
-        `## Model receipt`,
+        '## Model receipt',
         `- protocol: ${config.protocol}`,
         `- model: ${config.model}`,
-        `- endpoint host: ${new URL(config.base_url).host}`,
-        `- turns: ${agent.transcript.length}`,
+        `- endpoint host: ${endpointHost}`,
+        `- planning terminal: ${planningBrief?.terminal || 'disabled'}`,
+        `- planning events: ${planningBrief?.event_count || 0}`,
+        `- implementation turns: ${agent.transcript.length}`,
         `- writes: ${agent.writes}`,
         '',
         '## Worker summary',
         agent.summary || '_No summary returned._',
         '',
-        '## Worker-reported tests',
+        '## Runtime-observed tests',
         ...(agent.tests?.length ? agent.tests.map(value => `- ${value}`) : ['- none']),
         '',
         '## Independent admission witnesses',
@@ -275,10 +349,17 @@ async function main() {
     });
   }
 
+  episode.outcome = 'draft_pr_created';
+  episode.pull_request = pull.html_url;
+  episode.finished_at = new Date().toISOString();
+  await writeEpisode(episode);
+
   await github.comment(issueNumber, receiptComment('Native worker produced a draft PR', {
     branch,
     pull_request: pull.html_url,
+    planning_terminal: planningBrief?.terminal,
     commit_witnesses: verification.results.map(value => value.command).join(' · '),
+    episode_artifact: 'sideways-native-maker-episode',
     run: runURL(),
     authority: 'unmerged and undeployed'
   }));
@@ -286,8 +367,8 @@ async function main() {
   await sleep(100);
 }
 
-if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  main().catch(async error => {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(error => {
     console.error(`maker-native-worker: ${error.stack || error.message}`);
     process.exitCode = 1;
   });
