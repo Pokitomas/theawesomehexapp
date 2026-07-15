@@ -262,11 +262,17 @@ jobs:
 
       - name: Check Add to Sideways on phone and desktop
         run: |
+          set -euo pipefail
           python -m http.server 4173 --directory dist >/tmp/manual-http.log 2>&1 &
           server=$!
           trap 'kill $server || true' EXIT
           sleep 2
-          node manual-kernel/phone-check.mjs
+          set +e
+          node manual-kernel/phone-check.mjs > /tmp/add-to-sideways.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/add-to-sideways.log
+          exit "$status"
 
       - name: Upload Add to Sideways proof
         if: always()
@@ -276,7 +282,9 @@ jobs:
           path: |
             add-to-sideways-phone.png
             add-to-sideways-desktop.png
-          if-no-files-found: ignore
+            /tmp/add-to-sideways.log
+            /tmp/manual-http.log
+          if-no-files-found: warn
           retention-days: 5
 
       - name: Configure Pages
