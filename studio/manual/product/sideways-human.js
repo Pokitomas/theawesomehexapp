@@ -1,14 +1,24 @@
 const ROUTE_LABELS = Object.freeze({
   '#/feed': 'Feed',
   '#/places': 'Places',
-  '#/add': 'Library',
+  '#/add': 'Add to Sideways',
   '#/saved': 'Saved pages',
   '#/profile': 'Your profile',
-  '#/detail': 'Reading'
+  '#/community': 'Community',
+  '#/communities': 'Communities',
+  '#/detail': 'Reading',
+  '#/read': 'Reading',
+  '#/post': 'Conversation'
 });
 
+const DEVELOPER_PATH = /(^|\/)(maker|founder)(\/|$)/;
+const DEVELOPER_QUERY = 'developer';
 let scheduled = false;
-let observer;
+
+function explicitDeveloperView() {
+  const params = new URLSearchParams(location.search);
+  return params.get(DEVELOPER_QUERY) === '1' || location.hash === '#live-work';
+}
 
 function routeLabel() {
   const hash = location.hash || '#/feed';
@@ -17,18 +27,39 @@ function routeLabel() {
   return ROUTE_LABELS[prefix] || 'Sideways';
 }
 
-function hideDeveloperEntrypoints() {
+function separateDeveloperSurfaces() {
+  if (explicitDeveloperView()) {
+    document.documentElement.dataset.sidewaysDeveloperView = 'explicit';
+    return;
+  }
+
+  delete document.documentElement.dataset.sidewaysDeveloperView;
+  for (const selector of [
+    '[data-sideways-remote-launch]',
+    '[data-sideways-remote-terminal]',
+    '#live-work'
+  ]) {
+    for (const node of document.querySelectorAll(selector)) node.remove();
+  }
+
   for (const anchor of document.querySelectorAll('a[href]')) {
     let url;
     try { url = new URL(anchor.href, location.href); }
     catch { continue; }
-    const path = url.pathname.toLowerCase();
-    if (/(^|\/)(maker|founder)(\/|$)/.test(path)) {
+    if (DEVELOPER_PATH.test(url.pathname.toLowerCase())) {
       anchor.dataset.developerBoundary = 'hidden';
       anchor.hidden = true;
       anchor.tabIndex = -1;
       anchor.setAttribute('aria-hidden', 'true');
     }
+  }
+
+  for (const id of ['debugPanel', 'debugPolicy', 'debugState']) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    node.hidden = true;
+    node.setAttribute('aria-hidden', 'true');
+    node.setAttribute('inert', '');
   }
 }
 
@@ -42,6 +73,14 @@ function normalizeExternalLinks() {
     if (!anchor.title) anchor.title = `Open ${url.hostname}`;
     anchor.dataset.sourceHost = url.hostname.replace(/^www\./, '');
   }
+}
+
+function normalizeChromeLanguage() {
+  const commandbar = document.querySelector('[data-workspace-commandbar]');
+  if (commandbar) commandbar.setAttribute('aria-label', 'Site navigation');
+
+  const contract = document.querySelector('.future-status-contract');
+  if (contract && contract.textContent.trim().toLowerCase() === 'things') contract.textContent = ' items';
 }
 
 function installLocationBar() {
@@ -93,8 +132,9 @@ function exposeExistingProvenance() {
 function install() {
   document.documentElement.classList.add('sideways-human-web');
   document.documentElement.dataset.sidewaysHuman = 'ready';
-  hideDeveloperEntrypoints();
+  separateDeveloperSurfaces();
   normalizeExternalLinks();
+  normalizeChromeLanguage();
   installLocationBar();
   exposeExistingProvenance();
 }
@@ -114,15 +154,13 @@ for (const eventName of [
   'sideways:workspacechange',
   'sideways:profilechange',
   'sideways:importcomplete',
+  'sideways:remoteupdate',
   'hashchange',
   'popstate'
 ]) window.addEventListener(eventName, schedule);
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
 else schedule();
-for (const delay of [80, 280, 900]) setTimeout(schedule, delay);
+for (const delay of [80, 280, 900, 1800]) setTimeout(schedule, delay);
 
-observer = new MutationObserver(schedule);
-observer.observe(document.documentElement, { childList: true, subtree: true });
-
-window.SidewaysHuman = Object.freeze({ refresh: schedule, routeLabel });
+window.SidewaysHuman = Object.freeze({ refresh: schedule, routeLabel, explicitDeveloperView });
