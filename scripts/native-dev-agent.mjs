@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { parseModelJSON } from './open-model-adapter.mjs';
+import { terminalReleaseForNativeAgent } from './maker-terminal-release.mjs';
 
 const execFileAsync = promisify(execFile);
 const clean = (value, limit = 20000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
@@ -193,7 +194,9 @@ export async function runNativeDevAgent({
   intent,
   model_client,
   budget: budgetInput = {},
-  on_turn = null
+  on_turn = null,
+  generation_id = 'native-agent',
+  outer_receipt_id = 'native-agent-result'
 } = {}) {
   if (!model_client?.complete) throw new Error('A model client is required.');
   const budget = normalizeAgentBudget(budgetInput);
@@ -235,7 +238,8 @@ export async function runNativeDevAgent({
         total_write_bytes: counters.total_write_bytes,
         git_status: clean(status, MAX_OBSERVATION),
         diff_stat: clean(diff, MAX_OBSERVATION),
-        transcript
+        transcript,
+        termination: terminalReleaseForNativeAgent({ status: 'finished', generation_id, outer_receipt_id })
       };
     }
     conversation.push(
@@ -248,6 +252,7 @@ export async function runNativeDevAgent({
     status: 'budget_exhausted',
     writes: counters.writes,
     total_write_bytes: counters.total_write_bytes,
-    transcript
+    transcript,
+    termination: terminalReleaseForNativeAgent({ status: 'budget_exhausted', generation_id, outer_receipt_id })
   };
 }
