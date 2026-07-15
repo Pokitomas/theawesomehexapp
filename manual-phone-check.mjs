@@ -39,17 +39,31 @@ async function waitForImportOutcome(page) {
   await page.waitForFunction(() => document.querySelector('.import-complete-panel, .import-error-panel'), { timeout: 15000 });
   const error = page.locator('.import-error-panel');
   if (await error.count()) throw new Error(`import error: ${(await error.innerText()).trim()}`);
-  const panel = page.locator('.import-complete-panel');
-  await panel.waitFor({ state: 'visible', timeout: 5000 });
-  await panel.locator('.import-workbench-kicker').filter({ hasText: 'REDDIT' }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('.import-complete-panel').waitFor({ state: 'visible', timeout: 5000 });
+}
+
+function installProfile(context) {
+  return context.addInitScript(() => {
+    localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
+      name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
+    }));
+  });
+}
+
+async function expectFourChoices(page) {
+  await page.waitForFunction(() => document.documentElement.dataset.addToSidewaysReady === 'yes', { timeout: 10000 });
+  const choices = page.locator('.add-sideways-choice');
+  if ((await choices.count()) !== 4) throw new Error(`expected exactly four Add to Sideways choices, got ${await choices.count()}`);
+  for (const label of ['Connect an account', 'Add a website or feed', 'Import files', 'Restore a Sideways backup']) {
+    if ((await page.getByRole('button', { name: label, exact: true }).count()) !== 1) throw new Error(`missing Add to Sideways choice: ${label}`);
+  }
+  for (const badge of ['Web', 'Connected', 'Private', 'Shared']) {
+    if ((await page.locator('.capability-badge').filter({ hasText: badge }).count()) !== 1) throw new Error(`missing capability badge: ${badge}`);
+  }
 }
 
 const gateContext = await browser.newContext(iphone);
-await gateContext.addInitScript(() => {
-  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
-    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
-  }));
-});
+await installProfile(gateContext);
 const gatePage = await gateContext.newPage();
 const gateErrors = collectErrors(gatePage);
 await gatePage.goto('http://127.0.0.1:4173/manual/?debug=1&test=1&autorun=1', { waitUntil: 'networkidle' });
@@ -75,6 +89,7 @@ const coreFilesContract = await gatePage.locator('#addView').evaluate(node => no
 if (!coreFilesContract) throw new Error('underlying FILES + compatibility contract disappeared');
 await gatePage.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeout: 10000 });
 await gatePage.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
+await expectFourChoices(gatePage);
 const visibleLegacyChildren = await gatePage.locator('#addView.studio-add-modern').evaluate(node => [...node.children]
   .filter(child => !child.matches('#importWorkbenchHost, [data-workspace-library-header], [data-survival-vault]'))
   .filter(child => getComputedStyle(child).display !== 'none').length);
@@ -84,11 +99,7 @@ await gatePage.screenshot({ path: 'manual-phone-gate.png', fullPage: true });
 await gateContext.close();
 
 const consumerContext = await browser.newContext(iphone);
-await consumerContext.addInitScript(() => {
-  localStorage.setItem('sideways-workspace-profile-v1', JSON.stringify({
-    name: 'Proof User', handle: 'proof', bio: '', accent: '#335cff'
-  }));
-});
+await installProfile(consumerContext);
 const consumer = await consumerContext.newPage();
 const consumerErrors = collectErrors(consumer);
 let loads = 0;
@@ -102,18 +113,14 @@ await consumer.locator('#importWorkbenchHost').waitFor({ state: 'visible', timeo
 await consumer.locator('section[data-survival-vault]').waitFor({ state: 'visible', timeout: 10000 });
 await consumer.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
 if (await consumer.locator('[data-studio-intro]').count()) throw new Error('duplicate intro card still exists');
-if ((await consumer.locator('.source-card').count()) !== 8) throw new Error('expected exactly eight app cards');
-for (const id of ['instagram', 'reddit', 'tiktok', 'youtube', 'spotify', 'x', 'browser', 'anything']) {
-  if ((await consumer.locator(`.source-card[data-platform="${id}"]`).count()) !== 1) throw new Error(`missing app card: ${id}`);
-}
+await expectFourChoices(consumer);
 for (const forbidden of ['SAVE AND CHOOSE AN APP', 'I HAVE THE FILES', 'ADD TO MY FEED', 'PICK MORE FILES', 'PICK FOLDER']) {
   if (await consumer.getByText(forbidden, { exact: true }).count()) throw new Error(`old setup UI still visible: ${forbidden}`);
 }
 if (await consumer.locator('[data-studio-profile-setup]').count()) throw new Error('profile gate still exists');
 
-const redditImport = consumer.locator('.source-card[data-platform="reddit"] [role="button"]').filter({ hasText: 'IMPORT REDDIT' });
 const chooserPromise = consumer.waitForEvent('filechooser', { timeout: 10000 });
-await touch(consumer, redditImport);
+await touch(consumer, consumer.getByRole('button', { name: 'Import files', exact: true }));
 const chooser = await chooserPromise;
 await chooser.setFiles({
   name: 'comments.csv',
@@ -122,7 +129,7 @@ await chooser.setFiles({
 });
 
 await waitForImportOutcome(consumer);
-if (await consumer.locator('.source-card').count()) throw new Error('app chooser remains visible behind completion');
+if (await consumer.locator('.add-sideways-choice').count()) throw new Error('Add to Sideways chooser remains visible behind completion');
 const refreshedCount = (await consumer.locator('#corpusStatus').textContent())?.trim() || '';
 if (!/^[1-9]\d* THING/.test(refreshedCount)) throw new Error(`core did not refresh after import: ${refreshedCount}`);
 await consumer.getByRole('button', { name: 'OPEN FEED', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
@@ -139,6 +146,33 @@ if (loads !== 0) throw new Error(`OPEN FEED reloaded the page ${loads} time(s)`)
 if (consumerErrors.length) throw new Error(consumerErrors.join(' | '));
 await consumerContext.close();
 
+const desktopContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+await installProfile(desktopContext);
+const desktop = await desktopContext.newPage();
+const desktopErrors = collectErrors(desktop);
+await desktop.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
+await desktop.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+await desktop.getByRole('button', { name: 'ADD', exact: true }).click();
+await expectFourChoices(desktop);
+await desktop.getByRole('button', { name: 'Connect an account', exact: true }).click();
+await desktop.locator('[data-add-to-sideways="connected"]').waitFor({ state: 'visible', timeout: 5000 });
+if ((await desktop.locator('.connection-card').count()) !== 5) throw new Error('expected five honest provider states');
+if ((await desktop.getByRole('button', { name: 'Unavailable', exact: true }).count()) !== 5) throw new Error('static deployment simulated an available account connection');
+await desktop.getByRole('button', { name: 'Add a public website or feed', exact: true }).click();
+await desktop.locator('[data-add-to-sideways="web"]').waitFor({ state: 'visible', timeout: 5000 });
+await desktop.getByLabel('Name (optional)').fill('Example Feed');
+await desktop.getByLabel('Public URL').fill('https://example.com/feed.xml');
+await desktop.getByRole('button', { name: 'Add source', exact: true }).click();
+await desktop.locator('[data-source-list] article').filter({ hasText: 'Example Feed' }).waitFor({ state: 'visible', timeout: 5000 });
+const disable = desktop.getByRole('checkbox', { name: 'Disable Example Feed', exact: true });
+await disable.uncheck();
+await desktop.getByRole('checkbox', { name: 'Enable Example Feed', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+const persisted = await desktop.evaluate(() => JSON.parse(localStorage.getItem('sideways-web-sources-v1') || '[]'));
+if (persisted.length !== 1 || persisted[0].enabled !== false || persisted[0].url !== 'https://example.com/feed.xml') throw new Error('public source controls did not persist');
+await desktop.screenshot({ path: 'manual-add-desktop.png', fullPage: true });
+if (desktopErrors.length) throw new Error(desktopErrors.join(' | '));
+await desktopContext.close();
+
 console.log(JSON.stringify({
   count,
   gate,
@@ -146,13 +180,16 @@ console.log(JSON.stringify({
   visibleLegacyAddSurface: false,
   workspaceLibraryHeader: true,
   survivalVault: true,
+  addToSidewaysChoices: 4,
   duplicateIntro: false,
   chooserBehindCompletion: false,
+  staticConnectionsFailHonestly: true,
+  publicSourcePersistence: true,
   firstRun: 'Profile, write, or one-tap starter',
-  consumerJourney: 'Library → Reddit picker → automatic import → in-place feed',
+  consumerJourney: 'Library → Import files → automatic import → in-place feed',
   automaticReloads: 0,
   refreshedCount,
   importedCount,
-  screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png']
+  screenshots: ['manual-phone-gate.png', 'manual-onboarding-phone.png', 'manual-add-desktop.png']
 }, null, 2));
 await browser.close();
