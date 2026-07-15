@@ -71,7 +71,8 @@ jobs:
           cache: npm
       - name: Install locked browser driver
         run: |
-          npm ci --ignore-scripts
+          npm ci --ignore-scripts --include=dev
+          node -e "import('playwright-core')"
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
       - name: Prove exact kernel in twenty records
         run: node manual-kernel/verify-kernel.mjs
