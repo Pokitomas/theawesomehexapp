@@ -1,106 +1,104 @@
-version: 36
-updated_at: 2026-07-15T01:08:00Z
+version: 37
+updated_at: 2026-07-15T03:26:00Z
 repository: Pokitomas/theawesomehexapp
-canonical_branch: assembly/recursive-weave-cognition
-canonical_pr: 188
+canonical_branch: repair/post-merge-full-pass
+canonical_pr: 212
 base_branch: main
-observed_head_before_ledger: 75e5d430d14383004c13e25abe90ecc47e3d7df9
-state: implementation_complete_pending_exact_head_receipt
+observed_head_before_ledger: 48e78ee5070955f2a8d0071b4218f48141508072
+state: corrective_active_pending_terminal_audit
 
 owner: GPT-5.6 Thinking
-mode: executive convergence with restored bounded grunt review
+mode: full-pass co-engineering after premature HOLD merge
 heartbeat:
-  live_owner_receipt_found: false
-  takeover_reason: no bounded ownership receipt answered the coordination beacon
+  live_owner_receipt_found: true
+  claim_comment: 4976127644
+  current_vehicle: pull_request_212
 
 active_surface:
-  assembly_pr: 188
-  assembly_branch: assembly/recursive-weave-cognition
-  parent_program: 189
-  recursive_parent: 178
-  assembly_issue: 187
+  corrective_pr: 212
+  corrective_branch: repair/post-merge-full-pass
+  base_head: 655d1c91108c4ba5670e411ebe817d6330a09f62
+  terminal_audit_issue: 209
+  terminal_audit_state: reopened
   terminal_decision: HOLD
+  related_replay_issue: 193
+  related_recursive_identity_issue: 203
 
-grunt_corps:
-  shared_baseline: 75e5d430d14383004c13e25abe90ecc47e3d7df9
-  operating_contract: GRUNT_OPERATING_CONTRACT:v3 on issue 178
-  status: restored_waiting_for_lane_receipts
-  lanes:
-    - issue: 179
-      branch: agent/weave-belief-graph
-      state: restored
-    - issue: 180
-      branch: agent/weave-deliberation-planner
-      state: restored
-    - issue: 181
-      branch: agent/weave-memory-retrieval
-      state: restored
-    - issue: 182
-      branch: agent/weave-role-dispatch
-      state: restored
-    - issue: 183
-      branch: agent/weave-synthesis-critic
-      state: restored
-    - issue: 184
-      branch: agent/weave-recursive-runtime
-      state: restored
-    - issue: 185
-      branch: agent/weave-recursion-hostile
-      state: restored
-    - issue: 186
-      branch: agent/weave-inspection-surface
-      state: restored
-  first_receipt_requires:
-    - exact branch and HEAD
-    - worktree status
-    - owned and non-owned paths
-    - parent and adjacent lanes read
-    - existing witnesses read
-    - status NO DEFECT, RED WITNESS, or PATCH PLANNED
-    - first local command
-  local_test_receipt_requires:
-    - exact local HEAD
-    - exact command and exit code
-    - concise output summary
-    - duration when known
-    - environment differences
-    - artifact or log paths
-    - relation to remote exact-head CI
-  policy:
-    - broad reading is required
-    - broad editing is forbidden
-    - local green is advisory until pushed and visible in Actions
-    - generic tests-pass prose is not evidence
+historical_assembly:
+  historical_merge_pr: 188
+  historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
+  merged_candidate_head: 78615a96484581bb44744a115e4a2c6ebdd57679
+  merged_against_terminal_decision: HOLD
+  merge_authority_receipt_found: false
+  disposition: preserve_proven_changes_and_audit_authority_violation
+
+full_pass_delivered:
+  - deterministic recursive cognition identity and business-lifecycle collision checks
+  - truthful memory recency, truncation, diversity, dependency closure, and transitive public privacy
+  - deep immutable role packets, normalized artifact scope, secret denial, and retry-safe dispatch
+  - two-stage structural critique, independent semantic acceptance, and trusted decision admission
+  - runtime and GitHub/Remote bridge recovery with bounded capacity and critic-only admission waves
+  - hostile full-pass witnesses wired into focused and exact-tree CI
+  - immutable GitHub Action SHAs across every workflow
+  - workflow drift tests rejecting floating actions and mutable package installation
+  - exact-head dependency and action inventory artifact
+  - strict v1 persisted replay boundary for operational folds
+
+corrective_scope:
+  strict_v1_replay:
+    - persisted id, issuer, and issued_at are mandatory
+    - deterministic creation is separate from validation
+    - exact duplicate delivery is idempotent
+    - same id with changed content is rejected
+    - event identity is bound to Remote session, generation, issuer, time, and visibility
+    - operational active-state and CLI folds are input-order invariant
+  coordination_truth:
+    - validator no longer hard-codes a closed PR as active
+    - historical HOLD merge remains explicit
+    - terminal audit reopened before any further merge decision
+
+residuals:
+  - legacy normalizeWeaveEvent remains available to creation-oriented internal callers
+  - internal lasso history selection is not yet routed through strict replay validation
+  - v1 paginated dependency closure remains undefined because the schema has no explicit causal reference contract
+  - external production roles, backups, restore evidence, and environment protections remain independently auditable facts
+  - product lifecycle, accessibility, performance, and degraded-state acceptance remain open program contracts
 
 sprawl_consolidation:
   single_ledger: .frankenstate
   superseded_ledger_pr: 156
   duplicate_implementation_branches_created: 0
   duplicate_pull_requests_created: 0
-  merge_performed: false
-  child_branches_are_restored_original_lanes: true
-  child_pull_requests_open: 0
-  assembly_pull_requests_open: 1
+  merge_performed: true
+  historical_merge_pr: 188
+  historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
+  merged_against_terminal_decision: HOLD
+  corrective_pull_requests_open: 1
 
 verification:
-  previous_green_head: 75e5d430d14383004c13e25abe90ecc47e3d7df9
-  status: exact_head_actions_required_after_topology_receipt
+  previous_corrective_green_head: 61334581f65cb80235fc64440a618084f7c7a00c
+  current_pre_ledger_head: 48e78ee5070955f2a8d0071b4218f48141508072
+  status: exact_head_actions_required_after_ledger_truth_update
   witness_substitution_allowed: false
+  previous_exact_head_matrix:
+    total_workflows: 18
+    successful_workflows: 18
 
 completion_receipt:
-  implementation_baseline: complete
-  grunt_restoration: complete
-  grunt_review: active_waiting_for_receipts
+  merged_full_pass_baseline: complete_but_merged_against_hold
+  strict_replay_corrective: implemented_pending_new_exact_head
+  coordination_truth_repair: implemented_pending_new_exact_head
+  terminal_audit: reopened
   merge_decision: HOLD
 
-done_when:
-  - every restored lane posts a fast-read receipt
-  - every local test is visible with command, HEAD, and exit status
-  - exact-head workflows are green after this ledger commit
-  - no competing assembly PR exists
-  - no merge has been performed
+next_decision_requires:
+  - every workflow on the ledger-updated corrective head has a terminal conclusion
+  - exact-tree artifact identifies the same corrective head
+  - issue 209 records HOLD, REJECT, or MERGE RECOMMENDED against that exact head
+  - no merge or auto-merge occurs before the explicit decision
 
 invariants:
   - Do not infer completion from issue prose.
   - A moved branch head invalidates earlier green receipts until exact-head checks complete.
+  - A historical merge does not retroactively authorize itself.
   - No model, comment, or MATCHED receipt grants merge authority.
