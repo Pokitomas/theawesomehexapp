@@ -213,7 +213,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied human Sideways presentation, local ownership, public social projection, Ark recovery, profile-first media, and public live-work terminal")
+    print("applied local ownership, public social projection, Ark recovery, human Sideways presentation, and separated developer surfaces")
 
 
 if __name__ == "__main__":
