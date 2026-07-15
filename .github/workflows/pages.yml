@@ -50,6 +50,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Verify exact-head deployment receipt contract
         run: node --test scripts/tests/deployment-receipt.test.mjs
@@ -112,13 +113,12 @@ jobs:
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
 
-      - name: Install browser and remote tooling
+      - name: Install locked browser and remote tooling
         run: |
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             python -m pip install --disable-pip-version-check pillow
           fi
-          npm install
-          npm install --no-save playwright-core@1.55.0
+          npm ci --ignore-scripts
 
       - name: Cache source mirror and compressed media
         if: github.event_name == 'push'
