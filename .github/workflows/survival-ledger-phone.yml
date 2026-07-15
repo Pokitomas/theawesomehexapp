@@ -48,7 +48,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install locked browser tooling
-        run: npm ci --ignore-scripts
+        run: |
+          npm ci --ignore-scripts --include=dev
+          node -e "import('playwright-core')"
       - name: Prove mirror backup delete restore audit and vault chrome
         run: |
           set -euo pipefail
