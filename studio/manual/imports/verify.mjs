@@ -18,6 +18,26 @@ function checkJS(path) {
   assert.equal(result.status, 0, `${path}\n${result.stderr}`);
 }
 
+const productAssets = [
+  'product/import-studio.js',
+  'product/import-studio.css',
+  'product/import-phone.js',
+  'product/add-to-sideways.js',
+  'product/add-to-sideways.css',
+  'product/discovery-source.js',
+  'product/discovery-private-boundary.js',
+  'product/account-connections.js'
+];
+const builtProductAssets = [
+  'import-studio.js',
+  'import-studio.css',
+  'import-phone.js',
+  'add-to-sideways.js',
+  'add-to-sideways.css',
+  'discovery-source.js',
+  'discovery-private-boundary.js',
+  'account-connections.js'
+];
 const sourceFiles = [
   'shared/corpus-db.js',
   'imports/registry.js',
@@ -27,9 +47,7 @@ const sourceFiles = [
   'imports/corpus-writer.js',
   'imports/record-normalizer.js',
   'imports/apply.py',
-  'product/import-studio.js',
-  'product/import-studio.css',
-  'product/import-phone.js'
+  ...productAssets
 ];
 for (const relative of sourceFiles) {
   assert.equal(await exists(resolve(source, relative)), true, `missing source: ${relative}`);
@@ -43,9 +61,7 @@ const builtFiles = [
   'imports/hash-worker.js',
   'imports/corpus-writer.js',
   'imports/record-normalizer.js',
-  'import-studio.js',
-  'import-studio.css',
-  'import-phone.js',
+  ...builtProductAssets,
   'index.html'
 ];
 for (const relative of builtFiles) {
@@ -58,9 +74,12 @@ for (const relative of builtFiles.filter(path => /\.(m?js)$/.test(path))) checkJ
 const html = await readFile(resolve(manual, 'index.html'), 'utf8');
 assert.match(html, /data-import-workbench/);
 assert.match(html, /data-import-phone/);
+assert.match(html, /data-add-to-sideways/);
 assert.equal((html.match(/import-studio\.css/g) || []).length, 1, 'stylesheet injected more than once');
 assert.equal((html.match(/import-studio\.js/g) || []).length, 1, 'script injected more than once');
 assert.equal((html.match(/import-phone\.js/g) || []).length, 1, 'phone script injected more than once');
+assert.equal((html.match(/add-to-sideways\.css/g) || []).length, 1, 'Add to Sideways stylesheet injected more than once');
+assert.equal((html.match(/add-to-sideways\.js/g) || []).length, 1, 'Add to Sideways script injected more than once');
 
 const runtimeText = await readFile(resolve(source, 'imports/runtime.js'), 'utf8');
 for (const contract of [
@@ -104,9 +123,20 @@ for (const forbidden of ['riskFloor', 'deep_saturation', 'scoreCandidate', 'upda
   assert.equal(runtimeText.includes(forbidden), false, `import runtime duplicated kernel logic: ${forbidden}`);
 }
 
-for (const relative of ['product/studio.js', 'product/import-studio.js', 'product/import-phone.js']) {
+for (const relative of ['product/studio.js', 'product/import-studio.js', 'product/import-phone.js', 'product/add-to-sideways.js']) {
   const text = await readFile(resolve(source, relative), 'utf8');
   assert.equal(text.includes('new MutationObserver'), false, `${relative} reintroduced a global DOM observer`);
+  assert.equal(text.includes('location.reload('), false, `${relative} reintroduced page reload`);
+}
+
+const addText = await readFile(resolve(source, 'product/add-to-sideways.js'), 'utf8');
+for (const label of ['Connect an account', 'Add a website or feed', 'Import files', 'Restore a Sideways backup']) {
+  assert.ok(addText.includes(label), `Add to Sideways choice missing: ${label}`);
+}
+const choices = addText.match(/const CHOICES = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] || '';
+assert.equal((choices.match(/Object\.freeze\(\{ id:/g) || []).length, 4, 'Add to Sideways must have exactly four choices');
+for (const contract of ['sidewaysImportFiles', 'SidewaysVaultUI.chooseArk', 'Survival.restoreArk', 'separate-from-private-archive']) {
+  assert.ok(addText.includes(contract), `Add to Sideways integration missing: ${contract}`);
 }
 
 const { createDefaultRegistry } = await import(`${pathToFileURL(resolve(source, 'imports/registry.js')).href}?verify=${Date.now()}`);
@@ -141,11 +171,25 @@ assert.equal(registry.find(fake('records.jsonl')).id, 'json-lines');
 assert.equal(registry.find(fake('records.csv', 'text/csv')).id, 'csv');
 assert.equal(registry.find(fake('notes.txt', 'text/plain')).id, 'plain-text');
 
+const discovery = await import(`${pathToFileURL(resolve(source, 'product/discovery-source.js')).href}?verify=${Date.now()}`);
+const privateBoundary = await import(`${pathToFileURL(resolve(source, 'product/discovery-private-boundary.js')).href}?verify=${Date.now()}`);
+const connections = await import(`${pathToFileURL(resolve(source, 'product/account-connections.js')).href}?verify=${Date.now()}`);
+assert.throws(() => discovery.safePublicURL('http://127.0.0.1/feed'));
+assert.equal(discovery.boundedFetchPlan('https://example.com/feed').publicCacheBoundary, 'separate-from-private-archive');
+const publicRecord = discovery.normalizeDiscoveryRecord({ id: 'one', title: 'One', url: 'https://example.com/one' }, { state: 'web', sourceId: 'example', sourceUrl: 'https://example.com/feed' });
+assert.throws(() => privateBoundary.saveDiscoveryRecord(publicRecord), /explicit user action/);
+assert.equal(privateBoundary.saveDiscoveryRecord(publicRecord, { explicit: true }).state, 'private');
+assert.equal(connections.connectionCapability({ staticDeployment: true, configured: true }).state, 'unavailable');
+assert.deepEqual(connections.redactConnection({ access_token: 'no', nested: { cursor: 'yes', refreshToken: 'no' } }), { nested: { cursor: 'yes' } });
+
 console.log(JSON.stringify({
   adapters: ids,
   corpusVersion: 2,
   ledger: true,
   workerHashing: true,
   workbench: true,
+  addToSidewaysChoices: 4,
+  publicPrivateBoundary: true,
+  staticConnectionsFailHonestly: true,
   observerFree: true
 }, null, 2));
