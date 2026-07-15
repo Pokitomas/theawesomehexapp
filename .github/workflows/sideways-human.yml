@@ -12,13 +12,16 @@ on:
       - 'maker/leases/issue-294-29455288231-1.json'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: sideways-human-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   human-sideways:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -77,7 +80,13 @@ jobs:
           node --test scripts/tests/sideways-human-boundary.test.mjs
 
       - name: Install locked browser tooling
-        run: npm ci --ignore-scripts --include=dev
+        run: |
+          npm ci --ignore-scripts --include=dev
+          node -e "import('playwright-core')"
+          command -v google-chrome | tee /tmp/sideways-human-browser-path.log || \
+            command -v google-chrome-stable | tee /tmp/sideways-human-browser-path.log || \
+            command -v chromium | tee /tmp/sideways-human-browser-path.log || \
+            command -v chromium-browser | tee /tmp/sideways-human-browser-path.log
 
       - name: Prove phone and desktop assembled product
         run: |
@@ -85,7 +94,13 @@ jobs:
           python -m http.server 4176 >/tmp/sideways-human-http.log 2>&1 &
           server=$!
           trap 'kill "$server" 2>/dev/null || true' EXIT
-          node scripts/tests/sideways-human-phone.mjs
+          sleep 2
+          set +e
+          node scripts/tests/sideways-human-phone.mjs > /tmp/sideways-human-browser.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/sideways-human-browser.log
+          exit "$status"
 
       - name: Verify exact diff and repository
         run: |
@@ -104,5 +119,7 @@ jobs:
             sideways-human-desktop.png
             sideways-human-proof.json
             /tmp/sideways-human-http.log
+            /tmp/sideways-human-browser.log
+            /tmp/sideways-human-browser-path.log
           if-no-files-found: warn
           retention-days: 5
