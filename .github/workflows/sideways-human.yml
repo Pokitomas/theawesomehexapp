@@ -12,9 +12,6 @@ on:
       - 'maker/leases/issue-294-29455288231-1.json'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: sideways-human-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
