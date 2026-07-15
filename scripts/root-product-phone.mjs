@@ -36,12 +36,49 @@ const baseUrl = `http://127.0.0.1:${port}/`;
 
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 
+async function contrastRatio(locator) {
+  return locator.evaluate(node => {
+    const parse = value => {
+      const values = String(value).match(/[\d.]+/g)?.slice(0, 4).map(Number) || [];
+      return { r: values[0] || 0, g: values[1] || 0, b: values[2] || 0, a: values[3] === undefined ? 1 : values[3] };
+    };
+    const blend = (front, back) => ({
+      r: front.r * front.a + back.r * (1 - front.a),
+      g: front.g * front.a + back.g * (1 - front.a),
+      b: front.b * front.a + back.b * (1 - front.a),
+      a: 1
+    });
+    const background = element => {
+      let current = element;
+      let color = { r: 255, g: 255, b: 255, a: 1 };
+      const layers = [];
+      while (current instanceof Element) {
+        const parsed = parse(getComputedStyle(current).backgroundColor);
+        if (parsed.a > 0) layers.push(parsed);
+        current = current.parentElement;
+      }
+      for (let index = layers.length - 1; index >= 0; index -= 1) color = blend(layers[index], color);
+      return color;
+    };
+    const channel = value => {
+      const normalized = value / 255;
+      return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = color => 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
+    const foreground = blend(parse(getComputedStyle(node).color), background(node));
+    const back = background(node);
+    const [high, low] = [luminance(foreground), luminance(back)].sort((a, b) => b - a);
+    return (high + 0.05) / (low + 0.05);
+  });
+}
+
 async function prove({ name, viewport, isMobile = false, screenshot }) {
   const context = await browser.newContext({ viewport, isMobile, hasTouch: isMobile });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.route('**/api/**', route => route.abort('failed'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
   const promise = page.locator('#sideways-product-promise');
@@ -57,9 +94,14 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   const targetSize = await archiveLink.evaluate(node => ({ width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height }));
   if (targetSize.height < 44 || targetSize.width < 44) throw new Error(`${name}: archive target is too small ${JSON.stringify(targetSize)}`);
 
+  const titleContrast = await contrastRatio(promise.locator('h1'));
+  const actionContrast = await contrastRatio(archiveLink);
+  if (titleContrast < 4.5 || actionContrast < 4.5) throw new Error(`${name}: computed contrast below 4.5 (${JSON.stringify({ titleContrast, actionContrast })})`);
+
   await page.waitForSelector('[data-root-explanation-control="true"]', { timeout: 30000 });
   const why = page.locator('[data-root-explanation-control="true"]').first();
-  await why.click();
+  await why.focus();
+  await page.keyboard.press('Enter');
   const panelId = await why.getAttribute('aria-controls');
   const panel = page.locator(`#${panelId}`);
   await panel.waitFor({ state: 'visible' });
@@ -86,24 +128,28 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   if (pageOverflow > 1) throw new Error(`${name}: horizontal overflow ${pageOverflow}px`);
 
   await context.setOffline(true);
-  await why.click();
-  await why.click();
+  await why.focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
   if ((await why.getAttribute('aria-expanded')) !== 'true') throw new Error(`${name}: explanation stopped working offline`);
   await context.setOffline(false);
 
   await archiveLink.focus();
   const focused = await page.evaluate(() => document.activeElement?.matches?.('[data-primary-archive="true"]') === true);
   if (!focused) throw new Error(`${name}: primary archive link is not keyboard focusable`);
+  await page.keyboard.press('Tab');
+  const escaped = await page.evaluate(() => document.activeElement?.matches?.('[data-primary-archive="true"]') !== true);
+  if (!escaped) throw new Error(`${name}: keyboard focus is trapped on the primary archive action`);
   if (errors.length) throw new Error(`${name}: unexpected page errors: ${errors.join(' | ')}`);
   await page.screenshot({ path: screenshot, fullPage: true });
   await context.close();
-  return { name, viewport, promise: promiseText, archiveHref: href, explanationTerms: 4, horizontalOverflow: pageOverflow, reducedMotion, offlineExplanation: true };
+  return { name, viewport, promise: promiseText, archiveHref: href, explanationTerms: 4, horizontalOverflow: pageOverflow, reducedMotion, offlineExplanation: true, badNetwork: true, keyboard: true, contrast: { title: titleContrast, action: actionContrast } };
 }
 
 try {
   const phone = await prove({ name: 'phone', viewport: { width: 390, height: 844 }, isMobile: true, screenshot: 'root-product-phone.png' });
   const desktop = await prove({ name: 'desktop', viewport: { width: 1440, height: 1000 }, screenshot: 'root-product-desktop.png' });
-  process.stdout.write(`${JSON.stringify({ schema: 'sideways-root-product-browser-proof/v1', phone, desktop }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ schema: 'sideways-root-product-browser-proof/v2', phone, desktop }, null, 2)}\n`);
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));
