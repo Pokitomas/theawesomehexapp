@@ -167,11 +167,11 @@ function securityHeaders(headers) {
 export async function probePublicEndpoint(endpoint, { expectedSha, fetchImpl = fetch } = {}) {
   const base = new URL(endpoint);
   if (base.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(base.hostname)) throw new Error('Public endpoint probing requires HTTPS.');
-  const sentinelUrl = new URL('/sideways-deployment.json', base);
+  const sentinelUrl = new URL('/.well-known/sideways-deployment.json', base);
   const socialUrl = new URL('/api/social?op=session', base);
   const [sentinelResponse, socialResponse] = await Promise.all([
-    fetchImpl(sentinelUrl, { method: 'GET', redirect: 'error' }),
-    fetchImpl(socialUrl, { method: 'GET', redirect: 'error' })
+    fetchImpl(sentinelUrl, { method: 'GET', redirect: 'error', headers: { 'cache-control': 'no-cache', accept: 'application/json' } }),
+    fetchImpl(socialUrl, { method: 'GET', redirect: 'error', headers: { accept: 'application/json' } })
   ]);
   const sentinel = await sentinelResponse.json().catch(() => ({}));
   const servedCommit = exactSha(sentinel.commit || sentinel.sha || sentinel.head_sha, 'live sentinel commit');
@@ -180,8 +180,8 @@ export async function probePublicEndpoint(endpoint, { expectedSha, fetchImpl = f
     endpoint: base.origin,
     served_commit: servedCommit,
     commit_matches: servedCommit === expected,
-    sentinel: { status: sentinelResponse.status, ok: sentinelResponse.ok, security_headers: securityHeaders(sentinelResponse.headers) },
-    function: { status: socialResponse.status, ok: socialResponse.ok, content_type: socialResponse.headers.get('content-type') || null },
+    sentinel: { status: sentinelResponse.status, ok: sentinelResponse.ok, url: sentinelUrl.toString(), repository: clean(sentinel.repository, 300) || null, security_headers: securityHeaders(sentinelResponse.headers) },
+    function: { status: socialResponse.status, ok: socialResponse.ok, url: socialUrl.toString(), content_type: socialResponse.headers.get('content-type') || null },
     cookie_security: { set_cookie_present: Boolean(socialResponse.headers.get('set-cookie')), observable_from_server_fetch: true },
     rate_limit: { state: 'not_exercised', reason: 'Read-only probe never hammers a production endpoint.' },
     service_unavailable: { state: socialResponse.status === 503 ? 'observed' : 'not_observed' }
