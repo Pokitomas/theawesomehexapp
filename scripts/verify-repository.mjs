@@ -6,16 +6,18 @@ import process from 'node:process';
 const manifestPath = new URL('../audit/repository-verification.json', import.meta.url);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
-function headSha() {
+function checkedHeadSha() {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
   const result = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
   return result.status === 0 ? result.stdout.trim() : 'unknown';
 }
 
+const checkedHead = checkedHeadSha();
 const receipt = {
   schema: 'sideways-repository-verification/v1',
   repository: process.env.GITHUB_REPOSITORY || 'Pokitomas/theawesomehexapp',
-  head_sha: headSha(),
+  checked_head_sha: checkedHead,
+  candidate_head_sha: process.env.CANDIDATE_HEAD_SHA || checkedHead,
   manifest_version: manifest.version,
   node: process.version,
   started_at: new Date().toISOString(),
