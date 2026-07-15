@@ -80,6 +80,13 @@ export function assessCheckout(cwd = process.cwd()) {
     warnings.push('Codex CLI is not available on PATH. Install it before launching the operator session.');
   }
 
+  const checkoutReadyForMutation =
+    missingFiles.length === 0 &&
+    dirtyPaths.length === 0 &&
+    branch === 'main' &&
+    Boolean(originMain) &&
+    head === originMain;
+
   return {
     schema: 'sideways-agent-takeover/v1',
     repoRoot,
@@ -92,12 +99,8 @@ export function assessCheckout(cwd = process.cwd()) {
     codexInstalled: Boolean(codexVersion),
     codexVersion,
     readyForAssessment: missingFiles.length === 0,
-    readyForMutation:
-      missingFiles.length === 0 &&
-      dirtyPaths.length === 0 &&
-      branch === 'main' &&
-      Boolean(originMain) &&
-      head === originMain,
+    checkoutReadyForMutation,
+    readyForMutation: checkoutReadyForMutation && Boolean(codexVersion),
     warnings,
   };
 }
@@ -160,6 +163,7 @@ export function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   process.stdout.write(`HEAD: ${assessment.head}\n`);
   process.stdout.write(`clean: ${assessment.clean}\n`);
   process.stdout.write(`codex: ${assessment.codexVersion || 'not installed'}\n`);
+  process.stdout.write(`checkout-ready: ${assessment.checkoutReadyForMutation}\n`);
   process.stdout.write(`mutation-ready: ${assessment.readyForMutation}\n`);
   for (const warning of assessment.warnings) {
     process.stdout.write(`warning: ${warning}\n`);
