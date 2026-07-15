@@ -5,7 +5,8 @@ import test from 'node:test';
 const root = new URL('../../', import.meta.url);
 const read = path => readFile(new URL(path, root), 'utf8');
 const audit = JSON.parse(await read('audit/social-product-reachability.json'));
-const client = await read(audit.consumer_client);
+const clientPaths = [audit.consumer_client, ...(audit.consumer_client_extensions || [])];
+const client = (await Promise.all(clientPaths.map(read))).join('\n');
 const server = await read(audit.relational_service);
 
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -31,6 +32,11 @@ function clientHas(operation) {
   }
   if (method === 'GET' && ['discover', 'feed'].includes(op)) {
     return client.includes("requestedMode === 'following' ? 'feed' : 'discover'");
+  }
+  if (method === 'POST' && op === 'post-state') {
+    return client.includes("fetch(`${API}?op=post-state`")
+      && client.includes("method: 'POST'")
+      && client.includes('JSON.stringify({ postId, active: false })');
   }
   const direct = new RegExp(`request\\(['\"]${escape(op)}['\"]\\s*(?:,\\s*\\{([\\s\\S]{0,500}?))?\\)`, 'g');
   const calls = [...client.matchAll(direct)];
@@ -61,7 +67,15 @@ test('public profile editing is a visible server-backed journey with local ident
   assert.ok(clientHas('profile:patch'));
   assert.match(client, /data\.socialProfile|dataset\.socialProfile/);
   assert.match(client, /Local archive identity was not changed/);
-  assert.match(audit.newly_visible_journey, /retains the separate local archive identity/);
+  assert.match(audit.profile_journey, /retains the separate local archive identity/);
+});
+
+test('author-owned public removal is visible without touching the private archive', () => {
+  assert.ok(clientHas('post-state:post'));
+  assert.match(client, /record\?\.social\?\.mine/);
+  assert.match(client, /Your private archive records will not be changed/);
+  assert.match(client, /Private archive unchanged/);
+  assert.match(audit.newly_visible_journey, /private archive records are unaffected/);
 });
 
 test('static mode fails unavailable instead of simulating shared state', () => {
