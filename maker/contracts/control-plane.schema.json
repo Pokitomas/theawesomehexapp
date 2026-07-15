@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/control-plane.schema.json",
+  "title": "Sideways Maker control plane",
+  "oneOf": [
+    { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/job" },
+    { "$ref": "#/$defs/event" }
+  ],
+  "$defs": {
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "draft_pr", "merge", "deploy", "settings"],
+      "properties": {
+        "branch": { "type": "boolean" },
+        "draft_pr": { "type": "boolean" },
+        "merge": { "type": "boolean" },
+        "deploy": { "type": "boolean" },
+        "settings": { "type": "boolean" }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "repository", "base_revision", "mode", "request", "protect", "proof", "backend", "priority", "idempotency_key", "authority"],
+      "properties": {
+        "schema": { "const": "sideways-maker-control-request/v1" },
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", "maxLength": 500 },
+        "base_revision": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "mode": { "enum": ["build", "fix", "explore", "audit"] },
+        "request": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "protect": { "type": "string", "maxLength": 6000 },
+        "proof": { "type": "string", "maxLength": 6000 },
+        "backend": { "type": "string", "maxLength": 100 },
+        "priority": { "type": "number", "minimum": 0, "maximum": 100 },
+        "idempotency_key": { "type": "string", "maxLength": 300 },
+        "authority": { "$ref": "#/$defs/authority" }
+      }
+    },
+    "lease": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["worker_id", "token", "claimed_at", "expires_at"],
+      "properties": {
+        "worker_id": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "token": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "claimed_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "id", "state", "revision", "request", "request_digest", "created_at", "updated_at", "lease", "result", "error"],
+      "properties": {
+        "schema": { "const": "sideways-maker-control-job/v1" },
+        "id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["queued", "running", "completed", "failed", "cancelled"] },
+        "revision": { "type": "integer", "minimum": 1 },
+        "request": { "$ref": "#/$defs/request" },
+        "request_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "lease": { "$ref": "#/$defs/lease" },
+        "result": { "type": ["object", "array", "string", "number", "boolean", "null"] },
+        "error": {
+          "type": ["object", "null"],
+          "properties": {
+            "code": { "type": "string" },
+            "message": { "type": "string" },
+            "recoverable": { "type": "boolean" }
+          },
+          "required": ["code", "message", "recoverable"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "sequence", "event_id", "job_id", "type", "at", "state", "revision", "detail"],
+      "properties": {
+        "schema": { "const": "sideways-maker-control-event/v1" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "event_id": { "type": "string", "minLength": 1 },
+        "job_id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "pattern": "^job\\.[a-z_]+$" },
+        "at": { "type": "string", "format": "date-time" },
+        "state": { "enum": ["queued", "running", "completed", "failed", "cancelled"] },
+        "revision": { "type": "integer", "minimum": 1 },
+        "detail": { "type": "object" }
+      }
+    }
+  }
+}
