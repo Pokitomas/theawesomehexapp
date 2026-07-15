@@ -40,7 +40,7 @@ export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date(
       'founder/founder.css': ['button:focus-visible', 'textarea:focus-visible', 'outline: 4px solid var(--blue)', 'min-height: 48px', '@media (max-width: 980px)', '@media (max-width: 520px)']
     }),
     inspect(root, 'maker_semantic_controls', {
-      'maker/index.html': ['<html lang="en">', 'name="viewport"', '<main class="shell">', 'role="group" aria-label="Command mode"', '<label for="maker-request">', '<label for="maker-protect">', '<label for="maker-proof">']
+      'maker/index.html': ['<html lang="en">', 'name="viewport"', '<main class="shell">', 'role="group"', 'aria-label="Command mode"', '<label for="maker-request">', '<label for="maker-protect">', '<label for="maker-proof">']
     }),
     inspect(root, 'maker_keyboard_touch_and_reflow_baseline', {
       'maker/maker.css': ['button:focus-visible', 'a:focus-visible', 'summary:focus-visible', 'min-height: 48px', 'min-height: 54px', 'min-height: 56px', 'overflow-wrap: anywhere', '@media (max-width: 760px)', '@media (max-width: 520px)']
