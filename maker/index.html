@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#11110f">
+  <meta name="theme-color" content="#17181d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Maker">
-  <meta name="description" content="Phone command and live engineering state for the Sideways repository.">
-  <title>Sideways Dev</title>
+  <meta name="description" content="Turn a desired product capability into a bounded research, distillation, and integration episode.">
+  <title>Sideways Maker</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./maker.css">
@@ -16,68 +16,118 @@
 <body>
   <main class="shell">
     <header class="masthead">
-      <p class="eyebrow">SIDEWAYS / DEV / LIVE</p>
-      <h1>Command.</h1>
-      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">GITHUB</a>
+      <div class="masthead-copy">
+        <p class="eyebrow">SIDEWAYS / CAPABILITY FORGE</p>
+        <h1>Make it able.</h1>
+        <p class="lede">Describe the capability. Maker searches, tests, distills, installs only what it needs, pushes the product, and cleans up.</p>
+      </div>
+      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">VIEW REPOSITORY</a>
     </header>
 
     <section class="command-panel" aria-labelledby="command-heading">
       <div class="command-copy">
-        <h2 id="command-heading">New work</h2>
-        <div class="mode-grid" role="group" aria-label="Command mode">
-          <button type="button" data-mode="build" aria-pressed="true">BUILD</button>
-          <button type="button" data-mode="fix" aria-pressed="false">FIX</button>
-          <button type="button" data-mode="explore" aria-pressed="false">EXPLORE</button>
-          <button type="button" data-mode="audit" aria-pressed="false">AUDIT</button>
+        <div class="section-kicker">01 / INTENT</div>
+        <h2 id="command-heading">Construct a capability</h2>
+        <div class="mode-grid" role="group" aria-label="Capability mode">
+          <button type="button" data-mode="construct" aria-pressed="true">CONSTRUCT</button>
+          <button type="button" data-mode="distill" aria-pressed="false">DISTILL</button>
+          <button type="button" data-mode="adapt" aria-pressed="false">ADAPT</button>
+          <button type="button" data-mode="repair" aria-pressed="false">REPAIR</button>
         </div>
 
-        <label for="maker-request">REQUEST</label>
-        <textarea id="maker-request" maxlength="2400" placeholder="What should exist or what is wrong?"></textarea>
+        <label for="maker-request">THE PRODUCT SHOULD BECOME ABLE TO…</label>
+        <textarea id="maker-request" maxlength="2400" placeholder="Describe the finished capability, not the implementation ticket."></textarea>
 
-        <label for="maker-protect">DO NOT BREAK</label>
-        <textarea id="maker-protect" class="short-field" maxlength="1200" placeholder="Optional boundaries."></textarea>
+        <div class="configuration-grid">
+          <fieldset class="architecture-field">
+            <legend>ARCHITECTURE SEARCH PRIOR</legend>
+            <div class="architecture-grid" role="group" aria-label="Architecture search prior">
+              <button type="button" data-architecture="auto" aria-pressed="true"><strong>AUTO</strong><span>let evidence choose</span></button>
+              <button type="button" data-architecture="recurrent" aria-pressed="false"><strong>RECURRENT</strong><span>RWKV-like streaming</span></button>
+              <button type="button" data-architecture="state-space" aria-pressed="false"><strong>STATE SPACE</strong><span>Mamba-like selective memory</span></button>
+              <button type="button" data-architecture="hybrid" aria-pressed="false"><strong>HYBRID</strong><span>mix proven mechanisms</span></button>
+            </div>
+          </fieldset>
 
-        <label for="maker-proof">PROOF REQUIRED</label>
-        <textarea id="maker-proof" class="short-field" maxlength="1200" placeholder="Optional evidence needed before acceptance."></textarea>
+          <div class="compact-fields">
+            <label for="maker-budget">BUDGET ENVELOPE
+              <input id="maker-budget" type="number" min="0.1" max="100" step="0.1" inputmode="decimal" value="1.3">
+            </label>
+            <label for="maker-runtime">PRODUCT RUNTIME
+              <select id="maker-runtime">
+                <option value="phone">phone</option>
+                <option value="browser">browser</option>
+                <option value="local">local machine</option>
+                <option value="server">server</option>
+                <option value="hybrid">hybrid</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <label for="maker-protect">REALITY THAT MUST SURVIVE</label>
+        <textarea id="maker-protect" class="short-field" maxlength="1200" placeholder="Privacy, authority, compatibility, cost, or product boundaries."></textarea>
+
+        <label for="maker-proof">TERMINATE ONLY WHEN</label>
+        <textarea id="maker-proof" class="short-field" maxlength="1200" placeholder="Name the product-visible proof that ends the episode."></textarea>
       </div>
 
       <aside class="dispatch-panel">
-        <div class="actions">
-          <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">SEND TO CO-ENGINEERS</a>
-          <button id="copy-receipt" type="button">COPY RECEIPT</button>
-          <button id="reset-maker" class="quiet" type="button">CLEAR</button>
+        <div>
+          <div class="section-kicker">02 / LIFECYCLE</div>
+          <h2>From brawl to product</h2>
+          <ol class="lifecycle-list">
+            <li><span>01</span><div><strong>Crawl</strong><small>map repository and allowed public evidence</small></div></li>
+            <li><span>02</span><div><strong>Architect</strong><small>compare recurrent, state-space, hybrid, and baseline candidates</small></div></li>
+            <li><span>03</span><div><strong>Lease</strong><small>install candidates only in an isolated temporary workspace</small></div></li>
+            <li><span>04</span><div><strong>Distill</strong><small>compress the admitted capability into a bounded artifact</small></div></li>
+            <li><span>05</span><div><strong>Integrate</strong><small>push the actual product, not a detached demo</small></div></li>
+            <li><span>06</span><div><strong>Prove</strong><small>run matched, hostile, product-visible witnesses</small></div></li>
+            <li><span>07</span><div><strong>Clean</strong><small>remove temporary installs before release</small></div></li>
+          </ol>
         </div>
-        <p id="command-status" class="status" role="status" aria-live="polite">Draft saved locally.</p>
-        <details>
-          <summary>RECEIPT</summary>
-          <pre id="receipt-preview"></pre>
-        </details>
+
+        <div>
+          <div class="actions">
+            <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">FORGE CAPABILITY</a>
+            <button id="copy-receipt" type="button">COPY MACHINE PLAN</button>
+            <button id="reset-maker" class="quiet" type="button">CLEAR</button>
+          </div>
+          <p id="command-status" class="status" role="status" aria-live="polite">Plan saved on this device.</p>
+          <details>
+            <summary>MACHINE PLAN</summary>
+            <pre id="receipt-preview"></pre>
+          </details>
+        </div>
       </aside>
     </section>
 
     <section class="state-panel" aria-labelledby="state-heading">
       <div class="state-heading-row">
-        <h2 id="state-heading">Live engineering</h2>
+        <div>
+          <div class="section-kicker">03 / PRODUCT PULSE</div>
+          <h2 id="state-heading">What is moving now</h2>
+        </div>
         <button id="refresh-state" class="secondary" type="button">REFRESH</button>
       </div>
       <div class="state-grid">
-        <article><span>MAIN</span><strong id="repo-head">reading…</strong></article>
-        <article><span>ISSUES</span><strong id="open-issues">—</strong></article>
-        <article><span>PRS</span><strong id="open-prs">—</strong></article>
+        <article><span>BASE</span><strong id="repo-head">reading…</strong></article>
+        <article><span>OPEN WORK</span><strong id="open-issues">—</strong></article>
+        <article><span>CANDIDATES</span><strong id="open-prs">—</strong></article>
         <article><span>RUNNING</span><strong id="running-workflows">—</strong></article>
       </div>
 
       <div class="live-columns">
         <section>
-          <h3>OPEN WORK</h3>
+          <h3>ACTIVE CONSTRUCTION</h3>
           <div id="active-work" class="operation-list" aria-label="All open issues and pull requests"></div>
         </section>
         <section>
-          <h3>ACTIONS</h3>
+          <h3>PROOF RUNS</h3>
           <div id="workflow-runs" class="operation-list" aria-label="Recent workflow runs"></div>
         </section>
       </div>
-      <p id="state-status" class="status" role="status" aria-live="polite">Reading GitHub…</p>
+      <p id="state-status" class="status" role="status" aria-live="polite">Reading product state…</p>
     </section>
   </main>
   <script type="module" src="./maker.js"></script>
