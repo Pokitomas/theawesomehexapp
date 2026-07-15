@@ -17,7 +17,10 @@ let scheduled = false;
 
 function explicitDeveloperView() {
   const params = new URLSearchParams(location.search);
-  return params.get(DEVELOPER_QUERY) === '1' || location.hash === '#live-work';
+  return params.get(DEVELOPER_QUERY) === '1'
+    || params.get('debug') === '1'
+    || params.get('test') === '1'
+    || location.hash === '#live-work';
 }
 
 function routeLabel() {
@@ -34,14 +37,6 @@ function separateDeveloperSurfaces() {
   }
 
   delete document.documentElement.dataset.sidewaysDeveloperView;
-  for (const selector of [
-    '[data-sideways-remote-launch]',
-    '[data-sideways-remote-terminal]',
-    '#live-work'
-  ]) {
-    for (const node of document.querySelectorAll(selector)) node.remove();
-  }
-
   for (const anchor of document.querySelectorAll('a[href]')) {
     let url;
     try { url = new URL(anchor.href, location.href); }
@@ -81,6 +76,14 @@ function normalizeChromeLanguage() {
 
   const contract = document.querySelector('.future-status-contract');
   if (contract && contract.textContent.trim().toLowerCase() === 'things') contract.textContent = ' items';
+
+  const statusLaunch = document.querySelector('[data-sideways-remote-launch]');
+  if (statusLaunch) {
+    statusLaunch.setAttribute('aria-label', 'Open site status');
+    statusLaunch.title = 'Site status';
+    const label = statusLaunch.querySelector('[data-remote-label]');
+    if (label) label.textContent = 'STATUS';
+  }
 }
 
 function installLocationBar() {
