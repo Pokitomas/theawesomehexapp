@@ -21,13 +21,20 @@ const manifest = JSON.parse(fs.readFileSync('maker/manifest.webmanifest', 'utf8'
 const worker = fs.readFileSync('maker/sw.js', 'utf8');
 const icon = fs.readFileSync('maker/icon.svg', 'utf8');
 
-for (const id of ['maker-request', 'maker-protect', 'maker-proof', 'send-command', 'copy-receipt', 'reset-maker', 'repo-head', 'open-issues', 'open-prs', 'state-status', 'receipt-preview']) {
-  assert.ok(html.includes(`id="${id}"`), `missing maker control ${id}`);
-}
+for (const id of [
+  'maker-request', 'maker-protect', 'maker-proof', 'send-command', 'copy-receipt', 'reset-maker',
+  'repo-head', 'open-issues', 'open-prs', 'running-workflows', 'active-work', 'workflow-runs',
+  'state-status', 'receipt-preview'
+]) assert.ok(html.includes(`id="${id}"`), `missing maker control ${id}`);
 for (const mode of MODES) assert.ok(html.includes(`data-mode="${mode}"`), `missing maker mode ${mode}`);
 assert.ok(html.includes('apple-mobile-web-app-capable'));
 assert.ok(html.includes('rel="manifest"'));
 assert.ok(html.includes('viewport-fit=cover'));
+assert.ok(html.includes('Live engineering'));
+assert.ok(html.includes('OPEN WORK'));
+assert.ok(html.includes('ACTIONS'));
+assert.ok(!html.includes('../founder/'), 'maker must not expose founder consumer/taste surfaces');
+assert.ok(!html.includes('OPEN SIDEWAYS'), 'maker must not contain consumer product navigation');
 assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('min-height: 56px'));
 assert.equal(manifest.display, 'standalone');
@@ -109,32 +116,44 @@ assert.equal(brokenStorage.save(normalized), false);
 assert.equal(brokenStorage.clear(), false);
 
 const issuesPayload = [
-  { number: 218, title: 'Phone maker', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' },
-  { number: 217, title: 'Replay repair', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/217', pull_request: {} },
-  { number: 216, title: 'Drain proof', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/216', pull_request: {} },
-  { number: 215, title: 'Generation termination', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/215' }
+  { number: 219, title: 'Phone maker', updated_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/219', pull_request: {} },
+  { number: 218, title: 'Maker issue', updated_at: '2026-07-15T04:59:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' },
+  { number: 217, title: 'Replay repair', updated_at: '2026-07-15T04:58:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/217', pull_request: {} },
+  { number: 215, title: 'Generation termination', updated_at: '2026-07-15T04:57:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/215' }
 ];
-const state = normalizeRepositoryState({ sha: '634a511f68e80db708d890a86f757332819f1e5c' }, issuesPayload);
+const runsPayload = {
+  workflow_runs: [
+    { id: 3, name: 'Phone Maker', status: 'in_progress', conclusion: null, event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:01:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/3' },
+    { id: 2, name: 'Authority manifest', status: 'completed', conclusion: 'success', event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/2' },
+    { id: 1, name: 'Old failure', status: 'completed', conclusion: 'failure', event: 'push', head_branch: 'main', head_sha: '123456abcdef7890', created_at: '2026-07-15T04:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/1' }
+  ]
+};
+const state = normalizeRepositoryState({ sha: '634a511f68e80db708d890a86f757332819f1e5c' }, issuesPayload, runsPayload);
 assert.equal(state.short_head, '634a511f68e8');
 assert.equal(state.open_issues, 2);
 assert.equal(state.open_pull_requests, 2);
-assert.equal(state.active[1].kind, 'pull_request');
+assert.equal(state.running_workflows, 1);
+assert.equal(state.active.length, 4, 'all returned open work must remain visible');
+assert.equal(state.runs.length, 3, 'all returned recent workflows must remain visible');
+assert.equal(state.active[0].kind, 'pull_request');
+assert.equal(state.runs[1].conclusion, 'success');
 
 const calls = [];
 const fetched = await fetchRepositoryState(async url => {
   calls.push(url);
   if (url.endsWith('/commits/main')) return { ok: true, status: 200, json: async () => ({ sha: '634a511f68e80db708d890a86f757332819f1e5c' }) };
   if (url.includes('/issues?state=open&per_page=100')) return { ok: true, status: 200, json: async () => issuesPayload };
+  if (url.includes('/actions/runs?per_page=30')) return { ok: true, status: 200, json: async () => runsPayload };
   throw new Error(`unexpected URL ${url}`);
 });
-assert.equal(calls.length, 2);
+assert.equal(calls.length, 3);
 assert.deepEqual(fetched, state);
 
 await assert.rejects(
   fetchRepositoryState(async url => url.endsWith('/commits/main')
     ? { ok: false, status: 403, json: async () => ({}) }
-    : { ok: true, status: 200, json: async () => [] }),
+    : { ok: true, status: 200, json: async () => url.includes('/actions/runs') ? { workflow_runs: [] } : [] }),
   /main state unavailable \(403\)/
 );
 
-console.log('maker console contract ok: phone-safe founder intent becomes a deterministic credential-free GitHub command');
+console.log('maker console contract ok: compact phone command shows every returned open object and recent workflow run');
