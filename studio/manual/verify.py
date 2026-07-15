@@ -248,7 +248,7 @@ def main() -> None:
             raise AssertionError(f"stable DOM hook missing: {hook}")
     if index.count("data-workspace-product") != 2 or index.count("data-universal-media") != 1 or index.count("data-media-modes") != 1:
         raise AssertionError("generated runtime layers are duplicated or missing")
-    if index.count("data-sideways-experience") != 1 or index.count("data-sideways-experience-final") != 1:
+    if index.count("data-sideways-experience>") != 1 or index.count("data-sideways-experience-final>") != 1:
         raise AssertionError("consumer experience layers are duplicated or missing")
     if index.index("data-sideways-experience-final") < index.index("data-survival-ledger"):
         raise AssertionError("final consumer skin must load after subsystem styles")
