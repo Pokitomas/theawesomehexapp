@@ -7,6 +7,7 @@
   "owned_paths": [
     ".github/workflows/maker-native-worker-ci.yml",
     ".github/workflows/maker-pr-collision-gate.yml",
+    "audit/authority-manifest.workflow-projection.mjs",
     "maker/leases/agent-maker-collision-gate.json",
     "scripts/maker-pr-collision-gate.mjs",
     "scripts/tests/maker-pr-collision-gate.test.mjs",
