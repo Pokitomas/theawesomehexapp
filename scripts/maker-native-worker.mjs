@@ -76,13 +76,16 @@ export function normalizeWorkerConfig(env = process.env) {
 }
 
 export function parseMakerLeaseMarker(body = '') {
-  const matches = [...String(body).matchAll(/<!--\s*sideways-(?:maker|path)-lease\/v1\s*([\s\S]*?)-->/gi)];
+  const matches = [...String(body).matchAll(/<!--\s*sideways-(?:maker|path)-lease(?::|\/)v1\s*([\s\S]*?)-->/gi)];
   for (const match of matches.reverse()) {
     try {
       const value = JSON.parse(match[1].trim());
       if (!Array.isArray(value.owned_paths) || !value.owned_paths.length) continue;
       return {
         version: 'sideways-maker-lease/v1',
+        schema: 'sideways-maker-lease/v1',
+        session_id: clean(value.session_id || value.branch || value.owner || 'active-lease', 300),
+        base_branch: clean(value.base_branch || 'main', 200),
         base_sha: clean(value.base_sha, 40),
         branch: clean(value.branch || value.owner || 'unknown-active-lease', 240),
         writer_count: Number(value.writer_count ?? 1),
@@ -362,7 +365,18 @@ async function main() {
 
   let pull = await github.findOpenPull(owner, branch);
   if (!pull) {
-    const leaseMarker = `<!-- sideways-maker-lease/v1\n${JSON.stringify(agent.lease)}\n-->`;
+    const prLease = {
+      schema: 'sideways-maker-lease/v1',
+      session_id: `issue-${issueNumber}-${clean(process.env.GITHUB_RUN_ID || 'local', 80)}`,
+      selected_lane: `maker-${intent.mode}`,
+      base_branch: config.default_branch,
+      base_sha: baseSha,
+      branch,
+      writer_count: 1,
+      owned_paths: agent.lease.owned_paths,
+      authority: { merge: 'human', deploy: 'human' }
+    };
+    const leaseMarker = `<!-- sideways-maker-lease:v1\n${JSON.stringify(prLease)}\n-->`;
     pull = await github.createPull({
       title: `[maker:${intent.mode}] ${clean(intent.request.split(/\r?\n/)[0], 96)}`,
       head: branch,
