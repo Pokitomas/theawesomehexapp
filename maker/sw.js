@@ -1,4 +1,4 @@
-const CACHE = 'sideways-maker-v1';
+const CACHE = 'sideways-maker-v2';
 const SHELL = ['./', './index.html', './maker.css', './maker.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
