@@ -13,6 +13,8 @@ const {
   upsertDeploymentReceipt
 } = receipt;
 
+const immutableAction = name => new RegExp(`uses:\\s*${name.replace('/', '\\/')}@[0-9a-f]{40}(?:\\s+#\\s*v\\d+)?`);
+
 function loadPagesWorkflow({
   workspace = process.env.GITHUB_WORKSPACE || process.cwd(),
   readFile = readFileSync
@@ -173,16 +175,16 @@ test('workflow loader anchors to the checked-out workspace instead of the test m
 test('Pages workflow cannot record a receipt before the live commit is verified', () => {
   const { workflow } = loadPagesWorkflow();
   const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
-  const uploadArtifact = workflow.indexOf('uses: actions/upload-pages-artifact@v3');
+  const uploadArtifactMatch = workflow.match(immutableAction('actions/upload-pages-artifact'));
   const deployJobStart = workflow.indexOf('\n  deploy:\n');
 
   assert.ok(writeSentinel >= 0, 'workflow must write a deployment sentinel');
-  assert.ok(uploadArtifact > writeSentinel, 'sentinel must be inside the uploaded Pages artifact');
-  assert.ok(deployJobStart > uploadArtifact, 'deploy job must follow artifact upload');
+  assert.ok(uploadArtifactMatch?.index > writeSentinel, 'sentinel must be inside the uploaded Pages artifact');
+  assert.ok(deployJobStart > uploadArtifactMatch.index, 'deploy job must follow artifact upload');
 
   const deployJob = workflow.slice(deployJobStart);
-  const checkout = deployJob.indexOf('- uses: actions/checkout@v4');
-  const deployPages = deployJob.indexOf('uses: actions/deploy-pages@v4');
+  const checkout = deployJob.search(immutableAction('actions/checkout'));
+  const deployPages = deployJob.search(immutableAction('actions/deploy-pages'));
   const verifyLive = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-live');
   const upsertReceipt = deployJob.indexOf('const { upsertDeploymentReceipt } = require');
 
