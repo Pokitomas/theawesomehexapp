@@ -1,0 +1,13 @@
+{
+  "schema": "sideways-ranking-evaluation-fixture/v1",
+  "gate": 0.72,
+  "slate_size": 4,
+  "candidates": [
+    { "id": "a", "source": "cluster-1", "topic": "politics", "engagement": 0.95, "affinity": 0.95, "relevance": 0.94, "axisDistance": 0.05, "sourceNovelty": 0.05, "viewpointGap": 0.04, "context": 0.20, "motive": 0.74, "place": 0.10, "topicDistance": 0.05, "duplicateRisk": 0.90, "graphicRisk": 0.30 },
+    { "id": "b", "source": "cluster-1", "topic": "politics", "engagement": 0.93, "affinity": 0.92, "relevance": 0.91, "axisDistance": 0.08, "sourceNovelty": 0.04, "viewpointGap": 0.07, "context": 0.20, "motive": 0.70, "place": 0.10, "topicDistance": 0.07, "duplicateRisk": 0.88, "graphicRisk": 0.20 },
+    { "id": "c", "source": "cluster-1", "topic": "politics", "engagement": 0.90, "affinity": 0.91, "relevance": 0.89, "axisDistance": 0.10, "sourceNovelty": 0.03, "viewpointGap": 0.08, "context": 0.22, "motive": 0.68, "place": 0.10, "topicDistance": 0.08, "duplicateRisk": 0.86, "graphicRisk": 0.10 },
+    { "id": "d", "source": "cluster-2", "topic": "local-science", "engagement": 0.70, "affinity": 0.72, "relevance": 0.76, "axisDistance": 0.94, "sourceNovelty": 0.96, "viewpointGap": 0.84, "context": 0.88, "motive": 0.81, "place": 0.72, "topicDistance": 0.82, "duplicateRisk": 0.04, "graphicRisk": 0.05 },
+    { "id": "e", "source": "cluster-3", "topic": "labor-history", "engagement": 0.68, "affinity": 0.70, "relevance": 0.74, "axisDistance": 0.90, "sourceNovelty": 0.92, "viewpointGap": 0.80, "context": 0.91, "motive": 0.84, "place": 0.40, "topicDistance": 0.78, "duplicateRisk": 0.06, "graphicRisk": 0.02 },
+    { "id": "f", "source": "cluster-4", "topic": "art-process", "engagement": 0.66, "affinity": 0.68, "relevance": 0.72, "axisDistance": 0.88, "sourceNovelty": 0.89, "viewpointGap": 0.76, "context": 0.85, "motive": 0.79, "place": 0.32, "topicDistance": 0.86, "duplicateRisk": 0.03, "graphicRisk": 0.04 }
+  ]
+}
