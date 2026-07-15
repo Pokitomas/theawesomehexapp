@@ -44,19 +44,29 @@ export function evaluateRankingFixture(fixture) {
   const gate = Number(fixture.gate || 0);
   const baseline = ranked(candidates, candidate => baseScore(candidate)).slice(0, size);
   const saturation = ranked(candidates, candidate => baseScore(candidate) + gate * lateralValue(candidate)).slice(0, size);
+  const baselineMetrics = metrics(baseline);
+  const saturationMetrics = metrics(saturation);
   return {
     schema: 'sideways-ranking-evaluation/v1',
     fixture_schema: fixture.schema,
     gate,
-    baseline: { ids: baseline.map(item => item.id), metrics: metrics(baseline) },
-    saturation: { ids: saturation.map(item => item.id), metrics: metrics(saturation) },
+    model_scope: 'deterministic B_i + fixed_gate * V_i comparison',
+    omitted_production_terms: [
+      'sampled posterior family advantage U_i',
+      'bounded exploration noise eta_i',
+      'dynamic saturation load, hysteresis, and gate smoothing',
+      'greedy set-diversity reranking',
+      'online posterior updates from interaction proxies'
+    ],
+    baseline: { ids: baseline.map(item => item.id), metrics: baselineMetrics },
+    saturation: { ids: saturation.map(item => item.id), metrics: saturationMetrics },
     deltas: {
-      unique_sources: metrics(saturation).unique_sources - metrics(baseline).unique_sources,
-      unique_topics: metrics(saturation).unique_topics - metrics(baseline).unique_topics,
-      mean_base_score: metrics(saturation).mean_base_score - metrics(baseline).mean_base_score,
-      mean_lateral_value: metrics(saturation).mean_lateral_value - metrics(baseline).mean_lateral_value
+      unique_sources: saturationMetrics.unique_sources - baselineMetrics.unique_sources,
+      unique_topics: saturationMetrics.unique_topics - baselineMetrics.unique_topics,
+      mean_base_score: saturationMetrics.mean_base_score - baselineMetrics.mean_base_score,
+      mean_lateral_value: saturationMetrics.mean_lateral_value - baselineMetrics.mean_lateral_value
     },
-    interpretation: 'Synthetic fixture comparison only; not user satisfaction, wellbeing, or production outcome evidence.'
+    interpretation: 'Synthetic deterministic geometry comparison only; not a full production-kernel reproduction and not user satisfaction, wellbeing, or production outcome evidence.'
   };
 }
 
