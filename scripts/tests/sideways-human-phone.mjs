@@ -1,30 +1,36 @@
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
+
+function commandPath(name) {
+  try { return execFileSync('sh', ['-lc', `command -v ${name}`], { encoding: 'utf8' }).trim(); }
+  catch { return ''; }
+}
 
 const executablePath = [
   process.env.CHROME_BIN,
+  process.env.CHROME_PATH,
+  commandPath('google-chrome'),
+  commandPath('google-chrome-stable'),
+  commandPath('chromium'),
+  commandPath('chromium-browser'),
+  '/opt/google/chrome/chrome',
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium',
   '/usr/bin/chromium-browser'
 ].filter(Boolean).find(path => fs.existsSync(path));
-if (!executablePath) throw new Error('no Chromium found');
 
 const baseURL = process.env.SIDEWAYS_MANUAL_URL || 'http://127.0.0.1:4176/manual-app/';
 const forbidden = /\b(?:AI|agent|model|prompt|co-engineer|Maker|Foundry|weave|lasso|genome|simulation|command[ -]?center|debug)\b/i;
 const proof = {
-  executablePath,
+  executablePath: executablePath || null,
   baseURL,
   phone: null,
   desktop: null,
   errors: []
 };
-
-const browser = await chromium.launch({
-  headless: true,
-  executablePath,
-  args: ['--no-sandbox', '--disable-dev-shm-usage']
-});
+let browser = null;
 
 async function inspect(viewport, name, options = {}) {
   const context = await browser.newContext({
@@ -122,6 +128,12 @@ async function inspect(viewport, name, options = {}) {
 }
 
 try {
+  if (!executablePath) throw new Error('no Chromium executable found in environment or runner paths');
+  browser = await chromium.launch({
+    headless: true,
+    executablePath,
+    args: ['--no-sandbox', '--disable-dev-shm-usage']
+  });
   proof.phone = await inspect({ width: 390, height: 844 }, 'phone', { mobile: true });
   proof.desktop = await inspect({ width: 1280, height: 900 }, 'desktop');
 } catch (error) {
@@ -130,5 +142,5 @@ try {
 } finally {
   fs.writeFileSync('sideways-human-proof.json', `${JSON.stringify(proof, null, 2)}\n`);
   console.log(JSON.stringify(proof, null, 2));
-  await browser.close();
+  if (browser) await browser.close();
 }
