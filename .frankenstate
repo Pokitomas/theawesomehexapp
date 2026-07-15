@@ -1,77 +1,101 @@
-version: 34
-updated_at: 2026-07-14T19:52:00Z
+version: 35
+updated_at: 2026-07-15T00:31:00Z
 repository: Pokitomas/theawesomehexapp
-branch: main
-active_pr: 10 open drafts on main (#140-#149), each closing a numbered issue in the #127-#139 authority-hardening backlog, all with full green CI as of this check
-integration_pr: 84 merged
-integration_merge: 739ae16f1a931ad16958dabb10c6a668a0bb676b
-final_fix_pr: 87 merged
-runtime_merge_commit: 0fa45593c53a2e2fe60c46c52f6b558ca6f4d355
-documentation_pr: 88 merged
-documentation_merge: d0077efb10b75d30e28cfd53ad9afd6d48b1950c
-documentation_correction: a8008ce04304c08c245c53d460ddadb0dd3ddff0
-exact_tested_head: 2cfeb265fc9fb73b0cd62196cedf3a03f9ecb237
-previous_remote_merge: 316901b10f809067f71568141aae3b240099240b
-previous_product_merge: b9f6f3cf5a464f0d1e95fc1d3b3b26efa005efa3
-previous_runtime_merge: 1282312114941e75327cb29b70978f68b744575a
-previous_verified_deployment_receipt: 85
-superseded_pr: 73 closed locked resolved
+canonical_branch: assembly/recursive-weave-cognition
+canonical_pr: 188
+base_branch: main
+observed_head_before_ledger: 4339baecaa44f8811f0fa2377fc7ebe6e9d248de
+state: implementation_complete_pending_exact_head_receipt
 
-owner: heartbeat-audit (claude-sonnet-5, external co-engineer session)
-mode: corrective ledger sync only - no product, protocol, or workflow change
+owner: GPT-5.6 Thinking
+mode: executive full-stack convergence and sprawl consolidation
+heartbeat:
+  searched:
+    - open issue titles, bodies, and comments
+    - repository code search
+    - recent commit messages
+    - issue 210 beacon replies
+  live_owner_receipt_found: false
+  historical_record:
+    owner: heartbeat-audit
+    status: superseded_historical_generation
+    commits:
+      - 73d68ceca8011125ce1f95dfe5ff7f04a4d3914a
+      - f7b59de7bdd4aeeac7c6f6b92648dbd05d27d83c
+  takeover_reason: no current branch, head, dirty-state, owned-path, or consume-into receipt answered the coordination beacon
 
-current_subtask:
-  summary: Found this ledger claiming active_pr: none while 10 draft PRs were actually open and passing on main. Corrected the stale fields only; did not rewrite prior-generation history.
-  observed_open_prs:
-    - "#149 moderation role hierarchy (closes #137)"
-    - "#148 social deletion witness (closes #130)"
-    - "#147 remote fail-closed capability (closes #133)"
-    - "#146 recovery ordering (closes #128)"
-    - "#145 public LIVE privacy (closes #129)"
-    - "#144 workflow authority hardening (closes #132)"
-    - "#143 cookie provenance (closes #138)"
-    - "#142 lasso idempotency proof (closes #127)"
-    - "#141 authority manifest drift check (closes #139)"
-    - "#140 social idempotency authority (closes #136)"
-  known_dead_state:
-    - 4 CI runs orphaned in queued status since 2026-07-13T14:13:02Z (PR #43's branch, merged before they ran); not cancelled - auditing session lacked Actions write scope
-  done_when: ledger matches observed repository state; does not claim to have reviewed or merged any open PR
+active_surface:
+  pull_requests:
+    - number: 188
+      branch: assembly/recursive-weave-cognition
+      base: main
+      draft: true
+      merge_authority: false
+      role: canonical recursive-weave proposal and repository-gate branch
+  coordination_issue: 210
+  parent_program: 189
+  recursive_parent: 178
+  assembly_issue: 187
+  terminal_audit: 209
 
-# NOTE: a prior commit on this path briefly wrote this file as a raw base64
-# blob due to a tool-input mistake (content was pre-encoded before calling
-# create_or_update_file, which expects plain text). This commit restores
-# plain-text YAML and corrects the mistake.
+completed_this_generation:
+  - preserved all already-pushed dependency-lock and exact-tree-gate work
+  - repaired canonical runRecursiveCognitionBridge idle behavior for empty or untrusted-only state
+  - restored the direct unauthorized-seed witness instead of relying only on the guarded wrapper
+  - kept runGuardedRecursiveCognitionBridge as defense in depth
+  - retained one implementation branch and one pull request
 
-# Prior generation's full closure record (version 33 current_subtask /
-# verification / production blocks) remains available in git history at
-# this path, commit 05fbc53 and earlier.
+sprawl_consolidation:
+  single_ledger: .frankenstate
+  superseded_ledger_pr: 156
+  duplicate_implementation_branches_created: 0
+  duplicate_pull_requests_created: 0
+  merge_performed: false
+  active_issue_policy:
+    - issues 179 through 186 remain specialization contracts until independently evidenced or explicitly superseded
+    - issue 187 remains the only recursive assembly target
+    - issues 203 through 208 remain hostile review requirements, not separate assembly authority
+    - issue 210 owns coordination representation only
+    - issue 209 remains terminal review and explicit merge-decision authority
+  closure_policy: no issue is closed solely from green CI or prose; closure requires exact evidence or explicit supersession
+
+verification:
+  code_head: 4339baecaa44f8811f0fa2377fc7ebe6e9d248de
+  required_workflows:
+    - Verify recursive weave cognition
+    - Verify weave protocol
+    - Verify exact repository tree
+    - Verify workflow authority
+    - Authority manifest drift
+    - Verify Remote authority assembly
+  status: pending_exact_head_actions_after_ledger_commit
+  witness_integrity:
+    direct_canonical_untrusted_seed_test: restored
+    guarded_wrapper_test: retained
+    witness_substitution_allowed: false
+
+done_when:
+  - this ledger is the sole live coordination surface
+  - exact-head workflows are green after this ledger commit
+  - PR 188 body and issue 210 receipt identify the final pushed head
+  - no sibling implementation PR exists
+  - no merge has been performed
 
 invariants:
   - Preserve the exact root ranking kernel and stable debug hooks.
   - IndexedDB is canonical working state, not a promise against browser eviction.
   - One shared corpus module owns schema upgrades; root clients open the current version without pinning it.
-  - Request persistent storage and report best-effort status honestly.
   - Corpus mutations and compatibility receipts commit atomically.
-  - Full-file hashing must not run on the main thread when Worker and Web Crypto exist.
-  - Heavy media hydrates near the viewport only and releases object URLs when cold.
-  - Video and audio sources must be detached before their object URLs are revoked.
-  - Magic bytes and content outrank absent or contradictory MIME metadata.
-  - Unknown binary must never be decoded into feed text.
   - Every local record may be deleted; shared assets may not be removed while referenced.
   - Feed Full and Desktop may change layout physics but never ranking records or action semantics.
-  - Every visible custom product control must come from the action contract and exist when its surface becomes visible.
-  - Fixed chrome must never make a physically covered control count as a passing touch target.
-  - Temporary proof content may exist only inside test journeys and must be gone before the browser context closes.
-  - Static compatibility may replace only a missing starter endpoint and must not impersonate profile or remote persistence.
   - Backend identity must not persist the raw local device secret.
-  - Remote principals are opaque capability holders and must not encode vendors models companies or permanent collaboration roles.
-  - Remote message payloads remain project-defined and open-ended.
+  - Remote principals are opaque capability holders and must not encode vendors, models, companies, or permanent collaboration roles.
   - Remote messages are append-only and retrieval is cursor-based.
-  - Private credentials signatures private payloads and write authority must never enter consumer code or repository content.
+  - Private credentials, signatures, private payloads, and write authority must never enter consumer code or repository content.
   - A terminal session generation cannot silently resume; further work requires a new generation or session.
   - Every successful terminal check must identify the exact tested Git head.
-  - A deployed production receipt must name the exact merge SHA.
   - The public LIVE terminal may expose only explicitly public projections.
-  - REMOTE_WORK.md REMOTE_THOUGHT.md and generation metadata are discovery pointers not live-state ledgers.
   - Do not add a second engineering-belief ledger or duplicate runtime schema authority.
-  - Never use or persist credentials pasted into chat.
+  - Do not infer completion from issue prose.
+  - A moved branch head invalidates earlier green receipts until exact-head checks complete.
+  - No model, comment, or MATCHED receipt grants merge authority.
