@@ -1,28 +1,80 @@
-version: 38
-updated_at: 2026-07-15T03:40:00Z
+version: 39
+updated_at: 2026-07-15T06:38:00Z
 repository: Pokitomas/theawesomehexapp
-canonical_branch: main
-canonical_pr: 212
+canonical_branch: revival/repository-wide-generation
+canonical_pr: 233
 base_branch: main
-observed_head_before_ledger: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-state: complete
+observed_head_before_ledger: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
+state: revival_active_pending_exact_head_receipts
 
-owner: GPT-5.6 Thinking
-mode: operator-authorized liberal break-fast full pass
+owner: GPT-5.6 Thinking repository-wide revival generation
+mode: aggressive parallel revival with explicit collisions and human merge authority
 heartbeat:
   live_owner_receipt_found: true
-  merge_receipt_comment: 4976628053
-  current_vehicle: main
+  root_issue: 223
+  current_vehicle: revival/repository-wide-generation
+  current_pull_request: 233
 
-terminal_surface:
-  corrective_pr: 212
-  corrective_branch: repair/post-merge-full-pass
-  corrective_source_head: 1e9cd26657fe134fe9088a712606c9c4ff2ab518
-  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-  live_main_verified: true
-  open_pull_requests_after_merge: 0
-  terminal_audit_issue: 209
-  operator_policy: liberal_break_fast
+revival_generation:
+  generation: 1
+  parent_issue: 223
+  product_issue: 224
+  archive_issue: 225
+  social_issue: 226
+  ranking_issue: 227
+  weave_issue: 228
+  maker_issue: 229
+  operations_issue: 230
+  quality_issue: 231
+  assembly_issue: 232
+  active_lane_count: 9
+  canonical_assembly_branch: revival/repository-wide-generation
+  canonical_assembly_pr: 233
+
+lane_claims:
+  product:
+    issue: 224
+    branch: revival/product-journey
+    state: declared_pending_stakeout
+  archive:
+    issue: 225
+    branch: revival/archive-survival
+    state: declared_pending_stakeout
+  social:
+    issue: 226
+    branch: revival/social-product
+    state: declared_pending_stakeout
+  ranking:
+    issue: 227
+    branch: revival/ranking-evaluation
+    state: declared_pending_stakeout
+  weave:
+    issue: 228
+    candidate_pull_requests: 216,217
+    state: exact_head_selection_required
+  maker:
+    issue: 229
+    candidate_pull_request: 222
+    state: runtime_configuration_required
+  operations:
+    issue: 230
+    branch: revival/operations-proof
+    state: declared_pending_stakeout
+  quality:
+    issue: 231
+    branch: revival/human-quality
+    state: declared_pending_stakeout
+  assembly:
+    issue: 232
+    branch: revival/repository-wide-generation
+    pull_request: 233
+    state: active
+
+collision_policy:
+  duplicate_ownership_allowed: false
+  overlapping_paths_require_written_resolution: true
+  candidate_prs_are_not_accepted_automatically: true
+  moved_head_invalidates_prior_receipt: true
 
 historical_assembly:
   historical_merge_pr: 188
@@ -30,24 +82,24 @@ historical_assembly:
   merged_candidate_head: 78615a96484581bb44744a115e4a2c6ebdd57679
   merged_against_terminal_decision: HOLD
   merge_authority_receipt_found: false
-  disposition: preserve_proven_changes_and_audit_authority_violation
+  disposition: preserve_proven_changes_and_keep_authority_violation_explicit
 
-full_pass_delivered:
-  - deterministic recursive cognition identity and business-lifecycle collision checks
-  - truthful memory recency, truncation, diversity, dependency closure, and transitive public privacy
-  - deep immutable role packets, normalized artifact scope, secret denial, and retry-safe dispatch
-  - two-stage structural critique, independent semantic acceptance, and trusted decision admission
-  - runtime and GitHub/Remote bridge recovery with bounded capacity and critic-only admission waves
-  - hostile full-pass witnesses wired into focused and exact-tree CI
-  - immutable GitHub Action SHAs and exact-head dependency inventory
-  - strict persisted v1 replay for operational folds and lasso history selection
-  - truthful post-merge coordination state
+corrective_history:
+  corrective_pr: 212
+  corrective_branch: repair/post-merge-full-pass
+  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
+  coordination_truth_pr: 213
+  prior_terminal_main: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
 
-residuals:
-  - legacy normalizeWeaveEvent remains available to creation-oriented internal callers
-  - v1 paginated dependency closure remains undefined because the schema has no explicit causal reference contract
-  - external production roles, backups, restore evidence, and environment protections remain independently auditable facts
-  - product lifecycle, accessibility, performance, and degraded-state acceptance remain open program contracts
+repository_truth:
+  root_reader: implemented
+  private_archive: implemented_but_product_and_quality_followups_open
+  public_social_authority: implemented_but_consumer_journeys_incomplete
+  ranking_kernel: deterministic_demo_proxy_not_outcome_validated
+  weave: implemented_with_open_lifecycle_and_privacy_candidate_prs
+  maker_phone_console: implemented
+  native_open_model_worker: draft_pr_222_not_merged_or_configured
+  external_operations: partly_unknown
 
 sprawl_consolidation:
   single_ledger: .frankenstate
@@ -58,32 +110,31 @@ sprawl_consolidation:
   historical_merge_pr: 188
   historical_merge_commit: d0b628b9800a986f87f153378846ddce224a4058
   merged_against_terminal_decision: HOLD
-  corrective_merge_pr: 212
-  corrective_merge_commit: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-  corrective_pull_requests_open: 0
+  current_revival_pull_request: 233
 
 verification:
-  corrective_source_head: 1e9cd26657fe134fe9088a712606c9c4ff2ab518
-  live_main_head: a5c4c5d663a8bec5c6698e1da4df366abca8b433
-  unique_source_head_workflows: 18
-  successful_source_head_workflows: 18
-  status: remote_merge_verified
+  observed_main_head: ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a
+  canonical_revival_head: pending_exact_head_ci
+  child_exact_heads: pending
+  whole_repository_matrix: pending
   witness_substitution_allowed: false
 
-completion_receipt:
-  recursive_full_pass: merged
-  strict_replay_corrective: merged
-  lasso_strict_history: merged
-  coordination_truth_repair: complete
-  merge_decision: operator_authorized_break_fast
-
-followup_contracts:
-  - define paginated v1 causal dependency closure through issue 193 or a successor
-  - continue independent product lifecycle, accessibility, performance, degraded-state, and operations acceptance
-  - verify external production roles, secrets, backups, retention, and environment protections outside repository code
+completion_requirements:
+  - coherent product journey on phone and desktop
+  - private archive survival under destructive and degraded conditions
+  - public social and community journeys against honest capability modes
+  - ranking explanation and reproducible evaluation separated from demo rewards
+  - weave running, dispatch, drain, terminal, and new-generation receipts
+  - one real configured open-model Maker episode
+  - dated external operations and recovery evidence
+  - accessibility, browser, performance, and degraded-state acceptance
+  - exact assembled head with explicit MERGE RECOMMENDED, HOLD, or REJECT decision
 
 invariants:
   - Do not infer completion from issue prose.
   - A moved branch head invalidates earlier green receipts until exact-head checks complete.
+  - Existing candidate pull requests are inputs, not accepted commits.
+  - Parallel lanes must declare unique ownership before editing.
+  - Collisions remain visible until written resolution.
   - A historical merge does not retroactively authorize itself.
   - No model, comment, or MATCHED receipt grants merge authority.
