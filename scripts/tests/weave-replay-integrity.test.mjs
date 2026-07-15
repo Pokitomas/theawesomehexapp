@@ -4,17 +4,20 @@ import {
   canonicalWeaveMessages,
   createWeaveEvent,
   foldWeaveMessages,
-  normalizePersistedWeaveEvent
+  normalizePersistedWeaveEvent,
+  normalizePersistedWeaveMessage,
+  strictWeavePayload
 } from '../weave-replay-integrity.mjs';
 
 const at = index => new Date(Date.UTC(2026, 6, 15, 3, 30, index)).toISOString();
 
-function beacon(id, signal = 'Need review', issued_at = at(1)) {
+function beacon(id, signal = 'Need review', issued_at = at(1), visibility = 'public') {
   return createWeaveEvent({
     id,
     kind: 'beacon.emit',
     issuer: 'agent:alpha',
     issued_at,
+    visibility,
     body: {
       beacon_id: 'beacon:one',
       kind: 'join_me',
@@ -29,24 +32,26 @@ function beacon(id, signal = 'Need review', issued_at = at(1)) {
 function remoteMessage(event, overrides = {}) {
   return {
     id: overrides.id || `remote:${event.id}`,
-    session: overrides.session || 'repo:main',
-    generation: overrides.generation ?? 1,
+    session: overrides.session === undefined ? 'repo:main' : overrides.session,
+    generation: overrides.generation === undefined ? 1 : overrides.generation,
     issuer: overrides.issuer || event.issuer,
     parent: null,
     issued_at: overrides.issued_at || event.issued_at,
-    visibility: overrides.visibility || 'public',
-    payload: { type: 'weave.event', version: 1, weave: structuredClone(event) }
+    visibility: overrides.visibility || event.visibility,
+    payload: strictWeavePayload(event)
   };
 }
 
 test('persisted validation never invents identity or time', () => {
   assert.throws(() => normalizePersistedWeaveEvent({
+    protocol: 'sideways-weave', version: 1,
     kind: 'presence',
     issuer: 'agent:a',
     issued_at: at(1),
     body: { agent_id: 'a', session_id: 's', state: 'testing', lease_expires_at: at(20) }
   }), /event id is invalid/i);
   assert.throws(() => normalizePersistedWeaveEvent({
+    protocol: 'sideways-weave', version: 1,
     id: 'presence:1',
     kind: 'presence',
     issuer: 'agent:a',
@@ -64,6 +69,45 @@ test('creation helper derives the same identity from the same canonical envelope
     issued_at: at(1), issuer: 'agent:a', kind: 'presence'
   });
   assert.equal(left.id, right.id);
+  assert.equal(left.visibility, 'public');
+});
+
+test('strict payload preserves explicit private override on a public-default kind', () => {
+  const event = beacon('beacon:event:private', 'Private coordination', at(1), 'private');
+  const payload = strictWeavePayload(event);
+  assert.equal(payload.weave.visibility, 'private');
+  assert.equal(normalizePersistedWeaveMessage(remoteMessage(event)).payload.weave.visibility, 'private');
+});
+
+test('public Remote envelope cannot carry a private weave event', () => {
+  const event = beacon('beacon:event:private', 'Private coordination', at(1), 'private');
+  assert.throws(
+    () => normalizePersistedWeaveMessage(remoteMessage(event, { visibility: 'public' })),
+    error => error?.code === 'WEAVE_VISIBILITY_MISMATCH'
+  );
+});
+
+test('legacy event without visibility may narrow to private but cannot widen a private-default kind to public', () => {
+  const oldBeacon = beacon('beacon:event:legacy');
+  delete oldBeacon.visibility;
+  const narrowed = normalizePersistedWeaveMessage(remoteMessage(oldBeacon, { visibility: 'private' }));
+  assert.equal(narrowed.payload.weave.visibility, 'private');
+
+  const oldMessage = createWeaveEvent({
+    id: 'message:legacy', kind: 'message', issuer: 'agent:alpha', issued_at: at(2), visibility: 'private',
+    body: { message_type: 'note', statement: 'private note' }
+  });
+  delete oldMessage.visibility;
+  assert.throws(
+    () => normalizePersistedWeaveMessage(remoteMessage(oldMessage, { visibility: 'public' })),
+    error => error?.code === 'WEAVE_VISIBILITY_MISMATCH'
+  );
+});
+
+test('persisted weave messages require complete transport identity', () => {
+  const event = beacon('beacon:event:1');
+  assert.throws(() => normalizePersistedWeaveMessage(remoteMessage(event, { session: '' })), /Remote session is required/);
+  assert.throws(() => normalizePersistedWeaveMessage(remoteMessage(event, { generation: 0 })), /positive safe integer/);
 });
 
 test('exact duplicate delivery is idempotent', () => {
