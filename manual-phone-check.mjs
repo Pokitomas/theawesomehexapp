@@ -61,12 +61,13 @@ const gate = Number((policy.match(/gate=([0-9.]+)/) || [])[1]);
 if (count !== '20 THINGS') throw new Error(`expected 20 THINGS, got ${count}`);
 if (!(gate > .05)) throw new Error(`gate did not visibly move: ${policy}`);
 if (!/state=(saturation|deep_saturation)/.test(state)) throw new Error(`state did not change: ${state}`);
-const labelParallels = Object.freeze({ KEEP: 'Save', READ: 'Open', SEND: 'Share' });
-for (const label of ['ADD', 'KEEP', 'READ', 'SEND', 'MOVE GATE']) {
-  const visibleLabel = labelParallels[label] || label;
-  if (!(await gatePage.getByRole('button', { name: visibleLabel, exact: true }).count())) {
-    throw new Error(`missing button ${label} (${visibleLabel})`);
-  }
+for (const label of ['ADD', 'MOVE GATE']) {
+  if (!(await gatePage.getByRole('button', { name: label, exact: true }).count())) throw new Error(`missing core button ${label}`);
+}
+const commandbar = gatePage.locator('[data-workspace-commandbar]');
+await commandbar.waitFor({ state: 'visible', timeout: 10000 });
+for (const label of ['New', 'Feed', 'Places', 'Library']) {
+  if (!(await commandbar.getByText(label, { exact: true }).count())) throw new Error(`missing workspace command ${label}`);
 }
 await touch(gatePage, gatePage.getByRole('button', { name: 'ADD', exact: true }));
 await gatePage.locator('#addView').waitFor({ state: 'visible', timeout: 10000 });
