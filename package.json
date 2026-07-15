@@ -17,5 +17,8 @@
   "dependencies": {
     "@netlify/blobs": "^9.1.2",
     "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "playwright-core": "1.55.0"
   }
 }
