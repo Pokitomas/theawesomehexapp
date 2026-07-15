@@ -6,7 +6,7 @@ const PROVIDERS = Object.freeze([
   { id: 'instagram', name: 'Instagram', scopes: ['instagram_graph_user_profile', 'instagram_graph_user_media'], authorizationPath: '/api/connections/instagram/authorize' }
 ]);
 
-function clean(value = '') { return String(value).replace(/[\u0000-\u001f\u007f]/g, '').trim(); }
+function clean(value = '') { return value == null ? '' : String(value).replace(/[\u0000-\u001f\u007f]/g, '').trim(); }
 function base64url(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
 
 export function providerCatalog(configuration = {}) {
