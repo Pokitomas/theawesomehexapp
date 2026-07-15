@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { foldCognitionEvents, normalizeCognitionEvent } from '../weave-cognition.mjs';
+import { createCognitionEvent, foldCognitionEvents, normalizeCognitionEvent, unresolvedCognitionIds } from '../weave-cognition.mjs';
 import { retrieveCognitionMemory } from '../weave-memory.mjs';
 import { buildRolePacket, dispatchAssignments, parseAdapterOutput } from '../weave-dispatch.mjs';
 
@@ -113,4 +113,43 @@ test('failed dispatch does not permanently consume the retry key', async () => {
   assert.equal(first[0].status, 'failed');
   assert.equal(second[0].status, 'completed');
   assert.equal(attempts, 2);
+});
+
+test('persisted validation never invents event identity or time', () => {
+  assert.throws(() => normalizeCognitionEvent({
+    kind: 'claim', issuer: 'agent:x', issued_at: at(1), body: { subject: 'x', statement: 'x', confidence: 0.5, impact: 1 }
+  }), /Event id is invalid/);
+  assert.throws(() => normalizeCognitionEvent({
+    id: 'claim:x', kind: 'claim', issuer: 'agent:x', body: { subject: 'x', statement: 'x', confidence: 0.5, impact: 1 }
+  }), /Issued at is required/);
+  const createdA = createCognitionEvent({
+    kind: 'claim', issuer: 'agent:x', issued_at: at(1), body: { subject: 'x', statement: 'x', confidence: 0.5, impact: 1 }
+  });
+  const createdB = createCognitionEvent({
+    body: { impact: 1, confidence: 0.5, statement: 'x', subject: 'x' }, issued_at: at(1), issuer: 'agent:x', kind: 'claim'
+  });
+  assert.equal(createdA.id, createdB.id);
+});
+
+test('business identities cannot silently last-writer overwrite', () => {
+  const target = event('question:1', 'question', { question: 'Q?', priority: 90, answer_kinds: ['claim'] });
+  const first = assignment({ id: 'assignment:same', expected: ['claim'] }).assigned;
+  const second = normalizeCognitionEvent({
+    ...first,
+    id: 'event:assignment:other',
+    issued_at: at(3),
+    body: { ...first.body, novelty_key: 'novelty:other' }
+  });
+  assert.throws(() => foldCognitionEvents([target, first, second]), /Assignment id .* claimed by both/);
+});
+
+test('superseded evidence and failed tests no longer drive active state', () => {
+  const claim = event('claim:1', 'claim', { subject: 'x', statement: 'needs support', confidence: 0.5, impact: 80 });
+  const evidence = event('evidence:2', 'evidence', { statement: 'stale support', supports: [claim.id], opposes: [], artifacts: [], strength: 1 }, [claim.id]);
+  const failed = event('test:3', 'test.result', { name: 'old witness', status: 'failed', statement: 'old failure', targets: [claim.id], artifacts: [] }, [claim.id]);
+  const supersede = event('supersede:4', 'supersede', { target_ids: [evidence.id, failed.id], statement: 'replace stale evidence' }, [evidence.id, failed.id]);
+  const state = foldCognitionEvents([claim, evidence, failed, supersede]);
+  assert.ok(state.unsupported_claim_ids.includes(claim.id));
+  assert.ok(!state.failed_test_ids.includes(failed.id));
+  assert.ok(!unresolvedCognitionIds(state).includes(failed.id));
 });
