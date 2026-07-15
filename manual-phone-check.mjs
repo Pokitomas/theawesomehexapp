@@ -30,10 +30,7 @@ function collectErrors(page) {
 
 async function touch(page, locator) {
   await locator.waitFor({ state: 'visible', timeout: 10000 });
-  await locator.scrollIntoViewIfNeeded();
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('touch target has no bounding box');
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.tap({ timeout: 10000 });
 }
 
 async function openAdd(page, mobile = false) {
