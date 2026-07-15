@@ -12,6 +12,8 @@ MANUAL = ROOT / "manual-app"
 STYLE = '<link rel="stylesheet" href="./import-studio.css" data-import-workbench>'
 SCRIPT = '<script type="module" src="./import-studio.js" data-import-workbench></script>'
 PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone></script>'
+ADD_STYLE = '<link rel="stylesheet" href="./add-to-sideways.css" data-add-to-sideways>'
+ADD_SCRIPT = '<script type="module" src="./add-to-sideways.js" data-add-to-sideways></script>'
 SOCIAL_STYLE = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
 SOCIAL_SCRIPT = '<script type="module" src="./social-client.js" data-social-spine></script>'
 SOCIAL_AUTHOR_CONTROLS_SCRIPT = '<script type="module" src="./social-author-controls.js" data-social-author-controls></script>'
@@ -38,17 +40,27 @@ def main() -> None:
     target.mkdir(parents=True, exist_ok=True)
     for name in ("registry.js", "runtime.js", "media-classifier.js", "hash-worker.js", "file-hash.js", "corpus-writer.js", "record-normalizer.js"):
         shutil.copyfile(HERE / name, target / name)
-    shutil.copyfile(PRODUCT / "import-studio.js", MANUAL / "import-studio.js")
-    shutil.copyfile(PRODUCT / "import-studio.css", MANUAL / "import-studio.css")
-    shutil.copyfile(PRODUCT / "import-phone.js", MANUAL / "import-phone.js")
+    for name in (
+        "import-studio.js",
+        "import-studio.css",
+        "import-phone.js",
+        "add-to-sideways.js",
+        "add-to-sideways.css",
+        "discovery-source.js",
+        "discovery-private-boundary.js",
+        "account-connections.js",
+    ):
+        shutil.copyfile(PRODUCT / name, MANUAL / name)
     shutil.copyfile(PRODUCT / "social-author-controls.js", MANUAL / "social-author-controls.js")
     shutil.copyfile(PRODUCT / "social-governance-controls.js", MANUAL / "social-governance-controls.js")
 
     index = MANUAL / "index.html"
     html = index.read_text(encoding="utf-8")
     html = inject_once(html, STYLE, "</head>")
+    html = inject_once(html, ADD_STYLE, "</head>")
     html = inject_once(html, SCRIPT, "</body>")
     html = inject_once(html, PHONE_SCRIPT, "</body>")
+    html = inject_once(html, ADD_SCRIPT, "</body>")
     social_live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("SOCIAL_LIVE_ENDPOINT", "") == "1"
     if social_live:
         html = inject_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT, "</body>")
@@ -59,7 +71,7 @@ def main() -> None:
         html = remove_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT)
         html = remove_once(html, SOCIAL_GOVERNANCE_CONTROLS_SCRIPT)
     index.write_text(html, encoding="utf-8")
-    print("applied manual import workbench and gated the complete live social client to server-backed builds")
+    print("applied manual import workbench, unified Add to Sideways, and gated the complete live social client to server-backed builds")
 
 
 if __name__ == "__main__":
