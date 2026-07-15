@@ -3,6 +3,14 @@ name: Prove authoritative social spine on phone
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'audit/social-product-reachability.json'
+      - 'scripts/tests/social-product-reachability.test.mjs'
+      - 'studio/manual/product/social-client.js'
+      - 'netlify/functions/social-*.mjs'
+      - 'scripts/tests/social-*.mjs'
+      - 'scripts/tests/community-*.mjs'
+      - '.github/workflows/social-spine-phone.yml'
   push:
     branches: [main]
   workflow_dispatch:
@@ -26,6 +34,8 @@ jobs:
           cache: npm
       - name: Install locked runtime and browser tooling
         run: npm ci --ignore-scripts
+      - name: Prove social authority to consumer reachability
+        run: node --test scripts/tests/social-product-reachability.test.mjs
       - name: Prove server social contract
         run: npm run test:social
       - name: Assemble the manual product
@@ -67,6 +77,7 @@ jobs:
         with:
           name: authoritative-social-spine-phone
           path: |
+            audit/social-product-reachability.json
             social-alice-post.png
             social-bob-following-reply.png
             social-alice-like.png
