@@ -7,6 +7,7 @@ on:
       - 'audit/social-product-reachability.json'
       - 'scripts/tests/social-product-reachability.test.mjs'
       - 'studio/manual/product/social-client.js'
+      - 'studio/manual/tests/social-spine-clickthrough.mjs'
       - 'netlify/functions/social-*.mjs'
       - 'scripts/tests/social-*.mjs'
       - 'scripts/tests/community-*.mjs'
@@ -63,7 +64,7 @@ jobs:
           node studio/manual/tests/social-spine-contract.mjs
           mkdir -p dist/manual
           cp -a manual-app/. dist/manual/
-      - name: Prove two isolated accounts on phone
+      - name: Prove two isolated accounts and profile editing on phone
         run: |
           set -euo pipefail
           node scripts/social-proof-server.mjs dist/manual 4174 >/tmp/social-proof-server.log 2>&1 &
@@ -78,6 +79,7 @@ jobs:
           name: authoritative-social-spine-phone
           path: |
             audit/social-product-reachability.json
+            social-alice-profile.png
             social-alice-post.png
             social-bob-following-reply.png
             social-alice-like.png
