@@ -1,0 +1,22 @@
+{
+  "schema": "sideways-path-lease/v1",
+  "session_id": "native-model-foundry-20260715",
+  "request": "Create an autonomous local-first model research foundry that can discover, falsify, compare, and promote unexpected native model architectures or learning mechanisms instead of hard-coding a Transformer, Mamba, MoE, or distillation answer.",
+  "branch": "agent/native-model-foundry",
+  "base_branch": "main",
+  "base_sha": "5bc28784e1634334dacba624d19fcb87ee8c2cd7",
+  "selected_lane": "native-model-research-protocol",
+  "owned_paths": [
+    "MODEL_FOUNDRY.md",
+    "foundry/**"
+  ],
+  "writer_count": 1,
+  "authority": {
+    "merge": "human",
+    "deploy": "human",
+    "external_installs": "plan-only-unless-explicitly-approved",
+    "training_spend": "human-budget-gated",
+    "secrets": "never-in-prompt-genome-or-receipt"
+  },
+  "state": "lease_only"
+}
