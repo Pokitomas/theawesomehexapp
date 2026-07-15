@@ -1,21 +1,46 @@
-# Human quality revival stakeout
+# Human quality acceptance
 
 - Parent: #223
 - Lane: #231
 - Branch: `revival/human-quality`
 - Base: `main@ffcdda7bdcb6d2b7411b6c4965adf8837cb5a86a`
-- State: active measurement before correction
+- State: static admission implemented; runtime quality matrix remains open
 
-## Own after collision review
+## Red witness repaired
 
-Accessibility, keyboard and screen-reader behavior, text reflow, reduced motion, touch targets, browser coverage, performance budgets, offline behavior, blocked storage, and degraded-state fixtures.
+Founder Room exposed an unlabeled note textarea and supplied no visible keyboard-focus style for buttons or the textarea. The branch now:
 
-## Do not own
+- associates `FOUNDER NOTE` with `#founder-note` using a real label;
+- adds high-visibility `:focus-visible` outlines;
+- preserves the existing 48px minimum action targets and responsive reflow.
 
-New product features without a red quality witness, ranking semantics, weave protocol, model runtime, or external operations.
+## Executable baseline
 
-## First beat
+`node scripts/human-quality-report.mjs` checks repository-visible quality markers for Founder Room and Maker:
 
-Run representative phone and desktop journeys, record red evidence by exact head and fixture size, then make only the cross-cutting corrections required by those witnesses.
+- document language, viewport, and main landmarks;
+- labels and named control groups;
+- live status semantics;
+- visible focus rules;
+- minimum touch-target heights;
+- narrow-screen reflow and overflow wrapping.
 
-No merge or deployment authority.
+`npm run verify:quality` runs the contract and emits `sideways-human-quality/v1`. The suite is included in whole-repository verification, so removal of these static guarantees fails exact-tree admission.
+
+## Honest unknowns
+
+The report does not treat source inspection as proof of:
+
+- VoiceOver, TalkBack, NVDA, or equivalent behavior;
+- Chromium, Firefox, and WebKit compatibility;
+- 200%/400% text zoom and reflow;
+- computed contrast;
+- reduced-motion behavior;
+- focus order or focus traps;
+- computed touch geometry;
+- startup and realistic-scale performance;
+- offline, latency, server failure, blocked storage, or quota pressure.
+
+Those require dated browser/device journeys and performance fixtures under #231.
+
+No feature, merge, or deployment authority.
