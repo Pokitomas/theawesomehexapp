@@ -74,6 +74,8 @@ export const ACTIONS = Object.freeze({
   'social.logout': define('social.logout', 'SIGN OUT', 'social', 'end_session'),
   'social.close': define('social.close', 'Close', 'social', 'close_dialog'),
   'social.post': define('social.post', 'POST', 'social', 'publish_public_post', { fields: ['text', 'replyTo'] }),
+  'social.profile': define('social.profile', 'PROFILE', 'social', 'open_public_profile'),
+  'social.profile.save': define('social.profile.save', 'Save profile', 'social', 'save_public_profile', { fields: ['name', 'handle', 'bio'] }),
   'social.refresh': define('social.refresh', 'REFRESH', 'social', 'refresh_public_feed'),
   'social.follow': define('social.follow', 'FOLLOW', 'social', 'toggle_follow', { recordId: 'number' }),
   'social.feed': define('social.feed', 'FOLLOWING', 'social', 'open_following_feed'),
