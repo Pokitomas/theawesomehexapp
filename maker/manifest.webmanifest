@@ -1,13 +1,13 @@
 {
   "name": "Sideways Maker",
   "short_name": "Maker",
-  "description": "A phone-first founder command surface for Sideways.",
+  "description": "A phone-first capability forge for constructing, testing, distilling, and integrating product abilities.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f4efe4",
-  "theme_color": "#11110f",
+  "background_color": "#f3f0e8",
+  "theme_color": "#17181d",
   "icons": [
     {
       "src": "./icon.svg",

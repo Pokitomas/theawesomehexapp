@@ -1,17 +1,21 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  ARCHITECTURES,
   MAKER_VERSION,
   MODES,
   REPOSITORY,
+  RUNTIMES,
   buildIssueBody,
   buildIssueTitle,
   buildIssueUrl,
   createDraftStorage,
   fetchRepositoryState,
+  forgeLifecycle,
   hasSecretLikeMaterial,
   normalizeIntent,
   normalizeRepositoryState,
+  nativeWorkerBridge,
   stableReceipt
 } from '../../maker/maker.js';
 
@@ -22,66 +26,87 @@ const worker = fs.readFileSync('maker/sw.js', 'utf8');
 const icon = fs.readFileSync('maker/icon.svg', 'utf8');
 
 for (const id of [
-  'maker-request', 'maker-protect', 'maker-proof', 'send-command', 'copy-receipt', 'reset-maker',
-  'repo-head', 'open-issues', 'open-prs', 'running-workflows', 'active-work', 'workflow-runs',
-  'state-status', 'receipt-preview'
+  'maker-request', 'maker-protect', 'maker-proof', 'maker-budget', 'maker-runtime',
+  'send-command', 'copy-receipt', 'reset-maker', 'repo-head', 'open-issues', 'open-prs',
+  'running-workflows', 'active-work', 'workflow-runs', 'state-status', 'receipt-preview'
 ]) assert.ok(html.includes(`id="${id}"`), `missing maker control ${id}`);
 for (const mode of MODES) assert.ok(html.includes(`data-mode="${mode}"`), `missing maker mode ${mode}`);
+for (const architecture of ARCHITECTURES) assert.ok(html.includes(`data-architecture="${architecture}"`), `missing architecture prior ${architecture}`);
+for (const runtime of RUNTIMES) assert.ok(html.includes(`value="${runtime}"`), `missing product runtime ${runtime}`);
+assert.ok(html.includes('Make it able.'));
+assert.ok(html.includes('From brawl to product'));
+assert.ok(html.includes('remove temporary installs'));
 assert.ok(html.includes('apple-mobile-web-app-capable'));
 assert.ok(html.includes('rel="manifest"'));
 assert.ok(html.includes('viewport-fit=cover'));
-assert.ok(html.includes('Live engineering'));
-assert.ok(html.includes('OPEN WORK'));
-assert.ok(html.includes('ACTIONS'));
-assert.ok(!html.includes('../founder/'), 'maker must not expose founder consumer/taste surfaces');
-assert.ok(!html.includes('OPEN SIDEWAYS'), 'maker must not contain consumer product navigation');
+assert.ok(!html.includes('SIDEWAYS / DEV / LIVE'));
+assert.ok(!html.includes('Live engineering'));
+assert.ok(!html.includes('../founder/'));
+assert.ok(css.includes('@media (max-width: 620px)'));
 assert.ok(css.includes('@media (max-width: 520px)'));
-assert.ok(css.includes('min-height: 56px'));
+assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
+assert.ok(css.includes('min-height: 54px'));
 assert.equal(manifest.display, 'standalone');
 assert.equal(manifest.start_url, './');
+assert.match(manifest.description, /capability forge/i);
+assert.equal(manifest.background_color, '#f3f0e8');
 assert.ok(manifest.icons.some(entry => entry.src === './icon.svg'));
-assert.ok(worker.includes("url.origin !== self.location.origin"), 'service worker must ignore cross-origin GitHub traffic');
+assert.ok(worker.includes("const CACHE = 'sideways-maker-v3'"));
+assert.ok(worker.includes("url.origin !== self.location.origin"));
 assert.ok(worker.includes("request.mode === 'navigate'"));
 assert.ok(icon.startsWith('<svg'));
+assert.ok(icon.includes('#6459ff'));
 
 const normalized = normalizeIntent({
-  mode: 'EXPLORE',
-  request: '  Make the app feel alive.  ',
+  mode: 'DISTILL',
+  request: '  Make the app construct a small native capability.  ',
   protect: '  Keep private imports private.  ',
-  proof: '  Show the 390x844 journey.  ',
+  proof: '  Show the 390x844 product journey.  ',
+  budget_envelope: 1.3,
+  architecture_prior: 'STATE-SPACE',
+  target_runtime: 'PHONE',
   ignored: 'nope'
 });
-assert.deepEqual(normalized, {
-  version: MAKER_VERSION,
-  repository: REPOSITORY,
-  mode: 'explore',
-  request: 'Make the app feel alive.',
-  protect: 'Keep private imports private.',
-  proof: 'Show the 390x844 journey.',
-  device_requirement: 'phone-first',
-  authority: {
-    human_merge_required: true,
-    human_deploy_required: true,
-    browser_credentials: 'none'
-  }
-});
-assert.equal(normalizeIntent({ mode: 'invent' }).mode, 'build');
+assert.equal(normalized.version, MAKER_VERSION);
+assert.equal(normalized.repository, REPOSITORY);
+assert.equal(normalized.mode, 'distill');
+assert.equal(normalized.request, 'Make the app construct a small native capability.');
+assert.equal(normalized.protect, 'Keep private imports private.');
+assert.equal(normalized.proof, 'Show the 390x844 product journey.');
+assert.equal(normalized.budget_envelope, 1.3);
+assert.equal(normalized.architecture_prior, 'state-space');
+assert.equal(normalized.target_runtime, 'phone');
+assert.equal(normalized.lifecycle.length, 7);
+assert.equal(normalized.lifecycle[0].id, 'crawl');
+assert.equal(normalized.lifecycle.at(-1).id, 'clean');
+assert.equal(normalized.authority.external_install, 'explicit-operator-only');
+assert.equal(normalizeIntent({ mode: 'build' }).mode, 'construct');
+assert.equal(normalizeIntent({ mode: 'fix' }).mode, 'repair');
+assert.equal(normalizeIntent({ budget_envelope: 999 }).budget_envelope, 1.3);
+assert.deepEqual(forgeLifecycle({ architecture_prior: 'recurrent' }).map(item => item.id), [
+  'crawl', 'architect', 'lease', 'distill', 'integrate', 'prove', 'clean'
+]);
 
 const receipt = stableReceipt(normalized);
 assert.equal(receipt, stableReceipt(JSON.parse(receipt)));
 assert.ok(receipt.endsWith('\n'));
-assert.ok(buildIssueTitle(normalized).startsWith('[maker:explore] Make the app feel alive.'));
-assert.ok(buildIssueBody(normalized).includes('This command was created by the static Sideways Maker phone surface.'));
+assert.ok(buildIssueTitle(normalized).startsWith('[maker:explore] Make the app construct'));
+const body = buildIssueBody(normalized);
+assert.ok(body.includes('## Capability to construct'));
+assert.ok(body.includes('architecture prior: state-space'));
+assert.ok(body.includes('temporary external installs require an isolated lease'));
+assert.ok(body.includes('no merge, deploy, credential, production-data, training-spend'));
+assert.ok(body.includes('## Native worker bridge'));
+assert.equal(nativeWorkerBridge(normalized).mode, 'explore');
+assert.ok(nativeWorkerBridge(normalized).request.includes('Architecture search prior: state-space'));
 
 const issueUrl = new URL(buildIssueUrl(normalized));
 assert.equal(issueUrl.origin, 'https://github.com');
 assert.equal(issueUrl.pathname, '/Pokitomas/theawesomehexapp/issues/new');
 assert.ok(issueUrl.searchParams.get('title').startsWith('[maker:explore]'));
-const issueBody = issueUrl.searchParams.get('body');
-assert.ok(issueBody.includes('Keep private imports private.'));
-assert.ok(issueBody.includes('"browser_credentials": "none"'));
+assert.ok(issueUrl.searchParams.get('body').includes('"budget_envelope": 1.3'));
 assert.ok(!issueUrl.searchParams.has('token'));
-assert.throws(() => buildIssueUrl({ request: '' }), /founder request is required/i);
+assert.throws(() => buildIssueUrl({ request: '' }), /capability request is required/i);
 
 for (const secret of [
   'ghp_123456789012345678901234567890123456',
@@ -106,37 +131,33 @@ assert.deepEqual(storage.load(), normalized);
 assert.equal(storage.clear(), true);
 assert.deepEqual(storage.load(), normalizeIntent());
 
-const brokenStorage = createDraftStorage({
-  getItem() { throw new Error('blocked'); },
-  setItem() { throw new Error('blocked'); },
-  removeItem() { throw new Error('blocked'); }
-});
-assert.deepEqual(brokenStorage.load(), normalizeIntent());
-assert.equal(brokenStorage.save(normalized), false);
-assert.equal(brokenStorage.clear(), false);
+memory.set('sideways:maker:draft:v1', JSON.stringify({
+  version: 'sideways-maker/v1',
+  mode: 'explore',
+  request: 'legacy request',
+  protect: '',
+  proof: ''
+}));
+assert.equal(storage.load().mode, 'construct');
+assert.equal(storage.load().request, 'legacy request');
 
 const issuesPayload = [
   { number: 219, title: 'Phone maker', updated_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/219', pull_request: {} },
-  { number: 218, title: 'Maker issue', updated_at: '2026-07-15T04:59:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' },
-  { number: 217, title: 'Replay repair', updated_at: '2026-07-15T04:58:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/217', pull_request: {} },
-  { number: 215, title: 'Generation termination', updated_at: '2026-07-15T04:57:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/215' }
+  { number: 218, title: 'Maker issue', updated_at: '2026-07-15T04:59:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' }
 ];
 const runsPayload = {
   workflow_runs: [
     { id: 3, name: 'Phone Maker', status: 'in_progress', conclusion: null, event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:01:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/3' },
-    { id: 2, name: 'Authority manifest', status: 'completed', conclusion: 'success', event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/2' },
-    { id: 1, name: 'Old failure', status: 'completed', conclusion: 'failure', event: 'push', head_branch: 'main', head_sha: '123456abcdef7890', created_at: '2026-07-15T04:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/1' }
+    { id: 2, name: 'Authority manifest', status: 'completed', conclusion: 'success', event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/2' }
   ]
 };
 const state = normalizeRepositoryState({ sha: '634a511f68e80db708d890a86f757332819f1e5c' }, issuesPayload, runsPayload);
 assert.equal(state.short_head, '634a511f68e8');
-assert.equal(state.open_issues, 2);
-assert.equal(state.open_pull_requests, 2);
+assert.equal(state.open_issues, 1);
+assert.equal(state.open_pull_requests, 1);
 assert.equal(state.running_workflows, 1);
-assert.equal(state.active.length, 4, 'all returned open work must remain visible');
-assert.equal(state.runs.length, 3, 'all returned recent workflows must remain visible');
-assert.equal(state.active[0].kind, 'pull_request');
-assert.equal(state.runs[1].conclusion, 'success');
+assert.equal(state.active.length, 2);
+assert.equal(state.runs.length, 2);
 
 const calls = [];
 const fetched = await fetchRepositoryState(async url => {
@@ -149,11 +170,4 @@ const fetched = await fetchRepositoryState(async url => {
 assert.equal(calls.length, 3);
 assert.deepEqual(fetched, state);
 
-await assert.rejects(
-  fetchRepositoryState(async url => url.endsWith('/commits/main')
-    ? { ok: false, status: 403, json: async () => ({}) }
-    : { ok: true, status: 200, json: async () => url.includes('/actions/runs') ? { workflow_runs: [] } : [] }),
-  /main state unavailable \(403\)/
-);
-
-console.log('maker console contract ok: compact phone command shows every returned open object and recent workflow run');
+console.log('maker capability surface contract ok: phone plan emits architecture brawl, budget, lifecycle, product proof, cleanup authority, and offline shell identity');

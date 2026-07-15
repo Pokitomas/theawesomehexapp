@@ -1,0 +1,517 @@
+/* Final consumer experience layer. This file intentionally loads after the
+   underlying workspace, media, frontier, social, and recovery systems. */
+html.workspace-chrome {
+  --experience-ink: #17181d;
+  --experience-paper: #f3f0e8;
+  --experience-paper-strong: #fffef9;
+  --experience-violet: #6459ff;
+  --experience-violet-soft: #e9e6ff;
+  --experience-lime: #d7ff68;
+  --experience-coral: #ff805f;
+  --experience-muted: #686a72;
+  --experience-line: rgba(23, 24, 29, .15);
+  --experience-line-strong: rgba(23, 24, 29, .3);
+  --experience-shadow: 0 22px 70px rgba(35, 31, 51, .12), 0 2px 10px rgba(35, 31, 51, .07);
+  --future-black: var(--experience-paper);
+  --future-panel: var(--experience-paper-strong);
+  --future-panel-2: #ebe7df;
+  --future-white: var(--experience-ink);
+  --future-muted: var(--experience-muted);
+  --future-line: var(--experience-line);
+  --future-line-hot: var(--experience-line-strong);
+  --future-blue: var(--experience-violet);
+  --future-blue-soft: #847cff;
+  --future-toxic: var(--experience-lime);
+  --future-danger: #d94c65;
+  --future-cyan: var(--experience-violet);
+  --future-card-radius: 22px;
+  --future-panel-shadow: var(--experience-shadow);
+  color-scheme: light;
+}
+
+html.workspace-chrome,
+html.workspace-chrome body {
+  color: var(--experience-ink);
+  background: var(--experience-paper);
+}
+
+html.workspace-chrome body {
+  background-image:
+    radial-gradient(900px 560px at 4% -10%, rgba(255,255,255,.96), transparent 68%),
+    radial-gradient(760px 520px at 102% 3%, rgba(100,89,255,.13), transparent 66%),
+    linear-gradient(180deg, rgba(255,255,255,.2), transparent 42%);
+  background-size: auto;
+  background-attachment: fixed;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.workspace-chrome body::before {
+  background: linear-gradient(180deg, rgba(243,240,232,0), rgba(243,240,232,.88) 76%, var(--experience-paper));
+}
+
+html.workspace-chrome .topbar {
+  border-bottom: 1px solid var(--experience-line);
+  background: rgba(248, 246, 240, .82);
+  box-shadow: 0 1px 0 rgba(255,255,255,.9), 0 14px 45px rgba(35,31,51,.08);
+  backdrop-filter: blur(26px) saturate(145%);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+}
+
+html.workspace-chrome .topline {
+  min-height: 54px;
+  border-bottom: 1px solid var(--experience-line);
+  background: transparent;
+}
+
+html.workspace-chrome .workspace-title-brand {
+  min-height: 54px;
+  color: var(--experience-ink);
+  font-family: inherit;
+  font-size: .94rem;
+  font-weight: 790;
+  letter-spacing: -.035em;
+}
+
+html.workspace-chrome .workspace-brand-icon {
+  width: 17px;
+  height: 17px;
+  stroke: var(--experience-violet);
+  filter: none;
+}
+
+html.workspace-chrome .corpus-status,
+html.workspace-chrome #navProfile.workspace-nav-button {
+  min-height: 54px;
+  border-left: 1px solid var(--experience-line);
+}
+
+html.workspace-chrome .corpus-status {
+  color: #3d6400;
+  font-size: .68rem;
+  text-shadow: none;
+}
+
+html.workspace-chrome #navProfile.workspace-nav-button {
+  background: rgba(255,255,255,.36);
+}
+
+html.workspace-chrome .workspace-commandbar {
+  min-height: 62px;
+  border-bottom: 1px solid var(--experience-line);
+  background: rgba(248,246,240,.74);
+}
+
+html.workspace-chrome .workspace-commandbar .workspace-nav {
+  gap: 6px;
+  padding: 9px 0;
+}
+
+html.workspace-chrome .workspace-command-separator {
+  background: var(--experience-line);
+}
+
+html.workspace-chrome .workspace-nav-button,
+html.workspace-chrome .workspace-new-button {
+  min-height: 42px;
+  padding: 0 1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: #555861;
+  font-size: .75rem;
+  font-weight: 720;
+  letter-spacing: -.01em;
+  box-shadow: none;
+}
+
+html.workspace-chrome .workspace-nav-button:hover,
+html.workspace-chrome .workspace-nav-button:focus-visible {
+  border-color: var(--experience-line-strong);
+  background: rgba(255,255,255,.74);
+  color: var(--experience-ink);
+}
+
+html.workspace-chrome .workspace-new-button {
+  border-color: var(--experience-ink);
+  background: var(--experience-ink);
+  color: white;
+  box-shadow: 0 9px 22px rgba(23,24,29,.16), inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+html.workspace-chrome .workspace-new-button:hover,
+html.workspace-chrome .workspace-new-button:focus-visible {
+  transform: translateY(-1px);
+  background: var(--experience-violet);
+  border-color: var(--experience-violet);
+}
+
+html.workspace-chrome .workspace-nav-button.is-active,
+html.workspace-chrome .workspace-nav-button[aria-current="page"] {
+  border-color: rgba(100,89,255,.38);
+  background: var(--experience-violet-soft);
+  color: #2c235d;
+  box-shadow: inset 0 0 0 1px rgba(100,89,255,.1);
+}
+
+html.workspace-chrome .type-nav {
+  top: calc(var(--future-visual-top) + 116px + env(safe-area-inset-top));
+  height: 48px;
+  padding: 7px max(14px, calc((100vw - 1180px) / 2));
+  gap: 5px;
+  border-bottom: 1px solid var(--experience-line);
+  background: rgba(243,240,232,.9);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+html.workspace-chrome .type-nav > button,
+html.workspace-chrome .type-nav .future-mode-button {
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--experience-muted);
+  font-size: .63rem;
+  font-weight: 750;
+  letter-spacing: .075em;
+}
+
+html.workspace-chrome .type-nav > button:hover,
+html.workspace-chrome .type-nav .future-mode-button:hover {
+  border-color: var(--experience-line-strong);
+  background: rgba(255,255,255,.64);
+  color: var(--experience-ink);
+}
+
+html.workspace-chrome .type-nav > button[aria-pressed="true"] {
+  border-color: var(--experience-ink);
+  background: var(--experience-ink);
+  color: white;
+}
+
+html.workspace-chrome .type-nav .future-mode-rail {
+  border-left: 1px solid var(--experience-line);
+}
+
+html.workspace-chrome .type-nav .future-mode-button.is-active {
+  border-color: rgba(100,89,255,.38);
+  background: var(--experience-violet-soft);
+  color: #2c235d;
+  box-shadow: none;
+}
+
+html.workspace-chrome .type-nav .future-mode-button::before {
+  background: currentColor;
+  box-shadow: none;
+}
+
+html.workspace-chrome .type-nav .future-mode-button.is-active::before {
+  background: var(--experience-violet);
+  box-shadow: none;
+}
+
+html.workspace-chrome .feed,
+html.workspace-chrome #workspacePlacesView,
+html.workspace-chrome #addView,
+html.workspace-chrome #savedView {
+  width: min(100%, 1180px);
+  padding: 34px 20px calc(64px + var(--future-bottom-chrome));
+}
+
+html.workspace-chrome .post {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--experience-line);
+  border-radius: 22px;
+  background: rgba(255,254,249,.86);
+  box-shadow: var(--experience-shadow);
+  transform: translateZ(0);
+}
+
+html.workspace-chrome .post::before {
+  background:
+    radial-gradient(circle at 88% 6%, rgba(100,89,255,.07), transparent 38%),
+    linear-gradient(180deg, rgba(255,255,255,.45), transparent 24%);
+}
+
+html.workspace-chrome .post:hover,
+html.workspace-chrome .post:focus-within {
+  transform: translateY(-2px);
+  border-color: var(--experience-line-strong);
+  box-shadow: 0 30px 90px rgba(35,31,51,.16), 0 1px 0 rgba(255,255,255,.9) inset;
+}
+
+html.workspace-chrome .post-head {
+  min-height: 46px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--experience-line);
+  background: rgba(255,255,255,.46);
+  backdrop-filter: blur(14px);
+}
+
+html.workspace-chrome .post .source-link {
+  min-height: 28px;
+  padding: 0 .75rem;
+  border: 1px solid rgba(100,89,255,.28);
+  border-radius: 999px;
+  background: var(--experience-violet-soft);
+  color: #342968;
+  font-size: .61rem;
+  line-height: 26px;
+  letter-spacing: .075em;
+}
+
+html.workspace-chrome .post .identity-row {
+  min-height: 58px;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--experience-line);
+  background: rgba(255,255,255,.32);
+}
+
+html.workspace-chrome .post .identity-row img,
+html.workspace-chrome .post .identity-row .avatar,
+html.workspace-chrome .workspace-avatar {
+  border: 1px solid rgba(23,24,29,.18) !important;
+  border-radius: 11px !important;
+  box-shadow: 0 6px 18px rgba(35,31,51,.12);
+}
+
+html.workspace-chrome .post .media-shell,
+html.workspace-chrome .post .universal-media-shell {
+  border: 1px solid var(--experience-line);
+  border-radius: 16px;
+  background:
+    linear-gradient(45deg, rgba(23,24,29,.025) 25%, transparent 25% 75%, rgba(23,24,29,.025) 75%),
+    linear-gradient(45deg, rgba(23,24,29,.025) 25%, transparent 25% 75%, rgba(23,24,29,.025) 75%),
+    #f7f4ec;
+  background-position: 0 0, 10px 10px;
+  background-size: 20px 20px;
+}
+
+html.workspace-chrome .universal-audio {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(255,255,255,.64), transparent 18rem),
+    linear-gradient(135deg, var(--experience-lime), #b6f69b);
+}
+
+html.workspace-chrome .universal-file-surface {
+  background:
+    radial-gradient(circle at 80% 16%, rgba(100,89,255,.12), transparent 25rem),
+    #f8f6ef;
+}
+
+html.workspace-chrome .universal-file-code {
+  background: linear-gradient(180deg, var(--experience-violet), #4930d0);
+}
+
+html.workspace-chrome .post .post-copy {
+  padding: 1.15rem 1.08rem .85rem;
+  border-bottom: 1px solid var(--experience-line);
+  background: transparent;
+}
+
+html.workspace-chrome .post .title,
+html.workspace-chrome .post h2,
+html.workspace-chrome .post h3 {
+  max-width: 28ch;
+  color: var(--experience-ink);
+  font-size: clamp(1.7rem, 4vw, 3.7rem);
+  line-height: .96;
+  font-weight: 790;
+  letter-spacing: -.058em;
+  text-wrap: balance;
+}
+
+html.workspace-chrome .post .dek,
+html.workspace-chrome .post .body,
+html.workspace-chrome .post p {
+  color: #40434b;
+}
+
+html.workspace-chrome .post .meta,
+html.workspace-chrome .post .engagement {
+  color: var(--experience-muted);
+  font-size: .67rem;
+  letter-spacing: .055em;
+}
+
+html.workspace-chrome .post .actions {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  min-height: 56px;
+  padding: 8px;
+  border-top: 0;
+  background: rgba(248,246,240,.78);
+  backdrop-filter: blur(18px);
+}
+
+html.workspace-chrome .post .actions > button,
+html.workspace-chrome .post .workspace-core-delete {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 .7rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #5e6169;
+  font-size: .64rem;
+  font-weight: 730;
+  letter-spacing: .055em;
+}
+
+html.workspace-chrome .post .actions > button:hover,
+html.workspace-chrome .post .actions > button:focus-visible {
+  flex-basis: 0;
+  border-color: var(--experience-line-strong);
+  background: white;
+  color: var(--experience-ink);
+}
+
+html.workspace-chrome .post .workspace-core-delete,
+html.workspace-chrome .workspace-inline-action.is-danger,
+html.workspace-chrome .workspace-quiet-danger {
+  color: #b63b52;
+}
+
+html.workspace-chrome .post .workspace-core-delete:hover,
+html.workspace-chrome .post .workspace-core-delete:focus-visible,
+html.workspace-chrome .workspace-inline-action.is-danger:hover,
+html.workspace-chrome .workspace-quiet-danger:hover {
+  border-color: #b63b52;
+  background: #b63b52;
+  color: white;
+}
+
+html.workspace-chrome .workspace-window,
+html.workspace-chrome .workspace-place-card,
+html.workspace-chrome .import-workbench-card,
+html.workspace-chrome .import-progress-panel,
+html.workspace-chrome .import-error-panel,
+html.workspace-chrome .import-complete-panel,
+html.workspace-chrome .add-panel,
+html.workspace-chrome .detail-card,
+html.workspace-chrome .profile-card,
+html.workspace-chrome .empty {
+  overflow: hidden;
+  border: 1px solid var(--experience-line-strong);
+  border-radius: 22px;
+  background: rgba(255,254,249,.96);
+  color: var(--experience-ink);
+  box-shadow: 0 32px 100px rgba(35,31,51,.18), 0 1px 0 rgba(255,255,255,.9) inset;
+  backdrop-filter: blur(24px) saturate(135%);
+}
+
+html.workspace-chrome .workspace-window-bar,
+html.workspace-chrome .workspace-window-footer {
+  border-color: var(--experience-line);
+  background: rgba(243,240,232,.9);
+}
+
+html.workspace-chrome .workspace-input,
+html.workspace-chrome .workspace-composer-text,
+html.workspace-chrome .workspace-place-choice {
+  border: 1px solid var(--experience-line-strong);
+  border-radius: 14px;
+  background: rgba(255,255,255,.86);
+  color: var(--experience-ink);
+  box-shadow: inset 0 1px 2px rgba(23,24,29,.05), 0 1px 0 white;
+}
+
+html.workspace-chrome .workspace-primary {
+  border-color: var(--experience-ink);
+  background: var(--experience-ink);
+  color: white;
+}
+
+html.workspace-chrome .workspace-secondary,
+html.workspace-chrome .workspace-inline-action,
+html.workspace-chrome .workspace-tool-button,
+html.workspace-chrome .workspace-icon-button {
+  border-color: var(--experience-line);
+  background: rgba(255,255,255,.66);
+  color: #555861;
+}
+
+html.workspace-chrome button:focus-visible,
+html.workspace-chrome a:focus-visible,
+html.workspace-chrome input:focus-visible,
+html.workspace-chrome textarea:focus-visible,
+html.workspace-chrome select:focus-visible {
+  outline: 3px solid rgba(100,89,255,.76);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  html.workspace-chrome .workspace-commandbar {
+    min-height: 58px;
+  }
+
+  html.workspace-chrome .type-nav {
+    top: calc(var(--future-visual-top) + 112px + env(safe-area-inset-top));
+  }
+
+  html.workspace-chrome .feed,
+  html.workspace-chrome #workspacePlacesView,
+  html.workspace-chrome #addView,
+  html.workspace-chrome #savedView {
+    padding-inline: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  html.workspace-chrome .topline {
+    min-height: 50px;
+  }
+
+  html.workspace-chrome .workspace-title-brand {
+    min-height: 50px;
+    max-width: 10rem;
+    font-size: .86rem;
+  }
+
+  html.workspace-chrome .workspace-commandbar .workspace-nav {
+    gap: 4px;
+    padding: 7px 0;
+  }
+
+  html.workspace-chrome .workspace-nav-button,
+  html.workspace-chrome .workspace-new-button {
+    min-height: 44px;
+    padding-inline: .78rem;
+  }
+
+  html.workspace-chrome .type-nav {
+    top: calc(var(--future-visual-top) + 108px + env(safe-area-inset-top));
+    padding-inline: 10px;
+  }
+
+  html.workspace-chrome .post {
+    border-radius: 17px;
+  }
+
+  html.workspace-chrome .post .media-shell,
+  html.workspace-chrome .post .universal-media-shell {
+    border-radius: 13px;
+  }
+
+  html.workspace-chrome .post .post-copy {
+    padding: 1rem .9rem .75rem;
+  }
+
+  html.workspace-chrome .post .actions {
+    min-height: 58px;
+    padding: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.workspace-chrome *,
+  html.workspace-chrome *::before,
+  html.workspace-chrome *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+  }
+}

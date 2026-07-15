@@ -17,6 +17,7 @@ const proof = {
   allOpenWorkVisible: false,
   workflowStateVisible: false,
   issueBridge: false,
+  lifecycleVisible: false,
   persisted: false,
   degraded: false,
   expectedOfflineErrors: 0,
@@ -46,7 +47,7 @@ const issuesRoute = async route => route.fulfill({
   status: 200,
   contentType: 'application/json',
   body: JSON.stringify([
-    { number: 219, title: 'Phone maker console', updated_at: '2026-07-15T05:02:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/219', pull_request: {} },
+    { number: 219, title: 'Capability forge', updated_at: '2026-07-15T05:02:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/219', pull_request: {} },
     { number: 218, title: 'Maker issue', updated_at: '2026-07-15T05:01:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/218' },
     { number: 217, title: 'Replay repair', updated_at: '2026-07-15T05:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/pull/217', pull_request: {} },
     { number: 215, title: 'Generation termination', updated_at: '2026-07-15T04:59:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/issues/215' }
@@ -57,8 +58,8 @@ const runsRoute = async route => route.fulfill({
   contentType: 'application/json',
   body: JSON.stringify({
     workflow_runs: [
-      { id: 3, name: 'Phone Maker', status: 'in_progress', conclusion: null, event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:03:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/3' },
-      { id: 2, name: 'Authority manifest', status: 'completed', conclusion: 'success', event: 'pull_request', head_branch: 'agent/phone-maker-console', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:02:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/2' },
+      { id: 3, name: 'Capability Forge', status: 'in_progress', conclusion: null, event: 'pull_request', head_branch: 'agent/capability-visual-completion', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:03:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/3' },
+      { id: 2, name: 'Authority manifest', status: 'completed', conclusion: 'success', event: 'pull_request', head_branch: 'agent/capability-visual-completion', head_sha: 'abcdef1234567890', created_at: '2026-07-15T05:02:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/2' },
       { id: 1, name: 'Old failure', status: 'completed', conclusion: 'failure', event: 'push', head_branch: 'main', head_sha: '123456abcdef7890', created_at: '2026-07-15T04:00:00Z', html_url: 'https://github.com/Pokitomas/theawesomehexapp/actions/runs/1' }
     ]
   })
@@ -92,7 +93,7 @@ page.on('console', message => { if (message.type() === 'error') browserErrors.pu
 
 try {
   await page.goto('http://127.0.0.1:4175/maker/', { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: 'Command.' }).waitFor({ state: 'visible' });
+  await page.getByRole('heading', { name: 'Make it able.' }).waitFor({ state: 'visible' });
 
   await page.waitForFunction(() => document.querySelector('#repo-head')?.textContent === '634a511f68e8');
   proof.liveState =
@@ -102,23 +103,29 @@ try {
     && apiRoutes.length >= 3;
   proof.allOpenWorkVisible = await page.locator('#active-work .operation-row').count() === 4;
   proof.workflowStateVisible = await page.locator('#workflow-runs .operation-row').count() === 3;
-  if (!proof.liveState || !proof.allOpenWorkVisible || !proof.workflowStateVisible) {
-    throw new Error('mocked engineering state did not render completely');
+  proof.lifecycleVisible = await page.locator('.lifecycle-list li').count() === 7;
+  if (!proof.liveState || !proof.allOpenWorkVisible || !proof.workflowStateVisible || !proof.lifecycleVisible) {
+    throw new Error('mocked capability state did not render completely');
   }
 
-  await page.locator('[data-mode="explore"]').click();
-  await page.locator('#maker-request').fill('Make the development system expose every active lane without consumer product noise.');
-  await page.locator('#maker-protect').fill('Keep credentials out of the browser and require my merge approval.');
-  await page.locator('#maker-proof').fill('Show the full open-work and workflow lists on a phone.');
+  await page.locator('[data-mode="distill"]').click();
+  await page.locator('[data-architecture="state-space"]').click();
+  await page.locator('#maker-budget').fill('1.3');
+  await page.locator('#maker-request').fill('Construct a compact capability, distill it, and push it into the actual phone product.');
+  await page.locator('#maker-protect').fill('Keep private archive facts private and require human merge approval.');
+  await page.locator('#maker-proof').fill('The 390x844 product passes at the exact head and every temporary install is removed.');
 
   const bridgeHref = await page.locator('#send-command').getAttribute('href');
-  if (!bridgeHref) throw new Error('maker did not generate a GitHub issue bridge');
+  if (!bridgeHref) throw new Error('maker did not generate a GitHub capability bridge');
   const bridge = new URL(bridgeHref);
   if (bridge.origin !== 'https://github.com' || bridge.pathname !== '/Pokitomas/theawesomehexapp/issues/new') {
     throw new Error(`unexpected bridge target ${bridgeHref}`);
   }
   if (!bridge.searchParams.get('title')?.startsWith('[maker:explore]')) throw new Error('bridge title does not preserve mode');
-  if (!bridge.searchParams.get('body')?.includes('Keep credentials out of the browser')) throw new Error('bridge body lost protected reality');
+  const body = bridge.searchParams.get('body') || '';
+  if (!body.includes('architecture prior: state-space')) throw new Error('bridge body lost architecture prior');
+  if (!body.includes('"budget_envelope": 1.3')) throw new Error('bridge body lost budget envelope');
+  if (!body.includes('temporary external installs require an isolated lease')) throw new Error('bridge body lost temporary install lifecycle');
 
   const popupPromise = context.waitForEvent('page');
   await page.locator('#send-command').click();
@@ -131,9 +138,14 @@ try {
 
   await page.reload({ waitUntil: 'networkidle' });
   const persistedRequest = await page.locator('#maker-request').inputValue();
-  const explorePressed = await page.locator('[data-mode="explore"]').getAttribute('aria-pressed');
-  proof.persisted = persistedRequest.startsWith('Make the development system expose every active lane') && explorePressed === 'true';
-  if (!proof.persisted) throw new Error('founder command did not survive phone reload');
+  const distillPressed = await page.locator('[data-mode="distill"]').getAttribute('aria-pressed');
+  const stateSpacePressed = await page.locator('[data-architecture="state-space"]').getAttribute('aria-pressed');
+  proof.persisted =
+    persistedRequest.startsWith('Construct a compact capability')
+    && distillPressed === 'true'
+    && stateSpacePressed === 'true'
+    && await page.locator('#maker-budget').inputValue() === '1.3';
+  if (!proof.persisted) throw new Error('capability plan did not survive phone reload');
 
   if (browserErrors.length) throw new Error(`unexpected browser errors before degraded-state test: ${browserErrors.join(' | ')}`);
   await context.unrouteAll({ behavior: 'wait' });
@@ -146,7 +158,7 @@ try {
   proof.expectedOfflineErrors = browserErrors.filter(message => /ERR_INTERNET_DISCONNECTED/.test(message)).length;
 
   proof.overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  if (proof.overflow > 1) throw new Error(`maker console overflows phone viewport by ${proof.overflow}px`);
+  if (proof.overflow > 1) throw new Error(`maker capability surface overflows phone viewport by ${proof.overflow}px`);
   if (unexpectedBrowserErrors().length) throw new Error(unexpectedBrowserErrors().join(' | '));
 } catch (error) {
   proof.errors.push(error instanceof Error ? error.message : String(error));

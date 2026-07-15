@@ -25,6 +25,8 @@ FUTURE_MEDIA_STYLE_MARKER = '<link rel="stylesheet" href="./future-media.css" da
 FUTURE_MEDIA_POLISH_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-polish.css" data-future-media-polish>'
 FUTURE_MEDIA_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-final.css" data-future-media-final>'
 FUTURE_MEDIA_MOBILE_STYLE_MARKER = '<link rel="stylesheet" href="./future-media-mobile.css" data-future-media-mobile>'
+EXPERIENCE_STYLE_MARKER = '<link rel="stylesheet" href="./experience.css" data-sideways-experience>'
+EXPERIENCE_FINAL_STYLE_MARKER = '<link rel="stylesheet" href="./experience-final.css" data-sideways-experience-final>'
 FRONTIER_STYLE_MARKER = '<link rel="stylesheet" href="./frontier.css" data-frontier-product>'
 SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
 REMOTE_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
@@ -103,8 +105,8 @@ def remove_retired_social(text: str) -> str:
 def remote_snapshot() -> tuple[dict, dict]:
     state_path = ROOT / ".frankenstate"
     text = state_path.read_text(encoding="utf-8") if state_path.is_file() else ""
-    field = lambda name, default="": (re.search(rf"(?m)^{re.escape(name)}:\s*(.+)$", text).group(1).strip() if re.search(rf"(?m)^{re.escape(name)}:\s*(.+)$", text) else default)
-    summary_match = re.search(r"(?m)^\s+summary:\s*(.+)$", text)
+    field = lambda name, default="": (re.search(rf"(?m)^{re.escape(name)}:\s+(.+)$", text).group(1).strip() if re.search(rf"(?m)^{re.escape(name)}:\s+(.+)$", text) else default)
+    summary_match = re.search(r"(?m)^\s+summary:\s+(.+)$", text)
     summary = summary_match.group(1).strip() if summary_match else "The repository is ready for its next exact-head work session."
     session = os.environ.get("REMOTE_PUBLIC_SESSION", "Pokitomas/theawesomehexapp:main")
     generation = int(os.environ.get("REMOTE_GENERATION", "2") or "2")
@@ -168,7 +170,7 @@ def main() -> None:
     for name in (
         "studio.css", "studio-components.css", "studio-reset.css", "workspace.css", "card-layout.css",
         "workspace-chrome.css", "workspace-chrome-polish.css", "future-media.css", "future-media-polish.css",
-        "future-media-final.css", "future-media-mobile.css", "frontier.css", "social-client.css",
+        "future-media-final.css", "future-media-mobile.css", "experience.css", "experience-final.css", "frontier.css", "social-client.css",
         "remote-terminal.css", "survival-ledger.css", "studio.js", "copy.js", "starter-pack.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "network-records.js",
         "workspace-migration.js", "survival-ledger.js", "workspace.js", "workspace-ui.js", "core-actions.js",
@@ -191,7 +193,7 @@ def main() -> None:
         STYLE_MARKER, COMPONENT_STYLE_MARKER, RESET_STYLE_MARKER, WORKSPACE_STYLE_MARKER, CARD_LAYOUT_STYLE_MARKER,
         CHROME_STYLE_MARKER, CHROME_POLISH_STYLE_MARKER, FUTURE_MEDIA_STYLE_MARKER, FUTURE_MEDIA_POLISH_STYLE_MARKER,
         FUTURE_MEDIA_FINAL_STYLE_MARKER, FUTURE_MEDIA_MOBILE_STYLE_MARKER, FRONTIER_STYLE_MARKER, SOCIAL_STYLE_MARKER,
-        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, REMOTE_SERVICE_MARKER,
+        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, EXPERIENCE_STYLE_MARKER, EXPERIENCE_FINAL_STYLE_MARKER, REMOTE_SERVICE_MARKER,
     ):
         text = inject_once(text, marker, "</head>")
     for marker in (
@@ -211,7 +213,7 @@ def main() -> None:
     if IMPORT_INSTALLER.is_file():
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
-    print("applied local ownership, public social projection, Ark recovery, profile-first media, and public live-work terminal")
+    print("applied local ownership, public social projection, Ark recovery, profile-first media, final consumer experience, and public live-work terminal")
 
 
 if __name__ == "__main__":
