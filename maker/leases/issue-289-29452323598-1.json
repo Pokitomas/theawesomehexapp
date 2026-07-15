@@ -8,6 +8,7 @@
   "owner": "Pokitomas direct operator",
   "purpose": "Separate human Sideways from a repository-general autonomous Maker and add truthful Foundry model admission.",
   "owned_paths": [
+    ".github/workflows/maker-console.yml",
     "maker/**",
     "scripts/maker-engine.mjs",
     "scripts/maker-foundry-adapter.mjs",
