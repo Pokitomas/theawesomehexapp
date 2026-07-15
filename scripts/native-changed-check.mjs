@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const root = process.cwd();
-const { stdout } = await execFileAsync('git', ['status', '--porcelain=v1', '-z'], { cwd: root, maxBuffer: 4 * 1024 * 1024 });
+const { stdout } = await execFileAsync('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], { cwd: root, maxBuffer: 4 * 1024 * 1024 });
 const entries = stdout.split('\u0000').filter(Boolean);
 const files = [];
 for (const entry of entries) {
