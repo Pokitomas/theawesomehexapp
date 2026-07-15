@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#11110f">
+  <meta name="theme-color" content="#10233f">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Maker">
-  <meta name="description" content="Phone command and live engineering state for the Sideways repository.">
-  <title>Sideways Dev</title>
+  <meta name="description" content="Repository-general engineering task authoring and execution truth for Maker.">
+  <title>Maker Engineering</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./maker.css">
@@ -16,14 +16,52 @@
 <body>
   <main class="shell">
     <header class="masthead">
-      <p class="eyebrow">SIDEWAYS / DEV / LIVE</p>
-      <h1>Command.</h1>
-      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">GITHUB</a>
+      <div>
+        <p class="eyebrow">MAKER / ENGINEERING</p>
+        <h1>Build software.</h1>
+        <p class="lede">Define the repository, exact base, protected reality, and proof. Maker runs through an authorized isolated worker—not inside this browser.</p>
+      </div>
+      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">OPEN REPOSITORY</a>
     </header>
+
+    <section class="truth-strip" aria-label="Execution truth">
+      <article><span>BROWSER</span><strong>Task author only</strong></article>
+      <article><span>WRITER</span><strong>One leased branch</strong></article>
+      <article><span>MERGE / DEPLOY</span><strong>Human only</strong></article>
+      <article><span>NATIVE MODEL</span><strong id="native-model-state">Admission required</strong></article>
+    </section>
 
     <section class="command-panel" aria-labelledby="command-heading">
       <div class="command-copy">
-        <h2 id="command-heading">New work</h2>
+        <div class="section-heading">
+          <p class="section-number">01</p>
+          <div>
+            <h2 id="command-heading">Engineering task</h2>
+            <p>Maker can target any authorized GitHub repository. An exact base and visible lease are required before mutation.</p>
+          </div>
+        </div>
+
+        <div class="identity-grid">
+          <div>
+            <label for="maker-repository">REPOSITORY</label>
+            <input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository">
+          </div>
+          <div>
+            <label for="maker-base">BASE REVISION</label>
+            <input id="maker-base" autocomplete="off" spellcheck="false" placeholder="main or exact commit SHA">
+          </div>
+          <div>
+            <label for="maker-backend">EXECUTION BACKEND</label>
+            <select id="maker-backend">
+              <option value="auto">AUTO — native if admitted, configured fallback</option>
+              <option value="native">NATIVE — admitted checkpoint only</option>
+              <option value="github-models">GITHUB MODELS</option>
+              <option value="configured">CONFIGURED PROVIDER</option>
+            </select>
+          </div>
+        </div>
+
+        <label>WORK MODE</label>
         <div class="mode-grid" role="group" aria-label="Command mode">
           <button type="button" data-mode="build" aria-pressed="true">BUILD</button>
           <button type="button" data-mode="fix" aria-pressed="false">FIX</button>
@@ -31,25 +69,39 @@
           <button type="button" data-mode="audit" aria-pressed="false">AUDIT</button>
         </div>
 
-        <label for="maker-request">REQUEST</label>
-        <textarea id="maker-request" maxlength="2400" placeholder="What should exist or what is wrong?"></textarea>
+        <label for="maker-request">END STATE</label>
+        <textarea id="maker-request" maxlength="8000" placeholder="What must exist when the engineering task is complete?"></textarea>
 
-        <label for="maker-protect">DO NOT BREAK</label>
-        <textarea id="maker-protect" class="short-field" maxlength="1200" placeholder="Optional boundaries."></textarea>
+        <label for="maker-protect">PROTECTED REALITY</label>
+        <textarea id="maker-protect" class="short-field" maxlength="4000" placeholder="Paths, data, authority, behavior, and external boundaries that cannot be broken."></textarea>
 
-        <label for="maker-proof">PROOF REQUIRED</label>
-        <textarea id="maker-proof" class="short-field" maxlength="1200" placeholder="Optional evidence needed before acceptance."></textarea>
+        <label for="maker-proof">ADMISSION PROOF</label>
+        <textarea id="maker-proof" class="short-field" maxlength="4000" placeholder="Tests, browser journeys, security witnesses, exact-head checks, and receipt requirements."></textarea>
       </div>
 
       <aside class="dispatch-panel">
-        <div class="actions">
-          <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">SEND TO CO-ENGINEERS</a>
-          <button id="copy-receipt" type="button">COPY RECEIPT</button>
-          <button id="reset-maker" class="quiet" type="button">CLEAR</button>
+        <div>
+          <p class="section-number">02</p>
+          <h2>Authorize</h2>
+          <div class="capability-card" aria-label="Available execution capabilities">
+            <h3>RUNTIME CONTRACT</h3>
+            <dl>
+              <div><dt>Backend</dt><dd id="backend-state">auto · unresolved until worker starts</dd></div>
+              <div><dt>Tools</dt><dd id="tool-state">read · search · write · replace · delete · run · verify · rollback</dd></div>
+              <div><dt>Lease</dt><dd id="lease-state">required before first write</dd></div>
+              <div><dt>Human gates</dt><dd id="human-gates">merge · deploy · production data · training spend</dd></div>
+            </dl>
+          </div>
         </div>
-        <p id="command-status" class="status" role="status" aria-live="polite">Draft saved locally.</p>
+
+        <div class="actions">
+          <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a>
+          <button id="copy-receipt" type="button">COPY MACHINE RECEIPT</button>
+          <button id="reset-maker" class="quiet" type="button">CLEAR LOCAL DRAFT</button>
+        </div>
+        <p id="command-status" class="status" role="status" aria-live="polite">Draft is stored only in this Maker namespace.</p>
         <details>
-          <summary>RECEIPT</summary>
+          <summary>MACHINE RECEIPT</summary>
           <pre id="receipt-preview"></pre>
         </details>
       </aside>
@@ -57,11 +109,17 @@
 
     <section class="state-panel" aria-labelledby="state-heading">
       <div class="state-heading-row">
-        <h2 id="state-heading">Live engineering</h2>
+        <div class="section-heading compact">
+          <p class="section-number">03</p>
+          <div>
+            <h2 id="state-heading">Repository execution</h2>
+            <p>Public GitHub state only. Credentials, private task state, command output, and model keys are never loaded into this static surface.</p>
+          </div>
+        </div>
         <button id="refresh-state" class="secondary" type="button">REFRESH</button>
       </div>
       <div class="state-grid">
-        <article><span>MAIN</span><strong id="repo-head">reading…</strong></article>
+        <article><span>BASE HEAD</span><strong id="repo-head">reading…</strong></article>
         <article><span>ISSUES</span><strong id="open-issues">—</strong></article>
         <article><span>PRS</span><strong id="open-prs">—</strong></article>
         <article><span>RUNNING</span><strong id="running-workflows">—</strong></article>
@@ -70,14 +128,14 @@
       <div class="live-columns">
         <section>
           <h3>OPEN WORK</h3>
-          <div id="active-work" class="operation-list" aria-label="All open issues and pull requests"></div>
+          <div id="active-work" class="operation-list" aria-label="Open issues and pull requests"></div>
         </section>
         <section>
-          <h3>ACTIONS</h3>
+          <h3>RECENT RUNS</h3>
           <div id="workflow-runs" class="operation-list" aria-label="Recent workflow runs"></div>
         </section>
       </div>
-      <p id="state-status" class="status" role="status" aria-live="polite">Reading GitHub…</p>
+      <p id="state-status" class="status" role="status" aria-live="polite">Reading public repository state…</p>
     </section>
   </main>
   <script type="module" src="./maker.js"></script>
