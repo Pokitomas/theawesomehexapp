@@ -1,0 +1,110 @@
+import fs from 'node:fs';
+import { chromium } from 'playwright-core';
+
+const executablePath = [
+  process.env.CHROME_BIN,
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser'
+].filter(Boolean).find(path => fs.existsSync(path));
+if (!executablePath) throw new Error('no Chromium found');
+
+const baseURL = process.env.SIDEWAYS_MANUAL_URL || 'http://127.0.0.1:4176/manual-app/';
+const forbidden = /\b(?:AI|agent|model|prompt|co-engineer|Maker|Foundry|weave|lasso|genome|simulation|command[ -]?center|debug)\b/i;
+const proof = {
+  executablePath,
+  baseURL,
+  phone: null,
+  desktop: null,
+  errors: []
+};
+
+const browser = await chromium.launch({
+  headless: true,
+  executablePath,
+  args: ['--no-sandbox', '--disable-dev-shm-usage']
+});
+
+async function inspect(viewport, name, options = {}) {
+  const context = await browser.newContext({
+    viewport,
+    deviceScaleFactor: 1,
+    isMobile: Boolean(options.mobile),
+    hasTouch: Boolean(options.mobile),
+    reducedMotion: 'reduce'
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('html[data-sideways-human="ready"]', { state: 'attached', timeout: 15000 });
+    await page.waitForTimeout(900);
+
+    const result = await page.evaluate(({ forbiddenSource }) => {
+      const forbidden = new RegExp(forbiddenSource, 'i');
+      const visibleText = document.body.innerText;
+      const locationBar = document.querySelector('[data-sideways-location]');
+      const developerLinks = [...document.querySelectorAll('a[href]')].filter(anchor => {
+        try { return /(^|\/)(maker|founder)(\/|$)/i.test(new URL(anchor.href, location.href).pathname) && !anchor.hidden; }
+        catch { return false; }
+      });
+      const normalLink = locationBar?.querySelector('a');
+      const structuralCard = document.querySelector('.post, .studio-empty-hero, .import-workbench-card, .profile-card');
+      const topbar = document.querySelector('.topbar');
+      const navControls = [...document.querySelectorAll('.workspace-commandbar button:not([hidden]), .workspace-commandbar a:not([hidden])')];
+      const controlHeights = navControls.map(node => Math.round(node.getBoundingClientRect().height));
+      const reducedTarget = document.querySelector('.workspace-nav-button, .post, .studio-empty-hero');
+      const linkStyle = normalLink ? getComputedStyle(normalLink) : null;
+      const cardStyle = structuralCard ? getComputedStyle(structuralCard) : null;
+      const topbarStyle = topbar ? getComputedStyle(topbar) : null;
+      const reducedStyle = reducedTarget ? getComputedStyle(reducedTarget) : null;
+      return {
+        ready: document.documentElement.dataset.sidewaysHuman === 'ready',
+        location: locationBar?.innerText || '',
+        forbiddenVisibleText: visibleText.match(forbidden)?.[0] || null,
+        developerLinks: developerLinks.map(anchor => anchor.href),
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        linkDecoration: linkStyle?.textDecorationLine || '',
+        cardRadius: cardStyle?.borderTopLeftRadius || null,
+        cardBackdrop: cardStyle?.backdropFilter || null,
+        topbarBackdrop: topbarStyle?.backdropFilter || null,
+        controlHeights,
+        reducedTransition: reducedStyle?.transitionDuration || null,
+        bodyTextLength: visibleText.trim().length
+      };
+    }, { forbiddenSource: forbidden.source });
+
+    if (!result.ready) throw new Error(`${name}: human layer did not reach ready state`);
+    if (!/Sideways/.test(result.location)) throw new Error(`${name}: persistent location context is missing`);
+    if (result.forbiddenVisibleText) throw new Error(`${name}: internal vocabulary leaked: ${result.forbiddenVisibleText}`);
+    if (result.developerLinks.length) throw new Error(`${name}: developer entrypoint visible: ${result.developerLinks.join(', ')}`);
+    if (result.overflow > 1) throw new Error(`${name}: horizontal overflow ${result.overflow}px`);
+    if (!result.linkDecoration.includes('underline')) throw new Error(`${name}: links are not visibly underlined`);
+    if (result.cardRadius && parseFloat(result.cardRadius) > 2) throw new Error(`${name}: card radius is not native-web structured: ${result.cardRadius}`);
+    if (result.cardBackdrop && result.cardBackdrop !== 'none') throw new Error(`${name}: card uses backdrop filtering: ${result.cardBackdrop}`);
+    if (result.topbarBackdrop && result.topbarBackdrop !== 'none') throw new Error(`${name}: topbar uses backdrop filtering: ${result.topbarBackdrop}`);
+    if (options.mobile && result.controlHeights.some(height => height < 40)) throw new Error(`${name}: compact navigation has a control below 40px: ${result.controlHeights.join(',')}`);
+    if (result.reducedTransition && !/^0s(?:, 0s)*$/.test(result.reducedTransition)) throw new Error(`${name}: reduced motion transition remains ${result.reducedTransition}`);
+    if (result.bodyTextLength < 20) throw new Error(`${name}: ordinary product did not render meaningful text`);
+    if (pageErrors.length) throw new Error(`${name}: page errors: ${pageErrors.join(' | ')}`);
+
+    await page.screenshot({ path: `sideways-human-${name}.png`, fullPage: true });
+    return result;
+  } finally {
+    await context.close();
+  }
+}
+
+try {
+  proof.phone = await inspect({ width: 390, height: 844 }, 'phone', { mobile: true });
+  proof.desktop = await inspect({ width: 1280, height: 900 }, 'desktop');
+} catch (error) {
+  proof.errors.push(error instanceof Error ? error.message : String(error));
+  throw error;
+} finally {
+  fs.writeFileSync('sideways-human-proof.json', `${JSON.stringify(proof, null, 2)}\n`);
+  console.log(JSON.stringify(proof, null, 2));
+  await browser.close();
+}
