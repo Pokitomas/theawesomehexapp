@@ -26,6 +26,90 @@ import { runGenerationZeroProxies } from './generation-zero-proxy.mjs';
 export { generationZeroGenomes, generationZeroMission, generationZeroReports, lawfulCorpusPlan, runGenerationZeroProxies, validateGenerationZeroMission };
 
 const execFileAsync = promisify(execFile);
+const ARTIFACT_MANIFEST = 'artifact-manifest.json';
+const REQUIRED_ARTIFACTS = Object.freeze([
+  'mission.json',
+  'assignments.json',
+  'reports.json',
+  'integration.json',
+  'portfolio.json',
+  'genomes.json',
+  'proxy-results.json',
+  'negative-results.json',
+  'corpus-plan.json',
+  'receipt.json'
+]);
+
+function serialized(value) {
+  return `${stableJSONStringify(value)}\n`;
+}
+
+function artifactDescriptor(value) {
+  const text = serialized(value);
+  return Object.freeze({ sha256: digest(value), bytes: Buffer.byteLength(text) });
+}
+
+function buildArtifactManifest(outputs, codeRevision) {
+  const artifacts = Object.fromEntries(Object.entries(outputs)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, value]) => [name, artifactDescriptor(value)]));
+  return Object.freeze({
+    schema: 'sideways-foundry-artifact-manifest/v1',
+    generation: 0,
+    code_revision: codeRevision,
+    complete: true,
+    artifacts,
+    protocol_receipt_digest: outputs['receipt.json'].receipt_digest,
+    generation_receipt_digest: outputs['receipt.json'].generation_receipt_digest
+  });
+}
+
+async function writeAtomicText(filename, text) {
+  const temporary = `${filename}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  try {
+    await fs.writeFile(temporary, text, { encoding: 'utf8', flag: 'wx' });
+    await fs.rename(temporary, filename);
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
+}
+
+async function writeArtifactBundle(target, outputs) {
+  await fs.mkdir(target, { recursive: true });
+  await fs.rm(path.join(target, ARTIFACT_MANIFEST), { force: true });
+  for (const [name, value] of Object.entries(outputs).filter(([name]) => name !== ARTIFACT_MANIFEST).sort(([left], [right]) => left.localeCompare(right))) {
+    await writeAtomicText(path.join(target, name), serialized(value));
+  }
+  await writeAtomicText(path.join(target, ARTIFACT_MANIFEST), serialized(outputs[ARTIFACT_MANIFEST]));
+}
+
+export async function verifyGenerationZeroArtifactBundle(outDir) {
+  const target = path.resolve(outDir);
+  const manifest = JSON.parse(await fs.readFile(path.join(target, ARTIFACT_MANIFEST), 'utf8'));
+  if (manifest?.schema !== 'sideways-foundry-artifact-manifest/v1' || manifest.complete !== true) {
+    throw new Error('Generation-zero artifact manifest is missing, incomplete, or unsupported.');
+  }
+  if (!/^[0-9a-f]{40}$/i.test(String(manifest.code_revision || ''))) {
+    throw new Error('Generation-zero artifact manifest has an invalid code revision.');
+  }
+  for (const required of REQUIRED_ARTIFACTS) {
+    if (!manifest.artifacts?.[required]) throw new Error(`Generation-zero artifact manifest is missing ${required}.`);
+  }
+  const verifiedFiles = [];
+  for (const [name, expected] of Object.entries(manifest.artifacts)) {
+    if (path.basename(name) !== name || name === ARTIFACT_MANIFEST) throw new Error(`Unsafe generation-zero artifact name: ${name}.`);
+    const text = await fs.readFile(path.join(target, name), 'utf8');
+    if (Buffer.byteLength(text) !== expected.bytes) throw new Error(`Generation-zero artifact byte mismatch: ${name}.`);
+    const parsed = JSON.parse(text);
+    if (digest(parsed) !== expected.sha256) throw new Error(`Generation-zero artifact digest mismatch: ${name}.`);
+    verifiedFiles.push(name);
+  }
+  const receipt = JSON.parse(await fs.readFile(path.join(target, 'receipt.json'), 'utf8'));
+  if (receipt.code_revision !== manifest.code_revision) throw new Error('Generation-zero receipt and manifest revisions differ.');
+  if (receipt.receipt_digest !== manifest.protocol_receipt_digest) throw new Error('Generation-zero protocol receipt digest differs from the manifest.');
+  if (receipt.generation_receipt_digest !== manifest.generation_receipt_digest) throw new Error('Generation-zero full receipt digest differs from the manifest.');
+  return Object.freeze({ manifest: Object.freeze(manifest), verified_files: Object.freeze(verifiedFiles.sort()) });
+}
 
 function executedPortfolio(portfolio, proxyResults) {
   const resultByCandidate = new Map(proxyResults.map(result => [result.candidate_id, result]));
@@ -99,7 +183,7 @@ export async function runGenerationZero({
     portfolio: finalPortfolio,
     admissions,
     commands: ['node foundry/generation-zero.mjs --out <directory> --code-revision <40-char-sha>'],
-    artifacts: ['mission.json', 'assignments.json', 'reports.json', 'integration.json', 'portfolio.json', 'genomes.json', 'proxy-results.json', 'negative-results.json', 'corpus-plan.json', 'receipt.json']
+    artifacts: [...REQUIRED_ARTIFACTS, ARTIFACT_MANIFEST]
   });
   const finalReceiptBody = {
     ...receipt,
@@ -114,7 +198,7 @@ export async function runGenerationZero({
     claim_boundary: 'Generation zero produced an architecture-neutral portfolio and executed bounded deterministic falsification probes. It did not train or select a foundation model.'
   };
   const finalReceipt = { ...finalReceiptBody, generation_receipt_digest: digest(finalReceiptBody) };
-  const outputs = {
+  const baseOutputs = {
     'mission.json': mission,
     'assignments.json': assignments,
     'reports.json': reports,
@@ -126,11 +210,9 @@ export async function runGenerationZero({
     'corpus-plan.json': corpusPlan,
     'receipt.json': finalReceipt
   };
-  if (out_dir) {
-    const target = path.resolve(out_dir);
-    await fs.mkdir(target, { recursive: true });
-    await Promise.all(Object.entries(outputs).map(([name, value]) => fs.writeFile(path.join(target, name), `${stableJSONStringify(value)}\n`, 'utf8')));
-  }
+  const artifactManifest = buildArtifactManifest(baseOutputs, revision);
+  const outputs = { ...baseOutputs, [ARTIFACT_MANIFEST]: artifactManifest };
+  if (out_dir) await writeArtifactBundle(path.resolve(out_dir), outputs);
   return Object.freeze({ mission, assignments, reports, integration, portfolio: finalPortfolio, genomes, proxy_results: proxyResults, negative_results: negativeResults, corpus_plan: corpusPlan, admissions, receipt: finalReceipt, outputs });
 }
 
@@ -153,7 +235,10 @@ async function main() {
     proxy_falsified: result.receipt.proxy_falsified,
     winner_selected: false,
     final_model_weights_trained: false,
-    receipt_digest: result.receipt.receipt_digest
+    receipt_digest: result.receipt.generation_receipt_digest,
+    protocol_receipt_digest: result.receipt.receipt_digest,
+    generation_receipt_digest: result.receipt.generation_receipt_digest,
+    artifact_manifest_digest: digest(result.outputs[ARTIFACT_MANIFEST])
   }));
 }
 
