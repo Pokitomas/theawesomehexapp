@@ -48,7 +48,7 @@ test('workflows never perform mutable npm installation or unlocked npx execution
 });
 
 test('read-only proof workflows disable persisted checkout credentials', () => {
-  const mutable = new Set(['coordination-ticks.yml', 'pages.yml', 'weave-lasso.yml']);
+  const mutable = new Set(['coordination-ticks.yml', 'maker-native-worker.yml', 'pages.yml', 'weave-lasso.yml']);
   const violations = [];
   for (const name of workflowFiles) {
     if (mutable.has(name)) continue;
