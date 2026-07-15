@@ -2,7 +2,9 @@
   "name": "sideways",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test:remote": "node --test scripts/tests/remote-service.test.mjs scripts/tests/remote-public-privacy.test.mjs scripts/tests/remote-weave-envelope.test.mjs scripts/tests/remote-fail-closed.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs",
     "test:weave": "node --test scripts/tests/weave-protocol.test.mjs scripts/tests/weave-replay-integrity.test.mjs scripts/tests/weave-lasso.test.mjs scripts/tests/weave-lasso-service.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs scripts/tests/weave-active-state.test.mjs scripts/tests/weave-terminal-drain.test.mjs",
@@ -18,7 +20,10 @@
     "verify:frankenstate": "node --test scripts/tests/frankenstate-validator.test.mjs && node scripts/verify-frankenstate.mjs",
     "verify:repository": "node scripts/verify-repository.mjs",
     "remote": "node scripts/remote-client.mjs",
-    "remote:gate": "node scripts/remote-gate.mjs"
+    "remote:gate": "node scripts/remote-gate.mjs",
+    "foundry:generation:next": "node scripts/foundry-agent-cli.mjs foundry:generation:next",
+    "foundry:sprawl:status": "node scripts/foundry-agent-cli.mjs foundry:sprawl:status",
+    "test:foundry": "node --test scripts/tests/foundry-sync-barrier.test.mjs scripts/tests/foundry-generation-coordinator.test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^9.1.2",

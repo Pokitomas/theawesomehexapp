@@ -1,0 +1,16 @@
+{
+  "schema": "sideways-foundry-agents/v1",
+  "generation": 2,
+  "roles": [
+    { "id": "cartographer", "can_spawn_subworkers": true },
+    { "id": "heretic", "can_spawn_subworkers": true },
+    { "id": "inventor", "can_spawn_subworkers": true },
+    { "id": "distiller", "can_spawn_subworkers": true },
+    { "id": "saboteur", "can_spawn_subworkers": true },
+    { "id": "physicist", "can_spawn_subworkers": true },
+    { "id": "pathologist", "can_spawn_subworkers": true },
+    { "id": "toolsmith", "can_spawn_subworkers": true },
+    { "id": "skeptic", "can_spawn_subworkers": true },
+    { "id": "product-reality", "can_spawn_subworkers": true }
+  ]
+}
