@@ -11,6 +11,7 @@ MANUAL = ROOT / "manual-app"
 
 STYLE = '<link rel="stylesheet" href="./import-studio.css" data-import-workbench>'
 FINAL_EXPERIENCE_STYLE = '<link rel="stylesheet" href="./experience-final.css" data-sideways-experience-final>'
+MOBILE_GEOMETRY_STYLE = '<link rel="stylesheet" href="./experience-mobile-fix.css" data-sideways-mobile-geometry>'
 SCRIPT = '<script type="module" src="./import-studio.js" data-import-workbench></script>'
 PHONE_SCRIPT = '<script type="module" src="./import-phone.js" data-import-phone></script>'
 SOCIAL_STYLE = '<link rel="stylesheet" href="./social-client.css" data-social-spine>'
@@ -42,14 +43,17 @@ def main() -> None:
     shutil.copyfile(PRODUCT / "import-studio.js", MANUAL / "import-studio.js")
     shutil.copyfile(PRODUCT / "import-studio.css", MANUAL / "import-studio.css")
     shutil.copyfile(PRODUCT / "import-phone.js", MANUAL / "import-phone.js")
+    shutil.copyfile(PRODUCT / "experience-mobile-fix.css", MANUAL / "experience-mobile-fix.css")
     shutil.copyfile(PRODUCT / "social-author-controls.js", MANUAL / "social-author-controls.js")
     shutil.copyfile(PRODUCT / "social-governance-controls.js", MANUAL / "social-governance-controls.js")
 
     index = MANUAL / "index.html"
     html = index.read_text(encoding="utf-8")
     html = remove_once(html, STYLE)
+    html = remove_once(html, MOBILE_GEOMETRY_STYLE)
     style_anchor = FINAL_EXPERIENCE_STYLE if FINAL_EXPERIENCE_STYLE in html else "</head>"
     html = inject_once(html, STYLE, style_anchor)
+    html = inject_once(html, MOBILE_GEOMETRY_STYLE, "</head>")
     html = inject_once(html, SCRIPT, "</body>")
     html = inject_once(html, PHONE_SCRIPT, "</body>")
     social_live = os.environ.get("NETLIFY", "").lower() == "true" or os.environ.get("SOCIAL_LIVE_ENDPOINT", "") == "1"
@@ -62,7 +66,7 @@ def main() -> None:
         html = remove_once(html, SOCIAL_AUTHOR_CONTROLS_SCRIPT)
         html = remove_once(html, SOCIAL_GOVERNANCE_CONTROLS_SCRIPT)
     index.write_text(html, encoding="utf-8")
-    print("normalized the manual import workbench beneath the final consumer skin and gated live social controls to server-backed builds")
+    print("normalized importer styling beneath the final skin, fixed mobile dock geometry, and gated live social controls to server-backed builds")
 
 
 if __name__ == "__main__":
