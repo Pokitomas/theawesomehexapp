@@ -158,6 +158,22 @@ function installLocationBar() {
   if (path) path.textContent = routeLabel();
 }
 
+function normalizeMobileFlow() {
+  const topbar = document.querySelector('.topbar');
+  const locationBar = document.querySelector('[data-sideways-location]');
+  const mobile = window.matchMedia('(max-width: 760px)').matches;
+  for (const node of [topbar, locationBar]) {
+    if (!node) continue;
+    if (mobile) {
+      node.style.setProperty('position', 'relative', 'important');
+      node.style.setProperty('top', 'auto', 'important');
+    } else {
+      node.style.removeProperty('position');
+      node.style.removeProperty('top');
+    }
+  }
+}
+
 function exposeExistingProvenance() {
   for (const post of document.querySelectorAll('.post')) {
     post.dataset.humanRecord = 'true';
@@ -180,6 +196,7 @@ function install() {
   separateDeveloperSurfaces();
   installLocationBar();
   if (developer) return;
+  normalizeMobileFlow();
   normalizeExternalLinks();
   normalizeChromeLanguage();
   flattenStructuralSurfaces();
@@ -203,7 +220,8 @@ for (const eventName of [
   'sideways:importcomplete',
   'sideways:remoteupdate',
   'hashchange',
-  'popstate'
+  'popstate',
+  'resize'
 ]) window.addEventListener(eventName, schedule);
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
