@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Build only the manual product
         run: |
           set -euo pipefail
@@ -66,9 +68,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install browser driver
+          cache: npm
+      - name: Install locked browser driver
         run: |
-          npm install --no-save playwright-core@1.55.0
+          npm ci --ignore-scripts
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
       - name: Prove exact kernel in twenty records
         run: node manual-kernel/verify-kernel.mjs
