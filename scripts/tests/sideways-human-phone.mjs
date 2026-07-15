@@ -71,7 +71,10 @@ async function inspect(viewport, name, options = {}) {
         try { return /(^|\/)(maker|founder)(\/|$)/i.test(new URL(anchor.href, location.href).pathname) && !anchor.hidden && getComputedStyle(anchor).display !== 'none'; }
         catch { return false; }
       });
-      const developerSurfaces = [...document.querySelectorAll('[data-sideways-remote-launch], [data-sideways-remote-terminal], #live-work')]
+      const statusLaunch = document.querySelector('[data-sideways-remote-launch]');
+      const statusVisible = Boolean(statusLaunch && !statusLaunch.hidden && getComputedStyle(statusLaunch).display !== 'none');
+      const statusText = statusVisible ? (statusLaunch.innerText || statusLaunch.getAttribute('aria-label') || statusLaunch.title || '') : '';
+      const developerSurfaces = [...document.querySelectorAll('[data-sideways-remote-terminal], #live-work')]
         .filter(node => node.isConnected && !node.hidden && getComputedStyle(node).display !== 'none');
       const visibleDebug = ['debugPanel', 'debugPolicy', 'debugState']
         .map(id => document.getElementById(id))
@@ -91,6 +94,9 @@ async function inspect(viewport, name, options = {}) {
         location: locationBar?.innerText || '',
         forbiddenShellText: shellText.match(forbidden)?.[0] || null,
         developerLinks: developerLinks.map(anchor => anchor.href),
+        statusVisible,
+        statusText,
+        statusForbiddenText: statusText.match(forbidden)?.[0] || null,
         developerSurfaces: developerSurfaces.map(node => node.id || node.getAttribute('data-action-id') || node.tagName),
         visibleDebug: visibleDebug.map(node => node.id),
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -109,6 +115,8 @@ async function inspect(viewport, name, options = {}) {
     if (!/Sideways/.test(result.location)) throw new Error(`${name}: persistent location context is missing`);
     if (result.forbiddenShellText) throw new Error(`${name}: internal vocabulary leaked into ordinary shell: ${result.forbiddenShellText}`);
     if (result.developerLinks.length) throw new Error(`${name}: developer entrypoint visible: ${result.developerLinks.join(', ')}`);
+    if (result.statusForbiddenText) throw new Error(`${name}: internal vocabulary leaked through site status: ${result.statusForbiddenText}`);
+    if (result.statusVisible && !/status/i.test(result.statusText)) throw new Error(`${name}: ordinary status entrypoint is not human-labeled: ${result.statusText}`);
     if (result.developerSurfaces.length) throw new Error(`${name}: developer surface visible: ${result.developerSurfaces.join(', ')}`);
     if (result.visibleDebug.length) throw new Error(`${name}: debug surface visible: ${result.visibleDebug.join(', ')}`);
     if (result.overflow > 1) throw new Error(`${name}: horizontal overflow ${result.overflow}px`);
