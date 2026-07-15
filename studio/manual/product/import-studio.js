@@ -1,21 +1,18 @@
-import { COPY } from './copy.js';
-import { actionButton, bindAction } from './actions.js';
 import { createDefaultRegistry } from './imports/registry.js';
 import { createImportRuntime } from './imports/runtime.js';
+import { classifyAddInput, createSourceCollection, safePublicURL } from './discovery-source.js';
+import { createConnectionState, createPKCE, connectionCapability, providerCatalog } from './account-connections.js';
 
 const registry = createDefaultRegistry();
 const runtime = createImportRuntime({ registry, chunkSize: 75 });
-const state = { busy: false, platform: '', result: null, error: '' };
+const SOURCE_KEY = 'sideways:web-sources:v1';
+const CONNECTION_STATE_KEY = 'sideways:connection-state:v1';
+const state = { busy: false, mode: 'home', result: null, error: '', detail: '' };
 
-const PLATFORMS = Object.freeze([
-  { id: 'instagram', name: 'Instagram', mark: '◎', tone: 'pink', exportUrl: 'https://accountscenter.instagram.com/info_and_permissions/dyi/', accept: '.json,.html,.zip,application/json,text/html' },
-  { id: 'reddit', name: 'Reddit', mark: 'r/', tone: 'orange', exportUrl: 'https://www.reddit.com/settings/data-request', accept: '.json,.csv,.zip,text/csv,application/json' },
-  { id: 'tiktok', name: 'TikTok', mark: '♪', tone: 'cyan', exportUrl: 'https://www.tiktok.com/setting/download-your-data', accept: '.json,.txt,.zip,application/json,text/plain' },
-  { id: 'youtube', name: 'YouTube', mark: '▶', tone: 'red', exportUrl: 'https://takeout.google.com/settings/takeout/custom/youtube', accept: '.json,.html,.csv,.zip,application/json,text/html,text/csv' },
-  { id: 'spotify', name: 'Spotify', mark: '≋', tone: 'green', exportUrl: 'https://www.spotify.com/account/privacy/', accept: '.json,.zip,application/json' },
-  { id: 'x', name: 'X', mark: 'X', tone: 'black', exportUrl: 'https://x.com/settings/download_your_data', accept: '.js,.json,.zip,application/json,text/javascript' },
-  { id: 'browser', name: 'Bookmarks', mark: '★', tone: 'yellow', exportUrl: '', accept: '.html,.htm,text/html' },
-  { id: 'anything', name: 'Anything', mark: '+', tone: 'violet', exportUrl: '', accept: '' }
+const LEGACY_PLATFORMS = Object.freeze([
+  { id: 'instagram', name: 'Instagram' }, { id: 'reddit', name: 'Reddit' }, { id: 'tiktok', name: 'TikTok' },
+  { id: 'youtube', name: 'YouTube' }, { id: 'spotify', name: 'Spotify' }, { id: 'x', name: 'X' },
+  { id: 'browser', name: 'Bookmarks' }, { id: 'anything', name: 'Anything' }
 ]);
 
 function el(tag, className = '', text = '') {
@@ -25,76 +22,49 @@ function el(tag, className = '', text = '') {
   return node;
 }
 
-function routeTo(hash) {
-  if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo(hash);
-  else location.hash = hash;
+function button(label, handler, className = 'import-primary') {
+  const node = el('button', className, label);
+  node.type = 'button';
+  node.addEventListener('click', handler);
+  return node;
 }
 
-function cleanFeedURL() {
-  const target = new URL(location.href);
-  for (const key of ['test', 'autorun']) target.searchParams.delete(key);
-  target.hash = '#/feed';
-  return target.href;
+function readSources() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SOURCE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
 }
 
-function makeInput() {
+function sourceCollection() {
+  try { return createSourceCollection(readSources()); }
+  catch { localStorage.removeItem(SOURCE_KEY); return createSourceCollection(); }
+}
+
+function saveSources(collection) {
+  localStorage.setItem(SOURCE_KEY, JSON.stringify(collection.list()));
+  window.dispatchEvent(new CustomEvent('sideways:websourceschanged', { detail: { sources: collection.list() } }));
+}
+
+function makeFileInput({ accept = '', backup = false } = {}) {
   const input = el('input');
-  input.id = 'sidewaysImportFiles';
   input.type = 'file';
-  input.multiple = true;
+  input.multiple = !backup;
+  input.accept = accept;
   input.hidden = true;
   input.addEventListener('change', async () => {
     const chosen = [...(input.files || [])];
     input.value = '';
-    if (chosen.length) await importChosen(chosen);
+    if (!chosen.length) return;
+    if (backup) await restoreBackup(chosen[0]);
+    else await importChosen(chosen);
   });
   document.body.append(input);
   return input;
 }
 
-const filesInput = makeInput();
-
-function platformById(id) {
-  return PLATFORMS.find(platform => platform.id === id) || PLATFORMS.at(-1);
-}
-
-function configureInput(platform) {
-  state.platform = platform.id;
-  filesInput.accept = platform.accept || '';
-}
-
-function openPicker(platform) {
-  configureInput(platform);
-  if (typeof filesInput.showPicker === 'function') filesInput.showPicker();
-  else filesInput.click();
-}
-
-function importControl(platform) {
-  const id = `import.${platform.id}`;
-  const label = el('label', 'source-import', window.SidewaysActions.action(id).label);
-  label.htmlFor = filesInput.id;
-  label.setAttribute('role', 'button');
-  label.tabIndex = 0;
-  bindAction(label, id, () => configureInput(platform), { eventName: 'pointerdown', payload: { platform: platform.id } });
-  label.addEventListener('click', () => configureInput(platform));
-  label.addEventListener('keydown', event => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      openPicker(platform);
-    }
-  });
-  return label;
-}
-
-function helpControl(platform) {
-  if (!platform.exportUrl) return null;
-  return actionButton('import.help', () => window.open(platform.exportUrl, '_blank', 'noopener,noreferrer'), {
-    className: 'source-help',
-    label: '?',
-    ariaLabel: `Get ${platform.name} download`,
-    payload: { platform: platform.id }
-  });
-}
+const filesInput = makeFileInput();
+const backupInput = makeFileInput({ accept: '.sideways,application/zip,application/octet-stream', backup: true });
 
 function waitForCoreRefresh() {
   return new Promise((resolve, reject) => {
@@ -104,8 +74,8 @@ function waitForCoreRefresh() {
       window.removeEventListener('sideways:corpusrefresherror', onError);
     };
     const onRefresh = event => { cleanup(); resolve(event.detail || {}); };
-    const onError = event => { cleanup(); reject(new Error(event.detail?.message || 'REFRESH FAILED')); };
-    const timer = setTimeout(() => { cleanup(); reject(new Error('REFRESH FAILED')); }, 10000);
+    const onError = event => { cleanup(); reject(new Error(event.detail?.message || 'Refresh failed.')); };
+    const timer = setTimeout(() => { cleanup(); reject(new Error('The archive did not refresh.')); }, 10000);
     window.addEventListener('sideways:corpusrefresh', onRefresh, { once: true });
     window.addEventListener('sideways:corpusrefresherror', onError, { once: true });
   });
@@ -114,85 +84,176 @@ function waitForCoreRefresh() {
 async function importChosen(chosen) {
   if (state.busy || !chosen.length) return;
   state.busy = true;
-  state.result = null;
+  state.mode = 'status';
   state.error = '';
+  state.result = null;
+  state.detail = 'Reading files without uploading them.';
   renderPanel();
-
   try {
     state.result = await runtime.import(chosen);
     const refreshed = waitForCoreRefresh();
-    window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: state.result }));
+    window.dispatchEvent(new CustomEvent('sideways:importcomplete', { detail: { ...state.result, capability: 'private', ongoingConnection: false } }));
     await refreshed;
+    state.detail = `${Number(state.result.added || 0)} items are now private on this device.`;
   } catch (error) {
-    state.error = error?.name === 'AbortError' ? 'STOPPED' : (error?.message || 'TRY AGAIN');
+    state.error = error?.name === 'AbortError' ? 'Import stopped.' : (error?.message || 'Import failed.');
   } finally {
     state.busy = false;
     renderPanel();
   }
 }
 
-function platformCard(platform) {
-  const card = el('article', `source-card source-${platform.tone}${state.platform === platform.id ? ' is-selected' : ''}`);
-  card.dataset.platform = platform.id;
-  card.dataset.sourceOption = platform.id;
-  const head = el('div', 'source-card-head');
-  head.append(el('span', 'source-mark', platform.mark), el('h3', '', platform.name));
-  const actions = el('div', 'source-card-actions');
-  actions.append(importControl(platform));
-  const help = helpControl(platform);
-  if (help) actions.append(help);
-  card.append(head, actions);
-  return card;
+async function restoreBackup(file) {
+  if (state.busy) return;
+  state.busy = true;
+  state.mode = 'status';
+  state.error = '';
+  state.result = null;
+  state.detail = 'Checking this Sideways backup before restore.';
+  renderPanel();
+  try {
+    const event = new CustomEvent('sideways:restorefile', { detail: { file, handled: false }, cancelable: true });
+    window.dispatchEvent(event);
+    if (!event.defaultPrevented && !event.detail?.handled) throw new Error('Restore is unavailable until the archive recovery controls are ready.');
+    state.result = { restored: true };
+    state.detail = 'The backup was handed to the transactional restore system.';
+  } catch (error) {
+    state.error = error?.message || 'Restore failed.';
+  } finally {
+    state.busy = false;
+    renderPanel();
+  }
 }
 
-function sourceChooser() {
-  const section = el('section', 'source-chooser');
-  section.dataset.onboardingSource = 'true';
-  const intro = el('div', 'source-chooser-copy');
-  intro.append(el('h2', '', COPY.importTitle));
-  const grid = el('div', 'source-card-grid');
-  for (const platform of PLATFORMS) grid.append(platformCard(platform));
+function staticDeployment() {
+  return window.SidewaysConnectionConfig?.serverBacked !== true;
+}
+
+async function connectProvider(provider) {
+  const config = window.SidewaysConnectionConfig?.providers?.[provider.id] || {};
+  const capability = connectionCapability({ staticDeployment: staticDeployment(), configured: Boolean(config.clientId && config.redirectUri && config.authorizationEndpoint) });
+  if (capability.state !== 'available') {
+    state.error = capability.reason;
+    state.mode = 'connect';
+    renderPanel();
+    return;
+  }
+  try {
+    const pkce = await createPKCE();
+    const connectionState = createConnectionState({ providerId: provider.id, redirectUri: config.redirectUri });
+    sessionStorage.setItem(CONNECTION_STATE_KEY, JSON.stringify({ ...connectionState, verifier: pkce.verifier }));
+    const endpoint = new URL(provider.authorizationPath, location.origin);
+    endpoint.search = new URLSearchParams({
+      state: connectionState.state,
+      nonce: connectionState.nonce,
+      code_challenge: pkce.challenge,
+      code_challenge_method: pkce.method,
+      return_to: location.href
+    }).toString();
+    location.assign(endpoint.href);
+  } catch (error) {
+    state.error = error?.message || 'Connection could not start.';
+    state.mode = 'connect';
+    renderPanel();
+  }
+}
+
+function addWebSource(form) {
+  const input = form.elements.sourceURL;
+  try {
+    const parsed = safePublicURL(input.value);
+    const kind = classifyAddInput(parsed.href);
+    const collection = sourceCollection();
+    const added = collection.add({ url: parsed.href, kind });
+    saveSources(collection);
+    state.mode = 'status';
+    state.result = { source: added };
+    state.error = '';
+    state.detail = `${added.name} is enabled as a ${kind === 'feed' ? 'feed' : 'website'} source. Its public material is readable but is not part of your private archive until you save it.`;
+    renderPanel();
+  } catch (error) {
+    state.error = error?.message || 'That source could not be added.';
+    state.mode = 'web';
+    renderPanel();
+  }
+}
+
+function homePanel() {
+  const section = el('section', 'add-sideways-home');
+  const intro = el('header', 'add-sideways-intro');
+  intro.append(el('span', 'import-workbench-kicker', 'ADD TO SIDEWAYS'), el('h2', '', 'Bring something in.'), el('p', '', 'Connect an account, follow a public source, import files, or restore a backup. Sideways always tells you where the material lives.'));
+  const grid = el('div', 'add-sideways-grid');
+  const choices = [
+    ['Connected', 'Connect an account', 'Authorize an official provider without giving Sideways your password.', 'connect'],
+    ['Web', 'Add a website or feed', 'Follow a public URL, RSS or Atom feed. Nothing is copied into your private archive automatically.', 'web'],
+    ['Private', 'Import files', 'Read exports, documents and media locally on this device.', 'files'],
+    ['Private', 'Restore a Sideways backup', 'Recover an owned .sideways Ark through the transactional restore path.', 'restore']
+  ];
+  for (const [badge, title, copy, mode] of choices) {
+    const card = el('article', 'add-sideways-choice');
+    card.append(el('span', `capability-badge capability-${badge.toLowerCase()}`, badge), el('h3', '', title), el('p', '', copy), button('Open', () => { state.mode = mode; state.error = ''; renderPanel(); }, 'import-primary'));
+    grid.append(card);
+  }
   section.append(intro, grid);
   return section;
 }
 
-function importCard() {
-  const card = el('section', 'import-workbench-card');
-  card.dataset.importWorkbench = 'true';
-  card.append(sourceChooser());
-  return card;
+function connectPanel() {
+  const section = el('section', 'add-sideways-subview');
+  section.append(el('span', 'import-workbench-kicker', 'CONNECTED'), el('h2', '', 'Connect an account'), el('p', 'add-sideways-note', staticDeployment() ? 'This static edition cannot hold account tokens. Official connections appear only on a configured server deployment; file imports still work here.' : 'Authorization happens on the provider. Sideways receives only the scopes you approve and supports disconnect and revocation.'));
+  if (state.error) section.append(el('p', 'add-sideways-error', state.error));
+  const grid = el('div', 'connection-grid');
+  const config = window.SidewaysConnectionConfig?.providers || {};
+  for (const provider of providerCatalog(config)) {
+    const providerConfig = config[provider.id] || {};
+    const capability = connectionCapability({ staticDeployment: staticDeployment(), configured: Boolean(providerConfig.clientId && providerConfig.redirectUri && providerConfig.authorizationEndpoint) });
+    const card = el('article', 'connection-card');
+    card.append(el('strong', '', provider.name), el('span', '', capability.reason));
+    const action = button(capability.state === 'available' ? 'Connect' : 'Unavailable', () => connectProvider(provider), capability.state === 'available' ? 'import-primary' : 'import-secondary');
+    action.disabled = capability.state !== 'available';
+    card.append(action);
+    grid.append(card);
+  }
+  section.append(grid, button('Back', () => { state.mode = 'home'; renderPanel(); }, 'import-secondary'));
+  return section;
+}
+
+function webPanel() {
+  const section = el('section', 'add-sideways-subview');
+  section.append(el('span', 'import-workbench-kicker', 'WEB'), el('h2', '', 'Add a website or feed'), el('p', 'add-sideways-note', 'Use a public HTTPS URL. Private-network addresses, embedded credentials and unsupported protocols are rejected.'));
+  if (state.error) section.append(el('p', 'add-sideways-error', state.error));
+  const form = el('form', 'web-source-form');
+  const label = el('label', '', 'Website, RSS or Atom URL');
+  const input = el('input');
+  input.name = 'sourceURL'; input.type = 'url'; input.required = true; input.inputMode = 'url'; input.autocomplete = 'url'; input.placeholder = 'https://example.com/feed.xml';
+  label.append(input);
+  form.append(label, button('Add source', () => {}, 'import-primary'));
+  form.addEventListener('submit', event => { event.preventDefault(); addWebSource(form); });
+  const existing = el('div', 'source-list');
+  for (const source of readSources()) existing.append(el('p', '', `${source.enabled === false ? 'Off' : 'On'} · ${source.name} · ${source.kind}`));
+  section.append(form, existing, button('Back', () => { state.mode = 'home'; renderPanel(); }, 'import-secondary'));
+  return section;
 }
 
 function statusPanel() {
-  const platform = platformById(state.platform);
-  if (state.busy) {
-    const panel = el('section', 'import-progress-panel');
-    panel.append(el('span', 'import-workbench-kicker', platform.name.toUpperCase()), el('h2', '', COPY.importBusy), actionButton('import.stop', () => runtime.stop(), { className: 'import-secondary' }));
-    return panel;
-  }
-  if (state.error) {
-    const panel = el('section', 'import-error-panel');
-    panel.append(el('span', 'import-workbench-kicker', platform.name.toUpperCase()), el('h2', '', state.error), actionButton('import.retry', () => openPicker(platform), { className: 'import-primary' }));
-    return panel;
-  }
-  if (state.result) {
-    const panel = el('section', 'import-complete-panel');
-    const count = Number(state.result.added || 0);
-    panel.append(
-      el('span', 'import-workbench-kicker', platform.name.toUpperCase()),
-      el('h2', '', COPY.importDone),
-      el('strong', 'import-result-count', `${count}`),
-      actionButton('import.open_feed', () => location.assign(cleanFeedURL()), { className: 'import-primary import-open-feed' })
-    );
-    return panel;
-  }
-  return null;
+  const section = el('section', state.error ? 'import-error-panel' : 'import-complete-panel');
+  section.append(el('span', 'import-workbench-kicker', state.busy ? 'WORKING' : state.error ? 'NOT ADDED' : 'ADDED'), el('h2', '', state.busy ? 'Keeping this bounded…' : state.error || 'Done'), el('p', 'add-sideways-note', state.detail));
+  if (state.busy) section.append(button('Stop', () => runtime.stop(), 'import-secondary'));
+  else section.append(button('Add something else', () => { state.mode = 'home'; state.result = null; state.error = ''; state.detail = ''; renderPanel(); }, 'import-primary'));
+  return section;
 }
 
 function renderPanel() {
   const host = document.getElementById('importWorkbenchHost');
   if (!host) return;
-  host.replaceChildren(statusPanel() || importCard());
+  let panel;
+  if (state.mode === 'connect') panel = connectPanel();
+  else if (state.mode === 'web') panel = webPanel();
+  else if (state.mode === 'files') { filesInput.click(); state.mode = 'home'; panel = homePanel(); }
+  else if (state.mode === 'restore') { backupInput.click(); state.mode = 'home'; panel = homePanel(); }
+  else if (state.mode === 'status') panel = statusPanel();
+  else panel = homePanel();
+  host.replaceChildren(panel);
   window.dispatchEvent(new CustomEvent('sideways:importworkbench'));
 }
 
@@ -205,29 +266,27 @@ function mount() {
     host = el('div', 'import-workbench');
     host.id = 'importWorkbenchHost';
     addView.append(host);
-    renderPanel();
   }
+  renderPanel();
   return true;
 }
 
 let scheduled = false;
-let retryTimers = [];
-function clearRetryTimers() { for (const timer of retryTimers) clearTimeout(timer); retryTimers = []; }
 function schedule() {
   if (scheduled) return;
   scheduled = true;
-  requestAnimationFrame(() => {
-    scheduled = false;
-    if (mount()) clearRetryTimers();
-  });
+  requestAnimationFrame(() => { scheduled = false; mount(); });
 }
-function bootMount() {
-  schedule();
-  retryTimers = [80, 280, 900, 1800].map(delay => setTimeout(schedule, delay));
-}
-
 for (const eventName of ['hashchange', 'popstate', 'sideways:ready', 'sideways:feedrender']) window.addEventListener(eventName, schedule);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootMount, { once: true });
-else bootMount();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule, { once: true });
+else schedule();
 
-window.SidewaysImportWorkbench = Object.freeze({ registry, runtime, platforms: PLATFORMS, open: () => routeTo('#/add'), setFiles: importChosen, mount: schedule });
+window.SidewaysImportWorkbench = Object.freeze({
+  registry,
+  runtime,
+  platforms: LEGACY_PLATFORMS,
+  open: () => { if (window.SidewaysCore?.routeTo) window.SidewaysCore.routeTo('#/add'); else location.hash = '#/add'; },
+  setFiles: importChosen,
+  sources: () => readSources(),
+  mount: schedule
+});
