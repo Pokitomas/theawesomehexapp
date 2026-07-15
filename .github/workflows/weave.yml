@@ -3,8 +3,14 @@ name: Verify weave protocol
 on:
   pull_request:
     paths:
-      - 'scripts/weave-*.mjs'
-      - 'scripts/tests/weave-*.test.mjs'
+      - 'scripts/weave-protocol.mjs'
+      - 'scripts/weave-client.mjs'
+      - 'scripts/weave-lasso.mjs'
+      - 'scripts/tests/weave-protocol.test.mjs'
+      - 'scripts/tests/weave-lasso.test.mjs'
+      - 'scripts/tests/weave-lasso-service.test.mjs'
+      - 'scripts/tests/weave-lasso-adversarial.test.mjs'
+      - 'scripts/tests/weave-active-state.test.mjs'
       - 'netlify/functions/weave-lasso-service.mjs'
       - 'netlify/functions/remote-service.mjs'
       - 'WEAVE_PROTOCOL.md'
@@ -16,8 +22,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'scripts/weave-*.mjs'
-      - 'scripts/tests/weave-*.test.mjs'
+      - 'scripts/weave-protocol.mjs'
+      - 'scripts/weave-client.mjs'
+      - 'scripts/weave-lasso.mjs'
+      - 'scripts/tests/weave-protocol.test.mjs'
+      - 'scripts/tests/weave-lasso.test.mjs'
+      - 'scripts/tests/weave-lasso-service.test.mjs'
+      - 'scripts/tests/weave-lasso-adversarial.test.mjs'
+      - 'scripts/tests/weave-active-state.test.mjs'
       - 'netlify/functions/weave-lasso-service.mjs'
       - 'netlify/functions/remote-service.mjs'
       - 'WEAVE_PROTOCOL.md'
@@ -42,11 +54,12 @@ jobs:
           node-version: 22
       - name: Install runtime dependencies
         run: npm install --ignore-scripts
-      - name: Verify weave modules
+      - name: Check v1 weave modules
         run: |
           node --check scripts/weave-protocol.mjs
           node --check scripts/weave-client.mjs
           node --check scripts/weave-lasso.mjs
           node --check netlify/functions/weave-lasso-service.mjs
           node --check netlify/functions/remote-service.mjs
-          node --test scripts/tests/weave-*.test.mjs
+      - name: Verify v1 weave protocol
+        run: npm run test:weave
