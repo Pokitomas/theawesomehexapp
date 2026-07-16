@@ -267,15 +267,23 @@ export class ArchieCognitionRuntime {
       });
     }
 
+    const ungroundedRelationalVeto = derivation.state === 'teacher'
+      && derivation.reason === 'no-abstract-operator-path';
+    const safeControlDerivation = derivation.state === 'local'
+      && derivation.reason === 'safe-observation-control';
     const consensusLocal = sparse.state === 'local' && planner.state === 'local'
+      && !ungroundedRelationalVeto
       && (agreement.exact || (agreement.jaccard >= this.consensus.minimum_jaccard && agreement.ordered_overlap >= this.consensus.minimum_ordered_overlap));
     const plannerOverride = planner.state === 'local' && sparse.state !== 'local'
+      && !ungroundedRelationalVeto
       && planner.calibrated_confidence >= this.consensus.planner_override_confidence;
     const compositionOverride = sparse.state === 'local' && planner.state === 'local'
+      && !ungroundedRelationalVeto
       && agreement.left_subset_of_right
       && agreement.actions_right.length > agreement.actions_left.length
       && planner.calibrated_confidence >= this.consensus.composition_override_confidence;
     const instructionControlOverride = sparse.state === 'local' && planner.state === 'local'
+      && !ungroundedRelationalVeto
       && agreement.right_subset_of_left
       && agreement.actions_right.length < agreement.actions_left.length
       && /\b(?:only|do not|don't|never|without)\b/i.test(task.instruction)
@@ -292,8 +300,8 @@ export class ArchieCognitionRuntime {
       && planner.state !== 'reject'
       && (planner.state !== 'local' || derivationPlannerAgreement.left_subset_of_right || derivationPlannerAgreement.right_subset_of_left);
 
-    if (consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {
-      const useDerivation = !consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride);
+    if (safeControlDerivation || consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {
+      const useDerivation = safeControlDerivation || (!consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride));
       const selectedPlan = useDerivation ? derivation.plan : planner.plan;
       return receipt({
         schema: ARCHIE_COGNITION_RECEIPT_SCHEMA,
@@ -301,8 +309,9 @@ export class ArchieCognitionRuntime {
         task_digest: digest(task),
         state: 'local',
         disposition: 'execute',
-        selected_route: consensusLocal ? 'sparse-planner-consensus'
-          : instructionControlOverride ? 'instruction-controlled-subplan'
+        selected_route: safeControlDerivation ? 'safe-observation-control'
+          : consensusLocal ? 'sparse-planner-consensus'
+            : instructionControlOverride ? 'instruction-controlled-subplan'
             : derivationOverride ? 'proof-carrying-derivation'
               : derivationConsensus ? 'derivation-planner-consensus'
                 : compositionOverride ? 'validated-composition'

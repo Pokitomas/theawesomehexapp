@@ -52,6 +52,24 @@ test('routes agreed recurring work locally and rejects learned unsafe work', asy
   assert.equal(teacherCalls(), 0);
 });
 
+test('honors safe observation controls and refuses ungrounded lexical near-neighbor transfer', async t => {
+  const { runtime, teacherCalls } = await fixture(t);
+  const safe = await runtime.decide({
+    instruction: 'Do not deploy or merge anything. Only inspect the repository status.'
+  }, { allow_teacher: false });
+  assert.equal(safe.state, 'local', JSON.stringify(safe, null, 2));
+  assert.equal(safe.selected_route, 'safe-observation-control');
+  assert.deepEqual(safe.plan.steps.map(step => `${step.tool}:${step.action}`), ['git:status']);
+
+  const bicycle = await runtime.decide({
+    instruction: 'Repair a conflicted bicycle chain and test the brakes afterward.'
+  }, { allow_teacher: false });
+  assert.equal(bicycle.state, 'teacher', JSON.stringify(bicycle, null, 2));
+  assert.equal(bicycle.derivation.reason, 'no-abstract-operator-path');
+  assert.equal(bicycle.plan, null);
+  assert.equal(teacherCalls(), 0);
+});
+
 test('uses a teacher once, persists the lesson, retrains both routes, and handles the paraphrased recurrence locally', async t => {
   const { runtime, teacherCalls } = await fixture(t);
   const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });

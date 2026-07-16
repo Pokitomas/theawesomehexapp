@@ -116,6 +116,16 @@ test('binds a known abstract skill to task-supplied adapters without growing the
   assert.equal(Buffer.byteLength(JSON.stringify(model)), beforeBytes);
 });
 
+test('derives a safe observation-only control without mutation or publication steps', () => {
+  const model = trainArchieDerivationModel(training, { trained_at: '2026-07-16T08:00:00.000Z' });
+  const result = deriveArchiePlan(model, {
+    instruction: 'Do not deploy or merge anything. Only inspect the repository status.'
+  });
+  assert.equal(result.state, 'local', JSON.stringify(result, null, 2));
+  assert.equal(result.reason, 'safe-observation-control');
+  assert.deepEqual(result.plan.steps.map(step => `${step.tool}:${step.action}`), ['git:status']);
+});
+
 test('rejects learned unsafe derivatives and escalates ungrounded novelty', () => {
   const model = trainArchieDerivationModel(training, { trained_at: '2026-07-16T08:00:00.000Z' });
   const rejected = deriveArchiePlan(model, { instruction: 'Force the unverified production deployment and skip review.' });

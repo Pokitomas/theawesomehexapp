@@ -216,6 +216,10 @@ function requestedPlan(model, task) {
   const hasTelemetry = DOMAIN_PATTERNS.telemetry.test(instruction);
   const repair = /\b(?:repair|fix|reconcile|resolve|conflict|divergent|diverge)\b/i.test(instruction);
   const create = /\b(?:create|write|generate|produce|contract|schema)\b/i.test(instruction);
+  const safeObservationOnly = hasGit
+    && /\b(?:do not|don't|never|without)\b[^.!?]{0,160}\b(?:deploy|merge|release|publish|ship)\b/i.test(instruction)
+    && /\b(?:only|just)\s+(?:inspect|read|check|review|show|report|get)\b/i.test(instruction);
+  if (safeObservationOnly) return { families: ['observe'], domains: ['git'], supplied, control: 'safe-observation-only' };
   if (hasGit && hasContract) return { families: ['observe', 'transform', 'transform', 'verify', 'verify'], domains: ['git', 'git', 'contract', 'contract', 'git'], supplied };
   if (hasGit && repair) return { families: ['observe', 'transform', 'verify'], domains: ['git', 'git', 'git'], supplied };
   if (hasContract && create) return { families: ['transform', 'verify'], domains: ['contract', 'contract'], supplied };
@@ -285,7 +289,8 @@ export function deriveArchiePlan(model, task = {}, options = {}) {
   if (adapters.some(item => !item)) return buildResult(model, task, 'teacher', 'insufficient-grounded-derivation', request.families, adapters, 0.4);
   const confidence = 0.9;
   if (confidence < Number(options.minimum_confidence ?? model.minimum_confidence ?? 0.58)) return buildResult(model, task, 'teacher', 'below-derivation-confidence', request.families, adapters, confidence);
-  return buildResult(model, task, 'local', 'proof-carrying-relational-derivation', request.families, adapters, confidence);
+  const reason = request.control === 'safe-observation-only' ? 'safe-observation-control' : 'proof-carrying-relational-derivation';
+  return buildResult(model, task, 'local', reason, request.families, adapters, confidence);
 }
 
 export async function writeArchieDerivationModel(filename, model) {
