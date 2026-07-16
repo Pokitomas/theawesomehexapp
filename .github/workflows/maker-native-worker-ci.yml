@@ -1,73 +1,40 @@
-name: Archie exact-head guarded publisher
+name: Archie drift exact-tree snapshot
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/archie-democratized-runtime
-  workflow_dispatch:
+      - agent/archie-drift-c-exact-snapshot
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          persist-credentials: false
           fetch-depth: 0
-      - name: Verify exclusive branch heads
-        env:
-          EXPECTED_COORDINATOR: ${{ github.sha }}
-          EXPECTED_EVALUATION: 323e9d0b047284123ba1db1f3717d9ed22b5cb31
+          ref: 8797ab484137926a158efc8d4a6c69054f0bc3dc
+      - name: Verify and archive exact drift checkout
         run: |
           set -euo pipefail
-          coordinator="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
-          evaluation="$(git ls-remote origin refs/heads/agent/archie-hostile-evaluation | awk '{print $1}')"
-          test "$coordinator" = "$EXPECTED_COORDINATOR"
-          test "$evaluation" = "$EXPECTED_EVALUATION"
-      - name: Reconstruct reviewed patch from Git blobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          blobs=(ab1d7f4b5052aea315360c394e86e5ddcd94002e e6b397e3e8d74d9a5a087baf10780763d7ce665b 07095e89119d7b6d8b1128c3cd00cbd5e8868113 a5afe48bc6026aa28b80710584feac9afb6aea57 8d3a4ee312ff4ad2b95489f48709ff95df8f7f41 ca3fd77b10869c52496f07ea568be75b2ddabbc5)
-          expected=(1269f169ffb08d47fff698436f90f8b96606cdf54e4f1ab9c6edaa9f04adf530 2f6ba981f164917f19bc966361fe66d45de7e7ab9e26b6fc71c2356e6f4d8ba1 e7e9dd75dd37679671ffed1902ba34fa2a3e6cd57db7d44d64facc18496187fc 4c6217e103a011b1a706986b5b5a9b39c67368372637cb7b0831c0cdcb8ace10 272c2ba6b119ea68f33560e279fba8b3de8edd6e7607cd7042359cf02fe681bc bf328ce5862c40f32a5881c36ad63568a6843be5cb046b058ced5b5d8434b261)
-          : > /tmp/archie-final-patch.tgz
-          for index in "${!blobs[@]}"; do
-            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$REPOSITORY/git/blobs/${blobs[$index]}" | jq -r '.content' | tr -d '\n' | base64 -d > "/tmp/patch.part.$index"
-            echo "${expected[$index]}  /tmp/patch.part.$index" | sha256sum --check --strict
-            cat "/tmp/patch.part.$index" >> /tmp/archie-final-patch.tgz
-          done
-          echo 'd07cfbeabf37ab2f86aa23ad1e15ca7e93b0e41a75d44f51b186db4793aa49c1  /tmp/archie-final-patch.tgz' | sha256sum --check --strict
-          mkdir -p /tmp/archie-final-patch
-          tar -xzf /tmp/archie-final-patch.tgz -C /tmp/archie-final-patch
-      - name: Publish hostile evaluation lane
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin agent/archie-hostile-evaluation
-          git checkout -B agent/archie-hostile-evaluation origin/agent/archie-hostile-evaluation
-          paths=(.github/workflows/maker-native-worker-ci.yml package.json maker/contracts/archie-evaluation.schema.json scripts/maker-archie-evaluation.mjs scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-hostile.test.mjs audit/archie-democratized-runtime.json audit/repository-verification.json)
-          for path in "${paths[@]}"; do install -D "/tmp/archie-final-patch/$path" "$path"; done
-          git add -- "${paths[@]}"
-          git diff --cached --check
-          git commit -m 'Build matched hostile Archie evaluation gate'
-          git push origin HEAD:agent/archie-hostile-evaluation
-      - name: Publish final coordinator integration
-        env:
-          EXPECTED_COORDINATOR: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          current="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
-          test "$current" = "$EXPECTED_COORDINATOR"
-          git fetch origin agent/archie-democratized-runtime
-          git checkout -B agent/archie-democratized-runtime origin/agent/archie-democratized-runtime
-          paths=(.github/workflows/maker-native-worker-ci.yml README.md audit/archie-democratized-runtime.json audit/repository-verification.json maker/contracts/archie-evaluation.schema.json maker/contracts/worker-fleet.schema.json package.json scripts/maker-archie-evaluation.mjs scripts/maker-runtime-platform.mjs scripts/maker-worker-fleet.mjs scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-hostile.test.mjs scripts/tests/maker-runtime-platform.test.mjs scripts/tests/maker-worker-fleet.test.mjs)
-          for path in "${paths[@]}"; do install -D "/tmp/archie-final-patch/$path" "$path"; done
-          git add -- "${paths[@]}"
-          git diff --cached --check
-          git commit -m 'Finish democratized Archie runtime integration'
-          git push origin HEAD:agent/archie-democratized-runtime
+          test "$(git rev-parse HEAD)" = "8797ab484137926a158efc8d4a6c69054f0bc3dc"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/archie-drift-head.txt"
+          git status --short | tee "$RUNNER_TEMP/archie-drift-status.txt"
+          test ! -s "$RUNNER_TEMP/archie-drift-status.txt"
+          tar -czf "$RUNNER_TEMP/archie-drift-with-git.tgz" .
+          sha256sum "$RUNNER_TEMP/archie-drift-with-git.tgz" | tee "$RUNNER_TEMP/archie-drift.sha256"
+      - name: Upload exact drift checkout
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-drift-source-8797ab484137926a158efc8d4a6c69054f0bc3dc
+          path: |
+            ${{ runner.temp }}/archie-drift-with-git.tgz
+            ${{ runner.temp }}/archie-drift.sha256
+            ${{ runner.temp }}/archie-drift-head.txt
+            ${{ runner.temp }}/archie-drift-status.txt
+          if-no-files-found: error
+          retention-days: 2
