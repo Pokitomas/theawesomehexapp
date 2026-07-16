@@ -1,0 +1,54 @@
+name: Publish Archie causal repair gate
+
+on:
+  push:
+    branches:
+      - agent/archie-causal-repair-gate
+
+permissions:
+  contents: write
+
+concurrency:
+  group: archie-causal-repair-gate
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify exact base
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "8b26aa602c6e20161780c3edc3e659c797078a30" || { echo "unexpected base"; exit 1; }
+      - name: Apply reviewed patch
+        shell: bash
+        env:
+          PATCH_GZ_B64: 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
+        run: |
+          printf '%s' "$PATCH_GZ_B64" | base64 -d | gzip -d > /tmp/archie.patch
+          echo '0dda0413b15048deb7430454e2866321c08ef62e9a487752a83e392848dfd3bd  /tmp/archie.patch' | sha256sum -c -
+          git apply --check /tmp/archie.patch
+          git apply /tmp/archie.patch
+          git diff --check
+      - name: Verify repair engine
+        shell: bash
+        run: |
+          node --test scripts/tests/maker-engine.contract.mjs
+          npm run test:native-maker
+          npm run test:foundry
+          node --test scripts/tests/maker-worker-fleet.test.mjs scripts/tests/maker-model-router.test.mjs scripts/tests/maker-control-plane.test.mjs scripts/tests/maker-foundry-adapter.test.mjs
+      - name: Commit exact result
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/maker-engine.mjs maker/runtime/autonomous-agent.mjs scripts/tests/maker-engine.contract.mjs
+          git commit -m 'Require causal repair witnesses'
+          git push origin HEAD:agent/archie-causal-repair-gate
