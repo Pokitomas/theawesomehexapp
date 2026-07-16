@@ -1,0 +1,184 @@
+name: Validate Archie CPU planner ordering
+
+on:
+  push:
+    branches:
+      - agent/archie-cpu-planner-ordering
+    paths:
+      - .github/workflows/archie-planner-ordering-candidate.yml
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Apply minimal planner patch
+        run: |
+          set -euo pipefail
+          git config user.name 'archie-finalizer[bot]'
+          git config user.email 'archie-finalizer[bot]@users.noreply.github.com'
+          python <<'PY'
+          from pathlib import Path
+
+          planner = Path('scripts/maker-archie-planner.mjs')
+          text = planner.read_text()
+          old = '''function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({ ...step, rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}` });
+                seen.add(key);
+                if (chosen.length >= maxSteps) return chosen;
+              }
+            }
+            return chosen;
+          }
+          '''
+          new = '''function executionPhase(step = {}) {
+            const text = `${clean(step.tool, 80)} ${clean(step.action, 120)}`.toLowerCase().replace(/[_.:/-]+/g, ' ');
+            if (/\\b(?:status|inspect|read|search|load|fetch|list|parse|scan|measure|observe|review|assess)\\b/.test(text)) return 0;
+            if (/\\b(?:repair|recover|retry|resume|rollback|restore|revert|fix|reconcile|resolve|conflict)\\b/.test(text)) return 1;
+            if (/\\b(?:test|tests|testing)\\b/.test(text)) return 4;
+            if (/\\b(?:validate|verify|audit|check|confirm|prove)\\b/.test(text)) return 3;
+            return 2;
+          }
+
+          function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            outer: for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({
+                  ...step,
+                  rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}`,
+                  composition_order: chosen.length,
+                  execution_phase: executionPhase(step)
+                });
+                seen.add(key);
+                if (chosen.length >= maxSteps) break outer;
+              }
+            }
+            return chosen
+              .sort((left, right) => left.execution_phase - right.execution_phase || left.composition_order - right.composition_order)
+              .map(({ composition_order, execution_phase, ...step }) => step);
+          }
+          '''
+          if old not in text:
+              raise SystemExit('planner ordering insertion point drifted')
+          planner.write_text(text.replace(old, new))
+
+          tests = Path('scripts/tests/maker-archie-planner.test.mjs')
+          test_text = tests.read_text()
+          insertion = '''\n\ntest('orders composed skill phases deterministically and runs terminal repository tests last', () => {
+            const model = train();
+            const plan = planWithArchieCPUPlanner(model, {
+              instruction: 'Create and validate the JSON contract only after repairing the conflicted branch; execute repository tests last.'
+            });
+            assert.equal(plan.state, 'local', JSON.stringify(plan, null, 2));
+            assert.deepEqual(plan.plan.steps.map(step => `${step.tool}:${step.action}`), [
+              'git:status',
+              'git:repair_conflict',
+              'filesystem:write_contract',
+              'json:validate_schema',
+              'node:test'
+            ]);
+          });\n'''
+          anchor = "\ntest('rejects genuinely unseen work through teacher escalation instead of hallucinating a plan'"
+          if anchor not in test_text:
+              raise SystemExit('planner test insertion point drifted')
+          tests.write_text(test_text.replace(anchor, insertion + anchor))
+          PY
+          printf 'node_modules/\n' > .gitignore
+          git rm .github/workflows/archie-planner-ordering-candidate.yml
+      - name: Run exact gate matrix
+        id: gates
+        run: |
+          set +e
+          mkdir -p /tmp/archie-order-logs
+          : > /tmp/archie-order-status.tsv
+          run_gate() {
+            name="$1"
+            shift
+            "$@" > "/tmp/archie-order-logs/${name}.log" 2>&1
+            code=$?
+            cat "/tmp/archie-order-logs/${name}.log"
+            printf '%s\t%s\n' "$name" "$code" >> /tmp/archie-order-status.tsv
+          }
+          run_gate npm-ci npm ci
+          run_gate test-archie npm run test:archie
+          run_gate test-maker npm run test:maker
+          run_gate benchmark-archie-derive npm run benchmark:archie:derive
+          run_gate test-foundry npm run test:foundry
+          run_gate test-weave npm run test:weave
+          run_gate verify-repository npm run verify:repository
+          if awk -F '\t' '$2 != 0 { failed=1 } END { exit failed ? 0 : 1 }' /tmp/archie-order-status.tsv; then
+            echo 'passed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'passed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish minimal green patch
+        if: steps.gates.outputs.passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git add -- .gitignore scripts/maker-archie-planner.mjs scripts/tests/maker-archie-planner.test.mjs
+          git commit -m 'fix: order composed Archie planner phases'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          head_sha=$(git rev-parse HEAD)
+          {
+            echo '## Archie CPU planner ordering patch validated'
+            echo
+            echo "Candidate head: \`$head_sha\`"
+            echo
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" = '0' ]; then state='PASS'; else state='FAIL'; fi
+              echo "- $state \`$name\` (exit $code)"
+            done < /tmp/archie-order-status.tsv
+            echo
+            echo '- Exact scope: `.gitignore`, CPU planner ordering, and one regression test.'
+            echo '- No temporary workflow, generated receipt, merge, or deployment.'
+          } > /tmp/archie-order-comment.md
+          gh issue comment 387 --body-file /tmp/archie-order-comment.md
+      - name: Report minimal patch failure
+        if: steps.gates.outputs.passed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## Archie CPU planner ordering patch failed validation'
+            echo
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" = '0' ]; then state='PASS'; else state='FAIL'; fi
+              echo "- $state \`$name\` (exit $code)"
+              if [ "$code" != '0' ]; then
+                echo
+                echo "<details><summary>$name log tail</summary>"
+                echo
+                echo '```text'
+                tail -n 120 "/tmp/archie-order-logs/${name}.log"
+                echo '```'
+                echo '</details>'
+              fi
+            done < /tmp/archie-order-status.tsv
+            echo
+            echo 'No patch commit, PR, merge, or deployment was published.'
+          } > /tmp/archie-order-comment.md
+          gh issue comment 387 --body-file /tmp/archie-order-comment.md
+          exit 1
