@@ -17,6 +17,10 @@ function repoKey(repoRoot) {
   return `${name}-${suffix}`;
 }
 
+function valueDigest(value) {
+  return crypto.createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
+}
+
 export function resolveNativeArchiePaths(repoRoot, { env = process.env, home = os.homedir() } = {}) {
   if (!repoRoot) throw new Error('repoRoot is required.');
   const root = path.resolve(clean(env?.ARCHIE_CORPUS_ROOT) || path.join(home, '.sideways', 'archie', repoKey(repoRoot)));
@@ -48,6 +52,51 @@ export function normalizeReusableMakerPlan(value) {
     branch_slug: branchSlug,
     owned_paths: ownedPaths,
     deferred
+  });
+}
+
+export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
+  const plan = normalizeReusableMakerPlan(receipt?.plan);
+  const verification = Array.isArray(receipt?.verification) ? receipt.verification.map(item => clean(item, 1000)).filter(Boolean) : [];
+  const repository = clean(receipt?.repository || repoRoot || 'default', 1000);
+  const result = {
+    branch: clean(receipt?.branch, 1000),
+    pull_request: clean(receipt?.pull_request, 2000),
+    head_sha: clean(receipt?.head_sha, 200),
+    writer_summary: clean(receipt?.writer_summary, 200000),
+    verification
+  };
+  return Object.freeze({
+    schema: 'sideways-maker-runtime-platform-receipt/v1',
+    platform_run_id: clean(receipt?.session_id || receipt?.platform_run_id, 300),
+    state: clean(receipt?.state || (receipt?.head_sha ? 'completed' : 'unknown'), 100),
+    task: {
+      repository,
+      request: clean(receipt?.request, 500000),
+      mode: 'native-maker',
+      protect: 'Human merge and deployment remain required.'
+    },
+    components: {
+      model_route: {
+        receipt_digest: valueDigest(plan),
+        provider: { id: 'sideways-native-maker', display_name: 'Sideways Native Maker' },
+        output: { plan },
+        attempts: verification.map((item, index) => ({
+          provider_id: 'native-verifier',
+          status: 'completed',
+          duration_ms: null,
+          verification: item,
+          sequence: index + 1
+        })),
+        usage: { cost_usd: null }
+      },
+      dispatch: {
+        ok: true,
+        adapter: `native-maker-${clean(receipt?.selected_lane || plan?.selected_lane || 'unknown', 120)}`,
+        output: { result }
+      },
+      control_job: { result }
+    }
   });
 }
 
@@ -118,7 +167,8 @@ export async function rememberNativeMakerRun({
   if (disabled(env)) return Object.freeze({ status: 'disabled' });
   const { paths, corpus, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
   try {
-    const corpusReceipt = await corpus.recordMakerRun(receipt, { input: { request: receipt?.request } });
+    const normalized = nativeMakerReceiptForCorpus(receipt, { repoRoot });
+    const corpusReceipt = await corpus.recordMakerRun(normalized, { input: { request: normalized.task.request } });
     const model = await brain.train();
     return Object.freeze({
       status: corpusReceipt.status,
