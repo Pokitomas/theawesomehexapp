@@ -79,7 +79,7 @@ function admitScenario(rawScenario, manifest, requirements, fallback = null) {
     missing_required_faculties: Object.freeze(missingFaculties),
     strongest_profile_proof: Object.freeze({
       ...rawScenario.strongest_profile_proof,
-      selected_is_first_resource-feasible_profile: Boolean(admittedCandidate),
+      'selected_is_first_resource-feasible_profile': Boolean(admittedCandidate),
       aggregate_resource_budget: budget,
       aggregate_resource_gate_applied: true
     })
