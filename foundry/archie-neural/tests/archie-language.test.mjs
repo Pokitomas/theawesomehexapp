@@ -11,7 +11,7 @@ import {
 
 const base = `AIL/1
 world repo {"name":"theawesomehexapp"}
-actor owner {"kind":"human"}
+actor owner {"actor_type":"human"}
 source pr394 {"uri":"github:Pokitomas/theawesomehexapp#394"}
 fact head {"expr":"pr394.head = exact_sha","evidence":["pr394"]}
 goal deployed {"expr":"served.sha = main.sha","priority":1}
@@ -78,7 +78,13 @@ test('dependencies and evidence references fail closed', () => {
 
 test('canonical kernel objects do not require a personal owner ontology', () => {
   const institutional = parseArchieLanguage(base
-    .replace('actor owner {"kind":"human"}', 'actor council {"kind":"institution","members":5}')
+    .replace('actor owner {"actor_type":"human"}', 'actor council {"actor_type":"institution","members":5}')
     .replace('"actor":"owner"', '"actor":"council"'));
   assert.equal(institutional.instructions.find(item => item.kind === 'actor').id, 'council');
+  assert.equal(institutional.instructions.find(item => item.kind === 'actor').actor_type, 'institution');
+});
+
+test('payloads cannot overwrite reserved opcode or identity fields', () => {
+  assert.throws(() => parseArchieLanguage('AIL/1\nactor owner {"kind":"human"}\n'), /payload field kind is reserved/);
+  assert.throws(() => parseArchieLanguage('AIL/1\nactor owner {"id":"other","actor_type":"human"}\n'), /payload field id is reserved/);
 });
