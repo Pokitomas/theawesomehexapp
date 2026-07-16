@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-launch-capability-manifest.schema.json",
+  "title": "Archie launch capability manifest v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "release",
+    "launch_target",
+    "launch_decision",
+    "machine",
+    "capabilities",
+    "selection_preferences",
+    "fallback_scenarios",
+    "claim_boundary"
+  ],
+  "properties": {
+    "schema": { "const": "archie-launch-capability-manifest/v1" },
+    "release": {
+      "type": "object",
+      "required": ["id", "runtime_abi", "code_revision", "model_artifact_digest", "checkpoint_digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "runtime_abi": { "type": "string", "minLength": 1 },
+        "code_revision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "model_artifact_digest": { "$ref": "#/$defs/digest" },
+        "checkpoint_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "launch_target": {
+      "type": "object",
+      "required": ["schema", "id", "intelligence_target", "human_outcomes", "launch_policy", "claim_boundary"],
+      "properties": { "schema": { "const": "archie-launch-target/v1" } }
+    },
+    "launch_decision": {
+      "type": "object",
+      "required": [
+        "schema",
+        "target_id",
+        "candidate_id",
+        "candidate_artifact_digest",
+        "intelligence_report_digest",
+        "authority_report_digest",
+        "reproduction_receipt_digest",
+        "requirements_digest",
+        "decision",
+        "decision_digest"
+      ],
+      "properties": {
+        "schema": { "const": "archie-launch-decision/v1" },
+        "candidate_artifact_digest": { "$ref": "#/$defs/digest" },
+        "intelligence_report_digest": { "$ref": "#/$defs/digest" },
+        "authority_report_digest": { "$ref": "#/$defs/digest" },
+        "reproduction_receipt_digest": { "$ref": "#/$defs/digest" },
+        "requirements_digest": { "$ref": "#/$defs/digest" },
+        "decision_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "machine": {
+      "type": "object",
+      "required": [
+        "id",
+        "hardware",
+        "operating_system",
+        "hardware_fingerprint",
+        "os_fingerprint",
+        "device_fingerprint",
+        "permissions",
+        "network_available"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "hardware": {
+          "type": "object",
+          "required": [
+            "device_class",
+            "architecture",
+            "cpu_threads",
+            "ram_bytes",
+            "vram_bytes",
+            "disk_free_bytes",
+            "accelerators",
+            "energy_watts_budget",
+            "thermal_celsius_limit"
+          ]
+        },
+        "operating_system": {
+          "type": "object",
+          "required": ["family", "version", "background_model", "sandbox"]
+        },
+        "hardware_fingerprint": { "$ref": "#/$defs/digest" },
+        "os_fingerprint": { "$ref": "#/$defs/digest" },
+        "device_fingerprint": { "$ref": "#/$defs/digest" },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        },
+        "network_available": { "type": "boolean" }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 18,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "families",
+          "faculties",
+          "evidence_digests",
+          "requires",
+          "conflicts",
+          "required_permissions",
+          "network",
+          "metrics",
+          "gates",
+          "minimum_resources",
+          "resource_cost"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["admitted", "experimental", "absent"] },
+          "families": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "faculties": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "evidence_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" } },
+          "requires": { "type": "array", "items": { "type": "string" } },
+          "conflicts": { "type": "array", "items": { "type": "string" } },
+          "required_permissions": { "type": "array", "items": { "type": "string" } },
+          "network": { "enum": ["none", "optional", "required"] },
+          "metrics": { "$ref": "#/$defs/numberMap" },
+          "gates": { "$ref": "#/$defs/numberMap" },
+          "minimum_resources": { "$ref": "#/$defs/numberMap" },
+          "resource_cost": { "$ref": "#/$defs/numberMap" }
+        }
+      }
+    },
+    "selection_preferences": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "fallback_scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "permission_overrides", "resource_overrides", "reason"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "permission_overrides": {
+            "type": "object",
+            "additionalProperties": { "type": "boolean" }
+          },
+          "resource_overrides": { "$ref": "#/$defs/numberMap" },
+          "network_available": { "type": ["boolean", "null"] },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "claim_boundary": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "numberMap": {
+      "type": "object",
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    }
+  },
+  "additionalProperties": false
+}
