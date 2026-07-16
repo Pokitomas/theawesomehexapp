@@ -81,7 +81,7 @@ async function openBoundExplanation(page, name) {
     if (!control) continue;
     try {
       const panelId = await control.getAttribute('aria-controls');
-      if (!panelId) throw new Error(`${name}: explanation control has no aria-controls`);
+      if (!panelId || !/^[a-z0-9_-]+$/i.test(panelId)) throw new Error(`${name}: explanation control has invalid aria-controls`);
       await control.click({ timeout: 15000 });
       await page.waitForFunction(button => {
         if (!(button instanceof HTMLElement) || !button.isConnected) return false;
@@ -95,15 +95,33 @@ async function openBoundExplanation(page, name) {
         const panel = button.parentElement?.querySelector('.sideways-rank-explanation');
         return panel instanceof HTMLElement ? panel.innerText : '';
       });
-      return { control, panelId, explanation };
+      await control.dispose();
+      return { panelId, explanation };
     } catch (error) {
       lastError = error;
       const connected = await control.evaluate(button => button.isConnected).catch(() => false);
-      if (connected) throw error;
       await control.dispose();
+      if (connected) throw error;
     }
   }
   throw new Error(`${name}: could not bind one actionable explanation control to its panel: ${lastError?.message || 'control unavailable'}`);
+}
+
+async function keyboardToggleBoundExplanation(page, panelId, expanded) {
+  const selector = `[data-root-explanation-control="true"][aria-controls="${panelId}"]`;
+  const control = page.locator(selector).first();
+  await control.waitFor({ state: 'visible', timeout: 15000 });
+  await control.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(({ selector, expanded }) => {
+    const button = document.querySelector(selector);
+    const panelId = button?.getAttribute('aria-controls');
+    const panel = panelId ? document.getElementById(panelId) : null;
+    return button instanceof HTMLElement
+      && panel instanceof HTMLElement
+      && button.getAttribute('aria-expanded') === String(expanded)
+      && panel.hidden === !expanded;
+  }, { selector, expanded }, { timeout: 10000 });
 }
 
 async function prove({ name, viewport, isMobile = false, screenshot }) {
@@ -133,7 +151,6 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   if (titleContrast < 4.5 || actionContrast < 4.5) throw new Error(`${name}: computed contrast below 4.5 (${JSON.stringify({ titleContrast, actionContrast })})`);
 
   const bound = await openBoundExplanation(page, name);
-  const why = bound.control;
   const explanation = bound.explanation;
   for (const term of ['Source eligibility', 'Score contributions', 'Saturation and diversity', 'Why it is present']) {
     if (!explanation.includes(term)) throw new Error(`${name}: explanation missing ${term}`);
@@ -157,10 +174,8 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   if (pageOverflow > 1) throw new Error(`${name}: horizontal overflow ${pageOverflow}px`);
 
   await context.setOffline(true);
-  await why.focus();
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter');
-  if ((await why.getAttribute('aria-expanded')) !== 'true') throw new Error(`${name}: explanation stopped working offline`);
+  await keyboardToggleBoundExplanation(page, bound.panelId, false);
+  await keyboardToggleBoundExplanation(page, bound.panelId, true);
   await context.setOffline(false);
 
   await archiveLink.focus();
@@ -171,7 +186,6 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   if (!escaped) throw new Error(`${name}: keyboard focus is trapped on the primary archive action`);
   if (errors.length) throw new Error(`${name}: unexpected page errors: ${errors.join(' | ')}`);
   await page.screenshot({ path: screenshot, fullPage: true });
-  await why.dispose();
   await context.close();
   return { name, viewport, promise: promiseText, archiveHref: href, explanationTerms: 4, horizontalOverflow: pageOverflow, reducedMotion, offlineExplanation: true, badNetwork: true, keyboard: true, contrast: { title: titleContrast, action: actionContrast } };
 }
