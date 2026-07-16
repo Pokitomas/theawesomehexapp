@@ -22,6 +22,7 @@ import {
   planSchema,
   slugify
 } from './maker-core.mjs';
+import { readArchieMakerDecision } from './maker-archie-runtime-contract.mjs';
 
 const execFileAsync = promisify(execFile);
 const MAX_CAPTURE = 16 * 1024 * 1024;
@@ -306,6 +307,22 @@ async function main() {
   const baseRef = `origin/${options.base}`;
   const baseSha = clean((await git(['rev-parse', '--verify', baseRef], root)).stdout, 100);
   const launchHead = clean((await git(['rev-parse', 'HEAD'], root)).stdout, 100);
+  let archieDecision = null;
+  if (options.archieDecisionFile) {
+    const decisionKey = process.env.ARCHIE_MAKER_DECISION_KEY;
+    try {
+      archieDecision = await readArchieMakerDecision(options.archieDecisionFile, {
+        request,
+        repository: root,
+        baseBranch: options.base,
+        baseSha,
+        key: decisionKey
+      });
+    } finally {
+      delete process.env.ARCHIE_MAKER_DECISION_KEY;
+    }
+    process.stdout.write(`[maker] accepted integrity-bound Archie plan ${archieDecision.specialist_id || 'unknown'} for ${archieDecision.plan.selected_lane}\n`);
+  }
 
   if (options.agent === 'codex') {
     const version = await probe('codex', ['--version']);
@@ -322,41 +339,71 @@ async function main() {
   const id = sessionId();
   const sessionRoot = path.join(os.tmpdir(), 'sideways-maker', slugify(path.basename(root)), id);
   await fs.mkdir(sessionRoot, { recursive: true });
-  const laneSchemaPath = path.join(sessionRoot, 'lane.schema.json');
-  const planSchemaPath = path.join(sessionRoot, 'plan.schema.json');
-  await Promise.all([writeSchema(laneSchemaPath, laneReportSchema), writeSchema(planSchemaPath, planSchema)]);
-
-  process.stdout.write(`[maker] assessment HEAD: ${launchHead}\n[maker] spawning four read-only agents\n`);
-  const reports = await Promise.all(MAKER_LANES.map(async lane => {
-    const outputPath = path.join(sessionRoot, `${lane.id}.json`);
-    const report = await runAgent({
+  let reports;
+  let plan;
+  let planSource;
+  if (archieDecision) {
+    plan = { ...archieDecision.plan };
+    planSource = 'archie-native-recall';
+    reports = [{
+      lane: plan.selected_lane,
+      summary: 'Maker accepted an integrity-bound reusable plan and skipped redundant repository-wide assessment.',
+      evidence: [{ path: 'local Archie corpus', finding: `specialist=${archieDecision.specialist_id || 'unknown'} model=${archieDecision.model_digest || 'unknown'}` }],
+      priority: 'high',
+      recommended_lane: plan.selected_lane,
+      owned_paths: plan.owned_paths,
+      risks: ['The plan remains subject to lease, authority, writer, test, exact-tree, and human review gates.']
+    }];
+  } else {
+    planSource = 'maker-integrator';
+    const laneSchemaPath = path.join(sessionRoot, 'lane.schema.json');
+    const planSchemaPath = path.join(sessionRoot, 'plan.schema.json');
+    await Promise.all([writeSchema(laneSchemaPath, laneReportSchema), writeSchema(planSchemaPath, planSchema)]);
+    process.stdout.write(`[maker] assessment HEAD: ${launchHead}\n[maker] spawning four read-only agents\n`);
+    reports = await Promise.all(MAKER_LANES.map(async lane => {
+      const outputPath = path.join(sessionRoot, `${lane.id}.json`);
+      const report = await runAgent({
+        options,
+        role: lane.id,
+        workspace: root,
+        prompt: buildLanePrompt({ request, lane, head: baseSha }),
+        outputPath,
+        schemaPath: laneSchemaPath,
+        sandbox: 'read-only'
+      });
+      if (report.lane !== lane.id) report.lane = lane.id;
+      process.stdout.write(`[maker] ${lane.id}: ${report.priority} — ${clean(report.summary, 500)}\n`);
+      return report;
+    }));
+    const planPath = path.join(sessionRoot, 'plan.json');
+    plan = await runAgent({
       options,
-      role: lane.id,
+      role: 'integrator',
       workspace: root,
-      prompt: buildLanePrompt({ request, lane, head: baseSha }),
-      outputPath,
-      schemaPath: laneSchemaPath,
+      prompt: buildIntegratorPrompt({ request, head: baseSha, reports }),
+      outputPath: planPath,
+      schemaPath: planSchemaPath,
       sandbox: 'read-only'
     });
-    if (report.lane !== lane.id) report.lane = lane.id;
-    process.stdout.write(`[maker] ${lane.id}: ${report.priority} — ${clean(report.summary, 500)}\n`);
-    return report;
-  }));
-
-  const planPath = path.join(sessionRoot, 'plan.json');
-  const plan = await runAgent({
-    options,
-    role: 'integrator',
-    workspace: root,
-    prompt: buildIntegratorPrompt({ request, head: baseSha, reports }),
-    outputPath: planPath,
-    schemaPath: planSchemaPath,
-    sandbox: 'read-only'
-  });
-  plan.branch_slug = slugify(plan.branch_slug || plan.title, 'maker-work');
-  process.stdout.write(`[maker] selected ${plan.selected_lane}: ${clean(plan.why_now, 1000)}\n`);
+    plan.branch_slug = slugify(plan.branch_slug || plan.title, 'maker-work');
+  }
+  process.stdout.write(`[maker] selected ${plan.selected_lane} via ${planSource}: ${clean(plan.why_now, 1000)}\n`);
   if (options.dryRun) {
-    process.stdout.write(`${JSON.stringify({ request, base_sha: baseSha, reports, plan }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({
+      request,
+      base_sha: baseSha,
+      reports,
+      plan,
+      plan_source: planSource,
+      archie_decision: archieDecision ? {
+        specialist_id: archieDecision.specialist_id,
+        confidence: archieDecision.confidence,
+        margin: archieDecision.margin,
+        model_digest: archieDecision.model_digest,
+        plan_digest: archieDecision.plan_digest,
+        execution_basis: archieDecision.execution_basis
+      } : null
+    }, null, 2)}\n`);
     return;
   }
 
@@ -437,6 +484,7 @@ async function main() {
 
     const receipt = {
       schema: 'sideways-maker-run/v2',
+      state: 'completed',
       request,
       session_id: id,
       branch,
@@ -444,6 +492,17 @@ async function main() {
       head_sha: finalHead,
       selected_lane: plan.selected_lane,
       owned_paths: lease.owned_paths,
+      plan,
+      plan_source: planSource,
+      archie_decision: archieDecision ? {
+        specialist_id: archieDecision.specialist_id,
+        confidence: archieDecision.confidence,
+        margin: archieDecision.margin,
+        model_digest: archieDecision.model_digest,
+        plan_digest: archieDecision.plan_digest,
+        execution_basis: archieDecision.execution_basis
+      } : null,
+      writer_summary: writerSummary,
       verification,
       pull_request: pr?.url || null,
       worktree: options.keepWorktree ? worktree : null,
