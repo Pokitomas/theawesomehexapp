@@ -15,6 +15,29 @@ The product is a general intelligence-and-execution system that can turn a high-
 
 The user should be able to state what should exist, not micromanage the software used to create it.
 
+## Intelligence and embodiment are one launch decision
+
+The product must not be designed backward from a familiar interface.
+
+A chat window is not an Archie axiom. Voice is not an Archie axiom. An always-running background process is not an Archie axiom. A desktop dashboard, phone app, command line, wearable, visual workbench, spoken companion, event-driven service, or screenless presence is only justified when it is required by the human outcomes and intelligence level the admitted release is meant to sustain.
+
+The causal order is:
+
+```text
+human outcome
+→ required intelligence and continuity
+→ required perception, interaction, memory, and execution faculties
+→ admitted product surfaces
+```
+
+The founder target asks for more than a chat app without hard-coding one implementation. A maximal Archie release should let the user direct and interrupt it while attention is occupied, continue authorized work without one foreground window, react to explicitly subscribed events, perceive relevant digital context with consent, expose exact work when precision matters, preserve authority across admitted devices, and remain useful locally on ordinary hardware. Those outcomes derive spoken interaction, background continuity, visual inspection, tool bridges, device handoff, and private local runtime requirements. They are not decorative features added after the model is trained.
+
+The reverse failure is also forbidden. A highly capable model hidden behind an unusable shell is not a launch. A polished multimodal shell wrapped around weak or unverified intelligence is not a launch. Intelligence and embodiment must pass one joint admission contract, and the strongest evidence-backed surfaces required by the target ship together.
+
+`founder/archie-launch-target.json` records the behavioral target without selecting a canonical interface. `scripts/archie-launch-contract.mjs` deterministically derives faculties and product forms, then rejects brain-only, shell-only, experimentally implied, or partially embodied candidates. No interface is primary by default; the product form is plural and capability-derived.
+
+“Maximal on launch” does not mean claiming every imagined faculty. It means refusing to deliberately ship a diminished interaction shell when the admitted intelligence and hardware can support more, while refusing to market experimental surfaces as complete. The launch boundary remains exact evidence.
+
 ## Ship genius
 
 Archie should be excellent when installed.
@@ -114,6 +137,8 @@ This is the useful “AI-devception” loop: Archie and Maker can help build the
 8. **No capability claim comes from fixture success alone.** Strong claims require independent, held-out, artifact-bound evaluation.
 9. **No app-brand collapse.** Sideways remains Sideways; Archie remains Archie; Maker remains Maker.
 10. **No persuasive-output substitution.** Finished artifacts and changed reality are the success boundary.
+11. **No interface precommitment.** Product surfaces derive from admitted outcomes and capabilities rather than becoming immutable architecture.
+12. **No split launch theater.** Neither an unembodied brain nor an unintelligent shell may represent the maximal product.
 
 ## The first impossible proof
 
@@ -151,18 +176,20 @@ The repository already contains substantial pieces:
 - controlled and derivational evaluation suites;
 - Sideways as a large, difficult reference application.
 
-It does not yet contain a broadly capable admitted Archie model that can complete the first impossible proof across unfamiliar products. The current work must therefore prioritize empirical capability, full-product construction, and clean-machine delivery rather than adding more names or dashboards.
+It does not yet contain a broadly capable admitted Archie model that can complete the first impossible proof across unfamiliar products. It also does not yet contain evidence-admitted speech, ambient continuity, multimodal perception, or cross-device embodiment satisfying the maximal founder target. The current work must therefore prioritize empirical intelligence and product embodiment together rather than adding more names, dashboards, or ungrounded interface demos.
 
 ## Execution order
 
 1. complete the independent Archie campaign and establish honest baselines;
 2. train and admit a provider-neutral student that materially improves unfamiliar task completion;
-3. build a universal project/world intake layer for repositories, documents, APIs, tools, and constraints;
-4. make Archie derive competing complete-product strategies rather than only action sequences;
-5. extend Maker from repository editing into permissioned cross-tool product construction and delivery;
-6. use Sideways as a non-privileged sample application and regression target;
-7. prove transfer on several unrelated applications;
-8. package Archie and Maker into an installable product that a normal user can operate without understanding the repository;
-9. ship stronger intelligence only through signed, independently evaluated releases.
+3. use the launch target to derive the perception, continuity, interaction, memory, and execution faculties required by that intelligence level;
+4. develop and evaluate the strongest product surfaces in parallel with the candidate rather than after it;
+5. build a universal project/world intake layer for repositories, documents, APIs, tools, constraints, screens, and consented multimodal context;
+6. make Archie derive competing complete-product strategies rather than only action sequences;
+7. extend Maker from repository editing into permissioned cross-tool product construction and delivery;
+8. use Sideways as a non-privileged sample application and regression target;
+9. prove transfer on several unrelated applications and human interaction conditions;
+10. package the jointly admitted intelligence and embodiment into a normal installable product;
+11. ship stronger intelligence and surfaces only through signed, independently evaluated releases.
 
-The destination is not another coding copilot. It is a general engine for turning ambitious ideas into verified things.
+The destination is not another coding copilot or another chat page. It is a general engine for turning ambitious ideas into verified things in the strongest human form its admitted intelligence can truthfully support.
