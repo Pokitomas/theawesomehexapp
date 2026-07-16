@@ -194,153 +194,153 @@
 +    }
 +  }
 +}
-+diff --git a/maker/contracts/archie-planner.schema.json b/maker/contracts/archie-planner.schema.json
-+index a01e3fe..55be295 100644
-+--- a/maker/contracts/archie-planner.schema.json
-++++ b/maker/contracts/archie-planner.schema.json
-+@@ -4,10 +4,18 @@
-+   "title": "Archie CPU Planner Contract",
-+   "description": "Detached CPU-first Archie planner model, typed tool-plan, and inference receipt contracts. This is a hashed retrieval and symbolic composition planner, not a neural language model.",
-+   "oneOf": [
-+-    { "$ref": "#/$defs/model" },
-+-    { "$ref": "#/$defs/plan" },
-+-    { "$ref": "#/$defs/typedToolPlan" },
-+-    { "$ref": "#/$defs/quantizationReceipt" }
-++    {
-++      "$ref": "#/$defs/model"
-++    },
-++    {
-++      "$ref": "#/$defs/plan"
-++    },
-++    {
-++      "$ref": "#/$defs/typedToolPlan"
-++    },
-++    {
-++      "$ref": "#/$defs/quantizationReceipt"
-++    }
-+   ],
-+   "definitions": {},
-+   "$defs": {
-+@@ -16,8 +24,15 @@
-+       "items": {
-+         "type": "array",
-+         "prefixItems": [
-+-          { "type": "integer", "minimum": 0 },
-+-          { "type": "integer", "minimum": -127, "maximum": 127 }
-++          {
-++            "type": "integer",
-++            "minimum": 0
-++          },
-++          {
-++            "type": "integer",
-++            "minimum": -127,
-++            "maximum": 127
-++          }
-+         ],
-+         "minItems": 2,
-+         "maxItems": 2
-+@@ -25,130 +40,597 @@
-+     },
-+     "toolStep": {
-+       "type": "object",
-+-      "required": ["id", "type", "tool", "action", "args", "depends_on", "rationale"],
-++      "required": [
-++        "id",
-++        "type",
-++        "tool",
-++        "action",
-++        "args",
-++        "depends_on",
-++        "rationale"
-++      ],
-+       "additionalProperties": false,
-+       "properties": {
-+-        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
-+-        "type": { "const": "tool_call" },
-+-        "tool": { "type": "string", "minLength": 1, "maxLength": 80 },
-+-        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
-+-        "args": { "type": "object" },
-+-        "depends_on": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
-+-        "rationale": { "type": "string", "maxLength": 300 }
-++        "id": {
-++          "type": "string",
-++          "minLength": 1,
-++          "maxLength": 80
-++        },
-++        "type": {
-++          "const": "tool_call"
-++        },
-++        "tool": {
-++          "type": "string",
-++          "minLength": 1,
-++          "maxLength": 80
-++        },
-++        "action": {
-++          "type": "string",
-++          "minLength": 1,
-++          "maxLength": 120
-++        },
-++        "args": {
-++          "type": "object"
-++        },
-++        "depends_on": {
-++          "type": "array",
-++          "items": {
-++            "type": "string"
-++          },
-++          "maxItems": 20
-++        },
-++        "rationale": {
-++          "type": "string",
-++          "maxLength": 300
-++        },
-++        "produces": {
-++          "type": "array",
-++          "items": {
-++            "type": "string"
-++          },
-++          "maxItems": 40
-++        }
-+       }
-+     },
-+     "typedToolPlan": {
-+       "type": "object",
-+-      "required": ["schema", "execution", "steps"],
-++      "required": [
-++        "schema",
-++        "execution",
-++        "steps"
-++      ],
-+       "additionalProperties": false,
-+       "properties": {
-+-        "schema": { "const": "archie-typed-tool-plan/v1" },
-+-        "execution": { "enum": ["sequential"] },
-+-        "steps": { "type": "array", "items": { "$ref": "#/$defs/toolStep" }, "minItems": 1, "maxItems": 16 }
-++        "schema": {
-++          "const": "archie-typed-tool-plan/v1"
-++        },
-++        "execution": {
-++          "enum": [
-++            "sequential"
-++          ]
-++        },
-++        "steps": {
-++          "type": "array",
-++          "items": {
-++            "$ref": "#/$defs/toolStep"
-++          },
-++          "minItems": 1,
-++          "maxItems": 16
-++        },
-++        "derivation_proof": {
-++          "type": "object",
-++          "required": [
-++            "schema",
-++            "proof_digest"
-++          ],
-++          "properties": {
-++            "schema": {
-++              "const": "archie-derivation-proof/v1"
-++            },
-++            "proof_digest": {
-++              "type": "string",
+diff --git a/maker/contracts/archie-planner.schema.json b/maker/contracts/archie-planner.schema.json
+index a01e3fe..55be295 100644
+--- a/maker/contracts/archie-planner.schema.json
++++ b/maker/contracts/archie-planner.schema.json
+@@ -4,10 +4,18 @@
+   "title": "Archie CPU Planner Contract",
+   "description": "Detached CPU-first Archie planner model, typed tool-plan, and inference receipt contracts. This is a hashed retrieval and symbolic composition planner, not a neural language model.",
+   "oneOf": [
+-    { "$ref": "#/$defs/model" },
+-    { "$ref": "#/$defs/plan" },
+-    { "$ref": "#/$defs/typedToolPlan" },
+-    { "$ref": "#/$defs/quantizationReceipt" }
++    {
++      "$ref": "#/$defs/model"
++    },
++    {
++      "$ref": "#/$defs/plan"
++    },
++    {
++      "$ref": "#/$defs/typedToolPlan"
++    },
++    {
++      "$ref": "#/$defs/quantizationReceipt"
++    }
+   ],
+   "definitions": {},
+   "$defs": {
+@@ -16,8 +24,15 @@
+       "items": {
+         "type": "array",
+         "prefixItems": [
+-          { "type": "integer", "minimum": 0 },
+-          { "type": "integer", "minimum": -127, "maximum": 127 }
++          {
++            "type": "integer",
++            "minimum": 0
++          },
++          {
++            "type": "integer",
++            "minimum": -127,
++            "maximum": 127
++          }
+         ],
+         "minItems": 2,
+         "maxItems": 2
+@@ -25,130 +40,597 @@
+     },
+     "toolStep": {
+       "type": "object",
+-      "required": ["id", "type", "tool", "action", "args", "depends_on", "rationale"],
++      "required": [
++        "id",
++        "type",
++        "tool",
++        "action",
++        "args",
++        "depends_on",
++        "rationale"
++      ],
+       "additionalProperties": false,
+       "properties": {
+-        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
+-        "type": { "const": "tool_call" },
+-        "tool": { "type": "string", "minLength": 1, "maxLength": 80 },
+-        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
+-        "args": { "type": "object" },
+-        "depends_on": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+-        "rationale": { "type": "string", "maxLength": 300 }
++        "id": {
++          "type": "string",
++          "minLength": 1,
++          "maxLength": 80
++        },
++        "type": {
++          "const": "tool_call"
++        },
++        "tool": {
++          "type": "string",
++          "minLength": 1,
++          "maxLength": 80
++        },
++        "action": {
++          "type": "string",
++          "minLength": 1,
++          "maxLength": 120
++        },
++        "args": {
++          "type": "object"
++        },
++        "depends_on": {
++          "type": "array",
++          "items": {
++            "type": "string"
++          },
++          "maxItems": 20
++        },
++        "rationale": {
++          "type": "string",
++          "maxLength": 300
++        },
++        "produces": {
++          "type": "array",
++          "items": {
++            "type": "string"
++          },
++          "maxItems": 40
++        }
+       }
+     },
+     "typedToolPlan": {
+       "type": "object",
+-      "required": ["schema", "execution", "steps"],
++      "required": [
++        "schema",
++        "execution",
++        "steps"
++      ],
+       "additionalProperties": false,
+       "properties": {
+-        "schema": { "const": "archie-typed-tool-plan/v1" },
+-        "execution": { "enum": ["sequential"] },
+-        "steps": { "type": "array", "items": { "$ref": "#/$defs/toolStep" }, "minItems": 1, "maxItems": 16 }
++        "schema": {
++          "const": "archie-typed-tool-plan/v1"
++        },
++        "execution": {
++          "enum": [
++            "sequential"
++          ]
++        },
++        "steps": {
++          "type": "array",
++          "items": {
++            "$ref": "#/$defs/toolStep"
++          },
++          "minItems": 1,
++          "maxItems": 16
++        },
++        "derivation_proof": {
++          "type": "object",
++          "required": [
++            "schema",
++            "proof_digest"
++          ],
++          "properties": {
++            "schema": {
++              "const": "archie-derivation-proof/v1"
++            },
++            "proof_digest": {
++              "type": "string",
