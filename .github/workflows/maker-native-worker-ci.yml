@@ -1,86 +1,37 @@
-name: Verify Maker runtimes
+name: Archie exact-tree bootstrap snapshot
 
 on:
+  push:
+    branches:
+      - agent/archie-hostile-evaluation
   pull_request:
-    paths:
-      - 'AGENTS.md'
-      - 'NATIVE_MAKER.md'
-      - 'maker/leases/**'
-      - 'scripts/open-model-adapter.mjs'
-      - 'scripts/open-model-planning.mjs'
-      - 'scripts/native-dev-agent.mjs'
-      - 'scripts/native-changed-check.mjs'
-      - 'scripts/check-open-model-runtime.mjs'
-      - 'scripts/maker-native-worker.mjs'
-      - 'scripts/maker-pr-collision-gate.mjs'
-      - 'scripts/maker-core.mjs'
-      - 'scripts/maker.mjs'
-      - 'scripts/tests/native-maker-worker.test.mjs'
-      - 'scripts/tests/maker-pr-collision-gate.test.mjs'
-      - 'scripts/tests/maker-core.test.mjs'
-      - 'scripts/tests/maker-actions-sprawl.test.mjs'
-      - 'scripts/tests/workflow-permissions.test.mjs'
-      - '.github/workflows/maker-native-worker.yml'
-      - '.github/workflows/maker-native-worker-ci.yml'
-      - '.github/workflows/maker-pr-collision-gate.yml'
-      - '.github/workflows/maker-sprawl.yml'
-      - 'audit/authority-manifest.workflow-projection.mjs'
-      - 'audit/repository-verification.json'
-      - 'package.json'
-      - 'package-lock.json'
+    branches:
+      - agent/archie-linux-corpus
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  snapshot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install locked repository dependencies
-        run: npm ci --ignore-scripts
-      - name: Check Maker modules
+      - name: Archive exact checkout
         run: |
-          node --check scripts/open-model-adapter.mjs
-          node --check scripts/open-model-planning.mjs
-          node --check scripts/native-dev-agent.mjs
-          node --check scripts/native-changed-check.mjs
-          node --check scripts/check-open-model-runtime.mjs
-          node --check scripts/maker-native-worker.mjs
-          node --check scripts/maker-pr-collision-gate.mjs
-          node --check scripts/maker-core.mjs
-          node --check scripts/maker.mjs
-      - name: Verify provider-neutral worker, local orchestrator, and collision evaluator
-        run: |
-          set -o pipefail
-          npm run test:native-maker 2>&1 | tee native-maker-test.log
-          npm run test:maker 2>&1 | tee maker-orchestrator-test.log
-          node --test scripts/tests/maker-pr-collision-gate.test.mjs 2>&1 | tee maker-collision-test.log
-      - name: Verify workflow authority fences
-        run: |
-          set -o pipefail
-          node --test scripts/tests/workflow-permissions.test.mjs 2>&1 | tee workflow-permissions-test.log
-      - name: Verify authority manifest ownership
-        run: |
-          set -o pipefail
-          npm run test:authority 2>&1 | tee authority-manifest-test.log
-      - name: Upload exact Maker receipts
-        if: always()
+          set -euo pipefail
+          tar --exclude=.git -czf "$RUNNER_TEMP/archie-source.tgz" .
+          sha256sum "$RUNNER_TEMP/archie-source.tgz" | tee "$RUNNER_TEMP/archie-source.sha256"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/archie-source-head.txt"
+      - name: Upload exact checkout
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: maker-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          name: archie-source-${{ github.sha }}
           path: |
-            native-maker-test.log
-            maker-orchestrator-test.log
-            maker-collision-test.log
-            workflow-permissions-test.log
-            authority-manifest-test.log
-          if-no-files-found: ignore
-          retention-days: 5
+            ${{ runner.temp }}/archie-source.tgz
+            ${{ runner.temp }}/archie-source.sha256
+            ${{ runner.temp }}/archie-source-head.txt
+          if-no-files-found: error
+          retention-days: 2
