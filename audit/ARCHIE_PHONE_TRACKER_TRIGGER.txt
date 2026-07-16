@@ -1,0 +1,5 @@
+coordinator=c9a710fdef372b4bf7fab53a514410f09d31495a
+status_comment=4987929903
+tokens_remaining=572288
+tokens_total=1310720
+retired_stale_writer=ab86bbef9bed53fb028e25716c502c5d475671c8
