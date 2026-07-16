@@ -1,73 +1,221 @@
-name: Archie exact-head guarded publisher
+name: Publish verified Archie completion
 
 on:
   push:
     branches:
-      - agent/archie-democratized-runtime
-  workflow_dispatch:
+      - agent/archie-final-publisher-20260716
 
 permissions:
   contents: write
 
+concurrency:
+  group: archie-final-publisher-20260716
+  cancel-in-progress: false
+
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      EXPECTED_PARENT: 8797ab484137926a158efc8d4a6c69054f0bc3dc
+      TARGET_BRANCH: agent/archie-democratized-runtime
+      ARCHIVE_SHA256: b4755f5d9d1d6099bb29b5b0a70ec9eabd540d90ceb80d4a053b774c85afc308
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - name: Verify exclusive branch heads
-        env:
-          EXPECTED_COORDINATOR: ${{ github.sha }}
-          EXPECTED_EVALUATION: 323e9d0b047284123ba1db1f3717d9ed22b5cb31
+          persist-credentials: true
+
+      - name: Verify coordinator has not moved
         run: |
           set -euo pipefail
-          coordinator="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
-          evaluation="$(git ls-remote origin refs/heads/agent/archie-hostile-evaluation | awk '{print $1}')"
-          test "$coordinator" = "$EXPECTED_COORDINATOR"
-          test "$evaluation" = "$EXPECTED_EVALUATION"
-      - name: Reconstruct reviewed patch from Git blobs
+          current="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$current" = "$EXPECTED_PARENT"
+          printf '%s\n' "$current" | tee /tmp/archie-parent.txt
+
+      - name: Reconstruct exact verified archive
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          blobs=(ab1d7f4b5052aea315360c394e86e5ddcd94002e e6b397e3e8d74d9a5a087baf10780763d7ce665b 07095e89119d7b6d8b1128c3cd00cbd5e8868113 a5afe48bc6026aa28b80710584feac9afb6aea57 8d3a4ee312ff4ad2b95489f48709ff95df8f7f41 ca3fd77b10869c52496f07ea568be75b2ddabbc5)
-          expected=(1269f169ffb08d47fff698436f90f8b96606cdf54e4f1ab9c6edaa9f04adf530 2f6ba981f164917f19bc966361fe66d45de7e7ab9e26b6fc71c2356e6f4d8ba1 e7e9dd75dd37679671ffed1902ba34fa2a3e6cd57db7d44d64facc18496187fc 4c6217e103a011b1a706986b5b5a9b39c67368372637cb7b0831c0cdcb8ace10 272c2ba6b119ea68f33560e279fba8b3de8edd6e7607cd7042359cf02fe681bc bf328ce5862c40f32a5881c36ad63568a6843be5cb046b058ced5b5d8434b261)
-          : > /tmp/archie-final-patch.tgz
+          blobs=(
+            3ab0c9d8ca50e015f1426876a0c78e7f6cb90428
+            57fc50dfcc3533b84afa9a08c09ee1e93845ea82
+            990f140bf89f12b2593901688f5d09b87057e7ef
+            e8316c160fe7d713097d516181f17e03104ac9a2
+            35aa85ea3b3f99694915bdfc6de7de39a0ee689d
+            0e88cae9ce72c066ecf120ad503684fef85a6c27
+            64bfc31a47a7d8de1dcef3d0aec64a2598fa0d4b
+            168b11339a2b3bbfb4f5e2e42cdc423af0dfd9e3
+            854ff0f4e8be970bad2cd06c0254bbb74aedf145
+            b8f46ac2e26a12f344adcb1835528cd68c622c35
+            901655d2e7a9d8720b388b2b4f11295c80bb9104
+            387a4617fb165372327d4199cf38e5d5fa54aad3
+            6403423d0f76defc083492b2edf9f0c4c958937d
+            f7b02e536c657914d271f658af89130410dc81e8
+            23f633dbb3a6f0747fe40fa4a87a795a3a8a2263
+            e973e3a19a7dd8adffccd2da2739429a62c191b5
+            aec66dfdc8a924990672fa080c09f3418319b3a9
+            22933f196dea56eb4cd67bf760a06c10c0b6f889
+          )
+          expected_sha256=(
+            279a0188fab5622b0bec9bb1897eb105b0f4445d7714177d5150245a942460ba
+            042645211291681f3058e0df472c6e9cde14e5854771aa02b11d4d2884ec24ad
+            1afac008d78cc4f32cb92138f960ffcea95cbbf86d721ed7dd1de04dd55f8192
+            943236189b511045a78fba610c6746386c67ceb1d2c1523d31f0531df2815f2a
+            8619bb82ed1d622f61d089d8874bc4c5396a5f26bf962191504c44e2c17fcb8d
+            bc8be91da76454d08ff19200e474ea0c4a81a8431ecf4a85c289b9f7a229c51e
+            e303b31cb50cfa6862e715f9450499ba850c6ef61a07dbecbb7020aa371e60e5
+            f8a0142999786ea2e6dc3fa613c1eeac965fe439224fdf1a0a7fb16dfc5ff759
+            81ae6dbb8e694541817ada8e2f5603634272e5a141475ee797613f0e4b33624f
+            d59b35cb6a14b5c7ea6b7801d72db9085fd625621fc4a7591040040bc9e51b55
+            2a9e85f32e6e58fcc2f3307b9bc6083429116dd95c23c52a430cfd163953940c
+            f62a2a78362147bde420323b6a2ac967a89ccdb62b1ee638187fa967ea88b1b0
+            b91314c02807d1477c4db5d709fde24c98b2bdcdf720d9579ff0db487923073b
+            e4226855b05738aa79cf3a5c93d70ca5a9a62058d750e7d7614a87ed227b6f79
+            3840eff3b1e62eca9ac8cc1ad0a91bf8955bdc607dce6b19bd3da0460957308d
+            b0f0a05bfc84fefa316862bd5ed8588996303ad47041ebbaa5e79acb9ca6276c
+            2d67f1d8af3aa101cb8dbbd1e5f6d2bd98821d32f206a329c732348ee8bc7da1
+            ac0c268ec1b54f66d76a8bac67d9d039e3d63af25cb2fd1de14d1607a3f36ea7
+          )
+          expected_size=(12000 12000 12000 12000 4000 4000 4000 4000 4000 4000 4000 4000 4000 4000 4000 6260 6260 6260)
+          : > /tmp/archie-final.b64
+          : > /tmp/archie-segments.txt
           for index in "${!blobs[@]}"; do
-            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$REPOSITORY/git/blobs/${blobs[$index]}" | jq -r '.content' | tr -d '\n' | base64 -d > "/tmp/patch.part.$index"
-            echo "${expected[$index]}  /tmp/patch.part.$index" | sha256sum --check --strict
-            cat "/tmp/patch.part.$index" >> /tmp/archie-final-patch.tgz
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$REPOSITORY/git/blobs/${blobs[$index]}" \
+              | jq -r '.content' | tr -d '\n' | base64 -d > "/tmp/archie-segment.$index"
+            test "$(wc -c < "/tmp/archie-segment.$index")" = "${expected_size[$index]}"
+            echo "${expected_sha256[$index]}  /tmp/archie-segment.$index" | sha256sum --check --strict
+            printf '%02d %s %s %s\n' "$index" "${blobs[$index]}" "${expected_size[$index]}" "${expected_sha256[$index]}" | tee -a /tmp/archie-segments.txt
+            cat "/tmp/archie-segment.$index" >> /tmp/archie-final.b64
           done
-          echo 'd07cfbeabf37ab2f86aa23ad1e15ca7e93b0e41a75d44f51b186db4793aa49c1  /tmp/archie-final-patch.tgz' | sha256sum --check --strict
-          mkdir -p /tmp/archie-final-patch
-          tar -xzf /tmp/archie-final-patch.tgz -C /tmp/archie-final-patch
-      - name: Publish hostile evaluation lane
+          test "$(wc -c < /tmp/archie-final.b64)" = 110780
+          base64 -d /tmp/archie-final.b64 > /tmp/archie-final.tar.xz
+          test "$(wc -c < /tmp/archie-final.tar.xz)" = 83084
+          echo "$ARCHIVE_SHA256  /tmp/archie-final.tar.xz" | sha256sum --check --strict
+
+      - name: Validate archive paths and types
+        run: |
+          set -euo pipefail
+          cat > /tmp/expected.paths <<'EOF'
+          .github/workflows/maker-native-worker-ci.yml
+          .gitignore
+          README.md
+          audit/ARCHIE_COMPLETION.md
+          audit/ARCHIE_COMPLETION_RECEIPT.json
+          audit/ARCHIE_PLUGIN_REPAIR_EVIDENCE.json
+          audit/archie-admission-ledger.json
+          audit/repository-verification.json
+          maker/contracts/archie-evaluation.schema.json
+          maker/contracts/control-plane.schema.json
+          maker/contracts/plugin-manifest.schema.json
+          maker/evaluations/archie-suite.json
+          package.json
+          scripts/maker-archie-evaluation.mjs
+          scripts/maker-control-cli.mjs
+          scripts/maker-control-plane.mjs
+          scripts/maker-model-router.mjs
+          scripts/maker-plugin-registry.mjs
+          scripts/maker-runtime-platform.mjs
+          scripts/tests/maker-archie-evaluation.test.mjs
+          scripts/tests/maker-console-phone.mjs
+          scripts/tests/maker-control-plane.test.mjs
+          scripts/tests/maker-model-router.test.mjs
+          scripts/tests/maker-plugin-registry.test.mjs
+          scripts/tests/maker-runtime-platform.test.mjs
+          EOF
+          sed -i 's/^          //' /tmp/expected.paths
+          sort -o /tmp/expected.paths /tmp/expected.paths
+          python - <<'PY'
+          import pathlib, tarfile
+          archive = pathlib.Path('/tmp/archie-final.tar.xz')
+          expected = set(pathlib.Path('/tmp/expected.paths').read_text().splitlines())
+          with tarfile.open(archive, 'r:xz') as handle:
+              members = handle.getmembers()
+              actual = {member.name.removeprefix('./') for member in members}
+              if actual != expected:
+                  raise SystemExit(f'archive path mismatch: missing={sorted(expected-actual)} extra={sorted(actual-expected)}')
+              for member in members:
+                  path = pathlib.PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts or not member.isfile():
+                      raise SystemExit(f'unsafe archive member: {member.name}')
+          PY
+          tar -tJf /tmp/archie-final.tar.xz | sed 's#^\./##' | sort | tee /tmp/archie-archive-paths.txt
+
+      - name: Apply exact candidate to preserved parent
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          git checkout --detach "$EXPECTED_PARENT"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_PARENT"
+          tar --extract --xz --file /tmp/archie-final.tar.xz --directory . --no-same-owner --no-same-permissions
+          rm -f audit/archie-democratized-runtime.json
+          git diff --check
+
+      - name: Install locked dependencies
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --include=dev 2>&1 | tee /tmp/npm-ci.log
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          test -n "$browser"
+          echo "CHROME_BIN=$browser" >> "$GITHUB_ENV"
+          echo "CHROME_PATH=$browser" >> "$GITHUB_ENV"
+          "$browser" --version | tee /tmp/browser-version.txt
+
+      - name: Run complete Maker and Archie gates
+        run: |
+          set -euo pipefail
+          npm run test:maker 2>&1 | tee /tmp/test-maker.log
+          npm run archie:evaluate 2>&1 | tee /tmp/archie-evaluate.log
+          npm run verify:repository 2>&1 | tee /tmp/verify-repository.log
+          git diff --check
+
+      - name: Commit exact candidate
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin agent/archie-hostile-evaluation
-          git checkout -B agent/archie-hostile-evaluation origin/agent/archie-hostile-evaluation
-          paths=(.github/workflows/maker-native-worker-ci.yml package.json maker/contracts/archie-evaluation.schema.json scripts/maker-archie-evaluation.mjs scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-hostile.test.mjs audit/archie-democratized-runtime.json audit/repository-verification.json)
-          for path in "${paths[@]}"; do install -D "/tmp/archie-final-patch/$path" "$path"; done
-          git add -- "${paths[@]}"
+          while IFS= read -r path; do git add -- "$path"; done < /tmp/expected.paths
+          git add -u -- audit/archie-democratized-runtime.json
           git diff --cached --check
-          git commit -m 'Build matched hostile Archie evaluation gate'
-          git push origin HEAD:agent/archie-hostile-evaluation
-      - name: Publish final coordinator integration
-        env:
-          EXPECTED_COORDINATOR: ${{ github.sha }}
+          {
+            cat /tmp/expected.paths
+            echo audit/archie-democratized-runtime.json
+          } | sort > /tmp/expected-staged.paths
+          git diff --cached --name-only | sort > /tmp/actual-staged.paths
+          diff -u /tmp/expected-staged.paths /tmp/actual-staged.paths
+          git commit -m 'Finish democratized Archie runtime integration'
+          git rev-parse HEAD | tee /tmp/archie-final-head.txt
+
+      - name: Fast-forward coordinator only if unchanged
         run: |
           set -euo pipefail
-          current="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
-          test "$current" = "$EXPECTED_COORDINATOR"
-          git fetch origin agent/archie-democratized-runtime
-          git checkout -B agent/archie-democratized-runtime origin/agent/archie-democratized-runtime
-          paths=(.github/workflows/maker-native-worker-ci.yml README.md audit/archie-democratized-runtime.json audit/repository-verification.json maker/contracts/archie-evaluation.schema.json maker/contracts/worker-fleet.schema.json package.json scripts/maker-archie-evaluation.mjs scripts/maker-runtime-platform.mjs scripts/maker-worker-fleet.mjs scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-hostile.test.mjs scripts/tests/maker-runtime-platform.test.mjs scripts/tests/maker-worker-fleet.test.mjs)
-          for path in "${paths[@]}"; do install -D "/tmp/archie-final-patch/$path" "$path"; done
-          git add -- "${paths[@]}"
-          git diff --cached --check
-          git commit -m 'Finish democratized Archie runtime integration'
-          git push origin HEAD:agent/archie-democratized-runtime
+          current="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$current" = "$EXPECTED_PARENT"
+          git merge-base --is-ancestor "$EXPECTED_PARENT" HEAD
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+
+      - name: Upload exact publication receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-final-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/archie-parent.txt
+            /tmp/archie-segments.txt
+            /tmp/archie-archive-paths.txt
+            /tmp/npm-ci.log
+            /tmp/browser-version.txt
+            /tmp/test-maker.log
+            /tmp/archie-evaluate.log
+            /tmp/verify-repository.log
+            /tmp/expected-staged.paths
+            /tmp/actual-staged.paths
+            /tmp/archie-final-head.txt
+          if-no-files-found: warn
+          retention-days: 5
