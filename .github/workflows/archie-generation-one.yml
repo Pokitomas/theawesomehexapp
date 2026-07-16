@@ -31,6 +31,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Execute hash-bound real-device evidence tests
+        run: npm run test:archie:device-evidence
       - name: Run Archie evaluation and preserve the complete log
         shell: bash
         run: |
