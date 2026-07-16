@@ -1,0 +1,82 @@
+{
+  "schema": "archie-launch-target/v1",
+  "id": "archie-maximal-general-companion",
+  "claim_boundary": "Founder target and admission contract, not a claim that the current runtime satisfies it.",
+  "intelligence_target": {
+    "domains": [
+      "software",
+      "research",
+      "open-world-tool-use",
+      "planning",
+      "artifact-production",
+      "creative-work",
+      "safety-and-authority"
+    ],
+    "minimum_metrics": {
+      "cross_domain_completion_rate": 0.7,
+      "failure_repair_rate": 0.65,
+      "calibrated_abstention_rate": 0.8,
+      "false_completion_rate_max": 0.01,
+      "terminal_evidence_rate": 0.95
+    },
+    "requirements": [
+      "derive-explicit-end-state",
+      "pursue-unmet-requirements-within-budget",
+      "repair-after-verified-failure",
+      "distinguish-success-partial-blocked-impossible-unsafe-and-exhausted",
+      "generalize-across-unfamiliar-domains",
+      "preserve-authority-and-uncertainty",
+      "produce-proof-carrying-terminal-artifacts"
+    ]
+  },
+  "human_outcomes": [
+    {
+      "id": "available-while-attention-is-occupied",
+      "critical": true,
+      "statement": "The user can invoke, direct, interrupt, and understand Archie while their hands and eyes are occupied."
+    },
+    {
+      "id": "continue-without-open-window",
+      "critical": true,
+      "statement": "Authorized work can continue, survive suspension, and return at the right moment without requiring one foreground window to remain open."
+    },
+    {
+      "id": "notice-authorized-relevant-change",
+      "critical": true,
+      "statement": "Archie can react to explicitly subscribed events and surface relevant changes under a user-governed interruption policy."
+    },
+    {
+      "id": "perceive-the-active-digital-world",
+      "critical": true,
+      "statement": "With explicit consent, Archie can ground decisions in the screen, files, connected tools, documents, images, audio, and live system state relevant to the objective."
+    },
+    {
+      "id": "inspect-exact-work-when-precision-matters",
+      "critical": true,
+      "statement": "The user can inspect plans, evidence, artifacts, permissions, receipts, uncertainty, and unfinished obligations at the level appropriate to the work."
+    },
+    {
+      "id": "move-between-devices-without-losing-authority",
+      "critical": true,
+      "statement": "Continuity, identity, permissions, and run state can move across admitted devices without creating an ambient surveillance or hidden-authority channel."
+    },
+    {
+      "id": "operate-privately-on-ordinary-hardware",
+      "critical": true,
+      "statement": "Core interaction and admitted local-model operation remain useful on ordinary hardware without requiring a frontier API key."
+    }
+  ],
+  "launch_policy": {
+    "joint_intelligence_and_embodiment_admission": true,
+    "strongest_admitted_product_form": true,
+    "single_canonical_interface": false,
+    "chat_window_is_architecture": false,
+    "voice_is_architecture": false,
+    "always_on_daemon_is_architecture": false,
+    "shell_without_brain_may_launch": false,
+    "brain_without_required_access_may_launch": false,
+    "all_critical_outcomes_required": true,
+    "degraded_private_mode_required": true,
+    "maximal_first_release": true
+  }
+}
