@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-research-campaign.schema.json",
+  "title": "Archie research campaign v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase",
+    "campaign_id",
+    "policy_version",
+    "base_sha",
+    "code_digest",
+    "allocation_digest",
+    "credits",
+    "data_policy",
+    "owner_preference_axis",
+    "production_boundary",
+    "claim_boundary",
+    "campaign_digest"
+  ],
+  "properties": {
+    "schema": { "const": "archie-research-campaign/v1" },
+    "phase": { "enum": ["created", "materialized"] },
+    "campaign_id": { "$ref": "#/$defs/identifier" },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "base_sha": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "code_digest": { "$ref": "#/$defs/digest" },
+    "allocation_digest": { "$ref": "#/$defs/digest" },
+    "prior_campaign_digest": { "$ref": "#/$defs/digest" },
+    "credits": {
+      "type": "object",
+      "required": ["total", "discovery", "independent_evaluation_reserve"],
+      "properties": {
+        "total": { "const": 100 },
+        "discovery": { "const": 80 },
+        "independent_evaluation_reserve": { "const": 20 }
+      },
+      "additionalProperties": false
+    },
+    "data_policy": {
+      "type": "object",
+      "required": [
+        "manifest_relative_path",
+        "pack_schema",
+        "split_algorithm",
+        "holdout_rate",
+        "split_salt_digest",
+        "hidden_access",
+        "mutation_policy"
+      ],
+      "properties": {
+        "manifest_relative_path": { "const": "data/manifest.json" },
+        "pack_schema": { "const": "archie-student-training-pack/v1" },
+        "split_algorithm": { "const": "sha256-group-threshold/v1" },
+        "holdout_rate": { "const": 0.2 },
+        "split_salt_digest": { "$ref": "#/$defs/digest" },
+        "hidden_access": { "const": "independent-evaluation-only" },
+        "mutation_policy": { "const": "reject" }
+      },
+      "additionalProperties": false
+    },
+    "data_binding": {
+      "type": "object",
+      "required": ["pack_digest", "training_data_digest", "hidden_data_digest", "split_digest", "split_salt_digest", "hidden_access"],
+      "properties": {
+        "pack_digest": { "$ref": "#/$defs/digest" },
+        "training_data_digest": { "$ref": "#/$defs/digest" },
+        "hidden_data_digest": { "$ref": "#/$defs/digest" },
+        "split_digest": { "$ref": "#/$defs/digest" },
+        "split_salt_digest": { "$ref": "#/$defs/digest" },
+        "hidden_access": { "const": "independent-evaluation-only" }
+      },
+      "additionalProperties": false
+    },
+    "owner_preference_axis": {
+      "type": "object",
+      "required": ["separate_from_capability", "continuing_compute_weight"],
+      "properties": {
+        "separate_from_capability": { "const": true },
+        "continuing_compute_weight": { "const": 0 },
+        "promotion_veto": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "production_boundary": {
+      "type": "object",
+      "required": ["candidate_production_write", "candidate_self_promotion", "promotion_requires_explicit_command"],
+      "properties": {
+        "candidate_production_write": { "const": false },
+        "candidate_self_promotion": { "const": false },
+        "promotion_requires_explicit_command": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "claim_boundary": { "type": "string", "minLength": 1 },
+    "campaign_digest": { "$ref": "#/$defs/digest" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "phase": { "const": "materialized" } } },
+      "then": { "required": ["prior_campaign_digest", "data_binding"] }
+    }
+  ],
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}

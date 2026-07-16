@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-research-allocation.schema.json",
+  "title": "Archie research allocation v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "campaign_id",
+    "policy_version",
+    "total_credits",
+    "evaluation_reserve",
+    "discovery_credits",
+    "owner_preference_axis",
+    "lanes",
+    "independent_evaluation"
+  ],
+  "properties": {
+    "schema": { "const": "archie-research-allocation/v1" },
+    "campaign_id": { "$ref": "#/$defs/identifier" },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "total_credits": { "const": 100 },
+    "evaluation_reserve": { "const": 20 },
+    "discovery_credits": { "const": 80 },
+    "allocation_digest": { "$ref": "#/$defs/digest" },
+    "owner_preference_axis": {
+      "type": "object",
+      "required": ["separate_from_capability", "continuing_compute_weight"],
+      "properties": {
+        "separate_from_capability": { "const": true },
+        "continuing_compute_weight": { "const": 0 },
+        "promotion_veto": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/lane" }
+    },
+    "independent_evaluation": { "$ref": "#/$defs/lane" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "lane": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "credits",
+        "task_families",
+        "allowed_worker_kinds",
+        "required_capabilities",
+        "max_cost_usd_per_experiment",
+        "required_replications",
+        "stop_rules",
+        "promotion_boundaries"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "credits": { "type": "integer", "minimum": 1 },
+        "task_families": { "$ref": "#/$defs/nonEmptyStrings" },
+        "allowed_worker_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["local_cpu", "wsl_workstation", "github_hosted_cpu", "self_hosted", "remote_http", "burst_gpu"]
+          }
+        },
+        "required_capabilities": { "$ref": "#/$defs/nonEmptyStrings" },
+        "max_cost_usd_per_experiment": { "type": "number", "minimum": 0 },
+        "required_replications": { "type": "integer", "minimum": 1 },
+        "stop_rules": { "type": "object", "minProperties": 1 },
+        "promotion_boundaries": { "type": "object", "minProperties": 1 }
+      },
+      "additionalProperties": false
+    },
+    "nonEmptyStrings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": false
+}
