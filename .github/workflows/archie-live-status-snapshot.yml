@@ -72,13 +72,20 @@ jobs:
           test "$(git -C repair rev-parse HEAD)" = "ba9a777504b96a49df29d2dac45988a3acbfb801"
           echo "db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e  evidence/audit/patches/archie-router-runtime-seam.patch" | sha256sum --check
           git -C repair apply --check ../evidence/audit/patches/archie-router-runtime-seam.patch
-      - name: Apply and prove the seam repair
+      - name: Apply patch and check syntax
         run: |
           set -euo pipefail
           git -C repair apply ../evidence/audit/patches/archie-router-runtime-seam.patch
+          node --check repair/scripts/maker-model-router.mjs
+      - name: Prove router and runtime-platform seam
+        run: |
+          set -euo pipefail
           cd repair
-          node --check scripts/maker-model-router.mjs
           node --test scripts/tests/maker-model-router.test.mjs scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../router-runtime-seam.log
+      - name: Prove Archie breadth with runtime-platform
+        run: |
+          set -euo pipefail
+          cd repair
           node --test \
             scripts/tests/maker-archie-corpus-pack.test.mjs \
             scripts/tests/maker-archie-budget.test.mjs \
@@ -88,6 +95,10 @@ jobs:
             scripts/tests/maker-archie-sync.test.mjs \
             scripts/tests/maker-archie-operator.test.mjs \
             scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../archie-plus-platform.log
+      - name: Validate one-path diff
+        run: |
+          set -euo pipefail
+          cd repair
           git diff --check
           test "$(git diff --name-only)" = "scripts/maker-model-router.mjs"
       - name: Commit isolated repair branch
@@ -102,16 +113,18 @@ jobs:
           git push origin HEAD:agent/archie-router-runtime-seam
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Upload proof receipts
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-router-runtime-seam-${{ steps.commit.outputs.head }}
+          name: archie-router-runtime-seam-run-${{ github.run_id }}
           path: |
             router-runtime-seam.log
             archie-plus-platform.log
             evidence/audit/patches/archie-router-runtime-seam.patch
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 5
       - name: Publish coordination receipt
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           REPAIR_HEAD: ${{ steps.commit.outputs.head }}
