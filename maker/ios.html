@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#10233f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Maker">
-  <meta name="description" content="Open or install the Maker engineering app on iPhone and iPad.">
-  <title>Maker for iPhone</title>
+  <meta name="apple-mobile-web-app-title" content="Archie">
+  <meta name="description" content="Install Archie, the truthful phone cockpit for local planning, evidence, learning receipts, and authorized Maker execution.">
+  <title>Install Archie</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon.svg">
@@ -16,11 +16,11 @@
     :root { color-scheme: light; font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; background: #f6f3eb; color: #10233f; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100svh; padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); display: grid; place-items: center; }
-    main { width: min(100%, 520px); }
+    main { width: min(100%, 560px); }
     .mark { width: 72px; height: 72px; display: grid; place-items: center; border-radius: 22px; background: #10233f; box-shadow: 0 16px 40px rgba(16,35,63,.18); }
     .mark img { width: 48px; height: 48px; }
     .eyebrow { margin: 22px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .14em; }
-    h1 { margin: 0; font-size: clamp(38px, 11vw, 60px); line-height: .98; letter-spacing: -.045em; }
+    h1 { margin: 0; font-size: clamp(40px, 12vw, 64px); line-height: .96; letter-spacing: -.05em; }
     .lede { margin: 18px 0 24px; font-size: 18px; line-height: 1.45; color: #41506a; }
     .actions { display: grid; gap: 10px; }
     .button { min-height: 56px; border: 0; border-radius: 16px; padding: 16px 18px; font: inherit; font-weight: 800; text-align: center; text-decoration: none; cursor: pointer; }
@@ -28,6 +28,8 @@
     .secondary { background: white; color: #10233f; border: 1px solid #c9d0da; }
     .card { margin-top: 18px; padding: 20px; border: 1px solid #d7d2c7; border-radius: 20px; background: rgba(255,255,255,.72); }
     .card h2 { margin: 0 0 12px; font-size: 20px; }
+    .truth { display: grid; gap: 8px; padding: 0; list-style: none; }
+    .truth li { padding: 12px 14px; border-radius: 12px; background: #fff; line-height: 1.35; }
     ol { margin: 0; padding-left: 24px; display: grid; gap: 11px; line-height: 1.4; }
     .share-icon { display: inline-block; margin: 0 2px; font-weight: 900; }
     #status { min-height: 22px; margin: 14px 2px 0; color: #52617a; font-size: 14px; }
@@ -38,49 +40,59 @@
 <body>
   <main>
     <div class="mark"><img src="./icon.svg" alt=""></div>
-    <p class="eyebrow">MAKER / IPHONE + IPAD</p>
-    <h1>Open Maker like an app.</h1>
-    <p class="lede">No App Store account or setup screen. Open Maker, then add it to your Home Screen for a full-screen app icon.</p>
+    <p class="eyebrow">ARCHIE / PHONE APP</p>
+    <h1>Your local intelligence cockpit.</h1>
+    <p class="lede">Archie is the phone surface for planning, evidence, corpus receipts, learning state, and authorized Maker execution. It does not pretend the browser itself trained a strong model.</p>
 
     <div class="actions">
-      <a class="button primary" href="./">OPEN MAKER</a>
-      <button class="button secondary" id="share" type="button">SHARE MAKER LINK</button>
+      <a class="button primary" href="./">OPEN ARCHIE</a>
+      <a class="button secondary" href="../manual/">OPEN SIDEWAYS DESKTOP</a>
+      <button class="button secondary" id="share" type="button">SHARE ARCHIE LINK</button>
     </div>
 
     <section class="card" id="install-card" aria-labelledby="install-title">
-      <h2 id="install-title">Install on iPhone or iPad</h2>
+      <h2 id="install-title">Install Archie on iPhone or iPad</h2>
       <ol>
         <li>Open this page in <strong>Safari</strong>.</li>
         <li>Tap the Share button <span class="share-icon" aria-label="Share">⇧</span>.</li>
         <li>Choose <strong>Add to Home Screen</strong>.</li>
-        <li>Tap <strong>Add</strong>. Maker will appear with your other apps.</li>
+        <li>Tap <strong>Add</strong>. Archie will appear with your other apps.</li>
       </ol>
     </section>
 
+    <section class="card" aria-labelledby="truth-title">
+      <h2 id="truth-title">What is real today</h2>
+      <ul class="truth">
+        <li><strong>Archie:</strong> substantial runtime, corpus, evaluation, artifact-security, campaign, calibration, and action-contract infrastructure.</li>
+        <li><strong>Not yet proven:</strong> no independent exact-head benchmark receipt currently establishes strong general task competence.</li>
+        <li><strong>Sideways:</strong> the desktop corpus and archive workspace. Its factual substrate can be reused or transformed into Archie training and evaluation material with provenance intact.</li>
+      </ul>
+    </section>
+
     <p id="status" role="status" aria-live="polite"></p>
-    <p class="fine">Maker stores drafts on this device and reads public GitHub status. Repository writes still require the authorized GitHub workflow; the browser never receives repository or model credentials.</p>
+    <p class="fine">Archie stores local drafts and verified receipts on this device and reads public GitHub status. Repository writes, model execution, training spend, merge, and deployment still require the authorized runtime and its explicit authority boundaries.</p>
   </main>
   <script>
-    const makerUrl = new URL('./', location.href).href;
+    const archieUrl = new URL('./', location.href).href;
     const status = document.getElementById('status');
     const card = document.getElementById('install-card');
     const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     if (installed) {
       card.classList.add('installed');
-      card.querySelector('h2').textContent = 'Maker is installed';
-      card.querySelector('ol').innerHTML = '<li>Tap <strong>Open Maker</strong> above whenever you want to use it.</li>';
+      card.querySelector('h2').textContent = 'Archie is installed';
+      card.querySelector('ol').innerHTML = '<li>Tap <strong>Open Archie</strong> above whenever you want to use it.</li>';
       status.textContent = 'Running from the iPhone Home Screen.';
     }
     document.getElementById('share').addEventListener('click', async () => {
       try {
         if (navigator.share) {
-          await navigator.share({ title: 'Maker Engineering', text: 'Open the Maker engineering app', url: makerUrl });
+          await navigator.share({ title: 'Archie', text: 'Install the Archie phone app', url: archieUrl });
           status.textContent = 'Share sheet opened.';
         } else if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(makerUrl);
-          status.textContent = 'Maker link copied.';
+          await navigator.clipboard.writeText(archieUrl);
+          status.textContent = 'Archie link copied.';
         } else {
-          status.textContent = makerUrl;
+          status.textContent = archieUrl;
         }
       } catch (error) {
         if (error?.name !== 'AbortError') status.textContent = 'Use Safari Share, then Add to Home Screen.';
