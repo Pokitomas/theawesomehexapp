@@ -1,3 +1,4 @@
+import { blendCalibratedEstimates } from './calibration.mjs';
 import { asFiniteNumber, asText, assertNoSecrets, digest } from './util.mjs';
 
 export const FOUNDRY_VERSION = 'sideways-model-foundry/v1';
@@ -161,8 +162,9 @@ export function validateReport(report, assignments = []) {
   };
 }
 
-export function integrateReports(reportInputs, assignments = []) {
+export function integrateReports(reportInputs, assignments = [], calibrationHistories = []) {
   if (!Array.isArray(reportInputs) || reportInputs.length === 0) throw new Error('At least one report is required.');
+  assertNoSecrets(calibrationHistories);
   const reports = reportInputs.map(report => validateReport(report, assignments));
   const seenAssignments = new Set();
   const claimById = new Map();
@@ -177,6 +179,11 @@ export function integrateReports(reportInputs, assignments = []) {
       claimById.set(claim.id, { ...claim, source_role: report.role, source_assignment_id: report.assignment_id, source_index: [reportIndex, claimIndex] });
     });
     report.proposals.forEach(proposal => {
+      const estimate = {
+        role: report.role,
+        source_assignment_id: report.assignment_id,
+        raw_estimate: proposal.expected_information_gain
+      };
       const existing = candidateById.get(proposal.candidate_id);
       if (!existing) {
         candidateById.set(proposal.candidate_id, {
@@ -184,14 +191,15 @@ export function integrateReports(reportInputs, assignments = []) {
           source_roles: [report.role],
           source_assignments: [report.assignment_id],
           corroborations: 1,
-          mechanism_variants: [proposal.mechanism]
+          mechanism_variants: [proposal.mechanism],
+          information_gain_estimates: [estimate]
         });
       } else {
         existing.source_roles.push(report.role);
         existing.source_assignments.push(report.assignment_id);
         existing.corroborations += 1;
+        existing.information_gain_estimates.push(estimate);
         if (!existing.mechanism_variants.includes(proposal.mechanism)) existing.mechanism_variants.push(proposal.mechanism);
-        existing.expected_information_gain = Math.max(existing.expected_information_gain, proposal.expected_information_gain);
         existing.cost = Math.min(existing.cost, proposal.cost);
         existing.novelty_tags = [...new Set([...existing.novelty_tags, ...proposal.novelty_tags])];
       }
@@ -224,6 +232,15 @@ export function integrateReports(reportInputs, assignments = []) {
     return map;
   }, new Map());
 
+  const candidates = [...candidateById.values()].map(candidate => {
+    const blend = blendCalibratedEstimates(candidate.information_gain_estimates, calibrationHistories);
+    return {
+      ...candidate,
+      expected_information_gain: blend.blended_estimate,
+      information_gain_blend: blend
+    };
+  }).sort((a, b) => a.candidate_id.localeCompare(b.candidate_id));
+
   const integration = {
     schema: FOUNDRY_VERSION,
     report_count: reports.length,
@@ -234,7 +251,7 @@ export function integrateReports(reportInputs, assignments = []) {
       edges: edges.sort((a, b) => `${a.from}:${a.to}:${a.kind}`.localeCompare(`${b.from}:${b.to}:${b.kind}`))
     },
     hypotheses: [...hypotheses.values()].sort((a, b) => a.hypothesis_id.localeCompare(b.hypothesis_id)),
-    candidates: [...candidateById.values()].sort((a, b) => a.candidate_id.localeCompare(b.candidate_id)),
+    candidates,
     external_resources: [...externalResourceByKey.values()].sort((a, b) => `${a.name}@${a.pin}`.localeCompare(`${b.name}@${b.pin}`)),
     unresolved_contradictions: edges.filter(edge => edge.kind === 'unresolved-reference'),
     no_winner_selected: true
