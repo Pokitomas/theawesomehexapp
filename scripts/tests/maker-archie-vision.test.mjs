@@ -4,12 +4,16 @@ import test from 'node:test';
 
 const manifestUrl = new URL('../../founder/archie-maker-vision.json', import.meta.url);
 const launchTargetUrl = new URL('../../founder/archie-launch-target.json', import.meta.url);
+const frontierTargetUrl = new URL('../../founder/archie-launch-frontier-target.json', import.meta.url);
 const visionUrl = new URL('../../ARCHIE_MAKER_VISION.md', import.meta.url);
+const profilesUrl = new URL('../../ARCHIE_LAUNCH_PROFILES.md', import.meta.url);
 const packageUrl = new URL('../../package.json', import.meta.url);
 
 const manifest = JSON.parse(await fs.readFile(manifestUrl, 'utf8'));
 const launchTarget = JSON.parse(await fs.readFile(launchTargetUrl, 'utf8'));
+const frontierTarget = JSON.parse(await fs.readFile(frontierTargetUrl, 'utf8'));
 const vision = await fs.readFile(visionUrl, 'utf8');
+const profiles = await fs.readFile(profilesUrl, 'utf8');
 const packageJson = JSON.parse(await fs.readFile(packageUrl, 'utf8'));
 
 test('Sideways remains an independent reference application rather than the AI product', () => {
@@ -37,18 +41,37 @@ test('shared intelligence changes by evaluated release rather than ambient users
   assert.match(vision, /not silent improvement from user activity/);
 });
 
-test('product form is derived from ambition rather than frozen as chat, voice, or one daemon', async () => {
+test('canonical product form comes from a complete Pareto frontier rather than fixed modalities', async () => {
   assert.equal(manifest.product_form.canonical_interface, null);
   assert.equal(manifest.product_form.chat_window_is_architecture, false);
   assert.equal(manifest.product_form.voice_is_architecture, false);
+  assert.equal(manifest.product_form.screen_is_architecture, false);
   assert.equal(manifest.product_form.always_on_daemon_is_architecture, false);
-  assert.equal(manifest.product_form.product_form_is_derived_from_human_outcomes, true);
-  assert.equal(manifest.product_form.strongest_admitted_surfaces_ship_together, true);
-  assert.equal(manifest.product_form.shell_without_brain_is_launchable, false);
-  assert.equal(manifest.product_form.brain_without_required_access_is_launchable, false);
-  assert.match(vision, /The product must not be designed backward from a familiar interface/);
-  assert.match(vision, /Intelligence and embodiment must pass one joint admission contract/);
+  assert.equal(manifest.product_form.product_form_is_derived_from_human_outcomes, false);
+  assert.equal(manifest.product_form.product_form_is_selected_from_complete_evidence_bound_profiles, true);
+  assert.equal(manifest.product_form.incomparable_nondominated_profiles_ship_as_adaptive_frontier, true);
+  assert.equal(manifest.product_form.dominated_default_is_launchable, false);
+  assert.equal(manifest.product_form.incomplete_profile_search_is_launchable, false);
+  assert.equal(manifest.product_form.v1_required_faculty_mapping_is_canonical, false);
+  assert.equal(manifest.product_form.v1_machine_profile_resolver_may_be_backend, true);
+  assert.equal(frontierTarget.schema, 'archie-launch-frontier-target/v2');
+  assert.equal(frontierTarget.frontier_policy.canonical_interface, null);
+  assert.equal(frontierTarget.frontier_policy.voice_is_architecture, false);
+  assert.equal(frontierTarget.frontier_policy.always_on_is_architecture, false);
+  assert.match(profiles, /Pareto frontier/);
+  assert.match(profiles, /compatibility backend/);
+  await fs.access(new URL('../archie-launch-frontier-v2.mjs', import.meta.url));
+});
+
+test('v1 fixed-faculty contracts remain available only as compatibility evidence', async () => {
+  assert.equal(launchTarget.schema, 'archie-launch-target/v1');
+  assert.equal(launchTarget.launch_policy.single_canonical_interface, false);
+  assert.ok(manifest.product_form.compatibility_evaluators.includes('scripts/archie-launch-contract.mjs'));
+  assert.ok(manifest.product_form.compatibility_evaluators.includes('scripts/archie-launch-profile-resolver.mjs'));
+  assert.ok(manifest.product_form.compatibility_evaluators.includes('scripts/archie-launch-profile-admission.mjs'));
   await fs.access(new URL('../archie-launch-contract.mjs', import.meta.url));
+  await fs.access(new URL('../archie-launch-profile-resolver.mjs', import.meta.url));
+  await fs.access(new URL('../archie-launch-profile-admission.mjs', import.meta.url));
 });
 
 test('the impossible proof requires a delivered transferable application', () => {
@@ -62,24 +85,11 @@ test('the impossible proof requires a delivered transferable application', () =>
   assert.ok(manifest.primary_outputs.includes('civic-tools'));
 });
 
-test('the launch target requires both admitted intelligence and usable embodiment', () => {
-  assert.equal(launchTarget.schema, 'archie-launch-target/v1');
-  assert.match(launchTarget.claim_boundary, /not a claim that the current runtime satisfies it/);
-  assert.equal(launchTarget.launch_policy.joint_intelligence_and_embodiment_admission, true);
-  assert.equal(launchTarget.launch_policy.single_canonical_interface, false);
-  assert.equal(launchTarget.launch_policy.chat_window_is_architecture, false);
-  assert.equal(launchTarget.launch_policy.voice_is_architecture, false);
-  assert.equal(launchTarget.launch_policy.always_on_daemon_is_architecture, false);
-  assert.equal(launchTarget.launch_policy.shell_without_brain_may_launch, false);
-  assert.equal(launchTarget.launch_policy.brain_without_required_access_may_launch, false);
-  assert.equal(launchTarget.launch_policy.all_critical_outcomes_required, true);
-  assert.equal(launchTarget.launch_policy.maximal_first_release, true);
-  assert.ok(launchTarget.intelligence_target.minimum_metrics.false_completion_rate_max <= 0.01);
-  assert.ok(launchTarget.intelligence_target.minimum_metrics.terminal_evidence_rate >= 0.95);
-  assert.ok(launchTarget.human_outcomes.every(outcome => outcome.critical === true));
-});
-
-test('Archie evaluation commands point at admitted executable surfaces', async () => {
+test('Archie commands expose the canonical v2 frontier and preserve v1 compatibility paths', async () => {
+  assert.equal(packageJson.scripts['archie:launch:frontier'], 'node scripts/archie-launch-assess.mjs frontier');
+  assert.equal(packageJson.scripts['archie:launch:derive'], 'node scripts/archie-launch-assess.mjs derive');
+  assert.equal(packageJson.scripts['archie:launch:evaluate'], 'node scripts/archie-launch-assess.mjs evaluate');
+  assert.equal(packageJson.scripts['archie:launch:resolve'], 'node scripts/archie-launch-assess.mjs resolve');
   assert.equal(
     packageJson.scripts['archie:evaluate'],
     'node scripts/maker-archie-benchmark.mjs run --suite maker/evaluations/archie-equivalence-suite.json'

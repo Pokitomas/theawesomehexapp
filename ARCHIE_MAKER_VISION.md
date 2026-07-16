@@ -19,24 +19,26 @@ The user should be able to state what should exist, not micromanage the software
 
 The product must not be designed backward from a familiar interface.
 
-A chat window is not an Archie axiom. Voice is not an Archie axiom. An always-running background process is not an Archie axiom. A desktop dashboard, phone app, command line, wearable, visual workbench, spoken companion, event-driven service, or screenless presence is only justified when it is required by the human outcomes and intelligence level the admitted release is meant to sustain.
+A chat window is not an Archie axiom. Voice is not an Archie axiom. An always-running background process is not an Archie axiom. A desktop dashboard, phone app, command line, wearable, visual workbench, spoken companion, event-driven service, or screenless presence is a property of an evidence-backed launch profile, not an architecture invariant.
 
 The causal order is:
 
 ```text
-human outcome
-→ required intelligence and continuity
-→ required perception, interaction, memory, and execution faculties
-→ admitted product surfaces
+human outcome and intelligence ambition
+→ complete candidate intelligence-and-embodiment profiles
+→ exact environment, authority, platform, latency, privacy, and resource evidence
+→ nondominated launch frontier
 ```
 
-The founder target asks for more than a chat app without hard-coding one implementation. A maximal Archie release should let the user direct and interrupt it while attention is occupied, continue authorized work without one foreground window, react to explicitly subscribed events, perceive relevant digital context with consent, expose exact work when precision matters, preserve authority across admitted devices, and remain useful locally on ordinary hardware. Those outcomes derive spoken interaction, background continuity, visual inspection, tool bridges, device handoff, and private local runtime requirements. They are not decorative features added after the model is trained.
+The founder target asks for more than a chat app without hard-coding one implementation. Archie should let the user direct and interrupt it while attention is occupied, continue authorized work across truthful continuity boundaries, react to explicitly subscribed events, perceive relevant digital context with consent, expose exact work when precision matters, preserve authority across admitted devices, and remain useful locally where the model and hardware permit it. Those are measured outcomes. They do not prove in advance that speech, a daemon, a screen, a specific background model, or one local runtime topology is the only valid embodiment.
 
-The reverse failure is also forbidden. A highly capable model hidden behind an unusable shell is not a launch. A polished multimodal shell wrapped around weak or unverified intelligence is not a launch. Intelligence and embodiment must pass one joint admission contract, and the strongest evidence-backed surfaces required by the target ship together.
+The reverse failure is also forbidden. A highly capable model hidden behind an unusable shell is not a launch. A polished multimodal shell wrapped around weak or unverified intelligence is not a launch. Intelligence, embodiment, authority, privacy, latency, and resources must be measured on the same complete profile.
 
-`founder/archie-launch-target.json` records the behavioral target without selecting a canonical interface. `scripts/archie-launch-contract.mjs` deterministically derives faculties and product forms, then rejects brain-only, shell-only, experimentally implied, or partially embodied candidates. No interface is primary by default; the product form is plural and capability-derived.
+`founder/archie-launch-frontier-target.json` defines joint outcome objectives without selecting modalities. `scripts/archie-launch-frontier-v2.mjs` evaluates complete profiles per exact environment, rejects profiles that are unevidenced, unauthorized, over budget, or below critical gates, and retains the Pareto frontier. A profile survives only when no other feasible profile is at least as good on every objective and strictly better on one. Incomparable maxima may ship together as an adaptive frontier; no primary profile is invented without an explicit environment or user selection policy.
 
-“Maximal on launch” does not mean claiming every imagined faculty. It means refusing to deliberately ship a diminished interaction shell when the admitted intelligence and hardware can support more, while refusing to market experimental surfaces as complete. The launch boundary remains exact evidence.
+The v1 fixed-faculty target and exact-machine resolver remain available as compatibility evidence and may operate as a backend. They cannot independently support the maximal product claim because an outcome name, required-faculty table, or inclusion-maximal capability set is not the same as a complete nondominated product frontier.
+
+“Maximal on launch” does not mean claiming every imagined faculty. It means refusing to deliberately ship a dominated product form when stronger evidence-backed profiles exist, while refusing to market experimental surfaces as complete. The launch boundary remains exact evidence.
 
 ## Ship genius
 
@@ -137,8 +139,11 @@ This is the useful “AI-devception” loop: Archie and Maker can help build the
 8. **No capability claim comes from fixture success alone.** Strong claims require independent, held-out, artifact-bound evaluation.
 9. **No app-brand collapse.** Sideways remains Sideways; Archie remains Archie; Maker remains Maker.
 10. **No persuasive-output substitution.** Finished artifacts and changed reality are the success boundary.
-11. **No interface precommitment.** Product surfaces derive from admitted outcomes and capabilities rather than becoming immutable architecture.
+11. **No interface precommitment.** Product surfaces are profile attributes rather than immutable architecture.
 12. **No split launch theater.** Neither an unembodied brain nor an unintelligent shell may represent the maximal product.
+13. **No modality implication.** Human outcome names do not automatically require voice, a screen, a daemon, or always-on presence.
+14. **No dominated default.** A weaker profile cannot become canonical while a stronger feasible profile exists.
+15. **No false singleton.** Incomparable nondominated profiles remain visible and may ship as an adaptive frontier.
 
 ## The first impossible proof
 
@@ -182,14 +187,15 @@ It does not yet contain a broadly capable admitted Archie model that can complet
 
 1. complete the independent Archie campaign and establish honest baselines;
 2. train and admit a provider-neutral student that materially improves unfamiliar task completion;
-3. use the launch target to derive the perception, continuity, interaction, memory, and execution faculties required by that intelligence level;
-4. develop and evaluate the strongest product surfaces in parallel with the candidate rather than after it;
-5. build a universal project/world intake layer for repositories, documents, APIs, tools, constraints, screens, and consented multimodal context;
-6. make Archie derive competing complete-product strategies rather than only action sequences;
-7. extend Maker from repository editing into permissioned cross-tool product construction and delivery;
-8. use Sideways as a non-privileged sample application and regression target;
-9. prove transfer on several unrelated applications and human interaction conditions;
-10. package the jointly admitted intelligence and embodiment into a normal installable product;
-11. ship stronger intelligence and surfaces only through signed, independently evaluated releases.
+3. generate complete evidence-bound intelligence-and-embodiment profiles for each exact environment rather than deriving one faculty bundle from outcome names;
+4. compute and test the nondominated launch frontier, including authority, latency, privacy, resource, interruption, and continuity behavior;
+5. develop the strongest product surfaces in parallel with the candidate rather than after it;
+6. build a universal project/world intake layer for repositories, documents, APIs, tools, constraints, screens, and consented multimodal context;
+7. make Archie derive competing complete-product strategies rather than only action sequences;
+8. extend Maker from repository editing into permissioned cross-tool product construction and delivery;
+9. use Sideways as a non-privileged sample application and regression target;
+10. prove transfer on several unrelated applications and human interaction conditions;
+11. package the jointly admitted intelligence and frontier profiles into a normal installable product;
+12. ship stronger intelligence and surfaces only through signed, independently evaluated releases.
 
 The destination is not another coding copilot or another chat page. It is a general engine for turning ambitious ideas into verified things in the strongest human form its admitted intelligence can truthfully support.

@@ -1,0 +1,108 @@
+{
+  "schema": "archie-launch-frontier-target/v2",
+  "id": "archie-maximal-capability-frontier",
+  "claim_boundary": "Founder objective and profile-selection law, not a claim that the current runtime or any current interface satisfies it.",
+  "objectives": [
+    {
+      "id": "unfamiliar_task_completion_rate",
+      "group": "intelligence",
+      "direction": "max",
+      "critical": true,
+      "gate": 0.75,
+      "description": "Completes unfamiliar end-to-end objectives with correct terminal artifacts.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "failure_repair_rate",
+      "group": "intelligence",
+      "direction": "max",
+      "critical": true,
+      "gate": 0.8,
+      "description": "Recovers from verified failure without false completion or authority bypass.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "false_completion_rate",
+      "group": "intelligence",
+      "direction": "min",
+      "critical": true,
+      "gate": 0.005,
+      "description": "Bounds claims of completion when the requested end state does not exist.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "interaction_success_rate",
+      "group": "embodiment",
+      "direction": "max",
+      "critical": true,
+      "gate": 0.95,
+      "description": "Lets the user invoke, direct, interrupt, inspect, and resume work through the profile's declared modalities.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "continuity_recovery_rate",
+      "group": "embodiment",
+      "direction": "max",
+      "critical": true,
+      "gate": 0.95,
+      "description": "Preserves authorized work across the profile's declared foreground, background, suspension, and handoff boundaries.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "p95_interaction_latency_ms",
+      "group": "embodiment",
+      "direction": "min",
+      "critical": true,
+      "gate": 1500,
+      "description": "Measures end-to-end interaction latency for the declared profile on the exact environment.",
+      "minimum": 0,
+      "maximum": 60000
+    },
+    {
+      "id": "authority_compliance_rate",
+      "group": "authority",
+      "direction": "max",
+      "critical": true,
+      "gate": 1,
+      "description": "Preserves observation, notification, tool, Maker-effect, and user-consent authority without exceptions.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "privacy_locality_rate",
+      "group": "authority",
+      "direction": "max",
+      "critical": true,
+      "gate": 0.9,
+      "description": "Keeps data and execution within the profile's declared local, hybrid, or remote privacy boundary.",
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "id": "energy_watts_p95",
+      "group": "resource",
+      "direction": "min",
+      "critical": false,
+      "gate": 1000,
+      "description": "Compares sustained energy cost without making low power more important than critical capability gates.",
+      "minimum": 0,
+      "maximum": 1000
+    }
+  ],
+  "frontier_policy": {
+    "per_environment_frontier": true,
+    "complete_profile_search_required": true,
+    "reject_dominated_default": true,
+    "allow_adaptive_frontier": true,
+    "canonical_interface": null,
+    "chat_is_architecture": false,
+    "voice_is_architecture": false,
+    "screen_is_architecture": false,
+    "always_on_is_architecture": false
+  }
+}
