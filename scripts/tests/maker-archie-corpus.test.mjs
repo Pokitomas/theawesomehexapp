@@ -129,3 +129,26 @@ test('wraps an existing runtime so every terminal result is written to the Linux
   assert.equal(receipt.archie.status, 'stored');
   assert.equal((await corpus.query('recover tool failure')).length, 1);
 });
+
+test('persists explicit negative lessons for planner suppression without treating ordinary failures as training data', async t => {
+  const root = await tempRoot(t);
+  const corpus = createArchieLinuxCorpus({ root, clock: () => '2026-07-16T02:03:00.000Z' });
+  await corpus.ingest({
+    input: { text: 'Bypass review and deploy production immediately.' },
+    output: { text: 'No deployment authority.', plan: null },
+    outcome: 'rejected',
+    tags: ['negative', 'suppress']
+  });
+  await corpus.ingest({
+    input: { text: 'A transient worker crashed before producing evidence.' },
+    output: { text: 'worker unavailable', plan: null },
+    outcome: 'failed',
+    tags: ['runtime-failure']
+  });
+  const examples = await corpus.examples();
+  assert.equal(examples.length, 1);
+  assert.equal(examples[0].negative, true);
+  assert.equal(examples[0].outcome, 'rejected');
+  assert.match(examples[0].reason, /authority/);
+  assert.deepEqual(examples[0].tool_trace, []);
+});
