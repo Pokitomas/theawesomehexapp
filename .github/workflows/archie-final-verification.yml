@@ -1,0 +1,207 @@
+name: Verify and receipt exact Archie final head
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-final-verification-base
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: archie-final-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event.pull_request.head.ref == 'agent/archie-final-verification-trigger'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      EXPECTED_TREE: 60b7a6d37c4b743fed5e0769fe94f86d82710820
+      CI: '1'
+      REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      RUN_ID: ${{ github.run_id }}
+      TRIGGER_PR: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Check out the exact remote coordinator
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: agent/archie-democratized-runtime
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact remote head and tree
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse HEAD)"
+          parent="$(git rev-parse HEAD^)"
+          tree="$(git rev-parse HEAD^{tree})"
+          remote="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
+          test "$head" = "$remote"
+          test "$tree" = "$EXPECTED_TREE"
+          printf '%s\n' "$head" | tee "$RUNNER_TEMP/final-head.txt"
+          printf '%s\n' "$parent" | tee "$RUNNER_TEMP/final-parent.txt"
+          printf '%s\n' "$tree" | tee "$RUNNER_TEMP/final-tree.txt"
+          git status --short | tee "$RUNNER_TEMP/initial-status.txt"
+          test ! -s "$RUNNER_TEMP/initial-status.txt"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --include=dev
+
+      - name: Require real Chromium
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            google-chrome --version | tee "$RUNNER_TEMP/browser-version.txt"
+          elif command -v chromium >/dev/null 2>&1; then
+            chromium --version | tee "$RUNNER_TEMP/browser-version.txt"
+          else
+            echo 'Chromium unavailable; exact phone proof is required.' >&2
+            exit 1
+          fi
+
+      - name: Execute complete final verification graph
+        run: |
+          set -euo pipefail
+          node scripts/native-changed-check.mjs 2>&1 | tee "$RUNNER_TEMP/native-changed.log"
+          npm run test:maker 2>&1 | tee "$RUNNER_TEMP/test-maker.log"
+          npm run archie:evaluate -- --output "$RUNNER_TEMP/archie-evaluation-report.json" 2>&1 | tee "$RUNNER_TEMP/evaluation.log"
+          npm run verify:repository 2>&1 | tee "$RUNNER_TEMP/repository.log"
+          git diff --check
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          test -z "$(git status --short --untracked-files=no)"
+
+      - name: Update final draft PR and handoff issue with exact receipts
+        run: |
+          set -euo pipefail
+          head="$(cat "$RUNNER_TEMP/final-head.txt")"
+          parent="$(cat "$RUNNER_TEMP/final-parent.txt")"
+          tree="$(cat "$RUNNER_TEMP/final-tree.txt")"
+          cat > "$RUNNER_TEMP/pr-body.md" <<EOF
+          ## Archie democratized runtime — exact final candidate
+
+          **Base:** `agent/archie-linux-corpus` at `323e9d0b047284123ba1db1f3717d9ed22b5cb31`  
+          **Head:** `agent/archie-democratized-runtime` at `$head`  
+          **Tree:** `$tree`  
+          **Exact-head verification run:** `$RUN_ID`
+
+          Archie now provides a truthful local learning loop: recurring tasks become deterministic owned memory; sparse specialists and a bounded CPU planner handle known work; novelty escalates to a teacher; encrypted synchronization has no relay plaintext authority; opportunistic compute is admitted only from evidence; the phone surface displays receipts and never invents execution.
+
+          ### Selected source evidence
+          - corpus pack: initial coordinator `8ade93784e5af71fed421a92645e174d3add627d`
+          - reasoning budget: `agent/archie-reasoning-budget@483fcdf378f135d76cb327c13fe349cfec2f1785`
+          - CPU planner: `agent/archie-cpu-planner@ba17bf181df96d923a8378839e22040de9ad3250`
+          - opportunistic compute: `agent/archie-opportunistic-compute@88e3f6ead5f9f2c34096d52f19df3e7f5345534d`
+          - encrypted sync: `agent/archie-encrypted-sync@6895c748d91023a22a5ab3f09caf5030632d5e3f`
+          - phone operator: `agent/archie-phone-operator@5d254fcd20e34480262e1c8e2379b62dbfee2ee5`
+          - repaired router: PR #321 `21f0ff915a87801fb01a1f967bb36d3a3c3be37a`
+          - repaired worker fleet: PR #324 `82c4dc2a5096c7ed6ccf47e1331af73768bf4727`
+          - runtime composition reference: PR #328 `e3912bd7c0494f6ecfd64f00a3ef61cc20ae3069`
+
+          ### Final changed paths
+          `.github/workflows/maker-native-worker-ci.yml`, `.gitignore`, `README.md`, `audit/ARCHIE_COMPLETION.md`, `audit/ARCHIE_COMPLETION_RECEIPT.json`, `audit/ARCHIE_PLUGIN_REPAIR_EVIDENCE.json`, `audit/archie-admission-ledger.json`, `audit/repository-verification.json`, `maker/contracts/archie-evaluation.schema.json`, `maker/contracts/control-plane.schema.json`, `maker/contracts/plugin-manifest.schema.json`, `maker/evaluations/archie-suite.json`, `package.json`, `scripts/maker-archie-evaluation.mjs`, `scripts/maker-control-cli.mjs`, `scripts/maker-control-plane.mjs`, `scripts/maker-model-router.mjs`, `scripts/maker-plugin-registry.mjs`, `scripts/maker-runtime-platform.mjs`, `scripts/tests/maker-archie-evaluation.test.mjs`, `scripts/tests/maker-control-plane.test.mjs`, `scripts/tests/maker-model-router.test.mjs`, `scripts/tests/maker-plugin-registry.test.mjs`, `scripts/tests/maker-runtime-platform.test.mjs`.
+
+          ### Exact verification
+          - `node scripts/native-changed-check.mjs`
+          - `npm run test:maker`: **219/219** total — core 10/10, platform 136/136, Archie 73/73
+          - `npm run archie:evaluate`: deterministic report digest `df5c96e1561c0c6a0493b348ea6284eaa7616751df9975cd7e4fe857f67dddb7`
+          - `npm run verify:repository`: manifest v12, **19/19** suites
+          - real Chromium proof at 390×844 and desktop
+          - JSON Schema parsing, syntax checks, `git diff --check`, exact tree check
+
+          ### Rejected evidence and claims
+          - rejected the corrupt PR #325 repair bundle rather than admitting its claimed digest
+          - rejected temporary snapshot/source-export workflows as final verification design
+          - rejected anonymous control mutation, lease-token disclosure, non-atomic queue/event transitions, stale grants, unbounded plugin execution, raw secrets, and descriptive-only authority
+          - no frontier-equivalence, neural-language-model, GPU availability, deployment, provider availability, or cost claim is made without evidence
+
+          ### Preserved evidence
+          Failed and superseded states remain on named branches, including `agent/archie-failed-unleased-pack`, `agent/archie-handoff-contaminated-coordinator`, `agent/archie-coordinator-drift-20260715`, `agent/archie-coordinator-drift-20260715-b`, `agent/archie-superseded-sync-admission`, `agent/archie-coordinator-moved-6251b6f`, and the disposable publisher branches.
+
+          ### Rollback
+          Revert commit `$head` from parent `$parent`; do not force-push away evidence. No deployment or production-data mutation occurred.
+          EOF
+          jq -Rs '{body: .}' < "$RUNNER_TEMP/pr-body.md" > "$RUNNER_TEMP/pr-payload.json"
+          curl --fail --silent --show-error --request PATCH \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/pulls/349" \
+            --data-binary @"$RUNNER_TEMP/pr-payload.json" > "$RUNNER_TEMP/pr-update.json"
+
+          cat > "$RUNNER_TEMP/issue-comment.md" <<EOF
+          ## Exact final receipt
+
+          Coordinator `agent/archie-democratized-runtime` is now `$head` with exact tree `$tree`.
+
+          Exact-head GitHub verification run `$RUN_ID` passed native changed-file policy, 219/219 Maker tests, deterministic Archie evaluation (`df5c96e1561c0c6a0493b348ea6284eaa7616751df9975cd7e4fe857f67dddb7`), repository manifest v12 at 19/19, real Chromium phone/desktop proof, schemas, syntax, diff, and tree checks.
+
+          Draft PR #349 has the complete source/admission/rejection/rollback ledger. No merge, deployment, production-data mutation, secret rotation, billing change, or unsupported external hardware/provider claim occurred.
+          EOF
+          jq -Rs '{body: .}' < "$RUNNER_TEMP/issue-comment.md" > "$RUNNER_TEMP/comment-payload.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/issues/351/comments" \
+            --data-binary @"$RUNNER_TEMP/comment-payload.json" > "$RUNNER_TEMP/issue-comment.json"
+
+      - name: Upload exact final receipts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-exact-final-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/final-head.txt
+            ${{ runner.temp }}/final-parent.txt
+            ${{ runner.temp }}/final-tree.txt
+            ${{ runner.temp }}/browser-version.txt
+            ${{ runner.temp }}/native-changed.log
+            ${{ runner.temp }}/test-maker.log
+            ${{ runner.temp }}/evaluation.log
+            ${{ runner.temp }}/archie-evaluation-report.json
+            ${{ runner.temp }}/repository.log
+            ${{ runner.temp }}/pr-body.md
+            ${{ runner.temp }}/pr-update.json
+            ${{ runner.temp }}/issue-comment.md
+            ${{ runner.temp }}/issue-comment.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Close disposable evidence pull requests
+        run: |
+          set -euo pipefail
+          pulls="$RUNNER_TEMP/open-pulls.json"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/pulls?state=open&per_page=100" > "$pulls"
+          jq -r '.[] | select(.number != 349) | select(
+            (.number == 354) or (.number == 355) or (.number == 359) or
+            (.number == 362) or (.number == 364) or (.number == 366) or
+            (.number == 368) or
+            (.title | startswith("[evidence] Publish exact Archie final candidate")) or
+            (.head.ref | startswith("agent/archie-final-publisher-")) or
+            (.head.ref == "agent/archie-final-verification-trigger")
+          ) | .number' "$pulls" | sort -nu > "$RUNNER_TEMP/disposable-prs.txt"
+          while read -r number; do
+            test -n "$number" || continue
+            curl --fail --silent --show-error --request PATCH \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$REPOSITORY/pulls/$number" \
+              --data '{"state":"closed"}' > /dev/null
+          done < "$RUNNER_TEMP/disposable-prs.txt"
