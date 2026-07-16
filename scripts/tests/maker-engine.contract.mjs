@@ -74,7 +74,9 @@ test('autonomous Maker executes fail, diagnose, repair, resume, verify, and rece
   assert.equal(engine.snapshot().status, 'failed');
   await engine.beginRepair(failed.failure_id, 'fixture exports the wrong integer');
   await engine.replace('src/answer.mjs', '41', '42');
-  await engine.markRepaired(failed.failure_id, 'changed the exact failing constant');
+  const repairWitness = await engine.run({ program: 'node', args: ['test.mjs'] });
+  assert.equal(repairWitness.ok, true);
+  await engine.markRepaired(failed.failure_id, 'changed the exact failing constant and reran the failing command');
   const checkpoint = await engine.checkpoint('answer repaired');
   assert.match(checkpoint.digest, /^[0-9a-f]{64}$/);
   const resumed = await MakerEngine.resume({ root, state_path: statePath, command_policy: policy });
@@ -89,6 +91,30 @@ test('autonomous Maker executes fail, diagnose, repair, resume, verify, and rece
   assert.doesNotThrow(() => verifyEventChain(resumed.snapshot().events));
 });
 
+test('repair is hypothesis-gated and cannot complete without the exact successful witness', async t => {
+  const root = await fixture();
+  const statePath = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'maker-proof-state-')), 'task.json');
+  t.after(() => Promise.all([fs.rm(root, { recursive: true, force: true }), fs.rm(path.dirname(statePath), { recursive: true, force: true })]));
+  const engine = await MakerEngine.create({ root, state_path: statePath, task: task('maker/proof-gate'), lease: lease('maker/proof-gate'), command_policy: policy });
+  const failed = await engine.run({ program: 'node', args: ['test.mjs'] });
+  await assert.rejects(engine.replace('src/answer.mjs', '41', '42'), /Begin a falsifiable repair/);
+  await assert.rejects(engine.beginRepair(failed.failure_id, ''), /hypothesis is required/);
+  await engine.beginRepair(failed.failure_id, 'The exported answer is one too low.');
+  await assert.rejects(engine.markRepaired(failed.failure_id, 'prose only'), /successful rerun/);
+  const repeated = await engine.run({ program: 'node', args: ['test.mjs'] });
+  assert.equal(repeated.failure_id, failed.failure_id);
+  assert.equal(engine.snapshot().failures.length, 1);
+  await engine.replace('src/answer.mjs', '41', '42');
+  const unrelated = await engine.run({ program: 'git', args: ['diff', '--check'] });
+  assert.equal(unrelated.ok, true);
+  await assert.rejects(engine.markRepaired(failed.failure_id, 'unrelated witness'), /successful rerun/);
+  const witness = await engine.run({ program: 'node', args: ['test.mjs'] });
+  assert.equal(witness.ok, true);
+  const repaired = await engine.markRepaired(failed.failure_id, 'exact command passed after the bounded patch');
+  assert.equal(repaired.repair.status, 'proved');
+  assert.deepEqual(repaired.repair.witness.command, ['node', 'test.mjs']);
+});
+
 test('model-driven Maker loop must lease, observe failure, repair, verify, and finish', async t => {
   const root = await fixture();
   const statePath = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'maker-agent-state-')), 'task.json');
@@ -99,7 +125,8 @@ test('model-driven Maker loop must lease, observe failure, repair, verify, and f
     { tool: 'run', program: 'node', args: ['test.mjs'] },
     { tool: 'repair_start', failure_id: 'failure-1', hypothesis: 'The exported answer is one too low.' },
     { tool: 'replace', path: 'src/answer.mjs', before: '41', after: '42', expected: 1 },
-    { tool: 'repair_complete', failure_id: 'failure-1', evidence: 'Replaced the exact failing literal.' },
+    { tool: 'run', program: 'node', args: ['test.mjs'] },
+    { tool: 'repair_complete', failure_id: 'failure-1', evidence: 'Replaced the exact failing literal and reran the failing command.' },
     { tool: 'verify', commands: [{ program: 'node', args: ['test.mjs'] }, { program: 'git', args: ['diff', '--check'] }] },
     { tool: 'finish', summary: 'Repaired and verified the fixture.', risks: [] }
   ]);

@@ -292,7 +292,7 @@ export class MakerEngine {
   async capabilities() {
     return Object.freeze({
       schema: ENGINE_SCHEMA,
-      tools: ['read', 'search', 'write', 'replace', 'delete', 'run', 'checkpoint', 'resume', 'cancel', 'rollback', 'verify', 'receipt'],
+      tools: ['read', 'search', 'write', 'replace', 'delete', 'run', 'repair_start', 'repair_complete', 'checkpoint', 'resume', 'cancel', 'rollback', 'verify', 'receipt'],
       shell: false,
       network: false,
       command_policy: this.commandPolicy,
@@ -341,6 +341,18 @@ export class MakerEngine {
     return Object.freeze(matches);
   }
 
+  #latestUnrepairedFailure() {
+    return [...this.state.failures].reverse().find(value => !value.repaired) || null;
+  }
+
+  #assertRepairMutationAllowed() {
+    const failure = this.#latestUnrepairedFailure();
+    if (!failure) return;
+    if (failure.repair?.status !== 'started') {
+      throw new Error(`Begin a falsifiable repair for ${failure.id} before mutating files.`);
+    }
+  }
+
   async #backup(target) {
     if (Object.hasOwn(this.state.backups, target.relative)) return;
     await fs.mkdir(this.backupRoot, { recursive: true });
@@ -360,6 +372,7 @@ export class MakerEngine {
 
   async write(relative, content) {
     assertMutableState(this.state);
+    this.#assertRepairMutationAllowed();
     const target = this.#target(relative, true);
     const text = String(content ?? '').replace(/\u0000/g, '');
     if (Buffer.byteLength(text) > MAX_TEXT_BYTES) throw new Error('Maker write exceeds bounded UTF-8 size.');
@@ -386,6 +399,7 @@ export class MakerEngine {
 
   async delete(relative) {
     assertMutableState(this.state);
+    this.#assertRepairMutationAllowed();
     const target = this.#target(relative, true);
     await this.#backup(target);
     if (!await exists(target.absolute)) throw new Error(`Cannot delete missing file: ${target.relative}.`);
@@ -409,8 +423,25 @@ export class MakerEngine {
     } catch (error) {
       result = { ok: false, program: selected.program, args: selected.args, exit_code: Number.isInteger(error.code) ? error.code : 1, duration_ms: Date.now() - started, stdout: clean(error.stdout, 24000), stderr: clean(error.stderr || error.message, 24000) };
       this.state.status = 'failed';
-      const failure = { id: `failure-${this.state.failures.length + 1}`, command: [selected.program, ...selected.args], evidence: redactSecrets(result.stderr || result.stdout), at: this.clock(), repaired: false };
-      this.state.failures.push(failure);
+      const command = [selected.program, ...selected.args];
+      const activeRepair = [...this.state.failures].reverse().find(value =>
+        !value.repaired
+        && value.repair?.status === 'started'
+        && stableJSONStringify(value.command) === stableJSONStringify(command)
+      );
+      const failure = activeRepair || {
+        id: `failure-${this.state.failures.length + 1}`,
+        command,
+        evidence: redactSecrets(result.stderr || result.stdout),
+        at: this.clock(),
+        repaired: false
+      };
+      if (!activeRepair) this.state.failures.push(failure);
+      else {
+        failure.evidence = redactSecrets(result.stderr || result.stdout);
+        failure.repair.failed_probes = Number(failure.repair.failed_probes || 0) + 1;
+        failure.repair.last_failed_probe_at = this.clock();
+      }
       result.failure_id = failure.id;
     }
     const sanitized = redactSecrets(result);
@@ -424,18 +455,50 @@ export class MakerEngine {
     const failure = this.state.failures.find(value => value.id === failureId);
     if (!failure) throw new Error(`Unknown failure: ${failureId}.`);
     if (failure.repaired) throw new Error(`Failure is already repaired: ${failureId}.`);
+    const statement = clean(hypothesis, 4000);
+    if (!statement) throw new Error('Repair hypothesis is required.');
+    const latest = this.#latestUnrepairedFailure();
+    if (latest?.id !== failureId) throw new Error(`Repair the latest unresolved failure first: ${latest?.id}.`);
+    if (failure.repair?.status === 'started') throw new Error(`Repair is already active: ${failureId}.`);
+    failure.repair = {
+      status: 'started',
+      hypothesis: statement,
+      command_index: this.state.commands.length,
+      started_at: this.clock(),
+      failed_probes: 0
+    };
     this.state.status = 'repairing';
-    await this.#append('repair_started', { failure_id: failureId, hypothesis: clean(hypothesis, 4000) });
-    return Object.freeze({ failure_id: failureId, status: 'repairing' });
+    await this.#append('repair_started', { failure_id: failureId, hypothesis: statement, command_index: failure.repair.command_index });
+    return Object.freeze({ failure_id: failureId, status: 'repairing', hypothesis: statement });
   }
 
   async markRepaired(failureId, evidence) {
+    assertMutableState(this.state);
     const failure = this.state.failures.find(value => value.id === failureId);
     if (!failure) throw new Error(`Unknown failure: ${failureId}.`);
+    if (failure.repaired) throw new Error(`Failure is already repaired: ${failureId}.`);
+    if (failure.repair?.status !== 'started') throw new Error(`Start a repair hypothesis before completing ${failureId}.`);
+    const expected = stableJSONStringify(failure.command);
+    const witnessIndex = this.state.commands.findIndex((command, index) =>
+      index >= Number(failure.repair.command_index || 0)
+      && command.ok === true
+      && stableJSONStringify([command.program, ...(command.args || [])]) === expected
+    );
+    if (witnessIndex === -1) {
+      throw new Error(`Repair completion requires a successful rerun of: ${failure.command.join(' ')}.`);
+    }
+    const witness = this.state.commands[witnessIndex];
     failure.repaired = true;
     failure.repair_evidence = redactSecrets(clean(evidence, 8000));
-    this.state.status = 'executing';
-    await this.#append('repair_completed', { failure_id: failureId, evidence: failure.repair_evidence });
+    failure.repair = {
+      ...failure.repair,
+      status: 'proved',
+      completed_at: this.clock(),
+      witness_command_index: witnessIndex,
+      witness: { command: [...failure.command], duration_ms: witness.duration_ms, exit_code: witness.exit_code }
+    };
+    this.state.status = this.state.failures.some(value => !value.repaired) ? 'repairing' : 'executing';
+    await this.#append('repair_completed', { failure_id: failureId, evidence: failure.repair_evidence, witness: failure.repair.witness });
     return Object.freeze(failure);
   }
 
