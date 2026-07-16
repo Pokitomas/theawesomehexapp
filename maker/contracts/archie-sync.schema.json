@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/maker/contracts/archie-sync.schema.json",
+  "title": "Archie Private Sync Contract",
+  "description": "Provider-neutral, end-to-end encrypted Archie pack synchronization contract. Cryptographic envelopes are produced and opened only by injected key and seal adapters; this schema describes public receipts, manifest entries, and adapter status without specifying key storage.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/status" },
+    { "$ref": "#/$defs/manifest_entry" },
+    { "$ref": "#/$defs/envelope" },
+    { "$ref": "#/$defs/public_receipt" }
+  ],
+  "$defs": {
+    "adapter_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "configured", "available", "reason", "provider"],
+      "properties": {
+        "name": { "type": "string", "enum": ["key", "seal", "storage"] },
+        "configured": { "type": "boolean" },
+        "available": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["device_id", "device_label_hash", "public_key_id"],
+      "properties": {
+        "device_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "device_label_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{32}$" },
+        "public_key_id": { "type": ["string", "null"], "maxLength": 300 }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "pack_id_hash", "device", "adapters", "ready", "offline_queue_depth", "retention"],
+      "properties": {
+        "schema": { "const": "archie-private-sync/v1" },
+        "pack_id_hash": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+        "device": { "$ref": "#/$defs/device" },
+        "adapters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "seal", "storage"],
+          "properties": {
+            "key": { "$ref": "#/$defs/adapter_status" },
+            "seal": { "$ref": "#/$defs/adapter_status" },
+            "storage": { "$ref": "#/$defs/adapter_status" }
+          }
+        },
+        "ready": { "type": "boolean" },
+        "offline_queue_depth": { "type": "integer", "minimum": 0 },
+        "retention": { "type": "object" }
+      }
+    },
+    "manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "pack_id_hash", "entry_type", "device_id", "device_public_key_id", "device_sequence", "logical_id_hash", "object_id", "sealed_digest", "envelope_bytes", "observed_at", "manifest_digest"],
+      "properties": {
+        "schema": { "const": "archie-private-sync-manifest-entry/v1" },
+        "pack_id_hash": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+        "entry_type": { "type": "string", "enum": ["chunk", "receipt", "tombstone", "revoke", "retention"] },
+        "device_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "device_public_key_id": { "type": ["string", "null"], "maxLength": 300 },
+        "device_sequence": { "type": "integer", "minimum": 1 },
+        "logical_id_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{48}$" },
+        "object_id": { "type": ["string", "null"], "maxLength": 120 },
+        "sealed_digest": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "envelope_bytes": { "type": "integer", "minimum": 0 },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "revoked_device_id": { "type": "string", "maxLength": 200 },
+        "reason_hash": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+        "manifest_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "aad", "sealed", "sealed_digest", "bytes"],
+      "properties": {
+        "schema": { "const": "archie-private-sync-envelope/v1" },
+        "aad": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema", "purpose", "pack_id_hash", "logical_id_hash", "object_id", "device_id", "key_ref"],
+          "properties": {
+            "schema": { "const": "archie-private-sync-envelope/v1" },
+            "purpose": { "type": "string", "enum": ["chunk", "receipt"] },
+            "pack_id_hash": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+            "logical_id_hash": { "type": "string", "pattern": "^[a-f0-9]{48}$" },
+            "object_id": { "type": "string", "maxLength": 120 },
+            "device_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "key_ref": { "type": "string", "maxLength": 300 }
+          }
+        },
+        "sealed": {
+          "description": "Opaque sealed payload emitted by the injected seal adapter. This contract intentionally does not define cryptographic internals or key storage.",
+          "type": "object"
+        },
+        "sealed_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "public_receipt": {
+      "type": "object",
+      "required": ["schema", "action", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "archie-private-sync-public-receipt/v1" },
+        "action": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "status": { "type": "string" },
+        "queued": { "type": "boolean" },
+        "reason": { "type": ["string", "null"] },
+        "object_id": { "type": "string" },
+        "logical_id_hash": { "type": "string" },
+        "manifest_digest": { "type": "string" },
+        "device_id": { "type": "string" },
+        "sealed_digest": { "type": "string" },
+        "adapter_status": {
+          "type": "object",
+          "properties": {
+            "key": { "$ref": "#/$defs/adapter_status" },
+            "seal": { "$ref": "#/$defs/adapter_status" },
+            "storage": { "$ref": "#/$defs/adapter_status" }
+          }
+        },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}
