@@ -104,6 +104,7 @@ export function projectOperatorView(receipt, options = {}) {
     sync: Object.freeze({
       state: state(p.sync?.state),
       generation: Number.isSafeInteger(p.sync?.generation) ? p.sync.generation : null,
+      error: clean(p.sync?.error || '', 500),
       relay_plaintext_authority: false
     }),
     compute: Object.freeze({
@@ -126,7 +127,7 @@ export function emptyOperatorView() {
     teacher: { state: 'unobserved', reason: 'No authenticated runtime receipt loaded.' },
     learning: { lesson: 'unobserved', retraining: 'unobserved' },
     corpus: { health: 'unobserved', pack: 'unobserved', pack_digest: null },
-    sync: { state: 'unobserved', generation: null, relay_plaintext_authority: false },
+    sync: { state: 'unobserved', generation: null, error: '', relay_plaintext_authority: false },
     compute: { selected: 'unobserved', ladder: [], gpu: 'unavailable-until-observed', linux: 'unavailable-until-observed', storage: 'unavailable-until-observed' },
     blockers: ['No authenticated runtime receipt loaded.'], execution_claimed_by_browser: false
   });

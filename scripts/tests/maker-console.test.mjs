@@ -17,8 +17,14 @@ import {
   normalizeIntent,
   normalizeRepositoryState,
   stableReceipt,
-  validateIntent
+  validateIntent,
 } from '../../maker/maker.js';
+import {
+  createOperatorCommandPacket,
+  createOperatorRuntimeReceipt,
+  projectOperatorView,
+  verifyOperatorRuntimeReceipt
+} from '../maker-archie-operator.mjs';
 
 const html = fs.readFileSync('maker/index.html', 'utf8');
 const css = fs.readFileSync('maker/maker.css', 'utf8');
@@ -30,7 +36,11 @@ for (const id of [
   'maker-repository', 'maker-base', 'maker-backend', 'maker-request', 'maker-protect', 'maker-proof',
   'send-command', 'copy-receipt', 'reset-maker', 'backend-state', 'tool-state', 'lease-state', 'human-gates',
   'native-model-state', 'repo-head', 'open-issues', 'open-prs', 'running-workflows', 'active-work',
-  'workflow-runs', 'state-status', 'receipt-preview'
+  'workflow-runs', 'state-status', 'receipt-preview', 'archie-runtime', 'archie-sparse', 'archie-planner',
+  'archie-confidence', 'archie-route', 'archie-budget', 'archie-teacher', 'archie-learning', 'archie-corpus',
+  'archie-sync', 'archie-compute', 'archie-usage', 'archie-storage', 'archie-blockers', 'archie-source',
+  'archie-receipt-input', 'archie-apply', 'archie-export-pack', 'archie-import-pack', 'archie-sync-command',
+  'archie-clear', 'archie-status', 'archie-command-preview'
 ]) assert.ok(html.includes(`id="${id}"`), `missing maker control ${id}`);
 for (const mode of MODES) assert.ok(html.includes(`data-mode="${mode}"`), `missing maker mode ${mode}`);
 for (const backend of BACKENDS) assert.ok(html.includes(`value="${backend}"`), `missing backend ${backend}`);
@@ -47,6 +57,32 @@ assert.ok(worker.includes("maker-engineering-v3"));
 assert.ok(worker.includes("url.origin !== self.location.origin"));
 assert.ok(icon.startsWith('<svg'));
 assert.equal(STORAGE_KEY, 'maker:engineering:task:v2');
+assert.notEqual('maker:archie:receipt:v1', STORAGE_KEY);
+assert.ok(css.includes('.archie-console :focus-visible'));
+assert.ok(css.includes('prefers-reduced-motion: reduce'));
+assert.ok(!html.includes('<style>'));
+assert.ok(!html.includes('Training complete'));
+assert.ok(!html.includes('GPU available'));
+
+const archieClock = Date.parse('2026-07-16T07:00:00.000Z');
+const archieReceipt = createOperatorRuntimeReceipt({
+  route: { sparse: 'miss', planner: 'hit', selected: 'cpu-planner', confidence: 0.81, margin: 0.24 },
+  budget: { decision: 'local-first', charged_credits: 0, usage_evidence: 'observed' },
+  teacher: { state: 'not-called', reason: 'planner admitted' },
+  learning: { lesson: 'stored', retraining: 'complete' },
+  corpus: { health: 'healthy', pack: 'verified', pack_digest: 'a'.repeat(64) },
+  sync: { state: 'locked', generation: 2 },
+  compute: { selected: 'local-cpu', gpu: 'unavailable', linux: 'unavailable', storage: 'available', ladder: [{ kind: 'local_cpu', state: 'available', evidence: 'observed' }] },
+  blockers: ['GPU not observed.']
+}, { clock: () => archieClock });
+assert.equal(verifyOperatorRuntimeReceipt(archieReceipt, { clock: () => archieClock }), true);
+const archieView = projectOperatorView(archieReceipt, { clock: () => archieClock });
+assert.equal(archieView.route.planner, 'hit');
+assert.equal(archieView.execution_claimed_by_browser, false);
+const archiePacket = createOperatorCommandPacket('export_pack', {}, { clock: () => archieClock });
+assert.equal(archiePacket.execution_claimed, false);
+assert.equal(archiePacket.requires_authenticated_runtime, true);
+assert.throws(() => createOperatorCommandPacket('sync', { api_key: 'sk-123456789012345678901' }, { clock: () => archieClock }), /secret/i);
 
 const normalized = normalizeIntent({
   repository: 'acme/widgets',

@@ -12,13 +12,6 @@
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./maker.css">
-  <style>
-    .archie-console{margin-top:clamp(2rem,5vw,5rem);border:1px solid color-mix(in srgb,currentColor 22%,transparent);border-radius:1.25rem;padding:clamp(1rem,3vw,2rem);background:color-mix(in srgb,Canvas 94%,#10233f 6%)}
-    .archie-console *{box-sizing:border-box}.archie-console h2,.archie-console h3,.archie-console p{margin-top:0}.archie-truth{max-width:72ch}.archie-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.archie-card{min-width:0;padding:1rem;border:1px solid color-mix(in srgb,currentColor 18%,transparent);border-radius:.9rem;background:Canvas}.archie-card span{display:block;font-size:.72rem;letter-spacing:.09em;opacity:.66}.archie-card strong{display:block;margin-top:.35rem;overflow-wrap:anywhere}.archie-wide{grid-column:span 2}.archie-actions{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1rem}.archie-actions button{min-height:44px}.archie-import{display:grid;gap:.5rem;margin-top:1.25rem}.archie-import textarea{width:100%;min-height:7rem;font:inherit}.archie-status{margin-top:1rem;padding:.8rem;border-inline-start:4px solid currentColor}.archie-blockers{margin:.5rem 0 0;padding-left:1.25rem}.archie-evidence{font-variant-numeric:tabular-nums}.archie-command{max-height:14rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.archie-chip{display:inline-flex;align-items:center;min-height:2rem;padding:.2rem .6rem;border:1px solid currentColor;border-radius:999px;font-size:.8rem}
-    @media (max-width:900px){.archie-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media (max-width:520px){.archie-console{margin-inline:-.25rem;padding:1rem;border-radius:1rem}.archie-grid{grid-template-columns:1fr}.archie-wide{grid-column:auto}.archie-actions{display:grid}.archie-actions button{width:100%}.archie-card{padding:.85rem}.archie-import textarea{font-size:16px}}
-    @media (prefers-reduced-motion:reduce){.archie-console *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
-  </style>
 </head>
 <body>
   <main class="shell">
@@ -89,7 +82,7 @@
     <section id="archie-runtime" class="archie-console" aria-labelledby="archie-heading">
       <p class="section-number">04</p>
       <h2 id="archie-heading">Archie learning loop</h2>
-      <p class="archie-truth">This phone is a truthful cockpit, not the engine. It starts with every runtime fact unobserved. It may display a fresh digest-valid receipt from an authenticated runtime, or export a command packet for that runtime. It never claims training, synchronization, provider calls, compute, storage, repository mutation, merge, or deployment happened here.</p>
+      <p class="archie-truth">This phone is a truthful cockpit, not the engine. It starts with every runtime fact unobserved. It may display a fresh digest-valid receipt delivered through a separately authenticated runtime channel, or export a command packet for that runtime. It never claims training, synchronization, provider calls, compute, storage, repository mutation, merge, or deployment happened here.</p>
       <p><span class="archie-chip" id="archie-freshness">OFFLINE / UNOBSERVED</span></p>
       <div class="archie-grid" aria-label="Archie observed runtime state">
         <article class="archie-card"><span>SPARSE SPECIALIST</span><strong id="archie-sparse">Unobserved</strong></article>
@@ -108,7 +101,7 @@
         <article class="archie-card archie-wide"><span>RECEIPT SOURCE</span><strong id="archie-source" class="archie-evidence">None</strong></article>
       </div>
       <div class="archie-import">
-        <label for="archie-receipt-input">PASTE AUTHENTICATED RUNTIME RECEIPT</label>
+        <label for="archie-receipt-input">PASTE DIGEST-VALID RUNTIME RECEIPT</label>
         <textarea id="archie-receipt-input" autocomplete="off" spellcheck="false" placeholder="archie-operator-runtime-receipt/v1 JSON"></textarea>
       </div>
       <div class="archie-actions" role="group" aria-label="Archie receipt and command actions">
@@ -124,66 +117,69 @@
   </main>
   <script type="module" src="./maker.js"></script>
   <script type="module">
-    const $ = id => document.getElementById(id);
-    const storageKey = 'maker:archie:receipt:v1';
-    const clean = (value, limit = 2000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
-    const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-    const stable = value => JSON.stringify(canonical(value));
-    const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-    const digest = async value => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(typeof value === 'string' ? value : stable(value))));
-    const secretKey = /(?:^|[_-])(?:secret|token|password|authorization|cookie|private[_-]?key|api[_-]?key|credential|session)(?:$|[_-])/i;
-    const secretText = /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})\b/i;
-    const assertSafe = (value, depth = 0) => {
-      if (depth > 30) throw new Error('Receipt nesting exceeds browser limit.');
-      if (Array.isArray(value)) return value.forEach(item => assertSafe(item, depth + 1));
-      if (!value || typeof value !== 'object') { if (typeof value === 'string' && secretText.test(value)) throw new Error('Secret-like material rejected.'); return; }
-      for (const [key, child] of Object.entries(value)) { if (secretKey.test(key) && child !== null && child !== '' && child !== '[redacted]') throw new Error('Unredacted secret-like field rejected.'); assertSafe(child, depth + 1); }
-    };
-    const set = (id, value) => { $(id).textContent = clean(value || 'Unobserved', 1200); };
-    const empty = () => {
-      set('archie-sparse', 'Unobserved'); set('archie-planner', 'Unobserved'); set('archie-confidence', 'Unobserved'); set('archie-route', 'Unobserved');
-      set('archie-budget', 'Unobserved'); set('archie-teacher', 'Unobserved'); set('archie-learning', 'Unobserved'); set('archie-corpus', 'Unobserved');
-      set('archie-sync', 'Unobserved'); set('archie-compute', 'Local CPU unobserved; Linux/GPU unavailable until observed'); set('archie-usage', 'Unobserved'); set('archie-storage', 'Unobserved'); set('archie-source', 'None');
-      $('archie-blockers').replaceChildren(Object.assign(document.createElement('li'), { textContent: 'No authenticated runtime receipt loaded.' }));
-      set('archie-freshness', navigator.onLine ? 'ONLINE / UNOBSERVED' : 'OFFLINE / UNOBSERVED');
-    };
-    const verify = async receipt => {
-      assertSafe(receipt);
-      if (receipt?.schema !== 'archie-operator-runtime-receipt/v1' || receipt.namespace !== 'maker:archie') throw new Error('Unsupported receipt or namespace.');
-      if (await digest(receipt.payload) !== receipt.payload_digest) throw new Error('Payload digest mismatch.');
-      const { receipt_digest, ...body } = receipt;
-      if (await digest(body) !== receipt_digest) throw new Error('Receipt digest mismatch.');
-      if (Date.parse(receipt.expires_at) <= Date.now()) throw new Error('Receipt is stale.');
-      return receipt;
-    };
-    const render = receipt => {
-      const p = receipt.payload || {}, route = p.route || {}, budget = p.budget || {}, teacher = p.teacher || {}, learning = p.learning || {}, corpus = p.corpus || {}, sync = p.sync || {}, compute = p.compute || {};
-      set('archie-sparse', route.sparse); set('archie-planner', route.planner); set('archie-confidence', Number.isFinite(Number(route.confidence)) ? `${route.confidence} / ${Number.isFinite(Number(route.margin)) ? route.margin : '—'}` : 'Unobserved'); set('archie-route', route.selected);
-      set('archie-budget', `${budget.decision || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`);
-      set('archie-teacher', `${teacher.state || 'Unobserved'} · ${teacher.reason || 'no observed reason'}`); set('archie-learning', `${learning.lesson || 'Unobserved'} / ${learning.retraining || 'Unobserved'}`);
-      set('archie-corpus', `${corpus.health || 'Unobserved'} / ${corpus.pack || 'Unobserved'}`); set('archie-sync', `${sync.state || 'Unobserved'} · generation ${Number.isSafeInteger(sync.generation) ? sync.generation : 'unobserved'} · relay plaintext authority: none`);
-      const ladder = Array.isArray(compute.ladder) ? compute.ladder.map(item => `${item.kind || 'unknown'}:${item.state || 'unobserved'}`).join(' · ') : '';
-      set('archie-compute', ladder || `${compute.selected || 'Unobserved'} · Linux ${compute.linux || 'unavailable until observed'} · GPU ${compute.gpu || 'unavailable until observed'}`);
-      set('archie-usage', `${budget.usage_evidence || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`); set('archie-storage', compute.storage || 'Unobserved');
-      const blockers = Array.isArray(p.blockers) && p.blockers.length ? p.blockers : ['No external blocker reported by this receipt.']; $('archie-blockers').replaceChildren(...blockers.slice(0, 30).map(item => Object.assign(document.createElement('li'), { textContent: clean(item, 500) })));
-      set('archie-source', `${receipt.source} · observed ${receipt.observed_at} · expires ${receipt.expires_at}`); set('archie-freshness', 'FRESH AUTHENTICATED RECEIPT');
-    };
-    const apply = async raw => {
-      const parsed = JSON.parse(raw); const receipt = await verify(parsed); render(receipt);
-      try { localStorage.setItem(storageKey, JSON.stringify(receipt)); set('archie-status', 'Fresh receipt applied. Storage contains this receipt only; no runtime action was executed.'); }
-      catch { set('archie-status', 'Fresh receipt applied in memory. Storage unavailable; no runtime action was executed.'); }
-    };
-    const command = async operation => {
-      const body = { schema: 'archie-operator-command/v1', namespace: 'maker:archie', created_at: new Date().toISOString(), operation, payload: {}, execution_claimed: false, requires_authenticated_runtime: true, requires_explicit_authority: true };
-      assertSafe(body); const packet = { ...body, command_digest: await digest(body) }; $('archie-command-preview').textContent = JSON.stringify(packet, null, 2); set('archie-status', `Command packet exported for ${operation}. It does not claim execution.`);
-    };
-    $('archie-apply').addEventListener('click', async () => { try { await apply($('archie-receipt-input').value); } catch (error) { empty(); set('archie-status', `Receipt rejected: ${clean(error.message, 400)} No runtime fact was admitted.`); } });
-    $('archie-export-pack').addEventListener('click', () => command('export_pack')); $('archie-import-pack').addEventListener('click', () => command('import_pack')); $('archie-sync-command').addEventListener('click', () => command('sync'));
-    $('archie-clear').addEventListener('click', () => { try { localStorage.removeItem(storageKey); } catch {} $('archie-receipt-input').value = ''; empty(); set('archie-status', 'Local receipt cleared. No runtime action was executed.'); });
-    addEventListener('online', () => set('archie-freshness', 'ONLINE / RECEIPT STATE UNCHANGED')); addEventListener('offline', () => set('archie-freshness', 'OFFLINE / RECEIPT STATE UNCHANGED'));
-    empty();
-    try { const stored = localStorage.getItem(storageKey); if (stored) { $('archie-receipt-input').value = stored; await apply(stored); } }
-    catch { set('archie-status', 'Storage unavailable. Receipt-only cockpit remains usable in memory; no runtime action was executed.'); }
-  </script>
+      const $ = id => document.getElementById(id);
+      const storageKey = 'maker:archie:receipt:v1';
+      const clean = (value, limit = 2000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
+      const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+      const stable = value => JSON.stringify(canonical(value));
+      const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      const digest = async value => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(typeof value === 'string' ? value : stable(value))));
+      const secretKey = /(?:^|[_-])(?:secret|token|password|authorization|cookie|private[_-]?key|api[_-]?key|credential|session)(?:$|[_-])/i;
+      const secretText = /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})\b/i;
+      const assertSafe = (value, depth = 0) => {
+        if (depth > 30) throw new Error('Receipt nesting exceeds browser limit.');
+        if (Array.isArray(value)) return value.forEach(item => assertSafe(item, depth + 1));
+        if (!value || typeof value !== 'object') { if (typeof value === 'string' && secretText.test(value)) throw new Error('Secret-like material rejected.'); return; }
+        for (const [key, child] of Object.entries(value)) { if (secretKey.test(key) && child !== null && child !== '' && child !== '[redacted]') throw new Error('Unredacted secret-like field rejected.'); assertSafe(child, depth + 1); }
+      };
+      const set = (id, value) => { $(id).textContent = clean(value || 'Unobserved', 1200); };
+      const empty = () => {
+        set('archie-sparse', 'Unobserved'); set('archie-planner', 'Unobserved'); set('archie-confidence', 'Unobserved'); set('archie-route', 'Unobserved');
+        set('archie-budget', 'Unobserved'); set('archie-teacher', 'Unobserved'); set('archie-learning', 'Unobserved'); set('archie-corpus', 'Unobserved');
+        set('archie-sync', 'Unobserved'); set('archie-compute', 'Local CPU unobserved; Linux/GPU unavailable until observed'); set('archie-usage', 'Unobserved'); set('archie-storage', 'Unobserved'); set('archie-source', 'None');
+        $('archie-blockers').replaceChildren(Object.assign(document.createElement('li'), { textContent: 'No authenticated runtime receipt loaded.' }));
+        set('archie-freshness', navigator.onLine ? 'ONLINE / UNOBSERVED' : 'OFFLINE / UNOBSERVED');
+      };
+      const verify = async receipt => {
+        assertSafe(receipt);
+        if (receipt?.schema !== 'archie-operator-runtime-receipt/v1' || receipt.namespace !== 'maker:archie') throw new Error('Unsupported receipt or namespace.');
+        if (await digest(receipt.payload) !== receipt.payload_digest) throw new Error('Payload digest mismatch.');
+        const { receipt_digest, ...body } = receipt;
+        if (await digest(body) !== receipt_digest) throw new Error('Receipt digest mismatch.');
+        const observed = Date.parse(receipt.observed_at), expires = Date.parse(receipt.expires_at);
+        if (!Number.isFinite(observed) || !Number.isFinite(expires) || observed > Date.now() + 30000) throw new Error('Receipt observation time is invalid.');
+        if (expires <= Date.now()) throw new Error('Receipt is stale.');
+        return receipt;
+      };
+      const render = receipt => {
+        const p = receipt.payload || {}, route = p.route || {}, budget = p.budget || {}, teacher = p.teacher || {}, learning = p.learning || {}, corpus = p.corpus || {}, sync = p.sync || {}, compute = p.compute || {};
+        set('archie-sparse', route.sparse); set('archie-planner', route.planner); set('archie-confidence', Number.isFinite(Number(route.confidence)) ? `${route.confidence} / ${Number.isFinite(Number(route.margin)) ? route.margin : '—'}` : 'Unobserved'); set('archie-route', route.selected);
+        set('archie-budget', `${budget.decision || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`);
+        set('archie-teacher', `${teacher.state || 'Unobserved'} · ${teacher.reason || 'no observed reason'}`); set('archie-learning', `${learning.lesson || 'Unobserved'} / ${learning.retraining || 'Unobserved'}`);
+        set('archie-corpus', `${corpus.health || 'Unobserved'} / ${corpus.pack || 'Unobserved'}`); set('archie-sync', `${sync.state || 'Unobserved'}${sync.error ? ` · ${sync.error}` : ''} · generation ${Number.isSafeInteger(sync.generation) ? sync.generation : 'unobserved'} · relay plaintext authority: none`);
+        const ladder = Array.isArray(compute.ladder) ? compute.ladder.map(item => `${item.kind || 'unknown'}:${item.state || 'unobserved'}`).join(' · ') : '';
+        set('archie-compute', ladder || `${compute.selected || 'Unobserved'} · Linux ${compute.linux || 'unavailable until observed'} · GPU ${compute.gpu || 'unavailable until observed'}`);
+        set('archie-usage', `${budget.usage_evidence || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`); set('archie-storage', compute.storage || 'Unobserved');
+        const blockers = Array.isArray(p.blockers) && p.blockers.length ? p.blockers : ['No external blocker reported by this receipt.']; $('archie-blockers').replaceChildren(...blockers.slice(0, 30).map(item => Object.assign(document.createElement('li'), { textContent: clean(item, 500) })));
+        set('archie-source', `${receipt.source} · observed ${receipt.observed_at} · expires ${receipt.expires_at}`); set('archie-freshness', 'FRESH DIGEST-VALID RECEIPT');
+      };
+      const apply = async raw => {
+        const parsed = JSON.parse(raw); const receipt = await verify(parsed); render(receipt);
+        try { localStorage.setItem(storageKey, JSON.stringify(receipt)); set('archie-status', 'Digest-valid receipt applied. Storage contains this receipt only; no runtime action was executed.'); }
+        catch { set('archie-status', 'Digest-valid receipt applied in memory. Storage unavailable; no runtime action was executed.'); }
+      };
+      const command = async operation => {
+        const body = { schema: 'archie-operator-command/v1', namespace: 'maker:archie', created_at: new Date().toISOString(), operation, payload: {}, execution_claimed: false, requires_authenticated_runtime: true, requires_explicit_authority: true };
+        assertSafe(body); const packet = { ...body, command_digest: await digest(body) }; $('archie-command-preview').textContent = JSON.stringify(packet, null, 2); set('archie-status', `Command packet exported for ${operation}. It does not claim execution.`);
+      };
+      $('archie-apply').addEventListener('click', async () => { try { await apply($('archie-receipt-input').value); } catch (error) { empty(); set('archie-status', `Receipt rejected: ${clean(error.message, 400)} No runtime fact was admitted.`); } });
+      $('archie-receipt-input').addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); $('archie-apply').click(); } });
+      $('archie-export-pack').addEventListener('click', () => command('export_pack')); $('archie-import-pack').addEventListener('click', () => command('import_pack')); $('archie-sync-command').addEventListener('click', () => command('sync'));
+      $('archie-clear').addEventListener('click', () => { let cleared = false; try { localStorage.removeItem(storageKey); cleared = true; } catch {} $('archie-receipt-input').value = ''; empty(); set('archie-status', cleared ? 'Local receipt cleared. No runtime action was executed.' : 'Receipt cleared in memory. Storage unavailable; no runtime action was executed.'); });
+      addEventListener('online', () => set('archie-freshness', 'ONLINE / RECEIPT STATE UNCHANGED')); addEventListener('offline', () => set('archie-freshness', 'OFFLINE / RECEIPT STATE UNCHANGED'));
+      empty();
+      try { const stored = localStorage.getItem(storageKey); if (stored) { $('archie-receipt-input').value = stored; await apply(stored); } }
+      catch { set('archie-status', 'Storage unavailable. Receipt-only cockpit remains usable in memory; no runtime action was executed.'); }
+    </script>
 </body>
 </html>

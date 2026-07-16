@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import test from 'node:test';
 import {
   createOperatorCommandPacket,
@@ -72,34 +73,110 @@ test('rejects command secrets and unsupported actions', () => {
 
 test('ships keyboard, focus, zoom/reflow, reduced-motion, storage failure and receipt-only language', async () => {
   const html = await fs.readFile(path.resolve('maker/index.html'), 'utf8');
+  const css = await fs.readFile(path.resolve('maker/maker.css'), 'utf8');
   assert.match(html, /id="archie-runtime"/);
   assert.match(html, /aria-live="polite"/);
-  assert.match(html, /@media \(max-width:520px\)/);
-  assert.match(html, /prefers-reduced-motion:reduce/);
+  assert.match(css, /@media \(max-width: 520px\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /:focus-visible/);
   assert.match(html, /textContent/);
   assert.match(html, /Storage unavailable/);
+  assert.match(html, /ctrlKey/);
   assert.match(html, /No authenticated runtime receipt loaded/);
   assert.doesNotMatch(html, />Training complete</i);
   assert.doesNotMatch(html, />GPU available</i);
 });
 
-test('real Chromium renders 390x844 and desktop receipt-only surfaces when the repository browser dependency is installed', async t => {
+test('real Chromium proves phone and desktop receipt-only behavior with exact page bytes', async t => {
   let chromium;
   try { ({ chromium } = await import('playwright-core')); }
-  catch { return t.skip('playwright-core is installed by the repository workflow, not this isolated lane fixture'); }
+  catch { return t.skip('playwright-core unavailable'); }
   const executablePath = ['/usr/bin/google-chrome', '/usr/bin/chromium'].find(candidate => spawnSync('test', ['-x', candidate]).status === 0);
   if (!executablePath) return t.skip('Chromium unavailable');
+  const htmlSource = await fs.readFile(path.resolve('maker/index.html'), 'utf8');
+  const cssSource = await fs.readFile(path.resolve('maker/maker.css'), 'utf8');
+  const exactPage = htmlSource
+    .replace('<link rel="stylesheet" href="./maker.css">', `<style>${cssSource}</style>`)
+    .replace('<script type="module" src="./maker.js"></script>', '');
+  const installDigestShim = async page => {
+    await page.exposeFunction('__archieNodeSha256', bytes => {
+      return crypto.createHash('sha256').update(Buffer.from(bytes)).digest('hex');
+    }).catch(() => {});
+    await page.evaluate(() => {
+      Object.defineProperty(globalThis.crypto, 'subtle', { configurable: true, value: {
+        async digest(_algorithm, input) {
+          const hex = await globalThis.__archieNodeSha256(Array.from(new Uint8Array(input)));
+          return Uint8Array.from(hex.match(/../g).map(byte => Number.parseInt(byte, 16))).buffer;
+        }
+      }});
+    });
+  };
+  const loadExactPage = async page => {
+    await installDigestShim(page);
+    await page.setContent(exactPage, { waitUntil: 'domcontentloaded' });
+    await page.locator('#archie-runtime').waitFor({ state: 'visible' });
+    return 'setContent-exact-bytes';
+  };
   const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   try {
-    for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
-      const page = await browser.newPage({ viewport });
-      await page.goto(`file://${path.resolve('maker/index.html')}`);
-      await page.locator('#archie-runtime').waitFor({ state: 'visible' });
-      assert.equal(await page.locator('#archie-sparse').innerText(), 'Unobserved');
-      assert.ok((await page.locator('#archie-compute').innerText()).includes('unavailable until observed'));
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      assert.ok(overflow <= 1, `viewport overflow ${overflow}px at ${viewport.width}x${viewport.height}`);
-      await page.close();
+    {
+      const live = createOperatorRuntimeReceipt({
+        route: { sparse: 'hit', planner: 'not-needed', selected: 'sparse-specialist', confidence: 0.93, margin: 0.42 },
+        budget: { decision: 'local-first', charged_credits: 0, usage_evidence: 'observed' },
+        teacher: { state: 'not-called', reason: 'local specialist admitted' },
+        learning: { lesson: 'already-stored', retraining: 'not-needed' },
+        corpus: { health: 'healthy', pack: 'verified', pack_digest: 'b'.repeat(64) },
+        sync: { state: 'locked', generation: 4 },
+        compute: { selected: 'local-cpu', gpu: 'unavailable', linux: 'unavailable', storage: 'unavailable', ladder: [{ kind: 'local_cpu', state: 'available', evidence: 'observed receipt' }] },
+        blockers: ['GPU not observed.', 'Linux worker not observed.', 'Persistent storage unavailable.']
+      });
+      for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+        const page = await browser.newPage({ viewport });
+        await page.route('https://api.github.com/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await loadExactPage(page);
+        await page.locator('#archie-runtime').waitFor({ state: 'visible' });
+        assert.equal(await page.locator('#archie-sparse').innerText(), 'Unobserved');
+        assert.match(await page.locator('#archie-compute').innerText(), /unavailable until observed/i);
+        await page.locator('#archie-receipt-input').fill(JSON.stringify(live));
+        await page.locator('#archie-apply').click();
+        await page.waitForFunction(() => document.querySelector('#archie-sparse')?.textContent === 'hit', null, { timeout: 5000 });
+        assert.equal(await page.locator('#archie-route').innerText(), 'sparse-specialist');
+        assert.match(await page.locator('#archie-sync').innerText(), /locked.*relay plaintext authority: none/i);
+        assert.match(await page.locator('#archie-compute').innerText(), /local_cpu:available/);
+        assert.equal(await page.locator('#archie-storage').innerText(), 'unavailable');
+        await page.locator('#archie-export-pack').click();
+        await page.waitForFunction(() => document.querySelector('#archie-command-preview')?.textContent.includes('export_pack'), null, { timeout: 5000 });
+        assert.match(await page.locator('#archie-command-preview').textContent(), /"operation": "export_pack"/);
+        assert.match(await page.locator('#archie-status').innerText(), /does not claim execution/i);
+        assert.equal(await page.locator('text=Training complete').count(), 0);
+        assert.equal(await page.locator('text=GPU available').count(), 0);
+        await page.locator('#archie-apply').focus();
+        assert.equal(await page.evaluate(() => document.activeElement?.id), 'archie-apply');
+        const transition = await page.locator('#archie-runtime').evaluate(node => getComputedStyle(node).transitionDuration);
+        assert.ok(transition === '0s' || transition === '');
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        assert.ok(overflow <= 1, `viewport overflow ${overflow}px at ${viewport.width}x${viewport.height}`);
+        await page.context().setOffline(true);
+        await page.evaluate(() => dispatchEvent(new Event('offline')));
+        assert.match(await page.locator('#archie-freshness').innerText(), /OFFLINE/);
+        await page.close();
+      }
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      await context.addInitScript(() => {
+        const original = Storage.prototype.setItem;
+        Storage.prototype.setItem = function(key, value) {
+          if (key === 'maker:archie:receipt:v1') throw new DOMException('blocked', 'QuotaExceededError');
+          return original.call(this, key, value);
+        };
+      });
+      const page = await context.newPage();
+      await page.route('https://api.github.com/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+      await loadExactPage(page);
+      await page.locator('#archie-receipt-input').fill(JSON.stringify(live));
+      await page.locator('#archie-apply').click();
+      assert.match(await page.locator('#archie-status').innerText(), /Storage unavailable/i);
+      await context.close();
     }
   } finally { await browser.close(); }
 });
