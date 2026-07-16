@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { digest } from '../archie-launch-contract.mjs';
+import { digest, validateLaunchTarget } from '../archie-launch-contract.mjs';
 import {
   ARCHIE_STUDENT_ADMISSION_CANDIDATE_SCHEMA,
   ARCHIE_STUDENT_AUTHORITY_SCHEMA,
@@ -15,8 +15,20 @@ import {
   validateStudentAdmissionCandidate
 } from '../archie-student-admission.mjs';
 
+const targetUrl = new URL('../../founder/archie-launch-target.json', import.meta.url);
+const target = JSON.parse(await fs.readFile(targetUrl, 'utf8'));
+const validatedTarget = validateLaunchTarget(target);
+const targetDigest = digest(validatedTarget);
 const sha256 = value => crypto.createHash('sha256').update(value).digest('hex');
 const evidence = label => digest({ evidence: label });
+
+function passingMetrics() {
+  return Object.fromEntries(Object.entries(validatedTarget.intelligence_target.minimum_metrics).map(([name, threshold]) => {
+    if (name.endsWith('_max')) return [name, Math.max(0, threshold / 2)];
+    if (name.includes('_rate')) return [name, threshold >= 1 ? 1 : Math.min(1, threshold + Math.max(0.01, (1 - threshold) / 2))];
+    return [name, threshold];
+  }));
+}
 
 async function writeFile(root, name, content) {
   const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content);
@@ -81,6 +93,10 @@ async function fixture() {
     artifact_sha256: artifact.sha256,
     tokenizer_sha256: tokenizer.sha256,
     runtime_identity_digest: runtimeIdentityDigest,
+    target_id: validatedTarget.id,
+    target_digest: targetDigest,
+    domains: [...validatedTarget.intelligence_target.domains],
+    intelligence_requirements: [...validatedTarget.intelligence_target.requirements],
     completed: true,
     mock: false,
     promotion_eligible: true,
@@ -90,11 +106,7 @@ async function fixture() {
       access: 'judge-only-hidden',
       training_data_excluded: true
     },
-    metrics: {
-      cross_domain_completion_rate: 0.91,
-      unsafe_action_rate_max: 0.01,
-      clean_reproduction_rate: 1
-    }
+    metrics: passingMetrics()
   }, 'report_digest');
 
   const authority = await writeJSON(root, 'authority-report.json', {
@@ -164,13 +176,8 @@ async function fixture() {
       resources: resources.descriptor
     },
     intelligence: {
-      domains: ['software', 'research', 'product-creation'],
-      requirements: ['complete-unfamiliar-product-builds', 'reproduce-delivery-on-clean-environment'],
-      minimum_metrics: {
-        cross_domain_completion_rate: 0.85,
-        unsafe_action_rate_max: 0.02,
-        clean_reproduction_rate: 1
-      }
+      target_id: validatedTarget.id,
+      target_digest: targetDigest
     },
     resource_policy: {
       minimum_sustained_duration_ms: 60_000,
@@ -189,30 +196,51 @@ async function replaceReport(root, candidate, key, filename, value, digestKey) {
   return replacement.value;
 }
 
-test('admits one exact provider-neutral student only when every evidence family is bound', async t => {
+test('admits one exact provider-neutral student only when every evidence family and founder target agree', async t => {
   const { root, candidate } = await fixture();
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const admission = await evaluateStudentAdmission(candidate, { root });
+  const admission = await evaluateStudentAdmission(candidate, { root, target });
   assert.equal(admission.decision, 'admitted-provider-neutral-student');
   assert.deepEqual(admission.blockers, []);
+  assert.equal(admission.target.id, validatedTarget.id);
   assert.equal(admission.runtime.abi, 'archie-model-runtime-v1');
   assert.equal(admission.launch_candidate_intelligence_binding.artifact_digest, candidate.artifact.sha256);
-  assert.equal(admission.launch_candidate_intelligence_binding.faculties && Object.keys(admission.launch_candidate_intelligence_binding.faculties).length, 0);
+  assert.deepEqual(admission.launch_candidate_intelligence_binding.domains, validatedTarget.intelligence_target.domains);
+  assert.equal(Object.keys(admission.launch_candidate_intelligence_binding.faculties).length, 0);
   assert.match(admission.admission_digest, /^[a-f0-9]{64}$/);
   assert.match(admission.claim_boundary, /Embodiment and machine launch admission remain separate/);
 });
 
-test('explicit mock or non-independent evaluation cannot promote a student', async t => {
+test('explicit mock, non-independent evaluation, or changed scope cannot promote a student', async t => {
   const { root, candidate, reports } = await fixture();
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const changed = structuredClone(reports.evaluation.value);
   changed.mock = true;
   changed.evaluator.independent = false;
+  changed.domains = changed.domains.slice(1);
   await replaceReport(root, candidate, 'independent_evaluation', 'independent-evaluation.json', changed, 'report_digest');
-  const admission = await evaluateStudentAdmission(candidate, { root });
+  const admission = await evaluateStudentAdmission(candidate, { root, target });
   assert.equal(admission.decision, 'rejected-incomplete-student-evidence');
+  assert.equal(admission.launch_candidate_intelligence_binding, null);
   assert.ok(admission.blockers.includes('evaluation-not-mock'));
   assert.ok(admission.blockers.includes('evaluation-independent'));
+  assert.ok(admission.blockers.includes('evaluation-domain-scope-bound'));
+});
+
+test('a candidate cannot choose a weaker intelligence target or threshold contract', async t => {
+  const { root, candidate, reports } = await fixture();
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  candidate.intelligence.target_digest = evidence('weaker-target');
+  const changed = structuredClone(reports.evaluation.value);
+  changed.target_digest = candidate.intelligence.target_digest;
+  changed.metrics.cross_domain_completion_rate = 0.01;
+  await replaceReport(root, candidate, 'independent_evaluation', 'independent-evaluation.json', changed, 'report_digest');
+  const admission = await evaluateStudentAdmission(candidate, { root, target });
+  assert.equal(admission.decision, 'rejected-incomplete-student-evidence');
+  assert.equal(admission.launch_candidate_intelligence_binding, null);
+  assert.ok(admission.blockers.includes('target-digest-bound'));
+  assert.ok(admission.blockers.includes('evaluation-target-digest-bound'));
+  assert.ok(admission.blockers.includes('metric:cross_domain_completion_rate'));
 });
 
 test('second clean-environment reproduction and sustained resource evidence are mandatory', async t => {
@@ -225,19 +253,27 @@ test('second clean-environment reproduction and sustained resource evidence are 
   resources.sustained_duration_ms = 1_000;
   resources.sample_count = 1;
   await replaceReport(root, candidate, 'resources', 'resource-report.json', resources, 'report_digest');
-  const admission = await evaluateStudentAdmission(candidate, { root });
+  const admission = await evaluateStudentAdmission(candidate, { root, target });
   assert.equal(admission.decision, 'rejected-incomplete-student-evidence');
+  assert.equal(admission.launch_candidate_intelligence_binding, null);
   assert.ok(admission.blockers.includes('reproduction-second-environment'));
   assert.ok(admission.blockers.includes('resources-sustained-duration'));
   assert.ok(admission.blockers.includes('resources-sample-count'));
 });
 
-test('artifact mutation and unsupported runtime formats fail closed before admission', async t => {
-  const { root, candidate } = await fixture();
+test('artifact mutation, unsupported runtime formats, and impossible rates fail closed', async t => {
+  const { root, candidate, reports } = await fixture();
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.appendFile(path.join(root, candidate.artifact.path), 'tamper');
-  await assert.rejects(() => evaluateStudentAdmission(candidate, { root }), /artifact byte count mismatch/);
+  await assert.rejects(() => evaluateStudentAdmission(candidate, { root, target }), /artifact byte count mismatch/);
   const unsupported = structuredClone(candidate);
   unsupported.runtime.supported_artifact_formats = ['safetensors'];
   assert.throws(() => validateStudentAdmissionCandidate(unsupported), /does not declare support/);
+
+  const fresh = await fixture();
+  t.after(() => fs.rm(fresh.root, { recursive: true, force: true }));
+  const impossible = structuredClone(fresh.reports.evaluation.value);
+  impossible.metrics.cross_domain_completion_rate = 4;
+  await replaceReport(fresh.root, fresh.candidate, 'independent_evaluation', 'independent-evaluation.json', impossible, 'report_digest');
+  await assert.rejects(() => evaluateStudentAdmission(fresh.candidate, { root: fresh.root, target }), /between 0 and 1/);
 });
