@@ -28,6 +28,8 @@
     "archie:derive": "node scripts/maker-archie-derivation.mjs",
     "archie:cognition": "node scripts/maker-archie-cognition.mjs",
     "archie:generation-one": "node scripts/archie-generation-one-run.mjs",
+    "archie:launch:derive": "node scripts/archie-launch-assess.mjs derive",
+    "archie:launch:evaluate": "node scripts/archie-launch-assess.mjs evaluate",
     "benchmark:archie": "node scripts/maker-archie-benchmark.mjs run",
     "benchmark:archie:derive": "node scripts/maker-archie-derivation-benchmark.mjs",
     "benchmark:archie:prompt-pack": "node scripts/maker-archie-benchmark.mjs prompt-pack",
