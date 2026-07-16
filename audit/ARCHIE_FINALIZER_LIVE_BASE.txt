@@ -1,0 +1,4 @@
+purpose=record the exact live coordinator parent for collision-free finalization
+source_branch=agent/archie-democratized-runtime
+no_merge=true
+no_deploy=true
