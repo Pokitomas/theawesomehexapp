@@ -1,0 +1,84 @@
+name: Validate remaining runtime modules
+
+on:
+  push:
+    branches:
+      - agent/finish-remaining-runtime-modules
+    paths:
+      - .github/workflows/validate-remaining-runtime-modules.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validate-remaining-runtime-modules
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Remove temporary validation surface
+        shell: bash
+        run: |
+          rm .github/workflows/validate-remaining-runtime-modules.yml
+          git diff --check
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate exact added modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/maker-delivery-loop.mjs
+          node --check scripts/maker-evaluation.mjs
+          node --check scripts/archie-distilling-chamber.mjs
+          node --check scripts/archie-distilling-cli.mjs
+          node --test scripts/tests/maker-delivery-loop.test.mjs scripts/tests/maker-evaluation.test.mjs scripts/tests/archie-distilling-chamber.test.mjs
+          node -e "for (const p of ['maker/contracts/delivery-loop.schema.json','maker/contracts/evaluation-receipt.schema.json','maker/evaluations/capability-suite.json','maker/contracts/archie-distilling-chamber.schema.json','maker/evaluations/archie-recursion-curriculum.json']) JSON.parse(require('fs').readFileSync(p,'utf8'))"
+          printf '%s\n' '{"id":"smoke","input":{"value":1}}' | node scripts/archie-distilling-cli.mjs run - > chamber-smoke.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('chamber-smoke.json','utf8')); if(x.status.episodes!==1||!x.events.events.length) process.exit(1)"
+          rm chamber-smoke.json
+
+      - name: Run integration and repository gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:native-maker
+          npm run test:maker
+          npm run test:foundry
+          npm run test:weave
+          npm run test:recursive-weave
+          npm run test:remote
+          npm run test:ingestion
+          npm run test:social
+          npm run test:authority
+          npm run verify:quality
+          npm run verify:operations
+          npm run verify:release
+          npm run verify:frankenstate
+          npm run verify:repository
+          git diff --check
+
+      - name: Publish validated exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/validate-remaining-runtime-modules.yml
+          git commit -m "test: validate remaining runtime modules"
+          git push origin HEAD:${GITHUB_REF_NAME}
