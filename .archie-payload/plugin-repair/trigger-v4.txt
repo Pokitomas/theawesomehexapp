@@ -1,0 +1,1 @@
+Trigger the evidence-preserving extractor after its failure-capture implementation changed. Payload chunks remain byte-identical.
