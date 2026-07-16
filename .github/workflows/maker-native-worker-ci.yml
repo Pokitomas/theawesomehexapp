@@ -1,9 +1,9 @@
 name: Archie worker-fleet exact-tree snapshot
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/archie-worker-fleet-snapshot
+      - agent/worker-fleet
   workflow_dispatch:
 
 permissions:
