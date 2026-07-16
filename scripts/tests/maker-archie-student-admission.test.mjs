@@ -49,7 +49,7 @@ async function fixture() {
   const runtime = {
     engine_id: 'provider-neutral-runtime',
     engine_version: '1.0.0',
-    abi: 'archie-model-runtime/v1',
+    abi: 'archie-model-runtime-v1',
     operating_system: 'linux',
     architecture: 'x86_64',
     executable,
@@ -195,7 +195,7 @@ test('admits one exact provider-neutral student only when every evidence family 
   const admission = await evaluateStudentAdmission(candidate, { root });
   assert.equal(admission.decision, 'admitted-provider-neutral-student');
   assert.deepEqual(admission.blockers, []);
-  assert.equal(admission.runtime.abi, 'archie-model-runtime/v1');
+  assert.equal(admission.runtime.abi, 'archie-model-runtime-v1');
   assert.equal(admission.launch_candidate_intelligence_binding.artifact_digest, candidate.artifact.sha256);
   assert.equal(admission.launch_candidate_intelligence_binding.faculties && Object.keys(admission.launch_candidate_intelligence_binding.faculties).length, 0);
   assert.match(admission.admission_digest, /^[a-f0-9]{64}$/);
