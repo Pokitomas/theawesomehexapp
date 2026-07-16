@@ -135,6 +135,62 @@ function normalizeProposal(proposal, reportIndex, proposalIndex) {
   };
 }
 
+const rounded = value => Number(Number(value).toFixed(12));
+
+function normalizeCostCalibrationHistories(inputs = []) {
+  return inputs.map((history, historyIndex) => {
+    if (!history || typeof history !== 'object' || Array.isArray(history)) {
+      throw new Error(`calibrationHistories[${historyIndex}] must be an object.`);
+    }
+    const role = asText(history.role, `calibrationHistories[${historyIndex}].role`, 120);
+    const observations = Array.isArray(history.cost_observations) ? history.cost_observations.map((observation, observationIndex) => {
+      if (!observation || typeof observation !== 'object' || Array.isArray(observation)) {
+        throw new Error(`calibrationHistories[${historyIndex}].cost_observations[${observationIndex}] must be an object.`);
+      }
+      const predictedCost = asFiniteNumber(
+        observation.predicted_cost ?? observation.predicted ?? observation.estimate,
+        `calibrationHistories[${historyIndex}].cost_observations[${observationIndex}].predicted_cost`,
+        { min: 0.000001 }
+      );
+      const realizedCost = asFiniteNumber(
+        observation.realized_cost ?? observation.realized ?? observation.outcome,
+        `calibrationHistories[${historyIndex}].cost_observations[${observationIndex}].realized_cost`,
+        { min: 0.000001 }
+      );
+      return {
+        predicted: 1 / predictedCost,
+        realized: 1 / realizedCost,
+        ...(observation.candidate_id ? { candidate_id: asText(observation.candidate_id, 'cost calibration observation candidate_id', 200) } : {}),
+        ...(observation.receipt_digest ? { receipt_digest: asText(observation.receipt_digest, 'cost calibration observation receipt_digest', 200) } : {})
+      };
+    }) : [];
+    return {
+      ...(history.schema ? { schema: history.schema } : {}),
+      role,
+      observations
+    };
+  });
+}
+
+function blendCalibratedCosts(costEstimates, calibrationHistories) {
+  const inverseCostEstimates = costEstimates.map(estimate => ({
+    ...estimate,
+    raw_estimate: 1 / estimate.raw_estimate
+  }));
+  const inverseCostBlend = blendCalibratedEstimates(
+    inverseCostEstimates,
+    normalizeCostCalibrationHistories(calibrationHistories)
+  );
+  const blendedCost = rounded(1 / inverseCostBlend.blended_estimate);
+  return Object.freeze({
+    schema: inverseCostBlend.schema,
+    estimate_space: 'inverse-cost',
+    blended_cost: blendedCost,
+    blended_inverse_cost: inverseCostBlend.blended_estimate,
+    inverse_cost_blend: inverseCostBlend
+  });
+}
+
 export function validateReport(report, assignments = []) {
   if (!report || typeof report !== 'object' || Array.isArray(report)) throw new Error('Report must be an object.');
   assertNoSecrets(report);
@@ -179,10 +235,15 @@ export function integrateReports(reportInputs, assignments = [], calibrationHist
       claimById.set(claim.id, { ...claim, source_role: report.role, source_assignment_id: report.assignment_id, source_index: [reportIndex, claimIndex] });
     });
     report.proposals.forEach(proposal => {
-      const estimate = {
+      const informationGainEstimate = {
         role: report.role,
         source_assignment_id: report.assignment_id,
         raw_estimate: proposal.expected_information_gain
+      };
+      const costEstimate = {
+        role: report.role,
+        source_assignment_id: report.assignment_id,
+        raw_estimate: proposal.cost
       };
       const existing = candidateById.get(proposal.candidate_id);
       if (!existing) {
@@ -192,15 +253,16 @@ export function integrateReports(reportInputs, assignments = [], calibrationHist
           source_assignments: [report.assignment_id],
           corroborations: 1,
           mechanism_variants: [proposal.mechanism],
-          information_gain_estimates: [estimate]
+          information_gain_estimates: [informationGainEstimate],
+          cost_estimates: [costEstimate]
         });
       } else {
         existing.source_roles.push(report.role);
         existing.source_assignments.push(report.assignment_id);
         existing.corroborations += 1;
-        existing.information_gain_estimates.push(estimate);
+        existing.information_gain_estimates.push(informationGainEstimate);
+        existing.cost_estimates.push(costEstimate);
         if (!existing.mechanism_variants.includes(proposal.mechanism)) existing.mechanism_variants.push(proposal.mechanism);
-        existing.cost = Math.min(existing.cost, proposal.cost);
         existing.novelty_tags = [...new Set([...existing.novelty_tags, ...proposal.novelty_tags])];
       }
     });
@@ -233,11 +295,14 @@ export function integrateReports(reportInputs, assignments = [], calibrationHist
   }, new Map());
 
   const candidates = [...candidateById.values()].map(candidate => {
-    const blend = blendCalibratedEstimates(candidate.information_gain_estimates, calibrationHistories);
+    const informationGainBlend = blendCalibratedEstimates(candidate.information_gain_estimates, calibrationHistories);
+    const costBlend = blendCalibratedCosts(candidate.cost_estimates, calibrationHistories);
     return {
       ...candidate,
-      expected_information_gain: blend.blended_estimate,
-      information_gain_blend: blend
+      expected_information_gain: informationGainBlend.blended_estimate,
+      cost: costBlend.blended_cost,
+      information_gain_blend: informationGainBlend,
+      cost_blend: costBlend
     };
   }).sort((a, b) => a.candidate_id.localeCompare(b.candidate_id));
 
