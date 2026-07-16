@@ -1,0 +1,1 @@
+Trigger exact-head admission with receipt-bound runtime plugin fixtures and the composed fleet adapter seam.
