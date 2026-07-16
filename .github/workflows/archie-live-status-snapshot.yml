@@ -6,7 +6,7 @@ on:
       - agent/archie-live-status
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 jobs:
@@ -47,6 +47,90 @@ jobs:
           - branch: \`${GITHUB_REF_NAME}\`
 
           No coordinator edit, merge, or deployment.
+          EOF
+          )
+          gh api "repos/${GITHUB_REPOSITORY}/issues/351/comments" -f body="$body" >/dev/null
+
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repair evidence
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: evidence
+          persist-credentials: false
+      - name: Check out isolated repair branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: agent/archie-router-runtime-seam
+          path: repair
+          fetch-depth: 0
+      - name: Verify exact base and patch digest
+        run: |
+          set -euo pipefail
+          test "$(git -C repair rev-parse HEAD)" = "ba9a777504b96a49df29d2dac45988a3acbfb801"
+          echo "db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e  evidence/audit/patches/archie-router-runtime-seam.patch" | sha256sum --check
+          git -C repair apply --check ../evidence/audit/patches/archie-router-runtime-seam.patch
+      - name: Apply and prove the seam repair
+        run: |
+          set -euo pipefail
+          git -C repair apply ../evidence/audit/patches/archie-router-runtime-seam.patch
+          cd repair
+          node --check scripts/maker-model-router.mjs
+          node --test scripts/tests/maker-model-router.test.mjs scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../router-runtime-seam.log
+          node --test \
+            scripts/tests/maker-archie-corpus-pack.test.mjs \
+            scripts/tests/maker-archie-budget.test.mjs \
+            scripts/tests/maker-model-router.test.mjs \
+            scripts/tests/maker-archie-planner.test.mjs \
+            scripts/tests/maker-archie-compute.test.mjs \
+            scripts/tests/maker-archie-sync.test.mjs \
+            scripts/tests/maker-archie-operator.test.mjs \
+            scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../archie-plus-platform.log
+          git diff --check
+          test "$(git diff --name-only)" = "scripts/maker-model-router.mjs"
+      - name: Commit isolated repair branch
+        id: commit
+        run: |
+          set -euo pipefail
+          cd repair
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/maker-model-router.mjs
+          git commit -m "Repair admitted router runtime compatibility seam"
+          git push origin HEAD:agent/archie-router-runtime-seam
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Upload proof receipts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-router-runtime-seam-${{ steps.commit.outputs.head }}
+          path: |
+            router-runtime-seam.log
+            archie-plus-platform.log
+            evidence/audit/patches/archie-router-runtime-seam.patch
+          if-no-files-found: error
+          retention-days: 5
+      - name: Publish coordination receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPAIR_HEAD: ${{ steps.commit.outputs.head }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          <!-- archie-router-runtime-seam:${GITHUB_RUN_ID} -->
+          ## Router-runtime seam repair ready
+
+          - base: \`ba9a777504b96a49df29d2dac45988a3acbfb801\`
+          - branch: \`agent/archie-router-runtime-seam\`
+          - head: \`${REPAIR_HEAD}\`
+          - changed path: \`scripts/maker-model-router.mjs\`
+          - patch SHA-256: \`db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e\`
+          - router + runtime-platform: 43/43 pass
+          - Archie focused + runtime-platform: 97 tests, 96 pass, 1 declared skip, 0 fail
+          - coordinator branch was not edited
+
+          The active writer can exact-head review and source-admit this one-file repair. No merge or deployment.
           EOF
           )
           gh api "repos/${GITHUB_REPOSITORY}/issues/351/comments" -f body="$body" >/dev/null
