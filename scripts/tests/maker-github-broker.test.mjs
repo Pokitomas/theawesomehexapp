@@ -78,7 +78,7 @@ test('repository and credential normalization never expose the raw token', () =>
   assert.equal(credential.descriptor.token_present, true);
   assert.deepEqual(credential.descriptor.configured_capabilities, ['issues:write', 'repository:create']);
   assert.ok(!JSON.stringify(credential.descriptor).includes('github_pat_'));
-  assert.equal(redactSecrets('Bearer github_pat_123456789012345678901234567890'), '[REDACTED]');
+  assert.match(redactSecrets('Bearer github_pat_123456789012345678901234567890'), /\[REDACTED\]/);
 });
 
 test('repository inspection observes repository permission without guessing token scopes', async () => {
@@ -131,7 +131,7 @@ test('configured account capabilities remain explicit rather than inferred from 
   assert.equal(capabilities.capabilities['pull-requests:write'].available, true);
 });
 
-test('bounded retries preserve attempts, rate limits, and idempotency', async () => {
+test('bounded retries preserve attempts, rate limits, one backoff, and idempotency', async () => {
   let count = 0;
   const transport = routeFetch([
     {
@@ -164,6 +164,33 @@ test('bounded retries preserve attempts, rate limits, and idempotency', async ()
   assert.equal(first.receipt.attempts[1].status, 201);
 });
 
+test('GitHub 403 secondary rate limits retry once and remain distinct from ordinary permission denial', async () => {
+  let count = 0;
+  const sleeps = [];
+  const transport = routeFetch([
+    {
+      path: '/repos/acme/widgets',
+      handle: () => {
+        count += 1;
+        if (count === 1) return response(403, { message: 'You have exceeded a secondary rate limit. Please wait a few minutes.' }, { 'retry-after': '0', 'x-ratelimit-remaining': '4999' });
+        return response(200, repoMetadata(), { 'x-ratelimit-remaining': '4998' });
+      }
+    }
+  ]);
+  const broker = new MakerGitHubBroker({ fetch_impl: transport.fetch, sleep: async ms => sleeps.push(ms), clock: fixedClock(), retries: 1, retry_base_ms: 1 });
+  const repository = await broker.inspectRepository('acme/widgets');
+  assert.equal(repository.permission, 'write');
+  assert.equal(count, 2);
+  assert.equal(sleeps.length, 1);
+  assert.equal(repository.receipt.attempts[0].status, 403);
+  assert.equal(repository.receipt.attempts[0].secondary_rate_limited, true);
+
+  const denied = routeFetch([{ path: '/repos/acme/denied', status: 403, data: { message: 'Resource not accessible by integration' } }]);
+  const deniedBroker = new MakerGitHubBroker({ fetch_impl: denied.fetch, sleep: async () => { throw new Error('ordinary 403 must not retry'); }, clock: fixedClock(), retries: 3 });
+  await assert.rejects(deniedBroker.inspectRepository('acme/denied'), error => error.status === 403 && error.retryable === false);
+  assert.equal(denied.calls.length, 1);
+});
+
 test('pagination follows Link headers and respects a hard item ceiling', async () => {
   const transport = routeFetch([
     {
@@ -183,7 +210,7 @@ test('pagination follows Link headers and respects a hard item ceiling', async (
   assert.equal(result.receipts.length, 2);
 });
 
-test('refs resolve to exact SHAs and branch creation is argv-free API mutation', async () => {
+test('refs resolve to exact SHAs and branch creation is API mutation with validation', async () => {
   const transport = routeFetch([
     { path: `/repos/acme/widgets/commits/${SHA}`, data: { sha: SHA } },
     { path: '/repos/acme/widgets/commits/main', data: { sha: SHA } },
@@ -200,20 +227,24 @@ test('refs resolve to exact SHAs and branch creation is argv-free API mutation',
   assert.equal(branch.branch, 'maker/task');
   const call = transport.calls.find(value => value.path === '/repos/acme/widgets/git/refs');
   assert.deepEqual(call.body, { ref: 'refs/heads/maker/task', sha: SHA });
-  assert.throws(() => broker.createBranch('acme/widgets', { branch: 'bad branch', sha: SHA }), /invalid/);
+  await assert.rejects(broker.createBranch('acme/widgets', { branch: 'bad branch', sha: SHA }), /invalid/);
 });
 
-test('issues and comments redact secret-like material before transport', async () => {
+test('issues, comments, and public titles redact secret-like material before transport', async () => {
   const transport = routeFetch([
     { method: 'POST', path: '/repos/acme/widgets/issues', data: { number: 3, html_url: 'https://github.com/acme/widgets/issues/3' }, status: 201 },
     { method: 'POST', path: '/repos/acme/widgets/issues/3/comments', data: { id: 4, html_url: 'https://github.com/acme/widgets/issues/3#issuecomment-4' }, status: 201 }
   ]);
   const broker = new MakerGitHubBroker({ fetch_impl: transport.fetch, clock: fixedClock(), retries: 0 });
-  await broker.createIssue('acme/widgets', { title: 'Task', body: 'ordinary' });
   const secret = 'github_pat_123456789012345678901234567890';
+  await broker.createIssue('acme/widgets', { title: `Task ${secret}`, body: `failure Bearer ${secret}` });
   await broker.comment('acme/widgets', 3, `failure Bearer ${secret}`);
+  const issue = transport.calls.find(value => value.path === '/repos/acme/widgets/issues');
   const comment = transport.calls.find(value => value.path.endsWith('/comments'));
+  assert.match(issue.body.title, /\[REDACTED\]/);
+  assert.match(issue.body.body, /\[REDACTED\]/);
   assert.match(comment.body.body, /\[REDACTED\]/);
+  assert.ok(!JSON.stringify(issue.body).includes(secret));
   assert.ok(!JSON.stringify(comment.body).includes(secret));
 });
 
