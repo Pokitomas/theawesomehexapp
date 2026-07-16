@@ -1,0 +1,3 @@
+READ FIRST: https://github.com/Pokitomas/theawesomehexapp/blob/agent/archie-coordinator-moved-6251b6f/audit/ARCHIE_NEXT_ENGINEER_HANDOFF.md
+
+The handoff includes exact heads, admitted lanes, tests, unresolved hostile findings, preserved branches, final verification, authority, and access-grant instructions. No merge or deployment occurred.
