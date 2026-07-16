@@ -1,118 +1,168 @@
-name: Archie exact-head guarded publisher
+name: Publish exact Archie final candidate
 
 on:
   pull_request:
     branches:
-      - agent/archie-democratized-runtime
-  workflow_dispatch:
+      - agent/archie-final-safe-publisher-base
 
 permissions:
   contents: write
 
+concurrency:
+  group: archie-final-safe-publisher
+  cancel-in-progress: false
+
 jobs:
   publish:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'agent/archie-final-publisher-v2'
-    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      EXPECTED_REMOTE_HEAD: ccf85fa454da74439e9512e9a2c4c4f31374f9bb
+      EXPECTED_TREE: 60b7a6d37c4b743fed5e0769fe94f86d82710820
+      EXPECTED_PATCH_SHA256: d76c50958ebc2870a2f7de4b7b623596049c1894146e634c1ad7037636d57dd5
+      PART0_BLOB: 14a3d4b4e68181d8fed19d2268cb9772e8514e28
+      PART0_SHA256: 4947e5609274c1a57c21a4ab9e3e4bc4f7b761983e6360e01b0372ac5758ead4
+      PART1_BLOB: 14a07fda663c174da75d18b6138fc290b6204c41
+      PART1_SHA256: ca0209267a1622762f9a3293c956c59b901c12c8f2eb4dc2e710e4f129957a61
+      CI: '1'
+      REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Check out publisher trigger with full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - name: Verify exclusive branch heads
-        env:
-          EXPECTED_COORDINATOR: ${{ github.event.pull_request.base.sha }}
-          EXPECTED_EVALUATION: 323e9d0b047284123ba1db1f3717d9ed22b5cb31
+
+      - name: Verify coordinator has not moved
         run: |
           set -euo pipefail
-          coordinator="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
-          evaluation="$(git ls-remote origin refs/heads/agent/archie-hostile-evaluation | awk '{print $1}')"
-          test "$coordinator" = "$EXPECTED_COORDINATOR"
-          test "$evaluation" = "$EXPECTED_EVALUATION"
-      - name: Reconstruct reviewed patch from Git blobs
+          remote_head="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_REMOTE_HEAD"
+          printf '%s\n' "$remote_head" | tee "$RUNNER_TEMP/expected-parent.txt"
+
+      - name: Reconstruct and verify exact reviewed patch
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          blobs=(
-            ab1d7f4b5052aea315360c394e86e5ddcd94002e
-            e6b397e3e8d74d9a5a087baf10780763d7ce665b
-            07095e89119d7b6d8b1128c3cd00cbd5e8868113
-            a5afe48bc6026aa28b80710584feac9afb6aea57
-            8d3a4ee312ff4ad2b95489f48709ff95df8f7f41
-            ca3fd77b10869c52496f07ea568be75b2ddabbc5
-          )
-          expected=(
-            1269f169ffb08d47fff698436f90f8b96606cdf54e4f1ab9c6edaa9f04adf530
-            2f6ba981f164917f19bc966361fe66d45de7e7ab9e26b6fc71c2356e6f4d8ba1
-            e7e9dd75dd37679671ffed1902ba34fa2a3e6cd57db7d44d64facc18496187fc
-            4c6217e103a011b1a706986b5b5a9b39c67368372637cb7b0831c0cdcb8ace10
-            272c2ba6b119ea68f33560e279fba8b3de8edd6e7607cd7042359cf02fe681bc
-            bf328ce5862c40f32a5881c36ad63568a6843be5cb046b058ced5b5d8434b261
-          )
-          : > /tmp/archie-final-patch.tgz
-          for index in "${!blobs[@]}"; do
-            curl -fsSL \
+          fetch_blob() {
+            local blob="$1" output="$2" expected="$3"
+            curl --fail --silent --show-error \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H 'Accept: application/vnd.github+json' \
-              "https://api.github.com/repos/$REPOSITORY/git/blobs/${blobs[$index]}" \
-              | jq -r '.content' | tr -d '\n' | base64 -d > "/tmp/patch.part.$index"
-            echo "${expected[$index]}  /tmp/patch.part.$index" | sha256sum --check --strict
-            cat "/tmp/patch.part.$index" >> /tmp/archie-final-patch.tgz
-          done
-          echo 'd07cfbeabf37ab2f86aa23ad1e15ca7e93b0e41a75d44f51b186db4793aa49c1  /tmp/archie-final-patch.tgz' | sha256sum --check --strict
-          mkdir -p /tmp/archie-final-patch
-          tar -xzf /tmp/archie-final-patch.tgz -C /tmp/archie-final-patch
-      - name: Publish hostile evaluation lane
+              "https://api.github.com/repos/$REPOSITORY/git/blobs/$blob" \
+              | jq -r '.content' | tr -d '\n' | base64 -d > "$output"
+            echo "$expected  $output" | sha256sum --check --strict
+          }
+          fetch_blob "$PART0_BLOB" "$RUNNER_TEMP/part.00" "$PART0_SHA256"
+          fetch_blob "$PART1_BLOB" "$RUNNER_TEMP/part.01" "$PART1_SHA256"
+          cat "$RUNNER_TEMP/part.00" "$RUNNER_TEMP/part.01" > "$RUNNER_TEMP/patch.tgz"
+          echo "$EXPECTED_PATCH_SHA256  $RUNNER_TEMP/patch.tgz" | sha256sum --check --strict
+          tar -tzf "$RUNNER_TEMP/patch.tgz" | LC_ALL=C sort > "$RUNNER_TEMP/observed-paths.txt"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'PATHS'
+.github/workflows/maker-native-worker-ci.yml
+.gitignore
+README.md
+audit/ARCHIE_COMPLETION.md
+audit/ARCHIE_COMPLETION_RECEIPT.json
+audit/ARCHIE_PLUGIN_REPAIR_EVIDENCE.json
+audit/archie-admission-ledger.json
+audit/repository-verification.json
+maker/contracts/archie-evaluation.schema.json
+maker/contracts/control-plane.schema.json
+maker/contracts/plugin-manifest.schema.json
+maker/evaluations/archie-suite.json
+package.json
+scripts/maker-archie-evaluation.mjs
+scripts/maker-control-cli.mjs
+scripts/maker-control-plane.mjs
+scripts/maker-model-router.mjs
+scripts/maker-plugin-registry.mjs
+scripts/maker-runtime-platform.mjs
+scripts/tests/maker-archie-evaluation.test.mjs
+scripts/tests/maker-control-plane.test.mjs
+scripts/tests/maker-model-router.test.mjs
+scripts/tests/maker-plugin-registry.test.mjs
+scripts/tests/maker-runtime-platform.test.mjs
+PATHS
+          LC_ALL=C sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/observed-paths.txt"
+
+      - name: Materialize exact coordinator candidate
         run: |
           set -euo pipefail
+          git fetch origin agent/archie-democratized-runtime
+          git checkout --detach "$EXPECTED_REMOTE_HEAD"
+          tar -xzf "$RUNNER_TEMP/patch.tgz" -C "$GITHUB_WORKSPACE"
+          mapfile -t paths < "$RUNNER_TEMP/expected-paths.txt"
+          git add -- "${paths[@]}"
+          git diff --cached --check
+          actual_tree="$(git write-tree)"
+          test "$actual_tree" = "$EXPECTED_TREE"
+          printf '%s\n' "$actual_tree" | tee "$RUNNER_TEMP/candidate-tree.txt"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --include=dev
+
+      - name: Require real Chromium
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            google-chrome --version | tee "$RUNNER_TEMP/browser-version.txt"
+          elif command -v chromium >/dev/null 2>&1; then
+            chromium --version | tee "$RUNNER_TEMP/browser-version.txt"
+          else
+            echo 'Chromium unavailable; refusing phone-proof publication.' >&2
+            exit 1
+          fi
+
+      - name: Run exact final verification graph
+        run: |
+          set -euo pipefail
+          node scripts/native-changed-check.mjs 2>&1 | tee "$RUNNER_TEMP/native-changed.log"
+          npm run test:maker 2>&1 | tee "$RUNNER_TEMP/test-maker.log"
+          npm run archie:evaluate -- --output "$RUNNER_TEMP/archie-evaluation-report.json" 2>&1 | tee "$RUNNER_TEMP/evaluation.log"
+          npm run verify:repository 2>&1 | tee "$RUNNER_TEMP/repository.log"
+          git diff --check
+          actual_tree="$(git write-tree)"
+          test "$actual_tree" = "$EXPECTED_TREE"
+
+      - name: Commit and fast-forward the coordinator
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_REMOTE_HEAD"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin agent/archie-hostile-evaluation
-          git checkout -B agent/archie-hostile-evaluation origin/agent/archie-hostile-evaluation
-          paths=(
-            .github/workflows/maker-native-worker-ci.yml
-            package.json
-            maker/contracts/archie-evaluation.schema.json
-            scripts/maker-archie-evaluation.mjs
-            scripts/tests/maker-archie-evaluation.test.mjs
-            scripts/tests/maker-archie-hostile.test.mjs
-            audit/archie-democratized-runtime.json
-            audit/repository-verification.json
-          )
-          for path in "${paths[@]}"; do install -D "/tmp/archie-final-patch/$path" "$path"; done
-          git add -- "${paths[@]}"
-          git diff --cached --check
-          git commit -m 'Build matched hostile Archie evaluation gate'
-          git push origin HEAD:agent/archie-hostile-evaluation
-          echo "evaluation_head=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish final coordinator integration
-        env:
-          EXPECTED_COORDINATOR: ${{ github.event.pull_request.base.sha }}
-        run: |
-          set -euo pipefail
-          current="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
-          test "$current" = "$EXPECTED_COORDINATOR"
-          git fetch origin agent/archie-democratized-runtime
-          git checkout -B agent/archie-democratized-runtime origin/agent/archie-democratized-runtime
-          paths=(
-            .github/workflows/maker-native-worker-ci.yml
-            README.md
-            audit/archie-democratized-runtime.json
-            audit/repository-verification.json
-            maker/contracts/archie-evaluation.schema.json
-            maker/contracts/worker-fleet.schema.json
-            package.json
-            scripts/maker-archie-evaluation.mjs
-            scripts/maker-runtime-platform.mjs
-            scripts/maker-worker-fleet.mjs
-            scripts/tests/maker-archie-evaluation.test.mjs
-            scripts/tests/maker-archie-hostile.test.mjs
-            scripts/tests/maker-runtime-platform.test.mjs
-            scripts/tests/maker-worker-fleet.test.mjs
-          )
-          for path in "${paths[@]}"; do install -D "/tmp/archie-final-patch/$path" "$path"; done
-          git add -- "${paths[@]}"
-          git diff --cached --check
-          git commit -m 'Finish democratized Archie runtime integration'
-          git push origin HEAD:agent/archie-democratized-runtime
-          echo "coordinator_head=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          git commit -m 'Complete Archie democratized runtime'
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          git push origin HEAD:refs/heads/agent/archie-democratized-runtime
+          git rev-parse HEAD | tee "$RUNNER_TEMP/published-head.txt"
+          git rev-parse HEAD^{tree} | tee "$RUNNER_TEMP/published-tree.txt"
+
+      - name: Upload publisher receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-final-safe-publisher-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/expected-parent.txt
+            ${{ runner.temp }}/candidate-tree.txt
+            ${{ runner.temp }}/browser-version.txt
+            ${{ runner.temp }}/native-changed.log
+            ${{ runner.temp }}/test-maker.log
+            ${{ runner.temp }}/evaluation.log
+            ${{ runner.temp }}/archie-evaluation-report.json
+            ${{ runner.temp }}/repository.log
+            ${{ runner.temp }}/published-head.txt
+            ${{ runner.temp }}/published-tree.txt
+            ${{ runner.temp }}/observed-paths.txt
+          if-no-files-found: warn
+          retention-days: 7
