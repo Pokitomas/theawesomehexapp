@@ -11,6 +11,7 @@ import {
   readManifestSchema,
   writeArtifactKeyPair
 } from './archie-artifact-envelope.mjs';
+import { createCheckpointUpdatePackage } from './archie-checkpoint-update.mjs';
 import {
   benchmarkModel,
   inspectModel,
@@ -90,6 +91,14 @@ function requiredFlag(flags, name) {
   return value;
 }
 
+async function packageKeys(flags) {
+  return {
+    recipient_public_keys: await keyFiles(flags, '--recipient-key'),
+    signing_private_key_pem: await fs.readFile(path.resolve(requiredFlag(flags, '--signing-private')), 'utf8'),
+    signing_public_key_pem: await fs.readFile(path.resolve(requiredFlag(flags, '--signing-public')), 'utf8')
+  };
+}
+
 function usage() {
   return `Archie local model runtime
 
@@ -98,6 +107,9 @@ Usage:
   archie package <artifact> --metadata <json> --output-dir <directory> \\
     --recipient-key <x25519-public.pem> --signing-private <ed25519-private.pem> \\
     --signing-public <ed25519-public.pem>
+  archie checkpoint <parent-id@version> <artifact> --metadata <json> --lineage <json> \\
+    --output-dir <directory> --recipient-key <x25519-public.pem> \\
+    --signing-private <ed25519-private.pem> --signing-public <ed25519-public.pem>
   archie pull <manifest> --trust-key <publisher-public.pem> [--device-key <x25519-private.pem>]
   archie run <id@version> --prompt <text> [--runner <path>]
   archie inspect <id@version>
@@ -109,6 +121,12 @@ Packaging:
   --recipient-key <path>    Repeat for device and optional recovery recipients.
   --chunk-bytes <n>         Plaintext bytes per independently authenticated chunk.
   --chunk-base-url <url>    Publishable base URL; local file URLs are used when omitted.
+
+Checkpoint:
+  --lineage <path>          Parent expectations plus training, authority, and evaluation digests.
+  The installed parent must match exactly. Model ID, architecture, ABI, format,
+  quantization, context limit, runtime template, immutable digest, and mutable-region
+  declaration may not change. The version, mutable digest, and benchmark receipt must change.
 
 Pull:
   --device-key <path>       Repeat to try device or recovery private keys.
@@ -151,16 +169,12 @@ export async function main(argv = process.argv.slice(2)) {
     if (!artifact) throw new Error('package requires an artifact path.');
     const metadataPath = requiredFlag(flags, '--metadata');
     const metadata = JSON.parse(await fs.readFile(path.resolve(metadataPath), 'utf8'));
-    const recipients = await keyFiles(flags, '--recipient-key');
-    const signingPrivate = await fs.readFile(path.resolve(requiredFlag(flags, '--signing-private')), 'utf8');
-    const signingPublic = await fs.readFile(path.resolve(requiredFlag(flags, '--signing-public')), 'utf8');
+    const keys = await packageKeys(flags);
     const result = await createEncryptedArtifactPackage({
       artifact_path: artifact,
       output_directory: requiredFlag(flags, '--output-dir'),
       metadata,
-      recipient_public_keys: recipients,
-      signing_private_key_pem: signingPrivate,
-      signing_public_key_pem: signingPublic,
+      ...keys,
       chunk_bytes: integer(flags, '--chunk-bytes', 64 * 1024 * 1024),
       chunk_base_url: last(flags, '--chunk-base-url')
     });
@@ -173,6 +187,39 @@ export async function main(argv = process.argv.slice(2)) {
       exact_installed_bytes: result.manifest.sizes.installed_bytes,
       chunk_count: result.manifest.chunks.length,
       recipient_fingerprints: result.manifest.encryption.recipients.map(item => item.recipient_fingerprint)
+    });
+    return;
+  }
+
+  if (command === 'checkpoint') {
+    const parentReference = positionals[1];
+    const artifact = positionals[2];
+    if (!parentReference || !artifact) throw new Error('checkpoint requires <parent-id@version> and a candidate artifact path.');
+    const metadata = JSON.parse(await fs.readFile(path.resolve(requiredFlag(flags, '--metadata')), 'utf8'));
+    const lineage = JSON.parse(await fs.readFile(path.resolve(requiredFlag(flags, '--lineage')), 'utf8'));
+    const keys = await packageKeys(flags);
+    const result = await createCheckpointUpdatePackage({
+      parent_reference: parentReference,
+      candidate_artifact_path: artifact,
+      metadata,
+      lineage,
+      output_directory: requiredFlag(flags, '--output-dir'),
+      ...keys,
+      home,
+      chunk_bytes: integer(flags, '--chunk-bytes', 64 * 1024 * 1024),
+      chunk_base_url: last(flags, '--chunk-base-url')
+    });
+    print({
+      schema: 'archie-checkpoint-package-result/v1',
+      manifest_path: result.manifest_path,
+      manifest_digest: result.manifest.manifest_digest,
+      artifact_digest: result.manifest.artifact.sha256,
+      transition_receipt_path: result.transition_receipt_path,
+      transition_receipt_digest: result.transition_receipt.receipt_digest,
+      parent_model_ref: result.transition_receipt.payload.parent.model_ref,
+      candidate_model_ref: result.transition_receipt.payload.candidate.model_ref,
+      exact_download_bytes: result.manifest.sizes.download_bytes,
+      exact_installed_bytes: result.manifest.sizes.installed_bytes
     });
     return;
   }
