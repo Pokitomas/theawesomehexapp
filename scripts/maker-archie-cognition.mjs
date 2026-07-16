@@ -290,7 +290,7 @@ export class ArchieCognitionRuntime {
       && derivation.proof?.metrics?.grounding === 1
       && derivation.proof?.metrics?.clause_coverage >= 0.75
       && planner.state !== 'reject'
-      && (planner.state !== 'local' || derivationPlannerAgreement.right_subset_of_left);
+      && (planner.state !== 'local' || derivationPlannerAgreement.left_subset_of_right || derivationPlannerAgreement.right_subset_of_left);
 
     if (consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {
       const useDerivation = !consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride);
