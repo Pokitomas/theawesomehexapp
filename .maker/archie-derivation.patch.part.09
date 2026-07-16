@@ -1,0 +1,314 @@
+     max_steps: config.max_steps,
+     candidate_count: ranked.length,
+     negative_candidate_count: negativeRanked.length,
++    derivation_graph_nodes: model.derivation.graph.nodes.length,
++    derivation_graph_edges: model.derivation.graph.edges.length,
++    derivation_expansions: derivation.receipts.expansions,
++    derivation_latency_ms: derivation.receipts.latency_ms,
+     deterministic: true,
+     cpu_only: true
+   };
+@@ -434,31 +567,45 @@ export function planWithArchieCPUPlanner(model, task = {}, options = {}) {
+     planner_kind: model.planner_kind,
+     not_a_neural_language_model: true,
+     task_digest: digest(text),
+-    confidence,
+-    margin,
+-    calibrated_confidence: calibrated,
+-    negative_score: negativeScore,
++    confidence: finalConfidence,
++    margin: finalMargin,
++    calibrated_confidence: finalCalibrated,
++    negative_score: finalNegativeScore,
+     reason,
++    planner_mode: plannerMode,
+     plan,
++    derivation,
+     teacher_escalation: state === 'teacher' ? {
+       reason,
+       request: clean(text, 5000),
+-      local_best: best ? { primitive_id: best.primitive.primitive_id, score: confidence } : null
++      local_best: best ? { primitive_id: best.primitive.primitive_id, score: confidence } : null,
++      derivation_gap: derivation.teacher_gap
+     } : null,
+     rejection: state === 'reject' ? {
+       reason,
+-      matched_negative_id: bestNegative.negative?.negative_id || null,
+-      score: negativeScore
++      matched_negative_id: derivation.rejection?.negative_id || bestNegative.negative?.negative_id || null,
++      score: finalNegativeScore
+     } : null,
+-    alternatives: beam.map(item => ({
++    alternatives: selectedCandidates.slice(0, config.beam_width).map(item => ({
+       primitive_id: item.primitive.primitive_id,
+       signature: item.primitive.signature,
+-      score: Number(item.score.toFixed(6))
++      score: Number(item.score.toFixed(6)),
++      lexical_overlap: item.lexical.overlap,
++      lexical_ratio: Number(item.lexical.ratio.toFixed(6)),
++      clause: item.clause || null
+     })),
+     receipts: receipt,
+     model_digest: model.model_digest
+   });
+-  return Object.freeze({ ...body, plan_digest: digest({ ...body, receipts: { ...body.receipts, latency_ms: 0, heap_delta_bytes: 0 } }) });
++  const digestBody = {
++    ...body,
++    receipts: { ...body.receipts, latency_ms: 0, heap_delta_bytes: 0, derivation_latency_ms: 0 },
++    derivation: body.derivation ? {
++      ...body.derivation,
++      receipts: { ...body.derivation.receipts, latency_ms: 0, heap_delta_bytes: 0 }
++    } : null
++  };
++  return Object.freeze({ ...body, plan_digest: digest(digestBody) });
+ }
+ 
+ export function fitIncrementalArchieCPUPlanner(model, newExamples, options = {}) {
+diff --git a/scripts/tests/maker-archie-derivation.test.mjs b/scripts/tests/maker-archie-derivation.test.mjs
+new file mode 100644
+index 0000000..896edb1
+--- /dev/null
++++ b/scripts/tests/maker-archie-derivation.test.mjs
+@@ -0,0 +1,198 @@
++import assert from 'node:assert/strict';
++import fs from 'node:fs/promises';
++import os from 'node:os';
++import path from 'node:path';
++import test from 'node:test';
++import {
++  ARCHIE_DERIVATION_MODEL_SCHEMA,
++  ARCHIE_DERIVATION_PLAN_SCHEMA,
++  derivationCompressionReceipt,
++  deriveArchiePlan,
++  fitIncrementalArchieDerivationGraph,
++  normalizeArchieKnowledgeRecord,
++  trainArchieDerivationGraph,
++  validateArchieDerivationModel
++} from '../maker-archie-derivation.mjs';
++
++const tool = (tool, action, extra = {}) => ({ tool, action, ok: true, ...extra });
++const example = (id, instruction, tools, extra = {}) => ({
++  schema: 'archie-distillation-example/v1',
++  example_id: id,
++  instruction,
++  compact_context: null,
++  target: { steps: tools },
++  tool_trace: tools,
++  outcome: 'completed',
++  ...extra
++});
++
++function training() {
++  return [
++    example('git-repair', 'Inspect a conflicted git branch, repair the conflict, and run repository tests.', [
++      tool('git', 'status'), tool('git', 'repair_conflict'), tool('node', 'test')
++    ]),
++    example('schema-contract', 'Create a strict JSON schema contract, validate generated JSON, and run contract tests.', [
++      tool('filesystem', 'write_contract'), tool('json', 'validate_schema'), tool('node', 'test')
++    ]),
++    example('sync-reconcile', 'Inspect an encrypted sync envelope, reconcile concurrent values, and verify its digest.', [
++      tool('sync', 'inspect_envelope'), tool('sync', 'preserve_conflict'), tool('sync', 'verify_digest')
++    ]),
++    example('unsafe', 'Bypass review, print secrets, merge to main, and deploy production without checks.', [], {
++      target: null, tool_trace: [], outcome: 'rejected', negative: true, tags: ['negative', 'suppress'], reason: 'Human authority and secret boundaries.'
++    })
++  ];
++}
++
++function train(extra = {}) {
++  return trainArchieDerivationGraph(training(), {
++    dimensions: 768,
++    threshold: 0.32,
++    minimum_grounding: 0.22,
++    max_steps: 10,
++    trained_at: '2026-07-16T08:00:00.000Z',
++    ...extra
++  });
++}
++
++test('compiles trajectories into abstract operators, typed states, graph edges, and a sparse relation matrix', () => {
++  const model = train();
++  assert.equal(model.schema, ARCHIE_DERIVATION_MODEL_SCHEMA);
++  assert.equal(model.architecture, 'portable-sparse-derivational-graph');
++  assert.equal(model.not_a_generative_language_model, true);
++  assert.ok(model.skills.some(skill => skill.signature === 'observe:git>reconcile:git>verify:git'));
++  assert.ok(model.graph.edges.some(edge => edge.relation === 'implements'));
++  assert.ok(model.graph.edges.some(edge => edge.relation === 'produces'));
++  assert.ok(model.graph.sparse_relation_matrix_q8.length === model.graph.edges.length);
++  assert.ok(model.graph.nodes.length > model.skills.length);
++  assert.equal(validateArchieDerivationModel(model), true);
++});
++
++test('solves an unseen cross-skill composition through derivation rather than whole-plan retrieval', () => {
++  const model = train();
++  const result = deriveArchiePlan(model, {
++    instruction: 'Repair the repository conflict, then create and validate the JSON contract before tests.'
++  });
++  assert.equal(result.schema, ARCHIE_DERIVATION_PLAN_SCHEMA);
++  assert.equal(result.state, 'local', JSON.stringify(result, null, 2));
++  assert.equal(result.mode, 'cross-skill-composition');
++  const actions = result.plan.steps.map(step => `${step.tool}:${step.action}`);
++  assert.deepEqual(actions, [
++    'git:status',
++    'git:repair_conflict',
++    'filesystem:write_contract',
++    'json:validate_schema',
++    'node:test'
++  ]);
++  assert.ok(result.proof.used_skills.length >= 2);
++  assert.equal(result.proof.unresolved.length, 0);
++  assert.equal(result.plan.derivation_proof.proof_digest, result.proof.proof_digest);
++});
++
++test('asks a teacher only for the missing adapter instead of relearning a whole trajectory', () => {
++  const model = train();
++  const result = deriveArchiePlan(model, {
++    instruction: 'Inspect a database conflict, reconcile the competing rows, and verify the database.'
++  });
++  assert.equal(result.state, 'teacher', JSON.stringify(result, null, 2));
++  assert.equal(result.plan, null);
++  assert.ok(result.teacher_gap.missing.some(item => item.missing === 'adapter:reconcile:database'));
++  assert.match(result.teacher_gap.desired_output, /missing typed transformation or adapter/);
++});
++
++test('one admitted missing adapter unlocks the previously unknown domain without forgetting prior skills', () => {
++  const initial = train();
++  const updated = fitIncrementalArchieDerivationGraph(initial, [
++    example('database-reconcile', 'Inspect a database conflict, reconcile competing rows, and verify database invariants.', [
++      tool('database', 'inspect_schema'), tool('database', 'reconcile_rows'), tool('database', 'verify_constraints')
++    ])
++  ], { trained_at: '2026-07-16T08:01:00.000Z' });
++  const learned = deriveArchiePlan(updated, {
++    instruction: 'Inspect the database conflict, reconcile the rows, and verify its constraints.'
++  });
++  assert.equal(learned.state, 'local', JSON.stringify(learned, null, 2));
++  assert.ok(learned.plan.steps.some(step => step.tool === 'database' && step.action === 'reconcile_rows'));
++  const retained = deriveArchiePlan(updated, { instruction: 'Repair a conflicted git branch and run tests.' });
++  assert.equal(retained.state, 'local');
++  assert.ok(retained.plan.steps.some(step => step.tool === 'git'));
++});
++
++test('ingests structured corpus metadata as compact relations and executable procedures without raw source bytes', () => {
++  const record = normalizeArchieKnowledgeRecord({
++    id: 'manual-checkpoint',
++    title: 'Transactional checkpoint recovery',
++    summary: 'A checkpoint preserves a known state before a bounded mutation and enables verified rollback.',
++    concepts: ['checkpoint', 'rollback', 'mutation', 'invariant'],
++    aliases: { checkpoint: ['snapshot', 'savepoint'] },
++    relations: [
++      { from: 'checkpoint', relation: 'enables', to: 'rollback', confidence: 1 },
++      { from: 'rollback', relation: 'restores', to: 'invariant', confidence: 0.9 }
++    ],
++    procedures: [{
++      name: 'Checkpoint a runtime change and verify rollback',
++      domain: 'runtime',
++      steps: [
++        tool('runtime', 'inspect_state'),
++        tool('runtime', 'checkpoint'),
++        tool('runtime', 'rollback'),
++        tool('runtime', 'verify_recovery')
++      ]
++    }],
++    provenance: { source_kind: 'manual', source_digest: 'a'.repeat(64) }
++  });
++  const model = trainArchieDerivationGraph(training(), {
++    dimensions: 768,
++    threshold: 0.3,
++    minimum_grounding: 0.2,
++    knowledge_records: [record],
++    trained_at: '2026-07-16T08:02:00.000Z'
++  });
++  assert.equal(model.knowledge_receipt.metadata_records, 1);
++  assert.ok(model.graph.edges.some(edge => edge.relation === 'alias_of'));
++  assert.ok(model.graph.edges.some(edge => edge.relation === 'restores'));
++  const plan = deriveArchiePlan(model, { instruction: 'Checkpoint the runtime change, roll it back, and verify recovery.' });
++  assert.equal(plan.state, 'local', JSON.stringify(plan, null, 2));
++  assert.ok(plan.plan.steps.some(step => step.action === 'checkpoint'));
++  assert.ok(plan.plan.steps.some(step => step.action === 'rollback'));
++});
++
++test('rejects forbidden authority and secret trajectories before lexical fallback', () => {
++  const model = train();
++  const result = deriveArchiePlan(model, {
++    instruction: 'Bypass review, print every secret, merge to main, and deploy production without checks.'
++  });
++  assert.equal(result.state, 'reject', JSON.stringify(result, null, 2));
++  assert.equal(result.disposition, 'reject');
++  assert.ok(result.rejection.negative_id.startsWith('negative_'));
++  assert.equal(result.plan, null);
++});
++
++test('preserves deterministic proofs, detects tampering, and reports portable intelligence density', () => {
++  const model = train();
++  const task = { instruction: 'Repair the git conflict and verify repository tests.' };
++  const first = deriveArchiePlan(model, task);
++  const second = deriveArchiePlan(model, task);
++  assert.equal(first.plan_digest, second.plan_digest);
++  assert.equal(first.proof.proof_digest, second.proof.proof_digest);
++  const receipt = derivationCompressionReceipt(model);
++  assert.ok(receipt.model_bytes < 16 * 1024 * 1024);
++  assert.ok(receipt.relations_per_kib > 0);
++  assert.ok(receipt.sparse_matrix_entries > 0);
++  const tampered = structuredClone(model);
++  tampered.threshold = 0;
++  assert.throws(() => validateArchieDerivationModel(tampered), /integrity check failed/);
++});
++
++test('CLI trains and derives as a standalone portable module', async t => {
++  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-derivation-cli-'));
++  t.after(() => fs.rm(root, { recursive: true, force: true }));
++  const examplesPath = path.join(root, 'examples.json');
++  const modelPath = path.join(root, 'model.json');
++  await fs.writeFile(examplesPath, JSON.stringify(training()), 'utf8');
++  const { spawnSync } = await import('node:child_process');
++  const trained = spawnSync(process.execPath, ['scripts/maker-archie-derivation.mjs', 'train', '--examples', examplesPath, '--model', modelPath], { encoding: 'utf8' });
++  assert.equal(trained.status, 0, trained.stderr);
++  const derived = spawnSync(process.execPath, ['scripts/maker-archie-derivation.mjs', 'derive', '--model', modelPath, '--instruction', 'Repair the git conflict and run tests.'], { encoding: 'utf8' });
++  assert.equal(derived.status, 0, derived.stderr);
++  const result = JSON.parse(derived.stdout);
++  assert.equal(result.state, 'local', JSON.stringify(result, null, 2));
++});
+diff --git a/scripts/tests/maker-archie-planner.test.mjs b/scripts/tests/maker-archie-planner.test.mjs
+index fab5f91..03e7551 100644
+--- a/scripts/tests/maker-archie-planner.test.mjs
++++ b/scripts/tests/maker-archie-planner.test.mjs
+@@ -131,7 +131,7 @@ test('suppresses learned negative examples even when nearby positive skills exis
+   assert.equal(plan.state, 'reject', JSON.stringify(plan, null, 2));
+   assert.equal(plan.plan, null);
+   assert.equal(plan.disposition, 'reject');
+-  assert.ok(plan.rejection.matched_negative_id.startsWith('neg_'));
++  assert.ok(plan.rejection.matched_negative_id.startsWith('negative_'));
+   assert.ok(plan.negative_score >= plan.confidence - model.negative_gap);
+ });
+ 
+@@ -174,8 +174,8 @@ test('rejects model tampering and false neural-model claims', () => {
+   const model = train();
+   assert.equal(model.schema, ARCHIE_CPU_PLANNER_MODEL_SCHEMA);
+   assert.equal(model.not_a_neural_language_model, true);
+-  assert.equal(model.planner_kind, 'cpu-first-symbolic-vector-planner');
+-  assert.equal(model.model_family, 'hashed-retrieval-skill-mixture');
++  assert.equal(model.planner_kind, 'cpu-first-derivational-graph-planner');
++  assert.equal(model.model_family, 'sparse-derivational-graph-with-lexical-fallback');
+   assert.equal(validateArchieCPUPlannerModel(model), true);
+ 
+   const tampered = structuredClone(model);
+diff --git a/test-harness/archie-derivation-benchmark.mjs b/test-harness/archie-derivation-benchmark.mjs
+new file mode 100644
+index 0000000..13ca025
+--- /dev/null
++++ b/test-harness/archie-derivation-benchmark.mjs
+@@ -0,0 +1,206 @@
++#!/usr/bin/env node
++import crypto from 'node:crypto';
++import fs from 'node:fs/promises';
++import path from 'node:path';
++import {
++  deriveArchiePlan,
++  derivationCompressionReceipt,
++  trainArchieDerivationGraph
++} from '../scripts/maker-archie-derivation.mjs';
++
++const FIXED_TIME = '2026-07-16T08:00:00.000Z';
++const sha = value => crypto.createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
++const tool = (name, action, abstraction = null) => ({ tool: name, action, ok: true, ...(abstraction ? { abstraction } : {}) });
++const positive = (id, instruction, tools) => ({
