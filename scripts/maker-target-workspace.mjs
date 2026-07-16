@@ -225,7 +225,7 @@ export class TargetWorkspaceManager {
   }
 
   async prepare(input = {}) {
-    const plan = createWorkspacePlan({ ...input, workspace_root: this.workspaceRoot, workspace_id: input.workspace_id || `maker-${this.randomId()}` });
+    const plan = createWorkspacePlan({ ...input, workspace_root: this.workspaceRoot, workspace_id: input.workspace_id || this.randomId() });
     const transcript = [];
     const warnings = [];
     const authorization = await this.#authorize(plan, input.credential);
@@ -266,7 +266,7 @@ export class TargetWorkspaceManager {
       let lfsPointers = [];
       try {
         const output = (await this.#run('git', ['grep', '-l', 'version https://git-lfs.github.com/spec/v1', '--', ':!*.md'], { cwd: plan.checkout }, transcript)).stdout;
-        lfsPointers = output.split(/\r?\n/).map(clean).filter(Boolean).slice(0, 200);
+        lfsPointers = output.split(/\r?\n/).map(value => clean(value)).filter(Boolean).slice(0, 200);
       } catch {}
       if (lfsPointers.length && !plan.allow_lfs_pointers) warnings.push(`${lfsPointers.length} Git LFS pointer file(s) require an admitted LFS materialization step`);
       await this.#run('git', ['switch', '-c', plan.branch], { cwd: plan.checkout }, transcript);
