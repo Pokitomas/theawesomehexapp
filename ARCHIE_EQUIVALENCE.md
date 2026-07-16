@@ -31,7 +31,7 @@ Performance numbers are environment-specific. The admission requirement is corre
 
 `npm run benchmark:archie` runs a sequential 21-episode controlled suite through the complete cognition runtime. Teacher-required episodes use declared reference fixtures so one-shot acquisition and retention can be tested deterministically.
 
-The current deterministic baseline is **100.000**, with 21/21 episodes successful. The suite includes explicit regression cases proving that:
+The current deterministic baseline is **100.000**, with 21/21 episodes successful. This result was revalidated after the effective-threshold calibration repair and the derivational edge-case repair. The suite includes explicit regression cases proving that:
 
 - a safe observation-only request containing deployment and merge prohibitions remains local and read-only;
 - a near-neighbor mechanical task does not inherit a Git trajectory and instead escalates.
