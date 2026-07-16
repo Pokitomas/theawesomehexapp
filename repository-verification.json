@@ -1,0 +1,260 @@
+{
+  "schema": "sideways-repository-verification/v1",
+  "repository": "Pokitomas/theawesomehexapp",
+  "checked_head_sha": "6f617e7a3e8a342bd3d3671a11588a298f73c873",
+  "candidate_head_sha": "6f617e7a3e8a342bd3d3671a11588a298f73c873",
+  "manifest_version": 11,
+  "node": "v24.18.0",
+  "started_at": "2026-07-16T09:06:45.386Z",
+  "suites": [
+    {
+      "id": "git-diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 7
+    },
+    {
+      "id": "native-changed-check",
+      "command": [
+        "node",
+        "scripts/native-changed-check.mjs"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 14888
+    },
+    {
+      "id": "remote",
+      "command": [
+        "npm",
+        "run",
+        "test:remote"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 410
+    },
+    {
+      "id": "weave-v1",
+      "command": [
+        "npm",
+        "run",
+        "test:weave"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 442
+    },
+    {
+      "id": "recursive-weave",
+      "command": [
+        "npm",
+        "run",
+        "test:recursive-weave"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 415
+    },
+    {
+      "id": "native-maker",
+      "command": [
+        "npm",
+        "run",
+        "test:native-maker"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 734
+    },
+    {
+      "id": "maker-orchestrator",
+      "command": [
+        "npm",
+        "run",
+        "test:maker"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 2161
+    },
+    {
+      "id": "discovery-connected-import",
+      "command": [
+        "npm",
+        "run",
+        "test:ingestion"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 272
+    },
+    {
+      "id": "social-memory",
+      "command": [
+        "npm",
+        "run",
+        "test:social"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 698
+    },
+    {
+      "id": "authority-manifest",
+      "command": [
+        "npm",
+        "run",
+        "test:authority"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 314
+    },
+    {
+      "id": "workflow-permissions",
+      "command": [
+        "node",
+        "--test",
+        "scripts/tests/workflow-permissions.test.mjs"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 113
+    },
+    {
+      "id": "deployment-receipt",
+      "command": [
+        "node",
+        "--test",
+        "scripts/tests/deployment-receipt.test.mjs"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 103
+    },
+    {
+      "id": "human-quality",
+      "command": [
+        "npm",
+        "run",
+        "verify:quality"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 227
+    },
+    {
+      "id": "ranking-evaluation",
+      "command": [
+        "npm",
+        "run",
+        "verify:ranking"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 267
+    },
+    {
+      "id": "operations-reality",
+      "command": [
+        "npm",
+        "run",
+        "verify:operations"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 277
+    },
+    {
+      "id": "release-completion",
+      "command": [
+        "npm",
+        "run",
+        "verify:release"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 289
+    },
+    {
+      "id": "coordination-reducer",
+      "command": [
+        "node",
+        "--test",
+        "scripts/tests/coordination-tick.test.mjs",
+        "scripts/tests/coordination-tick-hardening.test.mjs"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 160
+    },
+    {
+      "id": "supply-chain",
+      "command": [
+        "node",
+        "--test",
+        "scripts/tests/supply-chain-contract.test.mjs"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 99
+    },
+    {
+      "id": "frankenstate",
+      "command": [
+        "npm",
+        "run",
+        "verify:frankenstate"
+      ],
+      "status": "passed",
+      "exit_code": 0,
+      "duration_ms": 252
+    }
+  ],
+  "external_suites": [
+    {
+      "id": "social-postgres",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "manual-phone",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "social-phone",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "profile-phone",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "ark-phone",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "media-phone",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "pages-build",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "kernel-root-manual-source-binding",
+      "status": "separate-workflow"
+    },
+    {
+      "id": "post-merge-served-commit",
+      "status": "separate-workflow"
+    }
+  ],
+  "finished_at": "2026-07-16T09:07:07.514Z",
+  "status": "passed"
+}

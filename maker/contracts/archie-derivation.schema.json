@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://theawesomehexapp.local/maker/contracts/archie-derivation.schema.json",
+  "title": "Archie portable derivational intelligence contracts",
+  "oneOf": [
+    { "$ref": "#/$defs/model" },
+    { "$ref": "#/$defs/result" },
+    { "$ref": "#/$defs/proof" },
+    { "$ref": "#/$defs/benchmarkReport" }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "step": {
+      "type": "object",
+      "required": ["id", "type", "tool", "action", "args", "depends_on", "rationale"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "tool_call" },
+        "tool": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "args": { "type": "object" },
+        "depends_on": { "type": "array", "items": { "type": "string" } },
+        "rationale": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "model": {
+      "type": "object",
+      "required": ["schema", "architecture", "claim_boundary", "families", "adapters", "transitions", "graph", "negatives", "training_receipt", "model_digest"],
+      "properties": {
+        "schema": { "const": "archie-derivation-model/v1" },
+        "architecture": { "const": "sparse-relational-derivation-graph" },
+        "claim_boundary": { "const": "portable-symbolic-relational-planner-not-general-intelligence" },
+        "families": { "type": "array", "minItems": 1 },
+        "adapters": { "type": "array", "minItems": 1 },
+        "transitions": { "type": "array" },
+        "graph": { "type": "array" },
+        "negatives": { "type": "array" },
+        "training_receipt": { "type": "object" },
+        "model_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": true
+    },
+    "proof": {
+      "type": "object",
+      "required": ["schema", "task_digest", "clauses", "requested_families", "derived_path", "bindings", "constraints", "metrics", "proof_digest"],
+      "properties": {
+        "schema": { "const": "archie-derivation-proof/v1" },
+        "task_digest": { "$ref": "#/$defs/digest" },
+        "clauses": { "type": "array" },
+        "requested_families": { "type": "array", "items": { "type": "string" } },
+        "derived_path": { "type": "array", "items": { "type": "string" } },
+        "bindings": { "type": "array" },
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "metrics": { "type": "object" },
+        "proof_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["schema", "state", "disposition", "confidence", "reason", "abstract_path", "model_digest", "plan_digest"],
+      "properties": {
+        "schema": { "const": "archie-derivation-plan/v1" },
+        "state": { "enum": ["local", "teacher", "reject"] },
+        "disposition": { "enum": ["execute", "escalate_to_teacher", "reject"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reason": { "type": "string" },
+        "abstract_path": { "type": "array", "items": { "type": "string" } },
+        "plan": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["schema", "execution", "steps", "derivation_proof_digest"],
+              "properties": {
+                "schema": { "const": "archie-typed-tool-plan/v1" },
+                "execution": { "const": "dependency-dag" },
+                "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+                "derivation_proof_digest": { "$ref": "#/$defs/digest" }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "proof": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/proof" }] },
+        "model_digest": { "$ref": "#/$defs/digest" },
+        "plan_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": true
+    },
+    "benchmarkReport": {
+      "type": "object",
+      "required": ["schema", "benchmark_id", "task_count", "metrics", "performance", "model", "episodes", "report_digest"],
+      "properties": {
+        "schema": { "const": "archie-derivation-benchmark-report/v1" },
+        "benchmark_id": { "type": "string" },
+        "task_count": { "const": 50 },
+        "metrics": { "type": "object" },
+        "performance": { "type": "object" },
+        "model": { "type": "object" },
+        "episodes": { "type": "array", "minItems": 50, "maxItems": 50 },
+        "report_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
