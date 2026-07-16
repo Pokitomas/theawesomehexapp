@@ -178,7 +178,7 @@ function mastodonProvider(id, host) {
     format: 'json',
     method: 'public-api',
     robots: 'not-applicable',
-    url: `https://${host}/api/v1/timelines/public?limit=40`
+    url: `https://${host}/api/v1/timelines/public?limit=40&local=true`
   };
 }
 
