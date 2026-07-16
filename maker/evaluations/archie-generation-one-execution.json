@@ -1,0 +1,15 @@
+{
+  "schema": "archie-generation-one-execution-request/v1",
+  "campaign_id": "archie-generation-one",
+  "base_sha": "d471938933c674371cbd15432756bf886e612179",
+  "suite": "maker/evaluations/archie-equivalence-suite.json",
+  "runner": "scripts/archie-generation-one-run.mjs",
+  "required_comparisons": [
+    "no-memory-maker",
+    "retrieval-only-archie",
+    "current-archie",
+    "improved-archie"
+  ],
+  "promotion_policy": "reject-unless-independent-student-and-reproduction-receipts-exist",
+  "claim_boundary": "This request authorizes evidence execution only. It does not authorize model promotion."
+}
