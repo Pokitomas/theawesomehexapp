@@ -1,0 +1,110 @@
+name: Stabilize media mode proof
+
+on:
+  push:
+    branches:
+      - agent/stabilize-media-mode-proof
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Use actionability-aware mobile tap
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          test_path = Path('studio/manual/tests/universal-media-clickthrough.mjs')
+          source = test_path.read_text()
+          old = "await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);"
+          new = "await locator.tap({ timeout: 15000 });"
+          if source.count(old) != 1:
+              raise SystemExit('expected exactly one raw touchscreen tap')
+          test_path.write_text(source.replace(old, new))
+          PY
+          node --check studio/manual/tests/universal-media-clickthrough.mjs
+          git diff --check
+
+      - name: Assemble the manual product
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
+          cat manual-overlay.b64.part.* > manual-overlay.b64
+          base64 -d manual-overlay.b64 > manual-overlay.tar.xz
+          tar -xJf manual-overlay.tar.xz
+          python manual/patch.py
+          cat manual-kernel-overlay.b64.part.* > manual-kernel-overlay.tar.xz.b64
+          base64 -d manual-kernel-overlay.tar.xz.b64 > manual-kernel-overlay.tar.xz
+          tar -xJf manual-kernel-overlay.tar.xz
+          python studio/manual/prepare-kernel.py
+          python manual-kernel/patch.py
+          python studio/manual/apply.py
+          python studio/manual/verify.py
+          mkdir -p dist/manual
+          cp -a manual-app/. dist/manual/
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked browser tooling
+        shell: bash
+        run: |
+          git checkout -- package.json package-lock.json
+          npm ci --ignore-scripts --include=dev
+          node -e "import('playwright-core')"
+
+      - name: Re-run exact phone proofs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 4173 --directory dist >/tmp/universal-media-http.log 2>&1 &
+          server=$!
+          trap 'kill $server || true' EXIT
+          sleep 2
+          node studio/manual/tests/universal-media-clickthrough.mjs http://127.0.0.1:4173/manual/ 2>&1 | tee universal-media-check.log
+          node studio/manual/tests/runtime-hardening-clickthrough.mjs http://127.0.0.1:4173/manual/ 2>&1 | tee runtime-hardening-check.log
+
+      - name: Upload proof logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: stabilized-media-mode-proof
+          path: |
+            universal-media-check.log
+            runtime-hardening-check.log
+            manual-universal-media-grid.png
+            manual-universal-media-empty.png
+            /tmp/universal-media-http.log
+          if-no-files-found: warn
+          retention-days: 5
+
+      - name: Commit verified repair
+        shell: bash
+        run: |
+          rm .github/workflows/stabilize-media-mode-proof.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add studio/manual/tests/universal-media-clickthrough.mjs .github/workflows/stabilize-media-mode-proof.yml
+          git commit -m "test(phone): stabilize media mode tapping"
+          git push origin HEAD:${GITHUB_REF_NAME}
