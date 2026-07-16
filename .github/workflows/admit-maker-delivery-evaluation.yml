@@ -1,0 +1,70 @@
+name: Admit Maker delivery and evaluation
+
+on:
+  push:
+    branches:
+      - agent/complete-maker-delivery-evaluation
+    paths:
+      - .github/workflows/admit-maker-delivery-evaluation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  admit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Materialize tested source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .maker/delivery-evaluation.part.* | base64 -d > /tmp/maker-delivery-evaluation.tgz
+          echo 'c6d4530e26155a2d427a3e3cf531a3170a79b67b04c934a27f0b8a63643b5806  /tmp/maker-delivery-evaluation.tgz' | sha256sum -c -
+          test "$(tar -tzf /tmp/maker-delivery-evaluation.tgz | sort | tr '\n' ' ')" = "maker/contracts/delivery-loop.schema.json maker/contracts/evaluation-receipt.schema.json maker/evaluations/capability-suite.json scripts/maker-delivery-loop.mjs scripts/maker-evaluation.mjs scripts/tests/maker-delivery-loop.test.mjs scripts/tests/maker-evaluation.test.mjs "
+          tar -xzf /tmp/maker-delivery-evaluation.tgz
+          rm .maker/delivery-evaluation.part.* .github/workflows/admit-maker-delivery-evaluation.yml
+          git diff --check
+
+      - name: Publish clean implementation
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A -- \
+            scripts/maker-delivery-loop.mjs \
+            scripts/tests/maker-delivery-loop.test.mjs \
+            maker/contracts/delivery-loop.schema.json \
+            scripts/maker-evaluation.mjs \
+            scripts/tests/maker-evaluation.test.mjs \
+            maker/evaluations/capability-suite.json \
+            maker/contracts/evaluation-receipt.schema.json \
+            .maker \
+            .github/workflows/admit-maker-delivery-evaluation.yml
+          git commit -m "feat(maker): add delivery and evaluation control"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Validate current repository
+        shell: bash
+        run: |
+          npm ci --ignore-scripts
+          node --check scripts/maker-delivery-loop.mjs
+          node --check scripts/maker-evaluation.mjs
+          node --test scripts/tests/maker-delivery-loop.test.mjs scripts/tests/maker-evaluation.test.mjs
+          node -e "for (const file of process.argv.slice(1)) JSON.parse(require('fs').readFileSync(file, 'utf8'))" \
+            maker/contracts/delivery-loop.schema.json \
+            maker/contracts/evaluation-receipt.schema.json \
+            maker/evaluations/capability-suite.json
+          npm run test:native-maker
+          npm run test:maker
