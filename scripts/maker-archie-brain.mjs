@@ -20,8 +20,20 @@ function digest(value) {
   return crypto.createHash('sha256').update(typeof value === 'string' ? value : stableJSONStringify(value)).digest('hex');
 }
 
+function normalizeToken(value) {
+  let token = clean(value, 200).toLowerCase();
+  if (!/^[a-z]+$/.test(token) || token.length <= 3) return token;
+  if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith('ing') && token.length > 5) token = token.slice(0, -3);
+  else if (token.endsWith('ed') && token.length > 4) token = token.slice(0, -2);
+  else if (token.endsWith('es') && token.length > 4) token = token.slice(0, -2);
+  else if (token.endsWith('s') && token.length > 4) token = token.slice(0, -1);
+  if (token.length > 3 && token.at(-1) === token.at(-2) && !/[aeiou]/.test(token.at(-1))) token = token.slice(0, -1);
+  return token;
+}
+
 function tokenize(value) {
-  return clean(value, 500000).toLowerCase().match(/[a-z0-9_./-]{2,}/g) || [];
+  return (clean(value, 500000).toLowerCase().match(/[a-z0-9_./-]{2,}/g) || []).map(normalizeToken).filter(Boolean);
 }
 
 function hashIndex(token, dimensions) {
