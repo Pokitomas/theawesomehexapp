@@ -35,8 +35,35 @@ function stableId(provider, canonical, title, published) {
 }
 
 function authorName(input, fallback) {
-  if (typeof input.author === 'string') return input.author;
+  const explicit = typeof input.author === 'string' ? clean(input.author) : '';
+  if (explicit) return explicit;
   return input.author?.name || input.author?.display_name || input.account?.display_name || input.account?.username || input.contributor || fallback;
+}
+
+function normalizeReplies(value, fallbackPublished) {
+  return Object.freeze((Array.isArray(value) ? value : [])
+    .slice(0, 18)
+    .map(reply => {
+      if (!reply || typeof reply !== 'object') return null;
+      const text = clean(decodeEntities(stripTags(reply.text || reply.content || reply.body || ''))).slice(0, 1200);
+      if (!text) return null;
+      const id = clean(reply.id || reply.objectID || reply.native_id || '').slice(0, 240);
+      const author = clean(authorName(reply, 'unknown')).slice(0, 160) || 'unknown';
+      let url = '';
+      try {
+        const raw = reply.url || reply.canonical_url || '';
+        if (raw) url = safeSourceURL(raw).href;
+      } catch {}
+      return Object.freeze({
+        id,
+        author,
+        text,
+        published_at: isoDate(reply.published_at || reply.published || reply.created_at || reply.createdAt, fallbackPublished),
+        url,
+        children: Math.max(0, Number(reply.children || reply.children_count || 0))
+      });
+    })
+    .filter(Boolean));
 }
 
 export function normalizeWebRecord(input = {}, provider = {}) {
@@ -55,30 +82,58 @@ export function normalizeWebRecord(input = {}, provider = {}) {
   const summary = clean(decodeEntities(stripTags(rawText))).slice(0, 900);
   const published = isoDate(input.published || input.pubDate || input.updated || input.createdAt || input.created_at || input.timestamp || provider.fetchedAt, provider.fetchedAt);
   const kind = ['article', 'forum', 'social'].includes(input.kind || input.type) ? (input.kind || input.type) : (provider.kind || 'article');
+  const recordId = stableId(providerId, sourceURL, title, published);
+  const contributor = clean(authorName(input, providerName)).slice(0, 160);
+  const score = Math.max(0, Number(input.score || input.points || input.favourites_count || 0));
+  const comments = Math.max(0, Number(input.comments || input.num_comments || input.replies_count || 0));
+  const sourceRoot = safeSourceURL(provider.url).href;
+  const replies = normalizeReplies(input.replies, published);
+  const engagement = kind === 'forum'
+    ? Object.freeze({ points: score, comments })
+    : kind === 'social'
+      ? Object.freeze({
+        likes: score,
+        boosts: Math.max(0, Number(input.reblogs_count || input.reblogs || input.boosts || 0)),
+        replies: comments
+      })
+      : Object.freeze({});
   return Object.freeze({
-    id: stableId(providerId, sourceURL, title, published),
+    id: recordId,
     kind,
+    type: kind,
     title,
     published,
+    published_at: published,
+    native_id: clean(input.id || input.objectID || input.nativeId || input.native_id || recordId).slice(0, 240),
     revision: 'bounded public source snapshot',
-    contributor: clean(authorName(input, providerName)).slice(0, 160),
+    contributor,
+    author_name: contributor,
     categories: [...new Set([providerId, ...(Array.isArray(input.categories) ? input.categories : [])].map(clean).filter(Boolean))].slice(0, 24),
     dek: summary || title,
+    text: summary || title,
     body: [summary || title],
     sources: sourceURL ? [{ label: providerName, url: sourceURL }] : [],
     url: sourceURL,
+    canonical_url: sourceURL,
+    outbound_url: clean(input.story_url || input.outbound_url || '').slice(0, 2000),
+    source_name: providerName,
+    source_url: sourceRoot,
+    language: clean(input.language || provider.language || 'en').slice(0, 32),
+    content_warning: clean(input.spoiler_text || input.content_warning || '').slice(0, 500),
+    engagement,
+    replies,
     license: clean(provider.license || 'source-defined'),
     attribution: providerName,
     community: clean(provider.community || providerName),
-    score: Math.max(0, Number(input.score || input.points || input.favourites_count || 0)),
-    comments: Math.max(0, Number(input.comments || input.num_comments || input.replies_count || 0)),
+    score,
+    comments,
     resurfaced: (provider.fetchedAt || published).slice(0, 10),
     synthetic: false,
     provenance: Object.freeze({
       schema: 'sideways-web-provenance/v1',
       provider: providerId,
       method: clean(provider.method || provider.format || 'web'),
-      source_url: safeSourceURL(provider.url).href,
+      source_url: sourceRoot,
       fetched_at: provider.fetchedAt || published,
       cache: 'bounded-build-snapshot',
       robots: provider.robots || (provider.method?.includes('api') ? 'not-applicable' : 'respect')

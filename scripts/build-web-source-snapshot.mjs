@@ -23,7 +23,10 @@ export const DEFAULT_LIMITS = Object.freeze({
   bytesPerSource: 2_000_000,
   redirects: 4,
   timeoutMs: 20_000,
-  robotsBytes: 256_000
+  robotsBytes: 256_000,
+  forumThreadsPerSource: 3,
+  forumRepliesPerThread: 3,
+  forumReplyBytes: 512_000
 });
 
 export const ALLOWED_TYPES = Object.freeze([
@@ -37,6 +40,80 @@ export const ALLOWED_TYPES = Object.freeze([
 
 function clean(value = '') {
   return value == null ? '' : String(value).replace(/\u0000/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function isHackerNewsForum(provider) {
+  try {
+    return provider?.kind === 'forum' && new URL(provider.url).hostname === 'hn.algolia.com';
+  } catch {
+    return false;
+  }
+}
+
+async function enrichHackerNewsRows(rows, provider, options = {}) {
+  if (!isHackerNewsForum(provider)) return Object.freeze({ rows, receipt: null });
+  const limits = options.limits || DEFAULT_LIMITS;
+  const fetchResource = options.requestPublicResource || requestPublicResource;
+  const lookup = options.lookup || dns.lookup;
+  const candidates = rows
+    .filter(row => clean(row?.objectID || row?.id) && Number(row?.num_comments || row?.comments || 0) > 0)
+    .slice(0, limits.forumThreadsPerSource);
+  let enriched = 0;
+  let replyCount = 0;
+  let failures = 0;
+  const entries = await Promise.all(candidates.map(async row => {
+    const storyId = clean(row.objectID || row.id).slice(0, 120);
+    try {
+      const target = safeSourceURL(`https://hn.algolia.com/api/v1/items/${encodeURIComponent(storyId)}`);
+      const response = await fetchResource(target, {
+        lookup,
+        timeoutMs: limits.timeoutMs,
+        bytes: limits.forumReplyBytes,
+        redirects: limits.redirects,
+        accept: 'application/json'
+      });
+      if (response.status < 200 || response.status >= 300) throw new Error(`reply source responded ${response.status}`);
+      const contentType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      if (contentType !== 'application/json') throw new Error(`reply source content type is not allowed: ${contentType || '(missing)'}`);
+      const item = JSON.parse(response.body.toString('utf8'));
+      const replies = (Array.isArray(item.children) ? item.children : [])
+        .filter(reply => reply && !reply.deleted && !reply.dead && clean(reply.text))
+        .slice(0, limits.forumRepliesPerThread)
+        .map(reply => ({
+          id: reply.id,
+          author: reply.author,
+          text: reply.text,
+          published_at: reply.created_at,
+          url: `https://news.ycombinator.com/item?id=${encodeURIComponent(clean(reply.id || storyId))}`,
+          children: Array.isArray(reply.children) ? reply.children.length : 0
+        }));
+      if (replies.length) {
+        enriched += 1;
+        replyCount += replies.length;
+      }
+      return [storyId, replies];
+    } catch {
+      failures += 1;
+      return [storyId, []];
+    }
+  }));
+  const byStory = new Map(entries);
+  return Object.freeze({
+    rows: rows.map(row => {
+      const storyId = clean(row?.objectID || row?.id).slice(0, 120);
+      const replies = byStory.get(storyId);
+      return replies?.length ? { ...row, replies } : row;
+    }),
+    receipt: Object.freeze({
+      schema: 'sideways-forum-reply-enrichment/v1',
+      attempted: candidates.length,
+      enriched,
+      replies: replyCount,
+      failures,
+      threads_per_source: limits.forumThreadsPerSource,
+      replies_per_thread: limits.forumRepliesPerThread
+    })
+  });
 }
 
 export async function fetchBoundedSource(provider, options = {}) {
@@ -60,15 +137,17 @@ export async function fetchBoundedSource(provider, options = {}) {
   }
   const fetchedAt = options.now || new Date().toISOString();
   const parseProvider = { ...provider, url: response.url?.href || source.href };
-  const rows = parseSourcePayload(response.body.toString('utf8'), contentType, parseProvider)
+  const parsedRows = parseSourcePayload(response.body.toString('utf8'), contentType, parseProvider)
     .slice(0, limits.recordsPerSource);
+  const enrichment = await enrichHackerNewsRows(parsedRows, provider, { ...options, limits, lookup, requestPublicResource: fetchResource });
   return Object.freeze({
-    records: Object.freeze(rows.map(row => normalizeWebRecord(row, { ...provider, fetchedAt }))),
+    records: Object.freeze(enrichment.rows.map(row => normalizeWebRecord(row, { ...provider, fetchedAt }))),
     receipt: Object.freeze({
       robots,
       hops: response.hops,
       bytes: response.body.length,
-      contentType
+      contentType,
+      ...(enrichment.receipt ? { forum_reply_enrichment: enrichment.receipt } : {})
     })
   });
 }

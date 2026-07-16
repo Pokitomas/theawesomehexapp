@@ -82,6 +82,14 @@ test('RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenan
   const record = normalizeWebRecord(rows[0], { id: 'example', name: 'Example', url: 'https://example.com/feed.xml', format: 'rss', robots: 'respect', fetchedAt: '2026-07-15T00:00:00Z' });
   assert.equal(record.title, 'One & Two');
   assert.equal(record.url, 'https://example.com/post');
+  assert.equal(record.kind, 'article');
+  assert.equal(record.type, 'article');
+  assert.equal(record.canonical_url, record.url);
+  assert.equal(record.published_at, record.published);
+  assert.equal(record.source_name, 'Example');
+  assert.equal(record.source_url, 'https://example.com/feed.xml');
+  assert.equal(record.author_name, 'Example');
+  assert.deepEqual(record.engagement, {});
   assert.equal(record.synthetic, false);
   assert.equal(record.provenance.provider, 'example');
   assert.equal(record.provenance.cache, 'bounded-build-snapshot');
@@ -94,6 +102,47 @@ test('RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenan
   assert.equal(html.description, 'A summary');
   assert.deepEqual(parseSitemap('<urlset><url><loc>https://example.com/a</loc><lastmod>2026-07-01</lastmod></url></urlset>'), [{ title: 'https://example.com/a', url: 'https://example.com/a', published: '2026-07-01' }]);
   assert.throws(() => parseSourcePayload('binary', 'application/octet-stream', {}), /unsupported/);
+});
+
+test('projection compatibility aliases preserve the v2 source record truth', () => {
+  const forum = normalizeWebRecord({
+    id: 42,
+    title: 'Forum item',
+    url: 'https://example.com/forum/42',
+    points: 17,
+    num_comments: 5
+  }, {
+    id: 'forum-source',
+    name: 'Forum Source',
+    kind: 'forum',
+    url: 'https://example.com/forum-feed',
+    fetchedAt: '2026-07-15T00:00:00Z'
+  });
+  assert.equal(forum.kind, 'forum');
+  assert.equal(forum.type, forum.kind);
+  assert.equal(forum.canonical_url, forum.url);
+  assert.equal(forum.published_at, forum.published);
+  assert.equal(forum.native_id, '42');
+  assert.deepEqual(forum.engagement, { points: 17, comments: 5 });
+
+  const social = normalizeWebRecord({
+    id: 'status-1',
+    content: 'A public status',
+    url: 'https://social.example/@person/1',
+    favourites_count: 9,
+    reblogs_count: 3,
+    replies_count: 2,
+    account: { display_name: 'Person' }
+  }, {
+    id: 'social-source',
+    name: 'Social Source',
+    kind: 'social',
+    url: 'https://social.example/api/v1/timelines/public?local=true',
+    fetchedAt: '2026-07-15T00:00:00Z'
+  });
+  assert.equal(social.type, 'social');
+  assert.equal(social.author_name, 'Person');
+  assert.deepEqual(social.engagement, { likes: 9, boosts: 3, replies: 2 });
 });
 
 test('live MIME admission ignores parser hints and HTML canonicals use the final fetched URL', async () => {
@@ -140,6 +189,68 @@ test('live MIME admission ignores parser hints and HTML canonicals use the final
   });
   assert.equal(result.records[0].url, 'https://redirected.example/canonical');
   assert.equal(result.records[0].provenance.source_url, configuredURL);
+});
+
+test('Hacker News forum enrichment admits only bounded truthful public replies and records failures', async () => {
+  const provider = {
+    id: 'hacker-news-test',
+    name: 'Hacker News',
+    kind: 'forum',
+    format: 'json',
+    method: 'public-api',
+    robots: 'not-applicable',
+    url: 'https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250&page=0'
+  };
+  const calls = [];
+  const result = await fetchBoundedSource(provider, {
+    now: '2026-07-15T00:00:00.000Z',
+    limits: { forumThreadsPerSource: 2, forumRepliesPerThread: 2, forumReplyBytes: 10000 },
+    requestPublicResource: async target => {
+      const url = new URL(target);
+      calls.push(url.href);
+      if (url.pathname.includes('/items/101')) {
+        return {
+          status: 200,
+          headers: { 'content-type': 'application/json; charset=utf-8' },
+          body: Buffer.from(JSON.stringify({ children: [
+            { id: 201, author: 'alice', text: '<p>Actual public reply</p>', created_at: '2026-07-14T01:00:00Z', children: [{ id: 301 }] },
+            { id: 202, author: null, text: null, deleted: true }
+          ] })),
+          hops: [],
+          url
+        };
+      }
+      if (url.pathname.includes('/items/102')) {
+        return { status: 503, headers: { 'content-type': 'application/json' }, body: Buffer.from('{}'), hops: [], url };
+      }
+      return {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: Buffer.from(JSON.stringify({ hits: [
+          { objectID: '101', title: 'First story', url: 'https://news.ycombinator.com/item?id=101', points: 12, num_comments: 2, created_at: '2026-07-14T00:00:00Z' },
+          { objectID: '102', title: 'Second story', url: 'https://news.ycombinator.com/item?id=102', points: 8, num_comments: 1, created_at: '2026-07-14T00:00:00Z' }
+        ] })),
+        hops: [],
+        url
+      };
+    }
+  });
+  assert.equal(result.records.length, 2);
+  assert.equal(result.records[0].native_id, '101');
+  assert.deepEqual(result.records[0].replies, [{
+    id: '201',
+    author: 'alice',
+    text: 'Actual public reply',
+    published_at: '2026-07-14T01:00:00.000Z',
+    url: 'https://news.ycombinator.com/item?id=201',
+    children: 1
+  }]);
+  assert.deepEqual(result.records[1].replies, []);
+  assert.equal(result.receipt.forum_reply_enrichment.attempted, 2);
+  assert.equal(result.receipt.forum_reply_enrichment.enriched, 1);
+  assert.equal(result.receipt.forum_reply_enrichment.replies, 1);
+  assert.equal(result.receipt.forum_reply_enrichment.failures, 1);
+  assert.equal(calls.filter(url => url.includes('/api/v1/items/')).length, 2);
 });
 
 test('invalid configured-source JSON falls back truthfully without aborting the snapshot', () => {
