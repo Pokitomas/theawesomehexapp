@@ -15,6 +15,20 @@ const targetUrl = new URL('../../founder/archie-launch-target.json', import.meta
 const target = JSON.parse(await fs.readFile(targetUrl, 'utf8'));
 const evidence = label => digest({ evidence: label });
 
+function passingMetrics() {
+  return Object.fromEntries(Object.entries(target.intelligence_target.minimum_metrics).map(([name, threshold]) => [
+    name,
+    name.endsWith('_max') ? Math.max(0, threshold / 2) : Math.min(1, threshold + 0.05)
+  ]));
+}
+
+function failingMetrics() {
+  return Object.fromEntries(Object.keys(target.intelligence_target.minimum_metrics).map(name => [
+    name,
+    name.endsWith('_max') ? 0.5 : 0.1
+  ]));
+}
+
 function maximalCandidate(overrides = {}) {
   const requirements = deriveLaunchRequirements(target);
   const faculties = Object.fromEntries(requirements.faculties.map(item => [item.id, {
@@ -36,21 +50,19 @@ function maximalCandidate(overrides = {}) {
     reproduction_receipt_digest: evidence('reproduction-receipt'),
     domains: [...target.intelligence_target.domains],
     intelligence_requirements: [...target.intelligence_target.requirements],
-    metrics: {
-      cross_domain_completion_rate: 0.82,
-      failure_repair_rate: 0.78,
-      calibrated_abstention_rate: 0.9,
-      false_completion_rate_max: 0.005,
-      terminal_evidence_rate: 0.99
-    },
+    metrics: passingMetrics(),
     faculties,
     interfaces,
     ...overrides
   };
 }
 
-test('the founder target commits to outcomes and maximality without making one interface architectural', () => {
+test('the founder target commits to a maximal general builder without making one interface architectural', () => {
   const validated = validateLaunchTarget(target);
+  assert.equal(validated.id, 'archie-maximal-general-builder');
+  assert.ok(validated.intelligence_target.domains.includes('product-creation'));
+  assert.ok(validated.intelligence_target.requirements.includes('complete-unfamiliar-product-builds'));
+  assert.ok(validated.intelligence_target.requirements.includes('reproduce-delivery-on-clean-environment'));
   assert.equal(validated.launch_policy.single_canonical_interface, false);
   assert.equal(validated.launch_policy.chat_window_is_architecture, false);
   assert.equal(validated.launch_policy.voice_is_architecture, false);
@@ -107,19 +119,14 @@ test('a polished multimodal shell without admitted general intelligence cannot l
   const shellOnly = maximalCandidate({
     domains: ['software'],
     intelligence_requirements: [],
-    metrics: {
-      cross_domain_completion_rate: 0.1,
-      failure_repair_rate: 0.1,
-      calibrated_abstention_rate: 0.1,
-      false_completion_rate_max: 0.5,
-      terminal_evidence_rate: 0.2
-    }
+    metrics: failingMetrics()
   });
   const decision = evaluateLaunchCandidate(target, shellOnly);
   assert.equal(decision.intelligence.passed, false);
   assert.equal(decision.embodiment.passed, true);
   assert.equal(decision.decision, 'rejected-incomplete-launch');
   assert.ok(decision.intelligence.missing_domains.includes('research'));
+  assert.ok(decision.intelligence.missing_domains.includes('product-creation'));
   assert.ok(decision.intelligence.metrics.some(metric => !metric.passed));
 });
 
@@ -166,7 +173,7 @@ test('launch evidence and rates fail closed instead of accepting prose or imposs
   }), /SHA-256/);
   assert.throws(() => validateLaunchCandidate({
     ...maximalCandidate(),
-    metrics: { ...maximalCandidate().metrics, cross_domain_completion_rate: 4 }
+    metrics: { ...passingMetrics(), cross_domain_completion_rate: 4 }
   }), /between 0 and 1/);
   const candidate = maximalCandidate();
   candidate.interfaces[0].evidence = ['not-a-receipt'];
