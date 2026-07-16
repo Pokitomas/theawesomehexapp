@@ -1,0 +1,204 @@
+name: Repair Archie derivational edge cases
+
+on:
+  push:
+    branches:
+      - agent/archie-derivational-cognition
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Apply grounded routing repairs and regression coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          derivation_path = Path('scripts/maker-archie-derivation.mjs')
+          derivation = derivation_path.read_text()
+          old_request = """  const repair = /\\b(?:repair|fix|reconcile|resolve|conflict|divergent|diverge)\\b/i.test(instruction);
+            const create = /\\b(?:create|write|generate|produce|contract|schema)\\b/i.test(instruction);
+            if (hasGit && hasContract) return { families: ['observe', 'transform', 'transform', 'verify', 'verify'], domains: ['git', 'git', 'contract', 'contract', 'git'], supplied };
+          """
+          new_request = """  const repair = /\\b(?:repair|fix|reconcile|resolve|conflict|divergent|diverge)\\b/i.test(instruction);
+            const create = /\\b(?:create|write|generate|produce|contract|schema)\\b/i.test(instruction);
+            const safeObservationOnly = hasGit
+              && /\\b(?:do not|don't|never|without)\\b[^.!?]{0,160}\\b(?:deploy|merge|release|publish|ship)\\b/i.test(instruction)
+              && /\\b(?:only|just)\\s+(?:inspect|read|check|review|show|report|get)\\b/i.test(instruction);
+            if (safeObservationOnly) return { families: ['observe'], domains: ['git'], supplied, control: 'safe-observation-only' };
+            if (hasGit && hasContract) return { families: ['observe', 'transform', 'transform', 'verify', 'verify'], domains: ['git', 'git', 'contract', 'contract', 'git'], supplied };
+          """
+          if derivation.count(old_request) != 1:
+              raise SystemExit('expected requestedPlan insertion point exactly once')
+          derivation = derivation.replace(old_request, new_request)
+
+          old_result = """  const confidence = 0.9;
+            if (confidence < Number(options.minimum_confidence ?? model.minimum_confidence ?? 0.58)) return buildResult(model, task, 'teacher', 'below-derivation-confidence', request.families, adapters, confidence);
+            return buildResult(model, task, 'local', 'proof-carrying-relational-derivation', request.families, adapters, confidence);
+          """
+          new_result = """  const confidence = 0.9;
+            if (confidence < Number(options.minimum_confidence ?? model.minimum_confidence ?? 0.58)) return buildResult(model, task, 'teacher', 'below-derivation-confidence', request.families, adapters, confidence);
+            const reason = request.control === 'safe-observation-only' ? 'safe-observation-control' : 'proof-carrying-relational-derivation';
+            return buildResult(model, task, 'local', reason, request.families, adapters, confidence);
+          """
+          if derivation.count(old_result) != 1:
+              raise SystemExit('expected derivation result block exactly once')
+          derivation = derivation.replace(old_result, new_result)
+          derivation_path.write_text(derivation)
+
+          cognition_path = Path('scripts/maker-archie-cognition.mjs')
+          cognition = cognition_path.read_text()
+          old_consensus = """    const consensusLocal = sparse.state === 'local' && planner.state === 'local'
+                && (agreement.exact || (agreement.jaccard >= this.consensus.minimum_jaccard && agreement.ordered_overlap >= this.consensus.minimum_ordered_overlap));
+              const plannerOverride = planner.state === 'local' && sparse.state !== 'local'
+                && planner.calibrated_confidence >= this.consensus.planner_override_confidence;
+              const compositionOverride = sparse.state === 'local' && planner.state === 'local'
+                && agreement.left_subset_of_right
+          """
+          new_consensus = """    const ungroundedRelationalVeto = derivation.state === 'teacher'
+                && derivation.reason === 'no-abstract-operator-path';
+              const safeControlDerivation = derivation.state === 'local'
+                && derivation.reason === 'safe-observation-control';
+              const consensusLocal = sparse.state === 'local' && planner.state === 'local'
+                && !ungroundedRelationalVeto
+                && (agreement.exact || (agreement.jaccard >= this.consensus.minimum_jaccard && agreement.ordered_overlap >= this.consensus.minimum_ordered_overlap));
+              const plannerOverride = planner.state === 'local' && sparse.state !== 'local'
+                && !ungroundedRelationalVeto
+                && planner.calibrated_confidence >= this.consensus.planner_override_confidence;
+              const compositionOverride = sparse.state === 'local' && planner.state === 'local'
+                && !ungroundedRelationalVeto
+                && agreement.left_subset_of_right
+          """
+          if cognition.count(old_consensus) != 1:
+              raise SystemExit('expected cognition consensus block exactly once')
+          cognition = cognition.replace(old_consensus, new_consensus)
+
+          old_control = """    const instructionControlOverride = sparse.state === 'local' && planner.state === 'local'
+                && agreement.right_subset_of_left
+          """
+          new_control = """    const instructionControlOverride = sparse.state === 'local' && planner.state === 'local'
+                && !ungroundedRelationalVeto
+                && agreement.right_subset_of_left
+          """
+          if cognition.count(old_control) != 1:
+              raise SystemExit('expected instruction control block exactly once')
+          cognition = cognition.replace(old_control, new_control)
+
+          old_route = """    if (consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {
+                const useDerivation = !consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride);
+                const selectedPlan = useDerivation ? derivation.plan : planner.plan;
+          """
+          new_route = """    if (safeControlDerivation || consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {
+                const useDerivation = safeControlDerivation || (!consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride));
+                const selectedPlan = useDerivation ? derivation.plan : planner.plan;
+          """
+          if cognition.count(old_route) != 1:
+              raise SystemExit('expected cognition route block exactly once')
+          cognition = cognition.replace(old_route, new_route)
+
+          old_selected = """        selected_route: consensusLocal ? 'sparse-planner-consensus'
+                    : instructionControlOverride ? 'instruction-controlled-subplan'
+          """
+          new_selected = """        selected_route: safeControlDerivation ? 'safe-observation-control'
+                    : consensusLocal ? 'sparse-planner-consensus'
+                      : instructionControlOverride ? 'instruction-controlled-subplan'
+          """
+          if cognition.count(old_selected) != 1:
+              raise SystemExit('expected selected route block exactly once')
+          cognition = cognition.replace(old_selected, new_selected)
+          cognition_path.write_text(cognition)
+
+          cognition_test_path = Path('scripts/tests/maker-archie-cognition.test.mjs')
+          cognition_tests = cognition_test_path.read_text()
+          cognition_marker = "test('uses a teacher once, persists the lesson, retrains both routes, and handles the paraphrased recurrence locally', async t => {"
+          cognition_addition = """test('honors safe observation controls and refuses ungrounded lexical near-neighbor transfer', async t => {
+            const { runtime, teacherCalls } = await fixture(t);
+            const safe = await runtime.decide({
+              instruction: 'Do not deploy or merge anything. Only inspect the repository status.'
+            }, { allow_teacher: false });
+            assert.equal(safe.state, 'local', JSON.stringify(safe, null, 2));
+            assert.equal(safe.selected_route, 'safe-observation-control');
+            assert.deepEqual(safe.plan.steps.map(step => `${step.tool}:${step.action}`), ['git:status']);
+
+            const bicycle = await runtime.decide({
+              instruction: 'Repair a conflicted bicycle chain and test the brakes afterward.'
+            }, { allow_teacher: false });
+            assert.equal(bicycle.state, 'teacher', JSON.stringify(bicycle, null, 2));
+            assert.equal(bicycle.derivation.reason, 'no-abstract-operator-path');
+            assert.equal(bicycle.plan, null);
+            assert.equal(teacherCalls(), 0);
+          });
+
+          """
+          if cognition_tests.count(cognition_marker) != 1:
+              raise SystemExit('expected cognition test marker exactly once')
+          cognition_tests = cognition_tests.replace(cognition_marker, cognition_addition + cognition_marker)
+          cognition_test_path.write_text(cognition_tests)
+
+          derivation_test_path = Path('scripts/tests/maker-archie-derivation.test.mjs')
+          derivation_tests = derivation_test_path.read_text()
+          derivation_marker = "test('rejects learned unsafe derivatives and escalates ungrounded novelty', () => {"
+          derivation_addition = """test('derives a safe observation-only control without mutation or publication steps', () => {
+            const model = trainArchieDerivationModel(training, { trained_at: '2026-07-16T08:00:00.000Z' });
+            const result = deriveArchiePlan(model, {
+              instruction: 'Do not deploy or merge anything. Only inspect the repository status.'
+            });
+            assert.equal(result.state, 'local', JSON.stringify(result, null, 2));
+            assert.equal(result.reason, 'safe-observation-control');
+            assert.deepEqual(result.plan.steps.map(step => `${step.tool}:${step.action}`), ['git:status']);
+          });
+
+          """
+          if derivation_tests.count(derivation_marker) != 1:
+              raise SystemExit('expected derivation test marker exactly once')
+          derivation_tests = derivation_tests.replace(derivation_marker, derivation_addition + derivation_marker)
+          derivation_test_path.write_text(derivation_tests)
+          PY
+
+      - name: Validate all Archie and repository gates
+        shell: bash
+        run: |
+          node --test scripts/tests/maker-archie-derivation.test.mjs scripts/tests/maker-archie-cognition.test.mjs
+          npm run test:archie
+          npm run test:maker
+          npm run test:foundry
+          npm run test:weave
+          npm run benchmark:archie:derive
+          node scripts/maker-archie-benchmark.mjs run > archie-benchmark.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const output = JSON.parse(fs.readFileSync('archie-benchmark.json', 'utf8'));
+          if (output.report?.equivalence_score !== 100 || output.report?.counts?.successes !== 21) {
+            throw new Error(`Expected Archie 100/21, got ${output.report?.equivalence_score}/${output.report?.counts?.successes}`);
+          }
+          NODE
+          git diff --check
+
+      - name: Commit verified edge-case repair
+        shell: bash
+        run: |
+          rm .github/workflows/repair-archie-derivational-edge-cases.yml archie-benchmark.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/maker-archie-derivation.mjs scripts/maker-archie-cognition.mjs scripts/tests/maker-archie-derivation.test.mjs scripts/tests/maker-archie-cognition.test.mjs .github/workflows/repair-archie-derivational-edge-cases.yml
+          git commit -m "fix(archie): ground derivational edge cases"
+          git push origin HEAD:${GITHUB_REF_NAME}
