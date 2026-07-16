@@ -37,4 +37,4 @@ The state is written with mode `0600` under `${XDG_STATE_HOME:-~/.local/state}/a
 - `ARCHIE_EXPECTED_HEAD`
 - `ARCHIE_TOKEN_STATE`
 
-The defaults are pinned to issue #351 and coordinator head `ba9a777504b96a49df29d2dac45988a3acbfb801`. A moved head renders `DRIFT`; it is never silently accepted.
+The defaults are pinned to issue #351 and coordinator head `c9a710fdef372b4bf7fab53a514410f09d31495a`. A moved head renders `DRIFT`; it is never silently accepted.

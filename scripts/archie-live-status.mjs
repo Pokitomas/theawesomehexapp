@@ -11,7 +11,7 @@ export const DEFAULTS = Object.freeze({
   repository: 'Pokitomas/theawesomehexapp',
   issue: 351,
   branch: 'agent/archie-democratized-runtime',
-  expectedHead: 'ba9a777504b96a49df29d2dac45988a3acbfb801',
+  expectedHead: 'c9a710fdef372b4bf7fab53a514410f09d31495a',
   totalTokens: 1_310_720,
   watchSeconds: 20
 });
