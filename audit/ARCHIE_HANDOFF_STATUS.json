@@ -1,0 +1,24 @@
+{
+  "schema": "archie-next-engineer-handoff/v1",
+  "repository": "Pokitomas/theawesomehexapp",
+  "base_branch": "agent/archie-linux-corpus",
+  "base_sha": "323e9d0b047284123ba1db1f3717d9ed22b5cb31",
+  "coordinator_branch": "agent/archie-democratized-runtime",
+  "coordinator_head_observed": "ba9a777504b96a49df29d2dac45988a3acbfb801",
+  "handoff_branch": "agent/archie-coordinator-moved-6251b6f",
+  "handoff_document_commit": "5cc1c9378b84851343aba801df6aef9b6d102cb1",
+  "terminal": false,
+  "final_pr_created": false,
+  "merged": false,
+  "deployed": false,
+  "authority": {
+    "code_write": true,
+    "branch_write": true,
+    "workflow_write": true,
+    "issue_pr_write": true,
+    "merge_after_exact_head_review": true,
+    "deploy": false,
+    "production_data": false,
+    "secret_access_or_rotation": false
+  }
+}
