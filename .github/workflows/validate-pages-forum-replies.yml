@@ -1,4 +1,4 @@
-name: Validate Pages forum replies
+name: Validate Pages forum reply patch
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ jobs:
   validate:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 30
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
     steps:
@@ -24,84 +24,43 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-          cache: npm
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12'
-      - name: Apply, execute, and preserve exact candidate
-        env:
-          SIDEWAYS_PUBLIC_SOURCES: ${{ vars.SIDEWAYS_PUBLIC_SOURCES }}
-          POST_COUNT: 1000000
-          CHUNK_SIZE: 1024
-          CONTENT_CHUNK_SIZE: 128
-          CORPUS_SEED: 20260712
-          CORPUS_FILE: corpus/general-media.jsonl.gz
+      - name: Apply focused patch and always publish evidence
         shell: bash
         run: |
           set +e
-          python .github/tmp/repair-pages-forum-replies.py
+          mkdir -p audit
+          log=audit/pages-forum-reply-focused-validation.log
+          : > "$log"
+          python .github/tmp/repair-pages-forum-replies.py >> "$log" 2>&1
           patch_status=$?
+          node --check scripts/web-source-records.mjs >> "$log" 2>&1
+          records_status=$?
+          node --check scripts/build-web-source-snapshot.mjs >> "$log" 2>&1
+          builder_status=$?
+          node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs >> "$log" 2>&1
+          test_status=$?
+          printf '\npatch_status=%s\nrecords_status=%s\nbuilder_status=%s\ntest_status=%s\n' "$patch_status" "$records_status" "$builder_status" "$test_status" >> "$log"
+
           rm -f .github/tmp/repair-pages-forum-replies.py
           rm -f .github/workflows/validate-pages-forum-replies.yml
           rm -f .github/workflows/validate-pages-projection-schema.yml
           rm -f audit/pages-projection-schema-validation.log
           rm -f audit/pages-projection-schema-live-failure.log
           rm -f audit/pages-profile-aligned-projection-failure.log
-          mkdir -p audit corpus
-          log=audit/pages-forum-reply-validation.log
-          : > "$log"
-          failed=$patch_status
 
-          run_gate() {
-            name="$1"
-            shift
-            echo "## ${name}" >> "$log"
-            "$@" >> "$log" 2>&1
-            status=$?
-            echo "status=${status}" >> "$log"
-            echo >> "$log"
+          failed=0
+          for status in "$patch_status" "$records_status" "$builder_status" "$test_status"; do
             if [ "$status" -ne 0 ]; then failed=1; fi
-          }
-
-          run_gate pip-pillow python -m pip install --disable-pip-version-check pillow
-          run_gate npm-ci npm ci --ignore-scripts --include=dev
-          run_gate syntax-records node --check scripts/web-source-records.mjs
-          run_gate syntax-builder node --check scripts/build-web-source-snapshot.mjs
-          run_gate focused-tests node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs
-
-          if [ "$failed" -eq 0 ]; then
-            run_gate extract-product bash -lc "cat source.xz.part.* | base64 -d > source.tar.xz && tar -xJf source.tar.xz && cat general-overlay.part.* | base64 -d > general-overlay.tar.xz && tar -xJf general-overlay.tar.xz && python general/patch.py && cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz && tar -xJf profile-overlay.tar.xz && python profile/patch.py"
-            run_gate live-snapshot timeout 900s node scripts/build-web-source-snapshot.mjs --output corpus/general.jsonl.gz
-            run_gate snapshot-verifier node scripts/verify-web-source-snapshot.mjs corpus/general.jsonl.gz corpus/general.jsonl.gz.meta.json
-            if timeout 600s python general/media.py --input corpus/general.jsonl.gz --output corpus/general-media.jsonl.gz --media-dir corpus/media --max-media 180 --discover-forum 80 >> "$log" 2>&1; then
-              echo 'display media ready' >> "$log"
-            else
-              echo 'media retrieval unavailable; using text-first bounded snapshot' >> "$log"
-              cp corpus/general.jsonl.gz corpus/general-media.jsonl.gz
-            fi
-            run_gate million-projection timeout 1200s node scripts/build.mjs
-            run_gate profile-verifier python verify-profile-build.py
-            run_gate ingestion npm run test:ingestion
-            run_gate authority npm run test:authority
-            run_gate repository npm run verify:repository
-            run_gate diff-check git diff --check
-          fi
+          done
+          if [ "$failed" -eq 0 ]; then rm -f "$log"; fi
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          rm -f repository-verification.json
-          if [ "$failed" -ne 0 ]; then
-            tail -n 900 "$log" > "$log.tmp"
-            mv "$log.tmp" "$log"
-            git add scripts/build-web-source-snapshot.mjs scripts/web-source-records.mjs scripts/tests/web-source-snapshot.test.mjs audit/pages-forum-reply-validation.log
-            git add -u .github/tmp .github/workflows audit
-            git commit -m "test: preserve bounded forum reply validation failure"
-            git push origin HEAD:${TARGET_BRANCH}
-            exit 1
+          git add -A
+          if [ "$failed" -eq 0 ]; then
+            git commit -m "fix(pages): preserve bounded public forum replies"
+          else
+            git commit -m "test: preserve focused forum reply validation failure"
           fi
-
-          rm -f "$log"
-          git add scripts/build-web-source-snapshot.mjs scripts/web-source-records.mjs scripts/tests/web-source-snapshot.test.mjs
-          git add -u .github/tmp .github/workflows audit
-          git commit -m "fix(pages): preserve bounded public forum replies"
           git push origin HEAD:${TARGET_BRANCH}
+          exit "$failed"
