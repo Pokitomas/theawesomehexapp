@@ -50,21 +50,27 @@ jobs:
               raise SystemExit(f'author fallback replacement drift: {source.count(old)} matches')
           path.write_text(source.replace(old, new, 1))
           PY
-          rm -f audit/pages-projection-schema-validation.log
+          rm -f audit/pages-projection-schema-validation.log audit/pages-projection-schema-live-failure.log
           rm .github/workflows/validate-pages-projection-schema.yml
           git diff --check
-      - run: npm ci
+      - name: Install Pages-equivalent tooling
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          npm ci --ignore-scripts --include=dev
       - name: Run focused compatibility tests
         run: |
           node --check scripts/web-source-records.mjs
           node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs
-      - name: Assemble generated projection runtime
+      - name: Assemble generated projection runtime and profile layer
         run: |
           cat source.xz.part.* | base64 -d > source.tar.xz
           tar -xJf source.tar.xz
           cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
           tar -xJf general-overlay.tar.xz
           python general/patch.py
+          cat profile-overlay.part.* | base64 -d > profile-overlay.tar.xz
+          tar -xJf profile-overlay.tar.xz
+          python profile/patch.py
       - name: Run actual live snapshot, media bridge, and one-million projection
         env:
           SIDEWAYS_PUBLIC_SOURCES: ${{ vars.SIDEWAYS_PUBLIC_SOURCES }}
@@ -94,10 +100,13 @@ jobs:
           npm run verify:repository
           git diff --check
       - name: Commit exact validated repair
+        shell: bash
         run: |
+          set -euo pipefail
           rm -f repository-verification.json
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
+          git add scripts/web-source-records.mjs scripts/tests/web-source-snapshot.test.mjs
+          git add -u .github/workflows/validate-pages-projection-schema.yml audit/pages-projection-schema-validation.log audit/pages-projection-schema-live-failure.log
           git commit -m "fix(pages): bridge snapshot records into projection schema"
           git push origin HEAD:${TARGET_BRANCH}
