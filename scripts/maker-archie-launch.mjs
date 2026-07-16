@@ -2,6 +2,7 @@
 import { execFile, spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { parseMakerArgs } from './maker-core.mjs';
 import { recallNativeMakerPlan, rememberNativeMakerRun } from './maker-archie-native.mjs';
@@ -106,7 +107,7 @@ async function main() {
   process.stdout.write(`[archie] memory ${memory.status}; examples=${memory.document_count ?? 0} specialists=${memory.specialist_count ?? 0}\n`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   main().catch(error => {
     console.error(`maker: ${error.stack || error.message}`);
     process.exitCode = 1;
