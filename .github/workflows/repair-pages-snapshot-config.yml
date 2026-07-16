@@ -30,32 +30,57 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply exact repair
-        run: |
-          python .github/tmp/repair-pages-snapshot-config.py
-          rm .github/tmp/repair-pages-snapshot-config.py
-          rm .github/workflows/repair-pages-snapshot-config.yml
-          git diff --check
-      - run: npm ci
-      - name: Reproduce actual configured snapshot and verify it
+      - name: Apply and diagnose exact repair
         env:
           SIDEWAYS_PUBLIC_SOURCES: ${{ vars.SIDEWAYS_PUBLIC_SOURCES }}
+        shell: bash
         run: |
-          node --check scripts/build-web-source-snapshot.mjs
-          node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs
-          mkdir -p /tmp/sideways-corpus
-          timeout 900s node scripts/build-web-source-snapshot.mjs --output /tmp/sideways-corpus/general.jsonl.gz
-          node scripts/verify-web-source-snapshot.mjs /tmp/sideways-corpus/general.jsonl.gz /tmp/sideways-corpus/general.jsonl.gz.meta.json
-      - name: Run repository gates
-        run: |
-          npm run test:ingestion
-          npm run test:authority
-          npm run verify:repository
-          git diff --check
-      - name: Commit validated repair
-        run: |
+          set +e
+          python .github/tmp/repair-pages-snapshot-config.py
+          patch_status=$?
+          rm -f .github/tmp/repair-pages-snapshot-config.py
+          rm -f .github/workflows/repair-pages-snapshot-config.yml
+          mkdir -p audit /tmp/sideways-corpus
+          log=audit/pages-snapshot-repair-failure.log
+          : > "$log"
+          failed=$patch_status
+
+          run_gate() {
+            name="$1"
+            shift
+            echo "## ${name}" >> "$log"
+            "$@" >> "$log" 2>&1
+            status=$?
+            echo "status=${status}" >> "$log"
+            echo >> "$log"
+            if [ "$status" -ne 0 ]; then failed=1; fi
+          }
+
+          run_gate npm-ci npm ci
+          run_gate syntax node --check scripts/build-web-source-snapshot.mjs
+          run_gate focused-tests node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs
+          run_gate actual-snapshot timeout 900s node scripts/build-web-source-snapshot.mjs --output /tmp/sideways-corpus/general.jsonl.gz
+          run_gate snapshot-verifier node scripts/verify-web-source-snapshot.mjs /tmp/sideways-corpus/general.jsonl.gz /tmp/sideways-corpus/general.jsonl.gz.meta.json
+
+          if [ "$failed" -eq 0 ]; then
+            run_gate ingestion npm run test:ingestion
+            run_gate authority npm run test:authority
+            run_gate repository npm run verify:repository
+            run_gate diff-check git diff --check
+          fi
+
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if [ "$failed" -ne 0 ]; then
+            tail -n 500 "$log" > "$log.tmp"
+            mv "$log.tmp" "$log"
+            git add -A
+            git commit -m "test: preserve Pages snapshot repair failure"
+            git push origin HEAD:${TARGET_BRANCH}
+            exit 1
+          fi
+
+          rm -f "$log"
           git add -A
           git commit -m "fix(pages): isolate invalid public source configuration"
           git push origin HEAD:${TARGET_BRANCH}
