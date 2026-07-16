@@ -12,6 +12,13 @@ import { resolveAdmittedLaunchProfile } from '../archie-launch-profile-admission
 const target = JSON.parse(await fs.readFile(new URL('../../founder/archie-launch-target.json', import.meta.url), 'utf8'));
 const evidence = label => digest({ evidence: label });
 
+function passingMetrics(targetInput) {
+  return Object.fromEntries(Object.entries(targetInput.intelligence_target.minimum_metrics).map(([name, threshold]) => [
+    name,
+    name.endsWith('_max') ? Math.max(0, threshold / 2) : Math.min(1, threshold + 0.05)
+  ]));
+}
+
 function decision() {
   const requirements = deriveLaunchRequirements(target);
   return evaluateLaunchCandidate(target, {
@@ -23,13 +30,7 @@ function decision() {
     reproduction_receipt_digest: evidence('aggregate-reproduction'),
     domains: [...target.intelligence_target.domains],
     intelligence_requirements: [...target.intelligence_target.requirements],
-    metrics: {
-      cross_domain_completion_rate: 0.9,
-      failure_repair_rate: 0.9,
-      calibrated_abstention_rate: 0.9,
-      false_completion_rate_max: 0.001,
-      terminal_evidence_rate: 1
-    },
+    metrics: passingMetrics(target),
     faculties: Object.fromEntries(requirements.faculties.map(item => [item.id, {
       status: 'admitted',
       evidence: [evidence(`faculty:${item.id}`)]
@@ -133,7 +134,7 @@ test('aggregate admission rejects the preferred profile when combined memory exc
   assert.ok(rejected);
   assert.ok(rejected.failed_resource_checks.some(check => check.cost_name === 'memory_bytes'));
   assert.equal(admission.default_profile.strongest_profile_proof.aggregate_resource_gate_applied, true);
-  assert.equal(admission.default_profile.strongest_profile_proof.selected_is_first_resource-feasible_profile, true);
+  assert.equal(admission.default_profile.strongest_profile_proof.selected_is_first_resource_feasible_profile, true);
 });
 
 test('named expanded-resource fallback may select a stronger profile without changing the default machine claim', () => {

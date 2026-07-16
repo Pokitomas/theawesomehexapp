@@ -16,6 +16,13 @@ import {
 const target = JSON.parse(await fs.readFile(new URL('../../founder/archie-launch-target.json', import.meta.url), 'utf8'));
 const evidence = label => digest({ evidence: label });
 
+function passingMetrics(targetInput) {
+  return Object.fromEntries(Object.entries(targetInput.intelligence_target.minimum_metrics).map(([name, threshold]) => [
+    name,
+    name.endsWith('_max') ? Math.max(0, threshold / 2) : Math.min(1, threshold + 0.05)
+  ]));
+}
+
 function launchDecisionFor(targetInput = target) {
   const requirements = deriveLaunchRequirements(targetInput);
   const faculties = Object.fromEntries(requirements.faculties.map(item => [item.id, {
@@ -31,13 +38,7 @@ function launchDecisionFor(targetInput = target) {
     reproduction_receipt_digest: evidence(`reproduction:${targetInput.id}`),
     domains: [...targetInput.intelligence_target.domains],
     intelligence_requirements: [...targetInput.intelligence_target.requirements],
-    metrics: {
-      cross_domain_completion_rate: 0.84,
-      failure_repair_rate: 0.79,
-      calibrated_abstention_rate: 0.91,
-      false_completion_rate_max: 0.004,
-      terminal_evidence_rate: 0.99
-    },
+    metrics: passingMetrics(targetInput),
     faculties,
     interfaces: [{
       id: 'integrated-admitted-surface',
