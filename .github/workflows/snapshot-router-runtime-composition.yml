@@ -1,9 +1,9 @@
-name: Snapshot exact router runtime composition
+name: Snapshot exact router runtime composition v2
 
 on:
   pull_request:
     paths:
-      - '.archie-payload/plugin-repair/trigger-v9.txt'
+      - '.archie-payload/plugin-repair/trigger-v10.txt'
       - '.github/workflows/snapshot-router-runtime-composition.yml'
 
 permissions:
@@ -29,6 +29,7 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_TARGET_HEAD"
           git checkout --detach FETCH_HEAD
           mkdir -p /tmp/router-runtime/scripts/tests /tmp/router-runtime/maker/contracts
+          cp scripts/maker-control-plane.mjs /tmp/router-runtime/scripts/
           cp scripts/maker-model-router.mjs /tmp/router-runtime/scripts/
           cp scripts/maker-runtime-platform.mjs /tmp/router-runtime/scripts/
           cp scripts/maker-worker-fleet.mjs /tmp/router-runtime/scripts/
@@ -37,6 +38,7 @@ jobs:
           cp scripts/tests/maker-runtime-platform.test.mjs /tmp/router-runtime/scripts/tests/
           cp scripts/tests/maker-worker-fleet.test.mjs /tmp/router-runtime/scripts/tests/
           cp scripts/tests/maker-plugin-registry.test.mjs /tmp/router-runtime/scripts/tests/
+          cp maker/contracts/control-plane.schema.json /tmp/router-runtime/maker/contracts/
           cp maker/contracts/model-router.schema.json /tmp/router-runtime/maker/contracts/
           cp maker/contracts/runtime-platform.schema.json /tmp/router-runtime/maker/contracts/
           cp maker/contracts/worker-fleet.schema.json /tmp/router-runtime/maker/contracts/
@@ -46,7 +48,7 @@ jobs:
       - name: Upload exact composition source
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: exact-router-runtime-composition
+          name: exact-router-runtime-composition-v2
           path: /tmp/router-runtime
           if-no-files-found: error
           retention-days: 14
