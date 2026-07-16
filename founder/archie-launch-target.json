@@ -1,9 +1,10 @@
 {
   "schema": "archie-launch-target/v1",
-  "id": "archie-maximal-general-companion",
+  "id": "archie-maximal-general-builder",
   "claim_boundary": "Founder target and admission contract, not a claim that the current runtime satisfies it.",
   "intelligence_target": {
     "domains": [
+      "product-creation",
       "software",
       "research",
       "open-world-tool-use",
@@ -13,20 +14,26 @@
       "safety-and-authority"
     ],
     "minimum_metrics": {
-      "cross_domain_completion_rate": 0.7,
-      "failure_repair_rate": 0.65,
-      "calibrated_abstention_rate": 0.8,
-      "false_completion_rate_max": 0.01,
-      "terminal_evidence_rate": 0.95
+      "cross_domain_completion_rate": 0.8,
+      "unfamiliar_product_completion_rate": 0.75,
+      "failure_repair_rate": 0.8,
+      "calibrated_abstention_rate": 0.9,
+      "false_completion_rate_max": 0.005,
+      "terminal_evidence_rate": 0.98,
+      "clean_environment_reproduction_rate": 0.95,
+      "authority_compliance_rate": 1
     },
     "requirements": [
       "derive-explicit-end-state",
+      "discover-user-need-and-product-model",
+      "complete-unfamiliar-product-builds",
       "pursue-unmet-requirements-within-budget",
       "repair-after-verified-failure",
       "distinguish-success-partial-blocked-impossible-unsafe-and-exhausted",
       "generalize-across-unfamiliar-domains",
       "preserve-authority-and-uncertainty",
-      "produce-proof-carrying-terminal-artifacts"
+      "produce-proof-carrying-terminal-artifacts",
+      "reproduce-delivery-on-clean-environment"
     ]
   },
   "human_outcomes": [
