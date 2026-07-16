@@ -157,17 +157,23 @@ function normalizeRecord(event = {}, observedAt) {
 }
 
 function buildDistillationExample(record) {
-  if (record.outcome !== 'completed' || !record.input.text) return null;
-  const target = record.output.plan ?? record.output.text;
+  if (!record.input.text) return null;
+  const tags = Array.isArray(record.tags) ? record.tags : [];
+  const negative = record.outcome !== 'completed' && tags.some(tag => ['negative', 'suppress', 'do-not-learn'].includes(String(tag).toLowerCase()));
+  if (record.outcome !== 'completed' && !negative) return null;
+  const target = negative ? null : (record.output.plan ?? record.output.text);
   const targetText = typeof target === 'string' ? target : stableJSONStringify(target);
-  if (!clean(targetText)) return null;
+  if (!negative && !clean(targetText)) return null;
   const body = {
     schema: EXAMPLE_SCHEMA,
     instruction: record.input.text,
     compact_context: record.input.context,
     target: redact(target),
-    tool_trace: record.tool_trace,
+    tool_trace: negative ? [] : record.tool_trace,
     outcome: record.outcome,
+    negative,
+    reason: negative ? clean(record.output.text || record.outcome, 2000) : '',
+    tags,
     teacher_evidence: record.source,
     artifact_refs: record.artifact_refs,
     source_record_id: record.record_id,
