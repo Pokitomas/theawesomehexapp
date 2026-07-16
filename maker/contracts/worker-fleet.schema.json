@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/worker-fleet.schema.json",
+  "title": "Maker worker fleet",
+  "oneOf": [
+    { "$ref": "#/$defs/worker" },
+    { "$ref": "#/$defs/task" },
+    { "$ref": "#/$defs/lease" },
+    { "$ref": "#/$defs/placement" },
+    { "$ref": "#/$defs/artifact" },
+    { "$ref": "#/$defs/dispatch" },
+    { "$ref": "#/$defs/snapshot" }
+  ],
+  "$defs": {
+    "worker": {
+      "type": "object",
+      "required": ["schema", "id", "display_name", "mode", "identity", "platform", "isolation", "resources", "placement", "health", "reliability", "state", "metadata", "verified", "descriptor_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-worker/v1" },
+        "id": { "type": "string", "minLength": 1 },
+        "display_name": { "type": "string" },
+        "mode": { "enum": ["github_hosted", "self_hosted", "remote_http", "local", "in_process"] },
+        "identity": { "type": "object", "required": ["state", "issuer", "subject", "digest", "observed_at"] },
+        "platform": { "type": "object" },
+        "isolation": { "type": "object" },
+        "resources": { "type": "object" },
+        "placement": { "type": "object" },
+        "health": { "enum": ["healthy", "degraded", "offline", "unknown"] },
+        "reliability": { "type": "object" },
+        "state": { "enum": ["active", "draining", "quarantined", "offline"] },
+        "metadata": { "type": "object" },
+        "verified": { "type": "boolean" },
+        "descriptor_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "type": "object",
+      "required": ["schema", "id", "owner", "repository", "backend", "priority", "kind", "created_at", "requirements", "preferences", "retry", "reservation"],
+      "properties": {
+        "schema": { "const": "sideways-maker-fleet-task/v1" },
+        "id": { "type": "string" },
+        "owner": { "type": "string" },
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "backend": { "type": "string" },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "kind": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "requirements": { "type": "object" },
+        "preferences": { "type": "object" },
+        "retry": { "type": "object" },
+        "reservation": { "enum": ["normal", "repair", "recovery"] }
+      },
+      "additionalProperties": false
+    },
+    "lease": {
+      "type": "object",
+      "required": ["schema", "lease_id", "fencing_token", "task_id", "worker_id", "claimed_at", "expires_at", "generation", "digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-worker-lease/v1" },
+        "lease_id": { "type": "string" },
+        "fencing_token": { "type": "string" },
+        "task_id": { "type": "string" },
+        "worker_id": { "type": "string" },
+        "claimed_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "generation": { "type": "integer", "minimum": 1 },
+        "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "placement": {
+      "type": "object",
+      "required": ["schema", "placement_id", "task_id", "worker_id", "score", "lease", "recovered", "workspace", "worker", "created_at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-placement/v1" },
+        "placement_id": { "type": "string" },
+        "task_id": { "type": "string" },
+        "worker_id": { "type": "string" },
+        "score": { "type": "number" },
+        "lease": { "$ref": "#/$defs/lease" },
+        "recovered": { "type": "boolean" },
+        "workspace": { "type": "object" },
+        "worker": { "type": "object" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["schema", "kind", "name", "uri", "digest", "size_bytes", "retention", "provenance", "workspace_id"],
+      "properties": {
+        "schema": { "const": "sideways-maker-artifact-reference/v1" },
+        "kind": { "type": "string" },
+        "name": { "type": "string" },
+        "uri": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^[a-z0-9]+:[a-f0-9]{32,128}$" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "retention": { "type": "string" },
+        "provenance": { "type": "string" },
+        "workspace_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "dispatch": {
+      "type": "object",
+      "required": ["schema", "adapter", "placement_id", "ok", "started_at", "finished_at"],
+      "properties": {
+        "schema": { "const": "sideways-maker-fleet-dispatch/v1" },
+        "adapter": { "type": "object" },
+        "placement_id": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "output": {},
+        "error": { "type": "object" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["schema", "workers", "tasks", "leases", "usage", "adapters", "events", "at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-worker-fleet-snapshot/v1" },
+        "workers": { "type": "array", "items": { "$ref": "#/$defs/worker" } },
+        "tasks": { "type": "array", "items": { "type": "object" } },
+        "leases": { "type": "array", "items": { "$ref": "#/$defs/lease" } },
+        "usage": { "type": "array", "items": { "type": "object" } },
+        "adapters": { "type": "array", "items": { "type": "object" } },
+        "events": { "type": "array", "items": { "type": "object" } },
+        "at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
