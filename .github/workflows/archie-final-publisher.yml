@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
       - name: Verify exclusive branch heads
         env:
-          EXPECTED_COORDINATOR: 0d693c44ad2bc6128716dd9188999175711098c2
+          EXPECTED_COORDINATOR: c9a710fdef372b4bf7fab53a514410f09d31495a
           EXPECTED_EVALUATION: 323e9d0b047284123ba1db1f3717d9ed22b5cb31
         run: |
           set -euo pipefail
@@ -89,7 +89,7 @@ jobs:
           echo "evaluation_head=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish final coordinator integration
         env:
-          EXPECTED_COORDINATOR: 0d693c44ad2bc6128716dd9188999175711098c2
+          EXPECTED_COORDINATOR: c9a710fdef372b4bf7fab53a514410f09d31495a
         run: |
           set -euo pipefail
           current="$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')"
