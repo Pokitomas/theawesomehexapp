@@ -11,7 +11,17 @@ import {
   readManifestSchema,
   writeArtifactKeyPair
 } from './archie-artifact-envelope.mjs';
+import {
+  has,
+  integer,
+  last,
+  number,
+  parseArguments,
+  printJSON,
+  requiredFlag
+} from './archie-cli-core.mjs';
 import { createCheckpointUpdatePackage } from './archie-checkpoint-update.mjs';
+import { runResearchCommand } from './archie-research-campaign.mjs';
 import { runArchieSelfHostingSample } from './archie-self-hosting-sample.mjs';
 import {
   benchmarkModel,
@@ -23,56 +33,6 @@ import {
   runModel
 } from './archie-runtime-core.mjs';
 
-function parseArguments(argv) {
-  const positionals = [];
-  const flags = new Map();
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (!value.startsWith('--')) {
-      positionals.push(value);
-      continue;
-    }
-    const [name, inline] = value.split('=', 2);
-    if (inline !== undefined) {
-      const list = flags.get(name) || [];
-      list.push(inline);
-      flags.set(name, list);
-      continue;
-    }
-    const next = argv[index + 1];
-    if (next !== undefined && !next.startsWith('--')) {
-      const list = flags.get(name) || [];
-      list.push(next);
-      flags.set(name, list);
-      index += 1;
-    } else {
-      flags.set(name, ['true']);
-    }
-  }
-  return { positionals, flags };
-}
-
-function last(flags, name, fallback = '') {
-  const values = flags.get(name);
-  return values?.length ? values[values.length - 1] : fallback;
-}
-
-function has(flags, name) {
-  return flags.has(name);
-}
-
-function integer(flags, name, fallback) {
-  const value = last(flags, name, String(fallback));
-  if (!/^-?\d+$/.test(value)) throw new Error(`${name} requires an integer.`);
-  return Number(value);
-}
-
-function number(flags, name, fallback) {
-  const value = Number(last(flags, name, String(fallback)));
-  if (!Number.isFinite(value)) throw new Error(`${name} requires a finite number.`);
-  return value;
-}
-
 async function keyFiles(flags, name) {
   const files = flags.get(name) || [];
   return Promise.all(files.map(filename => fs.readFile(path.resolve(filename), 'utf8')));
@@ -80,16 +40,6 @@ async function keyFiles(flags, name) {
 
 async function trustedKeys(flags) {
   return keyFiles(flags, '--trust-key');
-}
-
-function print(value) {
-  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
-}
-
-function requiredFlag(flags, name) {
-  const value = last(flags, name);
-  if (!value) throw new Error(`${name} is required.`);
-  return value;
 }
 
 async function packageKeys(flags) {
@@ -113,12 +63,26 @@ Usage:
     --signing-private <ed25519-private.pem> --signing-public <ed25519-public.pem>
   archie self-host-sample --base-sha <sha> --branch <branch> [--seed <n>] \\
     [--target-prefix <path>] [--state-path <path>]
+  archie research create <campaign> --base-sha <sha> --credits 100 \\
+    --evaluation-reserve 20 --allocation <allocation.json>
+  archie research materialize --campaign <campaign> [--output <directory>]
+  archie research status --campaign <campaign>
   archie pull <manifest> --trust-key <publisher-public.pem> [--device-key <x25519-private.pem>]
   archie run <id@version> --prompt <text> [--runner <path>]
   archie inspect <id@version>
   archie benchmark <id@version> --suite <suite.json> [--runner <path>]
   archie remove <id@version>
   archie list
+
+Research campaign:
+  --root <path>             Repository root. Defaults to cwd.
+  --code-digest <sha256>    Explicit code binding; otherwise derived from base SHA and engine contract.
+  --split-salt <text>       Defaults to archie-generation-one-hidden-v1.
+  --holdout-rate <number>   Defaults to 0.20.
+  create freezes policy, allocation, base/code binding, and expected hidden split.
+  materialize verifies the student pack and writes twelve discovery manifests plus
+  one independent-evaluation manifest without requiring a compute worker.
+  status is intentionally non-watching in this tranche and fails closed on drift.
 
 Packaging:
   --recipient-key <path>    Repeat for device and optional recovery recipients.
@@ -167,10 +131,15 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
 
+  if (command === 'research') {
+    printJSON(await runResearchCommand({ positionals, flags, root: process.cwd() }));
+    return;
+  }
+
   if (command === 'keygen') {
     const type = last(flags, '--type', 'recipient');
     const outputDirectory = requiredFlag(flags, '--output-dir');
-    print(await writeArtifactKeyPair(outputDirectory, type));
+    printJSON(await writeArtifactKeyPair(outputDirectory, type));
     return;
   }
 
@@ -184,7 +153,7 @@ export async function main(argv = process.argv.slice(2)) {
       target_prefix: last(flags, '--target-prefix'),
       state_path: last(flags, '--state-path')
     });
-    print({
+    printJSON({
       schema: 'archie-self-hosting-sample-result/v1',
       scenario_id: result.scenario.scenario_id,
       scenario_digest: result.scenario.scenario_digest,
@@ -214,7 +183,7 @@ export async function main(argv = process.argv.slice(2)) {
       chunk_bytes: integer(flags, '--chunk-bytes', 64 * 1024 * 1024),
       chunk_base_url: last(flags, '--chunk-base-url')
     });
-    print({
+    printJSON({
       schema: 'archie-encrypted-package-result/v1',
       manifest_path: result.manifest_path,
       manifest_digest: result.manifest.manifest_digest,
@@ -245,7 +214,7 @@ export async function main(argv = process.argv.slice(2)) {
       chunk_bytes: integer(flags, '--chunk-bytes', 64 * 1024 * 1024),
       chunk_base_url: last(flags, '--chunk-base-url')
     });
-    print({
+    printJSON({
       schema: 'archie-checkpoint-package-result/v1',
       manifest_path: result.manifest_path,
       manifest_digest: result.manifest.manifest_digest,
@@ -272,12 +241,12 @@ export async function main(argv = process.argv.slice(2)) {
     const result = schema === ARCHIE_ENCRYPTED_MANIFEST_SCHEMA
       ? await pullEncryptedModel(source, { ...common, recipient_private_keys: await keyFiles(flags, '--device-key') })
       : await pullModel(source, common);
-    print(result.receipt);
+    printJSON(result.receipt);
     return;
   }
 
   if (command === 'list') {
-    print({ schema: 'archie-model-list/v1', home, models: await listModels({ home }) });
+    printJSON({ schema: 'archie-model-list/v1', home, models: await listModels({ home }) });
     return;
   }
 
@@ -287,12 +256,12 @@ export async function main(argv = process.argv.slice(2)) {
   if (command === 'inspect') {
     const installed = await inspectModel(reference, { home });
     const transport = await inspectEncryptedTransport(installed.artifact_path);
-    print({ ...installed, ...(transport ? { encrypted_transport: transport } : {}) });
+    printJSON({ ...installed, ...(transport ? { encrypted_transport: transport } : {}) });
     return;
   }
 
   if (command === 'remove') {
-    print(await removeModel(reference, { home }));
+    printJSON(await removeModel(reference, { home }));
     return;
   }
 
@@ -323,7 +292,7 @@ export async function main(argv = process.argv.slice(2)) {
     const suite = last(flags, '--suite');
     if (!suite) throw new Error('benchmark requires --suite <path-or-url>.');
     const report = await benchmarkModel(reference, suite, runOptions);
-    print(report);
+    printJSON(report);
     if (report.summary.failed) process.exitCode = 1;
     return;
   }

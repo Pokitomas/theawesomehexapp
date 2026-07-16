@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-research-creation-receipt.schema.json",
+  "title": "Archie research campaign creation receipt v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "campaign_id",
+    "campaign_digest",
+    "allocation_digest",
+    "base_sha",
+    "code_digest",
+    "policy_version",
+    "state",
+    "claim_boundary",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema": { "const": "archie-research-campaign-creation-receipt/v1" },
+    "campaign_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "campaign_digest": { "$ref": "#/$defs/digest" },
+    "allocation_digest": { "$ref": "#/$defs/digest" },
+    "base_sha": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "code_digest": { "$ref": "#/$defs/digest" },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "state": { "const": "created" },
+    "claim_boundary": { "type": "string", "minLength": 1 },
+    "receipt_digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}
