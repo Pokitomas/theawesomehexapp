@@ -14,11 +14,11 @@ concurrency:
 
 jobs:
   publish:
-    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger-v2'
+    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger-v3'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      EXPECTED_REMOTE_HEAD: ccf85fa454da74439e9512e9a2c4c4f31374f9bb
+      EXPECTED_REMOTE_HEAD: c9a710fdef372b4bf7fab53a514410f09d31495a
       EXPECTED_TREE: 60b7a6d37c4b743fed5e0769fe94f86d82710820
       EXPECTED_PATCH_SHA256: d76c50958ebc2870a2f7de4b7b623596049c1894146e634c1ad7037636d57dd5
       PART0_BLOB: 14a3d4b4e68181d8fed19d2268cb9772e8514e28
