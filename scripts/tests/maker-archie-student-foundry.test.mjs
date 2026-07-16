@@ -188,6 +188,7 @@ test('preserves failed trainer attempts and rejects secrets or unsupported place
     clock: () => Date.parse('2026-07-16T19:40:00.000Z')
   });
   const script = await writeFixtureTrainer(root);
+  let failedTrainingError;
   await assert.rejects(runStudentTrainer({
     pack_directory: packDirectory,
     trainer: trainerConfig(script, ['--fail']),
@@ -197,13 +198,15 @@ test('preserves failed trainer attempts and rejects secrets or unsupported place
       return () => Date.parse('2026-07-16T19:50:00.000Z') + tick++ * 100;
     })()
   }), error => {
+    failedTrainingError = error;
     assert.match(error.message, /exit code 3/);
     assert.equal(error.training_receipt.status, 'failed');
     assert.equal(error.training_receipt.result.ok, false);
     assert.equal(error.training_receipt.artifact, null);
     assert.match(error.training_receipt.receipt_digest, /^[a-f0-9]{64}$/);
-    return fs.stat(error.training_receipt_path).then(stat => stat.isFile());
+    return true;
   });
+  assert.equal((await fs.stat(failedTrainingError.training_receipt_path)).isFile(), true);
 
   const secret = trainerConfig(script);
   secret.api_key = 'sk-12345678901234567890';
