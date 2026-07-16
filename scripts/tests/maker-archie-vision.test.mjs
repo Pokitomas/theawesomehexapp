@@ -3,10 +3,12 @@ import fs from 'node:fs/promises';
 import test from 'node:test';
 
 const manifestUrl = new URL('../../founder/archie-maker-vision.json', import.meta.url);
+const launchTargetUrl = new URL('../../founder/archie-launch-target.json', import.meta.url);
 const visionUrl = new URL('../../ARCHIE_MAKER_VISION.md', import.meta.url);
 const packageUrl = new URL('../../package.json', import.meta.url);
 
 const manifest = JSON.parse(await fs.readFile(manifestUrl, 'utf8'));
+const launchTarget = JSON.parse(await fs.readFile(launchTargetUrl, 'utf8'));
 const vision = await fs.readFile(visionUrl, 'utf8');
 const packageJson = JSON.parse(await fs.readFile(packageUrl, 'utf8'));
 
@@ -42,6 +44,19 @@ test('the impossible proof requires a delivered transferable application', () =>
   assert.ok(manifest.primary_outputs.includes('applications'));
   assert.ok(manifest.primary_outputs.includes('scientific-experiments'));
   assert.ok(manifest.primary_outputs.includes('civic-tools'));
+});
+
+test('the launch target requires both admitted intelligence and usable embodiment', () => {
+  assert.equal(launchTarget.schema, 'archie-launch-target/v1');
+  assert.match(launchTarget.claim_boundary, /not a claim that the current runtime satisfies it/);
+  assert.equal(launchTarget.launch_policy.joint_intelligence_and_embodiment_admission, true);
+  assert.equal(launchTarget.launch_policy.shell_without_brain_may_launch, false);
+  assert.equal(launchTarget.launch_policy.brain_without_required_access_may_launch, false);
+  assert.equal(launchTarget.launch_policy.all_critical_outcomes_required, true);
+  assert.equal(launchTarget.launch_policy.maximal_first_release, true);
+  assert.ok(launchTarget.intelligence_target.minimum_metrics.false_completion_rate_max <= 0.01);
+  assert.ok(launchTarget.intelligence_target.minimum_metrics.terminal_evidence_rate >= 0.95);
+  assert.ok(launchTarget.human_outcomes.every(outcome => outcome.critical === true));
 });
 
 test('Archie evaluation commands point at admitted executable surfaces', async () => {
