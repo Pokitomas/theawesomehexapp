@@ -57,6 +57,10 @@ From a clean checkout, the primary engineering entrypoint is intentionally small
 npm run maker -- "describe the end state"
 ```
 
+The default command now passes through the native Archie memory bridge. Before execution it checks the repository-scoped local skill mixture and surfaces any reusable matching plan with its confidence and margin. It does not silently trust or execute that plan: the existing read-only assessment, single-writer lease, isolated worktree, verification, draft-PR, and human merge boundaries remain authoritative. After a successful `sideways-maker-run/v2` receipt, the bridge redacts and stores the completed plan in the user-owned corpus, retrains the local mixture, and makes repeated work recallable.
+
+By default the corpus lives under `~/.sideways/archie/<repository-name>-<path-digest>/`. Set `ARCHIE_CORPUS_ROOT` to choose another private location, set `ARCHIE_DISABLED=1` to disable local memory, or run `npm run maker:raw -- "..."` to bypass the bridge entirely.
+
 Local Codex or another explicitly configured coding agent performs four parallel read-only assessments, one synthesis, and one isolated writer pass with full repository context. A draft PR is opened before mutation so `.github/workflows/maker-sprawl.yml` can reject path collisions with other open Maker PRs and fan verification across product, social, operator, and hostile lanes. Maker independently runs the exact repository gate and stops unmerged and undeployed.
 
 See [`NATIVE_MAKER.md`](./NATIVE_MAKER.md) for setup, custom-agent adapters, leases, recovery behavior, and the legacy endpoint-backed worker.
