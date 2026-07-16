@@ -8,7 +8,7 @@ import {
   evaluateLaunchCandidate
 } from './archie-launch-contract.mjs';
 import { resolveAdmittedLaunchProfile } from './archie-launch-profile-admission.mjs';
-import { resolveLaunchFrontierV2 } from './archie-launch-frontier-v2.mjs';
+import { resolveAdmittedLaunchFrontierV2 } from './archie-launch-frontier-admission-v2.mjs';
 
 function parse(argv) {
   const command = argv[0] || 'frontier';
@@ -76,7 +76,7 @@ export async function main(argv = process.argv.slice(2)) {
   const output = flags.get('--output');
 
   if (command === 'frontier') {
-    const decision = resolveLaunchFrontierV2(await readJSON(requiredFlag(flags, '--manifest')));
+    const decision = resolveAdmittedLaunchFrontierV2(await readJSON(requiredFlag(flags, '--manifest')));
     await writeResult(decision, output);
     if (decision.decision !== 'admitted-capability-frontier') process.exitCode = 1;
     return;
