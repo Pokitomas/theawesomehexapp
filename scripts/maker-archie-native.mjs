@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createArchieLinuxCorpus } from './maker-archie-corpus.mjs';
 import { createArchiePersonalBrain } from './maker-archie-brain.mjs';
+import { normalizeMakerExecutionPlan } from './maker-archie-runtime-contract.mjs';
 
 const clean = (value, limit = 12000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
@@ -21,23 +22,17 @@ function valueDigest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
 }
 
+function normalizedInstruction(value) {
+  return clean(value, 12000).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 export function resolveNativeArchiePaths(repoRoot, { env = process.env, home = os.homedir() } = {}) {
   if (!repoRoot) throw new Error('repoRoot is required.');
   const root = path.resolve(clean(env?.ARCHIE_CORPUS_ROOT) || path.join(home, '.sideways', 'archie', repoKey(repoRoot)));
   return Object.freeze({ root, model_path: path.join(root, 'models', 'native-maker-plans.json') });
 }
 
-export function normalizeReusableMakerPlan(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const title = clean(value.title, 200);
-  const selectedLane = clean(value.selected_lane, 120);
-  const whyNow = clean(value.why_now, 4000);
-  const branchSlug = clean(value.branch_slug || title, 160);
-  const ownedPaths = [...new Set((Array.isArray(value.owned_paths) ? value.owned_paths : []).map(item => clean(item, 1000)).filter(Boolean))];
-  const deferred = (Array.isArray(value.deferred) ? value.deferred : []).map(item => clean(item, 2000)).filter(Boolean).slice(0, 100);
-  if (!title || !selectedLane || !whyNow || !branchSlug || !ownedPaths.length) return null;
-  return Object.freeze({ ...value, title, selected_lane: selectedLane, why_now: whyNow, branch_slug: branchSlug, owned_paths: ownedPaths, deferred });
-}
+export const normalizeReusableMakerPlan = normalizeMakerExecutionPlan;
 
 export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
   const plan = normalizeReusableMakerPlan(receipt?.plan);
@@ -54,7 +49,17 @@ export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
     schema: 'sideways-maker-runtime-platform-receipt/v1',
     platform_run_id: clean(receipt?.session_id || receipt?.platform_run_id, 300),
     state: clean(receipt?.state || (receipt?.head_sha ? 'completed' : 'unknown'), 100),
-    task: { repository, request: clean(receipt?.request, 500000), mode: 'native-maker', protect: 'Human merge and deployment remain required.' },
+    task: {
+      repository,
+      request: clean(receipt?.request, 500000),
+      mode: 'native-maker',
+      protect: 'Human merge and deployment remain required.',
+      proof: {
+        base_sha: clean(receipt?.base_sha, 200),
+        head_sha: clean(receipt?.head_sha, 200),
+        verification
+      }
+    },
     components: {
       model_route: {
         receipt_digest: valueDigest(plan),
@@ -81,15 +86,58 @@ function createNativeBrain({ repoRoot, env, home, clock, training }) {
   return { paths, corpus, brain };
 }
 
-export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'main', env = process.env, home = os.homedir(), clock = Date.now, training = {} } = {}) {
+export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'main', baseSha = '', env = process.env, home = os.homedir(), clock = Date.now, training = {} } = {}) {
   if (disabled(env)) return Object.freeze({ status: 'disabled', plan: null });
   const instruction = clean(request);
   if (!instruction) return Object.freeze({ status: 'miss', plan: null, reason: 'empty request' });
-  const { paths, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
+  const { paths, corpus, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
   try {
-    const result = await brain.plan({ subject: repoKey(repoRoot), instruction, context: { repository: path.basename(path.resolve(repoRoot)), base_branch: clean(baseBranch, 200) } }, { allow_teacher: false });
+    const result = await brain.plan({ subject: repoKey(repoRoot), instruction, context: { repository: path.basename(path.resolve(repoRoot)), base_branch: clean(baseBranch, 200), base_sha: clean(baseSha, 200) } }, { allow_teacher: false });
     const plan = result.state === 'local' ? normalizeReusableMakerPlan(result.plan) : null;
-    return Object.freeze({ status: plan ? 'local' : 'miss', plan, confidence: result.confidence ?? 0, margin: result.margin ?? 0, specialist_id: result.specialist_id ?? null, root: paths.root, model_digest: result.model_digest ?? null, reason: plan ? null : `archie state ${result.state}` });
+    let executionEligible = false;
+    let executionBasis = null;
+    let sourceExampleIds = [];
+    if (plan && result.specialist_id) {
+      const model = await brain.load();
+      const specialist = model.specialists.find(item => item.specialist_id === result.specialist_id);
+      sourceExampleIds = Array.isArray(specialist?.source_example_ids) ? specialist.source_example_ids : [];
+      if (sourceExampleIds.length) {
+        const sourceSet = new Set(sourceExampleIds);
+        const examples = await corpus.examples({ limit: training.limit || 100000 });
+        const exact = examples.find(example => {
+          if (!sourceSet.has(example.example_id) || normalizedInstruction(example.instruction) !== normalizedInstruction(instruction)) return false;
+          const proof = example.compact_context?.proof;
+          return Boolean(
+            clean(baseSha, 200)
+            && clean(proof?.base_sha, 200) === clean(baseSha, 200)
+            && clean(proof?.head_sha, 200)
+            && Array.isArray(proof?.verification)
+            && proof.verification.some(item => clean(item, 1000))
+          );
+        });
+        if (exact) {
+          executionEligible = true;
+          executionBasis = Object.freeze({
+            kind: 'normalized-exact-verified-recurrence',
+            example_id: exact.example_id,
+            base_sha: clean(baseSha, 200)
+          });
+        }
+      }
+    }
+    return Object.freeze({
+      status: plan ? 'local' : 'miss',
+      plan,
+      confidence: result.confidence ?? 0,
+      margin: result.margin ?? 0,
+      specialist_id: result.specialist_id ?? null,
+      source_example_ids: sourceExampleIds,
+      execution_eligible: executionEligible,
+      execution_basis: executionBasis,
+      root: paths.root,
+      model_digest: result.model_digest ?? null,
+      reason: plan ? (executionEligible ? null : 'recall remains advisory unless an exact verified recurrence matches the current base SHA') : `archie state ${result.state}`
+    });
   } catch (error) {
     const message = clean(error?.message || error, 2000);
     if (/at least one completed archie distillation example is required/i.test(message)) return Object.freeze({ status: 'miss', plan: null, root: paths.root, reason: 'empty corpus' });
