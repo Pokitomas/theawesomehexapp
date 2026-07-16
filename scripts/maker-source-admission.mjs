@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const PATH_RE = /^(?!\/)(?!.*(?:^|\/)\.git(?:\/|$))(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._@+\/-]+$/;
+const BRANCH_RE = /^[A-Za-z0-9._/-]+$/;
+const ADOPTION_FAILURES = new Set(['model_or_runtime_error', 'planning_blocked', 'budget_exhausted', 'verification_blocked', 'failed', 'cancelled', 'timed_out']);
 const clean = (value, limit = 20000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 const sortedUnique = values => [...new Set(values)].sort();
 
@@ -105,6 +107,12 @@ function normalizeAttempt(value = {}) {
   };
 }
 
+function normalizeMode(input = {}) {
+  const requested = clean(input.mode || (input.adopted_by ? 'coordinator_adoption' : 'source_pr'), 80).toLowerCase();
+  if (!['source_pr', 'coordinator_adoption'].includes(requested)) throw new Error(`Unsupported source admission mode: ${requested}.`);
+  return requested;
+}
+
 export function normalizeSourceCandidate(input = {}, { lanes = PLATFORM_LANES } = {}) {
   const lanesByIssue = laneMap(lanes);
   const issue = Number(input.issue);
@@ -114,12 +122,14 @@ export function normalizeSourceCandidate(input = {}, { lanes = PLATFORM_LANES } 
   const headSha = clean(input.head_sha, 40).toLowerCase();
   if (!SHA_RE.test(baseSha)) throw new Error(`#${issue} requires an exact base SHA.`);
   if (!SHA_RE.test(headSha)) throw new Error(`#${issue} requires an exact head SHA.`);
+  const mode = normalizeMode(input);
   const lease = input.lease || parseLeaseMarker(input.body);
   const changedPaths = sortedUnique((input.changed_paths || []).map(normalizePath));
   const witnesses = (input.witnesses || []).map(normalizeWitness);
   const priorAttempts = (input.prior_attempts || []).map(normalizeAttempt);
   return Object.freeze({
-    schema: 'sideways-maker-source-candidate/v1',
+    schema: 'sideways-maker-source-candidate/v2',
+    mode,
     repository: clean(input.repository || 'Pokitomas/theawesomehexapp', 300),
     issue,
     purpose: lane.purpose,
@@ -129,6 +139,8 @@ export function normalizeSourceCandidate(input = {}, { lanes = PLATFORM_LANES } 
     branch: clean(input.branch || lease?.branch, 240),
     draft: input.draft !== false,
     mergeable: input.mergeable === true,
+    adopted_by: clean(input.adopted_by, 240) || null,
+    adoption_reason: clean(input.adoption_reason, 2000) || null,
     changed_paths: Object.freeze(changedPaths),
     expected_paths: lane.paths,
     lease,
@@ -142,24 +154,46 @@ function sameValues(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
+function validateLease(candidate, errors) {
+  if (!candidate.lease) {
+    errors.push('missing machine-readable lease');
+    return;
+  }
+  if (!SHA_RE.test(candidate.lease.base_sha)) errors.push('lease base is not an exact SHA');
+  if (candidate.lease.base_sha !== candidate.base_sha) errors.push('lease base differs from candidate base');
+  if (candidate.lease.branch !== candidate.branch) errors.push('lease branch differs from candidate branch');
+  if (candidate.lease.writer_count !== 1) errors.push('lease writer_count must equal one');
+  if (candidate.lease.authority.merge !== 'human' || candidate.lease.authority.deploy !== 'human') errors.push('source lane attempted to widen merge/deploy authority');
+  if (!sameValues(candidate.lease.owned_paths, candidate.expected_paths)) errors.push('lease paths differ from assigned lane');
+}
+
+function validateMode(candidate, options, errors) {
+  if (candidate.mode === 'source_pr') {
+    if (!candidate.pull_request) errors.push('source PR number is required');
+    if (!candidate.draft) errors.push('source PR must remain draft before coordinator admission');
+    if (!candidate.mergeable) errors.push('source PR is not mergeable');
+    if (candidate.adopted_by) errors.push('source PR candidate cannot claim coordinator adoption');
+    return;
+  }
+  const coordinator = clean(options.coordinator_branch || 'agent/maker-execution-completion', 240);
+  if (candidate.pull_request) errors.push('coordinator adoption must not fabricate a source PR');
+  if (candidate.adopted_by !== coordinator) errors.push(`coordinator adoption must name ${coordinator}`);
+  if (candidate.branch !== coordinator) errors.push('coordinator adoption branch differs from the authoritative integration branch');
+  if (!candidate.adoption_reason) errors.push('coordinator adoption requires an exact reason');
+  if (!candidate.prior_attempts.length) errors.push('coordinator adoption requires prior failed worker evidence');
+  if (!candidate.prior_attempts.some(value => ADOPTION_FAILURES.has(value.outcome))) errors.push('coordinator adoption has no admissible failed-worker outcome');
+  if (!candidate.prior_attempts.every(value => value.run_id || value.evidence)) errors.push('coordinator adoption prior attempts require run IDs or evidence');
+}
+
 export function validateSourceCandidate(input, options = {}) {
   const candidate = normalizeSourceCandidate(input, options);
   const errors = [];
   if (candidate.repository !== (options.repository || 'Pokitomas/theawesomehexapp')) errors.push(`wrong repository: ${candidate.repository}`);
   if (options.canonical_base && candidate.base_sha !== String(options.canonical_base).toLowerCase()) errors.push(`base mismatch: ${candidate.base_sha}`);
   if (candidate.base_sha === candidate.head_sha) errors.push('head equals base; no source implementation exists');
-  if (!candidate.branch || !/^[A-Za-z0-9._/-]+$/.test(candidate.branch)) errors.push('invalid source branch');
-  if (!candidate.draft) errors.push('source PR must remain draft before coordinator admission');
-  if (!candidate.mergeable) errors.push('source PR is not mergeable');
-  if (!candidate.lease) errors.push('missing machine-readable lease');
-  if (candidate.lease) {
-    if (!SHA_RE.test(candidate.lease.base_sha)) errors.push('lease base is not an exact SHA');
-    if (candidate.lease.base_sha !== candidate.base_sha) errors.push('lease base differs from candidate base');
-    if (candidate.lease.branch !== candidate.branch) errors.push('lease branch differs from candidate branch');
-    if (candidate.lease.writer_count !== 1) errors.push('lease writer_count must equal one');
-    if (candidate.lease.authority.merge !== 'human' || candidate.lease.authority.deploy !== 'human') errors.push('source lane attempted to widen merge/deploy authority');
-    if (!sameValues(candidate.lease.owned_paths, candidate.expected_paths)) errors.push('lease paths differ from assigned lane');
-  }
+  if (!candidate.branch || !BRANCH_RE.test(candidate.branch)) errors.push('invalid source branch');
+  validateMode(candidate, options, errors);
+  validateLease(candidate, errors);
   if (!sameValues(candidate.changed_paths, candidate.expected_paths)) errors.push('changed paths differ from assigned lane');
   const testPaths = candidate.expected_paths.filter(value => value.startsWith('scripts/tests/'));
   for (const testPath of testPaths) {
@@ -178,8 +212,10 @@ function candidateCollisions(candidates) {
   const owners = new Map();
   const heads = new Map();
   for (const candidate of candidates) {
-    if (heads.has(candidate.head_sha)) errors.push(`duplicate source head ${candidate.head_sha} for #${heads.get(candidate.head_sha)} and #${candidate.issue}`);
-    heads.set(candidate.head_sha, candidate.issue);
+    const prior = heads.get(candidate.head_sha);
+    const sharedAdoptionHead = prior && prior.mode === 'coordinator_adoption' && candidate.mode === 'coordinator_adoption' && prior.adopted_by === candidate.adopted_by;
+    if (prior && !sharedAdoptionHead) errors.push(`duplicate source head ${candidate.head_sha} for #${prior.issue} and #${candidate.issue}`);
+    heads.set(candidate.head_sha, candidate);
     for (const file of candidate.changed_paths) {
       if (owners.has(file)) errors.push(`candidate path collision: ${file} on #${owners.get(file)} and #${candidate.issue}`);
       owners.set(file, candidate.issue);
@@ -192,11 +228,12 @@ export function admitSourceCandidates(inputs = [], {
   lanes = PLATFORM_LANES,
   repository = 'Pokitomas/theawesomehexapp',
   canonical_base,
+  coordinator_branch = 'agent/maker-execution-completion',
   require_all = false,
   integration_order = INTEGRATION_ORDER
 } = {}) {
   laneMap(lanes);
-  const validations = inputs.map(input => validateSourceCandidate(input, { lanes, repository, canonical_base }));
+  const validations = inputs.map(input => validateSourceCandidate(input, { lanes, repository, canonical_base, coordinator_branch }));
   const admitted = validations.filter(value => value.admitted).map(value => value.candidate);
   const errors = validations.flatMap(value => value.errors.map(error => `#${value.candidate.issue}: ${error}`));
   errors.push(...candidateCollisions(admitted));
@@ -208,15 +245,19 @@ export function admitSourceCandidates(inputs = [], {
   for (const issue of issueSet) if (!order.includes(issue)) errors.push(`admitted lane #${issue} is missing from integration order`);
   const ordered = order.map(issue => admitted.find(value => value.issue === issue));
   const receiptBody = {
-    schema: 'sideways-maker-source-admission/v1',
+    schema: 'sideways-maker-source-admission/v2',
     repository,
     canonical_base: canonical_base ? String(canonical_base).toLowerCase() : null,
+    coordinator_branch,
     required_lane_count: lanes.length,
     admitted_lane_count: ordered.length,
     integration_order: order,
     candidates: ordered.map(candidate => ({
       issue: candidate.issue,
+      mode: candidate.mode,
       pull_request: candidate.pull_request,
+      adopted_by: candidate.adopted_by,
+      adoption_reason: candidate.adoption_reason,
       base_sha: candidate.base_sha,
       head_sha: candidate.head_sha,
       branch: candidate.branch,
