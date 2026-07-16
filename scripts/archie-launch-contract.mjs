@@ -4,6 +4,8 @@ export const ARCHIE_LAUNCH_TARGET_SCHEMA = 'archie-launch-target/v1';
 export const ARCHIE_LAUNCH_CANDIDATE_SCHEMA = 'archie-launch-candidate/v1';
 export const ARCHIE_LAUNCH_DECISION_SCHEMA = 'archie-launch-decision/v1';
 
+const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+
 const OUTCOME_REQUIREMENTS = Object.freeze({
   'available-while-attention-is-occupied': Object.freeze([
     'audio-input',
@@ -47,6 +49,7 @@ const OUTCOME_REQUIREMENTS = Object.freeze({
   ])
 });
 
+// These are derived recommendations, not the only interfaces a candidate may use.
 const PRODUCT_FORMS = Object.freeze([
   Object.freeze({
     id: 'spoken-companion',
@@ -113,6 +116,12 @@ function clean(value, field, limit = 10_000) {
   return text;
 }
 
+function exactDigest(value, field) {
+  const text = clean(value, field, 64);
+  if (!DIGEST_PATTERN.test(text)) throw new Error(`${field} must be a lowercase SHA-256 digest.`);
+  return text;
+}
+
 function uniqueStrings(values, field) {
   if (!Array.isArray(values)) throw new Error(`${field} must be an array.`);
   const output = [];
@@ -126,9 +135,17 @@ function uniqueStrings(values, field) {
   return output;
 }
 
-function finiteMetric(value, field) {
+function evidenceDigests(values, field) {
+  if (!Array.isArray(values)) throw new Error(`${field} must be an array.`);
+  const output = values.map((value, index) => exactDigest(value, `${field}[${index}]`));
+  if (new Set(output).size !== output.length) throw new Error(`${field} contains duplicate evidence digests.`);
+  return output;
+}
+
+function finiteMetric(value, field, name) {
   const number = Number(value);
   if (!Number.isFinite(number)) throw new Error(`${field} must be finite.`);
+  if (name.includes('_rate') && (number < 0 || number > 1)) throw new Error(`${field} must be between 0 and 1.`);
   return number;
 }
 
@@ -146,7 +163,7 @@ export function validateLaunchTarget(input) {
       id,
       critical: outcome.critical !== false,
       statement: clean(outcome.statement, `human_outcomes[${index}].statement`, 2000),
-      required_faculties: explicitRequirements || [...OUTCOME_REQUIREMENTS[id]]
+      required_faculties: Object.freeze(explicitRequirements || [...OUTCOME_REQUIREMENTS[id]])
     });
   }) : [];
   if (!outcomes.length) throw new Error('Launch target requires at least one human outcome.');
@@ -155,8 +172,9 @@ export function validateLaunchTarget(input) {
   const intelligence = input.intelligence_target;
   if (!intelligence || typeof intelligence !== 'object' || Array.isArray(intelligence)) throw new Error('intelligence_target must be an object.');
   const minimumMetrics = {};
-  for (const [name, value] of Object.entries(intelligence.minimum_metrics || {})) {
-    minimumMetrics[clean(name, 'intelligence_target.minimum_metrics key', 200)] = finiteMetric(value, `intelligence_target.minimum_metrics.${name}`);
+  for (const [nameInput, value] of Object.entries(intelligence.minimum_metrics || {})) {
+    const name = clean(nameInput, 'intelligence_target.minimum_metrics key', 200);
+    minimumMetrics[name] = finiteMetric(value, `intelligence_target.minimum_metrics.${name}`, name);
   }
   if (!Object.keys(minimumMetrics).length) throw new Error('intelligence_target.minimum_metrics must be non-empty.');
 
@@ -166,9 +184,13 @@ export function validateLaunchTarget(input) {
     'joint_intelligence_and_embodiment_admission',
     'strongest_admitted_product_form',
     'single_canonical_interface',
+    'chat_window_is_architecture',
+    'voice_is_architecture',
+    'always_on_daemon_is_architecture',
     'shell_without_brain_may_launch',
     'brain_without_required_access_may_launch',
     'all_critical_outcomes_required',
+    'degraded_private_mode_required',
     'maximal_first_release'
   ];
   for (const key of requiredPolicy) {
@@ -180,9 +202,9 @@ export function validateLaunchTarget(input) {
     id: clean(input.id, 'id', 200),
     claim_boundary: clean(input.claim_boundary, 'claim_boundary', 2000),
     intelligence_target: Object.freeze({
-      domains: uniqueStrings(intelligence.domains, 'intelligence_target.domains'),
+      domains: Object.freeze(uniqueStrings(intelligence.domains, 'intelligence_target.domains')),
       minimum_metrics: Object.freeze(minimumMetrics),
-      requirements: uniqueStrings(intelligence.requirements, 'intelligence_target.requirements')
+      requirements: Object.freeze(uniqueStrings(intelligence.requirements, 'intelligence_target.requirements'))
     }),
     human_outcomes: Object.freeze(outcomes),
     launch_policy: Object.freeze({ ...policy })
@@ -215,8 +237,8 @@ export function deriveLaunchRequirements(targetInput) {
     target_id: target.id,
     intelligence: target.intelligence_target,
     faculties,
-    candidate_product_forms: productForms,
-    product_form_rule: 'select every admitted form that materially covers a required faculty; no interface is architectural or primary by default'
+    recommended_product_forms: productForms,
+    product_form_rule: 'admit every evidence-backed interface needed to cover the required faculties; recommendations are not canonical interfaces'
   };
   return Object.freeze({ ...body, requirements_digest: digest(body) });
 }
@@ -225,33 +247,43 @@ export function validateLaunchCandidate(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Launch candidate must be an object.');
   if (input.schema !== ARCHIE_LAUNCH_CANDIDATE_SCHEMA) throw new Error(`Launch candidate schema must be ${ARCHIE_LAUNCH_CANDIDATE_SCHEMA}.`);
   const faculties = {};
-  for (const [id, entry] of Object.entries(input.faculties || {})) {
+  for (const [idInput, entry] of Object.entries(input.faculties || {})) {
+    const id = clean(idInput, 'faculty id', 200);
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`faculties.${id} must be an object.`);
     const status = clean(entry.status, `faculties.${id}.status`, 100);
     if (!['admitted', 'experimental', 'absent'].includes(status)) throw new Error(`faculties.${id}.status is unsupported.`);
-    const evidence = entry.evidence === undefined ? [] : uniqueStrings(entry.evidence, `faculties.${id}.evidence`);
+    const evidence = entry.evidence === undefined ? [] : evidenceDigests(entry.evidence, `faculties.${id}.evidence`);
     if (status === 'admitted' && !evidence.length) throw new Error(`faculties.${id} cannot be admitted without evidence.`);
-    faculties[clean(id, 'faculty id', 200)] = Object.freeze({ status, evidence: Object.freeze(evidence) });
+    faculties[id] = Object.freeze({ status, evidence: Object.freeze(evidence) });
   }
   const interfaces = Array.isArray(input.interfaces) ? input.interfaces.map((entry, index) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`interfaces[${index}] must be an object.`);
     const status = clean(entry.status, `interfaces[${index}].status`, 100);
     if (!['admitted', 'experimental', 'absent'].includes(status)) throw new Error(`interfaces[${index}].status is unsupported.`);
-    const evidence = entry.evidence === undefined ? [] : uniqueStrings(entry.evidence, `interfaces[${index}].evidence`);
+    const evidence = entry.evidence === undefined ? [] : evidenceDigests(entry.evidence, `interfaces[${index}].evidence`);
     if (status === 'admitted' && !evidence.length) throw new Error(`interfaces[${index}] cannot be admitted without evidence.`);
+    const providedFaculties = uniqueStrings(entry.faculties || [], `interfaces[${index}].faculties`);
+    if (status === 'admitted' && !providedFaculties.length) throw new Error(`interfaces[${index}] cannot be admitted without declared faculties.`);
     return Object.freeze({
       id: clean(entry.id, `interfaces[${index}].id`, 200),
       status,
+      faculties: Object.freeze(providedFaculties),
       evidence: Object.freeze(evidence)
     });
   }) : [];
   if (new Set(interfaces.map(entry => entry.id)).size !== interfaces.length) throw new Error('Candidate contains duplicate interface IDs.');
   const metrics = {};
-  for (const [name, value] of Object.entries(input.metrics || {})) metrics[clean(name, 'metric name', 200)] = finiteMetric(value, `metrics.${name}`);
+  for (const [nameInput, value] of Object.entries(input.metrics || {})) {
+    const name = clean(nameInput, 'metric name', 200);
+    metrics[name] = finiteMetric(value, `metrics.${name}`, name);
+  }
   return Object.freeze({
     schema: ARCHIE_LAUNCH_CANDIDATE_SCHEMA,
     id: clean(input.id, 'candidate.id', 200),
-    artifact_digest: clean(input.artifact_digest, 'candidate.artifact_digest', 200),
+    artifact_digest: exactDigest(input.artifact_digest, 'candidate.artifact_digest'),
+    intelligence_report_digest: exactDigest(input.intelligence_report_digest, 'candidate.intelligence_report_digest'),
+    authority_report_digest: exactDigest(input.authority_report_digest, 'candidate.authority_report_digest'),
+    reproduction_receipt_digest: exactDigest(input.reproduction_receipt_digest, 'candidate.reproduction_receipt_digest'),
     domains: Object.freeze(uniqueStrings(input.domains, 'candidate.domains')),
     intelligence_requirements: Object.freeze(uniqueStrings(input.intelligence_requirements, 'candidate.intelligence_requirements')),
     metrics: Object.freeze(metrics),
@@ -286,15 +318,14 @@ export function evaluateLaunchCandidate(targetInput, candidateInput) {
     && metricResults.every(result => result.passed);
 
   const missingFaculties = requirements.faculties.filter(requirement => candidate.faculties[requirement.id]?.status !== 'admitted');
-  const admittedInterfaceIds = new Set(candidate.interfaces.filter(entry => entry.status === 'admitted').map(entry => entry.id));
-  const selectedForms = requirements.candidate_product_forms.filter(form => {
-    if (!admittedInterfaceIds.has(form.id)) return false;
-    return form.requires.every(faculty => candidate.faculties[faculty]?.status === 'admitted');
+  const selectedInterfaces = candidate.interfaces.filter(entry => {
+    if (entry.status !== 'admitted') return false;
+    return entry.faculties.every(faculty => candidate.faculties[faculty]?.status === 'admitted');
   });
-  const coveredFaculties = new Set(selectedForms.flatMap(form => form.requires));
+  const coveredFaculties = new Set(selectedInterfaces.flatMap(entry => entry.faculties));
   const uncoveredByProductForm = requirements.faculties.filter(requirement => !coveredFaculties.has(requirement.id));
   const outcomeResults = target.human_outcomes.map(outcome => {
-    const missing = outcome.required_faculties.filter(faculty => candidate.faculties[faculty]?.status !== 'admitted');
+    const missing = outcome.required_faculties.filter(faculty => candidate.faculties[faculty]?.status !== 'admitted' || !coveredFaculties.has(faculty));
     return Object.freeze({ id: outcome.id, critical: outcome.critical, passed: missing.length === 0, missing_faculties: Object.freeze(missing) });
   });
   const criticalOutcomesPassed = outcomeResults.filter(outcome => outcome.critical).every(outcome => outcome.passed);
@@ -306,9 +337,13 @@ export function evaluateLaunchCandidate(targetInput, candidateInput) {
   if (!target.launch_policy.joint_intelligence_and_embodiment_admission) policyViolations.push('joint-admission-disabled');
   if (!target.launch_policy.strongest_admitted_product_form) policyViolations.push('strongest-product-form-disabled');
   if (target.launch_policy.single_canonical_interface) policyViolations.push('single-interface-precommitted');
+  if (target.launch_policy.chat_window_is_architecture) policyViolations.push('chat-window-precommitted');
+  if (target.launch_policy.voice_is_architecture) policyViolations.push('voice-precommitted');
+  if (target.launch_policy.always_on_daemon_is_architecture) policyViolations.push('daemon-precommitted');
   if (target.launch_policy.shell_without_brain_may_launch) policyViolations.push('shell-without-brain-allowed');
   if (target.launch_policy.brain_without_required_access_may_launch) policyViolations.push('brain-without-access-allowed');
   if (!target.launch_policy.all_critical_outcomes_required) policyViolations.push('critical-outcome-gate-disabled');
+  if (!target.launch_policy.degraded_private_mode_required) policyViolations.push('private-degraded-mode-disabled');
   if (!target.launch_policy.maximal_first_release) policyViolations.push('maximal-first-release-disabled');
 
   const admitted = intelligencePassed && embodimentPassed && policyViolations.length === 0;
@@ -317,6 +352,9 @@ export function evaluateLaunchCandidate(targetInput, candidateInput) {
     target_id: target.id,
     candidate_id: candidate.id,
     candidate_artifact_digest: candidate.artifact_digest,
+    intelligence_report_digest: candidate.intelligence_report_digest,
+    authority_report_digest: candidate.authority_report_digest,
+    reproduction_receipt_digest: candidate.reproduction_receipt_digest,
     requirements_digest: requirements.requirements_digest,
     decision: admitted ? 'admitted-maximal-launch' : 'rejected-incomplete-launch',
     intelligence: {
@@ -333,12 +371,12 @@ export function evaluateLaunchCandidate(targetInput, candidateInput) {
       product_form: {
         primary_interface: null,
         selection_rule: requirements.product_form_rule,
-        selected_surfaces: selectedForms.map(form => form.id).sort()
+        selected_surfaces: selectedInterfaces.map(entry => entry.id).sort()
       }
     },
     policy_violations: policyViolations,
     claim_boundary: admitted
-      ? 'The candidate satisfies this exact target and evidence contract; this does not imply untested capability outside it.'
+      ? 'The candidate satisfies this exact target and digest-bound evidence contract; this does not imply untested capability outside it.'
       : 'The candidate must not launch as the maximal Archie product or imply satisfaction of unmet intelligence or embodiment requirements.'
   };
   return Object.freeze({ ...body, decision_digest: digest(body) });
