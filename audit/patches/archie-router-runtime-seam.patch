@@ -1,0 +1,181 @@
+--- a/scripts/maker-model-router.mjs
++++ b/scripts/maker-model-router.mjs
+@@ -73,8 +73,9 @@
+ const ADMISSION = new Set(['verified', 'configured', 'unverified', 'unknown']);
+ 
+ function evidenceValue(input, normalize, fallbackEvidence = 'unknown') {
+-  if (isObject(input) && ('value' in input || 'evidence' in input)) {
+-    const evidence = EVIDENCE.has(clean(input.evidence, 30).toLowerCase()) ? clean(input.evidence, 30).toLowerCase() : fallbackEvidence;
++  if (isObject(input) && ('value' in input || 'evidence' in input || 'source' in input)) {
++    const claimedEvidence = clean(input.evidence || input.source, 30).toLowerCase();
++    const evidence = EVIDENCE.has(claimedEvidence) ? claimedEvidence : fallbackEvidence;
+     return Object.freeze({ value: normalize(input.value), evidence });
+   }
+   if (input === undefined || input === null || input === '') return Object.freeze({ value: null, evidence: 'unknown' });
+@@ -129,19 +130,31 @@
+   const cost = input.cost || {};
+   const native = input.native || {};
+   const admissionInput = input.admission || {};
++  const legacyAvailability = isObject(input.availability)
++    ? (input.availability.value === true ? 'healthy' : input.availability.value === false ? 'offline' : 'unknown')
++    : input.availability;
++  const availability = clean(legacyAvailability || input.health || 'unknown', 100).toLowerCase();
++  const reliabilitySamples = Math.round(finite(input.reliability?.samples, 0, 0, 10 ** 9));
++  const reliabilityRate = finite(input.reliability?.success_rate, 0.5, 0, 1);
+   const receipt = normalizeNativeEnvelope(admissionInput.receipt, 'sideways-maker-native-admission/v1');
+   const registryReceipt = normalizeNativeEnvelope(admissionInput.registry, 'sideways-maker-native-registry/v1');
+-  const locality = evidenceValue(input.locality, value => enumValue(value, LOCALITIES));
+-  const privacy = evidenceValue(input.privacy, value => clean(value || 'unknown', 100).toLowerCase());
+-  const latency = evidenceValue(input.latency_class, value => LATENCY_RANK[clean(value, 50).toLowerCase()] === undefined ? 'unknown' : clean(value, 50).toLowerCase());
++  const locality = evidenceValue(input.locality ?? capabilities.locality, value => enumValue(value, LOCALITIES));
++  const privacy = evidenceValue(input.privacy ?? capabilities.privacy, value => clean(value || 'unknown', 100).toLowerCase());
++  const latency = evidenceValue(input.latency_class ?? capabilities.latency_class, value => {
++    const normalized = clean(value, 50).toLowerCase();
++    const compatible = normalized === 'fast' ? 'interactive' : normalized;
++    return LATENCY_RANK[compatible] === undefined ? 'unknown' : compatible;
++  });
+ 
+   const descriptor = {
+     schema: 'sideways-maker-provider/v1',
+     id,
+     display_name: normalizePublicLabel(input.display_name || id, 'Maker intelligence'),
+     kind,
+-    availability: enumValue(input.availability, AVAILABILITY),
+-    availability_evidence: EVIDENCE.has(clean(input.availability_evidence, 30).toLowerCase()) ? clean(input.availability_evidence, 30).toLowerCase() : (input.availability === undefined ? 'unknown' : 'configured'),
++    availability: enumValue(availability, AVAILABILITY),
++    availability_evidence: EVIDENCE.has(clean(input.availability_evidence || input.availability?.evidence || input.availability?.source, 30).toLowerCase())
++      ? clean(input.availability_evidence || input.availability?.evidence || input.availability?.source, 30).toLowerCase()
++      : (availability === 'unknown' ? 'unknown' : 'configured'),
+     capabilities: {
+       structured_json: evidenceValue(capabilities.structured_json, boolValue),
+       tool_use: evidenceValue(capabilities.tool_use, boolValue),
+@@ -152,16 +165,16 @@
+       browser_interpretation: evidenceValue(capabilities.browser_interpretation, boolValue)
+     },
+     limits: {
+-      context_tokens: evidenceValue(limits.context_tokens, integerValue),
+-      output_tokens: evidenceValue(limits.output_tokens, integerValue)
++      context_tokens: evidenceValue(limits.context_tokens ?? capabilities.context_tokens, integerValue),
++      output_tokens: evidenceValue(limits.output_tokens ?? capabilities.output_tokens, integerValue)
+     },
+     latency_class: latency,
+     privacy,
+     locality,
+-    region: evidenceValue(input.region, value => clean(value || 'unknown', 100).toLowerCase()),
++    region: evidenceValue(input.region ?? capabilities.region, value => clean(value || 'unknown', 100).toLowerCase()),
+     cost: {
+-      input_per_million: evidenceValue(cost.input_per_million, moneyValue),
+-      output_per_million: evidenceValue(cost.output_per_million, moneyValue)
++      input_per_million: evidenceValue(cost.input_per_million ?? cost.input_per_million_usd, moneyValue),
++      output_per_million: evidenceValue(cost.output_per_million ?? cost.output_per_million_usd, moneyValue)
+     },
+     admission: {
+       status: ADMISSION.has(clean(admissionInput.status, 50).toLowerCase()) ? clean(admissionInput.status, 50).toLowerCase() : 'unverified',
+@@ -180,15 +193,15 @@
+       admitted: false
+     },
+     reliability: {
+-      successes: Math.round(finite(input.reliability?.successes, 0, 0, 10 ** 9)),
+-      failures: Math.round(finite(input.reliability?.failures, 0, 0, 10 ** 9)),
++      successes: Math.round(finite(input.reliability?.successes, reliabilitySamples * reliabilityRate, 0, 10 ** 9)),
++      failures: Math.round(finite(input.reliability?.failures, reliabilitySamples * (1 - reliabilityRate), 0, 10 ** 9)),
+       consecutive_failures: Math.round(finite(input.reliability?.consecutive_failures, 0, 0, 10 ** 6))
+     },
+-    operator_weight: finite(input.operator_weight, 0, -1000, 1000),
++    operator_weight: finite(input.operator_weight ?? input.preferences?.operator_rank, 0, -1000, 1000),
+     roles: unique(input.roles),
+     tags: unique(input.tags),
+     public: {
+-      engine_label: normalizePublicLabel(input.public?.engine_label, kind === 'native_checkpoint' ? 'Local Maker intelligence' : 'Adaptive Maker intelligence'),
++      engine_label: normalizePublicLabel(input.public?.engine_label || input.metadata?.engine_label, kind === 'native_checkpoint' ? 'Local Maker intelligence' : 'Adaptive Maker intelligence'),
+       endpoint_label: normalizePublicLabel(input.public?.endpoint_label, locality.value === 'local' ? 'Your local Maker runtime' : 'Managed Maker runtime')
+     },
+     metadata: redactProviderMetadata(input.metadata || {})
+@@ -228,6 +241,17 @@
+   grading: { required: ['reasoning', 'structured_json'], preferred: [], context_tokens: 32_000, output_tokens: 4_000, latency: 'standard', independent: true }
+ });
+ 
++const LEGACY_TASK_PROFILES = Object.freeze({
++  planning: { required: ['structured_json'], preferred: ['tool_use'], context_tokens: 32_000, output_tokens: 8_000, latency: 'standard', role: 'planner' },
++  repository_mapping: { required: ['structured_json'], preferred: ['tool_use'], context_tokens: 64_000, output_tokens: 12_000, latency: 'standard', role: 'mapper' },
++  coding: { required: ['structured_json', 'tool_use'], preferred: ['streaming'], context_tokens: 64_000, output_tokens: 16_000, latency: 'standard', role: 'implementer' },
++  debugging: { required: ['structured_json', 'tool_use'], preferred: ['streaming'], context_tokens: 48_000, output_tokens: 12_000, latency: 'interactive', role: 'debugger' },
++  review: { required: ['structured_json'], preferred: ['tool_use'], context_tokens: 48_000, output_tokens: 8_000, latency: 'standard', role: 'reviewer' },
++  summarization: { required: [], preferred: ['structured_json'], context_tokens: 32_000, output_tokens: 4_000, latency: 'interactive', role: 'summarizer' },
++  browser_interpretation: { required: ['multimodal'], preferred: ['structured_json'], context_tokens: 24_000, output_tokens: 8_000, latency: 'interactive', role: 'browser' },
++  grading: { required: ['structured_json'], preferred: [], context_tokens: 32_000, output_tokens: 6_000, latency: 'standard', role: 'grader' }
++});
++
+ function normalizeTaskBudget(input = {}, base = {}) {
+   const source = input.budget || {};
+   return Object.freeze({
+@@ -589,7 +613,8 @@
+ }
+ 
+ export function createModelRouter({
+-  registry = createProviderRegistry(),
++  registry = null,
++  providers = [],
+   transports = {},
+   health_checks = {},
+   clock = Date.now,
+@@ -602,6 +627,8 @@
+   circuit_cooldown_ms = 60_000,
+   attempt_timeout_ms = 120_000
+ } = {}) {
++  if (registry && providers.length) throw new ModelRouterError('provider_registry_conflict', 'provide registry or providers, not both');
++  registry = registry || createProviderRegistry(providers);
+   const ledger = createBudgetLedger(global_budget);
+   const circuits = new Map();
+ 
+@@ -813,5 +840,49 @@
+     });
+   }
+ 
+-  return Object.freeze({ route, grade, probe, probeAll, health, budget: () => ledger.snapshot() });
++  function providersSnapshot() {
++    return registry.list();
++  }
++
++  async function execute(taskInput = {}, state = {}, options = {}) {
++    const requestedProfile = clean(taskInput.profile || taskInput.type || taskInput.task || 'coding', 100).toLowerCase();
++    const legacy = LEGACY_TASK_PROFILES[requestedProfile];
++    if (!legacy) throw new ModelRouterError('task_profile_invalid', `unsupported task profile: ${requestedProfile}`);
++    const requestedLatency = clean(taskInput.max_latency_class || taskInput.latency || legacy.latency, 50).toLowerCase();
++    const routed = await route({
++      id: taskInput.id,
++      // execute() is the compatibility surface for the inherited runtime-platform.
++      // Use a neutral modern profile and carry the exact legacy requirements explicitly;
++      // route() callers retain the stricter admitted modern task profiles.
++      profile: 'summarization',
++      role: taskInput.role || legacy.role,
++      messages: taskInput.messages,
++      state,
++      required_capabilities: unique([...(legacy.required || []), ...(taskInput.required_capabilities || taskInput.required || [])]),
++      preferred_capabilities: unique([...(legacy.preferred || []), ...(taskInput.preferred_capabilities || taskInput.preferred || [])]),
++      context_tokens: taskInput.context_tokens ?? legacy.context_tokens,
++      output_tokens: taskInput.output_tokens ?? legacy.output_tokens,
++      max_cost_usd: taskInput.max_cost_usd,
++      max_latency_class: requestedLatency === 'fast' ? 'interactive' : requestedLatency,
++      privacy: taskInput.privacy || taskInput.privacy_minimum,
++      locality: taskInput.locality || taskInput.locality_preference,
++      region: taskInput.region || taskInput.region_preference,
++      provider_preference: taskInput.provider_preference || taskInput.operator_preference,
++      output_schema: taskInput.output_schema,
++      budget: taskInput.budget
++    }, options);
++    const descriptor = registry.get(routed.selected_provider);
++    const provider = descriptor ? {
++      id: descriptor.id,
++      display_name: descriptor.display_name,
++      engine_label: descriptor.public.engine_label,
++      kind: descriptor.kind,
++      admission: { admitted: descriptor.kind !== 'native_checkpoint' || descriptor.native.admitted === true }
++    } : { id: routed.selected_provider, kind: routed.provider_kind };
++    const receipt = { ...routed, task_profile: requestedProfile, provider, receipt_digest: '' };
++    receipt.receipt_digest = hash({ ...receipt, receipt_digest: undefined });
++    return Object.freeze(receipt);
++  }
++
++  return Object.freeze({ route, execute, providers: providersSnapshot, grade, probe, probeAll, health, budget: () => ledger.snapshot() });
+ }
