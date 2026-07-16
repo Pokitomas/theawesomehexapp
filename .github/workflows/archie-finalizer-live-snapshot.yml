@@ -1,0 +1,57 @@
+name: Archie live coordinator exact snapshot
+
+on:
+  push:
+    branches:
+      - agent/archie-integration-finalizer-live
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact live coordinator
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: c9a710fdef372b4bf7fab53a514410f09d31495a
+          path: coordinator
+          persist-credentials: false
+      - name: Verify and archive exact tree
+        run: |
+          set -euo pipefail
+          test "$(git -C coordinator rev-parse HEAD)" = "c9a710fdef372b4bf7fab53a514410f09d31495a"
+          tar -C coordinator --exclude=.git -czf "$RUNNER_TEMP/archie-live-coordinator.tgz" .
+          sha256sum "$RUNNER_TEMP/archie-live-coordinator.tgz" > "$RUNNER_TEMP/archie-live-coordinator.sha256"
+          printf '%s\n' c9a710fdef372b4bf7fab53a514410f09d31495a > "$RUNNER_TEMP/archie-live-coordinator-head.txt"
+      - name: Upload exact tree
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-live-coordinator-c9a710fdef372b4bf7fab53a514410f09d31495a
+          path: |
+            ${{ runner.temp }}/archie-live-coordinator.tgz
+            ${{ runner.temp }}/archie-live-coordinator.sha256
+            ${{ runner.temp }}/archie-live-coordinator-head.txt
+          if-no-files-found: error
+          retention-days: 3
+      - name: Publish snapshot receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          <!-- archie-live-coordinator-snapshot:${GITHUB_RUN_ID} -->
+          Exact live coordinator snapshot ready.
+
+          - coordinator head: \`c9a710fdef372b4bf7fab53a514410f09d31495a\`
+          - run: \`${GITHUB_RUN_ID}\`
+          - artifact: \`archie-live-coordinator-c9a710fdef372b4bf7fab53a514410f09d31495a\`
+          - finalizer ref remains isolated
+
+          No coordinator write, merge, or deployment.
+          EOF
+          )
+          gh api "repos/${GITHUB_REPOSITORY}/issues/351/comments" -f body="$body" >/dev/null
