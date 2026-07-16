@@ -21,6 +21,7 @@ export const AIL_KINDS = Object.freeze([
 
 const SEMANTIC_KINDS = new Set(AIL_KINDS.filter(kind => kind !== 'presentation'));
 const EXECUTABLE_KINDS = new Set(['step', 'verify', 'learn', 'halt']);
+const RESERVED_FIELDS = new Set(['kind', 'id']);
 const ID_PATTERN = /^[a-z][a-z0-9._/-]{0,127}$/i;
 
 function clean(value, limit = 200000) {
@@ -58,7 +59,10 @@ function parseHeader(line, lineNumber) {
     lineError(lineNumber, `payload is not valid JSON: ${error.message}`);
   }
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) lineError(lineNumber, 'payload must be a JSON object.');
-  return Object.freeze({ kind, id, ...canonical(payload) });
+  for (const field of RESERVED_FIELDS) {
+    if (Object.hasOwn(payload, field)) lineError(lineNumber, `payload field ${field} is reserved by AIL.`);
+  }
+  return Object.freeze({ ...canonical(payload), kind, id });
 }
 
 export function parseArchieLanguage(source) {
