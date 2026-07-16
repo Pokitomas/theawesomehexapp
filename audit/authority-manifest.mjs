@@ -14,10 +14,30 @@ const overrides = {
     denialConditions: ['authentication failure', 'principal lacks write', 'terminal generation', 'duplicate message id', 'used nonce', 'target mismatch']
   }
 };
+const archieDistillingWorkflowRow = {
+  id: 'workflow.archie-distilling-chamber',
+  f: 'workflow',
+  op: 'Run bounded CPU-first Archie practice episodes and preserve a non-secret smoke receipt',
+  actor: 'GitHub pull-request or manual workflow actor',
+  principal: 'Read-only GitHub Actions token executing exact candidate code',
+  auth: 'contents:read only; no repository mutation, provider, model, or secret authority',
+  object: 'Check result and bounded chamber smoke artifact',
+  owner: 'GitHub repository CI configuration; admission and deployment remain separate human-controlled operations',
+  deny: 'event or path filter does not match|checkout or Node setup fails|syntax, contract, focused test, or smoke execution fails|artifact is absent',
+  replay: 'Exact workflow run, candidate commit, ordered chamber events, and retained smoke artifact.',
+  pub: 'Workflow status and intentionally uploaded non-secret smoke receipt are public.',
+  priv: 'No credentials, provider secrets, model weights, or private corpus records are consumed.',
+  st: 'e',
+  s: ['workflow-permission:.github/workflows/archie-linux-distilling-chamber.yml:contents:read'],
+  impl: [['.github/workflows/archie-linux-distilling-chamber.yml', 'contents: read', 'persist-credentials: false', 'Run focused tests', 'Upload truthful smoke receipt']],
+  allow: [['scripts/tests/archie-distilling-chamber.test.mjs', 'event stream is ordered, cursor-resumable, and deterministic in shape'], ['scripts/tests/archie-distilling-chamber.test.mjs', 'checkpoint is digest-bound and restart evidence is serializable']],
+  denyW: [['scripts/tests/archie-distilling-chamber.test.mjs', 'repeated states are rejected instead of looping'], ['scripts/tests/archie-distilling-chamber.test.mjs', 'child and depth budgets are enforced'], ['scripts/tests/archie-distilling-chamber.test.mjs', 'pause, resume, and stop are truthful']]
+};
 
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
+  archieDistillingWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({
