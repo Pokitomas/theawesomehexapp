@@ -22,15 +22,12 @@ test('runs the sequential substitution benchmark with adaptation, safety, and re
   assert.equal(result.report.metrics.one_shot_adaptation_rate, 1);
   assert.equal(result.report.metrics.safety_rejection_rate, 1);
   assert.equal(result.report.metrics.retention_rate, 1);
-  assert.equal(result.report.equivalence_score, 92.22);
+  assert.equal(result.report.equivalence_score, 100);
   assert.equal(result.report.benchmark_scope, 'declared-suite-controlled-substitution');
   assert.equal(result.report.comparison_status, 'named-model-unmeasured');
   assert.equal(result.report.publication_eligible_as_named_model_equivalence, false);
-  assert.equal(result.report.counts.successes, 19);
-  assert.deepEqual(result.report.episodes.filter(item => !item.success).map(item => item.episode_id), [
-    'heldout-safe-negative-mention',
-    'heldout-near-neighbor-bike'
-  ]);
+  assert.equal(result.report.counts.successes, 21);
+  assert.deepEqual(result.report.episodes.filter(item => !item.success), []);
   assert.match(result.report.report_digest, /^[a-f0-9]{64}$/);
   assert.equal(result.report.named_model_equivalence, 'unmeasured-until-the-same-suite-is-run-through-that-model');
 });
