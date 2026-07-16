@@ -1,73 +1,105 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sideways.example/contracts/runtime-platform.schema.json",
-  "title": "Sideways Maker Runtime Platform Receipt",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["schema", "outcome", "request", "links", "components", "public_presentation", "finished_at", "integrity_digest"],
-  "properties": {
-    "schema": { "const": "sideways-maker-runtime-platform-receipt/v1" },
-    "outcome": { "enum": ["queued", "running", "completed", "failed", "cancelled"] },
-    "request": { "$ref": "#/$defs/request" },
-    "links": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["model_route", "fleet_placement", "plugin_state", "control_job", "dispatch", "public_presentation"],
-      "properties": {
-        "model_route": { "$ref": "#/$defs/digest" },
-        "fleet_placement": { "$ref": "#/$defs/digest" },
-        "plugin_state": { "$ref": "#/$defs/digest" },
-        "control_job": { "$ref": "#/$defs/digest" },
-        "dispatch": { "$ref": "#/$defs/digest" },
-        "public_presentation": { "$ref": "#/$defs/digest" }
-      }
-    },
-    "components": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["model_route", "fleet_placement", "plugin_state", "control_job", "dispatch_receipt", "control_export"],
-      "properties": {
-        "model_route": { "type": "object" },
-        "fleet_placement": { "type": "object" },
-        "plugin_state": { "type": "object" },
-        "control_job": { "type": "object" },
-        "dispatch_receipt": { "type": "object" },
-        "control_export": { "type": "object" }
-      }
-    },
-    "public_presentation": { "type": "object" },
-    "finished_at": { "type": "string", "format": "date-time" },
-    "integrity_digest": { "$ref": "#/$defs/digest" }
-  },
+  "$id": "https://sideways.local/contracts/runtime-platform.schema.json",
+  "title": "Maker composed runtime platform",
+  "oneOf": [
+    { "$ref": "#/$defs/platformReceipt" },
+    { "$ref": "#/$defs/pluginAuthority" },
+    { "$ref": "#/$defs/runtimeProfileProjection" }
+  ],
   "$defs": {
-    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$|^[A-Za-z0-9._:-]{1,300}$" },
-    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
-    "request": {
+    "componentReceipts": {
       "type": "object",
-      "required": ["schema", "control_repository", "target_repository", "head_repository", "repository", "base_revision", "mode", "backend", "request", "budgets", "authority", "runtime_requirements", "required_plugin_capabilities"],
+      "required": ["model_route", "fleet_placement", "plugin_registry", "plugin_authority", "runtime_profile", "control_job", "dispatch", "fleet_result", "presentation"],
       "properties": {
-        "schema": { "const": "sideways-maker-runtime-platform-request/v1" },
-        "control_repository": { "$ref": "#/$defs/repository" },
-        "target_repository": { "$ref": "#/$defs/repository" },
-        "head_repository": { "$ref": "#/$defs/repository" },
-        "repository": { "$ref": "#/$defs/repository" },
-        "base_revision": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "mode": { "enum": ["build", "fix", "explore", "audit"] },
-        "backend": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "request": { "type": "string", "minLength": 1, "maxLength": 12000 },
-        "protect": { "type": "string", "maxLength": 12000 },
-        "proof": { "type": "string", "maxLength": 12000 },
-        "device_requirement": { "type": "string", "maxLength": 300 },
-        "priority": { "type": "number", "minimum": 0, "maximum": 100 },
-        "budgets": { "type": "object" },
+        "model_route": { "type": ["object", "null"] },
+        "fleet_placement": { "type": ["object", "null"] },
+        "plugin_registry": { "type": ["object", "null"] },
+        "plugin_authority": { "type": ["object", "null"] },
+        "runtime_profile": { "type": ["object", "null"] },
+        "control_job": { "type": ["object", "null"] },
+        "dispatch": { "type": ["object", "null"] },
+        "fleet_result": { "type": ["object", "null"] },
+        "presentation": { "type": ["object", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "platformError": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["code", "message", "recoverable", "detail"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "message": { "type": "string" },
+            "recoverable": { "type": "boolean" },
+            "detail": { "type": "object" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "platformReceipt": {
+      "type": "object",
+      "required": ["schema", "platform_run_id", "state", "task", "components", "error", "finished_at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-runtime-platform-receipt/v1" },
+        "platform_run_id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["completed", "failed", "blocked"] },
+        "task": { "type": ["object", "null"] },
+        "components": { "$ref": "#/$defs/componentReceipts" },
+        "error": { "$ref": "#/$defs/platformError" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "pluginAuthority": {
+      "type": "object",
+      "required": ["authority", "capabilities", "plugins"],
+      "properties": {
+        "authority": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": ["none", "read", "write", "execute", "manage", "reference_only", "approval_required"]
+          }
+        },
+        "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "version", "kind", "capabilities", "privileged"],
+            "properties": {
+              "id": { "type": "string" },
+              "version": { "type": "string" },
+              "kind": { "type": "string" },
+              "capabilities": { "type": "array", "items": { "type": "string" } },
+              "privileged": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeProfileProjection": {
+      "type": "object",
+      "required": ["runtime_id", "display_name", "status", "intelligence", "endpoint", "planning", "execution", "authority", "presentation", "observed_at"],
+      "properties": {
+        "runtime_id": { "type": "string" },
+        "display_name": { "type": "string" },
+        "status": { "enum": ["healthy", "degraded", "offline", "unknown"] },
+        "intelligence": { "type": "object" },
+        "endpoint": { "type": "object" },
+        "planning": { "type": "object" },
+        "execution": { "type": "object" },
         "authority": { "type": "object" },
-        "runtime_requirements": { "type": "object" },
-        "model_task": { "type": "object" },
-        "model_state": { "type": "object" },
-        "fleet_requirements": { "type": "object" },
-        "required_plugin_capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "idempotency_key": { "type": "string", "maxLength": 300 }
-      }
+        "presentation": { "type": "object" },
+        "observed_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
     }
   }
 }
