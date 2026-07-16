@@ -12,6 +12,13 @@ npm run archie -- package ./model.gguf --metadata ./metadata.json --output-dir .
 npm run archie -- pull ./package/manifest.json \
   --trust-key ./keys/publisher/archie-publisher-ed25519-public.pem \
   --device-key ./keys/device/archie-device-x25519-private.pem
+npm run archie -- checkpoint <id@version> ./updated-model.gguf \
+  --metadata ./updated-metadata.json \
+  --lineage ./checkpoint-lineage.json \
+  --output-dir ./updated-package \
+  --recipient-key ./keys/device/archie-device-x25519-public.pem \
+  --signing-private ./keys/publisher/archie-publisher-ed25519-private.pem \
+  --signing-public ./keys/publisher/archie-publisher-ed25519-public.pem
 npm run archie -- run <id@version> --prompt "..."
 npm run archie -- inspect <id@version>
 npm run archie -- benchmark <id@version> --suite <suite.json>
@@ -53,6 +60,30 @@ The installed directory retains the signed outer manifest, encrypted pull receip
 
 The earlier `archie-model-manifest/v1` direct-artifact path remains supported for bounded development fixtures. Production Archie checkpoints should use the encrypted manifest.
 
+## Mutable checkpoint transitions
+
+`checkpoint` packages a candidate artifact only after matching it against an installed parent checkpoint. It emits `archie-checkpoint-transition-receipt/v1` and refuses to continue when any protected architecture surface drifts.
+
+The following must remain exactly unchanged:
+
+- model ID, architecture, runtime ABI, format, quantization, and context limit;
+- runtime adapter and process argument template;
+- immutable-state digest;
+- the complete declared set of mutable regions.
+
+The candidate must declare:
+
+- a new version;
+- a changed mutable-state digest;
+- a fresh benchmark report digest;
+- exact parent model, manifest, artifact, and mutable-state expectations;
+- training-data, trajectory, training-config, optimizer, authority, and evaluation receipt digests;
+- the training seed, teacher IDs, and rejected checkpoint digests.
+
+The transition metadata is embedded into the signed encrypted manifest as `provenance.checkpoint_lineage`, while the separate transition receipt binds parent and candidate manifests, artifacts, state digests, exact sizes, and every enforced constraint.
+
+This contract does not train weights and cannot independently prove that declared mutable regions correspond to specific tensor ranges inside an opaque model file. The trainer and benchmark pipeline must produce those independently verified inputs. The checkpoint command only admits and packages a transition that satisfies the declared immutable/mutable boundary.
+
 ## Local execution and benchmarks
 
 `run` re-verifies the installed artifact, invokes only the configured local executable without a shell, and emits `archie-model-run-receipt/v1` bound to the artifact, manifest, prompt, arguments, output, environment, latency, and generation settings. No frontier API key is read or required.
@@ -69,6 +100,6 @@ All model-artifact keys are unrelated to PR #397's short-lived execution HMAC. T
 
 ## Deliberate boundary
 
-This is real encrypted artifact packaging, transport, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
+This is real encrypted artifact packaging, transport, checkpoint-transition admission, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
 
 The default `npm run maker` path is unchanged by this tranche. Sideways remains deterministic state, Maker remains the only permissioned effect executor, and Archie model artifacts receive no privileged repository modification path.
