@@ -1,0 +1,147 @@
+name: Admit Maker foundation modules
+
+on:
+  push:
+    branches:
+      - agent/complete-maker-foundation-modules
+
+permissions:
+  contents: write
+
+jobs:
+  admit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Materialize exact validated source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            agent/maker-execution-completion:refs/remotes/origin/agent/maker-execution-completion \
+            agent/linux-github-relay:refs/remotes/origin/agent/linux-github-relay
+
+          foundation_paths=(
+            maker/contracts/edit-transaction.schema.json
+            maker/contracts/github-authority.schema.json
+            maker/contracts/orchestration.schema.json
+            maker/contracts/repository-intelligence.schema.json
+            maker/contracts/security-policy.schema.json
+            maker/contracts/target-workspace.schema.json
+            maker/contracts/tool-policy.schema.json
+            maker/runtime/edit-broker.mjs
+            maker/runtime/tool-broker.mjs
+            scripts/maker-github-broker.mjs
+            scripts/maker-orchestrator.mjs
+            scripts/maker-repository-intelligence.mjs
+            scripts/maker-security-policy.mjs
+            scripts/maker-source-admission.mjs
+            scripts/maker-target-workspace.mjs
+            scripts/tests/maker-edit-broker.test.mjs
+            scripts/tests/maker-github-broker.test.mjs
+            scripts/tests/maker-orchestrator.test.mjs
+            scripts/tests/maker-repository-intelligence.test.mjs
+            scripts/tests/maker-security-policy.test.mjs
+            scripts/tests/maker-source-admission.test.mjs
+            scripts/tests/maker-target-workspace.test.mjs
+            scripts/tests/maker-tool-broker.test.mjs
+          )
+          relay_paths=(
+            maker/contracts/linux-relay.schema.json
+            scripts/maker-linux-relay.mjs
+            scripts/tests/maker-linux-relay.test.mjs
+          )
+
+          for path in "${foundation_paths[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            git show "origin/agent/maker-execution-completion:$path" > "$path"
+          done
+          for path in "${relay_paths[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            git show "origin/agent/linux-github-relay:$path" > "$path"
+          done
+
+          rm .github/workflows/admit-maker-foundation-modules.yml
+          git diff --check
+
+      - name: Publish exact admission commit
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            maker/contracts/edit-transaction.schema.json \
+            maker/contracts/github-authority.schema.json \
+            maker/contracts/orchestration.schema.json \
+            maker/contracts/repository-intelligence.schema.json \
+            maker/contracts/security-policy.schema.json \
+            maker/contracts/target-workspace.schema.json \
+            maker/contracts/tool-policy.schema.json \
+            maker/contracts/linux-relay.schema.json \
+            maker/runtime/edit-broker.mjs \
+            maker/runtime/tool-broker.mjs \
+            scripts/maker-github-broker.mjs \
+            scripts/maker-orchestrator.mjs \
+            scripts/maker-repository-intelligence.mjs \
+            scripts/maker-security-policy.mjs \
+            scripts/maker-source-admission.mjs \
+            scripts/maker-target-workspace.mjs \
+            scripts/maker-linux-relay.mjs \
+            scripts/tests/maker-edit-broker.test.mjs \
+            scripts/tests/maker-github-broker.test.mjs \
+            scripts/tests/maker-orchestrator.test.mjs \
+            scripts/tests/maker-repository-intelligence.test.mjs \
+            scripts/tests/maker-security-policy.test.mjs \
+            scripts/tests/maker-source-admission.test.mjs \
+            scripts/tests/maker-target-workspace.test.mjs \
+            scripts/tests/maker-tool-broker.test.mjs \
+            scripts/tests/maker-linux-relay.test.mjs \
+            .github/workflows/admit-maker-foundation-modules.yml
+          git commit -m "feat(maker): admit foundation execution modules"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Validate current-main compatibility
+        shell: bash
+        run: |
+          npm ci --ignore-scripts
+          node --check scripts/maker-target-workspace.mjs
+          node --check scripts/maker-github-broker.mjs
+          node --check maker/runtime/tool-broker.mjs
+          node --check maker/runtime/edit-broker.mjs
+          node --check scripts/maker-repository-intelligence.mjs
+          node --check scripts/maker-orchestrator.mjs
+          node --check scripts/maker-security-policy.mjs
+          node --check scripts/maker-source-admission.mjs
+          node --check scripts/maker-linux-relay.mjs
+          node --test \
+            scripts/tests/maker-target-workspace.test.mjs \
+            scripts/tests/maker-github-broker.test.mjs \
+            scripts/tests/maker-tool-broker.test.mjs \
+            scripts/tests/maker-edit-broker.test.mjs \
+            scripts/tests/maker-repository-intelligence.test.mjs \
+            scripts/tests/maker-orchestrator.test.mjs \
+            scripts/tests/maker-security-policy.test.mjs \
+            scripts/tests/maker-source-admission.test.mjs \
+            scripts/tests/maker-linux-relay.test.mjs
+          node -e "for (const file of process.argv.slice(1)) JSON.parse(require('fs').readFileSync(file, 'utf8'))" \
+            maker/contracts/edit-transaction.schema.json \
+            maker/contracts/github-authority.schema.json \
+            maker/contracts/orchestration.schema.json \
+            maker/contracts/repository-intelligence.schema.json \
+            maker/contracts/security-policy.schema.json \
+            maker/contracts/target-workspace.schema.json \
+            maker/contracts/tool-policy.schema.json \
+            maker/contracts/linux-relay.schema.json
+          npm run test:native-maker
+          npm run test:maker
