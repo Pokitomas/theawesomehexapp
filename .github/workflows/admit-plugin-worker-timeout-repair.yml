@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.archie-payload/runtime-composition/final.tar.gz'
+      - '.archie-payload/runtime-composition/trigger-v11.txt'
       - '.github/workflows/admit-plugin-worker-timeout-repair.yml'
 
 permissions:
