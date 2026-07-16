@@ -7,7 +7,7 @@ import {
   deriveLaunchRequirements,
   evaluateLaunchCandidate
 } from './archie-launch-contract.mjs';
-import { resolveLaunchProfile } from './archie-launch-profile-resolver.mjs';
+import { resolveAdmittedLaunchProfile } from './archie-launch-profile-admission.mjs';
 
 function parse(argv) {
   const command = argv[0] || 'derive';
@@ -56,13 +56,13 @@ function usage() {
 Usage:
   node scripts/archie-launch-assess.mjs derive [--target founder/archie-launch-target.json] [--output file.json]
   node scripts/archie-launch-assess.mjs evaluate --candidate candidate.json [--target founder/archie-launch-target.json] [--output decision.json]
-  node scripts/archie-launch-assess.mjs resolve --manifest launch-capability-manifest.json [--output resolution.json]
+  node scripts/archie-launch-assess.mjs resolve --manifest launch-capability-manifest.json [--output admission.json]
 
 derive maps human outcomes to required faculties without selecting chat, voice, a dashboard, or an always-on process as architecture.
 
 evaluate jointly gates the model, authority, evidence, and required embodiment. It exits non-zero unless the candidate satisfies the maximal target.
 
-resolve binds the admitted candidate to one exact machine, permissions, resources, modalities, invocation and continuity capabilities. It selects the strongest truthful compatible profile, preserves named fallbacks separately, and exits non-zero unless the exact default profile is admitted.`;
+resolve binds the admitted candidate to one exact machine, permissions, resources, modalities, invocation and continuity capabilities. It selects the strongest compatible profile whose aggregate resource cost fits the exact machine, preserves named fallbacks separately, and exits non-zero unless the default profile is admitted.`;
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -74,10 +74,9 @@ export async function main(argv = process.argv.slice(2)) {
   const output = flags.get('--output');
 
   if (command === 'resolve') {
-    const manifest = await readJSON(requiredFlag(flags, '--manifest'));
-    const resolution = resolveLaunchProfile(manifest);
-    await writeResult(resolution, output);
-    if (resolution.decision !== 'admitted-maximal-machine-profile') process.exitCode = 1;
+    const admission = resolveAdmittedLaunchProfile(await readJSON(requiredFlag(flags, '--manifest')));
+    await writeResult(admission, output);
+    if (admission.decision !== 'admitted-maximal-machine-profile') process.exitCode = 1;
     return;
   }
 
