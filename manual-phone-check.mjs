@@ -70,6 +70,7 @@ await phoneContext.addInitScript(() => {
 });
 const phone = await phoneContext.newPage();
 const phoneErrors = collectErrors(phone);
+// Record actual main-frame navigation requests; a load event can arrive after networkidle.
 const phoneNavigations = [];
 phone.on('request', request => {
   if (request.isNavigationRequest() && request.frame() === phone.mainFrame()) phoneNavigations.push(request.url());
