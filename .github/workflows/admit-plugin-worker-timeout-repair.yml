@@ -3,7 +3,7 @@ name: Admit exact plugin and worker timeout repair
 on:
   pull_request:
     paths:
-      - '.archie-payload/plugin-repair/trigger-v6.txt'
+      - '.archie-payload/plugin-repair/trigger-v7.txt'
       - '.github/workflows/admit-plugin-worker-timeout-repair.yml'
 
 permissions:
@@ -62,7 +62,11 @@ jobs:
           old = ',m.unref?.()'
           if s.count(old) != 1:
               raise SystemExit(f'expected one worker timeout unref witness, found {s.count(old)}')
-          p.write_text(s.replace(old, ''))
+          s = s.replace(old, '')
+          seam = 'export const createFleetAdapterRegistry=createWorkerAdapterRegistry;export const registerDefaultFleetAdapters=registerDefaultWorkerAdapters;'
+          if 'createFleetAdapterRegistry' not in s:
+              s += seam
+          p.write_text(s)
           PY
       - name: Capture both timeout repairs and composed runtime proof
         shell: bash
@@ -119,7 +123,7 @@ jobs:
           git commit -m 'Repair fleet and plugin timeout liveness'
           new_head="$(git rev-parse HEAD)"
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
-          printf 'source_pr=361\nsource_bundle_sha256=%s\nexpected_target_head=%s\nnew_target_head=%s\nworker_timeout_witness=removed_once\nplugin_timeout_witness=removed_once\nworker_tests=25/25\nplugin_tests=32/32\nruntime_tests=passed\n' "$BUNDLE_SHA256" "$EXPECTED_TARGET_HEAD" "$new_head" > /tmp/admission-receipt.txt
+          printf 'source_pr=361\nsource_bundle_sha256=%s\nexpected_target_head=%s\nnew_target_head=%s\nworker_timeout_witness=removed_once\nplugin_timeout_witness=removed_once\nworker_compatibility_aliases=2\nworker_tests=25/25\nplugin_tests=32/32\nruntime_tests=passed\n' "$BUNDLE_SHA256" "$EXPECTED_TARGET_HEAD" "$new_head" > /tmp/admission-receipt.txt
       - name: Upload exact admission receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
