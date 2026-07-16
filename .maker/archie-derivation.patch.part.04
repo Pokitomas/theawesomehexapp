@@ -1,0 +1,281 @@
+       tool_trace: teacherResult?.tool_trace || [],
+       outcome: teacherResult?.outcome || 'completed',
+       source: {
+diff --git a/scripts/maker-archie-corpus.mjs b/scripts/maker-archie-corpus.mjs
+index 55bddd6..bb0899e 100644
+--- a/scripts/maker-archie-corpus.mjs
++++ b/scripts/maker-archie-corpus.mjs
+@@ -132,7 +132,8 @@ function normalizeRecord(event = {}, observedAt) {
+     },
+     output: {
+       text: clean(output.text || event.response || '', 500000),
+-      plan: redact(output.plan || event.plan || null)
++      plan: redact(output.plan || event.plan || null),
++      abstraction: redact(output.abstraction || event.abstraction || null)
+     },
+     tool_trace: normalizeToolTrace(event.tool_trace || event.tools),
+     outcome: clean(event.outcome || 'unknown', 100),
+@@ -166,6 +167,7 @@ function buildDistillationExample(record) {
+     instruction: record.input.text,
+     compact_context: record.input.context,
+     target: redact(target),
++    abstraction: redact(record.output.abstraction || null),
+     tool_trace: record.tool_trace,
+     outcome: record.outcome,
+     teacher_evidence: record.source,
+@@ -235,7 +237,7 @@ export class ArchieLinuxCorpus {
+           subject: record.subject,
+           outcome: record.outcome,
+           observed_at: record.observed_at,
+-          tokens: tokenize(`${record.input.text}\n${record.output.text}\n${stringifyCompact(record.output.plan, 50000)}`).slice(0, 5000)
++          tokens: tokenize(`${record.input.text}\n${record.output.text}\n${stringifyCompact(record.output.plan, 50000)}\n${stringifyCompact(record.output.abstraction, 50000)}`).slice(0, 5000)
+         });
+       }
+ 
+@@ -311,7 +313,8 @@ export class ArchieLinuxCorpus {
+       },
+       output: {
+         text: stringifyCompact(output),
+-        plan
++        plan,
++        abstraction: route.output?.derivation?.proof || route.output?.teacher_gap || route.output?.abstraction || null
+       },
+       tool_trace: toolTrace,
+       outcome: receipt?.state === 'completed' ? 'completed' : receipt?.state || 'unknown',
+diff --git a/scripts/maker-archie-derivation.mjs b/scripts/maker-archie-derivation.mjs
+new file mode 100644
+index 0000000..f90c608
+--- /dev/null
++++ b/scripts/maker-archie-derivation.mjs
+@@ -0,0 +1,1109 @@
++#!/usr/bin/env node
++import crypto from 'node:crypto';
++import fs from 'node:fs/promises';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++export const ARCHIE_DERIVATION_MODEL_SCHEMA = 'archie-derivation-model/v1';
++export const ARCHIE_DERIVATION_PLAN_SCHEMA = 'archie-derivation-plan/v1';
++export const ARCHIE_KNOWLEDGE_RECORD_SCHEMA = 'archie-knowledge-record/v1';
++export const ARCHIE_PROOF_SCHEMA = 'archie-derivation-proof/v1';
++
++const MAX_TEXT = 500_000;
++const MAX_MODEL_BYTES = 16 * 1024 * 1024;
++const VECTOR_SCALE = 127;
++const DEFAULT_DIMENSIONS = 1536;
++const DEFAULT_THRESHOLD = 0.46;
++const DEFAULT_MIN_GROUNDING = 0.34;
++const DEFAULT_MAX_STEPS = 12;
++const DEFAULT_MAX_EXPANSIONS = 96;
++
++const clean = (value, limit = MAX_TEXT) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
++const canonical = value => Array.isArray(value)
++  ? value.map(canonical)
++  : value && typeof value === 'object'
++    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]))
++    : value;
++const stable = value => JSON.stringify(canonical(value));
++const digest = value => crypto.createHash('sha256').update(typeof value === 'string' ? value : stable(value)).digest('hex');
++const unique = (values, limit = 5000) => [...new Set((Array.isArray(values) ? values : []).map(value => clean(value, 300).toLowerCase()).filter(Boolean))].slice(0, limit).sort();
++const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, Number(value) || 0));
++
++const STOPWORDS = new Set([
++  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'before', 'by', 'can', 'do', 'for', 'from', 'has', 'have', 'if', 'in', 'into', 'is', 'it', 'its', 'make', 'of', 'on', 'or', 'please', 'run', 'the', 'then', 'this', 'to', 'with', 'without', 'work', 'task', 'thing', 'stuff'
++]);
++
++const TOKEN_ALIASES = new Map(Object.entries({
++  analysed: 'analyze', analyse: 'analyze', analysis: 'analyze', analyzing: 'analyze',
++  audited: 'audit', auditing: 'audit', checks: 'verify', checked: 'verify', checking: 'verify',
++  conflicts: 'conflict', conflicted: 'conflict', conflicting: 'conflict',
++  created: 'create', creating: 'create', generated: 'create', generating: 'create', built: 'build', building: 'build',
++  diagnosed: 'diagnose', diagnosing: 'diagnose', diagnosis: 'diagnose',
++  failed: 'fail', failing: 'fail', failures: 'fail', fixed: 'repair', fixing: 'repair', repaired: 'repair', repairing: 'repair',
++  inspected: 'inspect', inspecting: 'inspect', investigation: 'inspect', investigated: 'inspect',
++  migrations: 'migration', migrated: 'migrate', migrating: 'migrate',
++  moderated: 'moderate', moderation: 'moderate',
++  planned: 'plan', planning: 'plan',
++  recovered: 'recover', recovery: 'recover',
++  rejected: 'reject', rejecting: 'reject',
++  retries: 'retry', retried: 'retry',
++  synchronized: 'sync', synchronise: 'sync', synchronize: 'sync', syncing: 'sync',
++  tested: 'test', testing: 'test', tests: 'test',
++  validated: 'verify', validating: 'verify', validation: 'verify', verified: 'verify', verifying: 'verify',
++  preserved: 'preserve', preserving: 'preserve', retained: 'preserve', retaining: 'preserve',
++  deployed: 'deploy', deploying: 'deploy', staged: 'stage', staging: 'stage',
++  allocated: 'allocate', allocating: 'allocate', scheduled: 'schedule', scheduling: 'schedule',
++  dispatched: 'dispatch', dispatching: 'dispatch', selected: 'select', selecting: 'select',
++  exported: 'export', exporting: 'export', packaged: 'package', packaging: 'package',
++  scored: 'score', scoring: 'score', evaluated: 'evaluate', evaluating: 'evaluate',
++  encrypted: 'encrypt', encrypting: 'encrypt', hashed: 'hash', hashing: 'hash',
++  rolledback: 'rollback', reverted: 'rollback', reverting: 'rollback'
++}));
++
++export const ARCHIE_OPERATOR_LIBRARY = Object.freeze({
++  observe: Object.freeze({
++    aliases: ['inspect', 'read', 'load', 'list', 'search', 'status', 'observe', 'open', 'parse', 'scan', 'measure', 'collect', 'discover', 'review'],
++    requires: ['accessible:{domain}'], produces: ['known:{domain}'], preserves: ['source:{domain}'], risk: 'read'
++  }),
++  diagnose: Object.freeze({
++    aliases: ['diagnose', 'analyze', 'audit', 'infer', 'compare', 'detect', 'identify', 'triage', 'estimate'],
++    requires: ['known:{domain}'], produces: ['cause:{domain}'], preserves: ['evidence:{domain}'], risk: 'read'
++  }),
++  reconcile: Object.freeze({
++    aliases: ['repair', 'recover', 'resolve', 'reconcile', 'merge', 'fix', 'moderate', 'dedupe'],
++    requires: ['cause:{domain}|known:{domain}'], produces: ['consistent:{domain}'], preserves: ['valid-state:{domain}'], risk: 'write'
++  }),
++  transform: Object.freeze({
++    aliases: ['patch', 'update', 'apply', 'migrate', 'change', 'edit', 'replace', 'convert'],
++    requires: ['known:{domain}'], produces: ['changed:{domain}'], preserves: ['declared-invariants:{domain}'], risk: 'write'
++  }),
++  materialize: Object.freeze({
++    aliases: ['create', 'build', 'write', 'generate', 'export', 'package', 'emit', 'publish', 'render', 'produce'],
++    requires: ['known:{domain}'], produces: ['artifact:{domain}'], preserves: ['provenance:{domain}'], risk: 'write'
++  }),
++  verify: Object.freeze({
++    aliases: ['verify', 'test', 'validate', 'check', 'prove', 'score', 'evaluate'],
++    requires: ['changed:{domain}|artifact:{domain}|consistent:{domain}|known:{domain}'], produces: ['verified:{domain}'], preserves: ['evidence:{domain}'], risk: 'read'
++  }),
++  preserve: Object.freeze({
++    aliases: ['preserve', 'retain', 'snapshot', 'checkpoint', 'archive', 'backup'],
++    requires: ['known:{domain}'], produces: ['preserved:{domain}'], preserves: ['recoverability:{domain}'], risk: 'write'
++  }),
++  protect: Object.freeze({
++    aliases: ['encrypt', 'hash', 'sign', 'redact', 'isolate', 'sanitize'],
++    requires: ['known:{domain}'], produces: ['protected:{domain}'], preserves: ['confidentiality:{domain}'], risk: 'write'
++  }),
++  route: Object.freeze({
++    aliases: ['select', 'choose', 'place', 'route', 'allocate', 'reserve', 'schedule'],
++    requires: ['known:{domain}'], produces: ['selected:{domain}'], preserves: ['constraints:{domain}'], risk: 'write'
++  }),
++  execute: Object.freeze({
++    aliases: ['dispatch', 'execute', 'run', 'call', 'invoke', 'send', 'stage', 'deploy'],
++    requires: ['selected:{domain}|known:{domain}'], produces: ['executed:{domain}'], preserves: ['authority:{domain}'], risk: 'execute'
++  }),
++  invert: Object.freeze({
++    aliases: ['rollback', 'revert', 'undo', 'delete', 'remove', 'cancel'],
++    requires: ['changed:{domain}|executed:{domain}|known:{domain}'], produces: ['restored:{domain}'], preserves: ['recoverability:{domain}'], risk: 'write'
++  }),
++  synchronize: Object.freeze({
++    aliases: ['sync', 'replicate', 'transfer', 'import', 'restore'],
++    requires: ['known:{domain}'], produces: ['synchronized:{domain}'], preserves: ['identity:{domain}', 'causality:{domain}'], risk: 'write'
++  }),
++  learn: Object.freeze({
++    aliases: ['learn', 'train', 'fit', 'distill', 'retrain', 'generalize'],
++    requires: ['evidence:{domain}'], produces: ['capability:{domain}'], preserves: ['provenance:{domain}'], risk: 'write'
++  })
++});
++
++const ACTION_TO_OPERATOR = new Map();
++for (const [operator, spec] of Object.entries(ARCHIE_OPERATOR_LIBRARY)) {
++  ACTION_TO_OPERATOR.set(operator, operator);
++  for (const alias of spec.aliases) ACTION_TO_OPERATOR.set(alias, operator);
++}
++
++const DOMAIN_ALIASES = new Map(Object.entries({
++  git: 'git', repository: 'git', repo: 'git', branch: 'git', github: 'git', merge: 'git', conflict: 'git',
++  tests: 'test', testing: 'test', suite: 'test',
++  json: 'json', schema: 'json', contract: 'json', manifest: 'json', receipt: 'json', proof: 'evidence',
++  filesystem: 'filesystem', file: 'filesystem', files: 'filesystem', archive: 'filesystem', corpus: 'corpus', pack: 'corpus', memory: 'corpus',
++  social: 'social', report: 'social', abuse: 'social', community: 'social', moderation: 'social',
++  database: 'database', sql: 'database',
++  compute: 'compute', worker: 'compute', gpu: 'compute', cpu: 'compute', runtime: 'runtime', service: 'runtime', outage: 'runtime',
++  release: 'deployment', deploy: 'deployment', production: 'deployment',
++  sync: 'sync', envelope: 'sync', synchronization: 'sync', encrypted: 'sync',
++  teacher: 'cognition', reasoning: 'cognition', budget: 'budget', model: 'model', planner: 'planner',
++  browser: 'browser', phone: 'browser', interface: 'browser', ui: 'browser', accessibility: 'browser',
++  log: 'logs', logs: 'logs', telemetry: 'telemetry', irrigation: 'irrigation', evaluation: 'evaluation'
++}));
++
++function normalizeToken(value) {
++  let token = clean(value, 200).toLowerCase();
++  if (!token) return '';
++  token = TOKEN_ALIASES.get(token) || token;
++  if (/^[a-z]+$/.test(token) && token.length > 4) {
++    if (token.endsWith('ies')) token = `${token.slice(0, -3)}y`;
++    else if (token.endsWith('ing') && token.length > 5) token = token.slice(0, -3);
++    else if (token.endsWith('ed') && token.length > 4) token = token.slice(0, -2);
++    else if (token.endsWith('es') && token.length > 4) token = token.slice(0, -2);
++    else if (token.endsWith('s') && token.length > 4 && !/(?:ss|us|is)$/.test(token)) token = token.slice(0, -1);
++    if (token.length > 3 && token.at(-1) === token.at(-2) && !/[aeiou]/.test(token.at(-1))) token = token.slice(0, -1);
++  }
++  return TOKEN_ALIASES.get(token) || token;
++}
++
++export function tokenizeDerivationText(value) {
++  return (clean(value).toLowerCase().match(/[a-z0-9_./:-]{2,}/g) || [])
++    .flatMap(token => token.split(/[./:_-]/).filter(Boolean))
++    .map(normalizeToken)
++    .filter(token => token && !STOPWORDS.has(token));
++}
++
++function featureTokens(value) {
++  const tokens = tokenizeDerivationText(value);
++  const features = [...tokens];
++  for (const token of tokens) {
++    const operator = ACTION_TO_OPERATOR.get(token);
++    if (operator) features.push(`op:${operator}`);
++    const domain = DOMAIN_ALIASES.get(token);
++    if (domain) features.push(`domain:${domain}`);
++  }
++  for (let index = 0; index < tokens.length - 1; index += 1) features.push(`${tokens[index]}_${tokens[index + 1]}`);
++  return features;
++}
++
++function hashIndex(token, dimensions) {
++  return crypto.createHash('sha256').update(token).digest().readUInt32BE(0) % dimensions;
++}
++
++function rawVector(value, dimensions) {
++  const vector = new Map();
++  for (const feature of featureTokens(value)) {
++    const index = hashIndex(feature, dimensions);
++    vector.set(index, (vector.get(index) || 0) + 1);
++  }
++  return vector;
++}
++
++function normalizeVector(vector) {
++  const norm = Math.sqrt([...vector.values()].reduce((sum, value) => sum + value * value, 0));
++  if (!norm) return new Map();
++  return new Map([...vector.entries()].map(([index, value]) => [index, value / norm]));
++}
++
++function weightedVector(value, dimensions, idf) {
++  const raw = rawVector(value, dimensions);
++  return normalizeVector(new Map([...raw.entries()].map(([index, count]) => [index, count * Number(idf[index] || 1)])));
++}
++
++function quantizeVector(vector) {
++  return [...vector.entries()].filter(([, value]) => value !== 0).sort(([a], [b]) => a - b)
++    .map(([index, value]) => [index, Math.max(-127, Math.min(127, Math.round(value * VECTOR_SCALE)))]);
++}
++
++function dequantizeVector(value) {
++  return normalizeVector(new Map((Array.isArray(value) ? value : []).map(([index, weight]) => [Number(index), Number(weight) / VECTOR_SCALE])));
++}
++
++function cosine(left, right) {
++  let score = 0;
++  const [small, large] = left.size <= right.size ? [left, right] : [right, left];
++  for (const [index, weight] of small) score += weight * (large.get(index) || 0);
++  return score;
++}
++
++function splitClauses(value) {
++  const text = clean(value, 20_000);
++  return text.split(/\b(?:and then|then|followed by|after that|before that|after|before|while|plus|and)\b|[,;]/i)
++    .map(item => clean(item, 3000))
++    .filter(item => tokenizeDerivationText(item).length > 0)
++    .slice(0, 24);
++}
++
++const DOMAIN_PRIORITY = Object.freeze({
++  git: 120, json: 120, database: 120, social: 120, compute: 120, budget: 120, corpus: 120,
++  browser: 120, logs: 120, sync: 120, deployment: 115, telemetry: 110, irrigation: 110,
++  evidence: 105, filesystem: 100, test: 95, runtime: 90, planner: 80, model: 80, cognition: 70
++});
++
++function inferDomain(value, fallback = 'general') {
++  const tokens = tokenizeDerivationText(value);
++  const candidates = tokens.map((token, index) => ({ domain: DOMAIN_ALIASES.get(token), index })).filter(item => item.domain);
++  if (candidates.length) {
