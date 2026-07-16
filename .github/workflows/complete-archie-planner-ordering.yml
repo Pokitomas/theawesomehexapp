@@ -1,0 +1,137 @@
+name: Complete Archie planner phase ordering
+
+on:
+  push:
+    branches:
+      - agent/archie-planner-phase-ordering
+    paths:
+      - .github/workflows/complete-archie-planner-ordering.yml
+
+permissions:
+  contents: write
+
+jobs:
+  complete:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply deterministic execution phase ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          planner_path = Path('scripts/maker-archie-planner.mjs')
+          planner = planner_path.read_text()
+          old = """function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({ ...step, rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}` });
+                seen.add(key);
+                if (chosen.length >= maxSteps) return chosen;
+              }
+            }
+            return chosen;
+          }
+          """
+          new = """function executionPhase(step = {}) {
+            const text = `${clean(step.tool, 80)} ${clean(step.action, 120)}`.toLowerCase().replace(/[_.:/-]+/g, ' ');
+            if (/\\b(?:status|inspect|read|search|load|fetch|list|parse|scan|measure|observe|review|assess)\\b/.test(text)) return 0;
+            if (/\\b(?:repair|recover|retry|resume|rollback|restore|revert|fix|reconcile|resolve|conflict)\\b/.test(text)) return 1;
+            if (/\\b(?:test|tests|testing)\\b/.test(text)) return 4;
+            if (/\\b(?:validate|verify|audit|check|confirm|prove)\\b/.test(text)) return 3;
+            return 2;
+          }
+
+          function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            outer: for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({
+                  ...step,
+                  rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}`,
+                  composition_order: chosen.length,
+                  execution_phase: executionPhase(step)
+                });
+                seen.add(key);
+                if (chosen.length >= maxSteps) break outer;
+              }
+            }
+            return chosen
+              .sort((left, right) => left.execution_phase - right.execution_phase || left.composition_order - right.composition_order)
+              .map(({ composition_order, execution_phase, ...step }) => step);
+          }
+          """
+          if old not in planner:
+              raise SystemExit('planner ordering insertion point drifted')
+          planner_path.write_text(planner.replace(old, new, 1))
+
+          tests_path = Path('scripts/tests/maker-archie-planner.test.mjs')
+          tests = tests_path.read_text()
+          title = "test('orders composed skill phases deterministically and runs terminal repository tests last'"
+          if title not in tests:
+              anchor = "\ntest('rejects genuinely unseen work through teacher escalation instead of hallucinating a plan'"
+              addition = """
+
+test('orders composed skill phases deterministically and runs terminal repository tests last', () => {
+  const model = train();
+  const plan = planWithArchieCPUPlanner(model, {
+    instruction: 'Create and validate the JSON contract only after repairing the conflicted branch; execute repository tests last.'
+  });
+  assert.equal(plan.state, 'local', JSON.stringify(plan, null, 2));
+  assert.deepEqual(plan.plan.steps.map(step => `${step.tool}:${step.action}`), [
+    'git:status',
+    'git:repair_conflict',
+    'filesystem:write_contract',
+    'json:validate_schema',
+    'node:test'
+  ]);
+});
+"""
+              if anchor not in tests:
+                  raise SystemExit('planner regression insertion point drifted')
+              tests_path.write_text(tests.replace(anchor, addition + anchor, 1))
+          PY
+          rm .github/workflows/complete-archie-planner-ordering.yml
+          git diff --check
+      - name: Run exact completion gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          node --test scripts/tests/maker-archie-planner.test.mjs
+          npm run test:archie
+          npm run test:maker
+          npm run benchmark:archie:derive
+          npm run benchmark:archie
+          npm run test:foundry
+          npm run test:weave
+          npm run test:authority
+          npm run verify:repository
+          git diff --check
+      - name: Commit validated repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix(archie): order composed planner phases"
+          git push origin HEAD:${GITHUB_REF_NAME}
