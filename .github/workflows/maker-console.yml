@@ -40,7 +40,7 @@ jobs:
           test -s maker/icon.svg
           grep -q 'OPEN AUTHORIZED TASK' maker/index.html
           ! grep -q 'SEND TO CO-ENGINEERS' maker/index.html
-          grep -q 'Task author only' maker/index.html
+          grep -q 'Task author and observer only' maker/index.html
           grep -q 'viewport-fit=cover' maker/index.html
       - name: Prove authorized task journey at 390x844
         run: |
