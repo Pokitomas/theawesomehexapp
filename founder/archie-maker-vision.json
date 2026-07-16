@@ -1,14 +1,14 @@
 {
-  "schema": "archie-maker-vision/v1",
+  "schema": "archie-maker-vision/v2",
   "product": {
     "name": "Archie and Maker",
-    "mission": "Turn ambitious objectives into verified digital things.",
+    "mission": "Turn ambitious objectives into verified digital things through the strongest truthful product profile each admitted release and environment can sustain.",
     "current_claim": "research-and-execution-substrate-not-yet-general-product-builder"
   },
   "roles": {
     "Archie": "intelligence, research, derivation, planning, uncertainty, and proof-carrying programs",
     "Maker": "permissioned execution, tools, isolation, verification, rollback, and delivery",
-    "Foundry": "candidate invention, matched experiments, independent evaluation, and release admission",
+    "Foundry": "candidate invention, complete profile search, matched experiments, independent evaluation, and release admission",
     "Weave": "multi-agent and human coordination with authenticated work state",
     "Sideways": "independent reference application and ordinary Maker target"
   },
@@ -27,12 +27,35 @@
     "chat_window_is_architecture": false,
     "voice_is_architecture": false,
     "always_on_daemon_is_architecture": false,
-    "product_form_is_derived_from_human_outcomes": true,
-    "strongest_admitted_surfaces_ship_together": true,
+    "cli_is_consumer_identity": false,
+    "static_outcome_to_faculty_map_allowed": false,
+    "complete_profile_search_required": true,
+    "nondominated_frontier_required": true,
+    "adaptive_multi_profile_launch_allowed": true,
+    "dominated_default_is_launchable": false,
+    "hidden_nondominated_fallback_is_launchable": false,
+    "unsupported_capability_is_claimable": false,
     "shell_without_brain_is_launchable": false,
-    "brain_without_required_access_is_launchable": false,
+    "brain_without_admitted_profile_is_launchable": false,
     "target_contract": "founder/archie-launch-target.json",
     "evaluator": "scripts/archie-launch-contract.mjs"
+  },
+  "profile_admission": {
+    "unit": "complete evidence-bound intelligence-and-embodiment profile for one declared environment",
+    "required_bindings": [
+      "model-and-artifact",
+      "code-sha",
+      "hardware-and-os",
+      "platform-permissions",
+      "capabilities-and-modalities",
+      "invocation-and-continuity",
+      "latency-and-resource-envelope",
+      "authority-and-privacy",
+      "human-outcome-scores",
+      "disabled-capabilities-and-reasons",
+      "search-space-and-profile-set-digests"
+    ],
+    "selection": "publish every feasible nondominated profile per environment; select adaptively when profiles are incomparable; never present a dominated fallback as maximal"
   },
   "sideways_boundary": {
     "is_ai_product": false,
@@ -82,7 +105,10 @@
     "persuasive-text-equals-completion",
     "chat-shell-equals-product",
     "voice-prototype-equals-embodiment",
-    "background-process-equals-ambient-intelligence"
+    "background-process-equals-ambient-intelligence",
+    "outcome-name-implies-fixed-faculty",
+    "one-profile-fits-all-environments",
+    "dominated-default-equals-maximal-launch"
   ],
   "first_impossible_proof": {
     "objective": "Produce a polished secure tested installable application from a vague ambitious objective and an unfamiliar project context.",
