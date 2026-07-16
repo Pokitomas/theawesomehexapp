@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.example/contracts/runtime-platform.schema.json",
+  "title": "Sideways Maker Runtime Platform Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "outcome", "request", "links", "components", "public_presentation", "finished_at", "integrity_digest"],
+  "properties": {
+    "schema": { "const": "sideways-maker-runtime-platform-receipt/v1" },
+    "outcome": { "enum": ["queued", "running", "completed", "failed", "cancelled"] },
+    "request": { "$ref": "#/$defs/request" },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_route", "fleet_placement", "plugin_state", "control_job", "dispatch", "public_presentation"],
+      "properties": {
+        "model_route": { "$ref": "#/$defs/digest" },
+        "fleet_placement": { "$ref": "#/$defs/digest" },
+        "plugin_state": { "$ref": "#/$defs/digest" },
+        "control_job": { "$ref": "#/$defs/digest" },
+        "dispatch": { "$ref": "#/$defs/digest" },
+        "public_presentation": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_route", "fleet_placement", "plugin_state", "control_job", "dispatch_receipt", "control_export"],
+      "properties": {
+        "model_route": { "type": "object" },
+        "fleet_placement": { "type": "object" },
+        "plugin_state": { "type": "object" },
+        "control_job": { "type": "object" },
+        "dispatch_receipt": { "type": "object" },
+        "control_export": { "type": "object" }
+      }
+    },
+    "public_presentation": { "type": "object" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "integrity_digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$|^[A-Za-z0-9._:-]{1,300}$" },
+    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "request": {
+      "type": "object",
+      "required": ["schema", "control_repository", "target_repository", "head_repository", "repository", "base_revision", "mode", "backend", "request", "budgets", "authority", "runtime_requirements", "required_plugin_capabilities"],
+      "properties": {
+        "schema": { "const": "sideways-maker-runtime-platform-request/v1" },
+        "control_repository": { "$ref": "#/$defs/repository" },
+        "target_repository": { "$ref": "#/$defs/repository" },
+        "head_repository": { "$ref": "#/$defs/repository" },
+        "repository": { "$ref": "#/$defs/repository" },
+        "base_revision": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "mode": { "enum": ["build", "fix", "explore", "audit"] },
+        "backend": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "request": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "protect": { "type": "string", "maxLength": 12000 },
+        "proof": { "type": "string", "maxLength": 12000 },
+        "device_requirement": { "type": "string", "maxLength": 300 },
+        "priority": { "type": "number", "minimum": 0, "maximum": 100 },
+        "budgets": { "type": "object" },
+        "authority": { "type": "object" },
+        "runtime_requirements": { "type": "object" },
+        "model_task": { "type": "object" },
+        "model_state": { "type": "object" },
+        "fleet_requirements": { "type": "object" },
+        "required_plugin_capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "idempotency_key": { "type": "string", "maxLength": 300 }
+      }
+    }
+  }
+}
