@@ -1,0 +1,1 @@
+This handoff is intentionally preserved outside the active coordinator branch. The next engineer should read it, then resume only on `agent/archie-democratized-runtime` after confirming and preserving its current head.
