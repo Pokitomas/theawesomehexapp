@@ -31,6 +31,37 @@ export function parseModelJSON(value) {
   }
 }
 
+function retryableStatus(status) {
+  return [408, 409, 425, 429].includes(Number(status)) || Number(status) >= 500;
+}
+
+function boundedDelay(value, fallback, maximum) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return fallback;
+  return Math.min(maximum, Math.max(0, Math.floor(number)));
+}
+
+function responseRetryDelay(response, attempt, baseMs, maximumMs) {
+  const retryAfter = response?.headers?.get?.('retry-after');
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return boundedDelay(seconds * 1000, baseMs, maximumMs);
+    const timestamp = Date.parse(retryAfter);
+    if (Number.isFinite(timestamp)) return boundedDelay(timestamp - Date.now(), baseMs, maximumMs);
+  }
+  const reset = Number(response?.headers?.get?.('x-ratelimit-reset'));
+  if (Number.isFinite(reset) && reset > 0) return boundedDelay((reset * 1000) - Date.now(), baseMs, maximumMs);
+  const exponential = baseMs * (2 ** attempt);
+  const deterministicJitter = Math.min(250, attempt * 37);
+  return boundedDelay(exponential + deterministicJitter, baseMs, maximumMs);
+}
+
+function modelError(message, fields = {}) {
+  const error = new Error(clean(message, 2000));
+  for (const [key, value] of Object.entries(fields)) error[key] = value;
+  return error;
+}
+
 export function createOpenModelClient({
   base_url,
   model,
@@ -38,18 +69,26 @@ export function createOpenModelClient({
   api_key = '',
   fetch_impl = fetch,
   timeout_ms = 120000,
-  retries = 1
+  retries = 3,
+  retry_base_ms = 750,
+  max_retry_ms = 10000
 } = {}) {
   const normalizedProtocol = clean(protocol, 40).toLowerCase() || 'openai';
   if (!['openai', 'ollama'].includes(normalizedProtocol)) throw new Error(`Unsupported model protocol: ${normalizedProtocol}.`);
   if (!clean(base_url, 4000)) throw new Error('Model base URL is required.');
   if (!clean(model, 500)) throw new Error('Model name is required.');
   const url = endpoint(base_url, normalizedProtocol);
+  const retryCount = Math.max(0, Math.min(8, Number(retries) || 0));
+  const requestTimeout = Math.max(1000, Number(timeout_ms) || 120000);
+  const baseDelay = Math.max(100, Number(retry_base_ms) || 750);
+  const maximumDelay = Math.max(baseDelay, Number(max_retry_ms) || 10000);
 
   async function complete(messages, options = {}) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(new Error('Model request timed out.')), Math.max(1000, Number(timeout_ms) || 120000));
-    const headers = { 'content-type': 'application/json' };
+    const headers = {
+      accept: 'application/vnd.github+json, application/json',
+      'content-type': 'application/json',
+      'x-github-api-version': '2022-11-28'
+    };
     if (clean(api_key, 10000)) headers.authorization = `Bearer ${clean(api_key, 10000)}`;
     const body = normalizedProtocol === 'ollama'
       ? {
@@ -67,36 +106,71 @@ export function createOpenModelClient({
           messages,
           temperature: Number(options.temperature ?? 0.1),
           max_tokens: Number(options.max_tokens ?? 4096),
-          response_format: { type: 'json_object' }
+          ...(options.response_format === false ? {} : { response_format: { type: 'json_object' } })
         };
 
-    try {
-      let lastError;
-      for (let attempt = 0; attempt <= Math.max(0, Number(retries) || 0); attempt += 1) {
-        try {
-          const response = await fetch_impl(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-            signal: controller.signal
+    let lastError = null;
+    const attempts = [];
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(modelError('Model request timed out.', { code: 'MODEL_TIMEOUT' })), requestTimeout);
+      try {
+        const response = await fetch_impl(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = clean(data.error?.message || data.error || data.message || response.statusText || `HTTP ${response.status}`, 1000);
+          const error = modelError(`Model endpoint ${response.status}: ${message}`, {
+            code: 'MODEL_HTTP_ERROR',
+            status: Number(response.status),
+            retryable: retryableStatus(response.status)
           });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(`Model endpoint ${response.status}: ${clean(data.error?.message || data.error || response.statusText, 1000)}`);
-          const text = normalizedProtocol === 'ollama'
-            ? data.message?.content
-            : data.choices?.[0]?.message?.content;
-          if (!clean(text, 200000)) throw new Error('Model endpoint returned no message content.');
-          return { text: clean(text, 200000), data, protocol: normalizedProtocol, model: clean(model, 500), endpoint: url.toString() };
-        } catch (error) {
+          attempts.push({ attempt: attempt + 1, ok: false, status: Number(response.status), retryable: error.retryable, error: error.message });
+          if (!error.retryable || attempt >= retryCount) throw error;
+          const waitMs = responseRetryDelay(response, attempt, baseDelay, maximumDelay);
+          await delay(waitMs);
           lastError = error;
-          if (attempt >= Math.max(0, Number(retries) || 0) || controller.signal.aborted) throw error;
-          await delay(250 * (attempt + 1));
+          continue;
         }
+        const text = normalizedProtocol === 'ollama'
+          ? data.message?.content
+          : data.choices?.[0]?.message?.content;
+        if (!clean(text, 200000)) throw modelError('Model endpoint returned no message content.', { code: 'MODEL_EMPTY_RESPONSE', retryable: false });
+        attempts.push({ attempt: attempt + 1, ok: true, status: Number(response.status || 200) });
+        return {
+          text: clean(text, 200000),
+          data,
+          usage: data.usage || null,
+          protocol: normalizedProtocol,
+          model: clean(model, 500),
+          endpoint: url.toString(),
+          attempts
+        };
+      } catch (error) {
+        const normalized = error?.name === 'AbortError'
+          ? modelError('Model request timed out.', { code: 'MODEL_TIMEOUT', retryable: true })
+          : error;
+        if (!attempts.some(value => value.attempt === attempt + 1)) {
+          attempts.push({ attempt: attempt + 1, ok: false, status: Number(normalized?.status || 0) || null, retryable: normalized?.retryable !== false, error: clean(normalized?.message || normalized, 1000) });
+        }
+        lastError = normalized;
+        const retryable = normalized?.retryable !== false;
+        if (!retryable || attempt >= retryCount) {
+          normalized.attempts = attempts;
+          throw normalized;
+        }
+        await delay(boundedDelay(baseDelay * (2 ** attempt), baseDelay, maximumDelay));
+      } finally {
+        clearTimeout(timer);
       }
-      throw lastError;
-    } finally {
-      clearTimeout(timer);
     }
+    const failure = lastError || modelError('Model request failed.', { code: 'MODEL_REQUEST_FAILED' });
+    failure.attempts = attempts;
+    throw failure;
   }
 
   return Object.freeze({

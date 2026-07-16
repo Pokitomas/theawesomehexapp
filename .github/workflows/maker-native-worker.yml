@@ -56,7 +56,7 @@ jobs:
       needs.preflight.outputs.allowed == 'true' &&
       (vars.SIDEWAYS_MODEL_MODE == '' || vars.SIDEWAYS_MODEL_MODE == 'github-models')
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       contents: write
       pull-requests: write
@@ -93,14 +93,18 @@ jobs:
           SIDEWAYS_MODEL_NAME: ${{ vars.SIDEWAYS_MODEL_NAME || 'openai/gpt-4.1' }}
           SIDEWAYS_MODEL_API_KEY: ${{ github.token }}
           SIDEWAYS_MODEL_TIMEOUT_MS: ${{ vars.SIDEWAYS_MODEL_TIMEOUT_MS || '180000' }}
-          SIDEWAYS_PLANNING_ENABLED: ${{ vars.SIDEWAYS_PLANNING_ENABLED || '1' }}
-          SIDEWAYS_PLANNING_MAX_WAVES: ${{ vars.SIDEWAYS_PLANNING_MAX_WAVES || '2' }}
-          SIDEWAYS_PLANNING_MAX_EVENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_EVENTS || '160' }}
-          SIDEWAYS_PLANNING_MAX_ASSIGNMENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || '6' }}
-          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '24' }}
-          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '12' }}
-          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '600000' }}
-          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '4096' }}
+          SIDEWAYS_MODEL_RETRIES: ${{ vars.SIDEWAYS_MODEL_RETRIES || '4' }}
+          SIDEWAYS_MODEL_RETRY_BASE_MS: ${{ vars.SIDEWAYS_MODEL_RETRY_BASE_MS || '1000' }}
+          SIDEWAYS_MODEL_MAX_RETRY_MS: ${{ vars.SIDEWAYS_MODEL_MAX_RETRY_MS || '15000' }}
+          SIDEWAYS_PLANNING_ENABLED: ${{ vars.SIDEWAYS_PLANNING_ENABLED || '0' }}
+          SIDEWAYS_PLANNING_REQUIRED: '0'
+          SIDEWAYS_PLANNING_MAX_WAVES: ${{ vars.SIDEWAYS_PLANNING_MAX_WAVES || '1' }}
+          SIDEWAYS_PLANNING_MAX_EVENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_EVENTS || '96' }}
+          SIDEWAYS_PLANNING_MAX_ASSIGNMENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || '3' }}
+          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '48' }}
+          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '24' }}
+          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '1200000' }}
+          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '8192' }}
         run: node scripts/maker-native-worker.mjs
       - name: Preserve planning, implementation, and admission episode
         if: always()
@@ -153,7 +157,7 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.allowed == 'true' && vars.SIDEWAYS_MODEL_MODE == 'hosted'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       contents: write
       pull-requests: write
@@ -189,14 +193,18 @@ jobs:
           SIDEWAYS_MODEL_NAME: ${{ vars.SIDEWAYS_MODEL_NAME }}
           SIDEWAYS_MODEL_API_KEY: ${{ secrets.SIDEWAYS_MODEL_API_KEY }}
           SIDEWAYS_MODEL_TIMEOUT_MS: ${{ vars.SIDEWAYS_MODEL_TIMEOUT_MS || '180000' }}
+          SIDEWAYS_MODEL_RETRIES: ${{ vars.SIDEWAYS_MODEL_RETRIES || '4' }}
+          SIDEWAYS_MODEL_RETRY_BASE_MS: ${{ vars.SIDEWAYS_MODEL_RETRY_BASE_MS || '1000' }}
+          SIDEWAYS_MODEL_MAX_RETRY_MS: ${{ vars.SIDEWAYS_MODEL_MAX_RETRY_MS || '15000' }}
           SIDEWAYS_PLANNING_ENABLED: ${{ vars.SIDEWAYS_PLANNING_ENABLED || '1' }}
+          SIDEWAYS_PLANNING_REQUIRED: ${{ vars.SIDEWAYS_PLANNING_REQUIRED || '0' }}
           SIDEWAYS_PLANNING_MAX_WAVES: ${{ vars.SIDEWAYS_PLANNING_MAX_WAVES || '2' }}
           SIDEWAYS_PLANNING_MAX_EVENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_EVENTS || '160' }}
           SIDEWAYS_PLANNING_MAX_ASSIGNMENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || '6' }}
-          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '24' }}
-          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '12' }}
-          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '600000' }}
-          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '4096' }}
+          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '48' }}
+          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '24' }}
+          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '1200000' }}
+          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '8192' }}
         run: node scripts/maker-native-worker.mjs
       - name: Preserve planning, implementation, and admission episode
         if: always()
@@ -247,14 +255,18 @@ jobs:
           SIDEWAYS_MODEL_NAME: ${{ vars.SIDEWAYS_MODEL_NAME }}
           SIDEWAYS_MODEL_API_KEY: ${{ secrets.SIDEWAYS_MODEL_API_KEY }}
           SIDEWAYS_MODEL_TIMEOUT_MS: ${{ vars.SIDEWAYS_MODEL_TIMEOUT_MS || '300000' }}
+          SIDEWAYS_MODEL_RETRIES: ${{ vars.SIDEWAYS_MODEL_RETRIES || '2' }}
+          SIDEWAYS_MODEL_RETRY_BASE_MS: ${{ vars.SIDEWAYS_MODEL_RETRY_BASE_MS || '1000' }}
+          SIDEWAYS_MODEL_MAX_RETRY_MS: ${{ vars.SIDEWAYS_MODEL_MAX_RETRY_MS || '10000' }}
           SIDEWAYS_PLANNING_ENABLED: ${{ vars.SIDEWAYS_PLANNING_ENABLED || '1' }}
+          SIDEWAYS_PLANNING_REQUIRED: ${{ vars.SIDEWAYS_PLANNING_REQUIRED || '0' }}
           SIDEWAYS_PLANNING_MAX_WAVES: ${{ vars.SIDEWAYS_PLANNING_MAX_WAVES || '2' }}
           SIDEWAYS_PLANNING_MAX_EVENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_EVENTS || '160' }}
           SIDEWAYS_PLANNING_MAX_ASSIGNMENTS: ${{ vars.SIDEWAYS_PLANNING_MAX_ASSIGNMENTS || '6' }}
-          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '24' }}
-          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '12' }}
-          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '600000' }}
-          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '4096' }}
+          SIDEWAYS_AGENT_MAX_TURNS: ${{ vars.SIDEWAYS_AGENT_MAX_TURNS || '48' }}
+          SIDEWAYS_AGENT_MAX_WRITES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITES || '24' }}
+          SIDEWAYS_AGENT_MAX_WRITE_BYTES: ${{ vars.SIDEWAYS_AGENT_MAX_WRITE_BYTES || '1200000' }}
+          SIDEWAYS_AGENT_MAX_MODEL_TOKENS: ${{ vars.SIDEWAYS_AGENT_MAX_MODEL_TOKENS || '8192' }}
         run: node scripts/maker-native-worker.mjs
       - name: Preserve planning, implementation, and admission episode
         if: always()
