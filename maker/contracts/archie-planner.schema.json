@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://theawesomehexapp.local/maker/contracts/archie-planner.schema.json",
+  "title": "Archie CPU Planner Contract",
+  "description": "Detached CPU-first Archie planner model, typed tool-plan, and inference receipt contracts. This is a hashed retrieval and symbolic composition planner, not a neural language model.",
+  "oneOf": [
+    { "$ref": "#/$defs/model" },
+    { "$ref": "#/$defs/plan" },
+    { "$ref": "#/$defs/typedToolPlan" },
+    { "$ref": "#/$defs/quantizationReceipt" }
+  ],
+  "definitions": {},
+  "$defs": {
+    "q8Vector": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          { "type": "integer", "minimum": 0 },
+          { "type": "integer", "minimum": -127, "maximum": 127 }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "toolStep": {
+      "type": "object",
+      "required": ["id", "type", "tool", "action", "args", "depends_on", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "type": { "const": "tool_call" },
+        "tool": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "args": { "type": "object" },
+        "depends_on": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
+        "rationale": { "type": "string", "maxLength": 300 }
+      }
+    },
+    "typedToolPlan": {
+      "type": "object",
+      "required": ["schema", "execution", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "archie-typed-tool-plan/v1" },
+        "execution": { "enum": ["sequential"] },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/toolStep" }, "minItems": 1, "maxItems": 16 }
+      }
+    },
+    "primitive": {
+      "type": "object",
+      "required": ["primitive_id", "signature", "examples", "centroid_q8", "steps", "prototype_instruction", "source_example_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "primitive_id": { "type": "string", "pattern": "^cpu_skill_[0-9a-f]{20}$" },
+        "signature": { "type": "string", "minLength": 1 },
+        "examples": { "type": "integer", "minimum": 1 },
+        "centroid_q8": { "$ref": "#/$defs/q8Vector" },
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/toolStep" }, "minItems": 1, "maxItems": 50 },
+        "prototype_instruction": { "type": "string" },
+        "source_example_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "negative": {
+      "type": "object",
+      "required": ["negative_id", "reason", "centroid_q8", "instruction", "source_example_id"],
+      "additionalProperties": false,
+      "properties": {
+        "negative_id": { "type": "string", "pattern": "^neg_[0-9a-f]{20}$" },
+        "reason": { "type": "string" },
+        "centroid_q8": { "$ref": "#/$defs/q8Vector" },
+        "instruction": { "type": "string" },
+        "source_example_id": { "type": "string" }
+      }
+    },
+    "model": {
+      "type": "object",
+      "required": ["schema", "planner_kind", "model_family", "not_a_neural_language_model", "detachability", "dimensions", "threshold", "minimum_margin", "reject_threshold", "negative_gap", "beam_width", "max_steps", "vector_encoding", "idf", "calibration", "grammar", "lexical_tools", "primitives", "negatives", "training_receipt", "model_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "archie-cpu-planner-model/v1" },
+        "planner_kind": { "const": "cpu-first-symbolic-vector-planner" },
+        "model_family": { "const": "hashed-retrieval-skill-mixture" },
+        "not_a_neural_language_model": { "const": true },
+        "detachability": { "const": "standalone-esm-no-maker-runtime-imports" },
+        "dimensions": { "type": "integer", "minimum": 128, "maximum": 16384 },
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minimum_margin": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reject_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "negative_gap": { "type": "number", "minimum": 0, "maximum": 1 },
+        "beam_width": { "type": "integer", "minimum": 1, "maximum": 24 },
+        "max_steps": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "vector_encoding": { "const": "signed-int8-q8-normalized-centroid" },
+        "idf": { "type": "array", "items": { "type": "number" }, "minItems": 128 },
+        "calibration": { "type": "object" },
+        "grammar": { "type": "object" },
+        "lexical_tools": { "type": "array", "items": { "type": "string" } },
+        "primitives": { "type": "array", "items": { "$ref": "#/$defs/primitive" }, "minItems": 1 },
+        "negatives": { "type": "array", "items": { "$ref": "#/$defs/negative" } },
+        "training_receipt": { "type": "object" },
+        "model_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "required": ["schema", "state", "disposition", "planner_kind", "not_a_neural_language_model", "task_digest", "confidence", "margin", "calibrated_confidence", "negative_score", "reason", "plan", "teacher_escalation", "rejection", "alternatives", "receipts", "model_digest", "plan_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "archie-cpu-tool-plan/v1" },
+        "state": { "enum": ["local", "teacher", "reject"] },
+        "disposition": { "enum": ["execute", "escalate_to_teacher", "reject"] },
+        "planner_kind": { "const": "cpu-first-symbolic-vector-planner" },
+        "not_a_neural_language_model": { "const": true },
+        "task_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "margin": { "type": "number", "minimum": 0, "maximum": 1 },
+        "calibrated_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "negative_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reason": { "type": "string" },
+        "plan": { "anyOf": [{ "$ref": "#/$defs/typedToolPlan" }, { "type": "null" }] },
+        "teacher_escalation": { "anyOf": [{ "type": "object" }, { "type": "null" }] },
+        "rejection": { "anyOf": [{ "type": "object" }, { "type": "null" }] },
+        "alternatives": { "type": "array", "items": { "type": "object" } },
+        "receipts": {
+          "type": "object",
+          "required": ["latency_ms", "heap_delta_bytes", "beam_width", "max_steps", "candidate_count", "negative_candidate_count", "deterministic", "cpu_only"],
+          "properties": {
+            "latency_ms": { "type": "number", "minimum": 0 },
+            "heap_delta_bytes": { "type": "integer" },
+            "beam_width": { "type": "integer", "minimum": 1, "maximum": 24 },
+            "max_steps": { "type": "integer", "minimum": 1, "maximum": 16 },
+            "candidate_count": { "type": "integer", "minimum": 0 },
+            "negative_candidate_count": { "type": "integer", "minimum": 0 },
+            "deterministic": { "const": true },
+            "cpu_only": { "const": true }
+          }
+        },
+        "model_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "plan_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "quantizationReceipt": {
+      "type": "object",
+      "required": ["schema", "vector_encoding", "primitive_count", "max_q8_error", "passed", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "archie-cpu-quantization-receipt/v1" },
+        "vector_encoding": { "const": "signed-int8-q8-normalized-centroid" },
+        "primitive_count": { "type": "integer", "minimum": 1 },
+        "max_q8_error": { "type": "integer", "minimum": 0 },
+        "passed": { "const": true },
+        "receipt_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

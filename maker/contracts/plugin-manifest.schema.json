@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/plugin-manifest.schema.json",
+  "title": "Maker plugin registry",
+  "oneOf": [
+    { "$ref": "#/$defs/manifest" },
+    { "$ref": "#/$defs/admission" },
+    { "$ref": "#/$defs/installPlan" },
+    { "$ref": "#/$defs/invocation" },
+    { "$ref": "#/$defs/health" },
+    { "$ref": "#/$defs/removePlan" },
+    { "$ref": "#/$defs/snapshot" }
+  ],
+  "$defs": {
+    "manifest": {
+      "type": "object",
+      "required": ["schema", "id", "version", "api_compatibility", "kind", "entrypoint", "execution", "provenance", "integrity", "required_runtime", "declared_capabilities", "permissions", "configuration_schema", "dependencies", "lifecycle_hooks", "migration", "metadata", "manifest_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-manifest/v1" },
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$" },
+        "api_compatibility": { "type": "string" },
+        "kind": { "enum": ["scm", "issue_review", "ci", "artifact_store", "deployment", "model_provider", "repository_intelligence", "editor", "tool_runtime", "language_framework", "evaluator"] },
+        "entrypoint": { "type": "string" },
+        "execution": { "enum": ["in_process", "subprocess", "rpc"] },
+        "provenance": { "type": "object" },
+        "integrity": { "type": "object", "required": ["algorithm", "digest", "signature", "signer"] },
+        "required_runtime": { "type": "object" },
+        "declared_capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "permissions": { "type": "object" },
+        "configuration_schema": { "type": "object" },
+        "dependencies": { "type": "object" },
+        "lifecycle_hooks": { "type": "object" },
+        "migration": { "type": "object" },
+        "metadata": { "type": "object" },
+        "manifest_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "admission": {
+      "type": "object",
+      "required": ["schema", "plugin_id", "version", "admitted", "reasons", "execution", "manifest_digest", "policy_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-admission/v1" },
+        "plugin_id": { "type": "string" },
+        "version": { "type": "string" },
+        "admitted": { "type": "boolean" },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "execution": { "enum": ["in_process", "sandbox"] },
+        "manifest_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "policy_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "installPlan": {
+      "type": "object",
+      "required": ["schema", "operations", "package_installation", "generated_at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-install-plan/v1" },
+        "operations": { "type": "array", "items": { "type": "object" } },
+        "package_installation": { "const": false },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "invocation": {
+      "type": "object",
+      "required": ["schema", "invocation_id", "plugin_id", "version", "capability", "execution", "ok", "started_at", "finished_at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-invocation/v1" },
+        "invocation_id": { "type": "string" },
+        "plugin_id": { "type": "string" },
+        "version": { "type": "string" },
+        "capability": { "type": "string" },
+        "execution": { "enum": ["in_process", "sandbox"] },
+        "ok": { "type": "boolean" },
+        "output": {},
+        "error": { "type": "object" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "health": {
+      "type": "object",
+      "required": ["schema", "plugin_id", "version", "status", "checked_at"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-health/v1" },
+        "plugin_id": { "type": "string" },
+        "version": { "type": "string" },
+        "status": { "type": "string" },
+        "checked_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "removePlan": {
+      "type": "object",
+      "required": ["schema", "plugin_id", "blocked", "dependents", "package_removal", "generated_at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-remove-plan/v1" },
+        "plugin_id": { "type": "string" },
+        "blocked": { "type": "boolean" },
+        "dependents": { "type": "array", "items": { "type": "string" } },
+        "package_removal": { "const": false },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["schema", "discovered", "admitted", "enabled", "events", "at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-plugin-registry-snapshot/v1" },
+        "discovered": { "type": "array", "items": { "$ref": "#/$defs/manifest" } },
+        "admitted": { "type": "array", "items": { "type": "object" } },
+        "enabled": { "type": "array", "items": { "type": "string" } },
+        "events": { "type": "array", "items": { "type": "object" } },
+        "at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

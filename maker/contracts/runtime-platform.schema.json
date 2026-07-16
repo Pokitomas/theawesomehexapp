@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/runtime-platform.schema.json",
+  "title": "Maker composed runtime platform",
+  "oneOf": [
+    { "$ref": "#/$defs/platformReceipt" },
+    { "$ref": "#/$defs/pluginAuthority" },
+    { "$ref": "#/$defs/runtimeProfileProjection" }
+  ],
+  "$defs": {
+    "componentReceipts": {
+      "type": "object",
+      "required": ["model_route", "fleet_placement", "plugin_registry", "plugin_authority", "runtime_profile", "control_job", "dispatch", "fleet_result", "presentation"],
+      "properties": {
+        "model_route": { "type": ["object", "null"] },
+        "fleet_placement": { "type": ["object", "null"] },
+        "plugin_registry": { "type": ["object", "null"] },
+        "plugin_authority": { "type": ["object", "null"] },
+        "runtime_profile": { "type": ["object", "null"] },
+        "control_job": { "type": ["object", "null"] },
+        "dispatch": { "type": ["object", "null"] },
+        "fleet_result": { "type": ["object", "null"] },
+        "presentation": { "type": ["object", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "platformError": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["code", "message", "recoverable", "detail"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "message": { "type": "string" },
+            "recoverable": { "type": "boolean" },
+            "detail": { "type": "object" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "platformReceipt": {
+      "type": "object",
+      "required": ["schema", "platform_run_id", "state", "task", "components", "error", "finished_at", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "sideways-maker-runtime-platform-receipt/v1" },
+        "platform_run_id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["completed", "failed", "blocked"] },
+        "task": { "type": ["object", "null"] },
+        "components": { "$ref": "#/$defs/componentReceipts" },
+        "error": { "$ref": "#/$defs/platformError" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "pluginAuthority": {
+      "type": "object",
+      "required": ["authority", "capabilities", "plugins"],
+      "properties": {
+        "authority": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": ["none", "read", "write", "execute", "manage", "reference_only", "approval_required"]
+          }
+        },
+        "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "version", "kind", "capabilities", "privileged"],
+            "properties": {
+              "id": { "type": "string" },
+              "version": { "type": "string" },
+              "kind": { "type": "string" },
+              "capabilities": { "type": "array", "items": { "type": "string" } },
+              "privileged": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimeProfileProjection": {
+      "type": "object",
+      "required": ["runtime_id", "display_name", "status", "intelligence", "endpoint", "planning", "execution", "authority", "presentation", "observed_at"],
+      "properties": {
+        "runtime_id": { "type": "string" },
+        "display_name": { "type": "string" },
+        "status": { "enum": ["healthy", "degraded", "offline", "unknown"] },
+        "intelligence": { "type": "object" },
+        "endpoint": { "type": "object" },
+        "planning": { "type": "object" },
+        "execution": { "type": "object" },
+        "authority": { "type": "object" },
+        "presentation": { "type": "object" },
+        "observed_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

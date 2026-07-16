@@ -188,8 +188,9 @@ jobs:
       - name: Publish phone Maker console into product artifact
         run: |
           node scripts/tests/maker-console.test.mjs
+          node --test scripts/tests/maker-ios-install.test.mjs
           mkdir -p dist/maker
-          cp maker/index.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
+          cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
 
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
@@ -254,6 +255,7 @@ jobs:
           test -f dist/founder/founder.css
           test -f dist/founder/founder.js
           test -f dist/maker/index.html
+          test -f dist/maker/ios.html
           test -f dist/maker/maker.css
           test -f dist/maker/maker.js
           test -f dist/maker/manifest.webmanifest
