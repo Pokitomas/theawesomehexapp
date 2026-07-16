@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger'
+    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger-v2'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -61,31 +61,31 @@ jobs:
           echo "$EXPECTED_PATCH_SHA256  $RUNNER_TEMP/patch.tgz" | sha256sum --check --strict
           tar -tzf "$RUNNER_TEMP/patch.tgz" | LC_ALL=C sort > "$RUNNER_TEMP/observed-paths.txt"
           cat > "$RUNNER_TEMP/expected-paths.txt" <<'PATHS'
-.github/workflows/maker-native-worker-ci.yml
-.gitignore
-README.md
-audit/ARCHIE_COMPLETION.md
-audit/ARCHIE_COMPLETION_RECEIPT.json
-audit/ARCHIE_PLUGIN_REPAIR_EVIDENCE.json
-audit/archie-admission-ledger.json
-audit/repository-verification.json
-maker/contracts/archie-evaluation.schema.json
-maker/contracts/control-plane.schema.json
-maker/contracts/plugin-manifest.schema.json
-maker/evaluations/archie-suite.json
-package.json
-scripts/maker-archie-evaluation.mjs
-scripts/maker-control-cli.mjs
-scripts/maker-control-plane.mjs
-scripts/maker-model-router.mjs
-scripts/maker-plugin-registry.mjs
-scripts/maker-runtime-platform.mjs
-scripts/tests/maker-archie-evaluation.test.mjs
-scripts/tests/maker-control-plane.test.mjs
-scripts/tests/maker-model-router.test.mjs
-scripts/tests/maker-plugin-registry.test.mjs
-scripts/tests/maker-runtime-platform.test.mjs
-PATHS
+          .github/workflows/maker-native-worker-ci.yml
+          .gitignore
+          README.md
+          audit/ARCHIE_COMPLETION.md
+          audit/ARCHIE_COMPLETION_RECEIPT.json
+          audit/ARCHIE_PLUGIN_REPAIR_EVIDENCE.json
+          audit/archie-admission-ledger.json
+          audit/repository-verification.json
+          maker/contracts/archie-evaluation.schema.json
+          maker/contracts/control-plane.schema.json
+          maker/contracts/plugin-manifest.schema.json
+          maker/evaluations/archie-suite.json
+          package.json
+          scripts/maker-archie-evaluation.mjs
+          scripts/maker-control-cli.mjs
+          scripts/maker-control-plane.mjs
+          scripts/maker-model-router.mjs
+          scripts/maker-plugin-registry.mjs
+          scripts/maker-runtime-platform.mjs
+          scripts/tests/maker-archie-evaluation.test.mjs
+          scripts/tests/maker-control-plane.test.mjs
+          scripts/tests/maker-model-router.test.mjs
+          scripts/tests/maker-plugin-registry.test.mjs
+          scripts/tests/maker-runtime-platform.test.mjs
+          PATHS
           LC_ALL=C sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
           diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/observed-paths.txt"
 
