@@ -128,8 +128,8 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
 
   await context.setOffline(true);
   await why.focus();
-  await why.press('Enter');
-  await why.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
   if ((await why.getAttribute('aria-expanded')) !== 'true') throw new Error(`${name}: explanation stopped working offline`);
   await context.setOffline(false);
 
