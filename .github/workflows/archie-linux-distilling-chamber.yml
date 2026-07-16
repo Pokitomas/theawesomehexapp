@@ -1,0 +1,47 @@
+name: Verify Archie Linux distilling chamber
+
+on:
+  pull_request:
+    paths:
+      - scripts/archie-distilling-chamber.mjs
+      - scripts/archie-distilling-cli.mjs
+      - scripts/tests/archie-distilling-chamber.test.mjs
+      - maker/contracts/archie-distilling-chamber.schema.json
+      - maker/evaluations/archie-recursion-curriculum.json
+      - .github/workflows/archie-linux-distilling-chamber.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check scripts/archie-distilling-chamber.mjs
+          node --check scripts/archie-distilling-cli.mjs
+          node --check scripts/tests/archie-distilling-chamber.test.mjs
+      - name: Validate JSON contracts
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('maker/contracts/archie-distilling-chamber.schema.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('maker/evaluations/archie-recursion-curriculum.json','utf8'))"
+      - name: Run focused tests
+        run: node --test scripts/tests/archie-distilling-chamber.test.mjs
+      - name: Exercise CLI stream
+        run: |
+          printf '%s\n' '{"id":"smoke","input":{"value":1}}' | node scripts/archie-distilling-cli.mjs run - > chamber-smoke.json
+          node -e "const x=JSON.parse(require('fs').readFileSync('chamber-smoke.json','utf8')); if(x.status.episodes!==1||!x.events.events.length) process.exit(1)"
+      - name: Upload truthful smoke receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-distilling-chamber-smoke
+          path: chamber-smoke.json
+          if-no-files-found: error
+          retention-days: 7
