@@ -10,4 +10,4 @@ jobs:
   noop:
     runs-on: ubuntu-latest
     steps:
-      - run: echo 'Isolating current-main compatibility gates; this file is removed before admission.'
+      - run: echo 'Final exact-scope integration trigger; removed before admission.'
