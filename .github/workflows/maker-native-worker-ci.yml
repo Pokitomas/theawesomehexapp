@@ -45,10 +45,12 @@ jobs:
           import base64, json, pathlib, re, sys
           payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
           body = payload.get('body', '')
-          match = re.search(r"<<'B64'\n([A-Za-z0-9+/=\n\r]+)\nB64", body)
+          match = re.search(r"(H4sIA[A-Za-z0-9+/=\r\n]+?)(?=\r?\nB64(?:\r?\n|$))", body, re.S)
           if not match:
+              pathlib.Path(sys.argv[1] + '.body.txt').write_text(body)
               raise SystemExit('repair bundle block missing')
-          pathlib.Path(sys.argv[2]).write_bytes(base64.b64decode(''.join(match.group(1).split())))
+          encoded = ''.join(match.group(1).split())
+          pathlib.Path(sys.argv[2]).write_bytes(base64.b64decode(encoded, validate=True))
           PY
           echo "68a4bb662356095d4d0e6724ef8da0d286a832a61f867b60016d6ab9fe7ac084  $RUNNER_TEMP/plugin315-repair.tgz" | sha256sum -c -
           tar -tzf "$RUNNER_TEMP/plugin315-repair.tgz" | tee "$RUNNER_TEMP/plugin315-repair.files.txt"
@@ -64,6 +66,7 @@ jobs:
               raise SystemExit(f'unexpected repair paths: {sorted(actual)}')
           PY
       - name: Upload exact checkout and verified repair evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: archie-coordinator-source-with-plugin-repair-${{ github.sha }}
@@ -72,7 +75,9 @@ jobs:
             ${{ runner.temp }}/archie-source.sha256
             ${{ runner.temp }}/archie-source-head.txt
             ${{ runner.temp }}/archie-source-status.txt
+            ${{ runner.temp }}/plugin-comment.json
+            ${{ runner.temp }}/plugin-comment.json.body.txt
             ${{ runner.temp }}/plugin315-repair.tgz
             ${{ runner.temp }}/plugin315-repair.files.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 2
