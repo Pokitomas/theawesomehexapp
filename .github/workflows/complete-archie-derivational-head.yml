@@ -1,0 +1,222 @@
+name: Complete Archie derivational head
+
+on:
+  push:
+    branches:
+      - agent/archie-derivational-cognition
+    paths:
+      - .github/workflows/complete-archie-derivational-head.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complete-archie-derivational-head
+  cancel-in-progress: false
+
+jobs:
+  complete:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply missing derivational repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one match, found {count}')
+              return text.replace(old, new, 1)
+
+          derivation_path = Path('scripts/maker-archie-derivation.mjs')
+          derivation = derivation_path.read_text()
+          create_line = "  const create = /\\b(?:create|write|generate|produce|contract|schema)\\b/i.test(instruction);\n"
+          safe_block = create_line + """  const safeObservationOnly = hasGit
+            && /\\b(?:do not|don't|never|without)\\b[^.!?]{0,160}\\b(?:deploy|merge|release|publish|ship)\\b/i.test(instruction)
+            && /\\b(?:only|just)\\s+(?:inspect|read|check|review|show|report|get)\\b/i.test(instruction);
+          if (safeObservationOnly) return { families: ['observe'], domains: ['git'], supplied, control: 'safe-observation-only' };
+          """
+          if 'safeObservationOnly' not in derivation:
+              derivation = replace_once(derivation, create_line, safe_block, 'safe observation insertion')
+          old_return = "  return buildResult(model, task, 'local', 'proof-carrying-relational-derivation', request.families, adapters, confidence);"
+          new_return = "  const reason = request.control === 'safe-observation-only' ? 'safe-observation-control' : 'proof-carrying-relational-derivation';\n  return buildResult(model, task, 'local', reason, request.families, adapters, confidence);"
+          if old_return in derivation:
+              derivation = replace_once(derivation, old_return, new_return, 'safe observation result')
+          elif "request.control === 'safe-observation-only'" not in derivation:
+              raise SystemExit('safe observation result: insertion point drifted')
+          derivation_path.write_text(derivation)
+
+          cognition_path = Path('scripts/maker-archie-cognition.mjs')
+          cognition = cognition_path.read_text()
+          consensus_line = "    const consensusLocal = sparse.state === 'local' && planner.state === 'local'\n"
+          if 'ungroundedRelationalVeto' not in cognition:
+              veto_block = """    const ungroundedRelationalVeto = derivation.state === 'teacher'
+                && derivation.reason === 'no-abstract-operator-path';
+              const safeControlDerivation = derivation.state === 'local'
+                && derivation.reason === 'safe-observation-control';
+              """ + consensus_line
+              cognition = replace_once(cognition, consensus_line, veto_block, 'relational veto insertion')
+              cognition = replace_once(
+                  cognition,
+                  "    const consensusLocal = sparse.state === 'local' && planner.state === 'local'\n      && (agreement.exact",
+                  "    const consensusLocal = sparse.state === 'local' && planner.state === 'local'\n      && !ungroundedRelationalVeto\n      && (agreement.exact",
+                  'consensus veto'
+              )
+              cognition = replace_once(
+                  cognition,
+                  "    const plannerOverride = planner.state === 'local' && sparse.state !== 'local'\n      && planner.calibrated_confidence",
+                  "    const plannerOverride = planner.state === 'local' && sparse.state !== 'local'\n      && !ungroundedRelationalVeto\n      && planner.calibrated_confidence",
+                  'planner veto'
+              )
+              cognition = replace_once(
+                  cognition,
+                  "    const compositionOverride = sparse.state === 'local' && planner.state === 'local'\n      && agreement.left_subset_of_right",
+                  "    const compositionOverride = sparse.state === 'local' && planner.state === 'local'\n      && !ungroundedRelationalVeto\n      && agreement.left_subset_of_right",
+                  'composition veto'
+              )
+              cognition = replace_once(
+                  cognition,
+                  "    const instructionControlOverride = sparse.state === 'local' && planner.state === 'local'\n      && agreement.right_subset_of_left",
+                  "    const instructionControlOverride = sparse.state === 'local' && planner.state === 'local'\n      && !ungroundedRelationalVeto\n      && agreement.right_subset_of_left",
+                  'instruction-control veto'
+              )
+              cognition = replace_once(
+                  cognition,
+                  "    if (consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {\n      const useDerivation = !consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride);",
+                  "    if (safeControlDerivation || consensusLocal || plannerOverride || compositionOverride || instructionControlOverride || derivationConsensus || derivationOverride) {\n      const useDerivation = safeControlDerivation || (!consensusLocal && !instructionControlOverride && (derivationConsensus || derivationOverride));",
+                  'route selection'
+              )
+              cognition = replace_once(
+                  cognition,
+                  "        selected_route: consensusLocal ? 'sparse-planner-consensus'\n          : instructionControlOverride ? 'instruction-controlled-subplan'",
+                  "        selected_route: safeControlDerivation ? 'safe-observation-control'\n          : consensusLocal ? 'sparse-planner-consensus'\n            : instructionControlOverride ? 'instruction-controlled-subplan'",
+                  'safe route label'
+              )
+          cognition_path.write_text(cognition)
+
+          planner_path = Path('scripts/maker-archie-planner.mjs')
+          planner = planner_path.read_text()
+          old_planner = """function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({ ...step, rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}` });
+                seen.add(key);
+                if (chosen.length >= maxSteps) return chosen;
+              }
+            }
+            return chosen;
+          }
+          """
+          new_planner = """function executionPhase(step = {}) {
+            const text = `${clean(step.tool, 80)} ${clean(step.action, 120)}`.toLowerCase().replace(/[_.:/-]+/g, ' ');
+            if (/\\b(?:status|inspect|read|search|load|fetch|list|parse|scan|measure|observe|review|assess)\\b/.test(text)) return 0;
+            if (/\\b(?:repair|recover|retry|resume|rollback|restore|revert|fix|reconcile|resolve|conflict)\\b/.test(text)) return 1;
+            if (/\\b(?:test|tests|testing)\\b/.test(text)) return 4;
+            if (/\\b(?:validate|verify|audit|check|confirm|prove)\\b/.test(text)) return 3;
+            return 2;
+          }
+
+          function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            outer: for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({
+                  ...step,
+                  rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}`,
+                  composition_order: chosen.length,
+                  execution_phase: executionPhase(step)
+                });
+                seen.add(key);
+                if (chosen.length >= maxSteps) break outer;
+              }
+            }
+            return chosen
+              .sort((left, right) => left.execution_phase - right.execution_phase || left.composition_order - right.composition_order)
+              .map(({ composition_order, execution_phase, ...step }) => step);
+          }
+          """
+          if old_planner in planner:
+              planner = replace_once(planner, old_planner, new_planner, 'planner phase ordering')
+          elif 'function executionPhase(step = {})' not in planner:
+              raise SystemExit('planner phase ordering: insertion point drifted')
+          planner_path.write_text(planner)
+
+          planner_test_path = Path('scripts/tests/maker-archie-planner.test.mjs')
+          planner_tests = planner_test_path.read_text()
+          marker = "test('orders composed skill phases deterministically and runs terminal repository tests last'"
+          if marker not in planner_tests:
+              addition = """
+
+test('orders composed skill phases deterministically and runs terminal repository tests last', () => {
+  const model = train();
+  const plan = planWithArchieCPUPlanner(model, {
+    instruction: 'Create and validate the JSON contract only after repairing the conflicted branch; execute repository tests last.'
+  });
+  assert.equal(plan.state, 'local', JSON.stringify(plan, null, 2));
+  assert.deepEqual(plan.plan.steps.map(step => `${step.tool}:${step.action}`), [
+    'git:status',
+    'git:repair_conflict',
+    'filesystem:write_contract',
+    'json:validate_schema',
+    'node:test'
+  ]);
+});
+"""
+              anchor = "\ntest('rejects genuinely unseen work through teacher escalation instead of hallucinating a plan'"
+              if anchor not in planner_tests:
+                  raise SystemExit('planner test insertion point drifted')
+              planner_tests = planner_tests.replace(anchor, addition + anchor, 1)
+              planner_test_path.write_text(planner_tests)
+          PY
+
+          rm .github/workflows/complete-archie-derivational-head.yml
+          git diff --check
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run exact completion gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:archie
+          npm run test:maker
+          npm run benchmark:archie:derive
+          npm run benchmark:archie
+          npm run test:foundry
+          npm run test:weave
+          npm run test:authority
+          npm run verify:repository
+          git diff --check
+
+      - name: Commit exact validated head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix(archie): complete derivational routing and ordering"
+          git push origin HEAD:${GITHUB_REF_NAME}
