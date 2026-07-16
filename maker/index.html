@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Maker">
-  <meta name="description" content="Repository-general engineering task authoring and execution truth for Maker.">
+  <meta name="description" content="Phone-first Maker operator cockpit for truthful cross-repository engineering tasks, live evidence, and interventions.">
   <title>Maker Engineering</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
@@ -17,15 +17,15 @@
   <main class="shell">
     <header class="masthead">
       <div>
-        <p class="eyebrow">MAKER / ENGINEERING</p>
+        <p class="eyebrow">MAKER / OPERATOR COCKPIT</p>
         <h1>Build software.</h1>
-        <p class="lede">Define the repository, exact base, protected reality, and proof. Maker runs through an authorized isolated worker—not inside this browser.</p>
+        <p class="lede">The control repository receives the command. The machine receipt preserves the target repository, exact base, head repository, branch, backend, authority, and proof. This browser authors and observes; it never pretends it executed work.</p>
       </div>
-      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">OPEN REPOSITORY</a>
+      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">OPEN CONTROL REPOSITORY</a>
     </header>
 
     <section class="truth-strip" aria-label="Execution truth">
-      <article><span>BROWSER</span><strong>Task author only</strong></article>
+      <article><span>BROWSER</span><strong>Task author and observer only</strong></article>
       <article><span>WRITER</span><strong>One leased branch</strong></article>
       <article><span>MERGE / DEPLOY</span><strong>Human only</strong></article>
       <article><span>NATIVE MODEL</span><strong id="native-model-state">Admission required</strong></article>
@@ -35,29 +35,24 @@
       <div class="command-copy">
         <div class="section-heading">
           <p class="section-number">01</p>
-          <div>
-            <h2 id="command-heading">Engineering task</h2>
-            <p>Maker can target any authorized GitHub repository. An exact base and visible lease are required before mutation.</p>
-          </div>
+          <div><h2 id="command-heading">Engineering task</h2><p>Control and target routing stay explicit. A validated exact base and visible branch lease are required before mutation.</p></div>
         </div>
 
         <div class="identity-grid">
-          <div><label for="maker-repository">REPOSITORY</label><input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository"></div>
+          <div><label for="maker-control-repository">CONTROL REPOSITORY</label><input id="maker-control-repository" value="Pokitomas/theawesomehexapp" readonly aria-readonly="true"></div>
+          <div><label for="maker-repository">TARGET REPOSITORY</label><input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository"></div>
           <div><label for="maker-base">BASE REVISION</label><input id="maker-base" autocomplete="off" spellcheck="false" placeholder="main or exact commit SHA"></div>
-          <div>
-            <label for="maker-backend">EXECUTION BACKEND</label>
-            <select id="maker-backend">
-              <option value="auto">AUTO — native if admitted, configured fallback</option>
-              <option value="native">NATIVE — admitted checkpoint only</option>
-              <option value="github-models">GITHUB MODELS</option>
-              <option value="configured">CONFIGURED PROVIDER</option>
-            </select>
-          </div>
+          <div><label for="maker-head-repository">HEAD REPOSITORY</label><input id="maker-head-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository"></div>
+          <div><label for="maker-branch">LEASED BRANCH</label><input id="maker-branch" autocomplete="off" spellcheck="false" placeholder="maker/task"></div>
+          <div><label for="maker-backend">EXECUTION BACKEND</label><select id="maker-backend"><option value="auto">AUTO — admitted local first, configured fallback</option><option value="native">NATIVE — admitted checkpoint only</option><option value="github-models">GITHUB MODELS</option><option value="configured">CONFIGURED PROVIDER</option></select></div>
         </div>
+        <p><a id="target-repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">OPEN TARGET REPOSITORY</a></p>
 
         <label>WORK MODE</label>
         <div class="mode-grid" role="group" aria-label="Command mode">
           <button type="button" data-mode="build" aria-pressed="true">BUILD</button><button type="button" data-mode="fix" aria-pressed="false">FIX</button><button type="button" data-mode="explore" aria-pressed="false">EXPLORE</button><button type="button" data-mode="audit" aria-pressed="false">AUDIT</button>
+          <button type="button" data-mode="create-repository" aria-pressed="false">CREATE REPO</button><button type="button" data-mode="bootstrap" aria-pressed="false">BOOTSTRAP</button><button type="button" data-mode="fork" aria-pressed="false">FORK</button><button type="button" data-mode="migrate" aria-pressed="false">MIGRATE</button>
+          <button type="button" data-mode="review" aria-pressed="false">REVIEW</button><button type="button" data-mode="repair" aria-pressed="false">REPAIR</button><button type="button" data-mode="release" aria-pressed="false">RELEASE</button>
         </div>
         <label for="maker-request">END STATE</label><textarea id="maker-request" maxlength="8000" placeholder="What must exist when the engineering task is complete?"></textarea>
         <label for="maker-protect">PROTECTED REALITY</label><textarea id="maker-protect" class="short-field" maxlength="4000" placeholder="Paths, data, authority, behavior, and external boundaries that cannot be broken."></textarea>
@@ -65,52 +60,42 @@
       </div>
 
       <aside class="dispatch-panel">
-        <div><p class="section-number">02</p><h2>Authorize</h2><div class="capability-card" aria-label="Available execution capabilities"><h3>RUNTIME CONTRACT</h3><dl><div><dt>Backend</dt><dd id="backend-state">auto · unresolved until worker starts</dd></div><div><dt>Tools</dt><dd id="tool-state">read · search · write · replace · delete · run · verify · rollback</dd></div><div><dt>Lease</dt><dd id="lease-state">required before first write</dd></div><div><dt>Human gates</dt><dd id="human-gates">merge · deploy · production data · training spend</dd></div></dl></div></div>
-        <div class="actions"><a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a><button id="copy-receipt" type="button">COPY MACHINE RECEIPT</button><button id="reset-maker" class="quiet" type="button">CLEAR LOCAL DRAFT</button></div>
+        <div>
+          <p class="section-number">02</p><h2>Authorize</h2>
+          <div class="capability-card" aria-label="Available execution capabilities"><h3>RUNTIME CONTRACT</h3><dl>
+            <div><dt>Routing</dt><dd id="routing-state">Pokitomas/theawesomehexapp → target</dd></div><div><dt>Backend</dt><dd id="backend-state">auto · unresolved until worker starts</dd></div><div><dt>Tools</dt><dd id="tool-state">workspace · files · commands · dependencies · network · browser · artifacts · GitHub · CI · review · release · rollback</dd></div><div><dt>Lease</dt><dd id="lease-state">required before first write</dd></div><div><dt>Human gates</dt><dd id="human-gates">merge · deploy · repository lifecycle · production data · training spend</dd></div><div><dt>Dispatch</dt><dd id="dispatch-strategy">Waiting for a valid task</dd></div>
+          </dl></div>
+          <div class="capability-card" id="capability-matrix" aria-label="Capability matrix"><h3>CAPABILITY MATRIX</h3><dl>
+            <div><dt>Workspace</dt><dd>Isolated target workspace through authenticated runtime</dd></div><div><dt>Files</dt><dd>Read/edit/delete only under lease and policy</dd></div><div><dt>Commands</dt><dd>Argv-only broker with ceilings, cancellation, logs, rollback</dd></div><div><dt>Network</dt><dd>Denied unless explicitly admitted</dd></div><div><dt>Browser</dt><dd>Evidence journey; static cockpit cannot execute it</dd></div><div><dt>GitHub</dt><dd>Control issues, branches, PRs, checks, reviews through broker</dd></div><div><dt>Release</dt><dd>Exact-head receipt; deployment remains human-gated</dd></div>
+          </dl></div>
+        </div>
+        <div class="actions"><a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a><button id="copy-receipt" type="button">COPY FULL RECEIPT</button><button id="download-receipt" type="button">DOWNLOAD FULL RECEIPT</button><button id="reset-maker" class="quiet" type="button">CLEAR LOCAL DRAFT</button></div>
         <p id="command-status" class="status" role="status" aria-live="polite">Draft is stored only in this Maker namespace.</p>
         <details><summary>MACHINE RECEIPT</summary><pre id="receipt-preview"></pre></details>
+        <details><summary>RECENT LOCAL RECEIPTS</summary><div id="recent-receipts" class="operation-list"></div></details>
       </aside>
     </section>
 
     <section class="state-panel" aria-labelledby="state-heading">
-      <div class="state-heading-row"><div class="section-heading compact"><p class="section-number">03</p><div><h2 id="state-heading">Repository execution</h2><p>Public GitHub state only. Credentials, private task state, command output, and model keys are never loaded into this static surface.</p></div></div><button id="refresh-state" class="secondary" type="button">REFRESH</button></div>
-      <div class="state-grid"><article><span>BASE HEAD</span><strong id="repo-head">reading…</strong></article><article><span>ISSUES</span><strong id="open-issues">—</strong></article><article><span>PRS</span><strong id="open-prs">—</strong></article><article><span>RUNNING</span><strong id="running-workflows">—</strong></article></div>
-      <div class="live-columns"><section><h3>OPEN WORK</h3><div id="active-work" class="operation-list" aria-label="Open issues and pull requests"></div></section><section><h3>RECENT RUNS</h3><div id="workflow-runs" class="operation-list" aria-label="Recent workflow runs"></div></section></div>
-      <p id="state-status" class="status" role="status" aria-live="polite">Reading public repository state…</p>
+      <div class="state-heading-row"><div class="section-heading compact"><p class="section-number">03</p><div><h2 id="state-heading">Execution evidence</h2><p>Target identity is read separately from control-repository issues, machine comments, runs, branches, and pull requests. Private credentials and raw provider secrets never enter this static surface.</p></div></div><button id="refresh-state" class="secondary" type="button">REFRESH</button></div>
+      <div class="state-grid"><article><span>TARGET HEAD</span><strong id="repo-head">reading…</strong></article><article><span>CONTROL ISSUES</span><strong id="open-issues">—</strong></article><article><span>CONTROL PRS</span><strong id="open-prs">—</strong></article><article><span>RUNNING</span><strong id="running-workflows">—</strong></article></div>
+      <div class="live-columns"><section><h3>OPEN CONTROL WORK</h3><div id="active-work" class="operation-list" aria-label="Open control issues and pull requests"></div></section><section><h3>RECENT CONTROL RUNS</h3><div id="workflow-runs" class="operation-list" aria-label="Recent control workflow runs"></div></section></div>
+      <div class="live-columns"><section><h3>ISSUE → RUN → BRANCH → PR TIMELINE</h3><div id="task-timeline" class="operation-list" aria-label="Task evidence timeline"></div></section><section><h3>INTERVENTIONS</h3><div id="intervention-links" class="operation-list" aria-label="Truthful operator intervention links"></div></section></div>
+      <p id="state-status" class="status" role="status" aria-live="polite">Reading target identity and control-repository execution state…</p>
     </section>
 
     <section id="archie-runtime" class="archie-console" aria-labelledby="archie-heading">
-      <p class="section-number">04</p>
-      <h2 id="archie-heading">Archie learning loop</h2>
+      <p class="section-number">04</p><h2 id="archie-heading">Archie learning loop</h2>
       <p class="archie-truth">This phone is a truthful cockpit, not the engine. It starts with every runtime fact unobserved. It may display a fresh digest-valid receipt delivered through a separately authenticated runtime channel, or export a command packet for that runtime. It never claims training, synchronization, provider calls, compute, storage, repository mutation, merge, or deployment happened here.</p>
       <p><span class="archie-chip" id="archie-freshness">OFFLINE / UNOBSERVED</span></p>
       <div class="archie-grid" aria-label="Archie observed runtime state">
-        <article class="archie-card"><span>SPARSE SPECIALIST</span><strong id="archie-sparse">Unobserved</strong></article>
-        <article class="archie-card"><span>CPU PLANNER</span><strong id="archie-planner">Unobserved</strong></article>
-        <article class="archie-card"><span>CONFIDENCE / MARGIN</span><strong id="archie-confidence">Unobserved</strong></article>
-        <article class="archie-card"><span>SELECTED ROUTE</span><strong id="archie-route">Unobserved</strong></article>
-        <article class="archie-card"><span>BUDGET DECISION</span><strong id="archie-budget">Unobserved</strong></article>
-        <article class="archie-card"><span>TEACHER ESCALATION</span><strong id="archie-teacher">Unobserved</strong></article>
-        <article class="archie-card"><span>LESSON / RETRAIN</span><strong id="archie-learning">Unobserved</strong></article>
-        <article class="archie-card"><span>CORPUS / PACK</span><strong id="archie-corpus">Unobserved</strong></article>
-        <article class="archie-card"><span>ENCRYPTED SYNC</span><strong id="archie-sync">Unobserved</strong></article>
-        <article class="archie-card"><span>COMPUTE LADDER</span><strong id="archie-compute">Local CPU unobserved; Linux/GPU unavailable until observed</strong></article>
-        <article class="archie-card"><span>USAGE / COST EVIDENCE</span><strong id="archie-usage">Unobserved</strong></article>
-        <article class="archie-card"><span>STORAGE</span><strong id="archie-storage">Unobserved</strong></article>
-        <article class="archie-card archie-wide"><span>EXPLICIT BLOCKERS</span><ul id="archie-blockers" class="archie-blockers"><li>No authenticated runtime receipt loaded.</li></ul></article>
-        <article class="archie-card archie-wide"><span>RECEIPT SOURCE</span><strong id="archie-source" class="archie-evidence">None</strong></article>
+        <article class="archie-card"><span>SPARSE SPECIALIST</span><strong id="archie-sparse">Unobserved</strong></article><article class="archie-card"><span>CPU PLANNER</span><strong id="archie-planner">Unobserved</strong></article><article class="archie-card"><span>CONFIDENCE / MARGIN</span><strong id="archie-confidence">Unobserved</strong></article><article class="archie-card"><span>SELECTED ROUTE</span><strong id="archie-route">Unobserved</strong></article>
+        <article class="archie-card"><span>BUDGET DECISION</span><strong id="archie-budget">Unobserved</strong></article><article class="archie-card"><span>TEACHER ESCALATION</span><strong id="archie-teacher">Unobserved</strong></article><article class="archie-card"><span>LESSON / RETRAIN</span><strong id="archie-learning">Unobserved</strong></article><article class="archie-card"><span>CORPUS / PACK</span><strong id="archie-corpus">Unobserved</strong></article>
+        <article class="archie-card"><span>ENCRYPTED SYNC</span><strong id="archie-sync">Unobserved</strong></article><article class="archie-card"><span>COMPUTE LADDER</span><strong id="archie-compute">Local CPU unobserved; Linux/GPU unavailable until observed</strong></article><article class="archie-card"><span>USAGE / COST EVIDENCE</span><strong id="archie-usage">Unobserved</strong></article><article class="archie-card"><span>STORAGE</span><strong id="archie-storage">Unobserved</strong></article>
+        <article class="archie-card archie-wide"><span>EXPLICIT BLOCKERS</span><ul id="archie-blockers" class="archie-blockers"><li>No authenticated runtime receipt loaded.</li></ul></article><article class="archie-card archie-wide"><span>RECEIPT SOURCE</span><strong id="archie-source" class="archie-evidence">None</strong></article>
       </div>
-      <div class="archie-import">
-        <label for="archie-receipt-input">PASTE DIGEST-VALID RUNTIME RECEIPT</label>
-        <textarea id="archie-receipt-input" autocomplete="off" spellcheck="false" placeholder="archie-operator-runtime-receipt/v1 JSON"></textarea>
-      </div>
-      <div class="archie-actions" role="group" aria-label="Archie receipt and command actions">
-        <button id="archie-apply" type="button">VERIFY + APPLY RECEIPT</button>
-        <button id="archie-export-pack" type="button">EXPORT PACK COMMAND</button>
-        <button id="archie-import-pack" type="button">IMPORT PACK COMMAND</button>
-        <button id="archie-sync-command" type="button">ENCRYPTED SYNC COMMAND</button>
-        <button id="archie-clear" type="button">CLEAR LOCAL RECEIPT</button>
-      </div>
+      <div class="archie-import"><label for="archie-receipt-input">PASTE DIGEST-VALID RUNTIME RECEIPT</label><textarea id="archie-receipt-input" autocomplete="off" spellcheck="false" placeholder="archie-operator-runtime-receipt/v1 JSON"></textarea></div>
+      <div class="archie-actions" role="group" aria-label="Archie receipt and command actions"><button id="archie-apply" type="button">VERIFY + APPLY RECEIPT</button><button id="archie-export-pack" type="button">EXPORT PACK COMMAND</button><button id="archie-import-pack" type="button">IMPORT PACK COMMAND</button><button id="archie-sync-command" type="button">ENCRYPTED SYNC COMMAND</button><button id="archie-clear" type="button">CLEAR LOCAL RECEIPT</button></div>
       <p id="archie-status" class="archie-status" role="status" aria-live="polite">No authenticated runtime receipt loaded. Browser execution claims: none.</p>
       <details><summary>COMMAND PACKET — DOES NOT CLAIM EXECUTION</summary><pre id="archie-command-preview" class="archie-command">No command exported.</pre></details>
     </section>
