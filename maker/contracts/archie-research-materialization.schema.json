@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-research-materialization.schema.json",
+  "title": "Archie research materialization v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "campaign_id",
+    "campaign_digest",
+    "prior_campaign_digest",
+    "allocation_digest",
+    "data_binding",
+    "discovery_lanes",
+    "independent_evaluation",
+    "worker_requirement",
+    "state",
+    "materialization_digest"
+  ],
+  "properties": {
+    "schema": { "const": "archie-research-materialization/v1" },
+    "campaign_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "campaign_digest": { "$ref": "#/$defs/digest" },
+    "prior_campaign_digest": { "$ref": "#/$defs/digest" },
+    "allocation_digest": { "$ref": "#/$defs/digest" },
+    "data_binding": { "type": "object" },
+    "discovery_lanes": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/entry" }
+    },
+    "independent_evaluation": { "$ref": "#/$defs/entry" },
+    "worker_requirement": { "const": "none-for-materialization" },
+    "state": { "const": "materialized" },
+    "materialization_digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "entry": {
+      "type": "object",
+      "required": ["lane_id", "relative_path", "manifest_digest", "credits"],
+      "properties": {
+        "lane_id": { "type": "string", "minLength": 1 },
+        "relative_path": { "type": "string", "minLength": 1 },
+        "manifest_digest": { "$ref": "#/$defs/digest" },
+        "credits": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
