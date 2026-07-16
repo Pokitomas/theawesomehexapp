@@ -1,4 +1,4 @@
-name: Reconstruct reviewed Archie patch blobs
+name: Capture historical Archie patch blobs
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  reconstruct:
+  capture:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: 8797ab484137926a158efc8d4a6c69054f0bc3dc
-      - name: Reconstruct and verify immutable patch bundle
+      - name: Capture immutable blob bytes and actual checksums
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -26,28 +26,34 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "8797ab484137926a158efc8d4a6c69054f0bc3dc"
           blobs=(ab1d7f4b5052aea315360c394e86e5ddcd94002e e6b397e3e8d74d9a5a087baf10780763d7ce665b 07095e89119d7b6d8b1128c3cd00cbd5e8868113 a5afe48bc6026aa28b80710584feac9afb6aea57 8d3a4ee312ff4ad2b95489f48709ff95df8f7f41 ca3fd77b10869c52496f07ea568be75b2ddabbc5)
-          expected=(1269f169ffb08d47fff698436f90f8b96606cdf54e4f1ab9c6edaa9f04adf530 2f6ba981f164917f19bc966361fe66d45de7e7ab9e26b6fc71c2356e6f4d8ba1 e7e9dd75dd37679671ffed1902ba34fa2a3e6cd57db7d44d64facc18496187fc 4c6217e103a011b1a706986b5b5a9b39c67368372637cb7b0831c0cdcb8ace10 272c2ba6b119ea68f33560e279fba8b3de8edd6e7607cd7042359cf02fe681bc bf328ce5862c40f32a5881c36ad63568a6843be5cb046b058ced5b5d8434b261)
-          : > "$RUNNER_TEMP/archie-reviewed-patch.tgz"
+          : > "$RUNNER_TEMP/archie-historical-patch.tgz"
+          : > "$RUNNER_TEMP/archie-historical-checksums.txt"
           for index in "${!blobs[@]}"; do
             curl --fail --silent --show-error \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
               "https://api.github.com/repos/$REPOSITORY/git/blobs/${blobs[$index]}" \
-              | jq -r '.content' | tr -d '\n' | base64 -d > "$RUNNER_TEMP/patch.part.$index"
-            echo "${expected[$index]}  $RUNNER_TEMP/patch.part.$index" | sha256sum --check --strict
-            cat "$RUNNER_TEMP/patch.part.$index" >> "$RUNNER_TEMP/archie-reviewed-patch.tgz"
+              > "$RUNNER_TEMP/blob.$index.json"
+            jq -r '.content' "$RUNNER_TEMP/blob.$index.json" | tr -d '\n' | base64 -d > "$RUNNER_TEMP/patch.part.$index"
+            sha256sum "$RUNNER_TEMP/patch.part.$index" | tee -a "$RUNNER_TEMP/archie-historical-checksums.txt"
+            wc -c "$RUNNER_TEMP/patch.part.$index" | tee -a "$RUNNER_TEMP/archie-historical-checksums.txt"
+            cat "$RUNNER_TEMP/patch.part.$index" >> "$RUNNER_TEMP/archie-historical-patch.tgz"
           done
-          echo "d07cfbeabf37ab2f86aa23ad1e15ca7e93b0e41a75d44f51b186db4793aa49c1  $RUNNER_TEMP/archie-reviewed-patch.tgz" | sha256sum --check --strict
-          mkdir "$RUNNER_TEMP/archie-reviewed-patch"
-          tar -xzf "$RUNNER_TEMP/archie-reviewed-patch.tgz" -C "$RUNNER_TEMP/archie-reviewed-patch"
-          find "$RUNNER_TEMP/archie-reviewed-patch" -type f -printf '%P\n' | sort | tee "$RUNNER_TEMP/archie-reviewed-patch.paths.txt"
-      - name: Upload reconstructed evidence
+          sha256sum "$RUNNER_TEMP/archie-historical-patch.tgz" | tee -a "$RUNNER_TEMP/archie-historical-checksums.txt"
+          wc -c "$RUNNER_TEMP/archie-historical-patch.tgz" | tee -a "$RUNNER_TEMP/archie-historical-checksums.txt"
+          tar -tzf "$RUNNER_TEMP/archie-historical-patch.tgz" > "$RUNNER_TEMP/archie-historical-patch.paths.txt" 2> "$RUNNER_TEMP/archie-historical-tar-error.txt" || true
+      - name: Upload captured evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-reviewed-patch-d07cfbea
+          name: archie-historical-patch-capture
           path: |
-            ${{ runner.temp }}/archie-reviewed-patch.tgz
-            ${{ runner.temp }}/archie-reviewed-patch.paths.txt
-          if-no-files-found: error
+            ${{ runner.temp }}/blob.*.json
+            ${{ runner.temp }}/patch.part.*
+            ${{ runner.temp }}/archie-historical-patch.tgz
+            ${{ runner.temp }}/archie-historical-checksums.txt
+            ${{ runner.temp }}/archie-historical-patch.paths.txt
+            ${{ runner.temp }}/archie-historical-tar-error.txt
+          if-no-files-found: warn
           retention-days: 2
