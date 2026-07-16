@@ -224,10 +224,10 @@ function documentFrequency(documents, dimensions) {
   return df;
 }
 
-function calibrate(score, model, margin = 0) {
-  const threshold = Number(model.threshold || DEFAULT_THRESHOLD);
-  const slope = Number(model.calibration?.slope || 7.5);
-  const centered = (score - threshold) * slope + margin * 2;
+function calibrate(score, threshold, slope = 7.5, margin = 0) {
+  const effectiveThreshold = Number(threshold ?? DEFAULT_THRESHOLD);
+  const effectiveSlope = Number(slope ?? 7.5);
+  const centered = (score - effectiveThreshold) * effectiveSlope + margin * 2;
   const probability = 1 / (1 + Math.exp(-centered));
   return Math.max(0, Math.min(1, probability));
 }
@@ -404,7 +404,7 @@ export function planWithArchieCPUPlanner(model, task = {}, options = {}) {
   const confidence = Number(Math.max(0, Math.min(1, best?.score || 0)).toFixed(6));
   const margin = Number(Math.max(0, confidence - (second?.score || 0)).toFixed(6));
   const negativeScore = Number(Math.max(0, Math.min(1, bestNegative.score || 0)).toFixed(6));
-  const calibrated = Number(calibrate(confidence, model, margin).toFixed(6));
+  const calibrated = Number(calibrate(confidence, config.threshold, model.calibration?.slope, margin).toFixed(6));
   let state = 'local';
   let reason = 'bounded-beam-local-plan';
   if (negativeScore >= config.reject_threshold && negativeScore >= confidence - config.negative_gap) {
