@@ -1,1 +1,1 @@
-Disposable trigger for exact read-only archive of coordinator drift head 8797ab484137926a158efc8d4a6c69054f0bc3dc. Never merge.
+Disposable trigger for read-only reconstruction of the immutable reviewed Archie patch blobs against coordinator drift head 8797ab484137926a158efc8d4a6c69054f0bc3dc. Never merge.
