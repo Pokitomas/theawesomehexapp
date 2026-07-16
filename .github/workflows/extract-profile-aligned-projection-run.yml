@@ -1,0 +1,48 @@
+name: Extract profile-aligned projection run
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/extract-profile-aligned-projection-run.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  extract:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+      - name: Preserve terminal live-build excerpt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILED_RUN_ID: '29490768755'
+          FAILED_JOB_ID: '87596083083'
+        shell: bash
+        run: |
+          set +e
+          gh run view "$FAILED_RUN_ID" --repo Pokitomas/theawesomehexapp --job "$FAILED_JOB_ID" --log > /tmp/profile-projection-run.log 2>/tmp/profile-projection-run.err
+          gh_status=$?
+          node <<'NODE'
+          const fs = require('node:fs');
+          const text = fs.existsSync('/tmp/profile-projection-run.log') ? fs.readFileSync('/tmp/profile-projection-run.log', 'utf8') : '';
+          const error = fs.existsSync('/tmp/profile-projection-run.err') ? fs.readFileSync('/tmp/profile-projection-run.err', 'utf8') : '';
+          const lines = text.split(/\r?\n/);
+          const marker = lines.findIndex(line => line.includes('Run actual live snapshot, media bridge, and one-million projection'));
+          const selected = lines.slice(marker >= 0 ? marker : Math.max(0, lines.length - 500));
+          fs.mkdirSync('audit', { recursive: true });
+          fs.writeFileSync('audit/pages-profile-aligned-projection-failure.log', `${selected.slice(-500).join('\n')}\n\n## gh stderr\n${error}`);
+          NODE
+          echo "gh_status=${gh_status}" >> audit/pages-profile-aligned-projection-failure.log
+          rm .github/workflows/extract-profile-aligned-projection-run.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add audit/pages-profile-aligned-projection-failure.log .github/workflows/extract-profile-aligned-projection-run.yml
+          git commit -m "audit: preserve profile-aligned projection failure"
+          git push origin HEAD:${TARGET_BRANCH}
