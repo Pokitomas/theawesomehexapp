@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://theawesomehexapp.local/maker/contracts/delivery-loop.schema.json",
+  "title": "Maker delivery loop receipt",
+  "type": "object",
+  "required": ["schema", "repository", "head_sha", "status", "checks", "repairs", "reviews", "deployments", "events", "receipt_digest"],
+  "properties": {
+    "schema": { "const": "sideways-maker-delivery-receipt/v1" },
+    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "head_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "status": { "enum": ["observing", "repair_required", "repairing", "checks_green", "cancelled"] },
+    "checks": { "type": "array" },
+    "repairs": { "type": "array" },
+    "reviews": { "type": "array" },
+    "releases": { "type": "array" },
+    "deployments": { "type": "array" },
+    "events": { "type": "array" },
+    "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": true
+}
