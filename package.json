@@ -17,7 +17,7 @@
     "test:archie:portable": "node --test scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-sync.test.mjs",
     "test:archie:evaluation": "node --test scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-benchmark.test.mjs scripts/tests/maker-archie-derivation-benchmark.test.mjs",
     "test:archie:phone": "node --test scripts/tests/maker-archie-phone.test.mjs",
-    "test:foundry": "node --test foundry/tests/core.test.mjs foundry/tests/calibration.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs",
+    "test:foundry": "node --test foundry/tests/core.test.mjs foundry/tests/calibration.test.mjs foundry/tests/cost-calibration.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs",
     "test:ingestion": "node --test scripts/tests/discovery-connected-import.test.mjs scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs",
     "maker": "node scripts/maker-archie-launch.mjs",
     "maker:model:check": "node scripts/check-open-model-runtime.mjs",
