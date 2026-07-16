@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/archie-final-publisher-v2
+  pull_request:
+    branches:
+      - agent/archie-democratized-runtime
   workflow_dispatch:
 
 permissions:
