@@ -85,7 +85,7 @@ async function touch(locator) {
         return hit && hit !== node && !node.contains(hit) ? hit.closest('[data-workspace-commandbar]')?.tagName || hit.tagName : '';
       });
       if (obstruction) throw new Error(`touch target is obstructed by ${obstruction}`);
-      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      await locator.tap({ timeout: 15000 });
       return;
     } catch (error) {
       lastError = error;
