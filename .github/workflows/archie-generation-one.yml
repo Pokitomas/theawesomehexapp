@@ -1,0 +1,42 @@
+name: Archie Generation One evidence
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/archie-generation-one-run.mjs'
+      - 'scripts/archie-action-contract.mjs'
+      - 'scripts/maker-archie-*.mjs'
+      - 'scripts/tests/archie-generation-one-run.test.mjs'
+      - 'scripts/tests/maker-archie-*.test.mjs'
+      - 'maker/evaluations/**'
+      - 'package.json'
+      - '.github/workflows/archie-generation-one.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:archie:evaluation
+      - name: Produce exact-head Generation One receipt
+        run: npm run archie:generation-one -- --code-revision "$GITHUB_SHA" --output artifacts/archie-generation-one-receipt.json
+      - name: Verify receipt is explicit and digest-bound
+        run: |
+          node -e "const fs=require('fs');const p='artifacts/archie-generation-one-receipt.json';const r=JSON.parse(fs.readFileSync(p));if(r.schema!=='archie-generation-one-run-receipt/v1'||!r.receipt_digest)process.exit(1);console.log(JSON.stringify({promotion:r.promotion,observed:r.observed,receipt_digest:r.receipt_digest},null,2));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archie-generation-one-${{ github.sha }}
+          path: artifacts/archie-generation-one-receipt.json
+          if-no-files-found: error
