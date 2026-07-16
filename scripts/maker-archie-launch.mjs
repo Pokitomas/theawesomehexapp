@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { execFile, spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { parseMakerArgs } from './maker-core.mjs';
 import { recallNativeMakerPlan, rememberNativeMakerRun } from './maker-archie-native.mjs';
+import { createArchieMakerDecision } from './maker-archie-runtime-contract.mjs';
 
 const execFileAsync = promisify(execFile);
 const MAX_CAPTURE = 32 * 1024 * 1024;
@@ -46,11 +50,17 @@ async function repoRoot() {
   return clean(result.stdout, 4000);
 }
 
-function runMaker(argv, root) {
+async function resolveBaseSha(root, baseBranch) {
+  await execFileAsync('git', ['fetch', 'origin', '--prune'], { cwd: root, encoding: 'utf8', timeout: 10 * 60 * 1000, maxBuffer: MAX_CAPTURE });
+  const result = await execFileAsync('git', ['rev-parse', '--verify', `origin/${baseBranch}`], { cwd: root, encoding: 'utf8', timeout: 30000 });
+  return clean(result.stdout, 200);
+}
+
+function runMaker(argv, root, { env = {} } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [path.join(root, 'scripts', 'maker.mjs'), ...argv], {
       cwd: root,
-      env: process.env,
+      env: { ...process.env, ...env },
       stdio: ['inherit', 'pipe', 'pipe'],
       windowsHide: true
     });
@@ -76,12 +86,34 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  if (options.archieDecisionFile) throw new Error('--archie-decision-file is internal to the Archie launcher.');
+
   const root = await repoRoot();
+  const baseSha = await resolveBaseSha(root, options.base);
+  const makerArgv = [...argv];
+  const makerEnv = {};
+  let decisionRoot = null;
+
   if (options.request && !options.help) {
-    const recalled = await recallNativeMakerPlan({ repoRoot: root, request: options.request, baseBranch: options.base });
-    if (recalled.status === 'local') {
-      process.stdout.write(`[archie] reusable local plan ${recalled.specialist_id} confidence=${Number(recalled.confidence).toFixed(3)} margin=${Number(recalled.margin).toFixed(3)}\n`);
-      process.stdout.write(`${JSON.stringify(recalled.plan, null, 2)}\n`);
+    const recalled = await recallNativeMakerPlan({ repoRoot: root, request: options.request, baseBranch: options.base, baseSha });
+    if (recalled.status === 'local' && recalled.execution_eligible) {
+      const key = randomBytes(32).toString('hex');
+      decisionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sideways-archie-maker-decision-'));
+      const decisionPath = path.join(decisionRoot, 'decision.json');
+      const decision = createArchieMakerDecision({
+        request: options.request,
+        repository: root,
+        baseBranch: options.base,
+        baseSha,
+        recall: recalled,
+        key
+      });
+      await fs.writeFile(decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+      makerArgv.push('--archie-decision-file', decisionPath);
+      makerEnv.ARCHIE_MAKER_DECISION_KEY = key;
+      process.stdout.write(`[archie] reusable plan candidate ${recalled.specialist_id} confidence=${Number(recalled.confidence).toFixed(3)} margin=${Number(recalled.margin).toFixed(3)}; Maker must verify it before execution\n`);
+    } else if (recalled.status === 'local') {
+      process.stdout.write(`[archie] fuzzy reusable-plan candidate ${recalled.specialist_id} remains advisory (${clean(recalled.reason, 500)})\n`);
     } else if (recalled.status === 'failed') {
       process.stderr.write(`[archie] recall failed closed: ${clean(recalled.reason, 1000)}\n`);
     } else if (recalled.status === 'miss') {
@@ -89,7 +121,10 @@ async function main() {
     }
   }
 
-  const result = await runMaker(argv, root);
+  let result;
+  try { result = await runMaker(makerArgv, root, { env: makerEnv }); }
+  finally { if (decisionRoot) await fs.rm(decisionRoot, { recursive: true, force: true }); }
+
   if (result.code !== 0) {
     if (result.signal) process.stderr.write(`[archie] Maker terminated by ${result.signal}; memory was not updated.\n`);
     process.exitCode = result.code;
