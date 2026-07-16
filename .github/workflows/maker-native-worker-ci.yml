@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/archie-hostile-evaluation
+  pull_request:
+    branches:
+      - agent/archie-linux-corpus
   workflow_dispatch:
 
 permissions:
