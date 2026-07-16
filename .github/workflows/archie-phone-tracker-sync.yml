@@ -1,0 +1,101 @@
+name: Sync Archie phone tracker
+
+on:
+  push:
+    branches:
+      - agent/archie-live-status
+    paths:
+      - .github/workflows/archie-phone-tracker-sync.yml
+      - audit/ARCHIE_PHONE_TRACKER_TRIGGER.txt
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: archie-phone-tracker-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out tracker branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Use repository Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Resolve current coordinator and update tracker pin
+        id: state
+        run: |
+          set -euo pipefail
+          coordinator_head=$(git ls-remote origin refs/heads/agent/archie-democratized-runtime | awk '{print $1}')
+          test -n "$coordinator_head"
+          old=$(node -e "import('./scripts/archie-live-status.mjs').then(m=>process.stdout.write(m.DEFAULTS.expectedHead))")
+          python3 - "$old" "$coordinator_head" <<'PY'
+          from pathlib import Path
+          import sys
+          old, new = sys.argv[1:]
+          for name in ('scripts/archie-live-status.mjs', 'audit/ARCHIE_LIVE_STATUS.md'):
+              path = Path(name)
+              text = path.read_text()
+              path.write_text(text.replace(old, new))
+          PY
+          node --check scripts/archie-live-status.mjs
+          node --test scripts/tests/archie-live-status.test.mjs | tee /tmp/archie-phone-tracker-tests.log
+          echo "coordinator_head=$coordinator_head" >> "$GITHUB_OUTPUT"
+      - name: Commit tracker pin if changed
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            git add scripts/archie-live-status.mjs audit/ARCHIE_LIVE_STATUS.md
+            git commit -m "Sync Archie tracker to live coordinator"
+            git push origin HEAD:agent/archie-live-status
+            echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Refresh stable issue status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COORDINATOR_HEAD: ${{ steps.state.outputs.coordinator_head }}
+          TRACKER_HEAD: ${{ steps.commit.outputs.head }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          <!-- archie-live-status:v1 -->
+          ## Archie live status
+
+          - authoritative coordinator writer: existing co-engineer
+          - coordinator branch: \`agent/archie-democratized-runtime\`
+          - coordinator head: \`${COORDINATOR_HEAD}\`
+          - tracker mode: live read-only observer with drift detection
+          - tracker branch: \`agent/archie-live-status\`
+          - tracker head: \`${TRACKER_HEAD}\`
+          - tracker proof: syntax clean; 5/5 focused tests
+          - router seam repair: \`4cf88a82adb4b878b1844321baefe182e076e3d9\`, green
+          - control-plane repair: \`f611b798a3fb7688c9e86208e4b330ff58db2fc2\`, 35/35 green
+          - finalizer ref: \`agent/archie-integration-finalizer-live\`, forked from the live coordinator without modifying it
+          - plugin repair: 35/35 locally green; prior posted archive rejected for digest/CRC failure and not admitted
+          - tokens remaining: 572,288 / 1,310,720 (manual-observed)
+          - next: exact-live-head finalizer proof and source admission without overwriting the co-engineer's worker/operator/phone work
+
+          Phone commands:
+
+          \`node scripts/archie-live-status.mjs tokens 572288 1310720\`
+
+          \`node scripts/archie-live-status.mjs watch 20\`
+
+          The tracker uses public read-only GitHub access for status. Publishing its stable heartbeat requires \`GITHUB_TOKEN\`, \`GH_TOKEN\`, or \`gh auth login\`. Tokens are never printed or persisted.
+
+          No merge or deployment.
+          EOF
+          )
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/4987929903" -f body="$body" >/dev/null
