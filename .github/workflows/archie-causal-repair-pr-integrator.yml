@@ -45,13 +45,18 @@ jobs:
           git apply /tmp/archie.patch
           git rm .github/workflows/archie-causal-repair-publisher.yml
           git diff --check
-      - name: Verify repair engine
+      - name: Verify maker-engine contract
         shell: bash
-        run: |
-          node --test scripts/tests/maker-engine.contract.mjs
-          npm run test:native-maker
-          npm run test:foundry
-          node --test scripts/tests/maker-worker-fleet.test.mjs scripts/tests/maker-model-router.test.mjs scripts/tests/maker-control-plane.test.mjs scripts/tests/maker-foundry-adapter.test.mjs
+        run: node --test scripts/tests/maker-engine.contract.mjs
+      - name: Verify native Maker
+        shell: bash
+        run: npm run test:native-maker
+      - name: Verify Foundry
+        shell: bash
+        run: npm run test:foundry
+      - name: Verify fleet router and control plane
+        shell: bash
+        run: node --test scripts/tests/maker-worker-fleet.test.mjs scripts/tests/maker-model-router.test.mjs scripts/tests/maker-control-plane.test.mjs scripts/tests/maker-foundry-adapter.test.mjs
       - name: Commit clean candidate
         shell: bash
         run: |
