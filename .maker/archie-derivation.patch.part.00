@@ -1,0 +1,184 @@
+diff --git a/.github/workflows/pages.yml b/.github/workflows/pages.yml
+index 461853d..a35100e 100644
+--- a/.github/workflows/pages.yml
++++ b/.github/workflows/pages.yml
+@@ -187,6 +187,9 @@ jobs:
+ 
+       - name: Publish phone Maker console into product artifact
+         run: |
++          npm run test:contracts
++          npm run test:archie
++          npm run benchmark:derivation -- --no-write
+           node scripts/tests/maker-console.test.mjs
+           node --test scripts/tests/maker-ios-install.test.mjs
+           mkdir -p dist/maker
+diff --git a/.github/workflows/repository-gate.yml b/.github/workflows/repository-gate.yml
+index 91b8bfa..43547af 100644
+--- a/.github/workflows/repository-gate.yml
++++ b/.github/workflows/repository-gate.yml
+@@ -27,6 +27,11 @@ jobs:
+           cache: npm
+       - name: Install locked runtime dependencies
+         run: npm ci --ignore-scripts
++      - name: Verify Archie derivational intelligence
++        run: |
++          npm run test:contracts
++          npm run test:archie
++          npm run benchmark:derivation -- --no-write
+       - name: Verify exact repository tree
+         env:
+           CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+diff --git a/ARCHIE_DERIVATION.md b/ARCHIE_DERIVATION.md
+new file mode 100644
+index 0000000..8f31afa
+--- /dev/null
++++ b/ARCHIE_DERIVATION.md
+@@ -0,0 +1,52 @@
++# Archie derivational intelligence
++
++Archie is a portable semantic compiler for digital work. It is not represented as a neural language model and does not attempt to compress internet-scale prose into a smaller chatbot. It compiles successful digital trajectories and structured source metadata into reusable typed transformations, then composes those transformations into proof-carrying plans.
++
++## Core representation
++
++Each admitted lesson can contribute:
++
++- concepts and aliases;
++- typed preconditions, effects, and preserved invariants;
++- relations such as `requires`, `produces`, `verifies`, `repairs`, `conflicts-with`, and `derived-from`;
++- abstract operators such as observation, diagnosis, reconciliation, transformation, verification, preservation, synchronization, routing, inversion, and learning;
++- concrete tool adapters that implement an abstract operation in one digital domain;
++- positive and negative trajectory evidence with provenance.
++
++The compiler emits a sparse graph and quantized relation matrix. Lexical vectors help retrieve candidates, but local execution is admitted only when the task is grounded in identifiable operators and domains and the composed trajectory satisfies its typed preconditions. A valid plan includes a deterministic derivation proof, source skill identifiers, produced states, preserved invariants, and a digest.
++
++## Learning one missing edge
++
++When a task can be reduced to known abstract operations but lacks one domain adapter, Archie requests only that edge from the teacher. For example, if reconciliation and verification are known but database reconciliation is not, the teacher request identifies `adapter:reconcile:database` rather than asking for the entire task again. An admitted lesson is fitted incrementally into the graph without discarding prior skills.
++
++This is the primary replacement mechanism:
++
++1. understand the requested state transition;
++2. activate known abstract operations;
++3. bind operations to authorized domain adapters;
++4. prove their preconditions and effects;
++5. escalate only irreducible missing edges;
++6. retain successful new edges as owned portable structure.
++
++## Digital perception before cameras
++
++For software work, structured digital state is superior to re-observing a screen through a camera. Archie should prefer repositories, files, schemas, DOM trees, logs, APIs, database state, tool receipts, process events, and authenticated runtime observations. Audio and vision are optional adapters for physical or otherwise inaccessible environments; they are not prerequisites for broad digital capability.
++
++## Portability and claim boundary
++
++The derivation runtime is dependency-free JavaScript and uses bounded sparse data structures suitable for ordinary CPUs. Model integrity is content-addressed and checked before inference. The local layer has no free-form language generation, hidden chain of thought, factual world model, or open-world medical/scientific authority. Novel open-world work remains a teacher capability.
++
++The useful comparison is therefore not parameter count. It is the percentage of previously unseen digital tasks solved by composing admitted abstractions while maintaining safety, proof coverage, latency, and teacher-call savings.
++
++## Commands
++
++```bash
++npm run archie:derive -- train examples.json model.json
++npm run archie:derive -- plan model.json task.json
++npm run test:contracts
++npm run test:archie
++npm run benchmark:derivation
++npm run verify:archie-intelligence
++```
++
++`benchmark:derivation` evaluates direct derivation, unseen skill composition, minimal missing-edge requests, forbidden-action rejection, open-world abstention, proof coverage, model size, and CPU latency. The committed audit files are generated from a fixed logical fixture; CI uses `--no-write` so runtime latency measurements do not mutate the checkout.
+diff --git a/audit/archie-derivation-benchmark.md b/audit/archie-derivation-benchmark.md
+new file mode 100644
+index 0000000..95040d8
+--- /dev/null
++++ b/audit/archie-derivation-benchmark.md
+@@ -0,0 +1,24 @@
++# Archie derivational intelligence benchmark
++
++This benchmark measures bounded digital capability composition. It does not claim open-world language-model equivalence.
++
++## Result
++
++- Total success: **100.0%**
++- Direct derivation: **100.0%**
++- Unseen compositional replacement: **100.0%**
++- Minimal missing-edge precision: **100.0%**
++- Forbidden-action rejection: **100.0%**
++- Open-world abstention: **100.0%**
++- Selective local accuracy: **100.0%**
++- P95 local planning latency: **5.468 ms**
++- Portable model size: **93322 bytes**
++- Graph: **142 nodes / 193 edges**
++
++## Operational interpretation
++
++Archie is evaluated as a portable semantic compiler over owned typed transformations. Success means it can derive and prove a tool trajectory from skills that were not stored as that complete trajectory. Teacher escalation is correct when Archie identifies the smallest missing adapter instead of requesting an entire solution.
++
++## Hard boundary
++
++No score here establishes free-form generation, factual world knowledge, multimodal perception, or general autonomous intelligence. Those remain teacher/model capabilities.
+diff --git a/audit/archie-frontier-baseline.md b/audit/archie-frontier-baseline.md
+new file mode 100644
+index 0000000..28a53d6
+--- /dev/null
++++ b/audit/archie-frontier-baseline.md
+@@ -0,0 +1,36 @@
++# Archie frontier baseline
++
++Generated from the production modules in this repository. This is a bounded workflow-equivalence benchmark, not a claim of general language-model equivalence.
++
++## Verdict
++
++- Current category: **learned-skill-cache**
++- Best evaluated configuration: **test-tuned-low-threshold**
++- Bounded 50-task success: **70.0%**
++- Correct local replacement of teacher workflows: **67.6%**
++- Compositional transfer: **30.0%**
++- Unsafe local execution: **0.0%**
++- Open-world hallucination: **25.0%**
++- Three-failure Maker recovery: **PASS**
++
++## Configuration comparison
++
++| Variant | Success | Teacher displacement | Composition | Selective accuracy | Unsafe local | OOD local | P95 latency | Model bytes |
++|---|---:|---:|---:|---:|---:|---:|---:|---:|
++| shipping-defaults | 62.0% | 58.8% | 30.0% | 80.0% | 0.0% | 0.0% | 73.204 ms | 164241 |
++| test-tuned-low-threshold | 70.0% | 67.6% | 30.0% | 65.7% | 0.0% | 25.0% | 12.412 ms | 140073 |
++
++## New categories exposed
++
++1. **Teacher displacement** — how much expensive model work is correctly replaced locally, not merely how often Archie emits something.
++2. **Selective competence** — accuracy conditioned on Archie choosing local execution.
++3. **Open-world hallucination** — unknown work incorrectly treated as a learned workflow.
++4. **Authority leakage** — forbidden tasks that cross from rejection into execution.
++5. **Compositional transfer** — whether separate learned skills form a valid new trajectory.
++6. **Failure metabolism** — whether repeated failures become one causal repair episode rather than duplicated noise.
++7. **Evidence closure** — whether a repair requires the exact failed command to pass afterward.
++8. **Intelligence density** — correctly displaced workflows per model byte.
++
++## Hard boundary
++
++This benchmark does not test free-form language generation, factual knowledge, multimodal perception, long-horizon autonomous software engineering, or novel reasoning without a teacher. Archie can only be called LLM-equivalent inside the exact bounded workflow slice where it matches the oracle trajectory and safely abstains elsewhere.
+diff --git a/maker/contracts/archie-derivation.schema.json b/maker/contracts/archie-derivation.schema.json
+new file mode 100644
+index 0000000..57bab9a
+--- /dev/null
++++ b/maker/contracts/archie-derivation.schema.json
+@@ -0,0 +1,214 @@
++{
++  "$schema": "https://json-schema.org/draft/2020-12/schema",
++  "$id": "https://theawesomehexapp.local/maker/contracts/archie-derivation.schema.json",
++  "title": "Archie portable derivational intelligence contract",
++  "description": "Sparse graph, relation-matrix, proof-carrying plan, minimal teacher gap, and metadata knowledge contracts for Archie's non-generative local derivation layer.",
++  "oneOf": [
++    { "$ref": "#/$defs/model" },
++    { "$ref": "#/$defs/plan" },
++    { "$ref": "#/$defs/knowledgeRecord" },
++    { "$ref": "#/$defs/compressionReceipt" }
++  ],
++  "$defs": {
++    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
++    "q8Vector": {
++      "type": "array",
++      "items": {
++        "type": "array",
++        "prefixItems": [
