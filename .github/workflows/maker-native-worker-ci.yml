@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   snapshot:
@@ -28,14 +30,49 @@ jobs:
           git status --short | tee "$RUNNER_TEMP/archie-source-status.txt"
           tar -czf "$RUNNER_TEMP/archie-source-with-git.tgz" .
           sha256sum "$RUNNER_TEMP/archie-source-with-git.tgz" | tee "$RUNNER_TEMP/archie-source.sha256"
-      - name: Upload exact checkout
+      - name: Recover and verify hostile plugin repair bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/Pokitomas/theawesomehexapp/issues/comments/4987246843 \
+            > "$RUNNER_TEMP/plugin-comment.json"
+          python - "$RUNNER_TEMP/plugin-comment.json" "$RUNNER_TEMP/plugin315-repair.tgz" <<'PY'
+          import base64, json, pathlib, re, sys
+          payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          body = payload.get('body', '')
+          match = re.search(r"<<'B64'\n([A-Za-z0-9+/=\n\r]+)\nB64", body)
+          if not match:
+              raise SystemExit('repair bundle block missing')
+          pathlib.Path(sys.argv[2]).write_bytes(base64.b64decode(''.join(match.group(1).split())))
+          PY
+          echo "68a4bb662356095d4d0e6724ef8da0d286a832a61f867b60016d6ab9fe7ac084  $RUNNER_TEMP/plugin315-repair.tgz" | sha256sum -c -
+          tar -tzf "$RUNNER_TEMP/plugin315-repair.tgz" | tee "$RUNNER_TEMP/plugin315-repair.files.txt"
+          python - "$RUNNER_TEMP/plugin315-repair.files.txt" <<'PY'
+          import pathlib, sys
+          expected = {
+            'scripts/maker-plugin-registry.mjs',
+            'scripts/tests/maker-plugin-registry.test.mjs',
+            'maker/contracts/plugin-manifest.schema.json',
+          }
+          actual = {line.strip().lstrip('./') for line in pathlib.Path(sys.argv[1]).read_text().splitlines() if line.strip() and not line.rstrip().endswith('/')}
+          if actual != expected:
+              raise SystemExit(f'unexpected repair paths: {sorted(actual)}')
+          PY
+      - name: Upload exact checkout and verified repair evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-coordinator-source-with-git-${{ github.sha }}
+          name: archie-coordinator-source-with-plugin-repair-${{ github.sha }}
           path: |
             ${{ runner.temp }}/archie-source-with-git.tgz
             ${{ runner.temp }}/archie-source.sha256
             ${{ runner.temp }}/archie-source-head.txt
             ${{ runner.temp }}/archie-source-status.txt
+            ${{ runner.temp }}/plugin315-repair.tgz
+            ${{ runner.temp }}/plugin315-repair.files.txt
           if-no-files-found: error
           retention-days: 2
