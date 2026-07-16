@@ -29,6 +29,7 @@ jobs:
           echo '339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a  '"$RUNNER_TEMP/plugin-hostile-repair.tgz" | sha256sum -c -
           test "$(tar -tzf "$RUNNER_TEMP/plugin-hostile-repair.tgz" | sort | tr '\n' ' ')" = 'maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs '
           git reset --hard 7e2e62afb6e82cf6ad00ecbaa84486f45697a049
+          git clean -fdx
           tar -xzf "$RUNNER_TEMP/plugin-hostile-repair.tgz"
           node --check scripts/maker-plugin-registry.mjs
           node --check scripts/tests/maker-plugin-registry.test.mjs
@@ -40,13 +41,15 @@ jobs:
           git add maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs
           git commit -m 'Repair permissioned plugin registry hostile boundaries'
           git push origin HEAD:refs/heads/agent/maker-plugin-registry-hostile-repair
-          {
-            printf '{"schema":"archie-plugin-repair-publisher/v1","source_base":"7e2e62afb6e82cf6ad00ecbaa84486f45697a049","bundle_sha256":"339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a","published_head":"'
-            git rev-parse HEAD
-            printf '","changed_paths":'
-            git diff --name-only 7e2e62afb6e82cf6ad00ecbaa84486f45697a049...HEAD | jq -Rsc 'split("\n") | map(select(length>0))'
-            printf '}\n'
-          } > "$RUNNER_TEMP/plugin-repair-receipt.json"
+          published_head="$(git rev-parse HEAD)"
+          changed_paths="$(git diff --name-only 7e2e62afb6e82cf6ad00ecbaa84486f45697a049...HEAD | jq -Rsc 'split("\n") | map(select(length>0))')"
+          jq -n \
+            --arg source_base '7e2e62afb6e82cf6ad00ecbaa84486f45697a049' \
+            --arg bundle_sha256 '339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a' \
+            --arg published_head "$published_head" \
+            --argjson changed_paths "$changed_paths" \
+            '{schema:"archie-plugin-repair-publisher/v1",source_base:$source_base,bundle_sha256:$bundle_sha256,published_head:$published_head,changed_paths:$changed_paths}' \
+            > "$RUNNER_TEMP/plugin-repair-receipt.json"
       - name: Upload publisher receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
