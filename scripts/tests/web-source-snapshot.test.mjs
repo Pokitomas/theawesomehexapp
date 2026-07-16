@@ -82,6 +82,14 @@ test('RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenan
   const record = normalizeWebRecord(rows[0], { id: 'example', name: 'Example', url: 'https://example.com/feed.xml', format: 'rss', robots: 'respect', fetchedAt: '2026-07-15T00:00:00Z' });
   assert.equal(record.title, 'One & Two');
   assert.equal(record.url, 'https://example.com/post');
+  assert.equal(record.kind, 'article');
+  assert.equal(record.type, 'article');
+  assert.equal(record.canonical_url, record.url);
+  assert.equal(record.published_at, record.published);
+  assert.equal(record.source_name, 'Example');
+  assert.equal(record.source_url, 'https://example.com/feed.xml');
+  assert.equal(record.author_name, 'Example');
+  assert.deepEqual(record.engagement, {});
   assert.equal(record.synthetic, false);
   assert.equal(record.provenance.provider, 'example');
   assert.equal(record.provenance.cache, 'bounded-build-snapshot');
@@ -94,6 +102,47 @@ test('RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenan
   assert.equal(html.description, 'A summary');
   assert.deepEqual(parseSitemap('<urlset><url><loc>https://example.com/a</loc><lastmod>2026-07-01</lastmod></url></urlset>'), [{ title: 'https://example.com/a', url: 'https://example.com/a', published: '2026-07-01' }]);
   assert.throws(() => parseSourcePayload('binary', 'application/octet-stream', {}), /unsupported/);
+});
+
+test('projection compatibility aliases preserve the v2 source record truth', () => {
+  const forum = normalizeWebRecord({
+    id: 42,
+    title: 'Forum item',
+    url: 'https://example.com/forum/42',
+    points: 17,
+    num_comments: 5
+  }, {
+    id: 'forum-source',
+    name: 'Forum Source',
+    kind: 'forum',
+    url: 'https://example.com/forum-feed',
+    fetchedAt: '2026-07-15T00:00:00Z'
+  });
+  assert.equal(forum.kind, 'forum');
+  assert.equal(forum.type, forum.kind);
+  assert.equal(forum.canonical_url, forum.url);
+  assert.equal(forum.published_at, forum.published);
+  assert.equal(forum.native_id, '42');
+  assert.deepEqual(forum.engagement, { points: 17, comments: 5 });
+
+  const social = normalizeWebRecord({
+    id: 'status-1',
+    content: 'A public status',
+    url: 'https://social.example/@person/1',
+    favourites_count: 9,
+    reblogs_count: 3,
+    replies_count: 2,
+    account: { display_name: 'Person' }
+  }, {
+    id: 'social-source',
+    name: 'Social Source',
+    kind: 'social',
+    url: 'https://social.example/api/v1/timelines/public?local=true',
+    fetchedAt: '2026-07-15T00:00:00Z'
+  });
+  assert.equal(social.type, 'social');
+  assert.equal(social.author_name, 'Person');
+  assert.deepEqual(social.engagement, { likes: 9, boosts: 3, replies: 2 });
 });
 
 test('live MIME admission ignores parser hints and HTML canonicals use the final fetched URL', async () => {

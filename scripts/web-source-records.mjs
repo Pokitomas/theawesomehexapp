@@ -55,30 +55,56 @@ export function normalizeWebRecord(input = {}, provider = {}) {
   const summary = clean(decodeEntities(stripTags(rawText))).slice(0, 900);
   const published = isoDate(input.published || input.pubDate || input.updated || input.createdAt || input.created_at || input.timestamp || provider.fetchedAt, provider.fetchedAt);
   const kind = ['article', 'forum', 'social'].includes(input.kind || input.type) ? (input.kind || input.type) : (provider.kind || 'article');
+  const recordId = stableId(providerId, sourceURL, title, published);
+  const contributor = clean(authorName(input, providerName)).slice(0, 160);
+  const score = Math.max(0, Number(input.score || input.points || input.favourites_count || 0));
+  const comments = Math.max(0, Number(input.comments || input.num_comments || input.replies_count || 0));
+  const sourceRoot = safeSourceURL(provider.url).href;
+  const engagement = kind === 'forum'
+    ? Object.freeze({ points: score, comments })
+    : kind === 'social'
+      ? Object.freeze({
+        likes: score,
+        boosts: Math.max(0, Number(input.reblogs_count || input.reblogs || input.boosts || 0)),
+        replies: comments
+      })
+      : Object.freeze({});
   return Object.freeze({
-    id: stableId(providerId, sourceURL, title, published),
+    id: recordId,
     kind,
+    type: kind,
     title,
     published,
+    published_at: published,
+    native_id: clean(input.id || input.nativeId || input.native_id || recordId).slice(0, 240),
     revision: 'bounded public source snapshot',
-    contributor: clean(authorName(input, providerName)).slice(0, 160),
+    contributor,
+    author_name: contributor,
     categories: [...new Set([providerId, ...(Array.isArray(input.categories) ? input.categories : [])].map(clean).filter(Boolean))].slice(0, 24),
     dek: summary || title,
+    text: summary || title,
     body: [summary || title],
     sources: sourceURL ? [{ label: providerName, url: sourceURL }] : [],
     url: sourceURL,
+    canonical_url: sourceURL,
+    outbound_url: clean(input.story_url || input.outbound_url || '').slice(0, 2000),
+    source_name: providerName,
+    source_url: sourceRoot,
+    language: clean(input.language || provider.language || 'en').slice(0, 32),
+    content_warning: clean(input.spoiler_text || input.content_warning || '').slice(0, 500),
+    engagement,
     license: clean(provider.license || 'source-defined'),
     attribution: providerName,
     community: clean(provider.community || providerName),
-    score: Math.max(0, Number(input.score || input.points || input.favourites_count || 0)),
-    comments: Math.max(0, Number(input.comments || input.num_comments || input.replies_count || 0)),
+    score,
+    comments,
     resurfaced: (provider.fetchedAt || published).slice(0, 10),
     synthetic: false,
     provenance: Object.freeze({
       schema: 'sideways-web-provenance/v1',
       provider: providerId,
       method: clean(provider.method || provider.format || 'web'),
-      source_url: safeSourceURL(provider.url).href,
+      source_url: sourceRoot,
       fetched_at: provider.fetchedAt || published,
       cache: 'bounded-build-snapshot',
       robots: provider.robots || (provider.method?.includes('api') ? 'not-applicable' : 'respect')
