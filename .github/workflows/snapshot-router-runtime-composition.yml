@@ -1,0 +1,52 @@
+name: Snapshot exact router runtime composition
+
+on:
+  pull_request:
+    paths:
+      - '.archie-payload/plugin-repair/trigger-v9.txt'
+      - '.github/workflows/snapshot-router-runtime-composition.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TARGET_BRANCH: agent/maker-archie-final-integration
+      EXPECTED_TARGET_HEAD: 30fed919a500cc13963e25d55d557ac371ddac8a
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Guard and materialize target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_TARGET_HEAD"
+          git checkout --detach FETCH_HEAD
+          mkdir -p /tmp/router-runtime/scripts/tests /tmp/router-runtime/maker/contracts
+          cp scripts/maker-model-router.mjs /tmp/router-runtime/scripts/
+          cp scripts/maker-runtime-platform.mjs /tmp/router-runtime/scripts/
+          cp scripts/maker-worker-fleet.mjs /tmp/router-runtime/scripts/
+          cp scripts/maker-plugin-registry.mjs /tmp/router-runtime/scripts/
+          cp scripts/tests/maker-model-router.test.mjs /tmp/router-runtime/scripts/tests/
+          cp scripts/tests/maker-runtime-platform.test.mjs /tmp/router-runtime/scripts/tests/
+          cp scripts/tests/maker-worker-fleet.test.mjs /tmp/router-runtime/scripts/tests/
+          cp scripts/tests/maker-plugin-registry.test.mjs /tmp/router-runtime/scripts/tests/
+          cp maker/contracts/model-router.schema.json /tmp/router-runtime/maker/contracts/
+          cp maker/contracts/runtime-platform.schema.json /tmp/router-runtime/maker/contracts/
+          cp maker/contracts/worker-fleet.schema.json /tmp/router-runtime/maker/contracts/
+          cp maker/contracts/plugin-manifest.schema.json /tmp/router-runtime/maker/contracts/
+          printf 'target_head=%s\nmutation_authority=none\n' "$EXPECTED_TARGET_HEAD" > /tmp/router-runtime/receipt.txt
+          sha256sum /tmp/router-runtime/scripts/*.mjs /tmp/router-runtime/scripts/tests/*.mjs /tmp/router-runtime/maker/contracts/*.json > /tmp/router-runtime/sha256.txt
+      - name: Upload exact composition source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: exact-router-runtime-composition
+          path: /tmp/router-runtime
+          if-no-files-found: error
+          retention-days: 14
