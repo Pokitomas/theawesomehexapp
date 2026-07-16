@@ -67,22 +67,26 @@ jobs:
           path: repair
           fetch-depth: 0
       - name: Verify exact base and patch digest
+        id: verify
         run: |
           set -euo pipefail
           test "$(git -C repair rev-parse HEAD)" = "ba9a777504b96a49df29d2dac45988a3acbfb801"
           echo "db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e  evidence/audit/patches/archie-router-runtime-seam.patch" | sha256sum --check
           git -C repair apply --check ../evidence/audit/patches/archie-router-runtime-seam.patch
       - name: Apply patch and check syntax
+        id: syntax
         run: |
           set -euo pipefail
           git -C repair apply ../evidence/audit/patches/archie-router-runtime-seam.patch
           node --check repair/scripts/maker-model-router.mjs
       - name: Prove router and runtime-platform seam
+        id: seam
         run: |
           set -euo pipefail
           cd repair
           node --test scripts/tests/maker-model-router.test.mjs scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../router-runtime-seam.log
       - name: Prove Archie breadth with runtime-platform
+        id: breadth
         run: |
           set -euo pipefail
           cd repair
@@ -96,6 +100,7 @@ jobs:
             scripts/tests/maker-archie-operator.test.mjs \
             scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../archie-plus-platform.log
       - name: Validate one-path diff
+        id: diff
         run: |
           set -euo pipefail
           cd repair
@@ -123,27 +128,50 @@ jobs:
             evidence/audit/patches/archie-router-runtime-seam.patch
           if-no-files-found: warn
           retention-days: 5
-      - name: Publish coordination receipt
-        if: success()
+      - name: Update stable phone status
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           REPAIR_HEAD: ${{ steps.commit.outputs.head }}
+          VERIFY: ${{ steps.verify.outcome }}
+          SYNTAX: ${{ steps.syntax.outcome }}
+          SEAM: ${{ steps.seam.outcome }}
+          BREADTH: ${{ steps.breadth.outcome }}
+          DIFF: ${{ steps.diff.outcome }}
+          COMMIT_RESULT: ${{ steps.commit.outcome }}
         run: |
           set -euo pipefail
           body=$(cat <<EOF
-          <!-- archie-router-runtime-seam:${GITHUB_RUN_ID} -->
-          ## Router-runtime seam repair ready
+          <!-- archie-live-status:v1 -->
+          ## Archie live status
 
-          - base: \`ba9a777504b96a49df29d2dac45988a3acbfb801\`
-          - branch: \`agent/archie-router-runtime-seam\`
-          - head: \`${REPAIR_HEAD}\`
-          - changed path: \`scripts/maker-model-router.mjs\`
+          - observer: GPT-5.6 Thinking
+          - writer: one coordinator writer remains authoritative
+          - mode: sidecar observer/repair bundle; no coordinator edits
+          - coordinator branch: \`agent/archie-democratized-runtime\`
+          - coordinator head: \`ba9a777504b96a49df29d2dac45988a3acbfb801\`
+          - drift: none
+          - repair workflow run: \`${GITHUB_RUN_ID}\`
+          - repair workflow source: \`${GITHUB_SHA}\`
+          - exact base + patch digest: ${VERIFY}
+          - apply + syntax: ${SYNTAX}
+          - router + runtime-platform seam: ${SEAM}
+          - Archie breadth + runtime-platform: ${BREADTH}
+          - one-path diff: ${DIFF}
+          - repair commit/push: ${COMMIT_RESULT}
+          - repair branch head: \`${REPAIR_HEAD:-not-published}\`
           - patch SHA-256: \`db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e\`
-          - router + runtime-platform: 43/43 pass
-          - Archie focused + runtime-platform: 97 tests, 96 pass, 1 declared skip, 0 fail
-          - coordinator branch was not edited
+          - tracker branch: \`agent/archie-live-status\`
+          - tokens remaining: 1,064,576 / 1,310,720 (manual-observed)
+          - next: exact-head review/source-admit the repair after every proof boundary succeeds
 
-          The active writer can exact-head review and source-admit this one-file repair. No merge or deployment.
+          Phone commands:
+
+          \`node scripts/archie-live-status.mjs tokens 1064576 1310720\`
+
+          \`node scripts/archie-live-status.mjs watch 20\`
+
+          No merge or deployment.
           EOF
           )
-          gh api "repos/${GITHUB_REPOSITORY}/issues/351/comments" -f body="$body" >/dev/null
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/4987929903" -f body="$body" >/dev/null
