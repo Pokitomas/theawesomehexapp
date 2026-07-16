@@ -109,7 +109,15 @@
  function normalizeTaskBudget(input = {}, base = {}) {
    const source = input.budget || {};
    return Object.freeze({
-@@ -589,7 +613,8 @@
+@@ -580,7 +604,6 @@
+           controller.abort(new Error('provider attempt timed out'));
+           reject(new ModelRouterError('provider_timeout', 'provider attempt timed out; completion state is indeterminate unless the transport honors AbortSignal', 504));
+         }, timeoutMs);
+-        timer.unref?.();
+       })
+     ]);
+   } finally {
+@@ -589,7 +612,8 @@
  }
  
  export function createModelRouter({
@@ -119,7 +127,7 @@
    transports = {},
    health_checks = {},
    clock = Date.now,
-@@ -602,6 +627,8 @@
+@@ -602,6 +626,8 @@
    circuit_cooldown_ms = 60_000,
    attempt_timeout_ms = 120_000
  } = {}) {
@@ -128,7 +136,7 @@
    const ledger = createBudgetLedger(global_budget);
    const circuits = new Map();
  
-@@ -813,5 +840,49 @@
+@@ -813,5 +839,49 @@
      });
    }
  
