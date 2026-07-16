@@ -1,0 +1,1 @@
+Trigger the digest-pinned seven-path Maker runtime composition admission. Target branch must remain exactly 30fed919a500cc13963e25d55d557ac371ddac8a; any movement must abort without mutation.
