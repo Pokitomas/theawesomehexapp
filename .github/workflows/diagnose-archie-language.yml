@@ -1,0 +1,39 @@
+name: Diagnose Archie language kernel
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/diagnose-archie-language.yml
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Remove diagnostic from test tree
+        run: rm .github/workflows/diagnose-archie-language.yml
+      - name: Run AIL parser scheduler and authority tests
+        run: node --test foundry/archie-neural/tests/archie-language.test.mjs
+      - name: Run evidence graph and epistemic compiler tests
+        run: node --test foundry/archie-neural/tests/archie-evidence-compiler.test.mjs
+      - name: Remove diagnostic workflow from branch
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git reset
+          git add -u .github/workflows/diagnose-archie-language.yml
+          test "$(git diff --cached --name-only)" = ".github/workflows/diagnose-archie-language.yml"
+          git commit -m "chore: remove Archie language diagnostic"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
