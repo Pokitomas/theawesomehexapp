@@ -1,0 +1,53 @@
+{
+  "name": "sideways",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test:remote": "node --test scripts/tests/remote-service.test.mjs scripts/tests/remote-public-privacy.test.mjs scripts/tests/remote-weave-envelope.test.mjs scripts/tests/remote-fail-closed.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs",
+    "test:weave": "node --test scripts/tests/weave-protocol.test.mjs scripts/tests/weave-replay-integrity.test.mjs scripts/tests/weave-lasso.test.mjs scripts/tests/weave-lasso-service.test.mjs scripts/tests/weave-lasso-adversarial.test.mjs scripts/tests/weave-active-state.test.mjs scripts/tests/weave-terminal-drain.test.mjs",
+    "test:recursive-weave": "node --test scripts/tests/weave-recursive-baseline.test.mjs scripts/tests/weave-public-projection.test.mjs scripts/tests/weave-recursive-bridge.test.mjs scripts/tests/weave-recursive-bridge-recovery.test.mjs scripts/tests/weave-full-pass-hardening.test.mjs scripts/tests/recursive-weave-sprawl-contract.test.mjs",
+    "test:native-maker": "node --test scripts/tests/native-maker-worker.test.mjs scripts/tests/open-model-role-contracts.test.mjs scripts/tests/maker-terminal-release.test.mjs foundry/tests/generation-zero.test.mjs",
+    "test:maker": "node --test scripts/tests/maker-core.test.mjs scripts/tests/maker-actions-sprawl.test.mjs scripts/tests/maker-archie-corpus.test.mjs scripts/tests/maker-archie-brain.test.mjs scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-budget.test.mjs scripts/tests/maker-archie-planner.test.mjs scripts/tests/maker-archie-derivation.test.mjs scripts/tests/maker-archie-sync.test.mjs scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-operator.test.mjs scripts/tests/maker-archie-phone.test.mjs scripts/tests/maker-archie-native.test.mjs",
+    "test:archie": "node --test scripts/tests/maker-archie-corpus.test.mjs scripts/tests/maker-archie-brain.test.mjs scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-budget.test.mjs scripts/tests/maker-archie-planner.test.mjs scripts/tests/maker-archie-derivation.test.mjs scripts/tests/maker-archie-sync.test.mjs scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-operator.test.mjs scripts/tests/maker-archie-phone.test.mjs scripts/tests/maker-archie-native.test.mjs",
+    "test:foundry": "node --test foundry/tests/core.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs",
+    "test:ingestion": "node --test scripts/tests/discovery-connected-import.test.mjs scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs",
+    "maker": "node scripts/maker-archie-launch.mjs",
+    "maker:model:check": "node scripts/check-open-model-runtime.mjs",
+    "archie:corpus": "node scripts/maker-archie-corpus.mjs",
+    "foundry:generation-zero": "node foundry/generation-zero.mjs",
+    "test:social": "node --test scripts/tests/social-service.test.mjs scripts/tests/social-entrypoint.test.mjs scripts/tests/community-authority.test.mjs scripts/tests/social-migrations.test.mjs scripts/tests/social-idempotency.test.mjs scripts/tests/social-cookie-provenance.test.mjs scripts/tests/social-viewer-controls.test.mjs scripts/tests/social-authority-assembly.test.mjs scripts/tests/social-substrate-ontology.test.mjs scripts/tests/social-author-controls.test.mjs",
+    "test:social:postgres": "node --test --test-concurrency=1 scripts/tests/social-schema-bootstrap-postgres.test.mjs scripts/tests/social-authority-schema-bootstrap.test.mjs scripts/tests/social-postgres-contract.test.mjs scripts/tests/community-postgres-contract.test.mjs scripts/tests/social-idempotency-postgres.test.mjs scripts/tests/community-moderation-postgres.test.mjs scripts/tests/community-viewer-controls-postgres.test.mjs scripts/tests/immutable-appeal-postgres.test.mjs",
+    "test:authority": "node --test scripts/tests/authority-manifest.test.mjs && node scripts/check-authority-manifest.mjs",
+    "verify:quality": "node --test scripts/tests/human-quality-report.test.mjs && node scripts/human-quality-report.mjs",
+    "verify:ranking": "node --test scripts/tests/ranking-evaluation.test.mjs && node scripts/ranking-evaluation.mjs",
+    "verify:operations": "node --test scripts/tests/operations-reality-report.test.mjs scripts/tests/operations-reality.test.mjs && node scripts/operations-reality-report.mjs",
+    "verify:release": "node --test scripts/tests/release-completion.test.mjs && node scripts/release-completion.mjs",
+    "verify:frankenstate": "node --test scripts/tests/frankenstate-validator.test.mjs && node scripts/verify-frankenstate.mjs",
+    "verify:repository": "node scripts/verify-repository.mjs",
+    "remote": "node scripts/remote-client.mjs",
+    "remote:gate": "node scripts/remote-gate.mjs",
+    "test:contracts": "node --test test-harness/schema-contract.test.mjs",
+    "benchmark:archie": "node test-harness/archie-frontier-benchmark.mjs",
+    "verify:frontier-agent": "npm run verify:archie-intelligence",
+    "archie:derive": "node scripts/maker-archie-derivation.mjs",
+    "benchmark:derivation": "node test-harness/archie-derivation-benchmark.mjs",
+    "verify:archie-intelligence": "npm run test:contracts && npm run test:archie && npm run benchmark:derivation && npm run benchmark:archie",
+    "test:archie:learning": "node --test scripts/tests/maker-archie-corpus.test.mjs scripts/tests/maker-archie-brain.test.mjs scripts/tests/maker-archie-budget.test.mjs scripts/tests/maker-archie-planner.test.mjs scripts/tests/maker-archie-derivation.test.mjs scripts/tests/maker-archie-native.test.mjs",
+    "test:archie:portable": "node --test scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-sync.test.mjs",
+    "test:archie:evaluation": "node --test scripts/tests/maker-archie-evaluation.test.mjs scripts/tests/maker-archie-derivation.test.mjs",
+    "test:archie:phone": "node --test scripts/tests/maker-archie-phone.test.mjs scripts/tests/maker-archie-operator.test.mjs",
+    "maker:raw": "node scripts/maker.mjs",
+    "archie:pack": "node scripts/maker-archie-corpus-pack.mjs",
+    "archie:evaluate": "node scripts/maker-archie-evaluation.mjs --suite maker/evaluations/archie-suite.json"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^9.1.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "playwright-core": "1.55.0"
+  }
+}
