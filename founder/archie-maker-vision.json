@@ -37,7 +37,8 @@
     "shell_without_brain_is_launchable": false,
     "brain_without_required_access_is_launchable": false,
     "canonical_target_contract": "founder/archie-launch-frontier-target.json",
-    "canonical_evaluator": "scripts/archie-launch-frontier-v2.mjs",
+    "canonical_evaluator": "scripts/archie-launch-frontier-admission-v2.mjs",
+    "canonical_frontier_engine": "scripts/archie-launch-frontier-v2.mjs",
     "canonical_cli": "npm run archie:launch:frontier -- --manifest <frontier-manifest.json>",
     "compatibility_target_contract": "founder/archie-launch-target.json",
     "compatibility_evaluators": [
