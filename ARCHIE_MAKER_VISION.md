@@ -10,7 +10,7 @@ The product is a general intelligence-and-execution system that can turn a high-
 
 - **Archie** understands, researches, derives, plans, chooses tools, identifies uncertainty, and produces proof-carrying action programs.
 - **Maker** executes those programs through explicit permissions, isolated work, connected tools, tests, rollback boundaries, and terminal artifacts.
-- **Foundry** invents and evaluates better Archie candidates, operators, adapters, and strategies.
+- **Foundry** invents and evaluates stronger models, planners, operators, adapters, and complete launch profiles.
 - **Weave** coordinates multiple agents, people, specialists, and long-running work without confusing conversation with completion.
 
 The user should be able to state what should exist, not micromanage the software used to create it.
@@ -19,24 +19,32 @@ The user should be able to state what should exist, not micromanage the software
 
 The product must not be designed backward from a familiar interface.
 
-A chat window is not an Archie axiom. Voice is not an Archie axiom. An always-running background process is not an Archie axiom. A desktop dashboard, phone app, command line, wearable, visual workbench, spoken companion, event-driven service, or screenless presence is only justified when it is required by the human outcomes and intelligence level the admitted release is meant to sustain.
+A chat window is not an Archie axiom. Voice is not an Archie axiom. A screen is not an Archie axiom. A command line is not the consumer identity. An always-running process is not an Archie axiom. A phone app, desktop workbench, wearable, spoken companion, event-driven service, headless integration, or screenless presence is only one possible component of a complete launch profile.
 
-The causal order is:
+The previous causal chain was still too strong because it mapped named human outcomes to fixed faculties and then to named product forms. That can silently turn “available while attention is occupied” into mandatory voice or “continuity” into a mandatory daemon. The corrected law is:
 
 ```text
-human outcome
-→ required intelligence and continuity
-→ required perception, interaction, memory, and execution faculties
-→ admitted product surfaces
+admitted model and runtime
++ exact hardware and operating system
++ platform permissions and lifecycle rules
++ user-granted authority and privacy boundary
++ measured latency, resource use, and outcome performance
+→ complete candidate profiles
+→ feasible nondominated frontier
+→ strongest truthful launch set
 ```
 
-The founder target asks for more than a chat app without hard-coding one implementation. A maximal Archie release should let the user direct and interrupt it while attention is occupied, continue authorized work without one foreground window, react to explicitly subscribed events, perceive relevant digital context with consent, expose exact work when precision matters, preserve authority across admitted devices, and remain useful locally on ordinary hardware. Those outcomes derive spoken interaction, background continuity, visual inspection, tool bridges, device handoff, and private local runtime requirements. They are not decorative features added after the model is trained.
+A **profile** is the whole intelligence-and-embodiment bundle for one declared environment. It binds the exact model artifact and code, hardware and OS, capabilities, modalities, invocation modes, surfaces, continuity, latency, resource envelope, authority, privacy, disabled capabilities, outcome scores, and evidence receipts.
 
-The reverse failure is also forbidden. A highly capable model hidden behind an unusable shell is not a launch. A polished multimodal shell wrapped around weak or unverified intelligence is not a launch. Intelligence and embodiment must pass one joint admission contract, and the strongest evidence-backed surfaces required by the target ship together.
+The resolver does not contain a static outcome-to-faculty dictionary or a catalog of canonical product forms. Candidates may propose unfamiliar interfaces and combinations. The evaluator compares complete profiles across declared dimensions, rejects profiles that violate floors or constraints, computes the nondominated frontier independently for each environment, and publishes every frontier profile.
 
-`founder/archie-launch-target.json` records the behavioral target without selecting a canonical interface. `scripts/archie-launch-contract.mjs` deterministically derives faculties and product forms, then rejects brain-only, shell-only, experimentally implied, or partially embodied candidates. No interface is primary by default; the product form is plural and capability-derived.
+A dominated profile may remain as an honest compatibility fallback, but it cannot overwrite or represent the maximal launch. A nondominated profile may not be hidden as “fallback only.” When several profiles are incomparable, the product may adapt to device, permissions, connectivity, resource state, and user choice instead of inventing one universal default.
 
-“Maximal on launch” does not mean claiming every imagined faculty. It means refusing to deliberately ship a diminished interaction shell when the admitted intelligence and hardware can support more, while refusing to market experimental surfaces as complete. The launch boundary remains exact evidence.
+The reverse failure is also forbidden. A highly capable model hidden behind an unnecessarily weak shell is not a maximal launch. A polished multimodal shell wrapped around weak or unverified intelligence is not a launch. Intelligence and embodiment pass one joint admission contract.
+
+`founder/archie-launch-target.json` defines the search axes, empirical floors, and launch policy. `scripts/archie-launch-contract.mjs` is the stable facade over target validation, evidence-bound profile validation, and Pareto-frontier selection.
+
+“Maximal on launch” means no knowingly dominated product form, no unsupported capability theater, and no artificial interface ceiling. It does not mean claiming every imagined faculty on every machine.
 
 ## Ship genius
 
@@ -47,11 +55,12 @@ The current product strategy is not ambient online learning and not silent impro
 Archie becomes smarter through deliberate release engineering:
 
 1. identify a real capability gap;
-2. build a stronger model, operator, adapter, planner, or evaluator;
+2. build a stronger model, operator, adapter, planner, evaluator, or product profile;
 3. compare it against the shipped system and simple baselines;
 4. reject it unless it materially improves held-out results;
-5. package a signed candidate with exact cost, latency, safety, provenance, and capability receipts;
-6. ship the better release to everyone.
+5. search the complete feasible launch-profile space for each declared environment;
+6. package a signed candidate with exact cost, latency, safety, provenance, capability, and frontier receipts;
+7. ship the stronger release and its nondominated product profiles.
 
 The incentive is to invent and ship genuine capability, not harvest users as training exhaust.
 
@@ -65,25 +74,13 @@ The ambition is to exceed the underlying capacity of systems such as Cursor, Pal
 
 The target is not their branding, markets, or politics. The target is their ability to convert intelligence into coordinated real-world capacity.
 
-Archie and Maker should apply that capacity to things intelligence actually finds worth building:
-
-- new applications and tools;
-- scientific and technical experiments;
-- research systems;
-- media and creative production;
-- educational systems;
-- open-source infrastructure;
-- civic and public-interest tools;
-- accessibility technology;
-- community coordination software;
-- simulations, models, and decision aids;
-- entirely new categories of digital product.
+Archie and Maker should apply that capacity to new applications, scientific and technical experiments, research systems, media and creative production, education, open-source infrastructure, civic tools, accessibility technology, community coordination, simulations, and new categories of digital product.
 
 The system may build industrial software, but its identity is not weapons, surveillance, engagement extraction, or rocket production.
 
 ## The universal build loop
 
-Every serious run should follow one inspectable loop:
+Every serious run follows one inspectable loop:
 
 1. **Objective** — the user describes the end state.
 2. **World model** — Archie inspects repositories, documents, connected tools, constraints, existing systems, and relevant evidence.
@@ -102,16 +99,7 @@ A run is not successful because an agent produced persuasive text. It succeeds b
 
 Sideways remains its own product: a local-first personal archive, public reader, ranking laboratory, and social system.
 
-It can serve as the first demanding demonstration of Archie and Maker because it contains many kinds of engineering problem:
-
-- browser and phone interfaces;
-- local storage and recovery;
-- public and private authority boundaries;
-- ranking and recommendation;
-- social identity and moderation;
-- databases and server functions;
-- deployments and release verification;
-- accessibility, security, and hostile testing.
+It can serve as a demanding demonstration of Archie and Maker because it contains browser and phone interfaces, local storage and recovery, public and private authority boundaries, ranking, recommendation, social identity, moderation, databases, server functions, deployment, accessibility, security, and hostile testing.
 
 The relationship is ordinary and non-privileged:
 
@@ -123,9 +111,9 @@ The relationship is ordinary and non-privileged:
 6. a human admits or rejects the result;
 7. Sideways may ship independently of any Archie model release.
 
-This is the useful “AI-devception” loop: Archie and Maker can help build the application that demonstrates Archie and Maker, but they receive no hidden self-modification path and Sideways does not become part of the AI architecture.
+This is the useful self-hosting loop: Archie and Maker can help build the application that demonstrates Archie and Maker, but they receive no hidden self-modification path and Sideways does not become part of the AI architecture.
 
-## Product separation invariants
+## Product separation and launch invariants
 
 1. **Sideways is not Archie.** It has independent product meaning, users, state, releases, and authority.
 2. **Sideways is not Maker.** Maker may modify it only through the same permissioned path used for any repository.
@@ -137,8 +125,12 @@ This is the useful “AI-devception” loop: Archie and Maker can help build the
 8. **No capability claim comes from fixture success alone.** Strong claims require independent, held-out, artifact-bound evaluation.
 9. **No app-brand collapse.** Sideways remains Sideways; Archie remains Archie; Maker remains Maker.
 10. **No persuasive-output substitution.** Finished artifacts and changed reality are the success boundary.
-11. **No interface precommitment.** Product surfaces derive from admitted outcomes and capabilities rather than becoming immutable architecture.
-12. **No split launch theater.** Neither an unembodied brain nor an unintelligent shell may represent the maximal product.
+11. **No interface precommitment.** Chat, voice, screen, CLI, ambient presence, and any named product form remain contingent capabilities.
+12. **No static outcome-to-faculty law.** Human outcomes are scored empirically across complete profiles.
+13. **No one-profile-fits-all fiction.** Platform and hardware differences remain explicit.
+14. **No dominated default.** A weaker profile cannot represent maximal launch when a stronger feasible profile exists.
+15. **No hidden frontier.** Every feasible nondominated profile is part of the admitted launch set.
+16. **No split launch theater.** Neither an unembodied brain nor an unintelligent shell may represent the product.
 
 ## The first impossible proof
 
@@ -146,50 +138,29 @@ The decisive demonstration is:
 
 > Give Archie a vague but ambitious product objective, an unfamiliar codebase, connected research sources, and a constrained budget. Receive a polished, secure, tested, installable application that did not previously exist.
 
-A valid proof must show that the system can:
-
-- discover what the user actually needs;
-- research the domain and existing alternatives;
-- create a coherent product and technical model;
-- build the complete application across frontend, backend, data, and deployment surfaces;
-- use specialists without losing one integrated objective;
-- reject unsafe or unauthorized shortcuts;
-- test usability, security, accessibility, and operations;
-- recover from failed approaches;
-- deliver clickable installation and exact artifact receipts;
-- explain what remains uncertain;
-- reproduce the result from the admitted Archie and Maker release on a clean environment.
+A valid proof must discover what the user needs, research the domain, create a coherent product and technical model, build the complete application, coordinate specialists, reject unauthorized shortcuts, test usability and security, recover from failure, deliver clickable installation and exact receipts, explain uncertainty, and reproduce the result on a clean environment.
 
 Sideways may be one such proof, but the system is complete only when it transfers to unrelated products and domains.
 
 ## Current repository truth
 
-The repository already contains substantial pieces:
+The repository contains substantial language, evidence, memory, planning, derivation, routing, artifact packaging, checkpoint, Maker authority, Foundry calibration, experiment, campaign, Weave, and evaluation substrates. Sideways is a large reference application.
 
-- a typed Archie language and evidence substrate;
-- local memory, planning, derivation, routing, and negative lessons;
-- signed and encrypted model artifact packaging;
-- checkpoint and runtime boundaries;
-- Maker leases, isolated execution, verification, and delivery controls;
-- Foundry calibration, experiment portfolios, and deterministic campaign allocation;
-- Weave coordination and replay protection;
-- controlled and derivational evaluation suites;
-- Sideways as a large, difficult reference application.
-
-It does not yet contain a broadly capable admitted Archie model that can complete the first impossible proof across unfamiliar products. It also does not yet contain evidence-admitted speech, ambient continuity, multimodal perception, or cross-device embodiment satisfying the maximal founder target. The current work must therefore prioritize empirical intelligence and product embodiment together rather than adding more names, dashboards, or ungrounded interface demos.
+It does not yet contain a broadly capable admitted Archie model that can complete the first impossible proof across unfamiliar products. It also does not yet contain a complete evidence-backed profile search across supported devices and environments. Voice, ambient continuity, multimodal perception, cross-device embodiment, headless execution, and every other candidate capability remain claims to prove, not assumptions to encode.
 
 ## Execution order
 
 1. complete the independent Archie campaign and establish honest baselines;
 2. train and admit a provider-neutral student that materially improves unfamiliar task completion;
-3. use the launch target to derive the perception, continuity, interaction, memory, and execution faculties required by that intelligence level;
-4. develop and evaluate the strongest product surfaces in parallel with the candidate rather than after it;
-5. build a universal project/world intake layer for repositories, documents, APIs, tools, constraints, screens, and consented multimodal context;
-6. make Archie derive competing complete-product strategies rather than only action sequences;
-7. extend Maker from repository editing into permissioned cross-tool product construction and delivery;
-8. use Sideways as a non-privileged sample application and regression target;
-9. prove transfer on several unrelated applications and human interaction conditions;
-10. package the jointly admitted intelligence and embodiment into a normal installable product;
-11. ship stronger intelligence and surfaces only through signed, independently evaluated releases.
+3. generate competing complete product profiles against exact hardware, OS, permissions, authority, and resource conditions;
+4. measure profile-level human outcomes and constraints rather than deriving faculties from names;
+5. publish the feasible nondominated frontier and reject dominated or hidden defaults;
+6. build a universal project and world intake layer for repositories, documents, APIs, tools, constraints, screens, and consented context;
+7. make Archie derive competing complete-product strategies rather than only action sequences;
+8. extend Maker from repository editing into permissioned cross-tool product construction and delivery;
+9. use Sideways as a non-privileged sample application and regression target;
+10. prove transfer on unrelated applications and human interaction conditions;
+11. package the jointly admitted intelligence and launch profiles into normal installable products;
+12. ship stronger intelligence and embodiment only through signed, independently evaluated releases.
 
-The destination is not another coding copilot or another chat page. It is a general engine for turning ambitious ideas into verified things in the strongest human form its admitted intelligence can truthfully support.
+The destination is not another coding copilot or another chat page. It is a general engine for turning ambitious ideas into verified things through the strongest truthful profile its admitted intelligence, environment, and authority can sustain.
