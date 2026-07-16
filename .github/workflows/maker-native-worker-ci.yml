@@ -1,12 +1,9 @@
-name: Archie exact-tree bootstrap snapshot
+name: Archie coordinator exact-tree snapshot
 
 on:
   push:
     branches:
-      - agent/archie-hostile-evaluation
-  pull_request:
-    branches:
-      - agent/archie-linux-corpus
+      - agent/archie-coordinator-exact-snapshot-20260715
   workflow_dispatch:
 
 permissions:
@@ -14,24 +11,28 @@ permissions:
 
 jobs:
   snapshot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Archive exact checkout
         run: |
           set -euo pipefail
+          git rev-parse HEAD | tee "$RUNNER_TEMP/archie-source-head.txt"
+          git status --short | tee "$RUNNER_TEMP/archie-source-status.txt"
           tar --exclude=.git -czf "$RUNNER_TEMP/archie-source.tgz" .
           sha256sum "$RUNNER_TEMP/archie-source.tgz" | tee "$RUNNER_TEMP/archie-source.sha256"
-          git rev-parse HEAD | tee "$RUNNER_TEMP/archie-source-head.txt"
       - name: Upload exact checkout
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-source-${{ github.sha }}
+          name: archie-coordinator-source-${{ github.sha }}
           path: |
             ${{ runner.temp }}/archie-source.tgz
             ${{ runner.temp }}/archie-source.sha256
             ${{ runner.temp }}/archie-source-head.txt
+            ${{ runner.temp }}/archie-source-status.txt
           if-no-files-found: error
           retention-days: 2
