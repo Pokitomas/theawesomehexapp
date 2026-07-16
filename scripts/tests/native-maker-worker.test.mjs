@@ -6,9 +6,9 @@ import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import { createOpenModelClient, createOpenModelRoleAdapter, parseModelJSON } from '../open-model-adapter.mjs';
-import { makerPlanningSeed, runOpenModelPlanning } from '../open-model-planning.mjs';
+import { makerPlanningSeed, planningBrief, runOpenModelPlanning } from '../open-model-planning.mjs';
 import { normalizeAgentBudget, resolveWorkspacePath, runNativeDevAgent } from '../native-dev-agent.mjs';
-import { branchFor, nativeEpisodePath, normalizeWorkerConfig, parseMakerIssue } from '../maker-native-worker.mjs';
+import { branchFor, nativeEpisodePath, normalizeWorkerConfig, parseMakerIssue, workerFailureReceipt } from '../maker-native-worker.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -59,6 +59,45 @@ test('open model adapter supports OpenAI-compatible JSON without a vendor SDK', 
   assert.equal(calls[0].body.model, 'open-coder');
   assert.equal(calls[0].body.response_format.type, 'json_object');
   assert.equal(calls[0].options.headers.authorization, 'Bearer manual-test-key');
+  assert.equal(calls[0].options.headers['x-github-api-version'], '2022-11-28');
+  assert.deepEqual(response.attempts, [{ attempt: 1, ok: true, status: 200 }]);
+});
+
+test('open model adapter retries a bounded rate limit and preserves attempt evidence', async () => {
+  let calls = 0;
+  const client = createOpenModelClient({
+    base_url: 'https://models.example.test/inference/chat/completions',
+    model: 'open-coder',
+    retries: 1,
+    retry_base_ms: 1,
+    max_retry_ms: 1,
+    fetch_impl: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return {
+          ok: false,
+          status: 429,
+          statusText: 'rate limited',
+          headers: { get: () => null },
+          json: async () => ({ error: { message: 'slow down' } })
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => ({ choices: [{ message: { content: '{"tool":"status"}' } }], usage: { total_tokens: 12 } })
+      };
+    }
+  });
+  const response = await client.complete([{ role: 'user', content: 'test' }]);
+  assert.equal(calls, 2);
+  assert.equal(response.text, '{"tool":"status"}');
+  assert.equal(response.usage.total_tokens, 12);
+  assert.equal(response.attempts.length, 2);
+  assert.equal(response.attempts[0].status, 429);
+  assert.equal(response.attempts[0].retryable, true);
+  assert.equal(response.attempts[1].ok, true);
 });
 
 test('open model adapter supports local Ollama-native JSON with no auth', async () => {
@@ -133,6 +172,23 @@ test('recursive open-model planning fans one Maker command across typed roles', 
   assert.ok(result.brief.outputs.some(event => event.kind === 'uncertainty'));
   assert.ok(result.brief.outputs.some(event => event.kind === 'synthesis'));
   assert.ok(result.brief.outputs.some(event => event.kind === 'critique'));
+  assert.equal(result.brief.failures.length, 0);
+});
+
+test('planning brief preserves adapter failures instead of erasing a blocked plan', () => {
+  const brief = planningBrief({
+    terminal: 'blocked',
+    events: [{
+      id: 'dispatch-complete:test',
+      kind: 'dispatch.completed',
+      issuer: 'system:weave-runtime',
+      source_event_ids: ['assignment:1'],
+      body: { assignment_id: 'assignment-1', adapter_id: 'open-model:proposer', status: 'failed', error: 'endpoint 429' }
+    }]
+  });
+  assert.equal(brief.terminal, 'blocked');
+  assert.equal(brief.degraded, true);
+  assert.deepEqual(brief.failures, [{ assignment_id: 'assignment-1', adapter_id: 'open-model:proposer', error: 'endpoint 429' }]);
 });
 
 test('Maker issue parser uses the typed phone receipt and preserves human authority', () => {
@@ -156,22 +212,43 @@ test('Maker issue parser uses the typed phone receipt and preserves human author
   assert.throws(() => parseMakerIssue({ title: 'ordinary issue', body: '' }, 'Pokitomas/theawesomehexapp'), /not a Maker command/);
 });
 
-test('worker config names missing manual runtime values exactly', () => {
+test('worker config names missing manual runtime values and direct-execution controls exactly', () => {
   const missing = normalizeWorkerConfig({});
   assert.deepEqual(missing.missing, ['SIDEWAYS_MODEL_BASE_URL', 'SIDEWAYS_MODEL_NAME']);
   assert.equal(missing.planning_enabled, true);
+  assert.equal(missing.planning_required, false);
   assert.equal(missing.default_branch, 'main');
+  assert.equal(missing.model_retries, 3);
   const local = normalizeWorkerConfig({
     SIDEWAYS_MODEL_BASE_URL: 'http://127.0.0.1:11434',
     SIDEWAYS_MODEL_NAME: 'qwen',
     SIDEWAYS_MODEL_PROTOCOL: 'ollama',
     SIDEWAYS_DEFAULT_BRANCH: 'trunk',
-    SIDEWAYS_PLANNING_ENABLED: '0'
+    SIDEWAYS_PLANNING_ENABLED: '0',
+    SIDEWAYS_PLANNING_REQUIRED: '1',
+    SIDEWAYS_MODEL_RETRIES: '5'
   });
   assert.deepEqual(local.missing, []);
   assert.equal(local.protocol, 'ollama');
   assert.equal(local.default_branch, 'trunk');
   assert.equal(local.planning_enabled, false);
+  assert.equal(local.planning_required, true);
+  assert.equal(local.model_retries, 5);
+});
+
+test('worker failure receipt preserves retry evidence without throwing', () => {
+  const error = new Error('Model endpoint 429: slow down');
+  error.code = 'MODEL_HTTP_ERROR';
+  error.status = 429;
+  error.retryable = true;
+  error.attempts = [{ attempt: 1, ok: false, status: 429, retryable: true, error: 'slow down' }];
+  const receipt = workerFailureReceipt(error, { stage: 'implementation', branch: 'maker/issue-1-run-1', run_url: 'https://github.com/acme/widgets/actions/runs/1' });
+  assert.equal(receipt.schema, 'sideways-native-maker-failure/v1');
+  assert.equal(receipt.stage, 'implementation');
+  assert.equal(receipt.code, 'MODEL_HTTP_ERROR');
+  assert.equal(receipt.status, 429);
+  assert.equal(receipt.retryable, true);
+  assert.equal(receipt.attempts[0].attempt, 1);
 });
 
 test('reruns receive separate branches and episode artifacts stay outside the checkout', () => {
