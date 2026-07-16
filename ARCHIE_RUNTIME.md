@@ -1,9 +1,17 @@
 # Archie local artifact runtime
 
-This repository now has an isolated executable artifact lane behind:
+This repository has an isolated executable artifact lane behind:
 
 ```text
-npm run archie -- pull <manifest> --trust-key <public.pem>
+npm run archie -- keygen --type recipient --output-dir ./keys/device
+npm run archie -- keygen --type signing --output-dir ./keys/publisher
+npm run archie -- package ./model.gguf --metadata ./metadata.json --output-dir ./package \
+  --recipient-key ./keys/device/archie-device-x25519-public.pem \
+  --signing-private ./keys/publisher/archie-publisher-ed25519-private.pem \
+  --signing-public ./keys/publisher/archie-publisher-ed25519-public.pem
+npm run archie -- pull ./package/manifest.json \
+  --trust-key ./keys/publisher/archie-publisher-ed25519-public.pem \
+  --device-key ./keys/device/archie-device-x25519-private.pem
 npm run archie -- run <id@version> --prompt "..."
 npm run archie -- inspect <id@version>
 npm run archie -- benchmark <id@version> --suite <suite.json>
@@ -13,43 +21,54 @@ npm run archie -- list
 
 The operator experience is intentionally small. It is not an Ollama clone and it does not make Ollama the canonical artifact format.
 
-## What exists
+## Signed manifest and nested envelope
 
-`archie-model-manifest/v1` binds:
+`archie-encrypted-model-manifest/v1` binds:
 
 - model ID, version, architecture, quantization, format, context limit, and runtime ABI;
-- exact compressed/download and installed bytes;
-- ordered chunk URLs, byte counts, and SHA-256 digests;
-- the assembled artifact digest and filename;
+- exact encrypted download bytes and decrypted installed bytes;
+- the plaintext artifact filename and SHA-256 digest;
+- every encrypted chunk's URL, ciphertext bytes/digest, plaintext bytes/digest, unique nonce, and authenticated-metadata digest;
+- one wrapped data key per device or optional recovery recipient;
 - required/recommended RAM, disk, and admitted backend claims;
 - license, source/training provenance, and code commit;
 - immutable-state and mutable-checkpoint digests;
 - benchmark suite/report digests and an explicit claim boundary;
 - a no-shell local process argument template;
-- an Ed25519 outer-manifest signature and trusted-key fingerprint.
+- an Ed25519 outer-manifest signature and trusted publisher fingerprint.
 
-`pull` verifies the signed manifest before transport, supports resumable HTTP range or local-file chunks, verifies every chunk independently, verifies exact assembled bytes and digest, installs by content address, and emits `archie-model-pull-receipt/v1`.
+The layers are exactly:
+
+```text
+signed outer manifest
+  → X25519 + HKDF + AES-256-GCM wrapped random data key
+    → independently AES-256-GCM authenticated encrypted chunks
+```
+
+Each artifact version receives a random 256-bit data key. Each chunk receives a unique 96-bit nonce and authenticated metadata binding model reference, runtime ABI, artifact digest, chunk index, plaintext size, and plaintext digest. The data key is wrapped independently to every declared X25519 recipient. An optional recovery recipient is simply a second wrapped-key recipient; the model bytes are not encrypted repeatedly.
+
+`pull` verifies the outer publisher signature before transport, unwraps only to a matching device or recovery private key, supports resumable HTTP range or local-file ciphertext chunks, verifies each ciphertext digest, authenticates and decrypts each chunk independently, verifies each plaintext digest, verifies exact assembled bytes and artifact digest, installs by content address, and emits `archie-encrypted-model-pull-receipt/v1`.
+
+The installed directory retains the signed outer manifest, encrypted pull receipt, and a locally signed installation projection used by the existing local run/inspect path. The installation projection never replaces the outer manifest as distribution authority.
+
+The earlier `archie-model-manifest/v1` direct-artifact path remains supported for bounded development fixtures. Production Archie checkpoints should use the encrypted manifest.
+
+## Local execution and benchmarks
 
 `run` re-verifies the installed artifact, invokes only the configured local executable without a shell, and emits `archie-model-run-receipt/v1` bound to the artifact, manifest, prompt, arguments, output, environment, latency, and generation settings. No frontier API key is read or required.
 
 `benchmark` executes `archie-benchmark-suite/v1` cases through the same local run path and emits a machine-readable report tied to the suite, model, artifact, environment, and individual run receipts.
 
-## Trust and keys
+## Trust and key separation
 
-A manifest's embedded public key proves signature consistency but is not trust by itself. Normal pulls require one or more explicitly trusted public-key files:
+A manifest's embedded public key proves signature consistency but is not trust by itself. Normal pulls require one or more explicitly trusted publisher public-key files. `--allow-untrusted` is development-only and is recorded in the receipt.
 
-```text
-npm run archie -- pull ./manifest.json --trust-key ./publisher-ed25519-public.pem
-```
+Publisher Ed25519 signing keys, device/recovery X25519 wrapping keys, and random artifact data keys are separate purposes. Private keys are never written into manifests, chunks, receipts, benchmark fixtures, logs, browser storage, or Git.
 
-`--allow-untrusted` is an explicit development-only mode. It still verifies the self-signature and all byte/digest constraints, but the pull receipt records `self-signed-untrusted`.
-
-The manifest signing key is unrelated to PR #397's short-lived execution HMAC. The runtime never loads that HMAC and never treats it as a model-artifact key.
+All model-artifact keys are unrelated to PR #397's short-lived execution HMAC. The runtime never loads that HMAC and never treats it as a model-artifact key.
 
 ## Deliberate boundary
 
-This tranche is real artifact transport, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
-
-The v1 direct-artifact contract installs the exact transported bytes. Independently authenticated encrypted chunks and installation-key wrapping remain required before a production Archie checkpoint can satisfy the complete nested-envelope requirement in issue #398. Until that lands, this lane must not be described as the completed encrypted distribution protocol.
+This is real encrypted artifact packaging, transport, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
 
 The default `npm run maker` path is unchanged by this tranche. Sideways remains deterministic state, Maker remains the only permissioned effect executor, and Archie model artifacts receive no privileged repository modification path.
