@@ -4,26 +4,51 @@
   "title": "Sideways Maker control plane",
   "oneOf": [
     { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/runtimeProfile" },
     { "$ref": "#/$defs/job" },
-    { "$ref": "#/$defs/event" }
+    { "$ref": "#/$defs/event" },
+    { "$ref": "#/$defs/publicRuntime" }
   ],
   "$defs": {
-    "authority": {
+    "capabilityLevel": {
+      "enum": ["none", "read", "write", "execute", "manage", "reference_only", "approval_required"]
+    },
+    "capabilityPolicy": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9_.-]+$" },
+      "additionalProperties": { "$ref": "#/$defs/capabilityLevel" }
+    },
+    "runtimeRequirements": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["branch", "draft_pr", "merge", "deploy", "settings"],
+      "required": ["capabilities", "execution_roles", "authority", "locality", "ownership", "dedicated_capacity", "recoverable"],
+      "properties": {
+        "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "execution_roles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "authority": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "locality": { "enum": ["any", "local", "remote", "hybrid", "private"] },
+        "ownership": { "enum": ["any", "user", "project", "managed", "hybrid"] },
+        "dedicated_capacity": { "type": "boolean" },
+        "recoverable": { "type": "boolean" }
+      }
+    },
+    "authorityRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "draft_pr", "merge", "deploy", "settings", "capabilities"],
       "properties": {
         "branch": { "type": "boolean" },
         "draft_pr": { "type": "boolean" },
         "merge": { "type": "boolean" },
         "deploy": { "type": "boolean" },
-        "settings": { "type": "boolean" }
+        "settings": { "type": "boolean" },
+        "capabilities": { "$ref": "#/$defs/capabilityPolicy" }
       }
     },
     "request": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "repository", "base_revision", "mode", "request", "protect", "proof", "backend", "priority", "idempotency_key", "authority"],
+      "required": ["schema", "repository", "base_revision", "mode", "request", "protect", "proof", "backend", "priority", "idempotency_key", "runtime_requirements", "authority"],
       "properties": {
         "schema": { "const": "sideways-maker-control-request/v1" },
         "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", "maxLength": 500 },
@@ -35,24 +60,112 @@
         "backend": { "type": "string", "maxLength": 100 },
         "priority": { "type": "number", "minimum": 0, "maximum": 100 },
         "idempotency_key": { "type": "string", "maxLength": 300 },
-        "authority": { "$ref": "#/$defs/authority" }
+        "runtime_requirements": { "$ref": "#/$defs/runtimeRequirements" },
+        "authority": { "$ref": "#/$defs/authorityRequest" }
+      }
+    },
+    "runtimeProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "runtime_id", "display_name", "status", "intelligence", "endpoint", "planning", "execution", "authority", "presentation", "observed_at"],
+      "properties": {
+        "schema": { "const": "sideways-maker-runtime-profile/v1" },
+        "runtime_id": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "status": { "enum": ["healthy", "degraded", "offline", "unknown"] },
+        "intelligence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["selection", "engine_label", "architecture", "admission", "capabilities"],
+          "properties": {
+            "selection": { "enum": ["adaptive", "locked", "operator", "unknown"] },
+            "engine_label": { "type": "string", "minLength": 1, "maxLength": 300 },
+            "architecture": { "enum": ["native", "distilled", "ensemble", "remote", "hybrid", "unknown"] },
+            "admission": { "enum": ["verified", "configured", "unverified", "unknown"] },
+            "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          }
+        },
+        "endpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ownership", "transport", "locality", "capacity", "throttling", "label"],
+          "properties": {
+            "ownership": { "enum": ["user", "project", "managed", "hybrid", "unknown"] },
+            "transport": { "enum": ["local", "remote", "hybrid", "relay", "unknown"] },
+            "locality": { "enum": ["local", "remote", "hybrid", "private", "unknown"] },
+            "capacity": { "enum": ["dedicated", "shared", "burst", "unknown"] },
+            "throttling": { "enum": ["none", "bounded", "provider", "unknown"] },
+            "label": { "type": "string", "maxLength": 200 }
+          }
+        },
+        "planning": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy", "scheduler", "parallelism", "speculation", "recovery", "confidence_threshold"],
+          "properties": {
+            "strategy": { "enum": ["adaptive", "recursive", "speculative", "swarm", "direct", "disabled", "unknown"] },
+            "scheduler": { "enum": ["adaptive", "priority", "fair", "fixed", "unknown"] },
+            "parallelism": { "type": "integer", "minimum": 1, "maximum": 1024 },
+            "speculation": { "type": "boolean" },
+            "recovery": { "enum": ["lease", "journal", "checkpoint", "none", "unknown"] },
+            "confidence_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "modes", "transport", "workspace", "verification", "checkpointing", "recovery"],
+          "properties": {
+            "role": { "type": "string", "maxLength": 100 },
+            "modes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "transport": { "enum": ["weave", "queue", "direct", "relay", "hybrid", "unknown"] },
+            "workspace": { "enum": ["isolated", "repository", "container", "remote", "unknown"] },
+            "verification": { "enum": ["continuous", "terminal", "final", "none", "unknown"] },
+            "checkpointing": { "enum": ["enabled", "bounded", "disabled", "unknown"] },
+            "recovery": { "enum": ["journaled", "lease", "checkpoint", "manual", "none", "unknown"] }
+          }
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["capabilities"],
+          "properties": { "capabilities": { "$ref": "#/$defs/capabilityPolicy" } }
+        },
+        "presentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["headline", "activity", "tone", "visible"],
+          "properties": {
+            "headline": { "type": "string", "maxLength": 300 },
+            "activity": { "type": "string", "maxLength": 500 },
+            "tone": { "enum": ["quiet", "technical", "friendly", "minimal"] },
+            "visible": { "type": "boolean" }
+          }
+        },
+        "observed_at": { "type": "string", "format": "date-time" }
       }
     },
     "lease": {
-      "type": ["object", "null"],
-      "additionalProperties": false,
-      "required": ["worker_id", "token", "claimed_at", "expires_at"],
-      "properties": {
-        "worker_id": { "type": "string", "minLength": 1, "maxLength": 300 },
-        "token": { "type": "string", "minLength": 1, "maxLength": 300 },
-        "claimed_at": { "type": "string", "format": "date-time" },
-        "expires_at": { "type": "string", "format": "date-time" }
-      }
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["worker_id", "token", "claimed_at", "expires_at", "runtime_id"],
+          "properties": {
+            "worker_id": { "type": "string", "minLength": 1, "maxLength": 300 },
+            "token": { "type": "string", "minLength": 1, "maxLength": 300 },
+            "claimed_at": { "type": "string", "format": "date-time" },
+            "expires_at": { "type": "string", "format": "date-time" },
+            "runtime_id": { "type": "string", "minLength": 1, "maxLength": 300 }
+          }
+        }
+      ]
     },
     "job": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "id", "state", "revision", "request", "request_digest", "created_at", "updated_at", "lease", "result", "error"],
+      "required": ["schema", "id", "state", "revision", "request", "request_digest", "created_at", "updated_at", "lease", "runtime", "result", "error"],
       "properties": {
         "schema": { "const": "sideways-maker-control-job/v1" },
         "id": { "type": "string", "minLength": 1 },
@@ -63,16 +176,22 @@
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" },
         "lease": { "$ref": "#/$defs/lease" },
+        "runtime": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/runtimeProfile" }] },
         "result": { "type": ["object", "array", "string", "number", "boolean", "null"] },
         "error": {
-          "type": ["object", "null"],
-          "properties": {
-            "code": { "type": "string" },
-            "message": { "type": "string" },
-            "recoverable": { "type": "boolean" }
-          },
-          "required": ["code", "message", "recoverable"],
-          "additionalProperties": false
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message", "recoverable"],
+              "properties": {
+                "code": { "type": "string" },
+                "message": { "type": "string" },
+                "recoverable": { "type": "boolean" }
+              }
+            }
+          ]
         }
       }
     },
@@ -90,6 +209,26 @@
         "state": { "enum": ["queued", "running", "completed", "failed", "cancelled"] },
         "revision": { "type": "integer", "minimum": 1 },
         "detail": { "type": "object" }
+      }
+    },
+    "publicRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "job_id", "revision", "state", "headline", "activity", "engine", "planning", "execution", "authority", "recovery", "links", "receipt"],
+      "properties": {
+        "schema": { "const": "sideways-maker-public-runtime/v1" },
+        "job_id": { "type": "string" },
+        "revision": { "type": "integer" },
+        "state": { "enum": ["queued", "running", "completed", "failed", "cancelled"] },
+        "headline": { "type": "string" },
+        "activity": { "type": "string" },
+        "engine": { "type": ["object", "null"] },
+        "planning": { "type": ["object", "null"] },
+        "execution": { "type": ["object", "null"] },
+        "authority": { "type": "object" },
+        "recovery": { "type": "object" },
+        "links": { "type": "object" },
+        "receipt": { "type": "object" }
       }
     }
   }
