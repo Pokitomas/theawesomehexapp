@@ -1,19 +1,39 @@
 # Archie launch profiles
 
-Archie does not have one architectural interface.
+Archie has no architectural chat, voice, screen, daemon, phone, CLI, IDE, or always-on identity.
 
-A release is the combination of:
+The maximal product claim is selected from complete evidence-bound profiles. Each profile binds one exact model release, one exact environment, its actual modalities and invocation modes, measured intelligence and embodiment outcomes, authority grants, platform constraints, latency, privacy behavior, and aggregate resources.
 
-1. an independently admitted intelligence artifact;
-2. one exact hardware and operating-system target;
-3. measured and evidence-bound interaction, continuity, observation, execution, and privacy capabilities;
-4. the strongest compatible profile that fits the machine, platform permissions, user authority, and aggregate resource envelope.
+## Canonical v2 frontier
 
-The resolver therefore answers a different question from “is Archie a chat app or a voice assistant?” It asks:
+```text
+npm run archie:launch:frontier -- --manifest frontier-manifest.json
+```
 
-> Given this exact Archie release, this exact machine, these permissions, these receipts, and this human target, what is the strongest truthful product this installation can be?
+The v2 manifest contains:
 
-## Three executable stages
+- one exact signed model/checkpoint/runtime/code release;
+- exact hardware and operating-system fingerprints for every environment;
+- complete candidate profiles for those environments;
+- intelligence, embodiment, authority, latency, privacy, and resource measurements on the same profile;
+- evidence digests, permissions, resource budgets, activation conditions, and platform constraints;
+- a search receipt that binds the enumerated profile set and records excluded candidates.
+
+The resolver first rejects experimental, unevidenced, unauthorized, over-budget, or below-gate profiles. It then compares every feasible profile on every declared objective.
+
+A profile dominates another only when it is no worse on every objective and strictly better on at least one. The surviving Pareto frontier is the strongest truthful product set for that environment.
+
+An incomparable profile is not discarded merely because another profile has a different strength. A low-latency voice profile and a higher-precision visual profile may both ship as an adaptive frontier. No primary profile is invented unless the environment supplies an explicit selection policy. A requested default that is dominated or infeasible rejects the environment instead of silently weakening the maximal claim.
+
+## Per-environment product form
+
+The frontier is computed separately for every exact environment. A desktop may admit consented event-driven continuity while a mobile operating system admits only foreground or scheduled interaction. A local workstation may admit a private high-memory model while a phone admits a hybrid profile. These are truthful environment profiles, not different definitions of Archie.
+
+Voice, background execution, notifications, screens, cameras, headless APIs, and persistent presence appear only when a measured profile includes and proves them. Their absence does not automatically reject an otherwise nondominated profile unless the profile fails the human outcome metrics in the target.
+
+## Compatibility backend
+
+The existing v1 commands remain available:
 
 ```text
 npm run archie:launch:derive
@@ -21,49 +41,18 @@ npm run archie:launch:evaluate -- --candidate candidate.json
 npm run archie:launch:resolve -- --manifest launch-capability-manifest.json
 ```
 
-### Derive
+They preserve the earlier fixed-faculty target, candidate admission, machine permissions, dependency closure, aggregate resources, and named fallbacks. They may supply evidence or act as a compatibility backend, but their required-faculty mapping and inclusion-maximal capability sets are not the canonical maximal-product decision.
 
-`archie:launch:derive` converts the human outcomes in `founder/archie-launch-target.json` into required faculties. The current maximal founder target derives speech, background continuity, subscribed-event awareness, visual inspection, connected-tool context, device continuity, and private local operation because those outcomes require them.
+A maximal Archie launch claim requires `archie-launch-frontier-decision/v2` with:
 
-Changing the outcomes changes the required faculties. Voice, chat, a screen, and an always-running process are not retained as hidden defaults.
+- complete search;
+- joint intelligence-and-embodiment gates;
+- exact environment separation;
+- a nondominated frontier;
+- rejection of dominated defaults;
+- explicit excluded and failed profiles;
+- digest-bound deterministic output.
 
-### Evaluate
+## Current boundary
 
-`archie:launch:evaluate` jointly admits intelligence and target-level embodiment. A candidate must provide exact SHA-256 digests for its model artifact, intelligence report, authority report, clean reproduction receipt, faculties, and interfaces.
-
-A strong model without the access modes demanded by the target fails. A polished shell without admitted cross-domain completion, repair, abstention, safety, and terminal evidence fails.
-
-### Resolve
-
-`archie:launch:resolve` consumes `archie-launch-capability-manifest/v1`. It binds:
-
-- model artifact, checkpoint, runtime ABI, and code revision;
-- the prior joint launch decision;
-- exact hardware, operating system, and device fingerprints;
-- user and platform permissions;
-- network state;
-- evidence, quality, and latency gates for every capability;
-- dependencies, conflicts, minimum resources, and aggregate resource cost;
-- explicit selection preferences;
-- named fallback scenarios with exact changed constraints.
-
-The resolver rejects unsupported capabilities, propagates failed dependencies, enumerates compatible dependency-closed profiles, removes profiles dominated by strict supersets, applies explicit preferences, and then admits the first profile whose combined memory, power, disk, accelerator, CPU, thermal, and other declared costs fit the exact machine envelope.
-
-## Maximal does not mean fictional
-
-The default receipt preserves:
-
-- the selected exact-machine profile;
-- every other maximal compatible profile;
-- all disabled capabilities and exact reasons;
-- missing required faculties;
-- aggregate resource checks;
-- proof that no hidden canonical interface selected the result.
-
-A fallback is a separate scenario. Low-power, foreground-only, offline, revoked-permission, or other constrained profiles may be useful, but they do not overwrite the strongest default claim. A release cannot advertise ambient, voice, visual, proactive, cross-device, local, or other behavior merely because a prototype exists.
-
-## Current claim boundary
-
-These contracts define selection and admission law. They do not establish that the current Archie checkpoint has passed the maximal target, that every platform grants the needed permissions, or that production-quality speech, background execution, multimodal perception, battery behavior, and device continuity already exist.
-
-Consumer launch still requires one exact release to pass independent intelligence evaluation, clean-machine reproduction, real-device embodiment tests, and the exact-machine resolver without missing critical faculties.
+These contracts define selection law. They do not establish that the current Archie checkpoint is generally competent, that production speech or ambient continuity exists, or that any particular platform grants the needed permissions. Consumer promotion still requires independent model evaluation, clean-machine reproduction, real-device profile receipts, and a passing v2 frontier decision.
