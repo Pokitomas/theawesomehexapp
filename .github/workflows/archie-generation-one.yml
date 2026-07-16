@@ -31,6 +31,12 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Execute provider-neutral student admission tests
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          npm run test:archie:admission 2>&1 | tee artifacts/archie-admission.log
       - name: Execute hash-bound real-device evidence tests
         run: npm run test:archie:device-evidence
       - name: Run Archie evaluation and preserve the complete log
