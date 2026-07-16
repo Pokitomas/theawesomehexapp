@@ -7,11 +7,13 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { runAutonomousMakerAgent } from '../maker/runtime/autonomous-agent.mjs';
+import { redactSecrets } from './maker-engine.mjs';
 import { createOpenModelClient } from './open-model-adapter.mjs';
 import { runOpenModelPlanning } from './open-model-planning.mjs';
 
 const execFileAsync = promisify(execFile);
 const clean = (value, limit = 20000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
+const safe = (value, limit = 20000) => clean(redactSecrets(String(value ?? '')), limit);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function parseMakerIssue(issue = {}, repository = '') {
@@ -23,7 +25,10 @@ export function parseMakerIssue(issue = {}, repository = '') {
   for (const match of blocks.reverse()) {
     try {
       const value = JSON.parse(match[1]);
-      if (value?.version === 'sideways-maker/v1') { receipt = value; break; }
+      if (value?.version === 'sideways-maker/v1') {
+        receipt = value;
+        break;
+      }
     } catch {}
   }
   const mode = title.match(/^\[maker:([^\]]+)\]/i)?.[1]?.toLowerCase() || receipt?.mode || 'build';
@@ -130,7 +135,7 @@ function apiClient({ token, repository, fetchImpl = fetch }) {
       body: options.body === undefined ? undefined : JSON.stringify(options.body)
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(`GitHub API ${response.status}: ${clean(data.message || response.statusText, 1000)}`);
+    if (!response.ok) throw new Error(`GitHub API ${response.status}: ${safe(data.message || response.statusText, 1000)}`);
     return data;
   }
   return {
@@ -153,10 +158,10 @@ function runURL(env = process.env) {
 }
 
 function receiptComment(title, fields = {}) {
-  const lines = ['<!-- sideways-native-worker:v1 -->', `## ${title}`, ''];
+  const lines = ['<!-- sideways-native-worker:v1 -->', `## ${safe(title, 500)}`, ''];
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined || value === null || value === '') continue;
-    lines.push(`**${key}:** ${String(value)}`);
+    lines.push(`**${safe(key, 120)}:** ${safe(value, 7000)}`);
   }
   return lines.join('\n');
 }
@@ -167,18 +172,18 @@ export function workerFailureReceipt(error, context = {}) {
     ok: value.ok === true,
     status: Number(value.status) || null,
     retryable: value.retryable !== false,
-    error: clean(value.error, 1000) || null
+    error: safe(value.error, 1000) || null
   })) : [];
   return {
     schema: 'sideways-native-maker-failure/v1',
-    stage: clean(context.stage || 'unknown', 120),
-    code: clean(error?.code || 'UNHANDLED_RUNTIME_ERROR', 120),
-    message: clean(error?.message || error || 'unknown worker failure', 4000),
+    stage: safe(context.stage || 'unknown', 120),
+    code: safe(error?.code || 'UNHANDLED_RUNTIME_ERROR', 120),
+    message: safe(error?.message || error || 'unknown worker failure', 4000),
     status: Number(error?.status) || null,
     retryable: error?.retryable !== false,
     attempts,
-    branch: clean(context.branch, 240) || null,
-    run_url: clean(context.run_url, 1000) || null
+    branch: safe(context.branch, 240) || null,
+    run_url: safe(context.run_url, 1000) || null
   };
 }
 
@@ -196,10 +201,24 @@ async function verifyCandidate() {
   const env = { PATH: process.env.PATH || '', HOME: process.env.HOME || '', CI: '1', NODE_ENV: 'test', NO_COLOR: '1' };
   for (const [program, args] of commands) {
     try {
-      const value = await execFileAsync(program, args, { cwd: process.cwd(), env, timeout: 30 * 60 * 1000, maxBuffer: 12 * 1024 * 1024, windowsHide: true });
-      results.push({ command: [program, ...args].join(' '), ok: true, output: clean(`${value.stdout || ''}\n${value.stderr || ''}`, 4000) });
+      const value = await execFileAsync(program, args, {
+        cwd: process.cwd(),
+        env,
+        timeout: 30 * 60 * 1000,
+        maxBuffer: 12 * 1024 * 1024,
+        windowsHide: true
+      });
+      results.push({
+        command: [program, ...args].join(' '),
+        ok: true,
+        output: safe(`${value.stdout || ''}\n${value.stderr || ''}`, 4000)
+      });
     } catch (error) {
-      results.push({ command: [program, ...args].join(' '), ok: false, output: clean(`${error.stdout || ''}\n${error.stderr || error.message}`, 8000) });
+      results.push({
+        command: [program, ...args].join(' '),
+        ok: false,
+        output: safe(`${error.stdout || ''}\n${error.stderr || error.message}`, 8000)
+      });
       return { ok: false, results };
     }
   }
@@ -218,8 +237,12 @@ export function nativeEpisodePath(env = process.env) {
 async function writeEpisode(episode, env = process.env) {
   const target = nativeEpisodePath(env);
   await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.writeFile(target, `${JSON.stringify(episode, null, 2)}\n`, 'utf8');
+  await fs.writeFile(target, `${JSON.stringify(redactSecrets(episode), null, 2)}\n`, 'utf8');
   return target;
+}
+
+function sanitizePlanningBrief(brief) {
+  return brief ? redactSecrets(brief) : null;
 }
 
 async function main() {
@@ -312,7 +335,7 @@ async function main() {
       max_events: config.planning_max_events,
       max_assignments_per_wave: config.planning_max_assignments
     });
-    planningBrief = planning.brief;
+    planningBrief = sanitizePlanningBrief(planning.brief);
     episode.planning = { status: planningBrief.degraded ? 'degraded' : 'completed', ...planningBrief };
     await writeEpisode(episode);
     if (config.planning_required && planningBrief.degraded) {
@@ -335,7 +358,14 @@ async function main() {
       return;
     }
   } else {
-    episode.planning = { status: 'disabled', terminal: 'direct-execution', event_count: 0, outputs: [], failures: [], degraded: false };
+    episode.planning = {
+      status: 'disabled',
+      terminal: 'direct-execution',
+      event_count: 0,
+      outputs: [],
+      failures: [],
+      degraded: false
+    };
     await writeEpisode(episode);
   }
 
@@ -350,7 +380,14 @@ async function main() {
   try {
     agent = await runAutonomousMakerAgent({
       root: process.cwd(),
-      task: { repository, base_sha: baseSha, branch, request: taskRequest, protect: intent.protect, proof: intent.proof },
+      task: {
+        repository,
+        base_sha: baseSha,
+        branch,
+        request: taskRequest,
+        protect: intent.protect,
+        proof: intent.proof
+      },
       model_client: model,
       state_path: statePath,
       active_leases: activeLeases,
@@ -361,13 +398,20 @@ async function main() {
           turn,
           tool: clean(action?.tool, 80) || null,
           ok: observation.ok === true,
-          error: observation.ok === true ? null : clean(observation.error, 2000),
+          error: observation.ok === true ? null : safe(observation.error, 2000),
           finished: observation.finished === true,
           at: new Date().toISOString()
         };
-        try { episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch {}
+        try {
+          episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8'));
+        } catch {}
         await writeEpisode(episode);
-        process.stdout.write(`${JSON.stringify({ turn, tool: action?.tool || null, ok: observation.ok, finished: observation.finished || false })}\n`);
+        process.stdout.write(`${JSON.stringify({
+          turn,
+          tool: action?.tool || null,
+          ok: observation.ok,
+          finished: observation.finished || false
+        })}\n`);
       }
     });
   } catch (error) {
@@ -376,14 +420,18 @@ async function main() {
     episode.implementation = { status: 'failed', failure };
     episode.outcome = 'model_or_runtime_error';
     episode.finished_at = new Date().toISOString();
-    try { episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch {}
+    try {
+      episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8'));
+    } catch {}
     await writeEpisode(episode);
     await github.comment(issueNumber, receiptComment('Native worker failed before a candidate', {
       stage: failure.stage,
       code: failure.code,
       message: failure.message,
       retryable: failure.retryable,
-      attempts: failure.attempts.length ? failure.attempts.map(value => `${value.attempt}:${value.status || 'network'}:${value.error}`).join(' · ') : 'none recorded',
+      attempts: failure.attempts.length
+        ? failure.attempts.map(value => `${value.attempt}:${value.status || 'network'}:${value.error}`).join(' · ')
+        : 'none recorded',
       branch,
       action: 'No commit, push, or PR was created. The episode artifact contains the durable failure receipt.',
       run: runURL()
@@ -392,9 +440,11 @@ async function main() {
     return;
   }
 
-  episode.implementation = agent;
+  episode.implementation = redactSecrets(agent);
   episode.outcome = agent.status;
-  try { episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch {}
+  try {
+    episode.engine_state = JSON.parse(await fs.readFile(statePath, 'utf8'));
+  } catch {}
   await writeEpisode(episode);
 
   if (agent.status !== 'finished') {
@@ -407,7 +457,7 @@ async function main() {
       planning_terminal: planningBrief?.terminal || episode.planning?.terminal,
       writes: agent.writes,
       lease: agent.lease ? agent.lease.owned_paths.join(', ') : 'none acquired',
-      last_error: last?.ok === false ? clean(last.error, 2000) : null,
+      last_error: last?.ok === false ? safe(last.error, 2000) : null,
       action: 'No PR was created.',
       run: runURL()
     }));
@@ -441,7 +491,7 @@ async function main() {
       branch,
       planning_terminal: planningBrief?.terminal || episode.planning?.terminal,
       failed_witness: failed?.command,
-      evidence: `\n\n\`\`\`text\n${clean(failed?.output, 6000)}\n\`\`\``,
+      evidence: `\n\n\`\`\`text\n${safe(failed?.output, 6000)}\n\`\`\``,
       action: 'No commit, push, or PR was created.',
       run: runURL()
     }));
@@ -478,24 +528,24 @@ async function main() {
         leaseMarker,
         '',
         '## Model receipt',
-        `- protocol: ${config.protocol}`,
-        `- model: ${config.model}`,
-        `- endpoint host: ${endpointHost}`,
-        `- planning terminal: ${planningBrief?.terminal || episode.planning?.terminal || 'disabled'}`,
+        `- protocol: ${safe(config.protocol, 80)}`,
+        `- model: ${safe(config.model, 300)}`,
+        `- endpoint host: ${safe(endpointHost, 300)}`,
+        `- planning terminal: ${safe(planningBrief?.terminal || episode.planning?.terminal || 'disabled', 80)}`,
         `- planning events: ${planningBrief?.event_count || 0}`,
         `- planning failures: ${planningBrief?.failures?.length || 0}`,
         `- implementation turns: ${agent.transcript.length}`,
         `- writes: ${agent.writes}`,
-        `- engine receipt: ${agent.receipt?.receipt_digest || 'missing'}`,
+        `- engine receipt: ${safe(agent.receipt?.receipt_digest || 'missing', 100)}`,
         '',
         '## Worker summary',
-        agent.summary || '_No summary returned._',
+        safe(agent.summary || '_No summary returned._', 4000),
         '',
         '## Runtime-observed tests',
-        ...(agent.tests?.length ? agent.tests.map(value => `- ${value}`) : ['- none']),
+        ...(agent.tests?.length ? agent.tests.map(value => `- ${safe(value, 1000)}`) : ['- none']),
         '',
         '## Independent admission witnesses',
-        ...verification.results.map(value => `- ${value.ok ? 'PASS' : 'FAIL'}: \`${value.command}\``),
+        ...verification.results.map(value => `- ${value.ok ? 'PASS' : 'FAIL'}: \`${safe(value.command, 1000)}\``),
         '',
         '## Authority',
         'Draft only. Human review, merge, and deployment remain required.'
@@ -525,7 +575,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(error => {
-    console.error(`maker-native-worker: ${error.stack || error.message}`);
+    console.error(`maker-native-worker: ${safe(error.stack || error.message, 8000)}`);
     process.exitCode = 1;
   });
 }
