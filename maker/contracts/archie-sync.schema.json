@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://theawesomehexapp.local/maker/contracts/archie-sync.schema.json",
+  "title": "Archie encrypted synchronization envelope",
+  "type": "object",
+  "required": ["schema", "algorithm", "key_id", "device_id", "namespace", "object_id", "generation", "nonce", "aad_digest", "ciphertext", "ciphertext_digest", "auth_tag", "envelope_digest"],
+  "properties": {
+    "schema": { "const": "archie-encrypted-sync-envelope/v1" },
+    "algorithm": { "const": "aes-256-gcm" },
+    "generation": { "type": "integer", "minimum": 1 },
+    "nonce": { "type": "string", "minLength": 16, "maxLength": 16 },
+    "aad_digest": { "$ref": "#/$defs/digest" },
+    "ciphertext_digest": { "$ref": "#/$defs/digest" },
+    "envellope_digest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
