@@ -191,6 +191,68 @@ test('live MIME admission ignores parser hints and HTML canonicals use the final
   assert.equal(result.records[0].provenance.source_url, configuredURL);
 });
 
+test('Hacker News forum enrichment admits only bounded truthful public replies and records failures', async () => {
+  const provider = {
+    id: 'hacker-news-test',
+    name: 'Hacker News',
+    kind: 'forum',
+    format: 'json',
+    method: 'public-api',
+    robots: 'not-applicable',
+    url: 'https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250&page=0'
+  };
+  const calls = [];
+  const result = await fetchBoundedSource(provider, {
+    now: '2026-07-15T00:00:00.000Z',
+    limits: { forumThreadsPerSource: 2, forumRepliesPerThread: 2, forumReplyBytes: 10000 },
+    requestPublicResource: async target => {
+      const url = new URL(target);
+      calls.push(url.href);
+      if (url.pathname.includes('/items/101')) {
+        return {
+          status: 200,
+          headers: { 'content-type': 'application/json; charset=utf-8' },
+          body: Buffer.from(JSON.stringify({ children: [
+            { id: 201, author: 'alice', text: '<p>Actual public reply</p>', created_at: '2026-07-14T01:00:00Z', children: [{ id: 301 }] },
+            { id: 202, author: null, text: null, deleted: true }
+          ] })),
+          hops: [],
+          url
+        };
+      }
+      if (url.pathname.includes('/items/102')) {
+        return { status: 503, headers: { 'content-type': 'application/json' }, body: Buffer.from('{}'), hops: [], url };
+      }
+      return {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: Buffer.from(JSON.stringify({ hits: [
+          { objectID: '101', title: 'First story', url: 'https://news.ycombinator.com/item?id=101', points: 12, num_comments: 2, created_at: '2026-07-14T00:00:00Z' },
+          { objectID: '102', title: 'Second story', url: 'https://news.ycombinator.com/item?id=102', points: 8, num_comments: 1, created_at: '2026-07-14T00:00:00Z' }
+        ] })),
+        hops: [],
+        url
+      };
+    }
+  });
+  assert.equal(result.records.length, 2);
+  assert.equal(result.records[0].native_id, '101');
+  assert.deepEqual(result.records[0].replies, [{
+    id: '201',
+    author: 'alice',
+    text: 'Actual public reply',
+    published_at: '2026-07-14T01:00:00.000Z',
+    url: 'https://news.ycombinator.com/item?id=201',
+    children: 1
+  }]);
+  assert.deepEqual(result.records[1].replies, []);
+  assert.equal(result.receipt.forum_reply_enrichment.attempted, 2);
+  assert.equal(result.receipt.forum_reply_enrichment.enriched, 1);
+  assert.equal(result.receipt.forum_reply_enrichment.replies, 1);
+  assert.equal(result.receipt.forum_reply_enrichment.failures, 1);
+  assert.equal(calls.filter(url => url.includes('/api/v1/items/')).length, 2);
+});
+
 test('invalid configured-source JSON falls back truthfully without aborting the snapshot', () => {
   const malformed = resolveProviderConfiguration('{not-json');
   assert.ok(malformed.providers.length > 0);

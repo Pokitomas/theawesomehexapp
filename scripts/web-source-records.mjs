@@ -35,8 +35,35 @@ function stableId(provider, canonical, title, published) {
 }
 
 function authorName(input, fallback) {
-  if (typeof input.author === 'string') return input.author;
+  const explicit = typeof input.author === 'string' ? clean(input.author) : '';
+  if (explicit) return explicit;
   return input.author?.name || input.author?.display_name || input.account?.display_name || input.account?.username || input.contributor || fallback;
+}
+
+function normalizeReplies(value, fallbackPublished) {
+  return Object.freeze((Array.isArray(value) ? value : [])
+    .slice(0, 18)
+    .map(reply => {
+      if (!reply || typeof reply !== 'object') return null;
+      const text = clean(decodeEntities(stripTags(reply.text || reply.content || reply.body || ''))).slice(0, 1200);
+      if (!text) return null;
+      const id = clean(reply.id || reply.objectID || reply.native_id || '').slice(0, 240);
+      const author = clean(authorName(reply, 'unknown')).slice(0, 160) || 'unknown';
+      let url = '';
+      try {
+        const raw = reply.url || reply.canonical_url || '';
+        if (raw) url = safeSourceURL(raw).href;
+      } catch {}
+      return Object.freeze({
+        id,
+        author,
+        text,
+        published_at: isoDate(reply.published_at || reply.published || reply.created_at || reply.createdAt, fallbackPublished),
+        url,
+        children: Math.max(0, Number(reply.children || reply.children_count || 0))
+      });
+    })
+    .filter(Boolean));
 }
 
 export function normalizeWebRecord(input = {}, provider = {}) {
@@ -60,6 +87,7 @@ export function normalizeWebRecord(input = {}, provider = {}) {
   const score = Math.max(0, Number(input.score || input.points || input.favourites_count || 0));
   const comments = Math.max(0, Number(input.comments || input.num_comments || input.replies_count || 0));
   const sourceRoot = safeSourceURL(provider.url).href;
+  const replies = normalizeReplies(input.replies, published);
   const engagement = kind === 'forum'
     ? Object.freeze({ points: score, comments })
     : kind === 'social'
@@ -76,7 +104,7 @@ export function normalizeWebRecord(input = {}, provider = {}) {
     title,
     published,
     published_at: published,
-    native_id: clean(input.id || input.nativeId || input.native_id || recordId).slice(0, 240),
+    native_id: clean(input.id || input.objectID || input.nativeId || input.native_id || recordId).slice(0, 240),
     revision: 'bounded public source snapshot',
     contributor,
     author_name: contributor,
@@ -93,6 +121,7 @@ export function normalizeWebRecord(input = {}, provider = {}) {
     language: clean(input.language || provider.language || 'en').slice(0, 32),
     content_warning: clean(input.spoiler_text || input.content_warning || '').slice(0, 500),
     engagement,
+    replies,
     license: clean(provider.license || 'source-defined'),
     attribution: providerName,
     community: clean(provider.community || providerName),
