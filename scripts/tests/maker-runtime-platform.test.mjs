@@ -1,79 +1,324 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMakerRuntimePlatform, MakerRuntimePlatformError, platformDigest } from '../maker-runtime-platform.mjs';
+import test from 'node:test';
+import { createMakerControlPlane } from '../maker-control-plane.mjs';
+import { createModelRouter } from '../maker-model-router.mjs';
+import { createFleetAdapterRegistry, createWorkerFleet, registerDefaultFleetAdapters } from '../maker-worker-fleet.mjs';
+import { createPluginRegistry } from '../maker-plugin-registry.mjs';
+import {
+  buildRuntimeProfile,
+  createMakerRuntimePlatform,
+  derivePluginAuthority,
+  platformDigest,
+  redactPlatformSecrets
+} from '../maker-runtime-platform.mjs';
 
-const clock = () => Date.parse('2026-07-15T12:00:00.000Z');
-const baseInput = {
-  control_repository: 'Pokitomas/theawesomehexapp', target_repository: 'Pokitomas/theawesomehexapp', head_repository: 'Pokitomas/theawesomehexapp',
-  base_revision: 'cde52b39d41a2910047f92bfb6f873c912a6e553', mode: 'build', backend: 'auto', request: 'compose runtime',
-  budgets: { requests: 5, tokens: 1000, cost_usd: 5, wall_time_ms: 1000 },
-  authority: { branch: true, draft_pr: true, merge: false, deploy: false, settings: false, capabilities: { git: 'manage' } },
-  runtime_requirements: { capabilities: ['coding'], execution_roles: ['implementer'], recoverable: true },
-  fleet_requirements: { providers: [], sandbox: true }, required_plugin_capabilities: ['repository.write']
-};
-
-function harness(options = {}) {
-  let state = 'queued';
-  const job = { id: 'job-1', request_digest: 'control-digest', lease: null };
-  const control = {
-    async submit(input) { job.request = input; return structuredClone(job); },
-    async claim({ worker_id, runtime }) { state = 'running'; job.lease = { token: 'control-token', worker_id }; job.runtime = runtime; return structuredClone(job); },
-    async complete(_id, token, result) { assert.equal(token, 'control-token'); state = 'completed'; job.result = result; job.lease = null; return structuredClone(job); },
-    async fail(_id, token, error) { assert.equal(token, 'control-token'); state = 'failed'; job.error = error; job.lease = null; return structuredClone(job); },
-    async cancel(_id, reason) { state = 'cancelled'; job.error = { reason }; job.lease = null; return structuredClone(job); },
-    async view() { return { schema: 'sideways-maker-public-job/v1', id: job.id, state }; },
-    async exportReceipt() { return { schema: 'sideways-maker-export/v1', digest: 'export-digest', job: structuredClone(job) }; }
+function deterministic() {
+  let tick = Date.parse('2026-07-15T00:00:00.000Z');
+  let serial = 0;
+  return {
+    clock: () => tick,
+    id: () => `id-${++serial}`,
+    advance: ms => { tick += ms; }
   };
-  const route = options.route || { schema: 'sideways-maker-model-route-receipt/v1', receipt_digest: 'route-digest', provider: { id: 'provider-a', display_name: 'Provider A', kind: 'configured', engine_label: 'model-a', admission: { admitted: true } }, output: {}, attempts: [{ provider_id: 'provider-b', outcome: 'failed' }, { provider_id: 'provider-a', outcome: 'success' }] };
-  const models = { async execute() { if (options.modelError) throw options.modelError; return structuredClone(route); } };
-  const placement = options.placement || { schema: 'sideways-maker-placement/v1', placement_id: 'place-1', receipt_digest: 'placement-digest', worker_id: 'worker-1', lease: { fencing_token: 'fence-1' }, worker: { mode: 'in_process', identity: { state: 'verified', subject: 'worker-1' }, placement: { locality: 'local' } } };
-  let cancelled = 0; let finished = 0;
-  const fleet = {
-    async enqueue() {},
-    async place() { if (options.fleetError) throw options.fleetError; return structuredClone(placement); },
-    async dispatch() { return structuredClone(options.dispatch || { schema: 'sideways-maker-fleet-dispatch/v1', ok: true, output: { result: { commit: 'abc' } } }); },
-    async finish(_id, fence) { assert.equal(fence, 'fence-1'); finished += 1; },
-    async cancel() { cancelled += 1; }
-  };
-  const pluginSnapshot = options.pluginSnapshot || { schema: 'sideways-maker-plugin-registry-snapshot/v1', receipt_digest: 'plugin-digest', enabled: ['repo'], admitted: [{ plugin_id: 'repo', state: 'enabled', manifest: { version: '1.0.0', manifest_digest: 'manifest-digest', declared_capabilities: ['repository.write'] }, admission: { admitted: true, execution: 'sandbox' } }] };
-  const plugins = { async snapshot() { if (options.pluginError) throw options.pluginError; return structuredClone(pluginSnapshot); } };
-  return { platform: createMakerRuntimePlatform({ controlPlane: control, modelRouter: models, workerFleet: fleet, pluginRegistry: plugins, clock, id: () => 'id-1' }), counters: () => ({ cancelled, finished }), state: () => state };
 }
 
-test('happy-path full composition preserves component receipts and completes', async () => {
-  const h = harness(); const receipt = await h.platform.run(baseInput);
-  assert.equal(receipt.outcome, 'completed'); assert.equal(receipt.links.model_route, 'route-digest'); assert.equal(receipt.links.fleet_placement, 'placement-digest'); assert.equal(receipt.links.plugin_state, 'plugin-digest');
-  assert.equal(receipt.components.control_export.digest, 'export-digest'); assert.equal(h.counters().finished, 1);
+const provider = overrides => ({
+  id: 'provider-a',
+  display_name: 'Admitted Engine',
+  kind: 'openai_compatible',
+  health: 'healthy',
+  availability: { value: true, source: 'observed' },
+  capabilities: {
+    structured_json: { value: true, source: 'observed' },
+    tool_use: { value: true, source: 'observed' },
+    streaming: { value: true, source: 'configured' },
+    multimodal: { value: false, source: 'observed' },
+    context_tokens: { value: 128000, source: 'observed' },
+    output_tokens: { value: 32000, source: 'observed' },
+    latency_class: { value: 'fast', source: 'observed' },
+    privacy: { value: 'private', source: 'configured' },
+    region: { value: 'us-west', source: 'configured' },
+    locality: { value: 'remote', source: 'observed' }
+  },
+  cost: { input_per_million_usd: 1, output_per_million_usd: 2, request_usd: 0 },
+  reliability: { success_rate: 0.99, samples: 100, consecutive_failures: 0 },
+  metadata: { engine_label: 'Admitted Engine' },
+  ...overrides
 });
 
-test('provider fallback receipt is preserved', async () => { const receipt = await harness().platform.run(baseInput); assert.equal(receipt.components.model_route.attempts.length, 2); assert.equal(receipt.components.model_route.provider.id, 'provider-a'); });
-
-test('no admitted provider and fallback exhaustion are explicit', async () => {
-  for (const code of ['no_provider', 'fallback_exhausted']) await assert.rejects(() => harness({ modelError: Object.assign(new Error(code), { code }) }).platform.run(baseInput), error => error instanceof MakerRuntimePlatformError && ['no_admitted_provider', 'provider_fallback_exhausted'].includes(error.code));
+const worker = overrides => ({
+  id: 'worker-a',
+  display_name: 'Worker A',
+  mode: 'self_hosted',
+  identity: { state: 'attested', issuer: 'maker', subject: 'worker-a', digest: 'sha256:abc' },
+  platform: { os: 'linux', arch: 'x64', labels: ['coding', 'repair'], toolchains: ['node', 'git'], providers: ['native'] },
+  isolation: { containers: true, sandbox: true, ephemeral_workspace: true, network: 'restricted' },
+  resources: { cpu: 8, memory_mb: 16384, disk_mb: 100000, time_ms: 3600000, concurrency: 1, queue_depth: 0 },
+  placement: { region: 'us-west', locality: 'local', privacy: 'local', latency_ms: 10, cost_per_hour_usd: 1 },
+  health: { state: 'healthy' },
+  reliability: { success_rate: 0.99, samples: 100, lost_runs: 0 },
+  state: 'active',
+  ...overrides
 });
 
-test('incompatible and unverified capacity are blocked', async () => {
-  await assert.rejects(() => harness({ fleetError: Object.assign(new Error('none'), { code: 'capability_mismatch' }) }).platform.run(baseInput), error => error.code === 'no_compatible_fleet_capacity');
-  const placement = { schema: 'sideways-maker-placement/v1', receipt_digest: 'p', worker_id: 'bad', lease: { fencing_token: 'f' }, worker: { mode: 'in_process', identity: { state: 'unverified' }, placement: {} } };
-  await assert.rejects(() => harness({ placement }).platform.run(baseInput), error => error.code === 'unverified_worker');
+const pluginManifest = overrides => ({
+  id: 'repo.writer',
+  version: '1.0.0',
+  api_compatibility: '1',
+  kind: 'tool_runtime',
+  entrypoint: './writer.mjs',
+  execution: 'subprocess',
+  provenance: { source: 'repository', publisher: 'Pokitomas', license: 'MIT', trusted: false },
+  integrity: { algorithm: 'sha256', digest: `sha256:${'a'.repeat(64)}`, signature: 'sig', signer: 'maker' },
+  required_runtime: { api: '1.0.0', os: ['linux'], arch: ['x64'] },
+  declared_capabilities: ['repository_write'],
+  permissions: { filesystem: { read: ['repo/**'], write: [], execute: [] }, network_hosts: [], commands: [], secret_references: ['GITHUB_TOKEN'], capabilities: ['repository_write'], privileged: false },
+  configuration_schema: { type: 'object' },
+  dependencies: { required: [], optional: [] },
+  lifecycle_hooks: { invoke: 'invoke' },
+  migration: { from: [], reversible: true },
+  ...overrides
 });
 
-test('missing plugin capability is blocked', async () => { const pluginSnapshot = { receipt_digest: 'x', enabled: [], admitted: [] }; await assert.rejects(() => harness({ pluginSnapshot }).platform.run(baseInput), error => error.code === 'missing_plugin_capability'); });
+const pluginPolicy = overrides => ({
+  runtime_api: '1.0.0',
+  allowed_licenses: ['MIT'],
+  allowed_sources: ['repository'],
+  require_signature: true,
+  allowed_permissions: { filesystem: { read: ['repo/**'], write: [], execute: [] }, network_hosts: [], commands: [], capabilities: ['repository_write', 'release'] },
+  ...overrides
+});
 
-test('approval-required authority is blocked', async () => { const input = structuredClone(baseInput); input.authority.capabilities.cloud = 'approval_required'; await assert.rejects(() => harness().platform.run(input), error => error.code === 'approval_gated_authority'); });
+function baseInput(overrides = {}) {
+  return {
+    control_request: {
+      control_repository: 'Pokitomas/theawesomehexapp',
+      target_repository: 'Pokitomas/theawesomehexapp',
+      head_repository: 'Pokitomas/theawesomehexapp',
+      repository: 'Pokitomas/theawesomehexapp',
+      base_revision: 'main',
+      mode: 'build',
+      backend: 'auto',
+      request: 'Build the integrated Maker runtime.',
+      protect: 'Do not merge or deploy.',
+      proof: 'Return exact component receipts.',
+      priority: 80,
+      idempotency_key: 'platform-happy',
+      runtime_requirements: { authority: ['repository_write'], recoverable: true },
+      authority: { capabilities: { repository_write: 'execute' } }
+    },
+    model_task: { type: 'coding', id: 'model-task' },
+    fleet_task: {
+      id: 'fleet-task',
+      requirements: {
+        modes: ['self_hosted'], os: 'linux', arch: 'x64', labels: ['coding'], toolchains: ['node'], providers: ['native'],
+        network: 'restricted', containers: true, sandbox: true, ephemeral_workspace: true,
+        cpu: 4, memory_mb: 4096, disk_mb: 10000, time_ms: 60000,
+        locality: 'local', privacy_minimum: 'private', verified_identity: true, max_cost_per_hour_usd: 5
+      }
+    },
+    plugin_capabilities: ['repository_write'],
+    required_authority: ['repository_write'],
+    ...overrides
+  };
+}
 
-test('dispatch failure propagates and cleans fleet lease', async () => { const h = harness({ dispatch: { ok: false, error: { code: 'dispatch_failed', message: 'boom' } } }); await assert.rejects(() => h.platform.run(baseInput), error => error.code === 'dispatch_failed'); assert.equal(h.counters().cancelled, 1); assert.equal(h.state(), 'failed'); });
+function makeRuntime(options = {}) {
+  const d = options.d || deterministic();
+  const providers = options.providers || [provider()];
+  const transports = options.transports || {
+    'provider-a': async () => ({ output: { plan: 'implement' }, usage: { input_tokens: 100, output_tokens: 10, cost_usd: 0.01 } })
+  };
+  const modelRouter = createModelRouter({ providers, transports, clock: d.clock, id: d.id, sleep: async ms => d.advance(ms), retries: options.model_retries ?? 0 });
+  const adapters = createFleetAdapterRegistry({ clock: d.clock });
+  registerDefaultFleetAdapters(adapters, {
+    self_hosted: options.dispatch || (async () => ({ result: { branch: 'agent/integrated', pull_request: 'https://github.com/Pokitomas/theawesomehexapp/pull/999' }, cost_usd: 0.2 }))
+  });
+  const fleet = createWorkerFleet({ workers: options.workers || [worker()], adapters, clock: d.clock, id: d.id, lease_ms: options.lease_ms || 1000 });
+  const manifests = options.manifests || [pluginManifest()];
+  const plugins = createPluginRegistry({
+    manifests,
+    policy: options.policy || pluginPolicy(),
+    approvals: options.approvals || [],
+    sandbox: { invoke: async () => ({ ok: true }) },
+    clock: d.clock,
+    id: d.id
+  });
+  for (const manifest of manifests) {
+    if (options.skip_plugin_admission) continue;
+    plugins.admit(manifest.id, manifest.version);
+    plugins.enable(manifest.id);
+  }
+  const control = createMakerControlPlane({ clock: d.clock, id: d.id, lease_ms: options.lease_ms || 1000 });
+  const platform = createMakerRuntimePlatform({ control, modelRouter, fleet, plugins, clock: d.clock, id: d.id });
+  return { d, control, modelRouter, fleet, plugins, platform };
+}
 
-test('recoverable worker failure is recorded and lease is cleaned', async () => { const h = harness({ dispatch: { ok: true, output: { state: 'interrupted', recoverable: true, message: 'lost worker' } } }); const receipt = await h.platform.run(baseInput); assert.equal(receipt.outcome, 'failed'); assert.equal(receipt.components.control_export.job.error.recoverable, true); assert.equal(h.counters().cancelled, 1); });
+test('happy path composes route, placement, authority, durable claim, dispatch, completion, and presentation', async () => {
+  const runtime = makeRuntime();
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'completed');
+  assert.equal(receipt.components.model_route.provider.id, 'provider-a');
+  assert.equal(receipt.components.fleet_placement.worker_id, 'worker-a');
+  assert.equal(receipt.components.plugin_authority.authority.repository_write, 'execute');
+  assert.equal(receipt.components.control_job.state, 'completed');
+  assert.equal(receipt.components.presentation.state, 'completed');
+  assert.equal(receipt.components.presentation.engine.label, 'Admitted Engine');
+  assert.equal(receipt.components.presentation.links.branch, 'agent/integrated');
+  assert.equal(receipt.receipt_digest, platformDigest({ ...receipt, receipt_digest: undefined }));
+});
 
-test('cancellation propagates', async () => { const h = harness({ dispatch: { ok: true, output: { state: 'cancelled', reason: 'operator' } } }); const receipt = await h.platform.run(baseInput); assert.equal(receipt.outcome, 'cancelled'); assert.equal(h.counters().cancelled, 1); });
+test('provider fallback preserves the selected fallback route in the platform receipt', async () => {
+  const runtime = makeRuntime({
+    providers: [provider({ id: 'primary', preferences: { operator_rank: 10 } }), provider({ id: 'fallback' })],
+    transports: {
+      primary: async () => { throw new Error('primary unavailable'); },
+      fallback: async () => ({ output: { plan: 'fallback' }, usage: { input_tokens: 10, output_tokens: 2, cost_usd: 0 } })
+    }
+  });
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'completed');
+  assert.equal(receipt.components.model_route.provider.id, 'fallback');
+  assert.equal(receipt.components.model_route.attempts[0].provider_id, 'primary');
+});
 
-test('secrets and raw endpoints are redacted', async () => { const input = structuredClone(baseInput); input.model_state = { api_token: 'sk-abcdefghijklmnopqrstuvwxyz', endpoint: 'https://provider.example/v1', nested: { password: 'nope' } }; const receipt = await harness().platform.run(input); const text = JSON.stringify(receipt); assert.equal(text.includes('sk-abcdefghijklmnopqrstuvwxyz'), false); assert.equal(text.includes('https://provider.example/v1'), false); assert.match(text, /\[redacted\]/); });
+test('incompatible fleet capacity blocks before durable claim', async () => {
+  const runtime = makeRuntime({ workers: [worker({ resources: { ...worker().resources, memory_mb: 1000 } })] });
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'blocked');
+  assert.equal(receipt.error.code, 'capability_mismatch');
+  assert.equal(receipt.components.control_job, null);
+});
 
-test('receipt integrity is deterministic', async () => { const a = await harness().platform.run(baseInput); const b = await harness().platform.run(baseInput); assert.equal(a.integrity_digest, b.integrity_digest); assert.equal(a.integrity_digest, platformDigest({ ...a, integrity_digest: undefined })); });
+test('unverified workers are rejected as unverified capacity', async () => {
+  const runtime = makeRuntime({ workers: [worker({ identity: { state: 'unverified' } })] });
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'blocked');
+  assert.equal(receipt.error.code, 'unverified_capacity');
+});
 
-test('stale fencing and plugin admission errors are normalized', async () => {
-  await assert.rejects(() => harness({ pluginError: Object.assign(new Error('denied'), { code: 'plugin_denied' }) }).platform.run(baseInput), error => error.code === 'plugin_admission_failure');
-  const h = harness(); h.platform.fleet.finish = async () => { throw Object.assign(new Error('stale'), { code: 'fencing_mismatch' }); };
-  await assert.rejects(() => h.platform.run(baseInput), error => error.code === 'stale_lease_or_fencing_token');
+test('missing admitted plugin capability blocks and releases fleet placement', async () => {
+  const runtime = makeRuntime({ manifests: [pluginManifest({ declared_capabilities: ['read_only'], permissions: { ...pluginManifest().permissions, capabilities: ['read_only'] } })], policy: pluginPolicy({ allowed_permissions: { ...pluginPolicy().allowed_permissions, capabilities: ['read_only'] } }) });
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'blocked');
+  assert.equal(receipt.error.code, 'plugin_capability_missing');
+  assert.equal(runtime.fleet.snapshot().tasks[0].state, 'cancelled');
+});
+
+test('approval-gated deployment authority blocks until the capability is explicitly approved', async () => {
+  const deployment = pluginManifest({
+    id: 'release.plugin', kind: 'deployment', declared_capabilities: ['release'],
+    permissions: { ...pluginManifest().permissions, capabilities: ['release'], privileged: true }
+  });
+  const runtime = makeRuntime({ manifests: [deployment], approvals: ['release.plugin@1.0.0'] });
+  const input = baseInput({
+    plugin_capabilities: ['release'], required_authority: ['deployment'],
+    control_request: { ...baseInput().control_request, idempotency_key: 'approval-gate', runtime_requirements: { authority: ['deployment'], recoverable: true } }
+  });
+  const blocked = await runtime.platform.run(input);
+  assert.equal(blocked.state, 'blocked');
+  assert.equal(blocked.error.code, 'authority_approval_required');
+
+  const approvedRuntime = makeRuntime({ manifests: [deployment], approvals: ['release.plugin@1.0.0'] });
+  const approved = await approvedRuntime.platform.run({ ...input, approved_capabilities: ['deployment'], control_request: { ...input.control_request, idempotency_key: 'approval-granted' } });
+  assert.equal(approved.state, 'completed');
+  assert.equal(approved.components.plugin_authority.authority.deployment, 'execute');
+});
+
+test('dispatch failure becomes a recoverable failed control job and public receipt', async () => {
+  const runtime = makeRuntime({ dispatch: async () => { throw new Error('worker transport down'); } });
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'failed');
+  assert.equal(receipt.error.recoverable, true);
+  assert.equal(receipt.components.control_job.state, 'failed');
+  assert.equal(receipt.components.presentation.state, 'failed');
+  assert.equal(runtime.fleet.snapshot().tasks[0].state, 'cancelled');
+});
+
+test('stale control lease is surfaced as recoverable after a worker returns late', async () => {
+  const d = deterministic();
+  const runtime = makeRuntime({ d, lease_ms: 100, dispatch: async () => { d.advance(101); return { result: { branch: 'late' } }; } });
+  const receipt = await runtime.platform.run(baseInput());
+  assert.equal(receipt.state, 'failed');
+  assert.equal(receipt.error.code, 'lease_expired');
+  assert.equal(receipt.error.recoverable, true);
+});
+
+test('unavailable worker adapter is explicit and does not fabricate dispatch success', async () => {
+  const d = deterministic();
+  const modelRouter = createModelRouter({ providers: [provider()], transports: { 'provider-a': async () => ({ output: { plan: 'x' } }) }, clock: d.clock, id: d.id });
+  const adapters = createFleetAdapterRegistry({ clock: d.clock });
+  registerDefaultFleetAdapters(adapters, {});
+  const fleet = createWorkerFleet({ workers: [worker()], adapters, clock: d.clock, id: d.id, lease_ms: 1000 });
+  const plugins = createPluginRegistry({ manifests: [pluginManifest()], policy: pluginPolicy(), clock: d.clock, id: d.id });
+  plugins.admit('repo.writer'); plugins.enable('repo.writer');
+  const control = createMakerControlPlane({ clock: d.clock, id: d.id, lease_ms: 1000 });
+  const platform = createMakerRuntimePlatform({ control, modelRouter, fleet, plugins, clock: d.clock, id: d.id });
+  const receipt = await platform.run(baseInput());
+  assert.equal(receipt.state, 'blocked');
+  assert.equal(receipt.error.code, 'adapter_unavailable');
+  assert.notEqual(receipt.components.control_job?.state, 'completed');
+});
+
+test('platform receipts preserve every component receipt and redact credentials end to end', async () => {
+  const runtime = makeRuntime({
+    dispatch: async () => ({ result: { branch: 'agent/secure', authorization: 'Bearer abcdefghijklmnopqrstuvwxyz123456', api_key: 'sk-abcdefghijklmnopqrstuvwxyz123456' } })
+  });
+  const receipt = await runtime.platform.run(baseInput({ model_state: { context: { token: 'top-secret' } } }));
+  const serialized = JSON.stringify(receipt);
+  assert.equal(receipt.state, 'completed');
+  assert.ok(receipt.components.model_route.receipt_digest);
+  assert.ok(receipt.components.fleet_placement.receipt_digest);
+  assert.ok(receipt.components.plugin_registry.receipt_digest);
+  assert.ok(receipt.components.control_job.request_digest);
+  assert.ok(receipt.components.dispatch);
+  assert.ok(receipt.components.presentation);
+  assert.ok(!serialized.includes('abcdefghijklmnopqrstuvwxyz'));
+  assert.ok(!serialized.includes('top-secret'));
+});
+
+test('fresh deterministic runtimes produce identical platform receipt integrity', async () => {
+  const first = await makeRuntime().platform.run(baseInput());
+  const second = await makeRuntime().platform.run(baseInput());
+  assert.equal(first.receipt_digest, second.receipt_digest);
+  assert.deepEqual(first, second);
+});
+
+
+test('endpoint and credential-shaped fields are removed from platform receipts', () => {
+  const safe = redactPlatformSecrets({
+    endpoint: 'https://provider.example/v1',
+    credential: 'opaque-value',
+    nested: { runner_secret: 'runner-value', ordinary_url: 'https://example.test/path' }
+  });
+  assert.equal(safe.endpoint, '[redacted]');
+  assert.equal(safe.credential, '[redacted]');
+  assert.equal(safe.nested.runner_secret, '[redacted]');
+  assert.equal(safe.nested.ordinary_url, 'https://example.test/path');
+});
+
+test('runtime profile derives provider, worker, and plugin truth without endpoint or secret metadata', () => {
+  const authority = derivePluginAuthority({
+    enabled: ['repo.writer'],
+    admitted: [{ plugin_id: 'repo.writer', state: 'enabled', manifest: pluginManifest({ metadata: { api_key: 'hidden' } }) }]
+  }, { required_capabilities: ['repository_write'] });
+  const profile = buildRuntimeProfile({
+    route: {
+      provider: { id: 'provider-a', kind: 'openai_compatible', engine_label: 'Engine', admission: { admitted: true } },
+      provider_descriptor: provider({ metadata: { api_key: 'hidden' } })
+    },
+    placement: {
+      worker_id: 'worker-a',
+      worker: { mode: 'self_hosted', platform: { labels: [] }, placement: { locality: 'local', privacy: 'local' } },
+      workspace: { isolation: 'container' }
+    },
+    pluginAuthority: authority,
+    modelTask: { role: 'implementer', required: ['structured_json'], preferred: ['tool_use'] },
+    clock: () => Date.parse('2026-07-15T00:00:00Z')
+  });
+  assert.equal(profile.intelligence.engine_label, 'Engine');
+  assert.equal(profile.endpoint.ownership, 'user');
+  assert.equal(profile.endpoint.transport, 'relay');
+  assert.equal(profile.authority.capabilities.repository_write, 'execute');
+  assert.ok(!JSON.stringify(redactPlatformSecrets(profile)).includes('hidden'));
 });
