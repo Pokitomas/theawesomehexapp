@@ -31,8 +31,24 @@ test('shared intelligence changes by evaluated release rather than ambient users
   assert.equal(manifest.release_model.private_history_is_training_exhaust, false);
   assert.equal(manifest.release_model.shared_capability_changes_only_by_signed_release, true);
   assert.equal(manifest.release_model.candidate_requires_independent_evaluation, true);
+  assert.equal(manifest.release_model.intelligence_and_embodiment_admit_together, true);
+  assert.equal(manifest.release_model.maximal_first_release, true);
   assert.match(vision, /Archie should be excellent when installed/);
   assert.match(vision, /not silent improvement from user activity/);
+});
+
+test('product form is derived from ambition rather than frozen as chat, voice, or one daemon', async () => {
+  assert.equal(manifest.product_form.canonical_interface, null);
+  assert.equal(manifest.product_form.chat_window_is_architecture, false);
+  assert.equal(manifest.product_form.voice_is_architecture, false);
+  assert.equal(manifest.product_form.always_on_daemon_is_architecture, false);
+  assert.equal(manifest.product_form.product_form_is_derived_from_human_outcomes, true);
+  assert.equal(manifest.product_form.strongest_admitted_surfaces_ship_together, true);
+  assert.equal(manifest.product_form.shell_without_brain_is_launchable, false);
+  assert.equal(manifest.product_form.brain_without_required_access_is_launchable, false);
+  assert.match(vision, /The product must not be designed backward from a familiar interface/);
+  assert.match(vision, /Intelligence and embodiment must pass one joint admission contract/);
+  await fs.access(new URL('../archie-launch-contract.mjs', import.meta.url));
 });
 
 test('the impossible proof requires a delivered transferable application', () => {
@@ -50,6 +66,10 @@ test('the launch target requires both admitted intelligence and usable embodimen
   assert.equal(launchTarget.schema, 'archie-launch-target/v1');
   assert.match(launchTarget.claim_boundary, /not a claim that the current runtime satisfies it/);
   assert.equal(launchTarget.launch_policy.joint_intelligence_and_embodiment_admission, true);
+  assert.equal(launchTarget.launch_policy.single_canonical_interface, false);
+  assert.equal(launchTarget.launch_policy.chat_window_is_architecture, false);
+  assert.equal(launchTarget.launch_policy.voice_is_architecture, false);
+  assert.equal(launchTarget.launch_policy.always_on_daemon_is_architecture, false);
   assert.equal(launchTarget.launch_policy.shell_without_brain_may_launch, false);
   assert.equal(launchTarget.launch_policy.brain_without_required_access_may_launch, false);
   assert.equal(launchTarget.launch_policy.all_critical_outcomes_required, true);
