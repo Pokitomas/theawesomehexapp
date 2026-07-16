@@ -200,19 +200,35 @@ function buildPlan(steps, { reason = 'retrieved-composition' } = {}) {
   });
 }
 
+function executionPhase(step = {}) {
+  const text = `${clean(step.tool, 80)} ${clean(step.action, 120)}`.toLowerCase().replace(/[_.:/-]+/g, ' ');
+  if (/\b(?:status|inspect|read|search|load|fetch|list|parse|scan|measure|observe|review|assess)\b/.test(text)) return 0;
+  if (/\b(?:repair|recover|retry|resume|rollback|restore|revert|fix|reconcile|resolve|conflict)\b/.test(text)) return 1;
+  if (/\b(?:test|tests|testing)\b/.test(text)) return 4;
+  if (/\b(?:validate|verify|audit|check|confirm|prove)\b/.test(text)) return 3;
+  return 2;
+}
+
 function greedyDiversity(candidates, maxSteps) {
   const chosen = [];
   const seen = new Set();
-  for (const candidate of candidates) {
+  outer: for (const candidate of candidates) {
     for (const step of candidate.primitive.steps) {
       const key = `${step.tool}:${step.action}`;
       if (seen.has(key)) continue;
-      chosen.push({ ...step, rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}` });
+      chosen.push({
+        ...step,
+        rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}`,
+        composition_order: chosen.length,
+        execution_phase: executionPhase(step)
+      });
       seen.add(key);
-      if (chosen.length >= maxSteps) return chosen;
+      if (chosen.length >= maxSteps) break outer;
     }
   }
-  return chosen;
+  return chosen
+    .sort((left, right) => left.execution_phase - right.execution_phase || left.composition_order - right.composition_order)
+    .map(({ composition_order, execution_phase, ...step }) => step);
 }
 
 function documentFrequency(documents, dimensions) {
