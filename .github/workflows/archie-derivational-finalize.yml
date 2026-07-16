@@ -126,6 +126,7 @@ jobs:
           PY
           rm -f .github/workflows/archie-derivational-finalize.yml
           rm -f .github/workflows/archie-derivational-prepr-validation.yml
+          rm -f .github/workflows/repair-archie-derivational-edge-cases.yml
           rm -f .archie/evaluations/derivational-prepr-validation.json
       - name: Execute exact requested gates
         id: gates
