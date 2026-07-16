@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/archie-coordinator-exact-snapshot-20260715
+  pull_request:
+    branches:
+      - agent/archie-coordinator-exact-snapshot-20260715
   workflow_dispatch:
 
 permissions:
