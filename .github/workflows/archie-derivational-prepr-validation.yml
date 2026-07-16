@@ -1,0 +1,41 @@
+name: Archie derivational pre-PR validation
+
+on:
+  push:
+    branches:
+      - agent/archie-derivational-cognition
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-derivational-prepr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Archie suite
+        run: npm run test:archie
+      - name: Maker suite
+        run: npm run test:maker
+      - name: Derivational benchmark
+        run: npm run benchmark:archie:derive
+      - name: Foundry suite
+        run: npm run test:foundry
+      - name: Weave suite
+        run: npm run test:weave
+      - name: Exact repository gate
+        run: npm run verify:repository
