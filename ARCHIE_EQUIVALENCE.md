@@ -42,7 +42,7 @@ Every report therefore states:
 
 - `benchmark_scope`;
 - `comparison_status: named-model-unmeasured`;
-- `publication_eligible_as_named-model equivalence: false`;
+- `publication_eligible_as_named_model_equivalence: false`;
 - `named_model_equivalence: unmeasured-until-the-same-suite-is-run-through-that-model`.
 
 Generate a leakage-minimized comparison pack with:
