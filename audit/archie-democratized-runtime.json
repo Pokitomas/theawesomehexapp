@@ -1,0 +1,6 @@
+{
+  "schema": "archie-publisher-trigger/v1",
+  "state": "temporary_exact_head_trigger",
+  "execution_claimed": false,
+  "merge_or_deployment": false
+}
