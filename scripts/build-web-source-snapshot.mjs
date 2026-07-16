@@ -82,7 +82,11 @@ export async function buildSnapshot(providers, options = {}) {
   const receipts = [];
   const seen = new Set();
   for (const provider of selected) {
+    const providerId = clean(provider?.id || provider?.name || `provider-${receipts.length + 1}`) || `provider-${receipts.length + 1}`;
     try {
+      if (!provider || typeof provider !== 'object' || Array.isArray(provider)) {
+        throw new Error('provider configuration must be an object');
+      }
       if (provider.kind === 'search' && provider.publicEndpoint !== true) {
         throw new Error('search provider is unavailable until a credential-free public endpoint is configured');
       }
@@ -105,14 +109,14 @@ export async function buildSnapshot(providers, options = {}) {
         admitted += 1;
       }
       receipts.push(Object.freeze({
-        provider: provider.id,
+        provider: providerId,
         status: 'ready',
         admitted,
         evidence: result.receipt
       }));
     } catch (error) {
       receipts.push(Object.freeze({
-        provider: provider.id,
+        provider: providerId,
         status: 'unavailable',
         admitted: 0,
         error: clean(error.message)
@@ -174,15 +178,11 @@ function mastodonProvider(id, host) {
     format: 'json',
     method: 'public-api',
     robots: 'not-applicable',
-    url: `https://${host}/api/v1/timelines/public?limit=40`
+    url: `https://${host}/api/v1/timelines/public?limit=40&local=true`
   };
 }
 
-export function defaultProviders() {
-  const configured = process.env.SIDEWAYS_PUBLIC_SOURCES
-    ? JSON.parse(process.env.SIDEWAYS_PUBLIC_SOURCES)
-    : [];
-  if (Array.isArray(configured) && configured.length) return configured;
+function builtinProviders() {
   return [
     wikinewsProvider('wikinews-a', 'A'),
     wikinewsProvider('wikinews-i', 'I'),
@@ -198,6 +198,33 @@ export function defaultProviders() {
   ];
 }
 
+export function resolveProviderConfiguration(raw = process.env.SIDEWAYS_PUBLIC_SOURCES) {
+  const configured = clean(raw);
+  if (!configured) return Object.freeze({ providers: Object.freeze(builtinProviders()), receipt: null });
+  try {
+    const parsed = JSON.parse(configured);
+    if (!Array.isArray(parsed)) throw new Error('configuration must be a JSON array');
+    return Object.freeze({
+      providers: Object.freeze(parsed.length ? parsed : builtinProviders()),
+      receipt: null
+    });
+  } catch (error) {
+    return Object.freeze({
+      providers: Object.freeze(builtinProviders()),
+      receipt: Object.freeze({
+        provider: 'configured-public-sources',
+        status: 'unavailable',
+        admitted: 0,
+        error: `invalid SIDEWAYS_PUBLIC_SOURCES: ${clean(error.message)}`
+      })
+    });
+  }
+}
+
+export function defaultProviders() {
+  return resolveProviderConfiguration().providers;
+}
+
 function parseArgs(argv) {
   const args = { output: 'corpus/general.jsonl.gz' };
   for (let index = 0; index < argv.length; index += 1) {
@@ -209,10 +236,13 @@ function parseArgs(argv) {
 
 export async function runSnapshotCLI(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  const providers = args.providers
-    ? JSON.parse(fs.readFileSync(args.providers, 'utf8'))
-    : defaultProviders();
-  const snapshot = await buildSnapshot(providers);
+  const resolution = args.providers
+    ? { providers: JSON.parse(fs.readFileSync(args.providers, 'utf8')), receipt: null }
+    : resolveProviderConfiguration();
+  const built = await buildSnapshot(resolution.providers);
+  const snapshot = resolution.receipt
+    ? Object.freeze({ ...built, receipts: Object.freeze([resolution.receipt, ...built.receipts]) })
+    : built;
   writeSnapshot(snapshot, args.output);
   process.stdout.write(`${JSON.stringify({
     schema: snapshot.schema,

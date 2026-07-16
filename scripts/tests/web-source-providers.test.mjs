@@ -24,6 +24,7 @@ test('default public providers are bounded, diverse, credential-free windows', (
     assert.equal(url.password, '');
     assert.equal(provider.robots, 'not-applicable');
     assert.ok(['public-api', 'mediawiki-api'].includes(provider.method));
+    if (provider.kind === 'social') assert.equal(url.searchParams.get('local'), 'true');
     for (const key of url.searchParams.keys()) {
       assert.doesNotMatch(key, /token|secret|key|credential|password/i);
     }

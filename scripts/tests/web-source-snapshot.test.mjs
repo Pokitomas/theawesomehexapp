@@ -14,6 +14,7 @@ import {
   parseSourcePayload,
   parseSyndication,
   requestPublicResource,
+  resolveProviderConfiguration,
   resolvePublicTarget,
   robotsAllows,
   safeSourceURL,
@@ -139,6 +140,33 @@ test('live MIME admission ignores parser hints and HTML canonicals use the final
   });
   assert.equal(result.records[0].url, 'https://redirected.example/canonical');
   assert.equal(result.records[0].provenance.source_url, configuredURL);
+});
+
+test('invalid configured-source JSON falls back truthfully without aborting the snapshot', () => {
+  const malformed = resolveProviderConfiguration('{not-json');
+  assert.ok(malformed.providers.length > 0);
+  assert.equal(malformed.receipt.provider, 'configured-public-sources');
+  assert.equal(malformed.receipt.status, 'unavailable');
+  assert.match(malformed.receipt.error, /invalid SIDEWAYS_PUBLIC_SOURCES/);
+
+  const wrongShape = resolveProviderConfiguration('{"url":"https://example.com"}');
+  assert.ok(wrongShape.providers.length > 0);
+  assert.match(wrongShape.receipt.error, /JSON array/);
+
+  const configured = resolveProviderConfiguration('[{"id":"custom","url":"https://example.com/feed"}]');
+  assert.equal(configured.receipt, null);
+  assert.equal(configured.providers[0].id, 'custom');
+});
+
+test('malformed provider entries become bounded unavailable receipts instead of aborting the build', async () => {
+  const snapshot = await buildSnapshot([null, { id: 'missing-url', name: 'Missing URL' }], {
+    now: '2026-07-15T00:00:00.000Z'
+  });
+  assert.equal(snapshot.records.length, 0);
+  assert.equal(snapshot.receipts.length, 2);
+  assert.deepEqual(snapshot.receipts.map(receipt => receipt.status), ['unavailable', 'unavailable']);
+  assert.equal(snapshot.receipts[0].provider, 'provider-1');
+  assert.equal(snapshot.receipts[1].provider, 'missing-url');
 });
 
 test('snapshot build is bounded, deduplicated, provenance-bearing, and fails providers honestly', async () => {
