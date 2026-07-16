@@ -26,7 +26,9 @@ jobs:
       - name: Verify exact base
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "8b26aa602c6e20161780c3edc3e659c797078a30" || { echo "unexpected base"; exit 1; }
+          git fetch origin main --depth=1
+          test "$(git rev-parse origin/main)" = "8b26aa602c6e20161780c3edc3e659c797078a30" || { echo "main moved"; exit 1; }
+          test "$(git merge-base HEAD origin/main)" = "8b26aa602c6e20161780c3edc3e659c797078a30" || { echo "unexpected merge base"; exit 1; }
       - name: Apply reviewed patch
         shell: bash
         env:
