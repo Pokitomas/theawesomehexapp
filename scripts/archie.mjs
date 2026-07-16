@@ -12,6 +12,7 @@ import {
   writeArtifactKeyPair
 } from './archie-artifact-envelope.mjs';
 import { createCheckpointUpdatePackage } from './archie-checkpoint-update.mjs';
+import { runArchieSelfHostingSample } from './archie-self-hosting-sample.mjs';
 import {
   benchmarkModel,
   inspectModel,
@@ -110,6 +111,8 @@ Usage:
   archie checkpoint <parent-id@version> <artifact> --metadata <json> --lineage <json> \\
     --output-dir <directory> --recipient-key <x25519-public.pem> \\
     --signing-private <ed25519-private.pem> --signing-public <ed25519-public.pem>
+  archie self-host-sample --base-sha <sha> --branch <branch> [--seed <n>] \\
+    [--target-prefix <path>] [--state-path <path>]
   archie pull <manifest> --trust-key <publisher-public.pem> [--device-key <x25519-private.pem>]
   archie run <id@version> --prompt <text> [--runner <path>]
   archie inspect <id@version>
@@ -127,6 +130,13 @@ Checkpoint:
   The installed parent must match exactly. Model ID, architecture, ABI, format,
   quantization, context limit, runtime template, immutable digest, and mutable-region
   declaration may not change. The version, mutable digest, and benchmark receipt must change.
+
+Self-host sample:
+  --root <path>             Repository checkout to modify through Maker. Defaults to cwd.
+  --repository <owner/name> Receipt identity. Defaults to Pokitomas/theawesomehexapp.
+  --target-prefix <path>    Maker-owned sample path. Defaults to samples/archie-self-hosting-app.
+  --state-path <path>       External Maker event state; defaults to the OS temporary directory.
+  Sideways generates the deterministic task, Archie emits AIL, and only Maker writes.
 
 Pull:
   --device-key <path>       Repeat to try device or recovery private keys.
@@ -161,6 +171,32 @@ export async function main(argv = process.argv.slice(2)) {
     const type = last(flags, '--type', 'recipient');
     const outputDirectory = requiredFlag(flags, '--output-dir');
     print(await writeArtifactKeyPair(outputDirectory, type));
+    return;
+  }
+
+  if (command === 'self-host-sample') {
+    const result = await runArchieSelfHostingSample({
+      root: path.resolve(last(flags, '--root', process.cwd())),
+      repository: last(flags, '--repository', 'Pokitomas/theawesomehexapp'),
+      base_sha: requiredFlag(flags, '--base-sha'),
+      branch: requiredFlag(flags, '--branch'),
+      seed: integer(flags, '--seed', 0),
+      target_prefix: last(flags, '--target-prefix'),
+      state_path: last(flags, '--state-path')
+    });
+    print({
+      schema: 'archie-self-hosting-sample-result/v1',
+      scenario_id: result.scenario.scenario_id,
+      scenario_digest: result.scenario.scenario_digest,
+      semantic_digest: result.plan.semantic_digest,
+      schedule_digest: result.plan.schedule_digest,
+      maker_receipt_digest: result.maker_receipt.receipt_digest,
+      trajectory_digest: result.trajectory.trajectory_digest,
+      changed_paths: result.maker_receipt.changed_paths,
+      state_path: result.state_path,
+      trajectory_path: result.trajectory_path,
+      human_gates: result.maker_receipt.human_gates
+    });
     return;
   }
 

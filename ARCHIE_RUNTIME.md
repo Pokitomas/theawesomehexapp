@@ -19,6 +19,11 @@ npm run archie -- checkpoint <id@version> ./updated-model.gguf \
   --recipient-key ./keys/device/archie-device-x25519-public.pem \
   --signing-private ./keys/publisher/archie-publisher-ed25519-private.pem \
   --signing-public ./keys/publisher/archie-publisher-ed25519-public.pem
+npm run archie -- self-host-sample \
+  --base-sha <exact-commit-sha> \
+  --branch agent/archie-self-hosting-sample \
+  --seed 7 \
+  --target-prefix samples/archie-self-hosting-app
 npm run archie -- run <id@version> --prompt "..."
 npm run archie -- inspect <id@version>
 npm run archie -- benchmark <id@version> --suite <suite.json>
@@ -90,6 +95,20 @@ This contract does not train weights and cannot independently prove that declare
 
 `benchmark` executes `archie-benchmark-suite/v1` cases through the same local run path and emits a machine-readable report tied to the suite, model, artifact, environment, and individual run receipts.
 
+## Deterministic self-hosting sample
+
+`self-host-sample` executes a bounded end-to-end reference task without giving Archie a privileged modification path:
+
+1. Sideways generates a deterministic seeded app objective, exact permitted scope, expected file digests, and replay identity.
+2. Archie expresses the task as AIL with `write_authority: false`, a Maker local-write capability, an exact target grant, ordered write steps, verification, learning classification, and halt.
+3. `MakerEngine` acquires a one-writer lease limited to the target prefix, writes the three sample files, creates an event checkpoint, and runs only the allowlisted deterministic verifier.
+4. A successful terminal Maker receipt becomes an `archie-self-hosting-trajectory/v1` positive trajectory. A verification failure is preserved as a negative trajectory.
+5. Merge, deployment, production-data, and training-spend authority remain human gates.
+
+The verifier checks exact aggregate bytes plus the app landmark, accessible button label, polite live status, visible run counter, deterministic click behavior, and bound state schema. Maker state and the trajectory are kept outside the target app path.
+
+The built-in plan and generated app are deterministic fixtures. This proves the Sideways → AIL → Maker authority/verification/trajectory plumbing, not that a trained Archie model independently designed the app.
+
 ## Trust and key separation
 
 A manifest's embedded public key proves signature consistency but is not trust by itself. Normal pulls require one or more explicitly trusted publisher public-key files. `--allow-untrusted` is development-only and is recorded in the receipt.
@@ -100,6 +119,6 @@ All model-artifact keys are unrelated to PR #397's short-lived execution HMAC. T
 
 ## Deliberate boundary
 
-This is real encrypted artifact packaging, transport, checkpoint-transition admission, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
+This is real encrypted artifact packaging, transport, checkpoint-transition admission, deterministic self-hosting through Maker, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
 
 The default `npm run maker` path is unchanged by this tranche. Sideways remains deterministic state, Maker remains the only permissioned effect executor, and Archie model artifacts receive no privileged repository modification path.
