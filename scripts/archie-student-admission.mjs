@@ -6,7 +6,8 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import {
   ARCHIE_LAUNCH_CANDIDATE_SCHEMA,
-  digest
+  digest,
+  validateLaunchTarget
 } from './archie-launch-contract.mjs';
 
 export const ARCHIE_STUDENT_ADMISSION_CANDIDATE_SCHEMA = 'archie-student-admission-candidate/v1';
@@ -49,6 +50,12 @@ const finite = (value, field, { minimum = -Infinity } = {}) => {
   return number;
 };
 
+const metricValue = (value, field, name) => {
+  const number = finite(value, field);
+  if (name.includes('_rate') && (number < 0 || number > 1)) throw new Error(`${field} must be between 0 and 1.`);
+  return number;
+};
+
 const positiveInteger = (value, field, minimum = 1) => {
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < minimum) throw new Error(`${field} must be an integer greater than or equal to ${minimum}.`);
@@ -61,6 +68,12 @@ const uniqueStrings = (values, field, { allowEmpty = false } = {}) => {
   if (!allowEmpty && !output.length) throw new Error(`${field} must not be empty.`);
   if (new Set(output).size !== output.length) throw new Error(`${field} contains duplicate values.`);
   return Object.freeze(output);
+};
+
+const sameStringSet = (left, right) => {
+  const a = [...left].sort();
+  const b = [...right].sort();
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 };
 
 const safeRelative = (value, field) => {
@@ -110,17 +123,6 @@ function verifyEmbeddedDigest(value, key, field) {
   delete body[key];
   if (digest(body) !== claimed) throw new Error(`${field}.${key} mismatch.`);
   return claimed;
-}
-
-function normalizeMetricThresholds(input) {
-  const thresholds = object(input, 'intelligence.minimum_metrics');
-  const output = {};
-  for (const [nameInput, threshold] of Object.entries(thresholds)) {
-    const name = clean(nameInput, 'intelligence.minimum_metrics key', 200);
-    output[name] = finite(threshold, `intelligence.minimum_metrics.${name}`);
-  }
-  if (!Object.keys(output).length) throw new Error('intelligence.minimum_metrics must not be empty.');
-  return Object.freeze(output);
 }
 
 export function validateStudentAdmissionCandidate(input) {
@@ -178,9 +180,8 @@ export function validateStudentAdmissionCandidate(input) {
 
   const intelligenceInput = object(candidate.intelligence, 'intelligence');
   const intelligence = Object.freeze({
-    domains: uniqueStrings(intelligenceInput.domains, 'intelligence.domains'),
-    requirements: uniqueStrings(intelligenceInput.requirements, 'intelligence.requirements'),
-    minimum_metrics: normalizeMetricThresholds(intelligenceInput.minimum_metrics)
+    target_id: portableIdentifier(intelligenceInput.target_id, 'intelligence.target_id'),
+    target_digest: exactDigest(intelligenceInput.target_digest, 'intelligence.target_digest')
   });
 
   const policyInput = object(candidate.resource_policy || {}, 'resource_policy');
@@ -220,7 +221,7 @@ function reportMetrics(report, field) {
   const normalized = {};
   for (const [nameInput, value] of Object.entries(metrics)) {
     const name = clean(nameInput, `${field}.metrics key`, 200);
-    normalized[name] = finite(value, `${field}.metrics.${name}`);
+    normalized[name] = metricValue(value, `${field}.metrics.${name}`, name);
   }
   return Object.freeze(normalized);
 }
@@ -229,8 +230,11 @@ function addCheck(checks, id, passed, detail = null) {
   checks.push(Object.freeze({ id, passed: Boolean(passed), detail }));
 }
 
-export async function evaluateStudentAdmission(input, { root = '.' } = {}) {
+export async function evaluateStudentAdmission(input, { root = '.', target: targetInput } = {}) {
+  if (!targetInput) throw new Error('A founder intelligence target is required.');
   const candidate = validateStudentAdmissionCandidate(input);
+  const target = validateLaunchTarget(targetInput);
+  const targetDigest = digest(target);
   const loaded = await Promise.all([
     readBoundFile(root, candidate.artifact, 'artifact'),
     readBoundFile(root, candidate.tokenizer, 'tokenizer'),
@@ -272,6 +276,8 @@ export async function evaluateStudentAdmission(input, { root = '.' } = {}) {
   const runtimeIdentityDigest = digest(runtimeIdentity);
   const checks = [];
 
+  addCheck(checks, 'target-id-bound', candidate.intelligence.target_id === target.id);
+  addCheck(checks, 'target-digest-bound', candidate.intelligence.target_digest === targetDigest);
   addCheck(checks, 'artifact-nonempty', artifactFile.bytes.length > 0);
   addCheck(checks, 'tokenizer-nonempty', tokenizerFile.bytes.length > 0);
   addCheck(checks, 'runtime-executable-nonempty', executableFile.bytes.length > 0);
@@ -283,6 +289,12 @@ export async function evaluateStudentAdmission(input, { root = '.' } = {}) {
 
   for (const [id, passed] of reportBindingChecks(evaluation, candidate, runtimeIdentityDigest)) addCheck(checks, `evaluation-${id}`, passed);
   addCheck(checks, 'evaluation-tokenizer-bound', evaluation.tokenizer_sha256 === candidate.tokenizer.sha256);
+  addCheck(checks, 'evaluation-target-id-bound', evaluation.target_id === target.id);
+  addCheck(checks, 'evaluation-target-digest-bound', evaluation.target_digest === targetDigest);
+  const evaluationDomains = uniqueStrings(evaluation.domains, 'independent_evaluation.domains');
+  const evaluationRequirements = uniqueStrings(evaluation.intelligence_requirements, 'independent_evaluation.intelligence_requirements');
+  addCheck(checks, 'evaluation-domain-scope-bound', sameStringSet(evaluationDomains, target.intelligence_target.domains));
+  addCheck(checks, 'evaluation-requirement-scope-bound', sameStringSet(evaluationRequirements, target.intelligence_target.requirements));
   addCheck(checks, 'evaluation-completed', evaluation.completed === true);
   addCheck(checks, 'evaluation-not-mock', evaluation.mock === false);
   addCheck(checks, 'evaluation-independent', evaluation.evaluator?.independent === true && Boolean(String(evaluation.evaluator?.id || '').trim()));
@@ -291,8 +303,10 @@ export async function evaluateStudentAdmission(input, { root = '.' } = {}) {
   addCheck(checks, 'evaluation-promotion-eligible', evaluation.promotion_eligible === true);
   addCheck(checks, 'evaluation-hidden-dataset-digest', HEX_256.test(String(evaluation.dataset?.digest || '')));
   const observedMetrics = reportMetrics(evaluation, 'independent_evaluation');
-  for (const [name, threshold] of Object.entries(candidate.intelligence.minimum_metrics)) {
+  const admittedMetrics = {};
+  for (const [name, threshold] of Object.entries(target.intelligence_target.minimum_metrics)) {
     const observed = observedMetrics[name];
+    admittedMetrics[name] = observed ?? null;
     addCheck(checks, `metric:${name}`, metricPasses(name, threshold, observed), { threshold, observed: observed ?? null });
   }
 
@@ -333,22 +347,23 @@ export async function evaluateStudentAdmission(input, { root = '.' } = {}) {
 
   const blockers = checks.filter(check => !check.passed).map(check => check.id);
   const admitted = blockers.length === 0;
-  const launchBinding = Object.freeze({
+  const launchBinding = admitted ? Object.freeze({
     schema: ARCHIE_LAUNCH_CANDIDATE_SCHEMA,
     id: candidate.id,
     artifact_digest: candidate.artifact.sha256,
     intelligence_report_digest: evaluationReportDigest,
     authority_report_digest: authorityReportDigest,
     reproduction_receipt_digest: reproductionReceiptDigest,
-    domains: candidate.intelligence.domains,
-    intelligence_requirements: candidate.intelligence.requirements,
-    metrics: observedMetrics,
+    domains: target.intelligence_target.domains,
+    intelligence_requirements: target.intelligence_target.requirements,
+    metrics: Object.freeze(admittedMetrics),
     faculties: {},
     interfaces: []
-  });
+  }) : null;
   const body = {
     schema: ARCHIE_STUDENT_ADMISSION_SCHEMA,
     candidate_id: candidate.id,
+    target: { id: target.id, digest: targetDigest },
     decision: admitted ? 'admitted-provider-neutral-student' : 'rejected-incomplete-student-evidence',
     artifact: candidate.artifact,
     tokenizer: candidate.tokenizer,
@@ -371,8 +386,8 @@ export async function evaluateStudentAdmission(input, { root = '.' } = {}) {
     blockers,
     launch_candidate_intelligence_binding: launchBinding,
     claim_boundary: admitted
-      ? 'This exact artifact, tokenizer, runtime identity, hidden evaluation, authority report, clean reproduction, license, and sustained resource evidence are admitted together. Embodiment and machine launch admission remain separate required gates.'
-      : 'This candidate must not be represented as an admitted Archie student. Missing or failed evidence remains explicit and cannot be replaced by model reputation, provider claims, or interface polish.'
+      ? 'This exact artifact, tokenizer, runtime identity, founder intelligence target, hidden evaluation, authority report, clean reproduction, license, and sustained resource evidence are admitted together. Embodiment and machine launch admission remain separate required gates.'
+      : 'This candidate must not be represented as an admitted Archie student and receives no launch-candidate binding. Missing or failed evidence cannot be replaced by model reputation, provider claims, or interface polish.'
   };
   return Object.freeze({ ...body, admission_digest: digest(body) });
 }
@@ -397,7 +412,7 @@ function parse(argv) {
 }
 
 function usage() {
-  return `Archie provider-neutral student admission\n\nUsage:\n  node scripts/archie-student-admission.mjs admit --candidate candidate.json [--output admission.json]\n\nThe candidate manifest binds one exact artifact, tokenizer, runtime executable and ABI, license and provenance, independent hidden evaluation, authority report, second clean-environment reproduction, and sustained machine-resource evidence.`;
+  return `Archie provider-neutral student admission\n\nUsage:\n  node scripts/archie-student-admission.mjs admit --candidate candidate.json [--target founder/archie-launch-target.json] [--output admission.json]\n\nThe candidate manifest binds one exact artifact, tokenizer, runtime executable and ABI, license and provenance, independent hidden evaluation against the founder intelligence target, authority report, second clean-environment reproduction, and sustained machine-resource evidence.`;
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -410,8 +425,13 @@ export async function main(argv = process.argv.slice(2)) {
   const candidateFilename = flags.get('--candidate');
   if (!candidateFilename) throw new Error('--candidate is required.');
   const resolvedCandidate = path.resolve(candidateFilename);
-  const candidate = JSON.parse(await fs.readFile(resolvedCandidate, 'utf8'));
-  const admission = await evaluateStudentAdmission(candidate, { root: path.dirname(resolvedCandidate) });
+  const defaultTarget = fileURLToPath(new URL('../founder/archie-launch-target.json', import.meta.url));
+  const targetFilename = path.resolve(flags.get('--target') || defaultTarget);
+  const [candidate, target] = await Promise.all([
+    fs.readFile(resolvedCandidate, 'utf8').then(JSON.parse),
+    fs.readFile(targetFilename, 'utf8').then(JSON.parse)
+  ]);
+  const admission = await evaluateStudentAdmission(candidate, { root: path.dirname(resolvedCandidate), target });
   const text = `${JSON.stringify(admission, null, 2)}\n`;
   const output = flags.get('--output');
   if (output) {
