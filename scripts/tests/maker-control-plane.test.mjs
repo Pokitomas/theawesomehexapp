@@ -107,6 +107,7 @@ assert.equal(value.authority.capabilities.git, 'manage');
 assert.equal(value.authority.capabilities.deployment, 'approval_required');
 assert.equal(value.authority.capabilities.settings, 'approval_required');
 assert.equal(value.authority.capabilities.secrets, 'reference_only');
+assert.deepEqual(value.authority.explicit_capabilities, []);
 assert.throws(() => normalizeControlRequest({ repository: 'bad', request: 'x' }), /owner\/name/);
 });
 test('runtime profile describes capabilities without persisting raw provider or endpoint secrets', () => {
@@ -256,7 +257,9 @@ assert.equal((await restored.get(job.id)).state, 'cancelled');
 test('HTTP contract exposes queue, claims, product presentation, completion, and events', async () => {
 const d = deterministic();
 const control = createMakerControlPlane(d);
-const handle = createControlHttpHandler(control);
+const handle = createControlHttpHandler(control, {
+authenticator: async () => ({ method: 'test', subject: 'test', scopes: ['control'] })
+});
 const submit = await handle(new Request('http://maker/v1/jobs', {
 method: 'POST',
 headers: { 'content-type': 'application/json' },
@@ -400,6 +403,7 @@ assert.equal(descriptors.find(item => item.id === 'in-process').available, true)
 assert.equal(descriptors.find(item => item.id === 'remote-http').available, false);
 const control = createMakerControlPlane({ ...d, adapters: registry });
 const job = await control.submit(request({ idempotency_key: 'adapter' }));
+await control.claim({ worker_id: 'worker-a', runtime: runtime() });
 const receipt = await control.dispatch(job.id, 'in-process', { api_key: 'raw-secret' });
 assert.equal(receipt.ok, true);
 assert.equal(receipt.output.authorization, '[redacted]');
@@ -412,12 +416,14 @@ error => error.code === 'adapter_unavailable'
 test('authenticator supports loopback, bearer, API key, GitHub identity, and mTLS without persisting secrets', async () => {
 const authenticate = createControlAuthenticator({
 allow_loopback: true,
+loopback_verifier: request => request.headers.get('x-verified-loopback') === 'yes',
+trust_identity_headers: true,
 bearer_digests: [hashCredential('bearer-secret')],
 api_key_digests: [hashCredential('api-secret')],
 github_subjects: ['repo:Pokitomas/theawesomehexapp:ref:refs/heads/main'],
 mtls_subjects: ['CN=maker-worker']
 });
-assert.equal((await authenticate(new Request('http://127.0.0.1/v1/health'))).method, 'loopback');
+assert.equal((await authenticate(new Request('http://127.0.0.1/v1/health', { headers: { 'x-verified-loopback': 'yes' } }))).method, 'loopback');
 assert.equal((await authenticate(new Request('https://maker.example/v1/health', {
 headers: { authorization: 'Bearer bearer-secret' }
 }))).method, 'bearer');
@@ -617,6 +623,202 @@ recoverable: true
 assert.ok(!error.message.includes('abcdefghijklmnopqrstuvwxyz'));
 assert.equal(error.recoverable, true);
 });
+
+test('default HTTP surface exposes only public projections and never lease tokens', async () => {
+const d = deterministic();
+const control = createMakerControlPlane(d);
+const job = await control.submit(request({ idempotency_key: 'public-only' }));
+const claimed = await control.claim({ worker_id: 'worker-public', runtime: runtime() });
+const handle = createControlHttpHandler(control);
+const presentation = await handle(new Request(`https://maker.example/v1/jobs/${job.id}/presentation`));
+assert.equal(presentation.status, 200);
+assert.ok(!JSON.stringify(await presentation.json()).includes(claimed.lease.token));
+for (const [method, url, body] of [
+['GET', 'https://maker.example/v1/jobs', undefined],
+['GET', `https://maker.example/v1/jobs/${job.id}`, undefined],
+['GET', 'https://maker.example/v1/events', undefined],
+['POST', `https://maker.example/v1/jobs/${job.id}/cancel`, '{}']
+]) {
+const response = await handle(new Request(url, {
+method,
+headers: body ? { 'content-type': 'application/json' } : undefined,
+body
+}));
+assert.equal(response.status, 403, `${method} ${url} must require control scope`);
+}
+});
+
+test('loopback and proxy identity cannot be forged from URL or client headers', async () => {
+const untrusted = createControlAuthenticator({
+allow_loopback: true,
+github_subjects: ['repo:trusted'],
+mtls_subjects: ['CN=trusted']
+});
+await assert.rejects(
+untrusted(new Request('http://127.0.0.1/v1/jobs', { headers: { host: '127.0.0.1' } })),
+error => error.code === 'unauthorized'
+);
+await assert.rejects(
+untrusted(new Request('https://maker.example/v1/jobs', { headers: { 'x-maker-github-subject': 'repo:trusted' } })),
+error => error.code === 'unauthorized'
+);
+const trusted = createControlAuthenticator({
+trust_identity_headers: true,
+github_subjects: ['repo:trusted']
+});
+assert.equal((await trusted(new Request('https://maker.example/v1/jobs', {
+headers: { 'x-maker-github-subject': 'repo:trusted' }
+}))).method, 'github_identity');
+});
+
+test('concurrent submit and claim operations are serialized and idempotent', async () => {
+const d = deterministic();
+const control = createMakerControlPlane({ ...d, max_running: 1 });
+const [sameA, sameB] = await Promise.all([
+control.submit(request({ idempotency_key: 'race-same' })),
+control.submit(request({ idempotency_key: 'race-same' }))
+]);
+assert.equal(sameA.id, sameB.id);
+assert.equal((await control.list()).length, 1);
+assert.equal((await control.events()).length, 1);
+await control.submit(request({ idempotency_key: 'race-second' }));
+const claims = await Promise.all([
+control.claim({ worker_id: 'race-a', runtime: runtime() }),
+control.claim({ worker_id: 'race-b', runtime: runtime() })
+]);
+assert.equal(claims.filter(Boolean).length, 1);
+assert.equal((await control.list({ state: 'running' })).length, 1);
+assert.equal((await control.list({ state: 'queued' })).length, 1);
+});
+
+test('concurrent events remain monotonic with no duplicate sequence', async () => {
+const d = deterministic();
+const control = createMakerControlPlane(d);
+await Promise.all(Array.from({ length: 20 }, (_, index) => control.submit(request({
+idempotency_key: `event-race-${index}`,
+request: `task ${index}`
+}))));
+const events = await control.events();
+assert.deepEqual(events.map(event => event.sequence), Array.from({ length: 20 }, (_, index) => index + 1));
+assert.equal(new Set(events.map(event => event.event_id)).size, 20);
+});
+
+test('failed event append rolls job state back and preserves sequence', async () => {
+const base = createMemoryControlStore();
+let fail = true;
+const store = {
+getJob: id => base.getJob(id),
+putJob: job => base.putJob(job),
+listJobs: () => base.listJobs(),
+appendEvent: event => {
+if (fail) {
+fail = false;
+throw new MakerControlError('append_failed', 'synthetic append failure', 503);
+}
+return base.appendEvent(event);
+},
+listEvents: after => base.listEvents(after),
+replaceSnapshot: snapshot => base.replaceSnapshot(snapshot),
+snapshot: () => base.snapshot()
+};
+const d = deterministic();
+const control = createMakerControlPlane({ store, clock: d.clock, id: d.id });
+await assert.rejects(control.submit(request({ idempotency_key: 'atomic-fail' })), error => error.code === 'append_failed');
+assert.deepEqual(await control.list(), []);
+assert.deepEqual(await control.events(), []);
+const recovered = await control.submit(request({ idempotency_key: 'atomic-pass' }));
+assert.ok(recovered.id);
+assert.deepEqual((await control.events()).map(event => event.sequence), [1]);
+});
+
+test('shutdown state survives snapshot restore and blocks later mutation', async () => {
+const d = deterministic();
+const store = createMemoryControlStore();
+const first = createMakerControlPlane({ store, clock: d.clock, id: d.id });
+await first.close();
+const restored = createMakerControlPlane({ store: createMemoryControlStore(await store.snapshot()), clock: d.clock, id: d.id });
+assert.equal((await restored.health()).ready, false);
+await assert.rejects(restored.submit(request({ idempotency_key: 'after-close' })), error => error.code === 'control_closed');
+});
+
+test('migration recomputes request digests and redacts imported worker payloads', () => {
+const d = deterministic();
+const migrated = migrateControlSnapshot({
+jobs: [['legacy', {
+id: 'legacy',
+state: 'failed',
+revision: 1,
+request: request({ idempotency_key: 'legacy-migration' }),
+request_digest: 'a'.repeat(64),
+result: { authorization: 'Bearer abcdefghijklmnopqrstuvwxyz' },
+error: { code: 'failed', message: 'token sk-abcdefghijklmnopqrstuvwxyz', recoverable: true },
+adapter: { api_key: 'raw-secret' }
+}]],
+events: []
+}, d.clock);
+const job = migrated.jobs[0][1];
+assert.notEqual(job.request_digest, 'a'.repeat(64));
+assert.ok(!JSON.stringify(job).includes('abcdefghijklmnopqrstuvwxyz'));
+assert.ok(!JSON.stringify(job).includes('raw-secret'));
+});
+
+test('effective authority rejects missing runtime power and expired grants', async () => {
+const d = deterministic();
+const registry = createWorkerAdapterRegistry({ clock: d.clock, timeout_ms: 100 });
+registry.register({ id: 'local', available: true, invoke: async () => ({ ok: true }) });
+const control = createMakerControlPlane({ ...d, adapters: registry });
+const job = await control.submit(request({ idempotency_key: 'authority-effective' }));
+const missingFilesystem = runtime({
+authority: { capabilities: { ...runtime().authority.capabilities, filesystem: 'none' } }
+});
+assert.equal(await control.claim({ worker_id: 'weak', runtime: missingFilesystem }), null);
+await control.approveTemporaryGrant(job.id, {
+capability: 'deployment',
+level: 'execute',
+ttl_ms: 1000,
+approved_by: 'operator'
+});
+const executable = runtime({
+authority: { capabilities: { ...runtime().authority.capabilities, deployment: 'execute' } }
+});
+const claim = await control.claim({ worker_id: 'strong', runtime: executable });
+assert.equal(claim.id, job.id);
+d.advance(1001);
+await assert.rejects(control.dispatch(job.id, 'local'), error => error.code === 'authority_unavailable');
+const view = await control.view(job.id);
+assert.equal(view.authority.temporary_grants.length, 0);
+assert.equal(view.authority.expired_grants.length, 1);
+});
+
+test('adapter timeout is abort-signaled and reported as indeterminate', async () => {
+let aborted = false;
+const registry = createWorkerAdapterRegistry({ timeout_ms: 10 });
+registry.register({
+id: 'pending',
+available: true,
+invoke: async (_job, _context, { signal }) => new Promise(resolve => {
+signal.addEventListener('abort', () => { aborted = true; resolve({ late: true }); }, { once: true });
+})
+});
+const receipt = await registry.dispatch('pending', { id: 'job-timeout' }, {});
+assert.equal(receipt.ok, false);
+assert.equal(receipt.error.code, 'adapter_timeout_indeterminate');
+assert.equal(aborted, true);
+});
+
+test('concurrent CLI writers preserve both state updates under a filesystem lock', async () => {
+const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'maker-control-cli-race-'));
+const state = path.join(directory, 'state.json');
+const env = { MAKER_CONTROL_STATE: state };
+await Promise.all([
+runMakerControlCli(['submit', JSON.stringify(request({ idempotency_key: 'cli-race-a', request: 'a' }))], env),
+runMakerControlCli(['submit', JSON.stringify(request({ idempotency_key: 'cli-race-b', request: 'b' }))], env)
+]);
+const listed = JSON.parse((await runMakerControlCli(['list'], env)).output);
+assert.equal(listed.length, 2);
+await fs.rm(directory, { recursive: true, force: true });
+});
+
 test('published JSON Schema covers the full durable control-plane receipt family', async () => {
 const schema = JSON.parse(await fs.readFile(
 new URL('../../maker/contracts/control-plane.schema.json', import.meta.url),
@@ -642,4 +844,7 @@ for (const field of [
 assert.ok(schema.$defs.job.required.includes(field), `job schema missing ${field}`);
 }
 assert.equal(schema.$defs.snapshot.properties.schema.const, 'sideways-maker-control-snapshot/v2');
+assert.ok(schema.$defs.authorityRequest.required.includes('explicit_capabilities'));
+assert.ok(schema.$defs.snapshot.required.includes('metadata'));
+assert.deepEqual(schema.$defs.snapshot.properties.metadata.required.sort(), ['closed', 'closed_at']);
 });

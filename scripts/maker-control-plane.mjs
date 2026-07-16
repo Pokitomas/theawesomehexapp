@@ -226,7 +226,45 @@ observed_at: clean(input.observed_at || now(clock), 100)
 function authorityUsable(level) {
 return ['read', 'write', 'execute', 'manage', 'reference_only', 'approval_required'].includes(level);
 }
-export function runtimeSatisfiesRequest(runtime, request) {
+function capabilityAllows(available, requested) {
+if (requested === 'none') return true;
+if (requested === 'approval_required') return ['approval_required', 'execute', 'manage'].includes(available);
+if (requested === 'reference_only') return available === 'reference_only';
+if (requested === 'read') return ['read', 'write', 'execute', 'manage'].includes(available);
+if (requested === 'write') return ['write', 'manage'].includes(available);
+if (requested === 'execute') return ['execute', 'manage'].includes(available);
+if (requested === 'manage') return available === 'manage';
+return false;
+}
+function activeTemporaryGrants(grants = [], stamp = Date.now()) {
+return (Array.isArray(grants) ? grants : []).filter(grant => {
+if (!isObject(grant) || Date.parse(grant.expires_at || 0) <= stamp) return false;
+const supplied = clean(grant.digest, 100).toLowerCase();
+const unsigned = { ...grant };
+delete unsigned.digest;
+return /^[a-f0-9]{64}$/.test(supplied) && safeEqualHex(supplied, digest(unsigned));
+});
+}
+function requestedCapabilityPolicy(request, grants = [], stamp = Date.now()) {
+const policy = { ...(request.authority?.capabilities || {}) };
+for (const grant of activeTemporaryGrants(grants, stamp)) policy[grant.capability] = grant.level;
+return policy;
+}
+function effectiveCapabilityPolicy(job, stamp = Date.now()) {
+const requested = requestedCapabilityPolicy(job.request || {}, job.temporary_grants, stamp);
+const available = job.runtime?.authority?.capabilities || {};
+return Object.fromEntries(Object.entries(requested).map(([name, level]) => {
+const availableLevel = available[name] || 'none';
+if (!capabilityAllows(availableLevel, level)) return [name, 'none'];
+if (level === 'approval_required' && ['execute', 'manage'].includes(availableLevel)) return [name, availableLevel];
+return [name, level];
+}));
+}
+const REQUIRED_RUNTIME_AUTHORITY = new Set([
+'filesystem', 'terminal', 'git', 'pull_requests', 'browser', 'containers',
+'deployment', 'settings', 'secrets'
+]);
+export function runtimeSatisfiesRequest(runtime, request, grants = [], stamp = Date.now()) {
 const requirements = request.runtime_requirements || normalizeRuntimeRequirements();
 const runtimeCapabilities = new Set(runtime.intelligence.capabilities);
 if (requirements.capabilities.some(capability => !runtimeCapabilities.has(capability))) return false;
@@ -234,8 +272,14 @@ if (requirements.execution_roles.length) {
 const roles = new Set([runtime.execution.role, ...runtime.execution.modes]);
 if (requirements.execution_roles.some(role => !roles.has(role))) return false;
 }
-if (requirements.authority.some(capability => !authorityUsable(runtime.authority.capabilities[capability] || 'none'))) {
-return false;
+if (requirements.authority.some(capability => !authorityUsable(runtime.authority.capabilities[capability] || 'none'))) return false;
+const explicitAuthority = new Set(request.authority?.explicit_capabilities || []);
+const authorityToEnforce = explicitAuthority.size
+? new Set([...explicitAuthority, ...requirements.authority])
+: new Set([...REQUIRED_RUNTIME_AUTHORITY, ...requirements.authority]);
+for (const [capability, level] of Object.entries(requestedCapabilityPolicy(request, grants, stamp))) {
+if (!authorityToEnforce.has(capability)) continue;
+if (!capabilityAllows(runtime.authority.capabilities[capability] || 'none', level)) return false;
 }
 if (requirements.locality !== 'any' && runtime.endpoint.locality !== requirements.locality) return false;
 if (requirements.ownership !== 'any' && runtime.endpoint.ownership !== requirements.ownership) return false;
@@ -263,13 +307,18 @@ if (!['build', 'fix', 'explore', 'audit'].includes(mode)) {
 throw new MakerControlError('invalid_mode', 'mode must be build, fix, explore, or audit');
 }
 const requestedCapabilities = input.authority?.capabilities || input.capability_policy || {};
+const explicitCapabilities = unique(
+input.authority?.explicit_capabilities || (input.schema === 'sideways-maker-control-request/v1' ? [] : Object.keys(requestedCapabilities)),
+300
+);
 const authority = {
 branch: input.authority?.branch !== false,
 draft_pr: input.authority?.draft_pr !== false,
 merge: input.authority?.merge === true,
 deploy: input.authority?.deploy === true,
 settings: input.authority?.settings === true,
-capabilities: normalizeCapabilityPolicy(requestedCapabilities)
+capabilities: normalizeCapabilityPolicy(requestedCapabilities),
+explicit_capabilities: explicitCapabilities
 };
 return Object.freeze({
 schema: 'sideways-maker-control-request/v1',
@@ -307,9 +356,9 @@ role: runtime.execution.role,
 recovery: runtime.execution.recovery
 };
 }
-export function projectJobForUser(job) {
+export function projectJobForUser(job, stamp = Date.now()) {
 const runtime = job.runtime;
-const capabilities = runtime?.authority?.capabilities || {};
+const capabilities = effectiveCapabilityPolicy(job, stamp);
 const active = [];
 const gated = [];
 const reference_only = [];
@@ -365,13 +414,18 @@ authority: {
 active,
 gated,
 reference_only,
-temporary_grants: (job.temporary_grants || []).map(grant => ({
+temporary_grants: activeTemporaryGrants(job.temporary_grants, stamp).map(grant => ({
 grant_id: grant.grant_id,
 capability: grant.capability,
 level: grant.level,
 expires_at: grant.expires_at
 })),
-requested: job.request.authority.capabilities
+expired_grants: (job.temporary_grants || []).filter(grant => !activeTemporaryGrants([grant], stamp).length).map(grant => ({
+grant_id: clean(grant.grant_id, 300),
+capability: clean(grant.capability, 100),
+expires_at: clean(grant.expires_at, 100)
+})),
+requested: requestedCapabilityPolicy(job.request, job.temporary_grants, stamp)
 },
 recovery: {
 recoverable: runtime
@@ -400,12 +454,12 @@ const apiKeyDigests = new Set(unique(config.api_key_digests, 1000).map(value => 
 const mtlsSubjects = new Set(unique(config.mtls_subjects, 1000));
 const githubSubjects = new Set(unique(config.github_subjects, 1000));
 const allowAnonymous = config.allow_anonymous === true;
-const allowLoopback = config.allow_loopback !== false;
+const allowLoopback = config.allow_loopback === true;
+const loopbackVerifier = typeof config.loopback_verifier === 'function' ? config.loopback_verifier : null;
+const trustIdentityHeaders = config.trust_identity_headers === true;
 return async function authenticate(request) {
-const url = new URL(request.url);
-const hostname = url.hostname.replace(/^\[|\]$/g, '');
-if (allowLoopback && ['127.0.0.1', 'localhost', '::1'].includes(hostname)) {
-return Object.freeze({ method: 'loopback', subject: hostname, scopes: ['control'] });
+if (allowLoopback && loopbackVerifier && await loopbackVerifier(request) === true) {
+return Object.freeze({ method: 'loopback', subject: 'verified-loopback', scopes: ['control'] });
 }
 const authorization = clean(request.headers.get('authorization'), 10000);
 if (authorization.toLowerCase().startsWith('bearer ')) {
@@ -419,6 +473,7 @@ const supplied = hashCredential(apiKey);
 const accepted = [...apiKeyDigests].some(expected => safeEqualHex(supplied, expected));
 if (accepted) return Object.freeze({ method: 'api_key', subject: `key:${supplied.slice(0, 12)}`, scopes: ['control'] });
 }
+if (trustIdentityHeaders) {
 const githubSubject = clean(request.headers.get('x-maker-github-subject'), 1000);
 if (githubSubject && githubSubjects.has(githubSubject)) {
 return Object.freeze({ method: 'github_identity', subject: githubSubject, scopes: ['control'] });
@@ -426,6 +481,7 @@ return Object.freeze({ method: 'github_identity', subject: githubSubject, scopes
 const mtlsSubject = clean(request.headers.get('x-maker-mtls-subject'), 1000);
 if (mtlsSubject && mtlsSubjects.has(mtlsSubject)) {
 return Object.freeze({ method: 'mtls', subject: mtlsSubject, scopes: ['control'] });
+}
 }
 if (allowAnonymous) return Object.freeze({ method: 'anonymous', subject: 'anonymous', scopes: ['read'] });
 throw new MakerControlError('unauthorized', 'valid control-plane identity required', 401);
@@ -465,13 +521,17 @@ const adapter = adapters.get(clean(adapterId, 200));
 if (!adapter) throw new MakerControlError('adapter_not_found', 'worker adapter not found', 404);
 if (!adapter.available) throw new MakerControlError('adapter_unavailable', adapter.reason || 'worker adapter unavailable', 503);
 const startedAt = now(clock);
+const controller = new AbortController();
 let timer;
 try {
 const output = await Promise.race([
-Promise.resolve(adapter.invoke(structuredClone(job), redactSecrets(context))),
+Promise.resolve(adapter.invoke(structuredClone(job), redactSecrets(context), { signal: controller.signal })),
 new Promise((_, reject) => {
-timer = setTimeout(() => reject(new MakerControlError('adapter_timeout', 'worker adapter timed out', 504)), timeout_ms);
-timer.unref?.();
+timer = setTimeout(() => {
+const error = new MakerControlError('adapter_timeout_indeterminate', 'worker adapter timed out; completion state is indeterminate unless the adapter honors AbortSignal', 504);
+reject(error);
+controller.abort(error);
+}, timeout_ms);
 })
 ]);
 return Object.freeze({
@@ -548,23 +608,33 @@ available: typeof definition.invoke === 'function'
 export function createMemoryControlStore(seed = {}) {
 const jobs = new Map(seed.jobs || []);
 const events = Array.isArray(seed.events) ? [...seed.events] : [];
+let metadata = isObject(seed.metadata) ? structuredClone(seed.metadata) : {};
 return {
-async getJob(id) { return jobs.get(id) || null; },
-async putJob(job) { jobs.set(job.id, structuredClone(job)); return job; },
+async getJob(id) { return jobs.has(id) ? structuredClone(jobs.get(id)) : null; },
+async putJob(job) { jobs.set(job.id, structuredClone(job)); return structuredClone(job); },
 async listJobs() { return [...jobs.values()].map(value => structuredClone(value)); },
-async appendEvent(event) { events.push(structuredClone(event)); return event; },
+async appendEvent(event) { events.push(structuredClone(event)); return structuredClone(event); },
+async commitJobEvent(job, event) {
+jobs.set(job.id, structuredClone(job));
+events.push(structuredClone(event));
+return { job: structuredClone(job), event: structuredClone(event) };
+},
+async getMetadata() { return structuredClone(metadata); },
+async setMetadata(value = {}) { metadata = { ...metadata, ...structuredClone(value) }; return structuredClone(metadata); },
 async listEvents(after = 0) { return events.filter(event => event.sequence > after).map(value => structuredClone(value)); },
 async replaceSnapshot(snapshot = {}) {
 jobs.clear();
 for (const [key, value] of snapshot.jobs || []) jobs.set(key, structuredClone(value));
 events.length = 0;
 for (const event of snapshot.events || []) events.push(structuredClone(event));
+metadata = isObject(snapshot.metadata) ? structuredClone(snapshot.metadata) : {};
 },
 async snapshot() {
 return {
 schema: 'sideways-maker-control-snapshot/v2',
 jobs: [...jobs.entries()].map(([key, value]) => [key, structuredClone(value)]),
-events: structuredClone(events)
+events: structuredClone(events),
+metadata: structuredClone(metadata)
 };
 }
 };
@@ -577,17 +647,16 @@ job.parent_job_id = clean(job.parent_job_id, 200) || null;
 job.runtime = job.runtime || null;
 job.lease = job.lease || null;
 if (job.lease && !job.lease.runtime_id) job.lease.runtime_id = clean(job.runtime?.runtime_id || job.lease.worker_id, 300);
-job.result = job.result ?? null;
-job.error = job.error ?? null;
-job.adapter = job.adapter ?? null;
-job.rollback = job.rollback ?? null;
-job.temporary_grants = Array.isArray(job.temporary_grants) ? job.temporary_grants : [];
-job.control_actions = Array.isArray(job.control_actions) ? job.control_actions : [];
+job.result = job.result == null ? null : normalizeWorkerResult(job.result);
+job.error = job.error == null ? null : normalizeWorkerError(job.error);
+job.adapter = job.adapter == null ? null : redactSecrets(job.adapter);
+job.rollback = job.rollback == null ? null : redactSecrets(job.rollback);
+job.temporary_grants = (Array.isArray(job.temporary_grants) ? job.temporary_grants : []).map(grant => redactSecrets(grant));
+job.control_actions = (Array.isArray(job.control_actions) ? job.control_actions : []).map(action => redactSecrets(action));
 job.created_at = clean(job.created_at || now(clock), 100);
 job.updated_at = clean(job.updated_at || job.created_at, 100);
-if (!job.request?.runtime_requirements || !job.request?.budgets || !job.request?.references) {
 job.request = normalizeControlRequest(job.request || {});
-}
+job.request_digest = digest(job.request);
 return job;
 }
 export function migrateControlSnapshot(snapshot = {}, clock = Date.now) {
@@ -609,7 +678,11 @@ detail: redactSecrets(event.detail || {})
 return Object.freeze({
 schema: 'sideways-maker-control-snapshot/v2',
 jobs,
-events
+events,
+metadata: Object.freeze({
+closed: snapshot.metadata?.closed === true,
+closed_at: clean(snapshot.metadata?.closed_at, 100) || null
+})
 });
 }
 export function createMakerControlPlane({
@@ -627,6 +700,12 @@ backends = ['auto']
 let sequence = 0;
 let initialized = false;
 let closed = false;
+let mutationTail = Promise.resolve();
+function serialized(operation) {
+const pending = mutationTail.then(operation, operation);
+mutationTail = pending.catch(() => {});
+return pending;
+}
 function assertOpen() {
 if (closed) throw new MakerControlError('control_closed', 'control plane is shutting down', 503);
 }
@@ -635,16 +714,21 @@ if (initialized) return;
 if (typeof store.snapshot === 'function' && typeof store.replaceSnapshot === 'function') {
 const migrated = migrateControlSnapshot(await store.snapshot(), clock);
 await store.replaceSnapshot(migrated);
+closed = migrated.metadata?.closed === true;
+} else if (typeof store.getMetadata === 'function') {
+closed = (await store.getMetadata()).closed === true;
 }
 const events = await store.listEvents(0);
 sequence = events.reduce((max, event) => Math.max(max, Number(event.sequence) || 0), 0);
 initialized = true;
 }
-async function emit(type, job, detail = {}) {
+async function persistJobEvent(job, type, detail = {}) {
 await initialize();
+const all = await store.listEvents(0);
+if (all.length >= max_events) throw new MakerControlError('event_capacity', 'event capacity reached', 503);
 const event = Object.freeze({
 schema: 'sideways-maker-control-event/v1',
-sequence: ++sequence,
+sequence: sequence + 1,
 event_id: id(),
 job_id: job.id,
 type,
@@ -653,10 +737,25 @@ state: job.state,
 revision: job.revision,
 detail: redactSecrets(detail)
 });
-const all = await store.listEvents(0);
-if (all.length >= max_events) throw new MakerControlError('event_capacity', 'event capacity reached', 503);
+const before = typeof store.snapshot === 'function' && typeof store.replaceSnapshot === 'function'
+? await store.snapshot()
+: null;
+try {
+if (typeof store.commitJobEvent === 'function') await store.commitJobEvent(job, event);
+else {
+await store.putJob(job);
 await store.appendEvent(event);
+}
+sequence = event.sequence;
 return event;
+} catch (error) {
+if (before) {
+try { await store.replaceSnapshot(before); } catch (rollbackError) {
+throw new MakerControlError('atomic_commit_failed', `state/event commit failed and rollback failed: ${clean(rollbackError.message, 500)}`, 503);
+}
+}
+throw error;
+}
 }
 async function submit(input) {
 assertOpen();
@@ -694,8 +793,7 @@ rollback: null,
 temporary_grants: [],
 control_actions: []
 };
-await store.putJob(job);
-await emit('job.queued', job, {
+await persistJobEvent(job, 'job.queued', {
 priority: request.priority,
 runtime_requirements: request.runtime_requirements,
 budgets: request.budgets
@@ -709,7 +807,7 @@ if (!job) throw new MakerControlError('job_not_found', 'job not found', 404);
 return structuredClone(job);
 }
 async function view(jobId) {
-return projectJobForUser(await get(jobId));
+return projectJobForUser(await get(jobId), clock());
 }
 async function claim(worker = {}) {
 assertOpen();
@@ -733,7 +831,7 @@ if (activeRunning.length >= max_running) return null;
 const jobs = allJobs
 .filter(job => job.state === 'queued' || (job.state === 'running' && Date.parse(job.lease?.expires_at || 0) <= stamp))
 .filter(job => !worker.repository || job.request.repository === worker.repository)
-.filter(job => runtimeSatisfiesRequest(runtime, job.request))
+.filter(job => runtimeSatisfiesRequest(runtime, job.request, job.temporary_grants, stamp))
 .sort((a, b) => b.request.priority - a.request.priority || a.created_at.localeCompare(b.created_at));
 const job = jobs[0];
 if (!job) return null;
@@ -749,8 +847,7 @@ claimed_at: now(clock),
 expires_at: new Date(clock() + lease_ms).toISOString(),
 runtime_id: runtime.runtime_id
 };
-await store.putJob(job);
-await emit(recovered ? 'job.recovered' : 'job.claimed', job, {
+await persistJobEvent(job, recovered ? 'job.recovered' : 'job.claimed', {
 worker_id,
 runtime: publicRuntimeSummary(runtime)
 });
@@ -781,10 +878,9 @@ throw new MakerControlError('invalid_transition', 'unsupported transition');
 }
 job.revision += 1;
 job.updated_at = now(clock);
-await store.putJob(job);
-await emit(
-`job.${transition === 'heartbeat' ? 'heartbeat' : job.state}`,
+await persistJobEvent(
 job,
+`job.${transition === 'heartbeat' ? 'heartbeat' : job.state}`,
 transition === 'heartbeat'
 ? { worker_id: job.lease.worker_id, runtime_id: job.runtime?.runtime_id || null }
 : payload
@@ -804,8 +900,7 @@ code: 'cancelled',
 message: reason || 'cancelled by operator',
 recoverable: false
 });
-await store.putJob(job);
-await emit('job.cancelled', job, { reason: job.error.message });
+await persistJobEvent(job, 'job.cancelled', { reason: job.error.message });
 return structuredClone(job);
 }
 async function list(filter = {}) {
@@ -837,8 +932,7 @@ type: 'resume',
 at: job.updated_at,
 reason: clean(options.reason || 'operator resume', 1000)
 });
-await store.putJob(job);
-await emit('job.resumed', job, { reason: options.reason || 'operator resume' });
+await persistJobEvent(job, 'job.resumed', { reason: options.reason || 'operator resume' });
 return structuredClone(job);
 }
 async function retry(jobId, options = {}) {
@@ -853,13 +947,14 @@ priority: options.priority ?? source.request.priority
 });
 retried.attempt = attempt;
 retried.parent_job_id = source.id;
+retried.revision += 1;
+retried.updated_at = now(clock);
 retried.control_actions.push({
 type: 'retry',
 at: now(clock),
 reason: clean(options.reason || 'operator retry', 1000)
 });
-await store.putJob(retried);
-await emit('job.retried', retried, { parent_job_id: source.id, attempt });
+await persistJobEvent(retried, 'job.retried', { parent_job_id: source.id, attempt });
 return structuredClone(retried);
 }
 async function requestRollback(jobId, options = {}) {
@@ -882,8 +977,7 @@ authority: 'approval_required'
 job.revision += 1;
 job.updated_at = now(clock);
 job.control_actions.push({ type: 'rollback', ...job.rollback });
-await store.putJob(job);
-await emit('job.rollback_requested', job, job.rollback);
+await persistJobEvent(job, 'job.rollback_requested', job.rollback);
 return structuredClone(job.rollback);
 }
 async function approveTemporaryGrant(jobId, input = {}) {
@@ -910,8 +1004,7 @@ job.temporary_grants.push(grant);
 job.revision += 1;
 job.updated_at = now(clock);
 job.control_actions.push({ type: 'temporary_grant', grant_id: grant.grant_id, at: grant.issued_at });
-await store.putJob(job);
-await emit('job.grant_approved', job, {
+await persistJobEvent(job, 'job.grant_approved', {
 grant_id: grant.grant_id,
 capability,
 level,
@@ -922,6 +1015,14 @@ return structuredClone(grant);
 async function dispatch(jobId, adapterId, context = {}) {
 assertOpen();
 const job = await get(jobId);
+const stamp = clock();
+const expiredGrant = (job.temporary_grants || []).find(grant => Date.parse(grant.expires_at || 0) <= stamp);
+if (expiredGrant) {
+throw new MakerControlError('authority_unavailable', `temporary authority grant expired for ${clean(expiredGrant.capability, 100)}`, 409);
+}
+if (!job.runtime || !runtimeSatisfiesRequest(job.runtime, job.request, job.temporary_grants, stamp)) {
+throw new MakerControlError('authority_unavailable', 'runtime no longer satisfies the job authority; an unexpired compatible grant and runtime are required', 409);
+}
 const receipt = await adapters.dispatch(adapterId, job, context);
 job.adapter = receipt;
 job.revision += 1;
@@ -932,8 +1033,7 @@ adapter: clean(adapterId, 200),
 at: job.updated_at,
 ok: receipt.ok
 });
-await store.putJob(job);
-await emit(receipt.ok ? 'job.dispatched' : 'job.dispatch_failed', job, receipt);
+await persistJobEvent(job, receipt.ok ? 'job.dispatched' : 'job.dispatch_failed', receipt);
 return structuredClone(receipt);
 }
 async function events(after = 0) {
@@ -947,7 +1047,7 @@ return Object.freeze({
 schema: 'sideways-maker-export/v1',
 exported_at: now(clock),
 job: redactSecrets(job),
-presentation: projectJobForUser(job),
+presentation: projectJobForUser(job, clock()),
 events: redactSecrets(relatedEvents),
 digest: digest({ job: redactSecrets(job), events: redactSecrets(relatedEvents) })
 });
@@ -984,8 +1084,7 @@ code: 'orphan_recovered',
 message: 'expired worker lease returned to queue',
 recoverable: true
 });
-await store.putJob(job);
-await emit('job.orphan_recovered', job, {
+await persistJobEvent(job, 'job.orphan_recovered', {
 previous_worker: previous?.worker_id || null,
 previous_runtime: previous?.runtime_id || null
 });
@@ -1038,44 +1137,51 @@ limits: { max_jobs, max_running, max_events, lease_ms }
 };
 }
 async function close() {
+await initialize();
+const closedAt = now(clock);
 closed = true;
+if (typeof store.setMetadata === 'function') await store.setMetadata({ closed: true, closed_at: closedAt });
+else if (typeof store.snapshot === 'function' && typeof store.replaceSnapshot === 'function') {
+const snapshot = await store.snapshot();
+await store.replaceSnapshot({ ...snapshot, metadata: { ...(snapshot.metadata || {}), closed: true, closed_at: closedAt } });
+}
 return {
 schema: 'sideways-maker-control-shutdown/v1',
-closed_at: now(clock),
+closed_at: closedAt,
 snapshot: await store.snapshot()
 };
 }
+const exclusive = operation => serialized(operation);
 return Object.freeze({
-submit,
-get,
-view,
-list,
-claim,
-dispatch,
-heartbeat: (jobId, token) => mutate(jobId, token, 'heartbeat'),
-complete: (jobId, token, result) => mutate(jobId, token, 'complete', result),
-fail: (jobId, token, error) => mutate(jobId, token, 'fail', error),
-resume,
-retry,
-rollback: requestRollback,
-approveTemporaryGrant,
-cancel,
-events,
-watch: events,
-exportReceipt,
-importSnapshot,
-recoverOrphans,
-status,
-health: status,
-capabilities,
-close,
-snapshot: () => store.snapshot()
+submit: input => exclusive(() => submit(input)),
+get: jobId => exclusive(() => get(jobId)),
+view: jobId => exclusive(() => view(jobId)),
+list: filter => exclusive(() => list(filter)),
+claim: worker => exclusive(() => claim(worker)),
+dispatch: (jobId, adapterId, context) => exclusive(() => dispatch(jobId, adapterId, context)),
+heartbeat: (jobId, token) => exclusive(() => mutate(jobId, token, 'heartbeat')),
+complete: (jobId, token, result) => exclusive(() => mutate(jobId, token, 'complete', result)),
+fail: (jobId, token, error) => exclusive(() => mutate(jobId, token, 'fail', error)),
+resume: (jobId, options) => exclusive(() => resume(jobId, options)),
+retry: (jobId, options) => exclusive(() => retry(jobId, options)),
+rollback: (jobId, options) => exclusive(() => requestRollback(jobId, options)),
+approveTemporaryGrant: (jobId, input) => exclusive(() => approveTemporaryGrant(jobId, input)),
+cancel: (jobId, reason) => exclusive(() => cancel(jobId, reason)),
+events: after => exclusive(() => events(after)),
+watch: after => exclusive(() => events(after)),
+exportReceipt: jobId => exclusive(() => exportReceipt(jobId)),
+importSnapshot: (snapshot, options) => exclusive(() => importSnapshot(snapshot, options)),
+recoverOrphans: () => exclusive(() => recoverOrphans()),
+status: () => exclusive(() => status()),
+health: () => exclusive(() => status()),
+capabilities: () => exclusive(() => capabilities()),
+close: () => exclusive(() => close()),
+snapshot: () => exclusive(() => store.snapshot())
 });
 }
 export function createControlHttpHandler(control, options = {}) {
 const clock = options.clock || Date.now;
 const authenticator = options.authenticator || createControlAuthenticator({
-allow_loopback: true,
 allow_anonymous: true
 });
 const allowedOrigins = new Set(unique(options.allowed_origins, 1000));
@@ -1086,7 +1192,7 @@ const rateWindowMs = Math.round(finite(options.rate_window_ms, 60 * 1000, 1000, 
 const rateLimit = Math.round(finite(options.rate_limit, 120, 1, 1000000));
 const replayWindowMs = Math.round(finite(options.replay_window_ms, 5 * 60 * 1000, 1000, 24 * 60 * 60 * 1000));
 const requireReplayId = options.require_replay_id === true;
-const enforceScopes = options.enforce_scopes === true;
+const enforceScopes = options.enforce_scopes !== false;
 const rate = new Map();
 const replay = new Map();
 function corsHeaders(origin) {
@@ -1155,21 +1261,33 @@ return JSON.parse(raw);
 throw new MakerControlError('invalid_json', 'request body is not valid JSON');
 }
 }
-async function withTimeout(promise) {
+async function withTimeout(operation) {
+const controller = new AbortController();
 let timer;
 try {
 return await Promise.race([
-promise,
+Promise.resolve().then(() => operation(controller.signal)),
 new Promise((_, reject) => {
-timer = setTimeout(() => reject(new MakerControlError('request_timeout', 'control-plane request timed out', 504)), timeoutMs);
-timer.unref?.();
+timer = setTimeout(() => {
+const error = new MakerControlError('request_timeout_indeterminate', 'control-plane request timed out; completion state is indeterminate unless the operation honors AbortSignal', 504);
+reject(error);
+controller.abort(error);
+}, timeoutMs);
 })
 ]);
 } finally {
 clearTimeout(timer);
 }
 }
-async function route(request, body) {
+function publicRoute(request) {
+const url = new URL(request.url);
+if (request.method !== 'GET') return false;
+if (['/v1/health', '/v1/status', '/v1/capabilities'].includes(url.pathname)) return true;
+const parts = url.pathname.split('/').filter(Boolean);
+return parts[0] === 'v1' && parts[1] === 'jobs' && Boolean(parts[2]) && parts[3] === 'presentation';
+}
+async function route(request, body, signal) {
+if (signal?.aborted) throw new MakerControlError('request_aborted', 'control-plane request was aborted', 499);
 const url = new URL(request.url);
 const parts = url.pathname.split('/').filter(Boolean);
 if (request.method === 'GET' && url.pathname === '/v1/health') return control.health();
@@ -1224,14 +1342,14 @@ headers: {
 });
 }
 const identity = await authenticator(request);
-if (enforceScopes && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && !identity.scopes?.includes('control')) {
+if (enforceScopes && !publicRoute(request) && !identity.scopes?.includes('control')) {
 throw new MakerControlError('forbidden', 'identity lacks control scope', 403);
 }
 enforceRate(identity.subject || identity.method || 'unknown');
 enforceReplay(request);
 enforceCsrf(request, origin);
 const body = await parseBody(request);
-const value = await withTimeout(Promise.resolve(route(request, body)));
+const value = await withTimeout(signal => route(request, body, signal));
 const url = new URL(request.url);
 if (
 request.method === 'GET' &&

@@ -35,6 +35,42 @@ if (!value) return {};
 const text = value.startsWith('@') ? await fileSystem.readFile(value.slice(1), 'utf8') : value;
 return JSON.parse(text);
 }
+async function acquireStateLock(statePath, fileSystem = fs, options = {}) {
+const lockPath = `${statePath}.lock`;
+const timeoutMs = Number(options.lock_timeout_ms || 5000);
+const staleMs = Number(options.lock_stale_ms || 30000);
+const started = Date.now();
+await fileSystem.mkdir(path.dirname(path.resolve(statePath)), { recursive: true });
+while (true) {
+try {
+const handle = await fileSystem.open(lockPath, 'wx', 0o600);
+await handle.writeFile(`${JSON.stringify({ pid: process.pid, acquired_at: new Date().toISOString() })}\n`, 'utf8');
+return async () => {
+try { await handle.close(); } finally {
+await fileSystem.unlink(lockPath).catch(error => { if (error.code !== 'ENOENT') throw error; });
+}
+};
+} catch (error) {
+if (error.code !== 'EEXIST') throw error;
+try {
+const stat = await fileSystem.stat(lockPath);
+if (Date.now() - stat.mtimeMs > staleMs) {
+await fileSystem.unlink(lockPath);
+continue;
+}
+} catch (statError) {
+if (statError.code === 'ENOENT') continue;
+throw statError;
+}
+if (Date.now() - started >= timeoutMs) {
+const failure = new Error('control-plane state is locked by another CLI process');
+failure.code = 'state_locked';
+throw failure;
+}
+await new Promise(resolve => setTimeout(resolve, 10));
+}
+}
+}
 async function loadStore(statePath, fileSystem = fs) {
 try {
 const snapshot = JSON.parse(await fileSystem.readFile(statePath, 'utf8'));
@@ -57,6 +93,8 @@ return { exitCode: 0, output: usage, persist: false };
 }
 const statePath = env.MAKER_CONTROL_STATE || '.maker/control-plane-state.json';
 const fileSystem = dependencies.fs || fs;
+const releaseLock = await acquireStateLock(statePath, fileSystem, dependencies);
+try {
 const store = await loadStore(statePath, fileSystem);
 const control = createMakerControlPlane({ store });
 let value;
@@ -96,6 +134,9 @@ else if (command === 'shutdown') value = await control.close();
 else throw new Error(`Unknown command: ${command}`);
 await saveStore(store, statePath, fileSystem);
 return { exitCode: 0, output: `${JSON.stringify(value, null, 2)}\n`, persist: true };
+} finally {
+await releaseLock();
+}
 }
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
