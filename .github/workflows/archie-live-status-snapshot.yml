@@ -75,7 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C repair rev-parse HEAD)" = "ba9a777504b96a49df29d2dac45988a3acbfb801"
-          echo "db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e  evidence/audit/patches/archie-router-runtime-seam.patch" | sha256sum --check
+          echo "98289341c8c2953537102b0f085c9a3b954014a161123fb08d7f294e03e1d5ff  evidence/audit/patches/archie-router-runtime-seam.patch" | sha256sum --check
           git -C repair apply --check ../evidence/audit/patches/archie-router-runtime-seam.patch
       - name: Apply patch and check syntax
         id: syntax
@@ -164,7 +164,7 @@ jobs:
           - one-path diff: ${DIFF}
           - repair commit/push: ${COMMIT_RESULT}
           - repair branch head: \`${REPAIR_HEAD:-not-published}\`
-          - patch SHA-256: \`db71ae61405c1bbedf90fbe4be57d1325f5f19441838941bb996402a7813277e\`
+          - patch SHA-256: \`98289341c8c2953537102b0f085c9a3b954014a161123fb08d7f294e03e1d5ff\`
           - tracker branch: \`agent/archie-live-status\`
           - tokens remaining: 1,064,576 / 1,310,720 (manual-observed)
           - next: exact-head review/source-admit the repair after every proof boundary succeeds
