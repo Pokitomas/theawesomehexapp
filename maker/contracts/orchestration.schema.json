@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.github.io/theawesomehexapp/maker/contracts/orchestration.schema.json",
+  "title": "Maker durable orchestration receipt",
+  "type": "object",
+  "required": [
+    "schema",
+    "task",
+    "status",
+    "budget",
+    "usage",
+    "assessment",
+    "lanes",
+    "event_count",
+    "event_terminal_digest",
+    "authority",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema": { "const": "sideways-maker-orchestrator-receipt/v1" },
+    "task": {
+      "type": "object",
+      "required": ["task_id", "repository", "base_sha", "branch", "goal", "human_gates"],
+      "properties": {
+        "task_id": { "type": "string" },
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "base_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "branch": { "type": "string" },
+        "goal": { "type": "string" },
+        "human_gates": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "status": { "enum": ["cancelled", "ready_for_human", "blocked"] },
+    "budget": { "type": "object" },
+    "usage": {
+      "type": "object",
+      "required": ["model_calls", "tokens_in", "tokens_out", "wall_ms", "unreported_calls"],
+      "properties": {
+        "model_calls": { "type": "number", "minimum": 0 },
+        "tokens_in": { "type": "number", "minimum": 0 },
+        "tokens_out": { "type": "number", "minimum": 0 },
+        "wall_ms": { "type": "number", "minimum": 0 },
+        "unreported_calls": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "assessment": {
+      "type": "object",
+      "required": ["assignments", "finding_count", "finding_digest", "contradiction_ids"],
+      "properties": {
+        "assignments": { "type": "array", "items": { "type": "object" } },
+        "finding_count": { "type": "integer", "minimum": 0 },
+        "finding_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "contradiction_ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "plan": { "type": ["object", "null"] },
+    "lanes": { "type": "array", "items": { "type": "object" } },
+    "verification": { "type": ["object", "null"] },
+    "human_gate": { "type": ["object", "null"] },
+    "cancel_reason": { "type": ["string", "null"] },
+    "event_count": { "type": "integer", "minimum": 1 },
+    "event_terminal_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "authority": {
+      "type": "object",
+      "required": ["merge", "deploy", "production_data", "repository_settings", "training_spend"],
+      "properties": {
+        "merge": { "const": "human" },
+        "deploy": { "const": "human" },
+        "production_data": { "const": "none" },
+        "repository_settings": { "const": "none" },
+        "training_spend": { "const": "human" }
+      },
+      "additionalProperties": false
+    },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "receipt_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "additionalProperties": false
+}
