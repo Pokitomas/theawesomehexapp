@@ -34,7 +34,7 @@
         "families": { "type": "array", "minItems": 1 },
         "adapters": { "type": "array", "minItems": 1 },
         "transitions": { "type": "array" },
-        "graph": { "type": "object" },
+        "graph": { "type": "array" },
         "negatives": { "type": "array" },
         "training_receipt": { "type": "object" },
         "model_digest": { "$ref": "#/$defs/digest" }
