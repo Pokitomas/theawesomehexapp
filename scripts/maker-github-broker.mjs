@@ -80,8 +80,18 @@ function permissionLevel(value) {
   return { name: Object.hasOwn(levels, normalized) ? normalized : 'none', level: levels[normalized] || 0 };
 }
 
-function retryableStatus(status) {
-  return [408, 409, 425, 429].includes(Number(status)) || Number(status) >= 500;
+function secondaryRateLimit(status, data, response) {
+  if (Number(status) !== 403) return false;
+  const message = clean(data?.message || data || '', 4000).toLowerCase();
+  return Boolean(
+    response?.headers?.get?.('retry-after') ||
+    response?.headers?.get?.('x-ratelimit-remaining') === '0' ||
+    /secondary rate limit|abuse detection|temporarily blocked|please wait a few minutes/.test(message)
+  );
+}
+
+function retryableResponse(status, data, response) {
+  return [408, 409, 425, 429].includes(Number(status)) || Number(status) >= 500 || secondaryRateLimit(status, data, response);
 }
 
 function parseLinkHeader(value = '') {
@@ -105,6 +115,14 @@ function authorityAction(value) {
   const action = clean(value, 160).toLowerCase();
   if (!action || !/^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/.test(action)) throw new Error('Authority action is invalid.');
   return action;
+}
+
+function retryDelay(response, attempt, baseMs) {
+  const retryAfter = Number(response?.headers?.get?.('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) return Math.min(15000, Math.max(1, retryAfter * 1000));
+  const reset = Number(response?.headers?.get?.('x-ratelimit-reset'));
+  if (Number.isFinite(reset) && reset > 0) return Math.min(15000, Math.max(1, (reset * 1000) - Date.now()));
+  return Math.min(15000, Math.max(1, baseMs * (2 ** attempt)));
 }
 
 export function normalizeAuthorityPacket(input = {}, { clock = nowISO } = {}) {
@@ -136,12 +154,13 @@ export function normalizeAuthorityPacket(input = {}, { clock = nowISO } = {}) {
 }
 
 export class GitHubBrokerError extends Error {
-  constructor(message, { status = null, receipt = null, retryable = false } = {}) {
-    super(clean(message, 4000));
+  constructor(message, { status = null, receipt = null, retryable = false, retry_after_ms = null } = {}) {
+    super(clean(redactSecrets(message), 4000));
     this.name = 'GitHubBrokerError';
     this.status = status;
     this.receipt = receipt;
     this.retryable = retryable;
+    this.retry_after_ms = Number(retry_after_ms) || null;
   }
 }
 
@@ -184,8 +203,9 @@ export class MakerGitHubBroker {
     let lastError;
     for (let attempt = 0; attempt <= this.retries; attempt += 1) {
       const startedAt = this.clock();
+      let response = null;
       try {
-        const response = await this.fetch(url, {
+        response = await this.fetch(url, {
           method: verb,
           headers: this.#headers(headers, key),
           body: body === undefined ? undefined : JSON.stringify(body)
@@ -204,6 +224,7 @@ export class MakerGitHubBroker {
           url: safeUrl(url),
           status: Number(response.status),
           ok: response.ok,
+          secondary_rate_limited: secondaryRateLimit(response.status, data, response),
           request_id: clean(response.headers?.get?.('x-github-request-id'), 200) || null,
           rate_limit: rate,
           oauth_scopes: clean(response.headers?.get?.('x-oauth-scopes'), 1000) || null,
@@ -215,17 +236,12 @@ export class MakerGitHubBroker {
         };
         attemptReceipts.push(receipt);
         if (!response.ok) {
-          const error = new GitHubBrokerError(`GitHub API ${response.status}: ${clean(data?.message || data || response.statusText, 2000)}`, {
+          throw new GitHubBrokerError(`GitHub API ${response.status}: ${clean(redactSecrets(data?.message || data || response.statusText), 2000)}`, {
             status: Number(response.status),
             receipt,
-            retryable: retryableStatus(response.status)
+            retryable: retryableResponse(response.status, data, response),
+            retry_after_ms: retryDelay(response, attempt, this.retryBaseMs)
           });
-          if (!error.retryable || attempt >= this.retries) throw error;
-          const retryAfter = Number(response.headers?.get?.('retry-after'));
-          const wait = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : this.retryBaseMs * (2 ** attempt);
-          await this.sleep(Math.min(15000, Math.max(1, wait)));
-          lastError = error;
-          continue;
         }
         if (expected && !expected.includes(Number(response.status))) throw new GitHubBrokerError(`Unexpected GitHub response ${response.status}.`, { status: Number(response.status), receipt });
         const result = Object.freeze({ data, response, receipt: Object.freeze({ ...receipt, attempts: Object.freeze(attemptReceipts) }) });
@@ -233,19 +249,30 @@ export class MakerGitHubBroker {
         if (key) this.idempotency.set(key, result);
         return result;
       } catch (error) {
-        lastError = error;
-        if (error instanceof GitHubBrokerError) {
-          if (!error.retryable || attempt >= this.retries) {
-            error.receipt = Object.freeze({ ...(error.receipt || {}), attempts: Object.freeze(attemptReceipts) });
-            this.requests.push(error.receipt);
-            throw error;
-          }
-        } else if (attempt >= this.retries) {
-          const receipt = { method: verb, url: safeUrl(url), status: null, ok: false, started_at: startedAt, finished_at: this.clock(), attempt: attempt + 1, error: clean(error?.message || error, 2000), attempts: attemptReceipts };
-          this.requests.push(receipt);
-          throw new GitHubBrokerError(receipt.error, { receipt, retryable: true });
+        const normalized = error instanceof GitHubBrokerError
+          ? error
+          : new GitHubBrokerError(clean(redactSecrets(error?.message || error), 2000), {
+              receipt: {
+                method: verb,
+                url: safeUrl(url),
+                status: null,
+                ok: false,
+                started_at: startedAt,
+                finished_at: this.clock(),
+                attempt: attempt + 1,
+                error: clean(redactSecrets(error?.message || error), 2000)
+              },
+              retryable: true,
+              retry_after_ms: this.retryBaseMs * (2 ** attempt)
+            });
+        lastError = normalized;
+        if (!attemptReceipts.some(value => value.attempt === attempt + 1)) attemptReceipts.push(normalized.receipt);
+        if (!normalized.retryable || attempt >= this.retries) {
+          normalized.receipt = Object.freeze({ ...(normalized.receipt || {}), attempts: Object.freeze(attemptReceipts) });
+          this.requests.push(normalized.receipt);
+          throw normalized;
         }
-        await this.sleep(Math.min(15000, this.retryBaseMs * (2 ** attempt)));
+        await this.sleep(Math.min(15000, Math.max(1, normalized.retry_after_ms || this.retryBaseMs * (2 ** attempt))));
       }
     }
     throw lastError || new GitHubBrokerError('GitHub request failed.');
@@ -345,7 +372,12 @@ export class MakerGitHubBroker {
   async createIssue(repository, { title, body = '', labels = [], assignees = [], idempotency_key } = {}) {
     const target = normalizeRepository(repository);
     const result = await this.request('POST', `/repos/${target.owner}/${target.name}/issues`, {
-      body: { title: clean(title, 256), body: clean(body, 60000), labels: labels.map(value => clean(value, 100)), assignees: assignees.map(value => clean(value, 100)) },
+      body: {
+        title: clean(redactSecrets(title), 256),
+        body: clean(redactSecrets(body), 60000),
+        labels: labels.map(value => clean(value, 100)),
+        assignees: assignees.map(value => clean(value, 100))
+      },
       idempotency_key,
       expected: [201]
     });
@@ -365,7 +397,7 @@ export class MakerGitHubBroker {
   async createDraftPull(repository, { title, body = '', head, base, head_repo = null, maintainer_can_modify = true, idempotency_key } = {}) {
     const target = normalizeRepository(repository);
     if (!REF_RE.test(clean(head, 240)) || !REF_RE.test(clean(base, 240))) throw new Error('Pull request head and base are invalid.');
-    const payload = { title: clean(title, 256), body: clean(redactSecrets(body), 60000), head: clean(head, 240), base: clean(base, 240), draft: true, maintainer_can_modify: maintainer_can_modify !== false };
+    const payload = { title: clean(redactSecrets(title), 256), body: clean(redactSecrets(body), 60000), head: clean(head, 240), base: clean(base, 240), draft: true, maintainer_can_modify: maintainer_can_modify !== false };
     if (head_repo) payload.head_repo = normalizeRepository(head_repo).repository;
     const result = await this.request('POST', `/repos/${target.owner}/${target.name}/pulls`, { body: payload, idempotency_key, expected: [201] });
     return Object.freeze({ repository: target.repository, number: Number(result.data?.number), url: clean(result.data?.html_url, 1000), head_sha: clean(result.data?.head?.sha, 40).toLowerCase() || null, base_sha: clean(result.data?.base?.sha, 40).toLowerCase() || null, draft: result.data?.draft === true, receipt: result.receipt });
