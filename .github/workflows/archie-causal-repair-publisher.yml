@@ -1,3 +1,4 @@
+# synchronize trusted pull-request integrator
 name: Publish Archie causal repair gate
 
 on:
