@@ -54,9 +54,18 @@ jobs:
       - name: Verify Foundry
         shell: bash
         run: npm run test:foundry
-      - name: Verify fleet router and control plane
+      - name: Verify worker fleet
         shell: bash
-        run: node --test scripts/tests/maker-worker-fleet.test.mjs scripts/tests/maker-model-router.test.mjs scripts/tests/maker-control-plane.test.mjs scripts/tests/maker-foundry-adapter.test.mjs
+        run: node --test scripts/tests/maker-worker-fleet.test.mjs
+      - name: Verify model router
+        shell: bash
+        run: node --test scripts/tests/maker-model-router.test.mjs
+      - name: Verify control plane
+        shell: bash
+        run: node --test scripts/tests/maker-control-plane.test.mjs
+      - name: Verify Foundry adapter
+        shell: bash
+        run: node --test scripts/tests/maker-foundry-adapter.test.mjs
       - name: Commit clean candidate
         shell: bash
         run: |
