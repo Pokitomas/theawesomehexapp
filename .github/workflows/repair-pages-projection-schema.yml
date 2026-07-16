@@ -1,0 +1,95 @@
+name: Repair Pages projection schema
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/repair-pages-projection-schema.yml
+      - .github/tmp/repair-pages-projection-schema.py
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Apply exact compatibility repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/tmp/repair-pages-projection-schema.py
+          rm .github/tmp/repair-pages-projection-schema.py
+          rm .github/workflows/repair-pages-projection-schema.yml
+          git diff --check
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run focused compatibility tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/web-source-records.mjs
+          node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs
+      - name: Assemble generated projection runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+      - name: Run the actual live snapshot, media bridge, and one-million projection
+        env:
+          SIDEWAYS_PUBLIC_SOURCES: ${{ vars.SIDEWAYS_PUBLIC_SOURCES }}
+          POST_COUNT: 1000000
+          CHUNK_SIZE: 1024
+          CONTENT_CHUNK_SIZE: 128
+          CORPUS_SEED: 20260712
+          CORPUS_FILE: corpus/general-media.jsonl.gz
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p corpus
+          timeout 900s node scripts/build-web-source-snapshot.mjs --output corpus/general.jsonl.gz
+          node scripts/verify-web-source-snapshot.mjs corpus/general.jsonl.gz corpus/general.jsonl.gz.meta.json
+          if timeout 600s python general/media.py --input corpus/general.jsonl.gz --output corpus/general-media.jsonl.gz --media-dir corpus/media --max-media 180 --discover-forum 80; then
+            echo 'display media ready'
+          else
+            echo 'media retrieval unavailable; using text-first bounded snapshot' >&2
+            cp corpus/general.jsonl.gz corpus/general-media.jsonl.gz
+          fi
+          timeout 1200s node scripts/build.mjs
+          python verify-profile-build.py
+      - name: Run repository gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:ingestion
+          npm run test:authority
+          npm run verify:repository
+          git diff --check
+      - name: Commit exact validated repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f repository-verification.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/web-source-records.mjs scripts/tests/web-source-snapshot.test.mjs .github/workflows/repair-pages-projection-schema.yml .github/tmp/repair-pages-projection-schema.py
+          git commit -m "fix(pages): bridge snapshot records into projection schema"
+          git push origin HEAD:${TARGET_BRANCH}
