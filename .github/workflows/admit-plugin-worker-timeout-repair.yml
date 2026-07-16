@@ -3,7 +3,7 @@ name: Admit exact plugin and worker timeout repair
 on:
   pull_request:
     paths:
-      - '.archie-payload/plugin-repair/trigger-v5.txt'
+      - '.archie-payload/plugin-repair/trigger-v6.txt'
       - '.github/workflows/admit-plugin-worker-timeout-repair.yml'
 
 permissions:
@@ -64,21 +64,53 @@ jobs:
               raise SystemExit(f'expected one worker timeout unref witness, found {s.count(old)}')
           p.write_text(s.replace(old, ''))
           PY
-      - name: Prove both timeout repairs and composed runtime
+      - name: Capture both timeout repairs and composed runtime proof
+        shell: bash
+        run: |
+          set -uo pipefail
+          npm ci --ignore-scripts > /tmp/npm-ci.log 2>&1
+          npm_status=$?
+          node --check scripts/maker-worker-fleet.mjs > /tmp/worker-check.log 2>&1
+          worker_check_status=$?
+          node --check scripts/maker-plugin-registry.mjs > /tmp/plugin-check.log 2>&1
+          plugin_check_status=$?
+          node --test scripts/tests/maker-worker-fleet.test.mjs > /tmp/worker-test.log 2>&1
+          worker_status=$?
+          node --test scripts/tests/maker-plugin-registry.test.mjs > /tmp/plugin-test.log 2>&1
+          plugin_status=$?
+          node --test scripts/tests/maker-runtime-platform.test.mjs > /tmp/runtime-test.log 2>&1
+          runtime_status=$?
+          git diff --check > /tmp/diff-check.log 2>&1
+          diff_status=$?
+          printf 'npm=%s\nworker_check=%s\nplugin_check=%s\nworker=%s\nplugin=%s\nruntime=%s\ndiff=%s\n' "$npm_status" "$worker_check_status" "$plugin_check_status" "$worker_status" "$plugin_status" "$runtime_status" "$diff_status" | tee /tmp/proof-status.txt
+          for log in /tmp/npm-ci.log /tmp/worker-check.log /tmp/plugin-check.log /tmp/worker-test.log /tmp/plugin-test.log /tmp/runtime-test.log /tmp/diff-check.log; do echo "===== $log ====="; cat "$log"; done
+      - name: Upload exact pre-admission proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: plugin-worker-timeout-pre-admission
+          path: |
+            /tmp/proof-status.txt
+            /tmp/npm-ci.log
+            /tmp/worker-check.log
+            /tmp/plugin-check.log
+            /tmp/worker-test.log
+            /tmp/plugin-test.log
+            /tmp/runtime-test.log
+            /tmp/diff-check.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce proof, commit, and push exact guarded admission
         shell: bash
         run: |
           set -euo pipefail
-          npm ci --ignore-scripts
-          node --check scripts/maker-worker-fleet.mjs
-          node --check scripts/maker-plugin-registry.mjs
-          node --test scripts/tests/maker-worker-fleet.test.mjs
-          node --test scripts/tests/maker-plugin-registry.test.mjs
-          node --test scripts/tests/maker-runtime-platform.test.mjs
-          git diff --check
-      - name: Commit and push exact guarded admission
-        shell: bash
-        run: |
-          set -euo pipefail
+          test "$(awk -F= '$1=="npm"{print $2}' /tmp/proof-status.txt)" = 0
+          test "$(awk -F= '$1=="worker_check"{print $2}' /tmp/proof-status.txt)" = 0
+          test "$(awk -F= '$1=="plugin_check"{print $2}' /tmp/proof-status.txt)" = 0
+          test "$(awk -F= '$1=="worker"{print $2}' /tmp/proof-status.txt)" = 0
+          test "$(awk -F= '$1=="plugin"{print $2}' /tmp/proof-status.txt)" = 0
+          test "$(awk -F= '$1=="runtime"{print $2}' /tmp/proof-status.txt)" = 0
+          test "$(awk -F= '$1=="diff"{print $2}' /tmp/proof-status.txt)" = 0
           remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | cut -f1)"
           test "$remote_head" = "$EXPECTED_TARGET_HEAD"
           git config user.name 'sideways-maker-coordinator'
