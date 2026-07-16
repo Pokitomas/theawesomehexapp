@@ -1,1 +1,1 @@
-Disposable pull-request trigger for an exact read-only checkout of coordinator SHA ba9a777504b96a49df29d2dac45988a3acbfb801. Never merge.
+Disposable pull-request trigger for an exact read-only checkout of coordinator SHA ba9a777504b96a49df29d2dac45988a3acbfb801 and the digest-bound PR #325 plugin repair bundle. Never merge.
