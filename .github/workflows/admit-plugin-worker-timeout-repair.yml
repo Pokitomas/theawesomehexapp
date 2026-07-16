@@ -1,9 +1,9 @@
-name: Admit exact plugin and worker timeout repair
+name: Admit exact green Maker runtime composition
 
 on:
   pull_request:
     paths:
-      - '.archie-payload/plugin-repair/trigger-v8.txt'
+      - '.archie-payload/runtime-composition/final.tar.gz'
       - '.github/workflows/admit-plugin-worker-timeout-repair.yml'
 
 permissions:
@@ -12,11 +12,11 @@ permissions:
 jobs:
   admit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       TARGET_BRANCH: agent/maker-archie-final-integration
       EXPECTED_TARGET_HEAD: 30fed919a500cc13963e25d55d557ac371ddac8a
-      BUNDLE_SHA256: 339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a
+      ARCHIVE_SHA256: 16e9af8623fe1a739ed3e8c094a99691c70065553a8eecb75c49257fca97431e
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
@@ -26,25 +26,25 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Reconstruct and patch reviewed plugin bundle
+      - name: Verify exact seven-path archive
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t parts < <(find .archie-payload/plugin-repair -maxdepth 1 -type f -name 'part-*' | sort)
-          test "${#parts[@]}" -eq 6
-          cat "${parts[@]}" | tr -d '\n\r ' | base64 --decode > /tmp/plugin-repair.tar.gz
-          echo "$BUNDLE_SHA256  /tmp/plugin-repair.tar.gz" | sha256sum --check --strict
-          rm -rf /tmp/plugin-repair && mkdir /tmp/plugin-repair
-          tar -xzf /tmp/plugin-repair.tar.gz -C /tmp/plugin-repair
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('/tmp/plugin-repair/scripts/maker-plugin-registry.mjs')
-          s = p.read_text()
-          old = '          timer.unref?.();\n'
-          if s.count(old) != 1:
-              raise SystemExit(f'expected one plugin timeout unref witness, found {s.count(old)}')
-          p.write_text(s.replace(old, ''))
-          PY
+          archive=.archie-payload/runtime-composition/final.tar.gz
+          test -f "$archive"
+          echo "$ARCHIVE_SHA256  $archive" | sha256sum --check --strict
+          tar -tzf "$archive" | sed 's#^\./##' | sort > /tmp/archive-paths.txt
+          cat > /tmp/expected-paths.txt <<'PATHS'
+          maker/contracts/plugin-manifest.schema.json
+          scripts/maker-model-router.mjs
+          scripts/maker-plugin-registry.mjs
+          scripts/maker-runtime-platform.mjs
+          scripts/maker-worker-fleet.mjs
+          scripts/tests/maker-plugin-registry.test.mjs
+          scripts/tests/maker-runtime-platform.test.mjs
+          PATHS
+          sort -o /tmp/expected-paths.txt /tmp/expected-paths.txt
+          diff -u /tmp/expected-paths.txt /tmp/archive-paths.txt
       - name: Guard and materialize exact target candidate
         shell: bash
         run: |
@@ -52,157 +52,99 @@ jobs:
           git fetch origin "$TARGET_BRANCH"
           test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_TARGET_HEAD"
           git checkout -B "$TARGET_BRANCH" FETCH_HEAD
-          cp /tmp/plugin-repair/scripts/maker-plugin-registry.mjs scripts/maker-plugin-registry.mjs
-          cp /tmp/plugin-repair/scripts/tests/maker-plugin-registry.test.mjs scripts/tests/maker-plugin-registry.test.mjs
-          cp /tmp/plugin-repair/maker/contracts/plugin-manifest.schema.json maker/contracts/plugin-manifest.schema.json
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/maker-worker-fleet.mjs')
-          s = p.read_text()
-          old = ',m.unref?.()'
-          if s.count(old) != 1:
-              raise SystemExit(f'expected one worker timeout unref witness, found {s.count(old)}')
-          s = s.replace(old, '')
-          seam = 'export const createFleetAdapterRegistry=createWorkerAdapterRegistry;export const registerDefaultFleetAdapters=registerDefaultWorkerAdapters;'
-          if 'createFleetAdapterRegistry' not in s:
-              s += seam
-          p.write_text(s)
-
-          p = Path('scripts/tests/maker-runtime-platform.test.mjs')
-          s = p.read_text()
-          old_import = "import { createPluginRegistry } from '../maker-plugin-registry.mjs';"
-          new_import = "import { createPluginApproval, createPluginPackageReceipt, createPluginRegistry, createPluginSignatureReceipt, normalizePluginManifest } from '../maker-plugin-registry.mjs';"
-          if s.count(old_import) != 1:
-              raise SystemExit('runtime plugin import seam moved')
-          s = s.replace(old_import, new_import)
-          start = s.index('const pluginManifest = overrides => ({')
-          end = s.index('\n\nfunction baseInput', start)
-          helpers = r'''const receiptClock = () => Date.parse('2026-07-15T00:00:00.000Z');
-          function pluginManifest(overrides = {}) {
-            const raw = {
-              id: 'repo.writer', version: '1.0.0', api_compatibility: '1.0.0', kind: 'tool_runtime', entrypoint: 'writer.mjs', execution: 'sandbox_rpc',
-              provenance: { source: 'repository', publisher: 'Pokitomas', license: 'MIT', trusted: false },
-              required_runtime: { api: '1.0.0', node: '>=22', os: ['linux'], arch: ['x64'], isolation: 'sandbox' },
-              declared_capabilities: ['repository_write'],
-              permissions: { filesystem: { read: ['repo/**'], write: [], execute: [] }, network_hosts: [], commands: [], secret_references: ['GITHUB_TOKEN'], capabilities: { repository_write: 'execute' }, privileged: false },
-              configuration_schema: { type: 'object', additionalProperties: false }, dependencies: { required: [], optional: [] }, lifecycle_hooks: { invoke: 'invoke' }, migrations: [], metadata: {},
-              ...overrides
-            };
-            raw.provenance = { source: 'repository', publisher: 'Pokitomas', license: 'MIT', trusted: false, ...(overrides.provenance || {}) };
-            const permissionCapabilities = overrides.permissions?.capabilities || Object.fromEntries((raw.declared_capabilities || []).map(item => [item, 'execute']));
-            raw.permissions = {
-              filesystem: { read: ['repo/**'], write: [], execute: [], ...(overrides.permissions?.filesystem || {}) },
-              network_hosts: overrides.permissions?.network_hosts || [], commands: overrides.permissions?.commands || [],
-              secret_references: overrides.permissions?.secret_references || ['GITHUB_TOKEN'],
-              capabilities: Array.isArray(permissionCapabilities) ? Object.fromEntries(permissionCapabilities.map(item => [item, 'execute'])) : permissionCapabilities,
-              privileged: overrides.permissions?.privileged === true
-            };
-            const packageDigest = overrides.package?.digest || `sha256:${'a'.repeat(64)}`;
-            const archiveDigest = overrides.package?.archive_digest || `sha256:${'b'.repeat(64)}`;
-            const packageReceipt = createPluginPackageReceipt({ plugin_id: raw.id, version: raw.version, package_digest: packageDigest, archive_digest: archiveDigest, inspected_files_digest: `sha256:${'c'.repeat(64)}`, entrypoint: raw.entrypoint, size_bytes: 1234, inspector: 'runtime-fixture-inspector' }, { clock: receiptClock });
-            const signer = overrides.signature?.signer || 'maker-runtime-signer';
-            const signatureReceipt = createPluginSignatureReceipt({ plugin_id: raw.id, version: raw.version, package_digest: packageDigest, signer }, { clock: receiptClock });
-            raw.package = { digest: packageDigest, archive_digest: archiveDigest, size_bytes: 1234, receipt: packageReceipt, ...(overrides.package || {}) };
-            raw.signature = { status: 'verified', signer, receipt: signatureReceipt, ...(overrides.signature || {}) };
-            return raw;
-          }
-          const pluginPolicy = overrides => ({
-            runtime_api: '1.0.0', allowed_licenses: ['MIT'], allowed_sources: ['repository'], require_package_receipt: true, require_signature: true,
-            trusted_builtin_publishers: ['Maker Builtins'],
-            allowed_permissions: { filesystem: { read: ['repo/**'], write: [], execute: [] }, network_hosts: [], commands: [], capabilities: { repository_write: 'execute', release: 'approval_required' } },
-            ...overrides
-          });
-          function pluginApproval(raw, capability, d) {
-            const normalized = normalizePluginManifest(raw);
-            return createPluginApproval({ plugin_id: normalized.id, version: normalized.version, capability, level: 'approval_required', approver: 'runtime-owner', manifest_digest: normalized.manifest_digest }, { clock: d.clock, ttl_ms: 60_000, id: d.id });
-          }'''
-          s = s[:start] + helpers + s[end:]
-          old_registry = """  const manifests = options.manifests || [pluginManifest()];
-            const plugins = createPluginRegistry({
-              manifests,
-              policy: options.policy || pluginPolicy(),
-              approvals: options.approvals || [],
-              sandbox: { invoke: async () => ({ ok: true }) },
-              clock: d.clock,
-              id: d.id
-            });"""
-          new_registry = """  const manifests = options.manifests || [pluginManifest()];
-            const approvals = (options.approvals || []).map(value => {
-              if (typeof value !== 'string') return value;
-              const manifest = manifests.find(item => `${item.id}@${item.version}` === value);
-              if (!manifest) throw new Error(`unknown approval target ${value}`);
-              return pluginApproval(manifest, 'release', d);
-            });
-            const plugins = createPluginRegistry({
-              manifests,
-              policy: options.policy || pluginPolicy(),
-              approvals,
-              sandbox: { invoke: async () => ({ ok: true }) },
-              clock: d.clock,
-              id: d.id
-            });"""
-          if s.count(old_registry) != 1:
-              raise SystemExit('runtime registry fixture seam moved')
-          p.write_text(s.replace(old_registry, new_registry))
-          PY
-      - name: Capture both timeout repairs and composed runtime proof
+          tar -xzf "$GITHUB_WORKSPACE/.archie-payload/runtime-composition/final.tar.gz" -C .
+          git status --short
+      - name: Capture exact composed proof
         shell: bash
         run: |
           set -uo pipefail
           npm ci --ignore-scripts > /tmp/npm-ci.log 2>&1
           npm_status=$?
+          node --check scripts/maker-model-router.mjs > /tmp/model-check.log 2>&1
+          model_check_status=$?
           node --check scripts/maker-worker-fleet.mjs > /tmp/worker-check.log 2>&1
           worker_check_status=$?
           node --check scripts/maker-plugin-registry.mjs > /tmp/plugin-check.log 2>&1
           plugin_check_status=$?
-          node --check scripts/tests/maker-runtime-platform.test.mjs > /tmp/runtime-check.log 2>&1
+          node --check scripts/maker-runtime-platform.mjs > /tmp/runtime-check.log 2>&1
           runtime_check_status=$?
+          node --check scripts/tests/maker-plugin-registry.test.mjs >> /tmp/plugin-check.log 2>&1
+          plugin_test_check_status=$?
+          node --check scripts/tests/maker-runtime-platform.test.mjs >> /tmp/runtime-check.log 2>&1
+          runtime_test_check_status=$?
+          node -e "JSON.parse(require('fs').readFileSync('maker/contracts/plugin-manifest.schema.json','utf8'))" > /tmp/schema.log 2>&1
+          schema_status=$?
+          node --test scripts/tests/maker-model-router.test.mjs > /tmp/model-test.log 2>&1
+          model_status=$?
           node --test scripts/tests/maker-worker-fleet.test.mjs > /tmp/worker-test.log 2>&1
           worker_status=$?
           node --test scripts/tests/maker-plugin-registry.test.mjs > /tmp/plugin-test.log 2>&1
           plugin_status=$?
           node --test scripts/tests/maker-runtime-platform.test.mjs > /tmp/runtime-test.log 2>&1
           runtime_status=$?
+          node --test scripts/tests/maker-control-plane.test.mjs > /tmp/control-test.log 2>&1
+          control_status=$?
           git diff --check > /tmp/diff-check.log 2>&1
           diff_status=$?
-          printf 'npm=%s\nworker_check=%s\nplugin_check=%s\nruntime_check=%s\nworker=%s\nplugin=%s\nruntime=%s\ndiff=%s\n' "$npm_status" "$worker_check_status" "$plugin_check_status" "$runtime_check_status" "$worker_status" "$plugin_status" "$runtime_status" "$diff_status" | tee /tmp/proof-status.txt
-          for log in /tmp/npm-ci.log /tmp/worker-check.log /tmp/plugin-check.log /tmp/runtime-check.log /tmp/worker-test.log /tmp/plugin-test.log /tmp/runtime-test.log /tmp/diff-check.log; do echo "===== $log ====="; cat "$log"; done
+          printf 'npm=%s\nmodel_check=%s\nworker_check=%s\nplugin_check=%s\nruntime_check=%s\nplugin_test_check=%s\nruntime_test_check=%s\nschema=%s\nmodel=%s\nworker=%s\nplugin=%s\nruntime=%s\ncontrol=%s\ndiff=%s\n' \
+            "$npm_status" "$model_check_status" "$worker_check_status" "$plugin_check_status" "$runtime_check_status" "$plugin_test_check_status" "$runtime_test_check_status" "$schema_status" "$model_status" "$worker_status" "$plugin_status" "$runtime_status" "$control_status" "$diff_status" | tee /tmp/proof-status.txt
+          for log in /tmp/npm-ci.log /tmp/model-check.log /tmp/worker-check.log /tmp/plugin-check.log /tmp/runtime-check.log /tmp/schema.log /tmp/model-test.log /tmp/worker-test.log /tmp/plugin-test.log /tmp/runtime-test.log /tmp/control-test.log /tmp/diff-check.log; do echo "===== $log ====="; cat "$log"; done
       - name: Upload exact pre-admission proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: plugin-worker-timeout-pre-admission
+          name: maker-runtime-composition-pre-admission
           path: |
+            /tmp/archive-paths.txt
+            /tmp/expected-paths.txt
             /tmp/proof-status.txt
             /tmp/npm-ci.log
+            /tmp/model-check.log
             /tmp/worker-check.log
             /tmp/plugin-check.log
             /tmp/runtime-check.log
+            /tmp/schema.log
+            /tmp/model-test.log
             /tmp/worker-test.log
             /tmp/plugin-test.log
             /tmp/runtime-test.log
+            /tmp/control-test.log
             /tmp/diff-check.log
           if-no-files-found: error
           retention-days: 14
-      - name: Enforce proof, commit, and push exact guarded admission
+      - name: Enforce proof and push guarded candidate
         shell: bash
         run: |
           set -euo pipefail
-          for key in npm worker_check plugin_check runtime_check worker plugin runtime diff; do test "$(awk -F= -v key="$key" '$1==key{print $2}' /tmp/proof-status.txt)" = 0; done
+          for key in npm model_check worker_check plugin_check runtime_check plugin_test_check runtime_test_check schema model worker plugin runtime control diff; do
+            test "$(awk -F= -v key="$key" '$1==key{print $2}' /tmp/proof-status.txt)" = 0
+          done
+          grep -Eq '# tests 30|tests 30' /tmp/model-test.log
+          grep -Eq '# pass 30|pass 30' /tmp/model-test.log
+          grep -Eq '# tests 25|tests 25' /tmp/worker-test.log
+          grep -Eq '# pass 25|pass 25' /tmp/worker-test.log
+          grep -Eq '# tests 32|tests 32' /tmp/plugin-test.log
+          grep -Eq '# pass 32|pass 32' /tmp/plugin-test.log
+          grep -Eq '# tests 13|tests 13' /tmp/runtime-test.log
+          grep -Eq '# pass 13|pass 13' /tmp/runtime-test.log
           remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | cut -f1)"
           test "$remote_head" = "$EXPECTED_TARGET_HEAD"
           git config user.name 'sideways-maker-coordinator'
           git config user.email 'actions@users.noreply.github.com'
-          git add scripts/maker-worker-fleet.mjs scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs scripts/tests/maker-runtime-platform.test.mjs maker/contracts/plugin-manifest.schema.json
-          git commit -m 'Repair fleet and plugin timeout liveness'
+          git add maker/contracts/plugin-manifest.schema.json scripts/maker-model-router.mjs scripts/maker-plugin-registry.mjs scripts/maker-runtime-platform.mjs scripts/maker-worker-fleet.mjs scripts/tests/maker-plugin-registry.test.mjs scripts/tests/maker-runtime-platform.test.mjs
+          test "$(git diff --cached --name-only | sort | paste -sd ' ' -)" = "maker/contracts/plugin-manifest.schema.json scripts/maker-model-router.mjs scripts/maker-plugin-registry.mjs scripts/maker-runtime-platform.mjs scripts/maker-worker-fleet.mjs scripts/tests/maker-plugin-registry.test.mjs scripts/tests/maker-runtime-platform.test.mjs"
+          git commit -m 'Compose strongest admitted Maker runtime'
           new_head="$(git rev-parse HEAD)"
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
-          printf 'source_pr=361\nsource_bundle_sha256=%s\nexpected_target_head=%s\nnew_target_head=%s\nworker_timeout_witness=removed_once\nplugin_timeout_witness=removed_once\nworker_compatibility_aliases=2\nruntime_fixture_trust=receipt_bound\nworker_tests=25/25\nplugin_tests=32/32\nruntime_tests=13/13\n' "$BUNDLE_SHA256" "$EXPECTED_TARGET_HEAD" "$new_head" > /tmp/admission-receipt.txt
+          sha256sum maker/contracts/plugin-manifest.schema.json scripts/maker-model-router.mjs scripts/maker-plugin-registry.mjs scripts/maker-runtime-platform.mjs scripts/maker-worker-fleet.mjs scripts/tests/maker-plugin-registry.test.mjs scripts/tests/maker-runtime-platform.test.mjs > /tmp/admitted-files.sha256
+          printf 'source_pr=361\narchive_sha256=%s\nexpected_target_head=%s\nnew_target_head=%s\nchanged_paths=7\nmodel_router_tests=30/30\nworker_fleet_tests=25/25\nplugin_registry_tests=32/32\nruntime_platform_tests=13/13\ncontrol_plane_tests=passed\nmutation_scope=exact-seven-path-archive\n' "$ARCHIVE_SHA256" "$EXPECTED_TARGET_HEAD" "$new_head" > /tmp/admission-receipt.txt
       - name: Upload exact admission receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: plugin-worker-timeout-admission
-          path: /tmp/admission-receipt.txt
+          name: maker-runtime-composition-admission
+          path: |
+            /tmp/admission-receipt.txt
+            /tmp/admitted-files.sha256
           if-no-files-found: warn
           retention-days: 14
