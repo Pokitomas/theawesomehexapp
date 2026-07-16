@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/maker/contracts/archie-evaluation.schema.json",
+  "title": "Archie independent evaluation report",
+  "type": "object",
+  "required": ["schema", "suite_id", "evaluation_time", "matched_fixture_summary", "lanes", "attempts", "failed_attempts", "report_digest"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "archie-independent-evaluation-report/v1" },
+    "suite_id": { "type": "string", "minLength": 1 },
+    "evaluation_time": { "type": "string", "format": "date-time" },
+    "matched_fixture_summary": {
+      "type": "object",
+      "required": ["task_count", "matched_group_count", "repeated_group_count", "novel_group_count"],
+      "additionalProperties": false,
+      "properties": {
+        "task_count": { "type": "integer", "minimum": 1 },
+        "matched_group_count": { "type": "integer", "minimum": 1 },
+        "repeated_group_count": { "type": "integer", "minimum": 1 },
+        "novel_group_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["lane_id", "attempts", "failed_attempts", "exact_tool_plan_accuracy", "mean_brier_score", "escalation_precision", "escalation_recall", "escalation_confusion", "teacher_calls", "teacher_call_savings", "latency_ms_total", "latency_ms_max", "memory_bytes_max", "model_size_bytes_max", "tamper_detections", "secret_leaks", "unsupported_claim_rejections", "stale_evidence_failures", "external_blockers"],
+        "additionalProperties": false,
+        "properties": {
+          "lane_id": { "type": "string", "minLength": 1 },
+          "attempts": { "type": "integer", "minimum": 0 },
+          "failed_attempts": { "type": "integer", "minimum": 0 },
+          "exact_tool_plan_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+          "mean_brier_score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "escalation_precision": { "type": "number", "minimum": 0, "maximum": 1 },
+          "escalation_recall": { "type": "number", "minimum": 0, "maximum": 1 },
+          "escalation_confusion": {
+            "type": "object",
+            "required": ["true_positive", "false_positive", "false_negative", "true_negative"],
+            "additionalProperties": false,
+            "properties": {
+              "true_positive": { "type": "integer", "minimum": 0 },
+              "false_positive": { "type": "integer", "minimum": 0 },
+              "false_negative": { "type": "integer", "minimum": 0 },
+              "true_negative": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "teacher_calls": { "type": "integer", "minimum": 0 },
+          "expected_teacher_calls": { "type": "integer", "minimum": 0 },
+          "teacher_call_savings": { "type": "number", "minimum": 0, "maximum": 1 },
+          "latency_ms_total": { "type": "number", "minimum": 0 },
+          "latency_ms_max": { "type": "number", "minimum": 0 },
+          "memory_bytes_max": { "type": "integer", "minimum": 0 },
+          "model_size_bytes_max": { "type": "integer", "minimum": 0 },
+          "tamper_detections": { "type": "integer", "minimum": 0 },
+          "secret_leaks": { "type": "integer", "minimum": 0 },
+          "unsupported_claim_rejections": { "type": "integer", "minimum": 0 },
+          "stale_evidence_failures": { "type": "integer", "minimum": 0 },
+          "external_blockers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["task_id", "reason"],
+              "additionalProperties": false,
+              "properties": {
+                "task_id": { "type": "string" },
+                "reason": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/attempt" }
+    },
+    "failed_attempts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/attempt" }
+    },
+    "unsupported_claim_policy": { "type": "object" },
+    "external_blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lane_id", "task_id", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "lane_id": { "type": "string" },
+          "task_id": { "type": "string" },
+          "reason": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "report_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "tool_step": {
+      "type": "object",
+      "required": ["tool", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": { "type": "string" },
+        "action": { "type": "string" }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "required": ["schema", "attempt_id", "lane_id", "task_id", "matched_group", "split", "trial", "state", "blocked", "exact_tool_plan_correct", "expected_tool_plan", "observed_tool_plan", "confidence", "brier_score", "confidence_miscalibrated", "should_escalate", "escalated", "teacher_called", "escalation_error", "false_self_report", "unsupported_claims_rejected", "secret_leaks", "tamper_checked", "tamper_detected", "stale_evidence", "latency_ms", "memory_bytes", "model_size_bytes", "failures", "passed", "preserved_candidate_digest", "attempt_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "archie-independent-evaluation-attempt/v1" },
+        "attempt_id": { "type": "string" },
+        "lane_id": { "type": "string" },
+        "task_id": { "type": "string" },
+        "matched_group": { "type": "string" },
+        "split": { "enum": ["repeated", "novel", "regression"] },
+        "trial": { "type": "integer", "minimum": 1 },
+        "state": { "type": "string" },
+        "blocked": { "type": "boolean" },
+        "external_blocker": { "type": ["string", "null"] },
+        "exact_tool_plan_correct": { "type": "boolean" },
+        "expected_tool_plan": { "type": "array", "items": { "$ref": "#/$defs/tool_step" } },
+        "observed_tool_plan": { "type": "array", "items": { "$ref": "#/$defs/tool_step" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "brier_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confidence_miscalibrated": { "type": "boolean" },
+        "should_escalate": { "type": "boolean" },
+        "escalated": { "type": "boolean" },
+        "teacher_called": { "type": "boolean" },
+        "escalation_error": { "type": "boolean" },
+        "false_self_report": { "type": "boolean" },
+        "unsupported_claims_rejected": { "type": "array", "items": { "type": "string" } },
+        "secret_leaks": { "type": "array", "items": { "type": "string" } },
+        "tamper_checked": { "type": "boolean" },
+        "tamper_detected": { "type": "boolean" },
+        "stale_evidence": { "type": "boolean" },
+        "latency_ms": { "type": "number", "minimum": 0 },
+        "memory_bytes": { "type": "integer", "minimum": 0 },
+        "model_size_bytes": { "type": "integer", "minimum": 0 },
+        "failures": { "type": "array", "items": { "type": "string" } },
+        "passed": { "type": "boolean" },
+        "preserved_candidate_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "attempt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}
