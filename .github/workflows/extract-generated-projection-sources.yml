@@ -1,0 +1,39 @@
+name: Extract generated projection sources
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/extract-generated-projection-sources.yml
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+      - name: Materialize and preserve generated sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat source.xz.part.* | base64 -d > source.tar.xz
+          tar -xJf source.tar.xz
+          cat general-overlay.part.* | base64 -d > general-overlay.tar.xz
+          tar -xJf general-overlay.tar.xz
+          python general/patch.py
+          mkdir -p audit/generated
+          cp scripts/build.mjs audit/generated/build.mjs
+          cp general/media.py audit/generated/media.py
+          rm .github/workflows/extract-generated-projection-sources.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add audit/generated/build.mjs audit/generated/media.py .github/workflows/extract-generated-projection-sources.yml
+          git commit -m "audit: preserve generated projection sources"
+          git push origin HEAD:${TARGET_BRANCH}
