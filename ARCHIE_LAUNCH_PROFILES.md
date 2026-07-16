@@ -19,7 +19,9 @@ The v2 manifest contains:
 - evidence digests, permissions, resource budgets, activation conditions, and platform constraints;
 - a search receipt that binds the enumerated profile set and records excluded candidates.
 
-The resolver first rejects experimental, unevidenced, unauthorized, over-budget, or below-gate profiles. It then compares every feasible profile on every declared objective.
+Canonical admission additionally requires every profile to carry `environment_receipt_digest`, computed from the exact environment ID, hardware fingerprint, operating-system fingerprint, platform receipts, authority grants, and resource budgets. Reusing a profile receipt after any of those facts changes fails closed. A profile must also report every resource dimension budgeted by its environment, including an explicit zero when it consumes none; omitted costs cannot create a fictional feasible frontier point.
+
+The resolver first rejects experimental, unevidenced, unauthorized, over-budget, below-gate, stale-environment, or resource-incomplete profiles. It then compares every feasible profile on every declared objective.
 
 A profile dominates another only when it is no worse on every objective and strictly better on at least one. The surviving Pareto frontier is the strongest truthful product set for that environment.
 
@@ -45,9 +47,10 @@ They preserve the earlier fixed-faculty target, candidate admission, machine per
 
 A maximal Archie launch claim requires `archie-launch-frontier-decision/v2` with:
 
-- complete search;
+- complete and identity-disjoint search accounting;
 - joint intelligence-and-embodiment gates;
-- exact environment separation;
+- exact environment separation and environment-bound profile receipts;
+- complete resource-dimension reporting;
 - a nondominated frontier;
 - rejection of dominated defaults;
 - explicit excluded and failed profiles;
