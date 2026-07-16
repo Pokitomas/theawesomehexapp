@@ -1,0 +1,346 @@
++          { "type": "integer", "minimum": 0 },
++          { "type": "integer", "minimum": -127, "maximum": 127 }
++        ],
++        "minItems": 2,
++        "maxItems": 2
++      }
++    },
++    "abstractStep": {
++      "type": "object",
++      "required": ["id", "type", "tool", "action", "args", "abstract_operator", "domain", "requires_any", "produces", "preserves", "risk", "depends_on", "rationale"],
++      "additionalProperties": false,
++      "properties": {
++        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
++        "type": { "const": "tool_call" },
++        "tool": { "type": "string", "minLength": 1, "maxLength": 80 },
++        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
++        "args": { "type": "object" },
++        "abstract_operator": { "type": "string", "minLength": 1, "maxLength": 80 },
++        "domain": { "type": "string", "minLength": 1, "maxLength": 80 },
++        "requires_any": { "type": "array", "items": { "type": "string" }, "maxItems": 40 },
++        "produces": { "type": "array", "items": { "type": "string" }, "maxItems": 40 },
++        "preserves": { "type": "array", "items": { "type": "string" }, "maxItems": 40 },
++        "risk": { "type": "string", "maxLength": 40 },
++        "depends_on": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
++        "rationale": { "type": "string", "maxLength": 400 }
++      }
++    },
++    "node": {
++      "type": "object",
++      "required": ["node_id", "label", "kind", "frequency", "evidence_ids"],
++      "additionalProperties": false,
++      "properties": {
++        "node_id": { "type": "string", "minLength": 1 },
++        "label": { "type": "string", "minLength": 1 },
++        "kind": { "type": "string", "minLength": 1 },
++        "frequency": { "type": "integer", "minimum": 1 },
++        "evidence_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
++      }
++    },
++    "edge": {
++      "type": "object",
++      "required": ["from", "relation", "to", "weight", "evidence_ids"],
++      "additionalProperties": false,
++      "properties": {
++        "from": { "type": "string", "minLength": 1 },
++        "relation": { "type": "string", "minLength": 1 },
++        "to": { "type": "string", "minLength": 1 },
++        "weight": { "type": "number", "minimum": 0 },
++        "evidence_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
++      }
++    },
++    "skill": {
++      "type": "object",
++      "required": ["skill_id", "instruction", "signature", "abstract_operators", "domains", "preconditions", "guarantees", "invariants", "lexical_terms", "centroid_q8", "steps", "source_ids", "provenance", "confidence"],
++      "additionalProperties": false,
++      "properties": {
++        "skill_id": { "type": "string", "minLength": 1 },
++        "instruction": { "type": "string" },
++        "signature": { "type": "string", "minLength": 1 },
++        "abstract_operators": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "domains": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "preconditions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "guarantees": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "invariants": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "lexical_terms": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "centroid_q8": { "$ref": "#/$defs/q8Vector" },
++        "steps": { "type": "array", "items": { "$ref": "#/$defs/abstractStep" }, "minItems": 1, "maxItems": 50 },
++        "source_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "provenance": {},
++        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
++      }
++    },
++    "model": {
++      "type": "object",
++      "required": ["schema", "architecture", "intelligence_claim", "not_a_generative_language_model", "dimensions", "threshold", "minimum_grounding", "max_steps", "max_expansions", "vector_encoding", "idf", "operator_library", "graph", "adapter_index", "skills", "forbidden", "knowledge_receipt", "model_digest"],
++      "additionalProperties": false,
++      "properties": {
++        "schema": { "const": "archie-derivation-model/v1" },
++        "architecture": { "const": "portable-sparse-derivational-graph" },
++        "intelligence_claim": { "const": "bounded-composition-over-owned-typed-transformations" },
++        "not_a_generative_language_model": { "const": true },
++        "dimensions": { "type": "integer", "minimum": 128, "maximum": 16384 },
++        "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
++        "minimum_grounding": { "type": "number", "minimum": 0, "maximum": 1 },
++        "max_steps": { "type": "integer", "minimum": 1, "maximum": 32 },
++        "max_expansions": { "type": "integer", "minimum": 8, "maximum": 2048 },
++        "vector_encoding": { "const": "signed-int8-q8-sparse" },
++        "idf": { "type": "array", "items": { "type": "number" }, "minItems": 128 },
++        "operator_library": { "type": "object" },
++        "graph": {
++          "type": "object",
++          "required": ["nodes", "edges", "relation_codes", "sparse_relation_matrix_q8"],
++          "additionalProperties": false,
++          "properties": {
++            "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
++            "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
++            "relation_codes": { "type": "object" },
++            "sparse_relation_matrix_q8": {
++              "type": "array",
++              "items": {
++                "type": "array",
++                "prefixItems": [
++                  { "type": "integer", "minimum": 0 },
++                  { "type": "integer", "minimum": 0 },
++                  { "type": "integer", "minimum": 1 },
++                  { "type": "integer", "minimum": 1, "maximum": 127 }
++                ],
++                "minItems": 4,
++                "maxItems": 4
++              }
++            }
++          }
++        },
++        "adapter_index": { "type": "array", "items": { "type": "object" } },
++        "skills": { "type": "array", "items": { "$ref": "#/$defs/skill" }, "minItems": 1 },
++        "forbidden": { "type": "array", "items": { "type": "object" } },
++        "knowledge_receipt": { "type": "object" },
++        "model_digest": { "$ref": "#/$defs/digest" }
++      }
++    },
++    "proof": {
++      "type": "object",
++      "required": ["schema", "mode", "goal_atoms", "used_skills", "derivation_edges", "preconditions", "guarantees", "invariants", "unresolved", "evidence_sources", "proof_digest"],
++      "additionalProperties": false,
++      "properties": {
++        "schema": { "const": "archie-derivation-proof/v1" },
++        "mode": { "type": "string" },
++        "goal_atoms": { "type": "array", "items": { "type": "string" } },
++        "used_skills": { "type": "array", "items": { "type": "string" } },
++        "derivation_edges": { "type": "array", "items": { "type": "object" } },
++        "preconditions": { "type": "array", "items": { "type": "string" } },
++        "guarantees": { "type": "array", "items": { "type": "string" } },
++        "invariants": { "type": "array", "items": { "type": "string" } },
++        "unresolved": { "type": "array" },
++        "evidence_sources": { "type": "array", "items": { "type": "string" } },
++        "proof_digest": { "$ref": "#/$defs/digest" }
++      }
++    },
++    "plan": {
++      "type": "object",
++      "required": ["schema", "state", "disposition", "task_digest", "confidence", "grounding", "mode", "plan", "proof", "teacher_gap", "rejection", "alternatives", "receipts", "model_digest", "plan_digest"],
++      "additionalProperties": false,
++      "properties": {
++        "schema": { "const": "archie-derivation-plan/v1" },
++        "state": { "enum": ["local", "teacher", "reject"] },
++        "disposition": { "enum": ["execute", "escalate_to_teacher", "reject"] },
++        "task_digest": { "$ref": "#/$defs/digest" },
++        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
++        "grounding": { "type": "number", "minimum": 0, "maximum": 1 },
++        "mode": { "type": "string" },
++        "plan": { "type": ["object", "null"] },
++        "proof": { "anyOf": [{ "$ref": "#/$defs/proof" }, { "type": "null" }] },
++        "teacher_gap": { "type": ["object", "null"] },
++        "rejection": { "type": ["object", "null"] },
++        "alternatives": { "type": "array", "items": { "type": "object" } },
++        "receipts": { "type": "object" },
++        "model_digest": { "$ref": "#/$defs/digest" },
++        "plan_digest": { "$ref": "#/$defs/digest" }
++      }
++    },
++    "knowledgeRecord": {
++      "type": "object",
++      "required": ["schema", "record_id", "title", "summary", "concepts", "relations", "procedures", "provenance", "confidence", "content_digest"],
++      "additionalProperties": false,
++      "properties": {
++        "schema": { "const": "archie-knowledge-record/v1" },
++        "record_id": { "type": "string", "minLength": 1 },
++        "title": { "type": "string", "minLength": 1 },
++        "summary": { "type": "string" },
++        "concepts": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
++        "relations": { "type": "array", "items": { "type": "object" } },
++        "procedures": { "type": "array", "items": { "type": "object" } },
++        "provenance": {},
++        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
++        "content_digest": { "$ref": "#/$defs/digest" }
++      }
++    },
++    "compressionReceipt": {
++      "type": "object",
++      "required": ["schema", "model_bytes", "source_text_bytes", "source_to_model_ratio", "relations_per_kib", "skills_per_kib", "graph_nodes", "graph_edges", "sparse_matrix_entries", "receipt_digest"],
++      "additionalProperties": false,
++      "properties": {
++        "schema": { "const": "archie-derivation-compression-receipt/v1" },
++        "model_bytes": { "type": "integer", "minimum": 1 },
++        "source_text_bytes": { "type": "integer", "minimum": 0 },
++        "source_to_model_ratio": { "type": "number", "minimum": 0 },
++        "relations_per_kib": { "type": "number", "minimum": 0 },
++        "skills_per_kib": { "type": "number", "minimum": 0 },
++        "graph_nodes": { "type": "integer", "minimum": 0 },
++        "graph_edges": { "type": "integer", "minimum": 0 },
++        "sparse_matrix_entries": { "type": "integer", "minimum": 0 },
++        "receipt_digest": { "$ref": "#/$defs/digest" }
++      }
++    }
++  }
++}
++diff --git a/maker/contracts/archie-planner.schema.json b/maker/contracts/archie-planner.schema.json
++index a01e3fe..55be295 100644
++--- a/maker/contracts/archie-planner.schema.json
+++++ b/maker/contracts/archie-planner.schema.json
++@@ -4,10 +4,18 @@
++   "title": "Archie CPU Planner Contract",
++   "description": "Detached CPU-first Archie planner model, typed tool-plan, and inference receipt contracts. This is a hashed retrieval and symbolic composition planner, not a neural language model.",
++   "oneOf": [
++-    { "$ref": "#/$defs/model" },
++-    { "$ref": "#/$defs/plan" },
++-    { "$ref": "#/$defs/typedToolPlan" },
++-    { "$ref": "#/$defs/quantizationReceipt" }
+++    {
+++      "$ref": "#/$defs/model"
+++    },
+++    {
+++      "$ref": "#/$defs/plan"
+++    },
+++    {
+++      "$ref": "#/$defs/typedToolPlan"
+++    },
+++    {
+++      "$ref": "#/$defs/quantizationReceipt"
+++    }
++   ],
++   "definitions": {},
++   "$defs": {
++@@ -16,8 +24,15 @@
++       "items": {
++         "type": "array",
++         "prefixItems": [
++-          { "type": "integer", "minimum": 0 },
++-          { "type": "integer", "minimum": -127, "maximum": 127 }
+++          {
+++            "type": "integer",
+++            "minimum": 0
+++          },
+++          {
+++            "type": "integer",
+++            "minimum": -127,
+++            "maximum": 127
+++          }
++         ],
++         "minItems": 2,
++         "maxItems": 2
++@@ -25,130 +40,597 @@
++     },
++     "toolStep": {
++       "type": "object",
++-      "required": ["id", "type", "tool", "action", "args", "depends_on", "rationale"],
+++      "required": [
+++        "id",
+++        "type",
+++        "tool",
+++        "action",
+++        "args",
+++        "depends_on",
+++        "rationale"
+++      ],
++       "additionalProperties": false,
++       "properties": {
++-        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
++-        "type": { "const": "tool_call" },
++-        "tool": { "type": "string", "minLength": 1, "maxLength": 80 },
++-        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
++-        "args": { "type": "object" },
++-        "depends_on": { "type": "array", "items": { "type": "string" }, "maxItems": 20 },
++-        "rationale": { "type": "string", "maxLength": 300 }
+++        "id": {
+++          "type": "string",
+++          "minLength": 1,
+++          "maxLength": 80
+++        },
+++        "type": {
+++          "const": "tool_call"
+++        },
+++        "tool": {
+++          "type": "string",
+++          "minLength": 1,
+++          "maxLength": 80
+++        },
+++        "action": {
+++          "type": "string",
+++          "minLength": 1,
+++          "maxLength": 120
+++        },
+++        "args": {
+++          "type": "object"
+++        },
+++        "depends_on": {
+++          "type": "array",
+++          "items": {
+++            "type": "string"
+++          },
+++          "maxItems": 20
+++        },
+++        "rationale": {
+++          "type": "string",
+++          "maxLength": 300
+++        },
+++        "produces": {
+++          "type": "array",
+++          "items": {
+++            "type": "string"
+++          },
+++          "maxItems": 40
+++        }
++       }
++     },
++     "typedToolPlan": {
++       "type": "object",
++-      "required": ["schema", "execution", "steps"],
+++      "required": [
+++        "schema",
+++        "execution",
+++        "steps"
+++      ],
++       "additionalProperties": false,
++       "properties": {
++-        "schema": { "const": "archie-typed-tool-plan/v1" },
++-        "execution": { "enum": ["sequential"] },
++-        "steps": { "type": "array", "items": { "$ref": "#/$defs/toolStep" }, "minItems": 1, "maxItems": 16 }
+++        "schema": {
+++          "const": "archie-typed-tool-plan/v1"
+++        },
+++        "execution": {
+++          "enum": [
+++            "sequential"
+++          ]
+++        },
+++        "steps": {
+++          "type": "array",
+++          "items": {
+++            "$ref": "#/$defs/toolStep"
+++          },
+++          "minItems": 1,
+++          "maxItems": 16
+++        },
+++        "derivation_proof": {
+++          "type": "object",
+++          "required": [
+++            "schema",
+++            "proof_digest"
+++          ],
+++          "properties": {
+++            "schema": {
+++              "const": "archie-derivation-proof/v1"
+++            },
+++            "proof_digest": {
+++              "type": "string",
