@@ -1,0 +1,302 @@
++    candidates.sort((left, right) => (DOMAIN_PRIORITY[right.domain] || 0) - (DOMAIN_PRIORITY[left.domain] || 0) || left.index - right.index);
++    return candidates[0].domain;
++  }
++  return clean(fallback || 'general', 80).toLowerCase() || 'general';
++}
++
++function inferOperator(action, text = '') {
++  const candidates = [normalizeToken(action), ...tokenizeDerivationText(`${action} ${text}`)];
++  for (const token of candidates) if (ACTION_TO_OPERATOR.has(token)) return ACTION_TO_OPERATOR.get(token);
++  return 'execute';
++}
++
++function instantiateState(template, domain) {
++  return clean(template, 300).replaceAll('{domain}', domain);
++}
++
++function splitAlternativeState(value) {
++  return clean(value, 500).split('|').map(item => item.trim()).filter(Boolean);
++}
++
++function operatorSemantics(operator, domain) {
++  const spec = ARCHIE_OPERATOR_LIBRARY[operator] || ARCHIE_OPERATOR_LIBRARY.execute;
++  return Object.freeze({
++    operator,
++    domain,
++    requires_any: spec.requires.flatMap(value => splitAlternativeState(instantiateState(value, domain))),
++    produces: spec.produces.map(value => instantiateState(value, domain)),
++    preserves: spec.preserves.map(value => instantiateState(value, domain)),
++    risk: spec.risk
++  });
++}
++
++function normalizeStep(item = {}, index = 0, contextText = '') {
++  const tool = clean(item.tool || item.name || item.adapter || 'planner', 80).toLowerCase() || 'planner';
++  const action = clean(item.action || item.operation || item.command || 'execute', 120).toLowerCase() || 'execute';
++  const genericTools = new Set(['filesystem', 'node', 'planner', 'runtime_adapter']);
++  const directToolDomain = genericTools.has(tool) ? null : (DOMAIN_ALIASES.get(normalizeToken(tool)) || null);
++  const domain = clean(item.domain || item.abstraction?.domain || directToolDomain || inferDomain(`${tool} ${action} ${contextText}`, tool === 'node' ? 'test' : tool), 80);
++  const operator = clean(item.abstract_operator || item.operator || inferOperator(action, contextText), 80);
++  const semantics = operatorSemantics(operator, domain);
++  const explicit = item.abstraction || item.abstract || {};
++  return Object.freeze({
++    id: clean(item.id || `step-${index + 1}`, 80),
++    type: 'tool_call',
++    tool,
++    action,
++    args: canonical(item.args || item.input || item.arguments || {}),
++    abstract_operator: operator,
++    domain,
++    requires_any: unique([...(explicit.requires_any || item.requires_any || []), ...semantics.requires_any], 40),
++    produces: unique([...(explicit.produces || item.produces || []), ...semantics.produces], 40),
++    preserves: unique([...(explicit.preserves || item.preserves || []), ...semantics.preserves], 40),
++    risk: clean(explicit.risk || item.risk || semantics.risk, 40),
++    depends_on: unique(item.depends_on || [], 20),
++    rationale: clean(item.rationale || item.reason || `${operator} ${domain} through ${tool}:${action}`, 400)
++  });
++}
++
++function stepsFromExample(example = {}) {
++  const instruction = clean(example.instruction || example.input?.text || example.request || example.goal, 20_000);
++  const trace = (Array.isArray(example.tool_trace) ? example.tool_trace : Array.isArray(example.tools) ? example.tools : []).filter(item => item?.ok !== false);
++  const targetSteps = Array.isArray(example.target?.steps) ? example.target.steps : Array.isArray(example.output?.plan?.steps) ? example.output.plan.steps : [];
++  const source = trace.length ? trace : targetSteps;
++  const steps = [];
++  for (let index = 0; index < source.slice(0, 50).length; index += 1) {
++    const item = source[index];
++    const normalized = typeof item === 'string'
++      ? normalizeStep({ tool: 'planner', action: item }, index, instruction)
++      : normalizeStep(item, index, instruction);
++    const previous = steps[index - 1];
++    steps.push(Object.freeze({
++      ...normalized,
++      id: `step-${index + 1}`,
++      depends_on: index ? [`step-${index}`] : [],
++      requires_any: unique([...(normalized.requires_any || []), ...(previous?.produces || []), ...(index === 0 ? [`accessible:${normalized.domain}`] : [])], 80)
++    }));
++  }
++  return steps;
++}
++
++function exampleText(example = {}) {
++  return `${clean(example.instruction || example.input?.text || example.request || example.goal)}\n${stable(example.compact_context || example.context || example.input?.context || null)}\n${clean((example.tags || []).join(' '), 20_000)}\n${stable(example.abstraction || null)}`;
++}
++
++function isPositive(example = {}) {
++  return example?.schema === 'archie-distillation-example/v1'
++    && clean(example.instruction || example.input?.text)
++    && clean(example.outcome || 'completed').toLowerCase() === 'completed'
++    && !example.negative;
++}
++
++function isNegative(example = {}) {
++  const outcome = clean(example.outcome || '').toLowerCase();
++  const tags = clean((example.tags || []).join(' ')).toLowerCase();
++  return Boolean(example.negative || ['failed', 'rejected', 'blocked', 'unsafe', 'denied', 'cancelled', 'canceled'].includes(outcome) || /\bnegative\b|\bsuppress\b|\bdo-not-learn\b/.test(tags));
++}
++
++function normalizeRelation(record = {}, sourceId = '') {
++  const from = clean(record.from || record.subject || record.left, 300).toLowerCase();
++  const to = clean(record.to || record.object || record.right, 300).toLowerCase();
++  const relation = clean(record.relation || record.predicate || record.type || 'related_to', 100).toLowerCase();
++  if (!from || !to) return null;
++  return Object.freeze({
++    from,
++    relation,
++    to,
++    confidence: clamp(record.confidence ?? 1),
++    source_ids: unique([sourceId, ...(record.source_ids || [])], 100)
++  });
++}
++
++export function normalizeArchieKnowledgeRecord(input = {}, index = 0) {
++  const title = clean(input.title || input.name || input.label || input.subject || `record-${index + 1}`, 500);
++  const recordId = clean(input.record_id || input.id || `knowledge_${digest({ title, index, source: input.source || null }).slice(0, 24)}`, 100);
++  const concepts = unique([
++    ...(input.concepts || []),
++    ...(input.entities || []),
++    ...(input.keywords || []),
++    ...tokenizeDerivationText(`${title} ${input.summary || input.description || ''}`).filter(token => token.length >= 4)
++  ], 500);
++  const aliases = Object.entries(input.aliases || {}).flatMap(([left, right]) => Array.isArray(right)
++    ? right.map(value => ({ from: value, relation: 'alias_of', to: left }))
++    : [{ from: right, relation: 'alias_of', to: left }]);
++  const relations = [
++    ...(Array.isArray(input.relations) ? input.relations : []),
++    ...aliases
++  ].map(value => normalizeRelation(value, recordId)).filter(Boolean).slice(0, 2000);
++  const procedures = (Array.isArray(input.procedures) ? input.procedures : Array.isArray(input.steps) ? [{ name: title, steps: input.steps }] : [])
++    .slice(0, 100)
++    .map((procedure, procedureIndex) => ({
++      procedure_id: clean(procedure.procedure_id || procedure.id || `procedure_${digest({ recordId, procedureIndex, name: procedure.name || title }).slice(0, 24)}`, 100),
++      name: clean(procedure.name || title, 500),
++      domain: inferDomain(`${procedure.name || title} ${procedure.domain || ''}`, procedure.domain || 'general'),
++      steps: (Array.isArray(procedure.steps) ? procedure.steps : []).slice(0, 50).map((step, stepIndex) => normalizeStep(step, stepIndex, procedure.name || title)),
++      preconditions: unique(procedure.preconditions || [], 100),
++      guarantees: unique(procedure.guarantees || procedure.effects || [], 100)
++    }));
++  return Object.freeze({
++    schema: ARCHIE_KNOWLEDGE_RECORD_SCHEMA,
++    record_id: recordId,
++    title,
++    summary: clean(input.summary || input.description || '', 20_000),
++    concepts,
++    relations,
++    procedures,
++    provenance: canonical(input.provenance || input.source || {}),
++    confidence: clamp(input.confidence ?? 1),
++    content_digest: digest({ title, concepts, relations, procedures })
++  });
++}
++
++function addNode(nodes, label, kind, evidenceId = '') {
++  const normalized = clean(label, 300).toLowerCase();
++  if (!normalized) return null;
++  const nodeId = `${kind}_${digest(`${kind}:${normalized}`).slice(0, 20)}`;
++  const current = nodes.get(nodeId) || { node_id: nodeId, label: normalized, kind, frequency: 0, evidence_ids: new Set() };
++  current.frequency += 1;
++  if (evidenceId) current.evidence_ids.add(evidenceId);
++  nodes.set(nodeId, current);
++  return nodeId;
++}
++
++function addEdge(edges, from, relation, to, evidenceId = '', confidence = 1) {
++  if (!from || !to) return null;
++  const key = `${from}|${relation}|${to}`;
++  const current = edges.get(key) || { from, relation, to, weight: 0, evidence_ids: new Set() };
++  current.weight += clamp(confidence);
++  if (evidenceId) current.evidence_ids.add(evidenceId);
++  edges.set(key, current);
++  return key;
++}
++
++function structuralText(step) {
++  return [
++    `operator:${step.abstract_operator}`,
++    `domain:${step.domain}`,
++    ...step.requires_any.map(value => `requires:${value}`),
++    ...step.produces.map(value => `produces:${value}`),
++    ...step.preserves.map(value => `preserves:${value}`),
++    `risk:${step.risk}`
++  ].join(' ');
++}
++
++function skillSignature(steps) {
++  return steps.map(step => `${step.abstract_operator}:${step.domain}`).join('>');
++}
++
++function stateSatisfies(state, requirement) {
++  if (!requirement) return true;
++  if (state.has(requirement)) return true;
++  const [prefix, domain] = requirement.split(':');
++  if (state.has(`known:${domain}`) && ['accessible', 'source', 'evidence'].includes(prefix)) return true;
++  if (state.has(`verified:${domain}`) && ['known', 'changed', 'consistent', 'artifact', 'executed'].includes(prefix)) return true;
++  return false;
++}
++
++function relationCodeMap(relations) {
++  return new Map(unique(relations).map((relation, index) => [relation, index + 1]));
++}
++
++function finalizeGraph(nodes, edges) {
++  const nodeList = [...nodes.values()].map(node => Object.freeze({
++    ...node,
++    evidence_ids: [...node.evidence_ids].sort()
++  })).sort((a, b) => a.node_id.localeCompare(b.node_id));
++  const nodeIndex = new Map(nodeList.map((node, index) => [node.node_id, index]));
++  const edgeList = [...edges.values()].map(edge => Object.freeze({
++    ...edge,
++    weight: Number(edge.weight.toFixed(6)),
++    evidence_ids: [...edge.evidence_ids].sort()
++  })).sort((a, b) => `${a.from}|${a.relation}|${a.to}`.localeCompare(`${b.from}|${b.relation}|${b.to}`));
++  const codes = relationCodeMap(edgeList.map(edge => edge.relation));
++  const matrix = edgeList.map(edge => [
++    nodeIndex.get(edge.from),
++    nodeIndex.get(edge.to),
++    codes.get(edge.relation),
++    Math.max(1, Math.min(127, Math.round(Math.min(1, edge.weight) * 127)))
++  ]);
++  return Object.freeze({
++    nodes: nodeList,
++    edges: edgeList,
++    relation_codes: Object.fromEntries([...codes.entries()]),
++    sparse_relation_matrix_q8: matrix
++  });
++}
++
++function trainingConfig(options = {}) {
++  return Object.freeze({
++    dimensions: Math.max(128, Math.min(16_384, Number(options.dimensions || DEFAULT_DIMENSIONS))),
++    threshold: clamp(options.threshold ?? DEFAULT_THRESHOLD),
++    minimum_grounding: clamp(options.minimum_grounding ?? DEFAULT_MIN_GROUNDING),
++    max_steps: Math.max(1, Math.min(32, Number(options.max_steps || DEFAULT_MAX_STEPS))),
++    max_expansions: Math.max(8, Math.min(2048, Number(options.max_expansions || DEFAULT_MAX_EXPANSIONS)))
++  });
++}
++
++export function trainArchieDerivationGraph(examples, options = {}) {
++  const started = process.hrtime.bigint();
++  const config = trainingConfig(options);
++  const allExamples = Array.isArray(examples) ? examples : [];
++  const positives = allExamples.filter(isPositive);
++  const negatives = allExamples.filter(isNegative);
++  const knowledgeRecords = (Array.isArray(options.knowledge_records) ? options.knowledge_records : [])
++    .map(normalizeArchieKnowledgeRecord);
++  if (!positives.length && !knowledgeRecords.some(record => record.procedures.length)) {
++    throw new Error('Archie derivation training requires completed trajectories or structured knowledge procedures.');
++  }
++
++  const trainingTexts = [
++    ...positives.map(exampleText),
++    ...negatives.map(exampleText),
++    ...knowledgeRecords.map(record => `${record.title} ${record.summary} ${record.concepts.join(' ')}`)
++  ];
++  const df = new Array(config.dimensions).fill(0);
++  for (const text of trainingTexts) for (const index of rawVector(text, config.dimensions).keys()) df[index] += 1;
++  const idf = df.map(value => Number((Math.log((1 + trainingTexts.length) / (1 + value)) + 1).toFixed(6)));
++
++  const nodes = new Map();
++  const edges = new Map();
++  const skills = [];
++  const adapters = new Map();
++
++  const admitSkill = ({ skillId, instruction, steps, sourceIds = [], provenance = {}, confidence = 1 }) => {
++    if (!steps.length) return;
++    const operators = unique(steps.map(step => step.abstract_operator), 100);
++    const domains = unique(steps.map(step => step.domain), 100);
++    const preconditions = unique(steps.flatMap(step => step.requires_any), 200);
++    const guarantees = unique(steps.flatMap(step => step.produces), 200);
++    const invariants = unique(steps.flatMap(step => step.preserves), 200);
++    const lexical = unique(tokenizeDerivationText(instruction).filter(token => token.length >= 3), 500);
++    const structural = steps.map(structuralText).join(' ');
++    const vector = weightedVector(`${instruction} ${structural}`, config.dimensions, idf);
++    const skill = Object.freeze({
++      skill_id: skillId,
++      instruction: clean(instruction, 5000),
++      signature: skillSignature(steps),
++      abstract_operators: operators,
++      domains,
++      preconditions,
++      guarantees,
++      invariants,
++      lexical_terms: lexical,
++      centroid_q8: quantizeVector(vector),
++      steps,
++      source_ids: unique(sourceIds, 500),
++      provenance: canonical(provenance),
++      confidence: clamp(confidence)
++    });
++    skills.push(skill);
++
++    let previousStepNode = null;
++    for (const step of steps) {
++      const operatorNode = addNode(nodes, step.abstract_operator, 'operator', skillId);
++      const domainNode = addNode(nodes, step.domain, 'domain', skillId);
++      const adapterNode = addNode(nodes, `${step.tool}:${step.action}`, 'adapter', skillId);
++      addEdge(edges, adapterNode, 'implements', operatorNode, skillId, confidence);
++      addEdge(edges, operatorNode, 'applies_to', domainNode, skillId, confidence);
++      if (previousStepNode) addEdge(edges, previousStepNode, 'precedes', adapterNode, skillId, confidence);
++      previousStepNode = adapterNode;
++      const adapterKey = `${step.abstract_operator}|${step.domain}`;
++      const candidates = adapters.get(adapterKey) || [];
++      candidates.push({ tool: step.tool, action: step.action, skill_id: skillId, confidence: clamp(confidence), step });
