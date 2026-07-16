@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-encrypted-model-manifest.schema.json",
+  "title": "Archie encrypted model manifest v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "model",
+    "sizes",
+    "artifact",
+    "chunks",
+    "hardware",
+    "provenance",
+    "state",
+    "benchmarks",
+    "runtime",
+    "encryption",
+    "manifest_digest",
+    "signature"
+  ],
+  "properties": {
+    "schema": { "const": "archie-encrypted-model-manifest/v1" },
+    "model": {
+      "type": "object",
+      "required": ["id", "version", "architecture", "runtime_abi", "format", "quantization", "context_limit"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "version": { "$ref": "#/$defs/identifier" },
+        "architecture": { "type": "string", "minLength": 1 },
+        "runtime_abi": { "const": "archie-runtime/v1" },
+        "format": { "type": "string", "minLength": 1 },
+        "quantization": { "type": "string", "minLength": 1 },
+        "context_limit": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "sizes": {
+      "type": "object",
+      "required": ["download_bytes", "installed_bytes"],
+      "properties": {
+        "download_bytes": { "type": "integer", "minimum": 17 },
+        "installed_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["filename", "sha256"],
+      "properties": {
+        "filename": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["index", "url", "bytes", "sha256", "plaintext_bytes", "plaintext_sha256", "nonce_base64", "aad_digest"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "url": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 17 },
+          "sha256": { "$ref": "#/$defs/digest" },
+          "plaintext_bytes": { "type": "integer", "minimum": 1 },
+          "plaintext_sha256": { "$ref": "#/$defs/digest" },
+          "nonce_base64": { "type": "string", "minLength": 1 },
+          "aad_digest": { "$ref": "#/$defs/digest" }
+        }
+      }
+    },
+    "encryption": {
+      "type": "object",
+      "required": ["schema", "content_cipher", "key_wrap", "recipients"],
+      "properties": {
+        "schema": { "const": "archie-artifact-envelope/v1" },
+        "content_cipher": { "const": "aes-256-gcm" },
+        "key_wrap": { "const": "x25519-hkdf-sha256-aes-256-gcm" },
+        "recipients": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["schema", "recipient_fingerprint", "ephemeral_public_key_pem", "salt_base64", "nonce_base64", "wrapped_key_base64", "aad_digest"],
+            "properties": {
+              "schema": { "const": "archie-wrapped-data-key/v1" },
+              "recipient_fingerprint": { "$ref": "#/$defs/digest" },
+              "ephemeral_public_key_pem": { "type": "string", "minLength": 1 },
+              "salt_base64": { "type": "string", "minLength": 1 },
+              "nonce_base64": { "type": "string", "minLength": 1 },
+              "wrapped_key_base64": { "type": "string", "minLength": 1 },
+              "aad_digest": { "$ref": "#/$defs/digest" }
+            }
+          }
+        }
+      }
+    },
+    "manifest_digest": { "$ref": "#/$defs/digest" },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_fingerprint", "public_key_pem", "value_base64"],
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "key_fingerprint": { "$ref": "#/$defs/digest" },
+        "public_key_pem": { "type": "string", "minLength": 1 },
+        "value_base64": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": true
+}
