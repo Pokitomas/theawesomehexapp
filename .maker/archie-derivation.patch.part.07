@@ -1,0 +1,305 @@
++      if (!satisfied.length && step.requires_any.length) {
++        const observeIntent = intents.find(intent => intent.domain === step.domain);
++        if (step.abstract_operator !== 'observe' && observeIntent) {
++          const observe = selection.skill.steps.find(candidate => candidate.abstract_operator === 'observe' && candidate.domain === step.domain);
++          if (observe) {
++            const observeKey = `${observe.tool}:${observe.action}:${observe.domain}`;
++            if (!usedKeys.has(observeKey)) {
++              plan.push(observe);
++              usedKeys.add(observeKey);
++              for (const produced of observe.produces) state.add(produced);
++            }
++          }
++        }
++      }
++      const stillSatisfied = step.requires_any.length === 0 || step.requires_any.some(requirement => stateSatisfies(state, requirement));
++      if (!stillSatisfied && !['observe', 'materialize'].includes(step.abstract_operator)) {
++        unresolved.push({ type: 'precondition', step: `${step.tool}:${step.action}`, requirements: step.requires_any });
++        continue;
++      }
++      plan.push(step);
++      usedKeys.add(key);
++      for (const produced of step.produces) state.add(produced);
++      if (plan.length >= maxSteps) break;
++    }
++    if (plan.length >= maxSteps) break;
++  }
++  return { plan, state, unresolved };
++}
++
++function buildTypedPlan(steps, proof) {
++  return Object.freeze({
++    schema: 'archie-typed-tool-plan/v1',
++    execution: 'sequential',
++    steps: steps.map((step, index) => Object.freeze({
++      id: `step-${index + 1}`,
++      type: 'tool_call',
++      tool: step.tool,
++      action: step.action,
++      args: canonical(step.args || {}),
++      depends_on: index ? [`step-${index}`] : [],
++      rationale: clean(`${step.abstract_operator}:${step.domain}; ${step.rationale}`, 400),
++      produces: step.produces
++    })),
++    derivation_proof: proof
++  });
++}
++
++export function deriveArchiePlan(model, task = {}, options = {}) {
++  const started = process.hrtime.bigint();
++  const heapStart = process.memoryUsage().heapUsed;
++  validateArchieDerivationModel(model, options);
++  const config = {
++    threshold: clamp(options.threshold ?? model.threshold),
++    minimum_grounding: clamp(options.minimum_grounding ?? model.minimum_grounding),
++    max_steps: Math.max(1, Math.min(32, Number(options.max_steps || model.max_steps))),
++    max_expansions: Math.max(8, Math.min(2048, Number(options.max_expansions || model.max_expansions)))
++  };
++  const intent = taskIntent(task);
++  const queryVector = weightedVector(intent.text, model.dimensions, model.idf || []);
++  const negative = forbiddenMatch(model, intent, queryVector);
++  const negativeBlocked = Boolean(negative && negative.lexical_overlap >= 3 && (negative.score >= 0.18 || negative.lexical_overlap >= 4));
++
++  if (negativeBlocked) {
++    const body = {
++      schema: ARCHIE_DERIVATION_PLAN_SCHEMA,
++      state: 'reject',
++      disposition: 'reject',
++      task_digest: digest(intent.text),
++      confidence: Number(clamp(Math.max(negative.score, Math.min(1, negative.lexical_overlap / 4))).toFixed(6)),
++      grounding: 1,
++      mode: 'forbidden-pattern',
++      plan: null,
++      proof: null,
++      teacher_gap: null,
++      rejection: { negative_id: negative.negative.negative_id, reason: negative.negative.reason, lexical_overlap: negative.lexical_overlap, score: Number(negative.score.toFixed(6)) },
++      receipts: { deterministic: true, cpu_only: true, expansions: 0, latency_ms: Number((Number(process.hrtime.bigint() - started) / 1e6).toFixed(3)), heap_delta_bytes: process.memoryUsage().heapUsed - heapStart },
++      model_digest: model.model_digest
++    };
++    return Object.freeze({ ...body, plan_digest: digest({ ...body, receipts: { ...body.receipts, latency_ms: 0, heap_delta_bytes: 0 } }) });
++  }
++
++  const selections = [];
++  const unresolvedIntents = [];
++  let expansions = 0;
++  for (const item of intent.intents) {
++    const ranked = model.skills.map(skill => skillScore(skill, item, queryVector))
++      .sort((a, b) => b.score - a.score || b.grounding - a.grounding || a.skill.skill_id.localeCompare(b.skill.skill_id));
++    expansions += ranked.length;
++    const best = ranked[0];
++    const operatorPresent = item.operator ? best?.skill.abstract_operators.includes(item.operator) : true;
++    const domainPresent = item.domain !== 'general' ? best?.skill.domains.includes(item.domain) : true;
++    if (!best || best.score < config.threshold || best.grounding < config.minimum_grounding || !operatorPresent || !domainPresent) {
++      unresolvedIntents.push({
++        intent_id: item.intent_id,
++        clause: item.clause,
++        operator: item.operator,
++        domain: item.domain,
++        best_skill_id: best?.skill.skill_id || null,
++        score: Number((best?.score || 0).toFixed(6)),
++        grounding: Number((best?.grounding || 0).toFixed(6)),
++        missing: !operatorPresent ? `operator:${item.operator}` : !domainPresent ? `adapter:${item.operator || 'execute'}:${item.domain}` : 'grounded-example'
++      });
++      continue;
++    }
++    selections.push({ intent: item, skill: best.skill, score: best.score, grounding: best.grounding, steps: selectStepsForIntent(best.skill, item) });
++    if (expansions >= config.max_expansions) break;
++  }
++
++  const proofed = orderAndProveSteps(selections, intent.intents, config.max_steps);
++  const coveredIntentIds = new Set(selections.map(selection => selection.intent.intent_id));
++  const missing = [...unresolvedIntents, ...proofed.unresolved];
++  const complete = intent.intents.every(item => coveredIntentIds.has(item.intent_id)) && proofed.plan.length > 0 && !proofed.unresolved.length;
++  const averageScore = selections.length ? selections.reduce((sum, item) => sum + item.score, 0) / selections.length : 0;
++  const averageGrounding = selections.length ? selections.reduce((sum, item) => sum + item.grounding, 0) / selections.length : 0;
++  const mode = selections.length > 1
++    ? new Set(selections.map(item => item.skill.skill_id)).size > 1 ? 'cross-skill-composition' : 'within-skill-composition'
++    : selections[0]?.skill.domains.length > 1 ? 'structural-transfer' : 'single-skill-derivation';
++
++  const usedSkills = unique(selections.map(item => item.skill.skill_id), 100);
++  const guarantees = unique(proofed.plan.flatMap(step => step.produces), 200);
++  const preconditions = unique(proofed.plan.flatMap(step => step.requires_any), 200);
++  const invariants = unique(proofed.plan.flatMap(step => step.preserves), 200);
++  const proofBody = {
++    schema: ARCHIE_PROOF_SCHEMA,
++    mode,
++    goal_atoms: unique(intent.intents.flatMap(item => item.desired_states), 200),
++    used_skills: usedSkills,
++    derivation_edges: proofed.plan.map((step, index) => ({
++      from: index ? `step-${index}` : `intent:${selections[0]?.intent.intent_id || 'task'}`,
++      relation: index ? 'precedes' : 'grounds',
++      to: `step-${index + 1}`,
++      operator: step.abstract_operator,
++      domain: step.domain
++    })),
++    preconditions,
++    guarantees,
++    invariants,
++    unresolved: missing,
++    evidence_sources: unique(selections.flatMap(item => item.skill.source_ids), 500)
++  };
++  const proof = Object.freeze({ ...proofBody, proof_digest: digest(proofBody) });
++  const state = complete ? 'local' : 'teacher';
++  const body = {
++    schema: ARCHIE_DERIVATION_PLAN_SCHEMA,
++    state,
++    disposition: state === 'local' ? 'execute' : 'escalate_to_teacher',
++    task_digest: digest(intent.text),
++    confidence: Number(clamp(averageScore).toFixed(6)),
++    grounding: Number(clamp(averageGrounding).toFixed(6)),
++    mode,
++    plan: state === 'local' ? buildTypedPlan(proofed.plan, proof) : null,
++    proof,
++    teacher_gap: state === 'teacher' ? {
++      schema: 'archie-minimal-teacher-gap/v1',
++      request: clean(intent.text, 5000),
++      missing,
++      known_skills: usedSkills,
++      desired_output: 'Return only the missing typed transformation or adapter, its preconditions, effects, invariants, and one verified tool trajectory.',
++      gap_digest: digest({ task: intent.text, missing, known_skills: usedSkills })
++    } : null,
++    rejection: null,
++    alternatives: selections.map(selection => ({
++      intent_id: selection.intent.intent_id,
++      skill_id: selection.skill.skill_id,
++      score: Number(selection.score.toFixed(6)),
++      grounding: Number(selection.grounding.toFixed(6)),
++      signature: selection.skill.signature
++    })),
++    receipts: {
++      deterministic: true,
++      cpu_only: true,
++      expansions,
++      selected_skill_count: usedSkills.length,
++      selected_step_count: proofed.plan.length,
++      graph_nodes: model.graph.nodes.length,
++      graph_edges: model.graph.edges.length,
++      relation_matrix_entries: model.graph.sparse_relation_matrix_q8.length,
++      latency_ms: Number((Number(process.hrtime.bigint() - started) / 1e6).toFixed(3)),
++      heap_delta_bytes: process.memoryUsage().heapUsed - heapStart
++    },
++    model_digest: model.model_digest
++  };
++  return Object.freeze({ ...body, plan_digest: digest({ ...body, receipts: { ...body.receipts, latency_ms: 0, heap_delta_bytes: 0 } }) });
++}
++
++export function fitIncrementalArchieDerivationGraph(model, newExamples, options = {}) {
++  validateArchieDerivationModel(model, options);
++  const replay = model.skills.map(skill => ({
++    schema: 'archie-distillation-example/v1',
++    example_id: `replay_${skill.skill_id}`,
++    instruction: skill.instruction,
++    target: { steps: skill.steps },
++    tool_trace: skill.steps,
++    outcome: 'completed',
++    source: skill.provenance
++  }));
++  const negatives = (model.forbidden || []).map(negative => ({
++    schema: 'archie-distillation-example/v1',
++    example_id: `replay_${negative.negative_id}`,
++    instruction: negative.instruction,
++    outcome: 'rejected',
++    negative: true,
++    reason: negative.reason,
++    tags: ['negative', 'suppress']
++  }));
++  return trainArchieDerivationGraph([...replay, ...negatives, ...(Array.isArray(newExamples) ? newExamples : [])], {
++    dimensions: model.dimensions,
++    threshold: model.threshold,
++    minimum_grounding: model.minimum_grounding,
++    max_steps: model.max_steps,
++    max_expansions: model.max_expansions,
++    knowledge_records: options.knowledge_records || [],
++    trained_at: options.trained_at || new Date().toISOString()
++  });
++}
++
++export function derivationCompressionReceipt(model) {
++  validateArchieDerivationModel(model);
++  const bytes = Buffer.byteLength(stable(model), 'utf8');
++  const sourceBytes = Number(model.knowledge_receipt?.source_text_bytes || 0);
++  const relationCount = Number(model.graph?.edges?.length || 0);
++  const skillCount = Number(model.skills?.length || 0);
++  const body = {
++    schema: 'archie-derivation-compression-receipt/v1',
++    model_bytes: bytes,
++    source_text_bytes: sourceBytes,
++    source_to_model_ratio: sourceBytes ? Number((sourceBytes / bytes).toFixed(6)) : 0,
++    relations_per_kib: Number((relationCount / Math.max(1, bytes / 1024)).toFixed(6)),
++    skills_per_kib: Number((skillCount / Math.max(1, bytes / 1024)).toFixed(6)),
++    graph_nodes: model.graph.nodes.length,
++    graph_edges: relationCount,
++    sparse_matrix_entries: model.graph.sparse_relation_matrix_q8.length
++  };
++  return Object.freeze({ ...body, receipt_digest: digest(body) });
++}
++
++async function readJSON(filename) {
++  return JSON.parse(await fs.readFile(filename, 'utf8'));
++}
++
++async function writeAtomic(filename, value) {
++  await fs.mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
++  const temporary = `${filename}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
++  await fs.writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
++  await fs.rename(temporary, filename);
++}
++
++function argument(name, fallback = '') {
++  const index = process.argv.indexOf(name);
++  return index >= 0 ? process.argv[index + 1] : fallback;
++}
++
++async function main() {
++  const command = process.argv[2];
++  if (command === 'train') {
++    const examplesPath = argument('--examples');
++    const knowledgePath = argument('--knowledge');
++    const modelPath = argument('--model');
++    if (!modelPath || (!examplesPath && !knowledgePath)) throw new Error('Usage: maker-archie-derivation.mjs train [--examples examples.json] [--knowledge records.json] --model model.json');
++    const examples = examplesPath ? await readJSON(examplesPath) : [];
++    const knowledge_records = knowledgePath ? await readJSON(knowledgePath) : [];
++    await writeAtomic(modelPath, trainArchieDerivationGraph(examples, { knowledge_records }));
++    return;
++  }
++  if (command === 'derive') {
++    const modelPath = argument('--model');
++    const instruction = argument('--instruction') || argument('--text');
++    if (!modelPath || !instruction) throw new Error('Usage: maker-archie-derivation.mjs derive --model model.json --instruction "..."');
++    console.log(JSON.stringify(deriveArchiePlan(await readJSON(modelPath), { instruction }), null, 2));
++    return;
++  }
++  if (command === 'compression-receipt') {
++    const modelPath = argument('--model');
++    if (!modelPath) throw new Error('Usage: maker-archie-derivation.mjs compression-receipt --model model.json');
++    console.log(JSON.stringify(derivationCompressionReceipt(await readJSON(modelPath)), null, 2));
++    return;
++  }
++  throw new Error('Usage: maker-archie-derivation.mjs <train|derive|compression-receipt>');
++}
++
++if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  main().catch(error => {
++    console.error(error.stack || error.message || String(error));
++    process.exitCode = 1;
++  });
++}
+diff --git a/scripts/maker-archie-operator.mjs b/scripts/maker-archie-operator.mjs
+index 9c63436..99862dd 100755
+--- a/scripts/maker-archie-operator.mjs
++++ b/scripts/maker-archie-operator.mjs
+@@ -83,6 +83,15 @@ export function projectOperatorView(receipt, options = {}) {
+       confidence: nullableNumber(p.route?.confidence),
+       margin: nullableNumber(p.route?.margin)
+     }),
++    derivation: Object.freeze({
++      state: state(p.derivation?.state),
++      mode: state(p.derivation?.mode),
++      proof_digest: /^[a-f0-9]{64}$/.test(p.derivation?.proof_digest || '') ? p.derivation.proof_digest : null,
++      graph_nodes: Number.isSafeInteger(p.derivation?.graph_nodes) ? p.derivation.graph_nodes : null,
++      graph_edges: Number.isSafeInteger(p.derivation?.graph_edges) ? p.derivation.graph_edges : null,
++      missing_edges: Array.isArray(p.derivation?.missing_edges) ? p.derivation.missing_edges.slice(0, 30).map(item => clean(item, 500)).filter(Boolean) : [],
++      model_bytes: Number.isSafeInteger(p.derivation?.model_bytes) ? p.derivation.model_bytes : null
++    }),
+     budget: Object.freeze({
+       decision: state(p.budget?.decision),
