@@ -2,6 +2,7 @@
 
 A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel.
 
+- **Install or open Sideways:** [plain-language install guide](./INSTALL.md)
 - Root feed: `https://pokitomas.github.io/theawesomehexapp/`
 - Sideways consumer app: `https://pokitomas.github.io/theawesomehexapp/manual/`
 - Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
