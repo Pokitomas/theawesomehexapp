@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger-v3'
+    if: github.event.pull_request.head.ref == 'agent/archie-final-safe-publisher-trigger-v4'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -46,19 +46,28 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          : > "$RUNNER_TEMP/reconstruct.log"
           fetch_blob() {
-            local blob="$1" output="$2" expected="$3"
+            local blob="$1" output="$2" expected="$3" label="$4"
+            echo "$label blob=$blob" | tee -a "$RUNNER_TEMP/reconstruct.log"
             curl --fail --silent --show-error \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H 'Accept: application/vnd.github+json' \
               "https://api.github.com/repos/$REPOSITORY/git/blobs/$blob" \
-              | jq -r '.content' | tr -d '\n' | base64 -d > "$output"
-            echo "$expected  $output" | sha256sum --check --strict
+              > "$RUNNER_TEMP/$label.json"
+            jq -r '"size=" + (.size|tostring) + " encoding=" + .encoding' "$RUNNER_TEMP/$label.json" | tee -a "$RUNNER_TEMP/reconstruct.log"
+            jq -r '.content' "$RUNNER_TEMP/$label.json" | tr -d '\r\n' | base64 -d > "$output"
+            actual="$(sha256sum "$output" | awk '{print $1}')"
+            bytes="$(wc -c < "$output")"
+            echo "$label bytes=$bytes actual=$actual expected=$expected" | tee -a "$RUNNER_TEMP/reconstruct.log"
+            test "$actual" = "$expected"
           }
-          fetch_blob "$PART0_BLOB" "$RUNNER_TEMP/part.00" "$PART0_SHA256"
-          fetch_blob "$PART1_BLOB" "$RUNNER_TEMP/part.01" "$PART1_SHA256"
+          fetch_blob "$PART0_BLOB" "$RUNNER_TEMP/part.00" "$PART0_SHA256" part0
+          fetch_blob "$PART1_BLOB" "$RUNNER_TEMP/part.01" "$PART1_SHA256" part1
           cat "$RUNNER_TEMP/part.00" "$RUNNER_TEMP/part.01" > "$RUNNER_TEMP/patch.tgz"
-          echo "$EXPECTED_PATCH_SHA256  $RUNNER_TEMP/patch.tgz" | sha256sum --check --strict
+          patch_actual="$(sha256sum "$RUNNER_TEMP/patch.tgz" | awk '{print $1}')"
+          echo "patch actual=$patch_actual expected=$EXPECTED_PATCH_SHA256" | tee -a "$RUNNER_TEMP/reconstruct.log"
+          test "$patch_actual" = "$EXPECTED_PATCH_SHA256"
           tar -tzf "$RUNNER_TEMP/patch.tgz" | LC_ALL=C sort > "$RUNNER_TEMP/observed-paths.txt"
           cat > "$RUNNER_TEMP/expected-paths.txt" <<'PATHS'
           .github/workflows/maker-native-worker-ci.yml
@@ -87,7 +96,7 @@ jobs:
           scripts/tests/maker-runtime-platform.test.mjs
           PATHS
           LC_ALL=C sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
-          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/observed-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/observed-paths.txt" | tee -a "$RUNNER_TEMP/reconstruct.log"
 
       - name: Materialize exact coordinator candidate
         run: |
@@ -154,6 +163,7 @@ jobs:
           name: archie-final-safe-publisher-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/expected-parent.txt
+            ${{ runner.temp }}/reconstruct.log
             ${{ runner.temp }}/candidate-tree.txt
             ${{ runner.temp }}/browser-version.txt
             ${{ runner.temp }}/native-changed.log
