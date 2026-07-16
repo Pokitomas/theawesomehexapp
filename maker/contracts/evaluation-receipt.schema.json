@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://theawesomehexapp.local/maker/contracts/evaluation-receipt.schema.json",
+  "title": "Maker evaluation receipt",
+  "type": "object",
+  "required": ["schema", "suite_id", "suite_digest", "grades", "metrics", "admission", "failed_attempts", "receipt_digest"],
+  "properties": {
+    "schema": { "const": "sideways-maker-evaluation-receipt/v1" },
+    "suite_id": { "type": "string", "minLength": 1 },
+    "suite_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "grades": { "type": "array" },
+    "metrics": { "type": "object" },
+    "admission": { "type": "object", "required": ["admitted", "rules", "reasons"] },
+    "failed_attempts": { "type": "array" },
+    "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": true
+}
