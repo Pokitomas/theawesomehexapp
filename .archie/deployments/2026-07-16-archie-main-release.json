@@ -1,0 +1,14 @@
+{
+  "schema": "archie-deployment-intent/v1",
+  "requested_at": "2026-07-16",
+  "base_commit": "13357591c397dad9feed961030878d21f5227757",
+  "channel": "github-pages",
+  "reason": "Explicit owner request to push and deploy the validated Archie causal-repair release.",
+  "scope": "deployment trigger only",
+  "product_files_changed": false,
+  "claims": {
+    "causal_repair_gate_merged": true,
+    "visual_rewrite_complete": false,
+    "all_benchmarks_passed": false
+  }
+}
