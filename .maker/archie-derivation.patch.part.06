@@ -1,0 +1,290 @@
++      adapters.set(adapterKey, candidates);
++      for (const requirement of step.requires_any) {
++        const stateNode = addNode(nodes, requirement, 'state', skillId);
++        addEdge(edges, stateNode, 'enables', adapterNode, skillId, confidence);
++      }
++      for (const produced of step.produces) {
++        const stateNode = addNode(nodes, produced, 'state', skillId);
++        addEdge(edges, adapterNode, 'produces', stateNode, skillId, confidence);
++      }
++      for (const preserved of step.preserves) {
++        const stateNode = addNode(nodes, preserved, 'invariant', skillId);
++        addEdge(edges, adapterNode, 'preserves', stateNode, skillId, confidence);
++      }
++    }
++  };
++
++  for (const example of positives) {
++    const instruction = clean(example.instruction || example.input?.text);
++    const sourceId = clean(example.example_id || `example_${digest(example).slice(0, 24)}`, 100);
++    admitSkill({
++      skillId: `skill_${digest({ sourceId, steps: stepsFromExample(example) }).slice(0, 24)}`,
++      instruction,
++      steps: stepsFromExample(example),
++      sourceIds: [sourceId],
++      provenance: example.source || {},
++      confidence: example.confidence ?? 1
++    });
++  }
++
++  for (const record of knowledgeRecords) {
++    for (const concept of record.concepts) addNode(nodes, concept, 'concept', record.record_id);
++    for (const relation of record.relations) {
++      const from = addNode(nodes, relation.from, 'concept', record.record_id);
++      const to = addNode(nodes, relation.to, 'concept', record.record_id);
++      addEdge(edges, from, relation.relation, to, record.record_id, relation.confidence * record.confidence);
++    }
++    for (const procedure of record.procedures) {
++      admitSkill({
++        skillId: `knowledge_skill_${digest({ record: record.record_id, procedure: procedure.procedure_id }).slice(0, 24)}`,
++        instruction: `${procedure.name}. ${record.summary}`,
++        steps: procedure.steps,
++        sourceIds: [record.record_id, procedure.procedure_id],
++        provenance: record.provenance,
++        confidence: record.confidence
++      });
++    }
++  }
++
++  const bySignature = new Map();
++  for (const skill of skills) {
++    const abstract = skill.abstract_operators.join('>');
++    const group = bySignature.get(abstract) || [];
++    group.push(skill);
++    bySignature.set(abstract, group);
++  }
++  for (const group of bySignature.values()) {
++    if (group.length < 2) continue;
++    for (let left = 0; left < group.length; left += 1) {
++      for (let right = left + 1; right < group.length; right += 1) {
++        const a = addNode(nodes, group[left].skill_id, 'skill', group[left].skill_id);
++        const b = addNode(nodes, group[right].skill_id, 'skill', group[right].skill_id);
++        addEdge(edges, a, 'structurally_analogous_to', b, `${group[left].skill_id}:${group[right].skill_id}`, Math.min(group[left].confidence, group[right].confidence));
++        addEdge(edges, b, 'structurally_analogous_to', a, `${group[left].skill_id}:${group[right].skill_id}`, Math.min(group[left].confidence, group[right].confidence));
++      }
++    }
++  }
++
++  const forbidden = negatives.map(example => Object.freeze({
++    negative_id: `negative_${digest(exampleText(example)).slice(0, 24)}`,
++    instruction: clean(example.instruction || example.input?.text, 5000),
++    reason: clean(example.reason || example.error || example.outcome || 'negative example', 1000),
++    lexical_terms: unique(tokenizeDerivationText(exampleText(example)), 500),
++    centroid_q8: quantizeVector(weightedVector(exampleText(example), config.dimensions, idf)),
++    source_id: clean(example.example_id || '', 100)
++  })).sort((a, b) => a.negative_id.localeCompare(b.negative_id));
++
++  skills.sort((a, b) => a.skill_id.localeCompare(b.skill_id));
++  const graph = finalizeGraph(nodes, edges);
++  const adapterIndex = [...adapters.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, candidates]) => ({
++    key,
++    candidates: candidates.sort((a, b) => b.confidence - a.confidence || `${a.tool}:${a.action}`.localeCompare(`${b.tool}:${b.action}`))
++      .map(candidate => ({ tool: candidate.tool, action: candidate.action, skill_id: candidate.skill_id, confidence: candidate.confidence }))
++  }));
++
++  const body = Object.freeze({
++    schema: ARCHIE_DERIVATION_MODEL_SCHEMA,
++    architecture: 'portable-sparse-derivational-graph',
++    intelligence_claim: 'bounded-composition-over-owned-typed-transformations',
++    not_a_generative_language_model: true,
++    dimensions: config.dimensions,
++    threshold: config.threshold,
++    minimum_grounding: config.minimum_grounding,
++    max_steps: config.max_steps,
++    max_expansions: config.max_expansions,
++    vector_encoding: 'signed-int8-q8-sparse',
++    idf,
++    operator_library: ARCHIE_OPERATOR_LIBRARY,
++    graph,
++    adapter_index: adapterIndex,
++    skills,
++    forbidden,
++    knowledge_receipt: {
++      examples: positives.length,
++      negative_examples: negatives.length,
++      metadata_records: knowledgeRecords.length,
++      concepts: graph.nodes.length,
++      relations: graph.edges.length,
++      sparse_matrix_entries: graph.sparse_relation_matrix_q8.length,
++      source_text_bytes: trainingTexts.reduce((sum, value) => sum + Buffer.byteLength(value), 0),
++      model_bytes_without_digest: 0,
++      trained_at: clean(options.trained_at || new Date().toISOString(), 80),
++      elapsed_ms: Number((Number(process.hrtime.bigint() - started) / 1e6).toFixed(3))
++    }
++  });
++  const withSize = {
++    ...body,
++    knowledge_receipt: {
++      ...body.knowledge_receipt,
++      model_bytes_without_digest: Buffer.byteLength(stable(body), 'utf8')
++    }
++  };
++  return Object.freeze({ ...withSize, model_digest: digest(withSize) });
++}
++
++function modelBody(model) {
++  const { model_digest, ...body } = model || {};
++  return body;
++}
++
++export function validateArchieDerivationModel(model, { max_bytes = MAX_MODEL_BYTES } = {}) {
++  if (!model || model.schema !== ARCHIE_DERIVATION_MODEL_SCHEMA) throw new Error('Invalid Archie derivation model schema.');
++  if (model.not_a_generative_language_model !== true) throw new Error('Archie derivation model must preserve its non-generative claim boundary.');
++  if (Buffer.byteLength(stable(model), 'utf8') > max_bytes) throw new Error('Archie derivation model exceeds its portable size budget.');
++  if (model.model_digest !== digest(modelBody(model))) throw new Error('Archie derivation model integrity check failed.');
++  if (!Array.isArray(model.skills) || !model.skills.length) throw new Error('Archie derivation model requires at least one skill.');
++  if (!Array.isArray(model.graph?.sparse_relation_matrix_q8)) throw new Error('Archie derivation graph matrix is missing.');
++  return true;
++}
++
++function inferTaskOperator(clause, tokens = tokenizeDerivationText(clause)) {
++  const source = clean(clause, 4000).toLowerCase();
++  if (/\b(?:roll(?:ed|ing)?\s+(?:it\s+)?back|undo|revert|cancel|remove|delete)\b/.test(source)) return 'invert';
++  if (/\b(?:check ?point|snapshot|savepoint|backup|preserve|retain)\b/.test(source)) return 'preserve';
++  if (/\b(?:test|tests|testing|verify|verified|validate|validation|check|prove|proof|score|evaluate|recovery)\b/.test(source)) return 'verify';
++  for (const token of tokens) {
++    const candidate = ACTION_TO_OPERATOR.get(token);
++    if (candidate) return candidate;
++  }
++  return null;
++}
++
++function taskIntent(task = {}) {
++  const instruction = typeof task === 'string' ? clean(task) : clean(task.instruction || task.request || task.goal || task.text);
++  const context = typeof task === 'string' ? null : (task.context ?? task.compact_context ?? null);
++  const text = [instruction, context == null ? '' : stable(context)].filter(Boolean).join('\n');
++  const clauses = splitClauses(text);
++  const pieces = clauses.length ? clauses : [text];
++  const intents = [];
++  const tokenSets = pieces.map(clause => tokenizeDerivationText(clause));
++  const operators = pieces.map((clause, index) => inferTaskOperator(clause, tokenSets[index]));
++  const explicitDomains = pieces.map(clause => inferDomain(clause, 'general'));
++  const resolvedDomains = explicitDomains.map((domain, index) => {
++    let previous = null;
++    let next = null;
++    for (let distance = 1; distance < pieces.length && (!previous || !next); distance += 1) {
++      const before = explicitDomains[index - distance];
++      const after = explicitDomains[index + distance];
++      if (!previous && before && before !== 'general') previous = before;
++      if (!next && after && after !== 'general') next = after;
++    }
++    const source = clean(pieces[index], 1000).toLowerCase();
++    const weakDomain = ['cognition', 'model', 'planner', 'evidence'].includes(domain);
++    if (domain !== 'general' && !weakDomain) return domain;
++    if (weakDomain) {
++      const previousStrength = DOMAIN_PRIORITY[previous] || 0;
++      const nextStrength = DOMAIN_PRIORITY[next] || 0;
++      if (previousStrength > (DOMAIN_PRIORITY[domain] || 0)) return previous;
++      if (nextStrength > (DOMAIN_PRIORITY[domain] || 0)) return next;
++      return domain;
++    }
++    if (/\b(?:it|this|that|them|those|these|its)\b/.test(source) && previous) return previous;
++    if (['verify', 'invert', 'preserve', 'reconcile', 'synchronize'].includes(operators[index]) && previous) return previous;
++    if (next) return next;
++    return previous || 'general';
++  });
++  for (let index = 0; index < pieces.length; index += 1) {
++    const clause = pieces[index];
++    const tokens = tokenSets[index];
++    const operator = operators[index];
++    const explicitDomain = explicitDomains[index];
++    const domain = resolvedDomains[index];
++    const semantics = operatorSemantics(operator || 'execute', domain);
++    intents.push(Object.freeze({
++      intent_id: `intent-${index + 1}`,
++      clause,
++      tokens: unique(tokens, 300),
++      operator,
++      domain,
++      desired_states: semantics.produces,
++      explicit: Boolean(operator || explicitDomain !== 'general'),
++      inherited_domain: explicitDomain === 'general' && domain !== 'general'
++    }));
++  }
++  return Object.freeze({ text, tokens: unique(tokenizeDerivationText(text), 1000), intents: Object.freeze(intents) });
++}
++
++function setOverlap(left, right) {
++  const a = left instanceof Set ? left : new Set(left || []);
++  const b = right instanceof Set ? right : new Set(right || []);
++  let count = 0;
++  for (const value of a) if (b.has(value)) count += 1;
++  return count;
++}
++
++function jaccard(left, right) {
++  const a = new Set(left || []);
++  const b = new Set(right || []);
++  if (!a.size && !b.size) return 1;
++  const overlap = setOverlap(a, b);
++  return overlap / Math.max(1, a.size + b.size - overlap);
++}
++
++function forbiddenMatch(model, intent, queryVector) {
++  const queryTerms = new Set(intent.tokens);
++  return (model.forbidden || []).map(negative => {
++    const lexicalOverlap = setOverlap(queryTerms, negative.lexical_terms);
++    const score = cosine(queryVector, dequantizeVector(negative.centroid_q8));
++    return { negative, lexical_overlap: lexicalOverlap, score };
++  }).sort((a, b) => b.lexical_overlap - a.lexical_overlap || b.score - a.score)[0] || null;
++}
++
++function skillScore(skill, intent, queryVector) {
++  const lexicalOverlap = setOverlap(intent.tokens, skill.lexical_terms);
++  const lexicalRatio = lexicalOverlap / Math.max(1, Math.min(intent.tokens.length, skill.lexical_terms.length));
++  const vectorScore = cosine(queryVector, dequantizeVector(skill.centroid_q8));
++  const operatorScore = intent.operator ? (skill.abstract_operators.includes(intent.operator) ? 1 : 0) : 0.35;
++  const domainScore = intent.domain !== 'general' ? (skill.domains.includes(intent.domain) ? 1 : 0) : 0.35;
++  const structuralScore = jaccard(intent.desired_states, skill.guarantees);
++  const score = 0.31 * vectorScore + 0.23 * lexicalRatio + 0.2 * operatorScore + 0.18 * domainScore + 0.08 * structuralScore;
++  const grounding = clamp(0.45 * lexicalRatio + 0.3 * operatorScore + 0.25 * domainScore);
++  return { skill, score, grounding, lexical_overlap: lexicalOverlap, vector_score: vectorScore, operator_score: operatorScore, domain_score: domainScore, structural_score: structuralScore };
++}
++
++function stepScore(step, intent, skill) {
++  const operator = intent.operator ? (step.abstract_operator === intent.operator ? 1 : 0) : 0.35;
++  const domain = intent.domain !== 'general' ? (step.domain === intent.domain ? 1 : 0) : 0.35;
++  const tokenSet = new Set(intent.tokens);
++  const lexical = Number(tokenSet.has(normalizeToken(step.action))) + Number(tokenSet.has(normalizeToken(step.tool))) + Number(tokenSet.has(step.domain));
++  const source = skill.confidence;
++  return 0.44 * operator + 0.31 * domain + 0.15 * Math.min(1, lexical / 2) + 0.1 * source;
++}
++
++function selectStepsForIntent(skill, intent, maxSteps = 4) {
++  const ranked = skill.steps.map(step => ({ step, score: stepScore(step, intent, skill) }))
++    .sort((a, b) => b.score - a.score || a.step.id.localeCompare(b.step.id));
++  if (intent.operator) {
++    const exact = skill.steps.filter(step => step.abstract_operator === intent.operator && (intent.domain === 'general' || step.domain === intent.domain));
++    const matching = exact.length ? exact : skill.steps.filter(step => step.abstract_operator === intent.operator);
++    if (matching.length) {
++      // A selected operation carries the smallest valid derivation prefix rather than
++      // being torn out of its causal trajectory. This preserves preconditions and also
++      // retains repeated same-operator stages such as estimate -> reserve -> allocate.
++      const lastMatchIndex = Math.max(...matching.map(match => skill.steps.findIndex(step => step.id === match.id)));
++      return skill.steps.slice(0, Math.min(skill.steps.length, lastMatchIndex + 1)).slice(-maxSteps);
++    }
++  }
++  const best = ranked.slice(0, Math.min(maxSteps, 2));
++  const lastBestIndex = Math.max(...best.map(item => skill.steps.findIndex(step => step.id === item.step.id)));
++  return skill.steps.slice(0, Math.min(skill.steps.length, lastBestIndex + 1)).slice(-maxSteps);
++}
++
++function planStateSeed(intents) {
++  const state = new Set();
++  for (const intent of intents) {
++    state.add(`accessible:${intent.domain}`);
++    if (intent.domain !== 'general') state.add(`source:${intent.domain}`);
++  }
++  return state;
++}
++
++function orderAndProveSteps(selections, intents, maxSteps) {
++  const state = planStateSeed(intents);
++  const plan = [];
++  const unresolved = [];
++  const usedKeys = new Set();
++  for (const selection of selections) {
++    for (const step of selection.steps) {
++      const key = `${step.tool}:${step.action}:${step.domain}`;
++      if (usedKeys.has(key)) continue;
++      const satisfied = step.requires_any.filter(requirement => stateSatisfies(state, requirement));
