@@ -72,6 +72,86 @@ async function contrastRatio(locator) {
   });
 }
 
+async function openBoundExplanation(page, name) {
+  const controls = page.locator('[data-root-explanation-control="true"]');
+  await controls.first().waitFor({ state: 'visible', timeout: 30000 });
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const control = await controls.first().elementHandle();
+    if (!control) continue;
+    try {
+      const panelId = await control.getAttribute('aria-controls');
+      if (!panelId || !/^[a-z0-9_-]+$/i.test(panelId)) throw new Error(`${name}: explanation control has invalid aria-controls`);
+      await control.click({ timeout: 15000 });
+      await page.waitForFunction(button => {
+        if (!(button instanceof HTMLElement) || !button.isConnected) return false;
+        const panel = button.parentElement?.querySelector('.sideways-rank-explanation');
+        return panel instanceof HTMLElement
+          && panel.id === button.getAttribute('aria-controls')
+          && panel.hidden === false
+          && button.getAttribute('aria-expanded') === 'true';
+      }, control, { timeout: 10000 });
+      const explanation = await control.evaluate(button => {
+        const panel = button.parentElement?.querySelector('.sideways-rank-explanation');
+        return panel instanceof HTMLElement ? panel.innerText : '';
+      });
+      await control.dispose();
+      return { panelId, explanation };
+    } catch (error) {
+      lastError = error;
+      const connected = await control.evaluate(button => button.isConnected).catch(() => false);
+      await control.dispose();
+      if (connected) throw error;
+    }
+  }
+  throw new Error(`${name}: could not bind one actionable explanation control to its panel: ${lastError?.message || 'control unavailable'}`);
+}
+
+function boundSelector(panelId) {
+  return `[data-root-explanation-control="true"][aria-controls="${panelId}"]`;
+}
+
+async function readBoundExplanationState(page, panelId) {
+  const selector = boundSelector(panelId);
+  await page.locator(selector).first().waitFor({ state: 'visible', timeout: 15000 });
+  return page.evaluate(selector => {
+    const button = document.querySelector(selector);
+    const controlledId = button?.getAttribute('aria-controls');
+    const panel = controlledId ? document.getElementById(controlledId) : null;
+    if (!(button instanceof HTMLElement) || !(panel instanceof HTMLElement)) return null;
+    const expanded = button.getAttribute('aria-expanded') === 'true';
+    if (panel.hidden === expanded) return null;
+    return expanded;
+  }, selector);
+}
+
+async function keyboardToggleBoundExplanation(page, panelId) {
+  const selector = boundSelector(panelId);
+  const before = await readBoundExplanationState(page, panelId);
+  if (typeof before !== 'boolean') throw new Error(`explanation ${panelId} has inconsistent pre-toggle state`);
+  const control = page.locator(selector).first();
+  await control.focus();
+  await page.keyboard.press('Enter');
+  const expected = !before;
+  await page.waitForFunction(({ selector, expected }) => {
+    const button = document.querySelector(selector);
+    const controlledId = button?.getAttribute('aria-controls');
+    const panel = controlledId ? document.getElementById(controlledId) : null;
+    return button instanceof HTMLElement
+      && panel instanceof HTMLElement
+      && button.getAttribute('aria-expanded') === String(expected)
+      && panel.hidden === !expected;
+  }, { selector, expected }, { timeout: 10000 });
+  return expected;
+}
+
+async function proveOfflineKeyboardToggling(page, panelId) {
+  let expanded = await keyboardToggleBoundExplanation(page, panelId);
+  expanded = await keyboardToggleBoundExplanation(page, panelId);
+  if (!expanded) expanded = await keyboardToggleBoundExplanation(page, panelId);
+  if (!expanded) throw new Error(`explanation ${panelId} did not finish open after offline keyboard toggling`);
+}
+
 async function prove({ name, viewport, isMobile = false, screenshot }) {
   const context = await browser.newContext({ viewport, isMobile, hasTouch: isMobile });
   const page = await context.newPage();
@@ -98,14 +178,8 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   const actionContrast = await contrastRatio(archiveLink);
   if (titleContrast < 4.5 || actionContrast < 4.5) throw new Error(`${name}: computed contrast below 4.5 (${JSON.stringify({ titleContrast, actionContrast })})`);
 
-  await page.waitForSelector('[data-root-explanation-control="true"]', { timeout: 30000 });
-  const why = page.locator('[data-root-explanation-control="true"]').first();
-  await why.focus();
-  await page.keyboard.press('Enter');
-  const panelId = await why.getAttribute('aria-controls');
-  const panel = page.locator(`#${panelId}`);
-  await panel.waitFor({ state: 'visible' });
-  const explanation = await panel.innerText();
+  const bound = await openBoundExplanation(page, name);
+  const explanation = bound.explanation;
   for (const term of ['Source eligibility', 'Score contributions', 'Saturation and diversity', 'Why it is present']) {
     if (!explanation.includes(term)) throw new Error(`${name}: explanation missing ${term}`);
   }
@@ -128,10 +202,7 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   if (pageOverflow > 1) throw new Error(`${name}: horizontal overflow ${pageOverflow}px`);
 
   await context.setOffline(true);
-  await why.focus();
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter');
-  if ((await why.getAttribute('aria-expanded')) !== 'true') throw new Error(`${name}: explanation stopped working offline`);
+  await proveOfflineKeyboardToggling(page, bound.panelId);
   await context.setOffline(false);
 
   await archiveLink.focus();
