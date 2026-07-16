@@ -236,12 +236,13 @@ test('worker config names missing manual runtime values and direct-execution con
   assert.equal(local.model_retries, 5);
 });
 
-test('worker failure receipt preserves retry evidence without throwing', () => {
-  const error = new Error('Model endpoint 429: slow down');
+test('worker failure receipt preserves retry evidence and redacts secrets', () => {
+  const token = 'github_pat_123456789012345678901234567890';
+  const error = new Error(`Model endpoint 429: Bearer ${token}`);
   error.code = 'MODEL_HTTP_ERROR';
   error.status = 429;
   error.retryable = true;
-  error.attempts = [{ attempt: 1, ok: false, status: 429, retryable: true, error: 'slow down' }];
+  error.attempts = [{ attempt: 1, ok: false, status: 429, retryable: true, error: `SIDEWAYS_MODEL_API_KEY=${token}` }];
   const receipt = workerFailureReceipt(error, { stage: 'implementation', branch: 'maker/issue-1-run-1', run_url: 'https://github.com/acme/widgets/actions/runs/1' });
   assert.equal(receipt.schema, 'sideways-native-maker-failure/v1');
   assert.equal(receipt.stage, 'implementation');
@@ -249,6 +250,9 @@ test('worker failure receipt preserves retry evidence without throwing', () => {
   assert.equal(receipt.status, 429);
   assert.equal(receipt.retryable, true);
   assert.equal(receipt.attempts[0].attempt, 1);
+  assert.match(receipt.message, /\[REDACTED\]/);
+  assert.match(receipt.attempts[0].error, /\[REDACTED\]/);
+  assert.ok(!JSON.stringify(receipt).includes(token));
 });
 
 test('reruns receive separate branches and episode artifacts stay outside the checkout', () => {
