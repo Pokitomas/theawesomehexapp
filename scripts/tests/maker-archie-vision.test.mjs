@@ -13,7 +13,7 @@ const vision = await fs.readFile(visionUrl, 'utf8');
 const packageJson = JSON.parse(await fs.readFile(packageUrl, 'utf8'));
 
 test('Sideways remains an independent reference application rather than the AI product', () => {
-  assert.equal(manifest.schema, 'archie-maker-vision/v1');
+  assert.equal(manifest.schema, 'archie-maker-vision/v2');
   assert.equal(manifest.sideways_boundary.is_ai_product, false);
   assert.equal(manifest.sideways_boundary.is_archie_memory, false);
   assert.equal(manifest.sideways_boundary.is_maker_subsystem, false);
@@ -37,18 +37,27 @@ test('shared intelligence changes by evaluated release rather than ambient users
   assert.match(vision, /not silent improvement from user activity/);
 });
 
-test('product form is derived from ambition rather than frozen as chat, voice, or one daemon', async () => {
+test('product form is selected from a complete capability frontier rather than a static interface map', async () => {
   assert.equal(manifest.product_form.canonical_interface, null);
   assert.equal(manifest.product_form.chat_window_is_architecture, false);
   assert.equal(manifest.product_form.voice_is_architecture, false);
   assert.equal(manifest.product_form.always_on_daemon_is_architecture, false);
-  assert.equal(manifest.product_form.product_form_is_derived_from_human_outcomes, true);
-  assert.equal(manifest.product_form.strongest_admitted_surfaces_ship_together, true);
+  assert.equal(manifest.product_form.cli_is_consumer_identity, false);
+  assert.equal(manifest.product_form.static_outcome_to_faculty_map_allowed, false);
+  assert.equal(manifest.product_form.complete_profile_search_required, true);
+  assert.equal(manifest.product_form.nondominated_frontier_required, true);
+  assert.equal(manifest.product_form.adaptive_multi_profile_launch_allowed, true);
+  assert.equal(manifest.product_form.dominated_default_is_launchable, false);
+  assert.equal(manifest.product_form.hidden_nondominated_fallback_is_launchable, false);
+  assert.equal(manifest.product_form.unsupported_capability_is_claimable, false);
   assert.equal(manifest.product_form.shell_without_brain_is_launchable, false);
-  assert.equal(manifest.product_form.brain_without_required_access_is_launchable, false);
+  assert.equal(manifest.product_form.brain_without_admitted_profile_is_launchable, false);
+  assert.equal(manifest.profile_admission.unit, 'complete evidence-bound intelligence-and-embodiment profile for one declared environment');
+  assert.match(manifest.profile_admission.selection, /nondominated profile/);
   assert.match(vision, /The product must not be designed backward from a familiar interface/);
   assert.match(vision, /Intelligence and embodiment must pass one joint admission contract/);
   await fs.access(new URL('../archie-launch-contract.mjs', import.meta.url));
+  await fs.access(new URL('../archie-launch-frontier.mjs', import.meta.url));
 });
 
 test('the impossible proof requires a delivered transferable application', () => {
@@ -62,21 +71,26 @@ test('the impossible proof requires a delivered transferable application', () =>
   assert.ok(manifest.primary_outputs.includes('civic-tools'));
 });
 
-test('the launch target requires both admitted intelligence and usable embodiment', () => {
-  assert.equal(launchTarget.schema, 'archie-launch-target/v1');
-  assert.match(launchTarget.claim_boundary, /not a claim that the current runtime satisfies it/);
+test('the launch target requires joint intelligence, complete profile search, and nondominated selection', () => {
+  assert.equal(launchTarget.schema, 'archie-launch-target/v2');
+  assert.match(launchTarget.claim_boundary, /not a claim that any current checkpoint or device profile satisfies it/);
   assert.equal(launchTarget.launch_policy.joint_intelligence_and_embodiment_admission, true);
   assert.equal(launchTarget.launch_policy.single_canonical_interface, false);
   assert.equal(launchTarget.launch_policy.chat_window_is_architecture, false);
   assert.equal(launchTarget.launch_policy.voice_is_architecture, false);
   assert.equal(launchTarget.launch_policy.always_on_daemon_is_architecture, false);
-  assert.equal(launchTarget.launch_policy.shell_without_brain_may_launch, false);
-  assert.equal(launchTarget.launch_policy.brain_without_required_access_may_launch, false);
-  assert.equal(launchTarget.launch_policy.all_critical_outcomes_required, true);
-  assert.equal(launchTarget.launch_policy.maximal_first_release, true);
+  assert.equal(launchTarget.launch_policy.cli_is_consumer_identity, false);
+  assert.equal(launchTarget.launch_policy.dominated_default_may_launch, false);
+  assert.equal(launchTarget.launch_policy.hidden_nondominated_fallback_may_launch, false);
+  assert.equal(launchTarget.launch_policy.unsupported_capability_may_be_claimed, false);
+  assert.equal(launchTarget.profile_search.require_complete_search_receipt, true);
+  assert.equal(launchTarget.profile_search.require_nondominated_launch_set, true);
+  assert.equal(launchTarget.profile_search.allow_adaptive_multi_profile_launch, true);
+  assert.ok(launchTarget.profile_search.required_axes.includes('platform-constraints'));
+  assert.ok(launchTarget.profile_search.required_axes.includes('resource-envelope'));
   assert.ok(launchTarget.intelligence_target.minimum_metrics.false_completion_rate_max <= 0.01);
   assert.ok(launchTarget.intelligence_target.minimum_metrics.terminal_evidence_rate >= 0.95);
-  assert.ok(launchTarget.human_outcomes.every(outcome => outcome.critical === true));
+  assert.ok(launchTarget.human_outcomes.every(outcome => outcome.floor >= 0 && outcome.floor <= 1));
 });
 
 test('Archie evaluation commands point at admitted executable surfaces', async () => {
