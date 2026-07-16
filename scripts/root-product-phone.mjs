@@ -100,11 +100,10 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
 
   await page.waitForSelector('[data-root-explanation-control="true"]', { timeout: 30000 });
   const why = page.locator('[data-root-explanation-control="true"]').first();
-  await why.focus();
-  await page.keyboard.press('Enter');
   const panelId = await why.getAttribute('aria-controls');
   const panel = page.locator(`#${panelId}`);
-  await panel.waitFor({ state: 'visible' });
+  await why.click({ timeout: 15000 });
+  await panel.waitFor({ state: 'visible', timeout: 30000 });
   const explanation = await panel.innerText();
   for (const term of ['Source eligibility', 'Score contributions', 'Saturation and diversity', 'Why it is present']) {
     if (!explanation.includes(term)) throw new Error(`${name}: explanation missing ${term}`);
@@ -129,8 +128,8 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
 
   await context.setOffline(true);
   await why.focus();
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter');
+  await why.press('Enter');
+  await why.press('Enter');
   if ((await why.getAttribute('aria-expanded')) !== 'true') throw new Error(`${name}: explanation stopped working offline`);
   await context.setOffline(false);
 
