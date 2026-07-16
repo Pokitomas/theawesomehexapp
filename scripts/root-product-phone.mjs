@@ -107,21 +107,49 @@ async function openBoundExplanation(page, name) {
   throw new Error(`${name}: could not bind one actionable explanation control to its panel: ${lastError?.message || 'control unavailable'}`);
 }
 
-async function keyboardToggleBoundExplanation(page, panelId, expanded) {
-  const selector = `[data-root-explanation-control="true"][aria-controls="${panelId}"]`;
+function boundSelector(panelId) {
+  return `[data-root-explanation-control="true"][aria-controls="${panelId}"]`;
+}
+
+async function readBoundExplanationState(page, panelId) {
+  const selector = boundSelector(panelId);
+  await page.locator(selector).first().waitFor({ state: 'visible', timeout: 15000 });
+  return page.evaluate(selector => {
+    const button = document.querySelector(selector);
+    const controlledId = button?.getAttribute('aria-controls');
+    const panel = controlledId ? document.getElementById(controlledId) : null;
+    if (!(button instanceof HTMLElement) || !(panel instanceof HTMLElement)) return null;
+    const expanded = button.getAttribute('aria-expanded') === 'true';
+    if (panel.hidden === expanded) return null;
+    return expanded;
+  }, selector);
+}
+
+async function keyboardToggleBoundExplanation(page, panelId) {
+  const selector = boundSelector(panelId);
+  const before = await readBoundExplanationState(page, panelId);
+  if (typeof before !== 'boolean') throw new Error(`explanation ${panelId} has inconsistent pre-toggle state`);
   const control = page.locator(selector).first();
-  await control.waitFor({ state: 'visible', timeout: 15000 });
   await control.focus();
   await page.keyboard.press('Enter');
-  await page.waitForFunction(({ selector, expanded }) => {
+  const expected = !before;
+  await page.waitForFunction(({ selector, expected }) => {
     const button = document.querySelector(selector);
-    const panelId = button?.getAttribute('aria-controls');
-    const panel = panelId ? document.getElementById(panelId) : null;
+    const controlledId = button?.getAttribute('aria-controls');
+    const panel = controlledId ? document.getElementById(controlledId) : null;
     return button instanceof HTMLElement
       && panel instanceof HTMLElement
-      && button.getAttribute('aria-expanded') === String(expanded)
-      && panel.hidden === !expanded;
-  }, { selector, expanded }, { timeout: 10000 });
+      && button.getAttribute('aria-expanded') === String(expected)
+      && panel.hidden === !expected;
+  }, { selector, expected }, { timeout: 10000 });
+  return expected;
+}
+
+async function proveOfflineKeyboardToggling(page, panelId) {
+  let expanded = await keyboardToggleBoundExplanation(page, panelId);
+  expanded = await keyboardToggleBoundExplanation(page, panelId);
+  if (!expanded) expanded = await keyboardToggleBoundExplanation(page, panelId);
+  if (!expanded) throw new Error(`explanation ${panelId} did not finish open after offline keyboard toggling`);
 }
 
 async function prove({ name, viewport, isMobile = false, screenshot }) {
@@ -174,8 +202,7 @@ async function prove({ name, viewport, isMobile = false, screenshot }) {
   if (pageOverflow > 1) throw new Error(`${name}: horizontal overflow ${pageOverflow}px`);
 
   await context.setOffline(true);
-  await keyboardToggleBoundExplanation(page, bound.panelId, false);
-  await keyboardToggleBoundExplanation(page, bound.panelId, true);
+  await proveOfflineKeyboardToggling(page, bound.panelId);
   await context.setOffline(false);
 
   await archiveLink.focus();
