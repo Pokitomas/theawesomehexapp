@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-model-manifest.schema.json",
+  "title": "Archie model manifest v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "model",
+    "sizes",
+    "artifact",
+    "chunks",
+    "hardware",
+    "provenance",
+    "state",
+    "benchmarks",
+    "runtime",
+    "manifest_digest",
+    "signature"
+  ],
+  "properties": {
+    "schema": { "const": "archie-model-manifest/v1" },
+    "model": {
+      "type": "object",
+      "required": ["id", "version", "architecture", "runtime_abi", "format", "quantization", "context_limit"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "version": { "$ref": "#/$defs/identifier" },
+        "architecture": { "type": "string", "minLength": 1 },
+        "runtime_abi": { "const": "archie-runtime/v1" },
+        "format": { "type": "string", "minLength": 1 },
+        "quantization": { "type": "string", "minLength": 1 },
+        "context_limit": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "sizes": {
+      "type": "object",
+      "required": ["download_bytes", "installed_bytes"],
+      "properties": {
+        "download_bytes": { "type": "integer", "minimum": 1 },
+        "installed_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["filename", "sha256"],
+      "properties": {
+        "filename": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["index", "url", "bytes", "sha256"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "url": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 1 },
+          "sha256": { "$ref": "#/$defs/digest" }
+        }
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "required": ["required_ram_bytes", "recommended_ram_bytes", "disk_bytes", "backends"],
+      "properties": {
+        "required_ram_bytes": { "type": "integer", "minimum": 0 },
+        "recommended_ram_bytes": { "type": "integer", "minimum": 0 },
+        "disk_bytes": { "type": "integer", "minimum": 1 },
+        "backends": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["license", "source", "training", "code_commit"],
+      "properties": {
+        "license": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "training": { "type": "string", "minLength": 1 },
+        "code_commit": { "type": "string", "minLength": 1 }
+      }
+    },
+    "state": {
+      "type": "object",
+      "required": ["immutable_digest", "mutable_digest", "mutable_regions"],
+      "properties": {
+        "immutable_digest": { "$ref": "#/$defs/digest" },
+        "mutable_digest": { "$ref": "#/$defs/digest" },
+        "mutable_regions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "benchmarks": {
+      "type": "object",
+      "required": ["suite_digest", "report_digest", "claim_boundary"],
+      "properties": {
+        "suite_digest": { "$ref": "#/$defs/digest" },
+        "report_digest": { "$ref": "#/$defs/digest" },
+        "claim_boundary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["adapter", "arguments"],
+      "properties": {
+        "adapter": { "const": "process-template/v1" },
+        "arguments": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+    "manifest_digest": { "$ref": "#/$defs/digest" },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_fingerprint", "public_key_pem", "value_base64"],
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "key_fingerprint": { "$ref": "#/$defs/digest" },
+        "public_key_pem": { "type": "string", "minLength": 1 },
+        "value_base64": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": true
+}
