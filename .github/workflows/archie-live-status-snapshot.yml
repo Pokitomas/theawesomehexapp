@@ -66,6 +66,10 @@ jobs:
           ref: agent/archie-router-runtime-seam
           path: repair
           fetch-depth: 0
+      - name: Use repository Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
       - name: Verify exact base and patch digest
         id: verify
         run: |
