@@ -1,0 +1,1 @@
+Trigger the distinct read-only extractor after its base workflow was admitted. Payload chunks remain byte-identical.
