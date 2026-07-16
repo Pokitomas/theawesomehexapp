@@ -1,13 +1,14 @@
 {
-  "name": "Maker Engineering",
-  "short_name": "Maker",
-  "description": "Repository-general engineering task authoring and execution truth.",
+  "name": "Archie",
+  "short_name": "Archie",
+  "description": "The truthful phone cockpit for local Archie planning, evidence, learning receipts, and authorized Maker execution.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "background_color": "#f6f3eb",
   "theme_color": "#10233f",
+  "categories": ["productivity", "developer tools", "utilities"],
   "icons": [
     {
       "src": "./icon.svg",
