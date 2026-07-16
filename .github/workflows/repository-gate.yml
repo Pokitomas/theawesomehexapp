@@ -12,41 +12,72 @@ jobs:
   publish:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/archie-plugin-repair-payload'
     runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      WORK: ${{ runner.temp }}/plugin-work
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Verify and publish immutable three-path blobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
+      - name: Reconstruct digest-pinned three-path bundle
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "$WORK"
           cat .archie-payload/plugin-repair/part-* | base64 -d > "$RUNNER_TEMP/plugin-hostile-repair.tgz"
           echo '339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a  '"$RUNNER_TEMP/plugin-hostile-repair.tgz" | sha256sum -c -
           test "$(tar -tzf "$RUNNER_TEMP/plugin-hostile-repair.tgz" | sort | tr '\n' ' ')" = 'maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs '
-          git reset --hard 7e2e62afb6e82cf6ad00ecbaa84486f45697a049
-          git clean -fdx
-          tar -xzf "$RUNNER_TEMP/plugin-hostile-repair.tgz"
+          tar -xzf "$RUNNER_TEMP/plugin-hostile-repair.tgz" -C "$WORK"
+      - name: Run syntax schema and 32 hostile tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$WORK"
           node --check scripts/maker-plugin-registry.mjs
           node --check scripts/tests/maker-plugin-registry.test.mjs
           node -e "JSON.parse(require('fs').readFileSync('maker/contracts/plugin-manifest.schema.json','utf8'))"
           node --test scripts/tests/maker-plugin-registry.test.mjs | tee "$RUNNER_TEMP/plugin-tests.log"
-          test "$(git status --short | awk '{print $2}' | sort | tr '\n' ' ')" = 'maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs '
-          jq -n '{schema:"archie-plugin-repair-blobs/v1",source_base:"7e2e62afb6e82cf6ad00ecbaa84486f45697a049",bundle_sha256:"339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a",tests:{pass:32,fail:0},blobs:{}}' > "$RUNNER_TEMP/plugin-repair-receipt.json"
-          for path in maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs; do
-            payload="$(base64 -w0 "$path")"
-            response="$(jq -n --arg content "$payload" '{content:$content,encoding:"base64"}' | curl -fsSL -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$REPOSITORY/git/blobs" --data-binary @-)"
-            sha="$(jq -er '.sha | select(test("^[a-f0-9]{40}$"))' <<<"$response")"
-            jq --arg path "$path" --arg sha "$sha" '.blobs[$path]=$sha' "$RUNNER_TEMP/plugin-repair-receipt.json" > "$RUNNER_TEMP/plugin-repair-receipt.next"
-            mv "$RUNNER_TEMP/plugin-repair-receipt.next" "$RUNNER_TEMP/plugin-repair-receipt.json"
-          done
+          grep -Eq '^# pass 32$' "$RUNNER_TEMP/plugin-tests.log"
+          grep -Eq '^# fail 0$' "$RUNNER_TEMP/plugin-tests.log"
+      - name: Create immutable schema blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$(base64 -w0 "$WORK/maker/contracts/plugin-manifest.schema.json")"
+          jq -n --arg content "$payload" '{content:$content,encoding:"base64"}' > "$RUNNER_TEMP/blob-request.json"
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$REPOSITORY/git/blobs" --data-binary @"$RUNNER_TEMP/blob-request.json" > "$RUNNER_TEMP/schema-blob.json"
+          jq -er '.sha | select(test("^[a-f0-9]{40}$"))' "$RUNNER_TEMP/schema-blob.json" > "$RUNNER_TEMP/schema.sha"
+      - name: Create immutable module blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$(base64 -w0 "$WORK/scripts/maker-plugin-registry.mjs")"
+          jq -n --arg content "$payload" '{content:$content,encoding:"base64"}' > "$RUNNER_TEMP/blob-request.json"
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$REPOSITORY/git/blobs" --data-binary @"$RUNNER_TEMP/blob-request.json" > "$RUNNER_TEMP/module-blob.json"
+          jq -er '.sha | select(test("^[a-f0-9]{40}$"))' "$RUNNER_TEMP/module-blob.json" > "$RUNNER_TEMP/module.sha"
+      - name: Create immutable test blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$(base64 -w0 "$WORK/scripts/tests/maker-plugin-registry.test.mjs")"
+          jq -n --arg content "$payload" '{content:$content,encoding:"base64"}' > "$RUNNER_TEMP/blob-request.json"
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$REPOSITORY/git/blobs" --data-binary @"$RUNNER_TEMP/blob-request.json" > "$RUNNER_TEMP/test-blob.json"
+          jq -er '.sha | select(test("^[a-f0-9]{40}$"))' "$RUNNER_TEMP/test-blob.json" > "$RUNNER_TEMP/test.sha"
+      - name: Build immutable blob receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg schema_sha "$(cat "$RUNNER_TEMP/schema.sha")" \
+            --arg module_sha "$(cat "$RUNNER_TEMP/module.sha")" \
+            --arg test_sha "$(cat "$RUNNER_TEMP/test.sha")" \
+            '{schema:"archie-plugin-repair-blobs/v1",source_base:"7e2e62afb6e82cf6ad00ecbaa84486f45697a049",bundle_sha256:"339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a",tests:{pass:32,fail:0},blobs:{"maker/contracts/plugin-manifest.schema.json":$schema_sha,"scripts/maker-plugin-registry.mjs":$module_sha,"scripts/tests/maker-plugin-registry.test.mjs":$test_sha}}' \
+            > "$RUNNER_TEMP/plugin-repair-receipt.json"
       - name: Upload immutable blob receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
