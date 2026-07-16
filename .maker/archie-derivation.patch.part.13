@@ -1,0 +1,229 @@
++    if (currentSchema.not && validateSchema(currentSchema.not, currentValue, { root }).valid) {
++      errors.push(`${currentPath}: matched forbidden schema`);
++    }
++
++    if (currentSchema.const !== undefined && !equal(currentValue, currentSchema.const)) errors.push(`${currentPath}: expected const ${JSON.stringify(currentSchema.const)}`);
++    if (currentSchema.enum && !currentSchema.enum.some(item => equal(item, currentValue))) errors.push(`${currentPath}: not in enum`);
++
++    if (currentSchema.type) {
++      const types = Array.isArray(currentSchema.type) ? currentSchema.type : [currentSchema.type];
++      if (!types.some(type => typeMatches(currentValue, type))) {
++        errors.push(`${currentPath}: expected type ${types.join('|')}`);
++        return;
++      }
++    }
++
++    if (typeof currentValue === 'string') {
++      if (currentSchema.minLength !== undefined && currentValue.length < currentSchema.minLength) errors.push(`${currentPath}: shorter than minLength`);
++      if (currentSchema.maxLength !== undefined && currentValue.length > currentSchema.maxLength) errors.push(`${currentPath}: longer than maxLength`);
++      if (currentSchema.pattern && !new RegExp(currentSchema.pattern).test(currentValue)) errors.push(`${currentPath}: pattern mismatch`);
++      if (currentSchema.format && !validFormat(currentValue, currentSchema.format)) errors.push(`${currentPath}: invalid ${currentSchema.format}`);
++    }
++
++    if (typeof currentValue === 'number' && Number.isFinite(currentValue)) {
++      if (currentSchema.minimum !== undefined && currentValue < currentSchema.minimum) errors.push(`${currentPath}: below minimum`);
++      if (currentSchema.maximum !== undefined && currentValue > currentSchema.maximum) errors.push(`${currentPath}: above maximum`);
++      if (currentSchema.exclusiveMinimum !== undefined && currentValue <= currentSchema.exclusiveMinimum) errors.push(`${currentPath}: below exclusiveMinimum`);
++      if (currentSchema.exclusiveMaximum !== undefined && currentValue >= currentSchema.exclusiveMaximum) errors.push(`${currentPath}: above exclusiveMaximum`);
++    }
++
++    if (Array.isArray(currentValue)) {
++      if (currentSchema.minItems !== undefined && currentValue.length < currentSchema.minItems) errors.push(`${currentPath}: fewer than minItems`);
++      if (currentSchema.maxItems !== undefined && currentValue.length > currentSchema.maxItems) errors.push(`${currentPath}: more than maxItems`);
++      if (currentSchema.uniqueItems && new Set(currentValue.map(item => JSON.stringify(item))).size !== currentValue.length) errors.push(`${currentPath}: items not unique`);
++      if (Array.isArray(currentSchema.prefixItems)) currentSchema.prefixItems.forEach((item, index) => {
++        if (index < currentValue.length) check(item, currentValue[index], `${currentPath}[${index}]`);
++      });
++      if (currentSchema.items && !Array.isArray(currentSchema.items)) currentValue.forEach((item, index) => check(currentSchema.items, item, `${currentPath}[${index}]`));
++    }
++
++    if (currentValue !== null && typeof currentValue === 'object' && !Array.isArray(currentValue)) {
++      const keys = Object.keys(currentValue);
++      if (currentSchema.minProperties !== undefined && keys.length < currentSchema.minProperties) errors.push(`${currentPath}: fewer than minProperties`);
++      if (currentSchema.maxProperties !== undefined && keys.length > currentSchema.maxProperties) errors.push(`${currentPath}: more than maxProperties`);
++      for (const required of currentSchema.required || []) if (!Object.hasOwn(currentValue, required)) errors.push(`${currentPath}: missing required property ${required}`);
++      if (currentSchema.propertyNames) keys.forEach(key => check(currentSchema.propertyNames, key, `${currentPath}{propertyName:${key}}`));
++      const properties = currentSchema.properties || {};
++      for (const [key, item] of Object.entries(properties)) if (Object.hasOwn(currentValue, key)) check(item, currentValue[key], `${currentPath}.${key}`);
++      const extras = keys.filter(key => !Object.hasOwn(properties, key));
++      if (currentSchema.additionalProperties === false && extras.length) errors.push(`${currentPath}: unexpected properties ${extras.join(', ')}`);
++      else if (currentSchema.additionalProperties && typeof currentSchema.additionalProperties === 'object') extras.forEach(key => check(currentSchema.additionalProperties, currentValue[key], `${currentPath}.${key}`));
++    }
++  };
++  check(schema, value, path);
++  return { valid: errors.length === 0, errors };
++}
++
++export function assertSchema(schema, value, label = 'value') {
++  const result = validateSchema(schema, value);
++  if (!result.valid) throw new Error(`${label} failed schema validation:\n${result.errors.join('\n')}`);
++  return true;
++}
++
++export function assertResolvableRefs(schema) {
++  const refs = [];
++  const visit = value => {
++    if (Array.isArray(value)) return value.forEach(visit);
++    if (!value || typeof value !== 'object') return;
++    if (typeof value.$ref === 'string') refs.push(value.$ref);
++    Object.values(value).forEach(visit);
++  };
++  visit(schema);
++  refs.forEach(ref => resolvePointer(schema, ref));
++  return refs;
++}
+diff --git a/test-harness/schema-contract.test.mjs b/test-harness/schema-contract.test.mjs
+new file mode 100644
+index 0000000..79ef3e5
+--- /dev/null
++++ b/test-harness/schema-contract.test.mjs
+@@ -0,0 +1,149 @@
++import assert from 'node:assert/strict';
++import crypto from 'node:crypto';
++import fs from 'node:fs/promises';
++import os from 'node:os';
++import path from 'node:path';
++import test from 'node:test';
++import { assertResolvableRefs, assertSchema, validateSchema } from './lib/schema-validator.mjs';
++import { trainArchieCPUPlanner, planWithArchieCPUPlanner } from '../scripts/maker-archie-planner.mjs';
++import {
++  derivationCompressionReceipt,
++  deriveArchiePlan,
++  normalizeArchieKnowledgeRecord,
++  trainArchieDerivationGraph
++} from '../scripts/maker-archie-derivation.mjs';
++import { createArchieReasoningBudgetController } from '../scripts/maker-archie-budget.mjs';
++import { normalizeWorker } from '../scripts/maker-archie-compute.mjs';
++import { exportCorpusPack } from '../scripts/maker-archie-corpus-pack.mjs';
++import { createOperatorCommandPacket, createOperatorRuntimeReceipt } from '../scripts/maker-archie-operator.mjs';
++import { encryptSyncObject } from '../scripts/maker-archie-sync.mjs';
++
++const contracts = path.resolve('maker/contracts');
++const readSchema = async name => JSON.parse(await fs.readFile(path.join(contracts, name), 'utf8'));
++const example = (id, instruction, tools, extra = {}) => ({
++  schema: 'archie-distillation-example/v1', example_id: id, instruction, compact_context: null,
++  target: { steps: tools }, tool_trace: tools.map(([tool, action]) => ({ tool, action, ok: true })), outcome: 'completed', ...extra
++});
++
++test('every Maker contract parses and every local $ref resolves', async () => {
++  const files = (await fs.readdir(contracts)).filter(name => name.endsWith('.schema.json')).sort();
++  assert.ok(files.length >= 6);
++  for (const filename of files) {
++    const schema = await readSchema(filename);
++    assert.equal(typeof schema.$schema, 'string', filename);
++    assert.doesNotThrow(() => assertResolvableRefs(schema), filename);
++  }
++});
++
++test('validator rejects missing required fields, wrong constants, and extra properties', async () => {
++  const schema = await readSchema('archie-operator.schema.json');
++  const invalid = {
++    schema: 'wrong', namespace: 'maker:archie', created_at: 'not-a-date', operation: 'run_task', payload: {},
++    execution_claimed: true, requires_authenticated_runtime: true, requires_explicit_authority: true,
++    command_digest: '0'.repeat(64), surprise: true
++  };
++  const result = validateSchema(schema.$defs.command, invalid, { root: schema });
++  assert.equal(result.valid, false);
++  assert.ok(result.errors.length >= 3, result.errors.join('\n'));
++});
++
++test('actual Archie derivation model, proof plan, knowledge record, and compression receipt satisfy their shipped schema', async () => {
++  const schema = await readSchema('archie-derivation.schema.json');
++  const examples = [
++    example('derive-git', 'Inspect a conflicted git branch, repair it, and verify repository tests.', [
++      ['git', 'status'], ['git', 'repair_conflict'], ['node', 'test']
++    ], {
++      abstraction: {
++        preconditions: ['accessible:git'],
++        guarantees: ['verified:repository'],
++        invariants: ['preserve:user-work']
++      }
++    }),
++    example('derive-json', 'Materialize and validate a JSON contract from known requirements.', [
++      ['filesystem', 'write_contract'], ['json', 'validate_schema']
++    ], {
++      abstraction: {
++        preconditions: ['known:requirements'],
++        guarantees: ['verified:contract'],
++        invariants: ['preserve:compatibility']
++      }
++    })
++  ];
++  const knowledge = normalizeArchieKnowledgeRecord({
++    record_id: 'contract-knowledge',
++    title: 'Repair verification relation',
++    summary: 'A repair is complete only when the exact failed command passes after the intervention.',
++    concepts: ['repair', 'verification', 'causal witness'],
++    relations: [{ from: 'repair', relation: 'requires', to: 'verification' }],
++    procedures: [{ instruction: 'Repair and verify a repository.', tool_trace: [{ tool: 'git', action: 'repair_conflict', ok: true }, { tool: 'node', action: 'test', ok: true }] }],
++    provenance: { source: 'schema-contract-fixture' },
++    confidence: 1
++  });
++  const model = trainArchieDerivationGraph(examples, { knowledge_records: [knowledge], trained_at: '2026-07-16T07:00:00.000Z' });
++  const plan = deriveArchiePlan(model, { instruction: 'Repair this conflicted git branch, then validate its JSON contract.' });
++  const compression = derivationCompressionReceipt(model);
++  assertSchema(schema, model, 'derivation model');
++  assertSchema(schema, plan, 'derivation plan');
++  assertSchema(schema, knowledge, 'derivation knowledge record');
++  assertSchema(schema, compression, 'derivation compression receipt');
++});
++
++test('actual Archie planner model and plan satisfy their shipped schema', async () => {
++  const schema = await readSchema('archie-planner.schema.json');
++  const model = trainArchieCPUPlanner([
++    example('git', 'Repair a conflicted git branch and run tests.', [['git', 'status'], ['git', 'repair_conflict'], ['node', 'test']]),
++    example('schema', 'Write and validate a JSON schema contract.', [['filesystem', 'write_contract'], ['json', 'validate_schema']])
++  ], { threshold: 0.12, minimum_margin: 0, trained_at: '2026-07-16T07:00:00.000Z' });
++  const plan = planWithArchieCPUPlanner(model, { instruction: 'Fix the merge conflict and test the repository.' });
++  assertSchema(schema, model, 'planner model');
++  assertSchema(schema, plan, 'planner plan');
++});
++
++test('actual budget, compute, corpus-pack, operator, and encrypted-sync outputs satisfy contracts', async t => {
++  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-contract-'));
++  t.after(() => fs.rm(root, { recursive: true, force: true }));
++
++  const budgetSchema = await readSchema('archie-budget.schema.json');
++  const budget = createArchieReasoningBudgetController({
++    root: path.join(root, 'budget'), clock: () => '2026-07-16T07:00:00.000Z', total_budget_credits: 10000,
++    per_task_ceiling_credits: 5000, repair_reserve_credits: 500, evaluation_reserve_credits: 500
++  });
++  const budgetReceipt = await budget.allocate({
++    instruction: 'Learn a recurring repository repair workflow.', novelty: 0.9, uncertainty: 0.9,
++    expected_recurrence: 8, estimated_future_call_savings: 10000, tool_cost: 100
++  }, {
++    idempotency_key: 'contract-budget',
++    providers: [{ id: 'fixture-teacher', call: async () => ({ result: { plan: ['inspect', 'repair', 'test'] }, usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30, cost_credits: 40 } }) }]
++  });
++  assertSchema(budgetSchema, budgetReceipt, 'budget receipt');
++
++  const computeSchema = await readSchema('archie-compute.schema.json');
++  const worker = normalizeWorker({
++    id: 'local-cpu', kind: 'local_cpu', observed: true, available: true, identity: 'fixture', adapter: 'local_cpu',
++    capabilities: ['fit_sparse_planner'], limits: { max_seconds: 60, max_memory_mb: 2048, max_payload_bytes: 1000000, max_cost_usd: 0 },
++    privacy: 'local', locality: 'local', pack_versions: ['pack/v1']
++  }, { clock: () => Date.parse('2026-07-16T07:00:00.000Z') });
++  assertSchema(computeSchema, worker, 'compute worker');
++
++  const corpusRoot = path.join(root, 'corpus');
++  await fs.mkdir(corpusRoot, { recursive: true });
++  await fs.writeFile(path.join(corpusRoot, 'records.jsonl'), '{"lesson":"repair"}\n');
++  const packReceipt = await exportCorpusPack({ root: corpusRoot, clock: () => Date.parse('2026-07-16T07:00:00.000Z') });
++  const packSchema = await readSchema('archie-corpus-pack.schema.json');
++  assertSchema(packSchema, packReceipt.pack, 'corpus pack');
++  assertSchema(packSchema, packReceipt, 'corpus pack receipt');
++
++  const operatorSchema = await readSchema('archie-operator.schema.json');
++  const operatorReceipt = createOperatorRuntimeReceipt({ route: { selected: 'planner', confidence: 0.8 } }, { clock: () => Date.parse('2026-07-16T07:00:00.000Z') });
++  const command = createOperatorCommandPacket('run_task', { task_id: 'fixture' }, { clock: () => Date.parse('2026-07-16T07:00:00.000Z') });
++  assertSchema(operatorSchema, operatorReceipt, 'operator receipt');
++  assertSchema(operatorSchema, command, 'operator command');
++
++  const syncSchema = await readSchema('archie-sync.schema.json');
++  const envelope = encryptSyncObject({
++    key: crypto.createHash('sha256').update('schema-contract-key').digest(), key_id: 'kid-1', device_id: 'device-1',
++    namespace: 'personal', object_id: 'pack-1', generation: 1, value: { pack_digest: packReceipt.pack_digest },
++    clock: () => Date.parse('2026-07-16T07:00:00.000Z')
++  });
++  assertSchema(syncSchema, envelope, 'sync envelope');
++});
