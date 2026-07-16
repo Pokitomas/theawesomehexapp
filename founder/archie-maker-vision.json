@@ -18,7 +18,21 @@
     "ordinary_use_updates_shared_weights": false,
     "private_history_is_training_exhaust": false,
     "shared_capability_changes_only_by_signed_release": true,
-    "candidate_requires_independent_evaluation": true
+    "candidate_requires_independent_evaluation": true,
+    "intelligence_and_embodiment_admit_together": true,
+    "maximal_first_release": true
+  },
+  "product_form": {
+    "canonical_interface": null,
+    "chat_window_is_architecture": false,
+    "voice_is_architecture": false,
+    "always_on_daemon_is_architecture": false,
+    "product_form_is_derived_from_human_outcomes": true,
+    "strongest_admitted_surfaces_ship_together": true,
+    "shell_without_brain_is_launchable": false,
+    "brain_without_required_access_is_launchable": false,
+    "target_contract": "founder/archie-launch-target.json",
+    "evaluator": "scripts/archie-launch-contract.mjs"
   },
   "sideways_boundary": {
     "is_ai_product": false,
@@ -65,7 +79,10 @@
     "ordinary-use-silently-trains-shared-model",
     "self-hosting-is-a-backdoor",
     "fixture-success-proves-general-capability",
-    "persuasive-text-equals-completion"
+    "persuasive-text-equals-completion",
+    "chat-shell-equals-product",
+    "voice-prototype-equals-embodiment",
+    "background-process-equals-ambient-intelligence"
   ],
   "first_impossible_proof": {
     "objective": "Produce a polished secure tested installable application from a vague ambitious objective and an unfamiliar project context.",
