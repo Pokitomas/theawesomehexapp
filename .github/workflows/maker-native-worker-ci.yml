@@ -65,12 +65,14 @@ jobs:
             test -f "$file" || continue
             node --check "$file"
           done
-      - name: Verify provider-neutral worker, local orchestrator, source admission, and collision evaluator
+      - name: Verify worker, orchestration, admission, workspace, GitHub, and collision boundaries
         run: |
           set -o pipefail
           npm run test:native-maker 2>&1 | tee native-maker-test.log
           npm run test:maker 2>&1 | tee maker-orchestrator-test.log
           npm run test:maker:admission 2>&1 | tee maker-source-admission-test.log
+          npm run test:maker:workspace 2>&1 | tee maker-target-workspace-test.log
+          npm run test:maker:github 2>&1 | tee maker-github-broker-test.log
           node --test scripts/tests/maker-pr-collision-gate.test.mjs 2>&1 | tee maker-collision-test.log
       - name: Verify workflow authority fences
         run: |
@@ -89,6 +91,8 @@ jobs:
             native-maker-test.log
             maker-orchestrator-test.log
             maker-source-admission-test.log
+            maker-target-workspace-test.log
+            maker-github-broker-test.log
             maker-collision-test.log
             workflow-permissions-test.log
             authority-manifest-test.log
