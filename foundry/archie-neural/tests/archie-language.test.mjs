@@ -23,7 +23,7 @@ step inspect {"operation":"inspect_pr","after":[],"requires":[],"expect":["pr.op
 step merge {"operation":"merge_pr","after":["inspect"],"requires":["merge_authority"],"expect":["main.sha = merge.sha"]}
 verify sentinel {"expr":"served.sha = main.sha","after":["merge"],"evidence":["head"]}
 learn deployment_skill {"from":["sentinel"],"skill":"exact-sha deployment convergence","outcome":"accepted"}
-halt complete {"expr":"sentinel verified and receipt bound"}
+halt complete {"expr":"sentinel verified and receipt bound","after":["deployment_skill"]}
 presentation butler {"shell":"warm butler","tone":"deferential"}
 `;
 
