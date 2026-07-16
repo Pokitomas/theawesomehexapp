@@ -5,23 +5,25 @@ on:
     paths:
       - 'AGENTS.md'
       - 'NATIVE_MAKER.md'
+      - 'MAKER_PLATFORM.md'
       - 'maker/leases/**'
+      - 'maker/contracts/**'
+      - 'maker/evaluations/**'
+      - 'maker/runtime/**'
       - 'scripts/open-model-adapter.mjs'
       - 'scripts/open-model-planning.mjs'
       - 'scripts/native-dev-agent.mjs'
       - 'scripts/native-changed-check.mjs'
       - 'scripts/check-open-model-runtime.mjs'
-      - 'scripts/maker-native-worker.mjs'
-      - 'scripts/maker-pr-collision-gate.mjs'
-      - 'scripts/maker-core.mjs'
-      - 'scripts/maker.mjs'
+      - 'scripts/maker-*.mjs'
       - 'scripts/tests/native-maker-worker.test.mjs'
-      - 'scripts/tests/maker-pr-collision-gate.test.mjs'
-      - 'scripts/tests/maker-core.test.mjs'
-      - 'scripts/tests/maker-actions-sprawl.test.mjs'
+      - 'scripts/tests/maker-*.test.mjs'
+      - 'scripts/tests/maker-console-phone.mjs'
       - 'scripts/tests/workflow-permissions.test.mjs'
       - '.github/workflows/maker-native-worker.yml'
       - '.github/workflows/maker-native-worker-ci.yml'
+      - '.github/workflows/maker-console.yml'
+      - '.github/workflows/maker-platform.yml'
       - '.github/workflows/maker-pr-collision-gate.yml'
       - '.github/workflows/maker-sprawl.yml'
       - 'audit/authority-manifest.workflow-projection.mjs'
@@ -48,6 +50,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Check Maker modules
         run: |
+          set -euo pipefail
           node --check scripts/open-model-adapter.mjs
           node --check scripts/open-model-planning.mjs
           node --check scripts/native-dev-agent.mjs
@@ -57,11 +60,17 @@ jobs:
           node --check scripts/maker-pr-collision-gate.mjs
           node --check scripts/maker-core.mjs
           node --check scripts/maker.mjs
-      - name: Verify provider-neutral worker, local orchestrator, and collision evaluator
+          node --check scripts/maker-source-admission.mjs
+          for file in scripts/maker-*.mjs maker/runtime/*.mjs; do
+            test -f "$file" || continue
+            node --check "$file"
+          done
+      - name: Verify provider-neutral worker, local orchestrator, source admission, and collision evaluator
         run: |
           set -o pipefail
           npm run test:native-maker 2>&1 | tee native-maker-test.log
           npm run test:maker 2>&1 | tee maker-orchestrator-test.log
+          npm run test:maker:admission 2>&1 | tee maker-source-admission-test.log
           node --test scripts/tests/maker-pr-collision-gate.test.mjs 2>&1 | tee maker-collision-test.log
       - name: Verify workflow authority fences
         run: |
@@ -79,6 +88,7 @@ jobs:
           path: |
             native-maker-test.log
             maker-orchestrator-test.log
+            maker-source-admission-test.log
             maker-collision-test.log
             workflow-permissions-test.log
             authority-manifest-test.log
