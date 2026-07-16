@@ -1,0 +1,74 @@
+name: Extract exact plugin hostile repair
+
+on:
+  pull_request:
+    paths:
+      - '.archie-payload/plugin-repair/**'
+      - '.github/workflows/plugin-repair-extract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract-and-prove:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Reconstruct digest-pinned bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t parts < <(find .archie-payload/plugin-repair -maxdepth 1 -type f -name 'part-*' | sort)
+          test "${#parts[@]}" -eq 6
+          cat "${parts[@]}" | tr -d '\n\r ' | base64 --decode > plugin-repair.tar.gz
+          echo '339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a  plugin-repair.tar.gz' | sha256sum --check --strict
+      - name: Enforce exact three-path archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -tzf plugin-repair.tar.gz | sed 's#^\./##' | sort > archive-paths.txt
+          cat > expected-paths.txt <<'PATHS'
+          maker/contracts/plugin-manifest.schema.json
+          scripts/maker-plugin-registry.mjs
+          scripts/tests/maker-plugin-registry.test.mjs
+          PATHS
+          sort -o expected-paths.txt expected-paths.txt
+          diff -u expected-paths.txt archive-paths.txt
+          mkdir extracted
+          tar -xzf plugin-repair.tar.gz -C extracted
+      - name: Run hostile plugin proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check extracted/scripts/maker-plugin-registry.mjs
+          node --check extracted/scripts/tests/maker-plugin-registry.test.mjs
+          node -e "JSON.parse(require('fs').readFileSync('extracted/maker/contracts/plugin-manifest.schema.json','utf8'))"
+          node --test extracted/scripts/tests/maker-plugin-registry.test.mjs | tee plugin-repair-test.log
+          grep -Eq '# tests 32|tests 32' plugin-repair-test.log
+          grep -Eq '# pass 32|pass 32' plugin-repair-test.log
+      - name: Write extraction receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum plugin-repair.tar.gz extracted/scripts/maker-plugin-registry.mjs extracted/scripts/tests/maker-plugin-registry.test.mjs extracted/maker/contracts/plugin-manifest.schema.json > plugin-repair-sha256.txt
+          printf 'source_head=%s\nsource_pr=%s\nbundle_sha256=%s\nmutation_authority=none\n' "$GITHUB_SHA" '${{ github.event.pull_request.number || 0 }}' '339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a' > plugin-repair-receipt.txt
+      - name: Upload verified repair source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verified-plugin-hostile-repair
+          path: |
+            extracted/scripts/maker-plugin-registry.mjs
+            extracted/scripts/tests/maker-plugin-registry.test.mjs
+            extracted/maker/contracts/plugin-manifest.schema.json
+            plugin-repair-sha256.txt
+            plugin-repair-test.log
+            plugin-repair-receipt.txt
+          if-no-files-found: error
+          retention-days: 14
