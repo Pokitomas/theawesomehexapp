@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
+import { createOperatorRuntimeReceipt } from '../maker-archie-operator.mjs';
 
 const executablePath = [process.env.CHROME_BIN, '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].filter(Boolean).find(value => fs.existsSync(value));
 if (!executablePath) throw new Error('no Chromium found');
@@ -13,6 +14,14 @@ const proof = {
   degraded: false,
   expectedOfflineErrors: 0,
   overflow: null,
+  archieDefaultTruth: false,
+  archieLocalHit: false,
+  archiePlannerHit: false,
+  archieEscalation: false,
+  archiePackCommand: false,
+  archieSyncState: false,
+  archieRejections: false,
+  archieNamespaceIsolated: false,
   errors: []
 };
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -42,6 +51,39 @@ await context.route(url => {
 ] }) }));
 await context.route(url => url.hostname === 'github.com' && url.pathname === '/Pokitomas/theawesomehexapp/issues/new', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>GitHub task bridge</title><h1>Task bridge received</h1>' }));
 const page = await context.newPage();
+const runtimeNow = Date.now();
+const localReceipt = createOperatorRuntimeReceipt({
+  route: { sparse: 'hit', planner: 'not-needed', selected: 'sparse-specialist', confidence: 0.94, margin: 0.45 },
+  budget: { decision: 'local-first', charged_credits: 0, usage_evidence: 'observed' },
+  teacher: { state: 'not-called', reason: 'sparse specialist admitted' },
+  learning: { lesson: 'already-stored', retraining: 'not-needed' },
+  corpus: { health: 'healthy', pack: 'verified', pack_digest: 'a'.repeat(64) },
+  sync: { state: 'locked', generation: 3 },
+  compute: { selected: 'local-cpu', gpu: 'unavailable', linux: 'unavailable', storage: 'unavailable', ladder: [{ kind: 'local_cpu', state: 'available', evidence: 'observed receipt' }] },
+  blockers: ['GPU not observed.', 'Linux worker not observed.', 'Persistent storage unavailable.']
+}, { clock: () => runtimeNow });
+const plannerReceipt = createOperatorRuntimeReceipt({
+  route: { sparse: 'miss', planner: 'hit', selected: 'cpu-planner', confidence: 0.84, margin: 0.29 },
+  budget: { decision: 'local-first', charged_credits: 0, usage_evidence: 'observed' },
+  teacher: { state: 'not-called', reason: 'CPU planner admitted' },
+  learning: { lesson: 'stored', retraining: 'complete' },
+  corpus: { health: 'healthy', pack: 'verified', pack_digest: 'b'.repeat(64) },
+  sync: { state: 'locked', generation: 4 },
+  compute: { selected: 'local-cpu', gpu: 'unavailable', linux: 'unavailable', storage: 'available', ladder: [{ kind: 'local_cpu', state: 'available', evidence: 'observed receipt' }] },
+  blockers: ['Burst GPU unavailable because no adapter was observed.']
+}, { clock: () => runtimeNow });
+const escalationReceipt = createOperatorRuntimeReceipt({
+  route: { sparse: 'miss', planner: 'miss', selected: 'teacher', confidence: 0.21, margin: 0.03 },
+  budget: { decision: 'teacher-approved', charged_credits: 17, usage_evidence: 'provider-reported' },
+  teacher: { state: 'called', reason: 'local confidence below escalation threshold' },
+  learning: { lesson: 'stored', retraining: 'pending' },
+  corpus: { health: 'healthy', pack: 'verified', pack_digest: 'c'.repeat(64) },
+  sync: { state: 'error', generation: 5, error: 'relay unavailable' },
+  compute: { selected: 'local-cpu', gpu: 'unavailable', linux: 'unavailable', storage: 'available', ladder: [{ kind: 'local_cpu', state: 'available', evidence: 'observed receipt' }] },
+  blockers: ['Teacher route requires configured provider authority.', 'Encrypted relay unavailable.']
+}, { clock: () => runtimeNow });
+const staleReceipt = createOperatorRuntimeReceipt({}, { clock: () => runtimeNow - 10 * 60_000, ttl_ms: 60_000 });
+const wrongNamespaceReceipt = createOperatorRuntimeReceipt({}, { clock: () => runtimeNow, namespace: 'other' });
 const browserErrors = [];
 const unexpectedBrowserErrors = () => browserErrors.filter(message => !/ERR_INTERNET_DISCONNECTED/.test(message));
 page.on('pageerror', error => browserErrors.push(error.message));
@@ -53,6 +95,49 @@ try {
     && await page.locator('text=One leased branch').count() > 0
     && (await page.locator('#tool-state').innerText()).includes('rollback');
   if (!proof.executionTruthVisible) throw new Error('execution truth is not visible');
+  proof.archieDefaultTruth = await page.locator('#archie-sparse').innerText() === 'Unobserved'
+    && /unavailable until observed/i.test(await page.locator('#archie-compute').innerText())
+    && await page.locator('text=Training complete').count() === 0
+    && await page.locator('text=GPU available').count() === 0;
+  if (!proof.archieDefaultTruth) throw new Error('Archie default surface claimed unobserved execution');
+  const applyArchie = async receipt => {
+    await page.locator('#archie-receipt-input').fill(JSON.stringify(receipt));
+    await page.locator('#archie-apply').click();
+    await page.waitForTimeout(50);
+  };
+  await applyArchie(localReceipt);
+  proof.archieLocalHit = await page.locator('#archie-sparse').innerText() === 'hit'
+    && await page.locator('#archie-route').innerText() === 'sparse-specialist'
+    && /locked.*relay plaintext authority: none/i.test(await page.locator('#archie-sync').innerText())
+    && await page.locator('#archie-storage').innerText() === 'unavailable';
+  if (!proof.archieLocalHit) throw new Error('Archie local specialist receipt did not render truthfully');
+  await applyArchie(plannerReceipt);
+  proof.archiePlannerHit = await page.locator('#archie-planner').innerText() === 'hit'
+    && await page.locator('#archie-route').innerText() === 'cpu-planner'
+    && /0\.84 \/ 0\.29/.test(await page.locator('#archie-confidence').innerText());
+  if (!proof.archiePlannerHit) throw new Error('Archie CPU planner receipt did not render truthfully');
+  await applyArchie(escalationReceipt);
+  proof.archieEscalation = /called.*local confidence/i.test(await page.locator('#archie-teacher').innerText())
+    && /stored \/ pending/i.test(await page.locator('#archie-learning').innerText())
+    && /17 credits/.test(await page.locator('#archie-budget').innerText());
+  proof.archieSyncState = /error.*relay unavailable.*relay plaintext authority: none/i.test(await page.locator('#archie-sync').innerText());
+  if (!proof.archieEscalation || !proof.archieSyncState) throw new Error('Archie escalation or sync error timeline did not render');
+  await page.locator('#archie-export-pack').click();
+  await page.waitForFunction(() => document.querySelector('#archie-command-preview')?.textContent.includes('export_pack'));
+  proof.archiePackCommand = /"execution_claimed": false/.test(await page.locator('#archie-command-preview').textContent())
+    && /does not claim execution/i.test(await page.locator('#archie-status').innerText());
+  if (!proof.archiePackCommand) throw new Error('Archie pack command claimed execution');
+  await applyArchie(staleReceipt);
+  const staleRejected = /stale/i.test(await page.locator('#archie-status').innerText()) && await page.locator('#archie-sparse').innerText() === 'Unobserved';
+  await applyArchie(wrongNamespaceReceipt);
+  const namespaceRejected = /namespace/i.test(await page.locator('#archie-status').innerText()) && await page.locator('#archie-sparse').innerText() === 'Unobserved';
+  const secretReceipt = structuredClone(localReceipt);
+  secretReceipt.payload = { ...secretReceipt.payload, api_key: 'sk-123456789012345678901' };
+  await applyArchie(secretReceipt);
+  const secretRejected = /secret/i.test(await page.locator('#archie-status').innerText()) && await page.locator('#archie-sparse').innerText() === 'Unobserved';
+  proof.archieRejections = staleRejected && namespaceRejected && secretRejected;
+  proof.archieNamespaceIsolated = Object.keys(await page.evaluate(() => Object.fromEntries(Array.from({ length: localStorage.length }, (_, index) => { const key = localStorage.key(index); return [key, localStorage.getItem(key)]; })))).every(key => ['maker:engineering:task:v2', 'maker:archie:receipt:v1'].includes(key));
+  if (!proof.archieRejections || !proof.archieNamespaceIsolated) throw new Error('Archie stale/secret/namespace rejection or storage isolation failed');
   await page.waitForFunction(() => document.querySelector('#repo-head')?.textContent === '634a511f68e8');
   proof.liveState = await page.locator('#open-issues').innerText() === '1'
     && await page.locator('#open-prs').innerText() === '2'

@@ -42,14 +42,8 @@
         </div>
 
         <div class="identity-grid">
-          <div>
-            <label for="maker-repository">REPOSITORY</label>
-            <input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository">
-          </div>
-          <div>
-            <label for="maker-base">BASE REVISION</label>
-            <input id="maker-base" autocomplete="off" spellcheck="false" placeholder="main or exact commit SHA">
-          </div>
+          <div><label for="maker-repository">REPOSITORY</label><input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository"></div>
+          <div><label for="maker-base">BASE REVISION</label><input id="maker-base" autocomplete="off" spellcheck="false" placeholder="main or exact commit SHA"></div>
           <div>
             <label for="maker-backend">EXECUTION BACKEND</label>
             <select id="maker-backend">
@@ -63,81 +57,129 @@
 
         <label>WORK MODE</label>
         <div class="mode-grid" role="group" aria-label="Command mode">
-          <button type="button" data-mode="build" aria-pressed="true">BUILD</button>
-          <button type="button" data-mode="fix" aria-pressed="false">FIX</button>
-          <button type="button" data-mode="explore" aria-pressed="false">EXPLORE</button>
-          <button type="button" data-mode="audit" aria-pressed="false">AUDIT</button>
+          <button type="button" data-mode="build" aria-pressed="true">BUILD</button><button type="button" data-mode="fix" aria-pressed="false">FIX</button><button type="button" data-mode="explore" aria-pressed="false">EXPLORE</button><button type="button" data-mode="audit" aria-pressed="false">AUDIT</button>
         </div>
-
-        <label for="maker-request">END STATE</label>
-        <textarea id="maker-request" maxlength="8000" placeholder="What must exist when the engineering task is complete?"></textarea>
-
-        <label for="maker-protect">PROTECTED REALITY</label>
-        <textarea id="maker-protect" class="short-field" maxlength="4000" placeholder="Paths, data, authority, behavior, and external boundaries that cannot be broken."></textarea>
-
-        <label for="maker-proof">ADMISSION PROOF</label>
-        <textarea id="maker-proof" class="short-field" maxlength="4000" placeholder="Tests, browser journeys, security witnesses, exact-head checks, and receipt requirements."></textarea>
+        <label for="maker-request">END STATE</label><textarea id="maker-request" maxlength="8000" placeholder="What must exist when the engineering task is complete?"></textarea>
+        <label for="maker-protect">PROTECTED REALITY</label><textarea id="maker-protect" class="short-field" maxlength="4000" placeholder="Paths, data, authority, behavior, and external boundaries that cannot be broken."></textarea>
+        <label for="maker-proof">ADMISSION PROOF</label><textarea id="maker-proof" class="short-field" maxlength="4000" placeholder="Tests, browser journeys, security witnesses, exact-head checks, and receipt requirements."></textarea>
       </div>
 
       <aside class="dispatch-panel">
-        <div>
-          <p class="section-number">02</p>
-          <h2>Authorize</h2>
-          <div class="capability-card" aria-label="Available execution capabilities">
-            <h3>RUNTIME CONTRACT</h3>
-            <dl>
-              <div><dt>Backend</dt><dd id="backend-state">auto · unresolved until worker starts</dd></div>
-              <div><dt>Tools</dt><dd id="tool-state">read · search · write · replace · delete · run · verify · rollback</dd></div>
-              <div><dt>Lease</dt><dd id="lease-state">required before first write</dd></div>
-              <div><dt>Human gates</dt><dd id="human-gates">merge · deploy · production data · training spend</dd></div>
-            </dl>
-          </div>
-        </div>
-
-        <div class="actions">
-          <a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a>
-          <button id="copy-receipt" type="button">COPY MACHINE RECEIPT</button>
-          <button id="reset-maker" class="quiet" type="button">CLEAR LOCAL DRAFT</button>
-        </div>
+        <div><p class="section-number">02</p><h2>Authorize</h2><div class="capability-card" aria-label="Available execution capabilities"><h3>RUNTIME CONTRACT</h3><dl><div><dt>Backend</dt><dd id="backend-state">auto · unresolved until worker starts</dd></div><div><dt>Tools</dt><dd id="tool-state">read · search · write · replace · delete · run · verify · rollback</dd></div><div><dt>Lease</dt><dd id="lease-state">required before first write</dd></div><div><dt>Human gates</dt><dd id="human-gates">merge · deploy · production data · training spend</dd></div></dl></div></div>
+        <div class="actions"><a id="send-command" class="primary disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a><button id="copy-receipt" type="button">COPY MACHINE RECEIPT</button><button id="reset-maker" class="quiet" type="button">CLEAR LOCAL DRAFT</button></div>
         <p id="command-status" class="status" role="status" aria-live="polite">Draft is stored only in this Maker namespace.</p>
-        <details>
-          <summary>MACHINE RECEIPT</summary>
-          <pre id="receipt-preview"></pre>
-        </details>
+        <details><summary>MACHINE RECEIPT</summary><pre id="receipt-preview"></pre></details>
       </aside>
     </section>
 
     <section class="state-panel" aria-labelledby="state-heading">
-      <div class="state-heading-row">
-        <div class="section-heading compact">
-          <p class="section-number">03</p>
-          <div>
-            <h2 id="state-heading">Repository execution</h2>
-            <p>Public GitHub state only. Credentials, private task state, command output, and model keys are never loaded into this static surface.</p>
-          </div>
-        </div>
-        <button id="refresh-state" class="secondary" type="button">REFRESH</button>
-      </div>
-      <div class="state-grid">
-        <article><span>BASE HEAD</span><strong id="repo-head">reading…</strong></article>
-        <article><span>ISSUES</span><strong id="open-issues">—</strong></article>
-        <article><span>PRS</span><strong id="open-prs">—</strong></article>
-        <article><span>RUNNING</span><strong id="running-workflows">—</strong></article>
-      </div>
-
-      <div class="live-columns">
-        <section>
-          <h3>OPEN WORK</h3>
-          <div id="active-work" class="operation-list" aria-label="Open issues and pull requests"></div>
-        </section>
-        <section>
-          <h3>RECENT RUNS</h3>
-          <div id="workflow-runs" class="operation-list" aria-label="Recent workflow runs"></div>
-        </section>
-      </div>
+      <div class="state-heading-row"><div class="section-heading compact"><p class="section-number">03</p><div><h2 id="state-heading">Repository execution</h2><p>Public GitHub state only. Credentials, private task state, command output, and model keys are never loaded into this static surface.</p></div></div><button id="refresh-state" class="secondary" type="button">REFRESH</button></div>
+      <div class="state-grid"><article><span>BASE HEAD</span><strong id="repo-head">reading…</strong></article><article><span>ISSUES</span><strong id="open-issues">—</strong></article><article><span>PRS</span><strong id="open-prs">—</strong></article><article><span>RUNNING</span><strong id="running-workflows">—</strong></article></div>
+      <div class="live-columns"><section><h3>OPEN WORK</h3><div id="active-work" class="operation-list" aria-label="Open issues and pull requests"></div></section><section><h3>RECENT RUNS</h3><div id="workflow-runs" class="operation-list" aria-label="Recent workflow runs"></div></section></div>
       <p id="state-status" class="status" role="status" aria-live="polite">Reading public repository state…</p>
+    </section>
+
+    <section id="archie-runtime" class="archie-console" aria-labelledby="archie-heading">
+      <p class="section-number">04</p>
+      <h2 id="archie-heading">Archie learning loop</h2>
+      <p class="archie-truth">This phone is a truthful cockpit, not the engine. It starts with every runtime fact unobserved. It may display a fresh digest-valid receipt delivered through a separately authenticated runtime channel, or export a command packet for that runtime. It never claims training, synchronization, provider calls, compute, storage, repository mutation, merge, or deployment happened here.</p>
+      <p><span class="archie-chip" id="archie-freshness">OFFLINE / UNOBSERVED</span></p>
+      <div class="archie-grid" aria-label="Archie observed runtime state">
+        <article class="archie-card"><span>SPARSE SPECIALIST</span><strong id="archie-sparse">Unobserved</strong></article>
+        <article class="archie-card"><span>CPU PLANNER</span><strong id="archie-planner">Unobserved</strong></article>
+        <article class="archie-card"><span>CONFIDENCE / MARGIN</span><strong id="archie-confidence">Unobserved</strong></article>
+        <article class="archie-card"><span>SELECTED ROUTE</span><strong id="archie-route">Unobserved</strong></article>
+        <article class="archie-card"><span>BUDGET DECISION</span><strong id="archie-budget">Unobserved</strong></article>
+        <article class="archie-card"><span>TEACHER ESCALATION</span><strong id="archie-teacher">Unobserved</strong></article>
+        <article class="archie-card"><span>LESSON / RETRAIN</span><strong id="archie-learning">Unobserved</strong></article>
+        <article class="archie-card"><span>CORPUS / PACK</span><strong id="archie-corpus">Unobserved</strong></article>
+        <article class="archie-card"><span>ENCRYPTED SYNC</span><strong id="archie-sync">Unobserved</strong></article>
+        <article class="archie-card"><span>COMPUTE LADDER</span><strong id="archie-compute">Local CPU unobserved; Linux/GPU unavailable until observed</strong></article>
+        <article class="archie-card"><span>USAGE / COST EVIDENCE</span><strong id="archie-usage">Unobserved</strong></article>
+        <article class="archie-card"><span>STORAGE</span><strong id="archie-storage">Unobserved</strong></article>
+        <article class="archie-card archie-wide"><span>EXPLICIT BLOCKERS</span><ul id="archie-blockers" class="archie-blockers"><li>No authenticated runtime receipt loaded.</li></ul></article>
+        <article class="archie-card archie-wide"><span>RECEIPT SOURCE</span><strong id="archie-source" class="archie-evidence">None</strong></article>
+      </div>
+      <div class="archie-import">
+        <label for="archie-receipt-input">PASTE DIGEST-VALID RUNTIME RECEIPT</label>
+        <textarea id="archie-receipt-input" autocomplete="off" spellcheck="false" placeholder="archie-operator-runtime-receipt/v1 JSON"></textarea>
+      </div>
+      <div class="archie-actions" role="group" aria-label="Archie receipt and command actions">
+        <button id="archie-apply" type="button">VERIFY + APPLY RECEIPT</button>
+        <button id="archie-export-pack" type="button">EXPORT PACK COMMAND</button>
+        <button id="archie-import-pack" type="button">IMPORT PACK COMMAND</button>
+        <button id="archie-sync-command" type="button">ENCRYPTED SYNC COMMAND</button>
+        <button id="archie-clear" type="button">CLEAR LOCAL RECEIPT</button>
+      </div>
+      <p id="archie-status" class="archie-status" role="status" aria-live="polite">No authenticated runtime receipt loaded. Browser execution claims: none.</p>
+      <details><summary>COMMAND PACKET — DOES NOT CLAIM EXECUTION</summary><pre id="archie-command-preview" class="archie-command">No command exported.</pre></details>
     </section>
   </main>
   <script type="module" src="./maker.js"></script>
+  <script type="module">
+      const $ = id => document.getElementById(id);
+      const storageKey = 'maker:archie:receipt:v1';
+      const clean = (value, limit = 2000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
+      const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+      const stable = value => JSON.stringify(canonical(value));
+      const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      const digest = async value => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(typeof value === 'string' ? value : stable(value))));
+      const secretKey = /(?:^|[_-])(?:secret|token|password|authorization|cookie|private[_-]?key|api[_-]?key|credential|session)(?:$|[_-])/i;
+      const secretText = /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})\b/i;
+      const assertSafe = (value, depth = 0) => {
+        if (depth > 30) throw new Error('Receipt nesting exceeds browser limit.');
+        if (Array.isArray(value)) return value.forEach(item => assertSafe(item, depth + 1));
+        if (!value || typeof value !== 'object') { if (typeof value === 'string' && secretText.test(value)) throw new Error('Secret-like material rejected.'); return; }
+        for (const [key, child] of Object.entries(value)) { if (secretKey.test(key) && child !== null && child !== '' && child !== '[redacted]') throw new Error('Unredacted secret-like field rejected.'); assertSafe(child, depth + 1); }
+      };
+      const set = (id, value) => { $(id).textContent = clean(value || 'Unobserved', 1200); };
+      const empty = () => {
+        set('archie-sparse', 'Unobserved'); set('archie-planner', 'Unobserved'); set('archie-confidence', 'Unobserved'); set('archie-route', 'Unobserved');
+        set('archie-budget', 'Unobserved'); set('archie-teacher', 'Unobserved'); set('archie-learning', 'Unobserved'); set('archie-corpus', 'Unobserved');
+        set('archie-sync', 'Unobserved'); set('archie-compute', 'Local CPU unobserved; Linux/GPU unavailable until observed'); set('archie-usage', 'Unobserved'); set('archie-storage', 'Unobserved'); set('archie-source', 'None');
+        $('archie-blockers').replaceChildren(Object.assign(document.createElement('li'), { textContent: 'No authenticated runtime receipt loaded.' }));
+        set('archie-freshness', navigator.onLine ? 'ONLINE / UNOBSERVED' : 'OFFLINE / UNOBSERVED');
+      };
+      const verify = async receipt => {
+        assertSafe(receipt);
+        if (receipt?.schema !== 'archie-operator-runtime-receipt/v1' || receipt.namespace !== 'maker:archie') throw new Error('Unsupported receipt or namespace.');
+        if (await digest(receipt.payload) !== receipt.payload_digest) throw new Error('Payload digest mismatch.');
+        const { receipt_digest, ...body } = receipt;
+        if (await digest(body) !== receipt_digest) throw new Error('Receipt digest mismatch.');
+        const observed = Date.parse(receipt.observed_at), expires = Date.parse(receipt.expires_at);
+        if (!Number.isFinite(observed) || !Number.isFinite(expires) || observed > Date.now() + 30000) throw new Error('Receipt observation time is invalid.');
+        if (expires <= Date.now()) throw new Error('Receipt is stale.');
+        return receipt;
+      };
+      const render = receipt => {
+        const p = receipt.payload || {}, route = p.route || {}, budget = p.budget || {}, teacher = p.teacher || {}, learning = p.learning || {}, corpus = p.corpus || {}, sync = p.sync || {}, compute = p.compute || {};
+        set('archie-sparse', route.sparse); set('archie-planner', route.planner); set('archie-confidence', Number.isFinite(Number(route.confidence)) ? `${route.confidence} / ${Number.isFinite(Number(route.margin)) ? route.margin : '—'}` : 'Unobserved'); set('archie-route', route.selected);
+        set('archie-budget', `${budget.decision || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`);
+        set('archie-teacher', `${teacher.state || 'Unobserved'} · ${teacher.reason || 'no observed reason'}`); set('archie-learning', `${learning.lesson || 'Unobserved'} / ${learning.retraining || 'Unobserved'}`);
+        set('archie-corpus', `${corpus.health || 'Unobserved'} / ${corpus.pack || 'Unobserved'}`); set('archie-sync', `${sync.state || 'Unobserved'}${sync.error ? ` · ${sync.error}` : ''} · generation ${Number.isSafeInteger(sync.generation) ? sync.generation : 'unobserved'} · relay plaintext authority: none`);
+        const ladder = Array.isArray(compute.ladder) ? compute.ladder.map(item => `${item.kind || 'unknown'}:${item.state || 'unobserved'}`).join(' · ') : '';
+        set('archie-compute', ladder || `${compute.selected || 'Unobserved'} · Linux ${compute.linux || 'unavailable until observed'} · GPU ${compute.gpu || 'unavailable until observed'}`);
+        set('archie-usage', `${budget.usage_evidence || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`); set('archie-storage', compute.storage || 'Unobserved');
+        const blockers = Array.isArray(p.blockers) && p.blockers.length ? p.blockers : ['No external blocker reported by this receipt.']; $('archie-blockers').replaceChildren(...blockers.slice(0, 30).map(item => Object.assign(document.createElement('li'), { textContent: clean(item, 500) })));
+        set('archie-source', `${receipt.source} · observed ${receipt.observed_at} · expires ${receipt.expires_at}`); set('archie-freshness', 'FRESH DIGEST-VALID RECEIPT');
+      };
+      const apply = async raw => {
+        const parsed = JSON.parse(raw); const receipt = await verify(parsed); render(receipt);
+        try { localStorage.setItem(storageKey, JSON.stringify(receipt)); set('archie-status', 'Digest-valid receipt applied. Storage contains this receipt only; no runtime action was executed.'); }
+        catch { set('archie-status', 'Digest-valid receipt applied in memory. Storage unavailable; no runtime action was executed.'); }
+      };
+      const command = async operation => {
+        const body = { schema: 'archie-operator-command/v1', namespace: 'maker:archie', created_at: new Date().toISOString(), operation, payload: {}, execution_claimed: false, requires_authenticated_runtime: true, requires_explicit_authority: true };
+        assertSafe(body); const packet = { ...body, command_digest: await digest(body) }; $('archie-command-preview').textContent = JSON.stringify(packet, null, 2); set('archie-status', `Command packet exported for ${operation}. It does not claim execution.`);
+      };
+      $('archie-apply').addEventListener('click', async () => { try { await apply($('archie-receipt-input').value); } catch (error) { empty(); set('archie-status', `Receipt rejected: ${clean(error.message, 400)} No runtime fact was admitted.`); } });
+      $('archie-receipt-input').addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); $('archie-apply').click(); } });
+      $('archie-export-pack').addEventListener('click', () => command('export_pack')); $('archie-import-pack').addEventListener('click', () => command('import_pack')); $('archie-sync-command').addEventListener('click', () => command('sync'));
+      $('archie-clear').addEventListener('click', () => { let cleared = false; try { localStorage.removeItem(storageKey); cleared = true; } catch {} $('archie-receipt-input').value = ''; empty(); set('archie-status', cleared ? 'Local receipt cleared. No runtime action was executed.' : 'Receipt cleared in memory. Storage unavailable; no runtime action was executed.'); });
+      addEventListener('online', () => set('archie-freshness', 'ONLINE / RECEIPT STATE UNCHANGED')); addEventListener('offline', () => set('archie-freshness', 'OFFLINE / RECEIPT STATE UNCHANGED'));
+      empty();
+      try { const stored = localStorage.getItem(storageKey); if (stored) { $('archie-receipt-input').value = stored; await apply(stored); } }
+      catch { set('archie-status', 'Storage unavailable. Receipt-only cockpit remains usable in memory; no runtime action was executed.'); }
+    </script>
 </body>
 </html>

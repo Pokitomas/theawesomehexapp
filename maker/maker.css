@@ -150,3 +150,36 @@ pre { max-width: 100%; max-height: 360px; overflow: auto; white-space: pre-wrap;
   .operation-list { max-height: none; }
   .section-heading, .section-heading.compact { grid-template-columns: 34px minmax(0, 1fr); gap: 7px; }
 }
+
+/* Archie receipt-only operator seam. Runtime facts remain unobserved until a
+   fresh digest-valid receipt is explicitly loaded. */
+.archie-console { margin-top: clamp(2rem, 5vw, 5rem); border: 2px solid var(--line); padding: clamp(1rem, 3vw, 2rem); background: var(--paper); }
+.archie-console * { box-sizing: border-box; }
+.archie-console h2, .archie-console h3, .archie-console p { margin-top: 0; }
+.archie-truth { max-width: 72ch; }
+.archie-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.archie-card { min-width: 0; padding: 1rem; background: var(--paper); }
+.archie-card span { display: block; font-size: 10px; font-weight: 900; letter-spacing: .09em; color: var(--muted); }
+.archie-card strong { display: block; margin-top: .35rem; overflow-wrap: anywhere; }
+.archie-wide { grid-column: span 2; }
+.archie-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
+.archie-actions button { min-height: 44px; }
+.archie-import { display: grid; gap: .5rem; margin-top: 1.25rem; }
+.archie-import textarea { width: 100%; min-height: 7rem; font: inherit; }
+.archie-status { margin-top: 1rem; padding: .8rem; border-left: 4px solid var(--line); }
+.archie-blockers { margin: .5rem 0 0; padding-left: 1.25rem; }
+.archie-evidence { font-variant-numeric: tabular-nums; }
+.archie-command { max-height: 14rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.archie-chip { display: inline-flex; align-items: center; min-height: 2rem; padding: .2rem .6rem; border: 1px solid var(--line); border-radius: 999px; font-size: .8rem; font-weight: 900; }
+.archie-console :focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+@media (max-width: 900px) { .archie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) {
+  .archie-console { margin-inline: 0; padding: 13px; }
+  .archie-grid { grid-template-columns: 1fr; }
+  .archie-wide { grid-column: auto; }
+  .archie-actions { display: grid; }
+  .archie-actions button { width: 100%; min-height: 48px; }
+  .archie-card { padding: .85rem; }
+  .archie-import textarea { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .archie-console * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

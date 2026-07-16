@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/maker/contracts/archie-budget.schema.json",
+  "title": "Archie reasoning budget receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ledger_schema",
+    "observed_at",
+    "request_digest",
+    "idempotency_key",
+    "task",
+    "decision",
+    "budget",
+    "provider_attempts",
+    "learning",
+    "replayed",
+    "receipt_digest"
+  ],
+  "properties": {
+    "schema": { "const": "archie-reasoning-budget-receipt/v1" },
+    "ledger_schema": { "const": "archie-reasoning-budget-ledger/v1" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "request_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "idempotency_key": { "type": ["string", "null"] },
+    "receipt_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "replayed": { "type": "boolean" },
+    "task": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["instruction", "fingerprint"],
+      "properties": {
+        "instruction": { "type": "string", "minLength": 1 },
+        "fingerprint": { "type": "string", "pattern": "^task_[a-f0-9]{24}$" },
+        "context": {},
+        "novelty": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "uncertainty": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "expected_recurrence": { "type": "number", "minimum": 0 },
+        "safety_risk": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tool_cost": { "type": "number", "minimum": 0 },
+        "prior_local_failures": { "type": "integer", "minimum": 0 },
+        "estimated_future_call_savings": { "type": "number", "minimum": 0 },
+        "estimated_prompt_tokens": { "type": ["integer", "null"], "minimum": 0 },
+        "estimated_completion_tokens": { "type": ["integer", "null"], "minimum": 0 },
+        "estimated_total_tokens": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason", "initial_state", "initial_reason", "score", "safety_override", "escalation_level", "local_available"],
+      "properties": {
+        "state": { "enum": ["approved", "completed", "denied", "cancelled", "fallback", "failed"] },
+        "reason": { "type": "string" },
+        "initial_state": { "enum": ["approved", "denied", "cancelled"] },
+        "initial_reason": { "type": "string" },
+        "safety_override": { "type": "boolean" },
+        "escalation_level": { "type": "integer", "minimum": 0 },
+        "local_available": { "type": "boolean" },
+        "score": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["novelty", "uncertainty", "expected_recurrence", "safety_risk", "prior_local_failures", "estimated_future_call_savings", "value", "tool_cost_penalty", "teacher_value_score"],
+          "properties": {
+            "novelty": { "type": "number", "minimum": 0, "maximum": 1 },
+            "uncertainty": { "type": "number", "minimum": 0, "maximum": 1 },
+            "expected_recurrence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "safety_risk": { "type": "number", "minimum": 0, "maximum": 1 },
+            "prior_local_failures": { "type": "number", "minimum": 0, "maximum": 1 },
+            "estimated_future_call_savings": { "type": "number", "minimum": 0, "maximum": 1 },
+            "value": { "type": "number", "minimum": 0, "maximum": 1 },
+            "tool_cost_penalty": { "type": "number", "minimum": 0, "maximum": 1 },
+            "teacher_value_score": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["global_budget_credits", "used_before_credits", "remaining_before_credits", "routine_available_before_credits", "per_task_ceiling_credits", "estimate_credits", "allocated_credits", "reservations", "debit"],
+      "properties": {
+        "global_budget_credits": { "type": "number", "minimum": 0 },
+        "used_before_credits": { "type": "number", "minimum": 0 },
+        "remaining_before_credits": { "type": "number", "minimum": 0 },
+        "routine_available_before_credits": { "type": "number", "minimum": 0 },
+        "per_task_ceiling_credits": { "type": "number", "minimum": 0 },
+        "estimate_credits": { "type": "number", "minimum": 0 },
+        "allocated_credits": { "type": "number", "minimum": 0 },
+        "reservations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repair_credits", "evaluation_credits", "protected_for_routine_calls"],
+          "properties": {
+            "repair_credits": { "type": "number", "minimum": 0 },
+            "evaluation_credits": { "type": "number", "minimum": 0 },
+            "protected_for_routine_calls": { "type": "boolean" }
+          }
+        },
+        "debit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["charged_credits", "estimated", "reason", "provider_reported_usage", "estimated_usage", "token_usage"],
+          "properties": {
+            "charged_credits": { "type": "number", "minimum": 0 },
+            "estimated": { "type": "boolean" },
+            "reason": { "type": "string" },
+            "provider_reported_usage": { "type": ["object", "null"], "additionalProperties": true },
+            "estimated_usage": { "type": ["object", "null"], "additionalProperties": true },
+            "token_usage": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["prompt_tokens", "completion_tokens", "total_tokens", "estimated"],
+              "properties": {
+                "prompt_tokens": { "type": ["number", "null"], "minimum": 0 },
+                "completion_tokens": { "type": ["number", "null"], "minimum": 0 },
+                "total_tokens": { "type": ["number", "null"], "minimum": 0 },
+                "estimated": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "provider_attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["provider_id", "status", "fallback"],
+        "properties": {
+          "provider_id": { "type": "string" },
+          "status": { "enum": ["completed", "failed"] },
+          "fallback": { "type": "boolean" },
+          "usage": { "type": ["object", "null"], "additionalProperties": true },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "result": {},
+    "learning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recorded_for_amortization", "estimated_future_call_savings", "estimate_explicit"],
+      "properties": {
+        "recorded_for_amortization": { "type": "boolean" },
+        "estimated_future_call_savings": { "type": "number", "minimum": 0 },
+        "estimate_explicit": { "type": "boolean" }
+      }
+    }
+  }
+}

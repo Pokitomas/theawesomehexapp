@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://theawesomehexapp.local/maker/contracts/archie-compute.schema.json",
+  "title": "Archie compute attestation and execution receipt",
+  "oneOf": [
+    { "$ref": "#/$defs/worker" },
+    { "$ref": "#/$defs/receipt" }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "worker": {
+      "type": "object",
+      "required": ["schema", "id", "kind", "observed", "available", "observed_at", "capabilities", "limits", "privacy", "locality", "pack_versions", "worker_digest"],
+      "properties": {
+        "schema": { "const": "archie-worker-attestation/v1" },
+        "kind": { "enum": ["local_cpu", "wsl_workstation", "github_hosted_cpu", "self_hosted", "remote_http", "burst_gpu"] },
+        "observed": { "type": "boolean" },
+        "available": { "type": "boolean" },
+        "worker_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema", "state", "task_digest", "attempts", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "archie-compute-receipt/v1" },
+        "state": { "enum": ["completed", "blocked", "failed", "cancelled"] },
+        "task_digest": { "$ref": "#/$defs/digest" },
+        "receipt_digest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}
