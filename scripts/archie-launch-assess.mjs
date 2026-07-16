@@ -44,13 +44,13 @@ async function writeResult(result, output) {
 }
 
 function usage() {
-  return `Archie joint launch assessor
+  return `Archie capability-frontier launch assessor
 
 Usage:
   node scripts/archie-launch-assess.mjs derive [--target founder/archie-launch-target.json] [--output file.json]
   node scripts/archie-launch-assess.mjs evaluate --candidate candidate.json [--target founder/archie-launch-target.json] [--output decision.json]
 
-The assessor derives product faculties from human outcomes. It does not make chat, voice, a dashboard, or an always-on process architectural by default. Evaluate exits non-zero when either intelligence or required embodiment is not admitted.`;
+The assessor does not derive voice, chat, a screen, a CLI, or an always-on process from static rules. Candidates submit complete evidence-bound product profiles across declared environments. The evaluator publishes the feasible nondominated frontier and rejects dominated defaults, hidden frontier profiles, incomplete search receipts, weak intelligence, and unsupported capability claims.`;
 }
 
 export async function main(argv = process.argv.slice(2)) {
