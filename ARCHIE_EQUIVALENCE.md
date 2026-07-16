@@ -31,18 +31,18 @@ Performance numbers are environment-specific. The admission requirement is corre
 
 `npm run benchmark:archie` runs a sequential 21-episode controlled suite through the complete cognition runtime. Teacher-required episodes use declared reference fixtures so one-shot acquisition and retention can be tested deterministically.
 
-The current deterministic baseline is **92.220**, with 19/21 episodes successful. The two retained failures are intentionally visible:
+The current deterministic baseline is **100.000**, with 21/21 episodes successful. The suite includes explicit regression cases proving that:
 
-- a safe request containing negative-language cues escalates instead of executing;
-- a near-neighbor mechanical task incorrectly reuses a Git trajectory instead of escalating.
+- a safe observation-only request containing deployment and merge prohibitions remains local and read-only;
+- a near-neighbor mechanical task does not inherit a Git trajectory and instead escalates.
 
-That score is useful for regression tracking. It is not named-model equivalence because no named model has been run through the same leakage-minimized prompt pack.
+That score is useful for regression tracking on this declared suite. It is not named-model equivalence because no named model has been run through the same leakage-minimized prompt pack.
 
 Every report therefore states:
 
 - `benchmark_scope`;
 - `comparison_status: named-model-unmeasured`;
-- `publication_eligible_as_named_model_equivalence: false`;
+- `publication_eligible_as_named-model equivalence: false`;
 - `named_model_equivalence: unmeasured-until-the-same-suite-is-run-through-that-model`.
 
 Generate a leakage-minimized comparison pack with:
