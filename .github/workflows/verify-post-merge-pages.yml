@@ -1,0 +1,127 @@
+name: Verify exact post-merge Pages deployment
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/verify-post-merge-pages.yml
+
+permissions:
+  actions: read
+  contents: write
+  issues: read
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_SHA: 62a9488bcfb44733a673a02edfbff14f4733d837
+      EXPECTED_REPOSITORY: Pokitomas/theawesomehexapp
+      RECEIPT_ISSUE: '396'
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+      - name: Remove temporary verifier from proof tree
+        run: rm .github/workflows/verify-post-merge-pages.yml
+      - name: Verify push run sentinel and canonical receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const expectedSha = process.env.EXPECTED_SHA;
+          const expectedRepository = process.env.EXPECTED_REPOSITORY;
+          const headers = {
+            accept: 'application/vnd.github+json',
+            authorization: `Bearer ${process.env.GH_TOKEN}`,
+            'x-github-api-version': '2022-11-28',
+            'user-agent': 'sideways-post-merge-verifier'
+          };
+          async function json(url, options = {}) {
+            const response = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+            const text = await response.text();
+            if (!response.ok) throw new Error(`${url} returned ${response.status}: ${text.slice(0, 1000)}`);
+            return JSON.parse(text);
+          }
+          const runs = await json(`https://api.github.com/repos/${expectedRepository}/actions/runs?head_sha=${expectedSha}&event=push&per_page=100`);
+          const pagesRuns = runs.workflow_runs.filter(run => run.name === 'Build and deploy manual root-kernel feed' && run.head_sha === expectedSha && run.event === 'push');
+          if (pagesRuns.length !== 1) throw new Error(`expected exactly one push Pages run, found ${pagesRuns.length}`);
+          const run = pagesRuns[0];
+          if (run.status !== 'completed' || run.conclusion !== 'success') throw new Error(`push Pages run ${run.id} is ${run.status}/${run.conclusion}`);
+          const jobs = await json(`https://api.github.com/repos/${expectedRepository}/actions/runs/${run.id}/jobs?per_page=100`);
+          const requiredJobs = ['remote-gate', 'build', 'deploy'];
+          const jobProof = {};
+          for (const name of requiredJobs) {
+            const job = jobs.jobs.find(candidate => candidate.name === name);
+            if (!job) throw new Error(`push Pages run ${run.id} has no ${name} job`);
+            if (job.status !== 'completed' || job.conclusion !== 'success') throw new Error(`${name} job ${job.id} is ${job.status}/${job.conclusion}`);
+            jobProof[name] = { id: job.id, status: job.status, conclusion: job.conclusion };
+          }
+          const sentinelUrl = `https://pokitomas.github.io/theawesomehexapp/.well-known/sideways-deployment.json?proof=${Date.now()}`;
+          const sentinelResponse = await fetch(sentinelUrl, { headers: { accept: 'application/json', 'cache-control': 'no-cache', 'user-agent': 'sideways-post-merge-verifier' } });
+          const sentinelText = await sentinelResponse.text();
+          if (!sentinelResponse.ok) throw new Error(`sentinel returned ${sentinelResponse.status}: ${sentinelText.slice(0, 1000)}`);
+          const sentinel = JSON.parse(sentinelText);
+          const sentinelSha = sentinel.commit || sentinel.sha || sentinel.COMMIT;
+          const sentinelRepository = sentinel.repository || sentinel.repo || sentinel.REPOSITORY;
+          if (sentinelSha !== expectedSha) throw new Error(`sentinel SHA ${sentinelSha} != ${expectedSha}`);
+          if (sentinelRepository !== expectedRepository) throw new Error(`sentinel repository ${sentinelRepository} != ${expectedRepository}`);
+          const receipt = await json(`https://api.github.com/repos/${expectedRepository}/issues/${process.env.RECEIPT_ISSUE}`);
+          if (receipt.state !== 'open') throw new Error(`deployment receipt #${receipt.number} is ${receipt.state}`);
+          if (!receipt.body.includes(`COMMIT=${expectedSha}`)) throw new Error(`deployment receipt #${receipt.number} does not name exact commit`);
+          if (!receipt.body.includes('LIVE_COMMIT_VERIFIED=true')) throw new Error(`deployment receipt #${receipt.number} lacks LIVE_COMMIT_VERIFIED=true`);
+          const proof = {
+            schema: 'sideways-post-merge-pages-proof/v1',
+            repository: expectedRepository,
+            commit: expectedSha,
+            pages_run: {
+              id: run.id,
+              run_number: run.run_number,
+              event: run.event,
+              status: run.status,
+              conclusion: run.conclusion,
+              html_url: run.html_url,
+              jobs: jobProof
+            },
+            sentinel: {
+              url: sentinelUrl.split('?')[0],
+              commit: sentinelSha,
+              repository: sentinelRepository,
+              observed: sentinel
+            },
+            receipt: {
+              issue: receipt.number,
+              state: receipt.state,
+              commit_verified: true,
+              live_commit_verified: true,
+              html_url: receipt.html_url
+            },
+            verified_at: new Date().toISOString()
+          };
+          fs.writeFileSync('post-merge-pages-proof.json', `${JSON.stringify(proof, null, 2)}\n`);
+          console.log(JSON.stringify(proof, null, 2));
+          NODE
+      - name: Upload exact post-merge proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: exact-post-merge-pages-proof
+          path: post-merge-pages-proof.json
+          if-no-files-found: error
+          retention-days: 5
+      - name: Remove verifier from branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git reset
+          git add -u .github/workflows/verify-post-merge-pages.yml
+          test "$(git diff --cached --name-only)" = ".github/workflows/verify-post-merge-pages.yml"
+          git commit -m "chore: remove post-merge Pages verifier"
+          git push origin HEAD:${TARGET_BRANCH}
