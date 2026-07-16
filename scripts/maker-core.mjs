@@ -89,6 +89,7 @@ export function parseMakerArgs(argv) {
     localOnly: false,
     noInstall: false,
     dryRun: false,
+    archieDecisionFile: '',
     help: false
   };
   const requestParts = [];
@@ -101,12 +102,14 @@ export function parseMakerArgs(argv) {
     else if (value === '--local-only') options.localOnly = true;
     else if (value === '--no-install') options.noInstall = true;
     else if (value === '--dry-run') options.dryRun = true;
+    else if (value === '--archie-decision-file') options.archieDecisionFile = argv[++index] || '';
     else if (value === '--help' || value === '-h') options.help = true;
     else if (value.startsWith('--')) throw new Error(`Unknown Maker option: ${value}`);
     else requestParts.push(value);
   }
   options.request = requestParts.join(' ').trim();
   if (!options.base) throw new Error('--base requires a branch name.');
+  if (argv.includes('--archie-decision-file') && !options.archieDecisionFile) throw new Error('--archie-decision-file requires a path.');
   if (!['codex', 'command'].includes(options.agent)) throw new Error('--agent must be codex or command.');
   if (options.agent === 'command' && !options.commandJson) throw new Error('--agent command requires --command-json or MAKER_AGENT_COMMAND_JSON.');
   return options;
