@@ -29,16 +29,33 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/Pokitomas/theawesomehexapp/issues/comments/4987246843 \
             > "$RUNNER_TEMP/comment.json"
-          python - "$RUNNER_TEMP/comment.json" "$RUNNER_TEMP/plugin315-repair.tgz" <<'PY'
-          import base64, json, re, sys
-          source, target = sys.argv[1:]
-          body = json.load(open(source, encoding='utf-8'))['body']
-          match = re.search(r"base64 -d > /tmp/plugin315-repair\.tgz <<'B64'\n(.*?)\nB64", body, re.S)
-          if not match:
-              raise SystemExit('repair bundle block not found')
-          payload = ''.join(match.group(1).split())
-          open(target, 'wb').write(base64.b64decode(payload, validate=True))
+          python - "$RUNNER_TEMP/comment.json" "$RUNNER_TEMP/plugin315-repair.tgz" "$RUNNER_TEMP/plugin315-repair.diagnostics.txt" <<'PY'
+          import base64, hashlib, json, re, sys
+          source, target, diagnostics = sys.argv[1:]
+          body = json.load(open(source, encoding='utf-8'))['body'].replace('\r\n', '\n')
+          lines = body.splitlines()
+          start = next((i for i, line in enumerate(lines) if line.strip().startswith('H4sI')), None)
+          if start is None:
+              raise SystemExit('repair bundle base64 start not found')
+          payload_lines = []
+          for line in lines[start:]:
+              value = line.strip()
+              if value in {'B64', '```'}:
+                  break
+              if not re.fullmatch(r'[A-Za-z0-9+/=]+', value):
+                  raise SystemExit(f'unexpected payload line at {len(payload_lines)}: {value[:80]!r}')
+              payload_lines.append(value)
+          payload = ''.join(payload_lines)
+          decoded = base64.b64decode(payload, validate=True)
+          open(target, 'wb').write(decoded)
+          with open(diagnostics, 'w', encoding='utf-8') as out:
+              out.write(f'comment_chars={len(body)}\n')
+              out.write(f'payload_lines={len(payload_lines)}\n')
+              out.write(f'payload_chars={len(payload)}\n')
+              out.write(f'decoded_bytes={len(decoded)}\n')
+              out.write(f'decoded_sha256={hashlib.sha256(decoded).hexdigest()}\n')
           PY
+          cat "$RUNNER_TEMP/plugin315-repair.diagnostics.txt"
           echo "$EXPECTED_SHA  $RUNNER_TEMP/plugin315-repair.tgz" | sha256sum -c -
           tar -tzf "$RUNNER_TEMP/plugin315-repair.tgz" | tee "$RUNNER_TEMP/plugin315-repair.paths.txt"
           python - "$RUNNER_TEMP/plugin315-repair.paths.txt" <<'PY'
@@ -59,12 +76,25 @@ jobs:
           cp scripts/maker-plugin-registry.mjs "$RUNNER_TEMP/extracted/scripts/"
           cp scripts/tests/maker-plugin-registry.test.mjs "$RUNNER_TEMP/extracted/scripts/tests/"
           cp maker/contracts/plugin-manifest.schema.json "$RUNNER_TEMP/extracted/maker/contracts/"
+      - name: Upload extraction diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plugin315-repair-extraction-diagnostics
+          path: |
+            ${{ runner.temp }}/comment.json
+            ${{ runner.temp }}/plugin315-repair.diagnostics.txt
+            ${{ runner.temp }}/plugin315-repair.paths.txt
+            ${{ runner.temp }}/plugin315-repair.test.log
+          if-no-files-found: warn
+          retention-days: 2
       - name: Upload verified repair bundle and exact files
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plugin315-repair-verified
           path: |
             ${{ runner.temp }}/plugin315-repair.tgz
+            ${{ runner.temp }}/plugin315-repair.diagnostics.txt
             ${{ runner.temp }}/plugin315-repair.paths.txt
             ${{ runner.temp }}/plugin315-repair.test.log
             ${{ runner.temp }}/extracted
