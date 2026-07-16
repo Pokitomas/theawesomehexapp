@@ -123,6 +123,25 @@ function executedPortfolio(portfolio, proxyResults) {
   };
 }
 
+function cheapestByDistance(candidates, costFor) {
+  return ['conservative', 'adjacent', 'heretical'].map(distance => candidates
+    .filter(candidate => candidate.distance === distance)
+    .sort((left, right) => costFor(left) - costFor(right) || left.candidate_id.localeCompare(right.candidate_id))[0]);
+}
+
+function generationZeroPortfolioBudget(integration, declaredBudget) {
+  const required = cheapestByDistance(integration.candidates, candidate => candidate.cost);
+  if (required.some(candidate => !candidate)) return declaredBudget;
+  const calibratedRequired = required.reduce((total, candidate) => total + candidate.cost, 0);
+  if (calibratedRequired <= declaredBudget) return declaredBudget;
+
+  const rawCost = candidate => Math.min(...candidate.cost_estimates.map(estimate => estimate.raw_estimate));
+  const rawRequired = cheapestByDistance(integration.candidates, rawCost)
+    .reduce((total, candidate) => total + rawCost(candidate), 0);
+
+  return rawRequired <= declaredBudget ? calibratedRequired : declaredBudget;
+}
+
 async function resolveRevision(cwd = process.cwd()) {
   try {
     const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd });
@@ -143,7 +162,8 @@ export async function runGenerationZero({
   const assignments = createAssignments(mission);
   const reports = generationZeroReports(mission);
   const integration = integrateReports(reports, assignments);
-  const portfolio = buildExperimentPortfolio(integration, { budget: mission.budget.proxy_compute_units, require_strata: true });
+  const portfolioBudget = generationZeroPortfolioBudget(integration, mission.budget.proxy_compute_units);
+  const portfolio = buildExperimentPortfolio(integration, { budget: portfolioBudget, require_strata: true });
   const revision = code_revision || await resolveRevision();
   const genomes = generationZeroGenomes(revision);
   const selectedIds = new Set(portfolio.selected.map(item => item.candidate_id));
