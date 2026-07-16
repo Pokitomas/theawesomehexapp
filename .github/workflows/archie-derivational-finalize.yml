@@ -1,0 +1,207 @@
+name: Finalize Archie derivational cognition
+
+on:
+  push:
+    branches:
+      - agent/archie-derivational-cognition
+    paths:
+      - .github/workflows/archie-derivational-finalize.yml
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: archie-derivational-finalize
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Reconcile main and apply deterministic planner ordering
+        id: patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name 'archie-finalizer[bot]'
+          git config user.email 'archie-finalizer[bot]@users.noreply.github.com'
+          git fetch origin main
+          if ! git merge --no-edit origin/main; then
+            git merge --abort || true
+            printf 'Archie finalization could not merge current main into `%s`. Manual conflict resolution is required.\n' "$GITHUB_REF_NAME" > /tmp/archie-finalize-comment.md
+            gh issue comment 378 --body-file /tmp/archie-finalize-comment.md
+            exit 1
+          fi
+          python <<'PY'
+          from pathlib import Path
+
+          planner = Path('scripts/maker-archie-planner.mjs')
+          text = planner.read_text()
+          old = '''function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({ ...step, rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}` });
+                seen.add(key);
+                if (chosen.length >= maxSteps) return chosen;
+              }
+            }
+            return chosen;
+          }
+          '''
+          new = '''function executionPhase(step = {}) {
+            const text = `${clean(step.tool, 80)} ${clean(step.action, 120)}`.toLowerCase().replace(/[_.:/-]+/g, ' ');
+            if (/\\b(?:status|inspect|read|search|load|fetch|list|parse|scan|measure|observe|review|assess)\\b/.test(text)) return 0;
+            if (/\\b(?:repair|recover|retry|resume|rollback|restore|revert|fix|reconcile|resolve|conflict)\\b/.test(text)) return 1;
+            if (/\\b(?:test|tests|testing)\\b/.test(text)) return 4;
+            if (/\\b(?:validate|verify|audit|check|confirm|prove)\\b/.test(text)) return 3;
+            return 2;
+          }
+
+          function greedyDiversity(candidates, maxSteps) {
+            const chosen = [];
+            const seen = new Set();
+            outer: for (const candidate of candidates) {
+              for (const step of candidate.primitive.steps) {
+                const key = `${step.tool}:${step.action}`;
+                if (seen.has(key)) continue;
+                chosen.push({
+                  ...step,
+                  rationale: `${candidate.primitive.primitive_id}:${Number(candidate.score.toFixed(4))}`,
+                  composition_order: chosen.length,
+                  execution_phase: executionPhase(step)
+                });
+                seen.add(key);
+                if (chosen.length >= maxSteps) break outer;
+              }
+            }
+            return chosen
+              .sort((left, right) => left.execution_phase - right.execution_phase || left.composition_order - right.composition_order)
+              .map(({ composition_order, execution_phase, ...step }) => step);
+          }
+          '''
+          if old in text:
+              text = text.replace(old, new)
+          elif 'function executionPhase(step = {})' not in text:
+              raise SystemExit('planner ordering insertion point drifted')
+          planner.write_text(text)
+
+          tests = Path('scripts/tests/maker-archie-planner.test.mjs')
+          test_text = tests.read_text()
+          marker = "test('orders composed skill phases deterministically and runs terminal repository tests last'"
+          if marker not in test_text:
+              insertion = '''\n\ntest('orders composed skill phases deterministically and runs terminal repository tests last', () => {
+            const model = train();
+            const plan = planWithArchieCPUPlanner(model, {
+              instruction: 'Create and validate the JSON contract only after repairing the conflicted branch; execute repository tests last.'
+            });
+            assert.equal(plan.state, 'local', JSON.stringify(plan, null, 2));
+            assert.deepEqual(plan.plan.steps.map(step => `${step.tool}:${step.action}`), [
+              'git:status',
+              'git:repair_conflict',
+              'filesystem:write_contract',
+              'json:validate_schema',
+              'node:test'
+            ]);
+          });\n'''
+              anchor = "\ntest('rejects genuinely unseen work through teacher escalation instead of hallucinating a plan'"
+              if anchor not in test_text:
+                  raise SystemExit('planner test insertion point drifted')
+              test_text = test_text.replace(anchor, insertion + anchor)
+              tests.write_text(test_text)
+          PY
+          rm -f .github/workflows/archie-derivational-finalize.yml
+          rm -f .github/workflows/archie-derivational-prepr-validation.yml
+          rm -f .archie/evaluations/derivational-prepr-validation.json
+      - name: Execute exact requested gates
+        id: gates
+        run: |
+          set +e
+          mkdir -p /tmp/archie-finalize-logs
+          : > /tmp/archie-finalize-status.tsv
+          run_gate() {
+            name="$1"
+            shift
+            echo "[gate] $name: $*"
+            "$@" > "/tmp/archie-finalize-logs/${name}.log" 2>&1
+            code=$?
+            cat "/tmp/archie-finalize-logs/${name}.log"
+            printf '%s\t%s\n' "$name" "$code" >> /tmp/archie-finalize-status.tsv
+          }
+          run_gate npm-ci npm ci
+          run_gate test-archie npm run test:archie
+          run_gate test-maker npm run test:maker
+          run_gate benchmark-archie-derive npm run benchmark:archie:derive
+          run_gate test-foundry npm run test:foundry
+          run_gate test-weave npm run test:weave
+          run_gate verify-repository npm run verify:repository
+          if awk -F '\t' '$2 != 0 { failed=1 } END { exit failed ? 0 : 1 }' /tmp/archie-finalize-status.tsv; then
+            echo 'passed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'passed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish exact validated branch
+        if: steps.gates.outputs.passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git add -A
+          git commit -m 'fix: finalize derivational cognition gates'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          head_sha=$(git rev-parse HEAD)
+          {
+            echo '## Archie derivational cognition gate receipt'
+            echo
+            echo "Validated and pushed exact head \`$head_sha\` on \`$GITHUB_REF_NAME\`."
+            echo
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" = '0' ]; then state='PASS'; else state='FAIL'; fi
+              echo "- $state \`$name\` (exit $code)"
+            done < /tmp/archie-finalize-status.tsv
+            echo
+            echo '- Current `main` was merged before validation.'
+            echo '- Temporary validation workflows and receipts were removed before every gate.'
+            echo '- No PR, merge to `main`, or deployment was performed.'
+          } > /tmp/archie-finalize-comment.md
+          gh issue comment 378 --body-file /tmp/archie-finalize-comment.md
+      - name: Report failed gates
+        if: steps.gates.outputs.passed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## Archie derivational cognition gate failure'
+            echo
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" = '0' ]; then state='PASS'; else state='FAIL'; fi
+              echo "- $state \`$name\` (exit $code)"
+              if [ "$code" != '0' ]; then
+                echo
+                echo "<details><summary>$name log tail</summary>"
+                echo
+                echo '```text'
+                tail -n 100 "/tmp/archie-finalize-logs/${name}.log"
+                echo '```'
+                echo '</details>'
+              fi
+            done < /tmp/archie-finalize-status.tsv
+            echo
+            echo 'No repaired commit was pushed and no PR or deployment was performed.'
+          } > /tmp/archie-finalize-comment.md
+          gh issue comment 378 --body-file /tmp/archie-finalize-comment.md
+          exit 1
