@@ -1,4 +1,4 @@
-name: Archie live-status exact-tree snapshot
+name: Archie live status and isolated repairs
 
 on:
   push:
@@ -20,8 +20,8 @@ jobs:
         run: |
           set -euo pipefail
           tar --exclude=.git -czf "$RUNNER_TEMP/archie-live-status-source.tgz" .
-          sha256sum "$RUNNER_TEMP/archie-live-status-source.tgz" | tee "$RUNNER_TEMP/archie-live-status-source.sha256"
-          git rev-parse HEAD | tee "$RUNNER_TEMP/archie-live-status-source-head.txt"
+          sha256sum "$RUNNER_TEMP/archie-live-status-source.tgz" > "$RUNNER_TEMP/archie-live-status-source.sha256"
+          git rev-parse HEAD > "$RUNNER_TEMP/archie-live-status-source-head.txt"
       - name: Upload exact sidecar checkout
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -32,26 +32,8 @@ jobs:
             ${{ runner.temp }}/archie-live-status-source-head.txt
           if-no-files-found: error
           retention-days: 2
-      - name: Publish run receipt to issue 351
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          body=$(cat <<EOF
-          <!-- archie-sidecar-snapshot:${GITHUB_RUN_ID} -->
-          Archie sidecar exact-tree snapshot uploaded.
 
-          - run: ${GITHUB_RUN_ID}
-          - head: \`${GITHUB_SHA}\`
-          - artifact: \`archie-live-status-source-${GITHUB_SHA}\`
-          - branch: \`${GITHUB_REF_NAME}\`
-
-          No coordinator edit, merge, or deployment.
-          EOF
-          )
-          gh api "repos/${GITHUB_REPOSITORY}/issues/351/comments" -f body="$body" >/dev/null
-
-  repair:
+  control_repair:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -60,87 +42,86 @@ jobs:
         with:
           path: evidence
           persist-credentials: false
-      - name: Check out isolated repair branch
+      - name: Check out isolated control repair branch
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: agent/archie-router-runtime-seam
+          ref: agent/archie-control-plane-repair
           path: repair
           fetch-depth: 0
       - name: Use repository Node runtime
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Verify exact base and patch digest
+      - name: Verify exact base and repair bundle
         id: verify
         run: |
           set -euo pipefail
           test "$(git -C repair rev-parse HEAD)" = "ba9a777504b96a49df29d2dac45988a3acbfb801"
-          echo "98289341c8c2953537102b0f085c9a3b954014a161123fb08d7f294e03e1d5ff  evidence/audit/patches/archie-router-runtime-seam.patch" | sha256sum --check
-          git -C repair apply --check ../evidence/audit/patches/archie-router-runtime-seam.patch
-      - name: Apply patch and check syntax
+          echo "7928445b49ce25460280502aac4c26abfb96a285f99c7417270c1d3789f8b591  evidence/audit/patches/archie-control-plane-repair.patch.gz.b64" | sha256sum --check
+          base64 -d evidence/audit/patches/archie-control-plane-repair.patch.gz.b64 | gzip -dc > control-plane-repair.patch
+          echo "570167cc52d9dfd394afe1116ea07f00948133a7b8237037a41e5da6aedd00ac  control-plane-repair.patch" | sha256sum --check
+          git -C repair apply --check ../control-plane-repair.patch
+      - name: Apply and check hardened control modules
         id: syntax
         run: |
           set -euo pipefail
-          git -C repair apply ../evidence/audit/patches/archie-router-runtime-seam.patch
-          node --check repair/scripts/maker-model-router.mjs
-      - name: Prove router and runtime-platform seam
-        id: seam
+          git -C repair apply ../control-plane-repair.patch
+          node --check repair/scripts/maker-control-plane.mjs
+          node --check repair/scripts/maker-control-cli.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('repair/maker/contracts/control-plane.schema.json','utf8'))"
+      - name: Prove focused hostile control suite
+        id: focused
         run: |
           set -euo pipefail
           cd repair
-          node --test scripts/tests/maker-model-router.test.mjs scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../router-runtime-seam.log
-      - name: Prove Archie breadth with runtime-platform
-        id: breadth
-        run: |
-          set -euo pipefail
-          cd repair
-          node --test \
-            scripts/tests/maker-archie-corpus-pack.test.mjs \
-            scripts/tests/maker-archie-budget.test.mjs \
-            scripts/tests/maker-model-router.test.mjs \
-            scripts/tests/maker-archie-planner.test.mjs \
-            scripts/tests/maker-archie-compute.test.mjs \
-            scripts/tests/maker-archie-sync.test.mjs \
-            scripts/tests/maker-archie-operator.test.mjs \
-            scripts/tests/maker-runtime-platform.test.mjs 2>&1 | tee ../archie-plus-platform.log
-      - name: Validate one-path diff
+          node --test scripts/tests/maker-control-plane.test.mjs 2>&1 | tee ../control-plane-focused.log
+      - name: Validate exact four-path diff
         id: diff
         run: |
           set -euo pipefail
           cd repair
           git diff --check
-          test "$(git diff --name-only)" = "scripts/maker-model-router.mjs"
-      - name: Commit isolated repair branch
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            maker/contracts/control-plane.schema.json \
+            scripts/maker-control-cli.mjs \
+            scripts/maker-control-plane.mjs \
+            scripts/tests/maker-control-plane.test.mjs | sort)"
+          test "$actual" = "$expected"
+      - name: Commit isolated control repair
         id: commit
         run: |
           set -euo pipefail
           cd repair
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/maker-model-router.mjs
-          git commit -m "Repair admitted router runtime compatibility seam"
-          git push origin HEAD:agent/archie-router-runtime-seam
+          git add \
+            maker/contracts/control-plane.schema.json \
+            scripts/maker-control-cli.mjs \
+            scripts/maker-control-plane.mjs \
+            scripts/tests/maker-control-plane.test.mjs
+          git commit -m "Harden Maker control-plane authority and atomicity"
+          git push origin HEAD:agent/archie-control-plane-repair
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Upload proof receipts
+      - name: Upload control repair receipts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-router-runtime-seam-run-${{ github.run_id }}
+          name: archie-control-plane-repair-run-${{ github.run_id }}
           path: |
-            router-runtime-seam.log
-            archie-plus-platform.log
-            evidence/audit/patches/archie-router-runtime-seam.patch
+            control-plane-focused.log
+            control-plane-repair.patch
+            evidence/audit/patches/archie-control-plane-repair.patch.gz.b64
           if-no-files-found: warn
           retention-days: 5
       - name: Update stable phone status
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          REPAIR_HEAD: ${{ steps.commit.outputs.head }}
+          CONTROL_HEAD: ${{ steps.commit.outputs.head }}
           VERIFY: ${{ steps.verify.outcome }}
           SYNTAX: ${{ steps.syntax.outcome }}
-          SEAM: ${{ steps.seam.outcome }}
-          BREADTH: ${{ steps.breadth.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
           DIFF: ${{ steps.diff.outcome }}
           COMMIT_RESULT: ${{ steps.commit.outcome }}
         run: |
@@ -150,28 +131,28 @@ jobs:
           ## Archie live status
 
           - observer: GPT-5.6 Thinking
-          - writer: one coordinator writer remains authoritative
-          - mode: sidecar observer/repair bundle; no coordinator edits
-          - coordinator branch: \`agent/archie-democratized-runtime\`
-          - coordinator head: \`ba9a777504b96a49df29d2dac45988a3acbfb801\`
-          - drift: none
-          - repair workflow run: \`${GITHUB_RUN_ID}\`
-          - repair workflow source: \`${GITHUB_SHA}\`
-          - exact base + patch digest: ${VERIFY}
-          - apply + syntax: ${SYNTAX}
-          - router + runtime-platform seam: ${SEAM}
-          - Archie breadth + runtime-platform: ${BREADTH}
-          - one-path diff: ${DIFF}
-          - repair commit/push: ${COMMIT_RESULT}
-          - repair branch head: \`${REPAIR_HEAD:-not-published}\`
-          - patch SHA-256: \`98289341c8c2953537102b0f085c9a3b954014a161123fb08d7f294e03e1d5ff\`
-          - tracker branch: \`agent/archie-live-status\`
-          - tokens remaining: 1,064,576 / 1,310,720 (manual-observed)
-          - next: exact-head review/source-admit the repair after every proof boundary succeeds
+          - authoritative writer: existing coordinator co-engineer
+          - mode: isolated sidecar repairs; no coordinator edits
+          - coordinator: \`agent/archie-democratized-runtime@ba9a777504b96a49df29d2dac45988a3acbfb801\`
+          - coordinator drift: none
+          - router seam repair: green at \`4cf88a82adb4b878b1844321baefe182e076e3d9\`
+          - router proof: 43/43 seam; 97 total = 96 pass, 1 declared skip, 0 fail
+          - control workflow run: \`${GITHUB_RUN_ID}\`
+          - control workflow source: \`${GITHUB_SHA}\`
+          - control exact base + bundle: ${VERIFY}
+          - control syntax/schema: ${SYNTAX}
+          - control hostile focused suite: ${FOCUSED}
+          - control exact four-path diff: ${DIFF}
+          - control commit/push: ${COMMIT_RESULT}
+          - control repair head: \`${CONTROL_HEAD:-not-published}\`
+          - control patch SHA-256: \`570167cc52d9dfd394afe1116ea07f00948133a7b8237037a41e5da6aedd00ac\`
+          - composed integration truth: 65/66; one fail-closed runtime authority fixture remains for the integration lane
+          - tokens remaining: 941,504 / 1,310,720 (manual-observed)
+          - next: coordinator writer exact-head reviews/source-admits green repair branches; sidecar proceeds without overlapping writes
 
           Phone commands:
 
-          \`node scripts/archie-live-status.mjs tokens 1064576 1310720\`
+          \`node scripts/archie-live-status.mjs tokens 941504 1310720\`
 
           \`node scripts/archie-live-status.mjs watch 20\`
 
