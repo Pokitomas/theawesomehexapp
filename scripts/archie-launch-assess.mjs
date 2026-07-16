@@ -8,9 +8,10 @@ import {
   evaluateLaunchCandidate
 } from './archie-launch-contract.mjs';
 import { resolveAdmittedLaunchProfile } from './archie-launch-profile-admission.mjs';
+import { resolveLaunchFrontierV2 } from './archie-launch-frontier-v2.mjs';
 
 function parse(argv) {
-  const command = argv[0] || 'derive';
+  const command = argv[0] || 'frontier';
   const flags = new Map();
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index];
@@ -51,18 +52,19 @@ function requiredFlag(flags, name) {
 }
 
 function usage() {
-  return `Archie joint launch assessor
+  return `Archie launch frontier assessor
 
-Usage:
+Canonical v2 usage:
+  node scripts/archie-launch-assess.mjs frontier --manifest frontier-manifest.json [--output decision.json]
+
+Compatibility v1 usage:
   node scripts/archie-launch-assess.mjs derive [--target founder/archie-launch-target.json] [--output file.json]
   node scripts/archie-launch-assess.mjs evaluate --candidate candidate.json [--target founder/archie-launch-target.json] [--output decision.json]
   node scripts/archie-launch-assess.mjs resolve --manifest launch-capability-manifest.json [--output admission.json]
 
-derive maps human outcomes to required faculties without selecting chat, voice, a dashboard, or an always-on process as architecture.
+frontier jointly compares complete evidence-bound intelligence-and-embodiment profiles per exact environment, preserves every nondominated profile, rejects dominated defaults and incomplete searches, and does not preselect chat, voice, a screen, a daemon, or always-on presence.
 
-evaluate jointly gates the model, authority, evidence, and required embodiment. It exits non-zero unless the candidate satisfies the maximal target.
-
-resolve binds the admitted candidate to one exact machine, permissions, resources, modalities, invocation and continuity capabilities. It selects the strongest compatible profile whose aggregate resource cost fits the exact machine, preserves named fallbacks separately, and exits non-zero unless the default profile is admitted.`;
+derive, evaluate, and resolve preserve the v1 fixed-faculty and machine-profile contracts for compatibility and as a possible backend. Their receipts alone cannot support the maximal Archie product claim.`;
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -72,6 +74,13 @@ export async function main(argv = process.argv.slice(2)) {
   }
   const { command, flags } = parse(argv);
   const output = flags.get('--output');
+
+  if (command === 'frontier') {
+    const decision = resolveLaunchFrontierV2(await readJSON(requiredFlag(flags, '--manifest')));
+    await writeResult(decision, output);
+    if (decision.decision !== 'admitted-capability-frontier') process.exitCode = 1;
+    return;
+  }
 
   if (command === 'resolve') {
     const admission = resolveAdmittedLaunchProfile(await readJSON(requiredFlag(flags, '--manifest')));
