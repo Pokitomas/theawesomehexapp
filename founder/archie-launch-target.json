@@ -1,7 +1,7 @@
 {
-  "schema": "archie-launch-target/v1",
-  "id": "archie-maximal-general-builder",
-  "claim_boundary": "Founder target and admission contract, not a claim that the current runtime satisfies it.",
+  "schema": "archie-launch-target/v2",
+  "id": "archie-maximal-general-builder-frontier",
+  "claim_boundary": "Founder launch-selection law and evidence contract, not a claim that any current checkpoint or device profile satisfies it.",
   "intelligence_target": {
     "domains": [
       "product-creation",
@@ -38,52 +38,149 @@
   },
   "human_outcomes": [
     {
-      "id": "available-while-attention-is-occupied",
-      "critical": true,
-      "statement": "The user can invoke, direct, interrupt, and understand Archie while their hands and eyes are occupied."
+      "id": "objective-completion",
+      "floor": 0.7,
+      "statement": "The admitted product profile completes demanding end-to-end objectives rather than merely producing persuasive conversation."
     },
     {
-      "id": "continue-without-open-window",
-      "critical": true,
-      "statement": "Authorized work can continue, survive suspension, and return at the right moment without requiring one foreground window to remain open."
+      "id": "interruptibility",
+      "floor": 0.7,
+      "statement": "The user can direct, interrupt, inspect, and regain control through whatever interaction form the admitted profile can truthfully sustain."
     },
     {
-      "id": "notice-authorized-relevant-change",
-      "critical": true,
-      "statement": "Archie can react to explicitly subscribed events and surface relevant changes under a user-governed interruption policy."
+      "id": "continuity",
+      "floor": 0.6,
+      "statement": "Authorized work preserves enough state and resumability for the declared environment without pretending unsupported background presence."
     },
     {
-      "id": "perceive-the-active-digital-world",
-      "critical": true,
-      "statement": "With explicit consent, Archie can ground decisions in the screen, files, connected tools, documents, images, audio, and live system state relevant to the objective."
+      "id": "inspectability",
+      "floor": 0.9,
+      "statement": "Plans, permissions, evidence, artifacts, uncertainty, and unfinished obligations remain inspectable at the precision required by the work."
     },
     {
-      "id": "inspect-exact-work-when-precision-matters",
-      "critical": true,
-      "statement": "The user can inspect plans, evidence, artifacts, permissions, receipts, uncertainty, and unfinished obligations at the level appropriate to the work."
+      "id": "user-control",
+      "floor": 0.95,
+      "statement": "Observation, notification, tool use, and effects remain bounded by explicit user authority and revocation."
     },
     {
-      "id": "move-between-devices-without-losing-authority",
-      "critical": true,
-      "statement": "Continuity, identity, permissions, and run state can move across admitted devices without creating an ambient surveillance or hidden-authority channel."
-    },
-    {
-      "id": "operate-privately-on-ordinary-hardware",
-      "critical": true,
-      "statement": "Core interaction and admitted local-model operation remain useful on ordinary hardware without requiring a frontier API key."
+      "id": "privacy",
+      "floor": 0.8,
+      "statement": "The profile exposes its sensing, retention, network, and local-processing boundaries and does not manufacture ambient access."
     }
   ],
+  "profile_search": {
+    "required_axes": [
+      "intelligence",
+      "interaction-bandwidth",
+      "latency",
+      "continuity",
+      "availability",
+      "proactivity",
+      "modality",
+      "device-reach",
+      "locality",
+      "authority",
+      "privacy",
+      "platform-constraints",
+      "resource-envelope"
+    ],
+    "dimensions": [
+      {
+        "id": "end_to_end_completion_rate",
+        "direction": "maximize",
+        "range": "unit_interval",
+        "floor": 0.7
+      },
+      {
+        "id": "interaction_bandwidth_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "continuity_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "availability_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "proactivity_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "modality_breadth_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "device_reach_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "user_control_score",
+        "direction": "maximize",
+        "range": "unit_interval",
+        "floor": 0.95
+      },
+      {
+        "id": "privacy_score",
+        "direction": "maximize",
+        "range": "unit_interval",
+        "floor": 0.8
+      },
+      {
+        "id": "offline_capability_score",
+        "direction": "maximize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "p95_interaction_latency_ms",
+        "direction": "minimize",
+        "range": "nonnegative"
+      },
+      {
+        "id": "peak_memory_mb",
+        "direction": "minimize",
+        "range": "nonnegative"
+      },
+      {
+        "id": "sustained_energy_watts",
+        "direction": "minimize",
+        "range": "nonnegative"
+      },
+      {
+        "id": "network_dependency_score",
+        "direction": "minimize",
+        "range": "unit_interval"
+      },
+      {
+        "id": "interruption_burden_score",
+        "direction": "minimize",
+        "range": "unit_interval"
+      }
+    ],
+    "require_complete_search_receipt": true,
+    "require_nondominated_launch_set": true,
+    "allow_adaptive_multi_profile_launch": true,
+    "selected_default_may_be_null": true
+  },
   "launch_policy": {
     "joint_intelligence_and_embodiment_admission": true,
-    "strongest_admitted_product_form": true,
     "single_canonical_interface": false,
     "chat_window_is_architecture": false,
     "voice_is_architecture": false,
     "always_on_daemon_is_architecture": false,
+    "cli_is_consumer_identity": false,
+    "dominated_default_may_launch": false,
+    "hidden_nondominated_fallback_may_launch": false,
+    "unsupported_capability_may_be_claimed": false,
     "shell_without_brain_may_launch": false,
-    "brain_without_required_access_may_launch": false,
-    "all_critical_outcomes_required": true,
-    "degraded_private_mode_required": true,
+    "brain_without_admitted_profile_may_launch": false,
     "maximal_first_release": true
   }
 }
