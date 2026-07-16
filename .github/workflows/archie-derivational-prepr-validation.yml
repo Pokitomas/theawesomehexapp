@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - agent/archie-derivational-cognition
+    paths-ignore:
+      - .archie/evaluations/derivational-prepr-validation.json
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: archie-derivational-prepr-${{ github.ref }}
@@ -14,28 +16,66 @@ concurrency:
 
 jobs:
   validate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci
-      - name: Archie suite
-        run: npm run test:archie
-      - name: Maker suite
-        run: npm run test:maker
-      - name: Derivational benchmark
-        run: npm run benchmark:archie:derive
-      - name: Foundry suite
-        run: npm run test:foundry
-      - name: Weave suite
-        run: npm run test:weave
-      - name: Exact repository gate
-        run: npm run verify:repository
+      - name: Execute requested gate matrix
+        id: gates
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set +e
+          mkdir -p .archie/evaluations .archie/evaluations/logs
+          : > .archie/evaluations/gate-status.tsv
+          run_gate() {
+            name="$1"
+            shift
+            echo "[gate] $name: $*"
+            "$@" > ".archie/evaluations/logs/${name}.log" 2>&1
+            code=$?
+            cat ".archie/evaluations/logs/${name}.log"
+            printf '%s\t%s\n' "$name" "$code" >> .archie/evaluations/gate-status.tsv
+          }
+          run_gate npm-ci npm ci
+          run_gate test-archie npm run test:archie
+          run_gate test-maker npm run test:maker
+          run_gate benchmark-archie-derive npm run benchmark:archie:derive
+          run_gate test-foundry npm run test:foundry
+          run_gate test-weave npm run test:weave
+          run_gate verify-repository npm run verify:repository
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const rows = fs.readFileSync('.archie/evaluations/gate-status.tsv', 'utf8').trim().split(/\n/).filter(Boolean).map(line => {
+            const [name, raw] = line.split('\t');
+            return { name, exit_code: Number(raw), status: Number(raw) === 0 ? 'passed' : 'failed' };
+          });
+          const body = {
+            schema: 'archie-derivational-prepr-validation/v1',
+            candidate_sha: process.env.CANDIDATE_SHA,
+            node: process.version,
+            gates: rows,
+            status: rows.every(row => row.exit_code === 0) ? 'passed' : 'failed'
+          };
+          const canonical = JSON.stringify(body);
+          const receipt = { ...body, receipt_digest: crypto.createHash('sha256').update(canonical).digest('hex') };
+          fs.writeFileSync('.archie/evaluations/derivational-prepr-validation.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+      - name: Commit validation receipt
+        if: always()
+        run: |
+          rm -rf .archie/evaluations/logs .archie/evaluations/gate-status.tsv
+          git config user.name 'archie-validation[bot]'
+          git config user.email 'archie-validation[bot]@users.noreply.github.com'
+          git add .archie/evaluations/derivational-prepr-validation.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'test: record derivational pre-PR gate receipt'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
