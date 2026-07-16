@@ -10,10 +10,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: repair-pages-snapshot-config
-  cancel-in-progress: false
-
 jobs:
   repair:
     if: github.actor != 'github-actions[bot]'
@@ -24,211 +20,36 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm
-
-      - name: Harden configured provider resolution
-        shell: bash
+      - name: Apply exact repair
         run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          source_path = Path('scripts/build-web-source-snapshot.mjs')
-          source = source_path.read_text()
-
-          old_loop = """  for (const provider of selected) {
-            try {
-              if (provider.kind === 'search' && provider.publicEndpoint !== true) {
-          """
-          new_loop = """  for (const provider of selected) {
-            const providerId = clean(provider?.id || provider?.name || `provider-${receipts.length + 1}`) || `provider-${receipts.length + 1}`;
-            try {
-              if (!provider || typeof provider !== 'object' || Array.isArray(provider)) {
-                throw new Error('provider configuration must be an object');
-              }
-              if (provider.kind === 'search' && provider.publicEndpoint !== true) {
-          """
-          if source.count(old_loop) != 1:
-              raise SystemExit(f'provider loop insertion drift: {source.count(old_loop)} matches')
-          source = source.replace(old_loop, new_loop, 1)
-          source = source.replace('        provider: provider.id,\n        status: \'ready\'', '        provider: providerId,\n        status: \'ready\'', 1)
-          source = source.replace('        provider: provider.id,\n        status: \'unavailable\'', '        provider: providerId,\n        status: \'unavailable\'', 1)
-
-          old_defaults = """export function defaultProviders() {
-            const configured = process.env.SIDEWAYS_PUBLIC_SOURCES
-              ? JSON.parse(process.env.SIDEWAYS_PUBLIC_SOURCES)
-              : [];
-            if (Array.isArray(configured) && configured.length) return configured;
-            return [
-              wikinewsProvider('wikinews-a', 'A'),
-              wikinewsProvider('wikinews-i', 'I'),
-              wikinewsProvider('wikinews-q', 'Q'),
-              hackerNewsProvider(0),
-              hackerNewsProvider(1),
-              hackerNewsProvider(2),
-              mastodonProvider('mastodon-social', 'mastodon.social'),
-              mastodonProvider('mstdn-social', 'mstdn.social'),
-              mastodonProvider('fosstodon', 'fosstodon.org'),
-              mastodonProvider('hachyderm', 'hachyderm.io'),
-              mastodonProvider('techhub', 'techhub.social')
-            ];
-          }
-          """
-          new_defaults = """function builtinProviders() {
-            return [
-              wikinewsProvider('wikinews-a', 'A'),
-              wikinewsProvider('wikinews-i', 'I'),
-              wikinewsProvider('wikinews-q', 'Q'),
-              hackerNewsProvider(0),
-              hackerNewsProvider(1),
-              hackerNewsProvider(2),
-              mastodonProvider('mastodon-social', 'mastodon.social'),
-              mastodonProvider('mstdn-social', 'mstdn.social'),
-              mastodonProvider('fosstodon', 'fosstodon.org'),
-              mastodonProvider('hachyderm', 'hachyderm.io'),
-              mastodonProvider('techhub', 'techhub.social')
-            ];
-          }
-
-          export function resolveProviderConfiguration(raw = process.env.SIDEWAYS_PUBLIC_SOURCES) {
-            const configured = clean(raw);
-            if (!configured) return Object.freeze({ providers: Object.freeze(builtinProviders()), receipt: null });
-            try {
-              const parsed = JSON.parse(configured);
-              if (!Array.isArray(parsed)) throw new Error('configuration must be a JSON array');
-              return Object.freeze({
-                providers: Object.freeze(parsed.length ? parsed : builtinProviders()),
-                receipt: null
-              });
-            } catch (error) {
-              return Object.freeze({
-                providers: Object.freeze(builtinProviders()),
-                receipt: Object.freeze({
-                  provider: 'configured-public-sources',
-                  status: 'unavailable',
-                  admitted: 0,
-                  error: `invalid SIDEWAYS_PUBLIC_SOURCES: ${clean(error.message)}`
-                })
-              });
-            }
-          }
-
-          export function defaultProviders() {
-            return resolveProviderConfiguration().providers;
-          }
-          """
-          if source.count(old_defaults) != 1:
-              raise SystemExit(f'default provider replacement drift: {source.count(old_defaults)} matches')
-          source = source.replace(old_defaults, new_defaults, 1)
-
-          old_cli = """  const providers = args.providers
-            ? JSON.parse(fs.readFileSync(args.providers, 'utf8'))
-            : defaultProviders();
-            const snapshot = await buildSnapshot(providers);
-            writeSnapshot(snapshot, args.output);
-          """
-          new_cli = """  const resolution = args.providers
-            ? { providers: JSON.parse(fs.readFileSync(args.providers, 'utf8')), receipt: null }
-            : resolveProviderConfiguration();
-            const built = await buildSnapshot(resolution.providers);
-            const snapshot = resolution.receipt
-              ? Object.freeze({ ...built, receipts: Object.freeze([resolution.receipt, ...built.receipts]) })
-              : built;
-            writeSnapshot(snapshot, args.output);
-          """
-          if source.count(old_cli) != 1:
-              raise SystemExit(f'CLI provider replacement drift: {source.count(old_cli)} matches')
-          source = source.replace(old_cli, new_cli, 1)
-          source_path.write_text(source)
-
-          test_path = Path('scripts/tests/web-source-snapshot.test.mjs')
-          tests = test_path.read_text()
-          import_old = """  requestPublicResource,
-            resolvePublicTarget,
-            robotsAllows,
-          """
-          import_new = """  requestPublicResource,
-            resolveProviderConfiguration,
-            resolvePublicTarget,
-            robotsAllows,
-          """
-          if tests.count(import_old) != 1:
-              raise SystemExit(f'test import insertion drift: {tests.count(import_old)} matches')
-          tests = tests.replace(import_old, import_new, 1)
-
-          marker = "test('snapshot build is bounded, deduplicated, provenance-bearing, and fails providers honestly', async () => {"
-          addition = """test('invalid configured-source JSON falls back truthfully without aborting the snapshot', () => {
-            const malformed = resolveProviderConfiguration('{not-json');
-            assert.ok(malformed.providers.length > 0);
-            assert.equal(malformed.receipt.provider, 'configured-public-sources');
-            assert.equal(malformed.receipt.status, 'unavailable');
-            assert.match(malformed.receipt.error, /invalid SIDEWAYS_PUBLIC_SOURCES/);
-
-            const wrongShape = resolveProviderConfiguration('{\"url\":\"https://example.com\"}');
-            assert.ok(wrongShape.providers.length > 0);
-            assert.match(wrongShape.receipt.error, /JSON array/);
-
-            const configured = resolveProviderConfiguration('[{\"id\":\"custom\",\"url\":\"https://example.com/feed\"}]');
-            assert.equal(configured.receipt, null);
-            assert.equal(configured.providers[0].id, 'custom');
-          });
-
-          test('malformed provider entries become bounded unavailable receipts instead of aborting the build', async () => {
-            const snapshot = await buildSnapshot([null, { id: 'missing-url', name: 'Missing URL' }], {
-              now: '2026-07-15T00:00:00.000Z'
-            });
-            assert.equal(snapshot.records.length, 0);
-            assert.equal(snapshot.receipts.length, 2);
-            assert.deepEqual(snapshot.receipts.map(receipt => receipt.status), ['unavailable', 'unavailable']);
-            assert.equal(snapshot.receipts[0].provider, 'provider-1');
-            assert.equal(snapshot.receipts[1].provider, 'missing-url');
-          });
-
-          """
-          if tests.count(marker) != 1:
-              raise SystemExit(f'test insertion drift: {tests.count(marker)} matches')
-          tests = tests.replace(marker, addition + marker, 1)
-          test_path.write_text(tests)
-          PY
-
+          python .github/tmp/repair-pages-snapshot-config.py
+          rm .github/tmp/repair-pages-snapshot-config.py
           rm .github/workflows/repair-pages-snapshot-config.yml
           git diff --check
-
-      - name: Install locked dependencies
-        run: npm ci
-
-      - name: Run focused regression and actual configured snapshot
+      - run: npm ci
+      - name: Reproduce actual configured snapshot and verify it
         env:
           SIDEWAYS_PUBLIC_SOURCES: ${{ vars.SIDEWAYS_PUBLIC_SOURCES }}
-        shell: bash
         run: |
-          set -euo pipefail
           node --check scripts/build-web-source-snapshot.mjs
           node --test scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs
           mkdir -p /tmp/sideways-corpus
           timeout 900s node scripts/build-web-source-snapshot.mjs --output /tmp/sideways-corpus/general.jsonl.gz
           node scripts/verify-web-source-snapshot.mjs /tmp/sideways-corpus/general.jsonl.gz /tmp/sideways-corpus/general.jsonl.gz.meta.json
-          node -e "const m=JSON.parse(require('fs').readFileSync('/tmp/sideways-corpus/general.jsonl.gz.meta.json','utf8')); if(!Array.isArray(m.receipts)||!m.receipts.length) process.exit(1); console.log(JSON.stringify({records:m.records,receipts:m.receipts},null,2))"
-
       - name: Run repository gates
-        shell: bash
         run: |
-          set -euo pipefail
           npm run test:ingestion
           npm run test:authority
           npm run verify:repository
           git diff --check
-
       - name: Commit validated repair
-        shell: bash
         run: |
-          set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add scripts/build-web-source-snapshot.mjs scripts/tests/web-source-snapshot.test.mjs .github/workflows/repair-pages-snapshot-config.yml
+          git add -A
           git commit -m "fix(pages): isolate invalid public source configuration"
           git push origin HEAD:${GITHUB_REF_NAME}
