@@ -4,9 +4,11 @@ import test from 'node:test';
 
 const manifestUrl = new URL('../../founder/archie-maker-vision.json', import.meta.url);
 const visionUrl = new URL('../../ARCHIE_MAKER_VISION.md', import.meta.url);
+const packageUrl = new URL('../../package.json', import.meta.url);
 
 const manifest = JSON.parse(await fs.readFile(manifestUrl, 'utf8'));
 const vision = await fs.readFile(visionUrl, 'utf8');
+const packageJson = JSON.parse(await fs.readFile(packageUrl, 'utf8'));
 
 test('Sideways remains an independent reference application rather than the AI product', () => {
   assert.equal(manifest.schema, 'archie-maker-vision/v1');
@@ -40,4 +42,14 @@ test('the impossible proof requires a delivered transferable application', () =>
   assert.ok(manifest.primary_outputs.includes('applications'));
   assert.ok(manifest.primary_outputs.includes('scientific-experiments'));
   assert.ok(manifest.primary_outputs.includes('civic-tools'));
+});
+
+test('Archie evaluation commands point at admitted executable surfaces', async () => {
+  assert.equal(
+    packageJson.scripts['archie:evaluate'],
+    'node scripts/maker-archie-benchmark.mjs run --suite maker/evaluations/archie-equivalence-suite.json'
+  );
+  assert.doesNotMatch(packageJson.scripts['test:archie:evaluation'], /maker-archie-evaluation\.test\.mjs/);
+  await fs.access(new URL('../maker-archie-benchmark.mjs', import.meta.url));
+  await fs.access(new URL('../../maker/evaluations/archie-equivalence-suite.json', import.meta.url));
 });
