@@ -1,5 +1,5 @@
 {
-  "version": 11,
+  "version": 12,
   "suites": [
     { "id": "git-diff-check", "command": ["git", "diff", "--check"] },
     { "id": "native-changed-check", "command": ["node", "scripts/native-changed-check.mjs"] },
@@ -8,6 +8,7 @@
     { "id": "recursive-weave", "command": ["npm", "run", "test:recursive-weave"] },
     { "id": "native-maker", "command": ["npm", "run", "test:native-maker"] },
     { "id": "maker-orchestrator", "command": ["npm", "run", "test:maker"] },
+    { "id": "maker-source-admission", "command": ["npm", "run", "test:maker:admission"] },
     { "id": "discovery-connected-import", "command": ["npm", "run", "test:ingestion"] },
     { "id": "social-memory", "command": ["npm", "run", "test:social"] },
     { "id": "authority-manifest", "command": ["npm", "run", "test:authority"] },
