@@ -153,6 +153,22 @@ test('composes multiple retrieved skills into one bounded typed tool plan', () =
   assert.ok(plan.alternatives.length <= model.beam_width);
 });
 
+
+test('orders composed skill phases deterministically and runs terminal repository tests last', () => {
+  const model = train();
+  const plan = planWithArchieCPUPlanner(model, {
+    instruction: 'Create and validate the JSON contract only after repairing the conflicted branch; execute repository tests last.'
+  });
+  assert.equal(plan.state, 'local', JSON.stringify(plan, null, 2));
+  assert.deepEqual(plan.plan.steps.map(step => `${step.tool}:${step.action}`), [
+    'git:status',
+    'git:repair_conflict',
+    'filesystem:write_contract',
+    'json:validate_schema',
+    'node:test'
+  ]);
+});
+
 test('rejects genuinely unseen work through teacher escalation instead of hallucinating a plan', () => {
   const model = train();
   const plan = planWithArchieCPUPlanner(model, {
