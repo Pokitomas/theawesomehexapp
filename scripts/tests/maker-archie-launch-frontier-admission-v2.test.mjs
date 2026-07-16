@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import test from 'node:test';
 import { frontierDigest } from '../archie-launch-frontier-v2.mjs';
 import {
+  frontierEnvironmentReceiptDigest,
   resolveAdmittedLaunchFrontierV2,
   validateAdmittedFrontierManifest
 } from '../archie-launch-frontier-admission-v2.mjs';
@@ -72,17 +73,23 @@ function profile(id, environmentId, overrides = {}) {
 }
 
 function manifest(environments, profiles) {
+  const environmentById = new Map(environments.map(item => [item.id, item]));
+  const boundProfiles = profiles.map(item => ({
+    ...item,
+    environment_receipt_digest: item.environment_receipt_digest
+      || frontierEnvironmentReceiptDigest(environmentById.get(item.environment_id))
+  }));
   return {
     schema: 'archie-launch-frontier-manifest/v2',
     target,
     release,
     environments,
-    profiles,
+    profiles: boundProfiles,
     search_receipt: {
       complete: true,
       generator_digest: d('generator'),
       candidate_space_digest: d('space'),
-      enumerated_profile_ids: profiles.map(item => item.id),
+      enumerated_profile_ids: boundProfiles.map(item => item.id),
       excluded_candidates: []
     },
     claim_boundary: 'Strict fixture.'
@@ -127,4 +134,38 @@ test('explicit default must be the profile selected by the declared policy', () 
   assert.equal(decision.environments[0].primary_profile_id, 'higher-quality');
   assert.equal(decision.environments[0].requested_default_is_not_selected, true);
   assert.equal(decision.admission_proof.exact_objective_ranges_enforced, true);
+});
+
+test('profile evidence is bound to the exact hardware, platform, authority, and budget environment', () => {
+  const env = environment('desktop');
+  const input = manifest([env], [profile('text', 'desktop')]);
+  env.authority_grants.push('notify');
+  assert.throws(() => validateAdmittedFrontierManifest(input), /environment receipt does not match/);
+});
+
+test('profiles must report every budgeted resource dimension', () => {
+  const env = environment('desktop', { resource_budgets: { ram_bytes: 10_000, energy_watts: 50 } });
+  const input = manifest([env], [profile('text', 'desktop', { resource_usage: { ram_bytes: 4_000 } })]);
+  assert.throws(() => validateAdmittedFrontierManifest(input), /missing resource usage: energy_watts/);
+});
+
+test('excluded candidate identities cannot overlap the enumerated profile set', () => {
+  const input = manifest([environment('desktop')], [profile('text', 'desktop')]);
+  input.search_receipt.excluded_candidates.push({
+    id: 'text',
+    reasons: ['supposedly-excluded'],
+    evidence_digests: [d('excluded:text')]
+  });
+  assert.throws(() => validateAdmittedFrontierManifest(input), /also an enumerated profile/);
+});
+
+test('admitted decision exposes exact-environment and resource-dimension proof', () => {
+  const env = environment('desktop');
+  const decision = resolveAdmittedLaunchFrontierV2(manifest([env], [profile('text', 'desktop')]));
+  assert.equal(decision.decision, 'admitted-capability-frontier');
+  assert.equal(decision.environments[0].environment_receipt_digest, frontierEnvironmentReceiptDigest(env));
+  assert.equal(decision.environments[0].strongest_profile_proof.profile_environment_receipts_enforced, true);
+  assert.equal(decision.environments[0].strongest_profile_proof.exact_resource_dimensions_enforced, true);
+  assert.equal(decision.admission_proof.profiles_bound_to_exact_environment_receipts, true);
+  assert.equal(decision.admission_proof.exact_resource_dimensions_required, true);
 });
