@@ -7,6 +7,7 @@ import {
   deriveLaunchRequirements,
   evaluateLaunchCandidate
 } from './archie-launch-contract.mjs';
+import { resolveLaunchProfile } from './archie-launch-profile-resolver.mjs';
 
 function parse(argv) {
   const command = argv[0] || 'derive';
@@ -43,14 +44,25 @@ async function writeResult(result, output) {
   process.stdout.write(`${filename}\n`);
 }
 
+function requiredFlag(flags, name) {
+  const value = flags.get(name);
+  if (!value) throw new Error(`${name} is required.`);
+  return value;
+}
+
 function usage() {
   return `Archie joint launch assessor
 
 Usage:
   node scripts/archie-launch-assess.mjs derive [--target founder/archie-launch-target.json] [--output file.json]
   node scripts/archie-launch-assess.mjs evaluate --candidate candidate.json [--target founder/archie-launch-target.json] [--output decision.json]
+  node scripts/archie-launch-assess.mjs resolve --manifest launch-capability-manifest.json [--output resolution.json]
 
-The assessor derives product faculties from human outcomes. It does not make chat, voice, a dashboard, or an always-on process architectural by default. Evaluate exits non-zero when either intelligence or required embodiment is not admitted.`;
+derive maps human outcomes to required faculties without selecting chat, voice, a dashboard, or an always-on process as architecture.
+
+evaluate jointly gates the model, authority, evidence, and required embodiment. It exits non-zero unless the candidate satisfies the maximal target.
+
+resolve binds the admitted candidate to one exact machine, permissions, resources, modalities, invocation and continuity capabilities. It selects the strongest truthful compatible profile, preserves named fallbacks separately, and exits non-zero unless the exact default profile is admitted.`;
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -59,18 +71,25 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
   const { command, flags } = parse(argv);
+  const output = flags.get('--output');
+
+  if (command === 'resolve') {
+    const manifest = await readJSON(requiredFlag(flags, '--manifest'));
+    const resolution = resolveLaunchProfile(manifest);
+    await writeResult(resolution, output);
+    if (resolution.decision !== 'admitted-maximal-machine-profile') process.exitCode = 1;
+    return;
+  }
+
   const defaultTarget = fileURLToPath(new URL('../founder/archie-launch-target.json', import.meta.url));
   const target = await readJSON(flags.get('--target') || defaultTarget);
-  const output = flags.get('--output');
 
   if (command === 'derive') {
     await writeResult(deriveLaunchRequirements(target), output);
     return;
   }
   if (command === 'evaluate') {
-    const candidatePath = flags.get('--candidate');
-    if (!candidatePath) throw new Error('evaluate requires --candidate <file.json>.');
-    const decision = evaluateLaunchCandidate(target, await readJSON(candidatePath));
+    const decision = evaluateLaunchCandidate(target, await readJSON(requiredFlag(flags, '--candidate')));
     await writeResult(decision, output);
     if (decision.decision !== 'admitted-maximal-launch') process.exitCode = 1;
     return;
