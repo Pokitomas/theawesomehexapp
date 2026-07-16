@@ -51,7 +51,8 @@ assert.ok(!html.includes('SEND TO CO-ENGINEERS'));
 assert.ok(!html.includes('SIDEWAYS / DEV / LIVE'));
 assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('min-height: 58px'));
-assert.equal(manifest.name, 'Maker Engineering');
+assert.equal(manifest.name, 'Archie');
+assert.equal(manifest.short_name, 'Archie');
 assert.equal(manifest.display, 'standalone');
 assert.ok(worker.includes("maker-engineering-v3"));
 assert.ok(worker.includes("url.origin !== self.location.origin"));
@@ -172,4 +173,4 @@ assert.equal(calls.length, 3);
 assert.ok(calls.every(url => url.includes('/repos/acme/widgets/')));
 assert.deepEqual(fetched, state);
 
-console.log('maker engineering console contract ok: repository-general task authoring remains separate from execution authority');
+console.log('maker engineering console contract ok: Archie is the installable phone identity while Maker remains the execution-authority subsystem');
