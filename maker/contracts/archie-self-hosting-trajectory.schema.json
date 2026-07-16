@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.invalid/contracts/archie-self-hosting-trajectory.schema.json",
+  "title": "Archie self-hosting trajectory v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "observed_at",
+    "payload",
+    "trajectory_digest"
+  ],
+  "properties": {
+    "schema": {
+      "const": "archie-self-hosting-trajectory/v1"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trajectory_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "outcome",
+        "training_classification",
+        "sideways",
+        "archie",
+        "maker"
+      ],
+      "properties": {
+        "outcome": {
+          "enum": [
+            "completed",
+            "failed"
+          ]
+        },
+        "training_classification": {
+          "enum": [
+            "positive",
+            "negative"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "sideways": {
+          "type": "object",
+          "required": [
+            "scenario_id",
+            "scenario_digest",
+            "expected_artifact_digest",
+            "seed"
+          ],
+          "properties": {
+            "scenario_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scenario_digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "expected_artifact_digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "archie": {
+          "type": "object",
+          "required": [
+            "plan_source",
+            "semantic_digest",
+            "schedule_digest",
+            "direct_write_authority"
+          ],
+          "properties": {
+            "plan_source": {
+              "const": "deterministic-fixture"
+            },
+            "semantic_digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "schedule_digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "direct_write_authority": {
+              "const": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "maker": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
