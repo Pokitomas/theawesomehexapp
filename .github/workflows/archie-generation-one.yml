@@ -31,14 +31,22 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run test:archie:evaluation
+      - name: Run Archie evaluation tests
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          npm run test:archie:evaluation 2>&1 | tee artifacts/archie-generation-one-test.log
       - name: Produce exact-head Generation One receipt
         run: npm run archie:generation-one -- --code-revision "$GITHUB_SHA" --output artifacts/archie-generation-one-receipt.json
       - name: Verify receipt is explicit and digest-bound
         run: |
           node -e "const fs=require('fs');const p='artifacts/archie-generation-one-receipt.json';const r=JSON.parse(fs.readFileSync(p));if(r.schema!=='archie-generation-one-run-receipt/v1'||!r.receipt_digest)process.exit(1);console.log(JSON.stringify({promotion:r.promotion,observed:r.observed,receipt_digest:r.receipt_digest},null,2));"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: archie-generation-one-${{ github.sha }}
-          path: artifacts/archie-generation-one-receipt.json
-          if-no-files-found: error
+          path: |
+            artifacts/archie-generation-one-receipt.json
+            artifacts/archie-generation-one-test.log
+          if-no-files-found: warn
