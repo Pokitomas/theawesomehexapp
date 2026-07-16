@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maker.local/contracts/archie-compute.schema.json",
+  "title": "Archie provider-neutral compute ladder contract",
+  "description": "Provider-neutral task, node, placement, attestation, lease, artifact, and receipt shapes for CPU-first Archie compute dispatch. Unknown capability is not admissible.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/task" },
+    { "$ref": "#/$defs/node" },
+    { "$ref": "#/$defs/placement" },
+    { "$ref": "#/$defs/receipt" }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["known", "currency"],
+      "properties": {
+        "known": { "const": true },
+        "amount_usd": { "type": ["number", "null"], "minimum": 0 },
+        "hourly_usd": { "type": ["number", "null"], "minimum": 0 },
+        "actual_usd": { "type": ["number", "null"], "minimum": 0 },
+        "currency": { "type": "string", "minLength": 1 }
+      }
+    },
+    "accelerator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "observed", "available", "count"],
+      "properties": {
+        "kind": { "enum": ["cpu", "cuda", "rocm", "metal", "gpu", "burst-gpu"] },
+        "observed": { "const": true },
+        "available": { "const": true },
+        "memory_gb": { "type": ["number", "null"], "minimum": 0 },
+        "count": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string" }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "attested_by", "subject", "digest"],
+      "properties": {
+        "schema": { "const": "archie-compute-attestation/v1" },
+        "attested_by": { "type": "string", "minLength": 1 },
+        "issued_at": { "type": ["string", "null"] },
+        "subject": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "provider_id", "node_id", "kind", "status", "observed", "local", "capabilities", "attestation"],
+      "properties": {
+        "schema": { "const": "archie-compute-node/v1" },
+        "provider_id": { "type": "string", "minLength": 1 },
+        "node_id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["local-cpu", "local-gpu", "wsl", "github-hosted-cpu", "self-hosted", "remote-http", "burst-gpu"] },
+        "status": { "const": "available" },
+        "observed": { "const": true },
+        "local": { "type": "boolean" },
+        "adapter_id": { "type": "string" },
+        "labels": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["memory_gb", "disk_gb", "accelerators", "regions", "privacy_modes", "cost", "checkpoint_formats", "corpus_packs"],
+          "properties": {
+            "memory_gb": { "type": "number", "minimum": 0 },
+            "disk_gb": { "type": "number", "minimum": 0 },
+            "accelerators": { "type": "array", "items": { "$ref": "#/$defs/accelerator" }, "minItems": 1 },
+            "regions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+            "privacy_modes": { "type": "array", "items": { "enum": ["public", "private", "local-only"] }, "minItems": 1, "uniqueItems": true },
+            "cost": { "$ref": "#/$defs/cost" },
+            "checkpoint_formats": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+            "corpus_packs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+            "max_runtime_ms": { "type": ["number", "null"], "minimum": 0 },
+            "min_start_delay_ms": { "type": "number", "minimum": 0 }
+          }
+        },
+        "attestation": { "$ref": "#/$defs/attestation" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schema", "task_id", "operation", "requirements"],
+      "properties": {
+        "schema": { "const": "archie-compute-task/v1" },
+        "task_id": { "type": "string", "minLength": 1 },
+        "operation": { "type": "string", "minLength": 1 },
+        "input": {},
+        "metadata": { "type": "object" },
+        "requirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min_memory_gb", "min_disk_gb", "accelerator", "privacy", "regions", "require_known_cost"],
+          "properties": {
+            "min_memory_gb": { "type": "number", "minimum": 0 },
+            "min_disk_gb": { "type": "number", "minimum": 0 },
+            "accelerator": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "min_vram_gb"],
+              "properties": {
+                "kind": { "enum": ["none", "cpu", "cuda", "rocm", "metal", "gpu", "burst-gpu"] },
+                "min_vram_gb": { "type": "number", "minimum": 0 }
+              }
+            },
+            "privacy": { "enum": ["public", "private", "local-only"] },
+            "regions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "max_cost_usd": { "type": ["number", "null"], "minimum": 0 },
+            "max_runtime_ms": { "type": ["number", "null"], "minimum": 0 },
+            "deadline_ms": { "type": ["number", "null"], "minimum": 0 },
+            "checkpoint_formats": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "corpus_packs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "require_known_cost": { "const": true }
+          }
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "task_id", "state", "ranked", "rejections", "placement_digest"],
+      "properties": {
+        "schema": { "const": "archie-compute-placement/v1" },
+        "task_id": { "type": "string" },
+        "state": { "enum": ["placed", "rejected"] },
+        "selected": { "type": ["object", "null"] },
+        "ranked": { "type": "array", "items": { "type": "object" } },
+        "rejections": { "type": "array", "items": { "type": "object" } },
+        "task": { "$ref": "#/$defs/task" },
+        "placement_digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "digest"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "task_id", "provider_id", "node_id", "adapter_id", "lease_id", "placement_digest", "attestation_digest", "started_at", "finished_at", "artifacts", "cost", "receipt_digest"],
+      "properties": {
+        "schema": { "const": "archie-compute-receipt/v1" },
+        "status": { "enum": ["completed", "recovered", "cancelled", "failed"] },
+        "task_id": { "type": "string" },
+        "provider_id": { "type": "string" },
+        "node_id": { "type": "string" },
+        "adapter_id": { "type": "string" },
+        "lease_id": { "type": ["string", "null"] },
+        "placement_digest": { "$ref": "#/$defs/sha256" },
+        "attestation_digest": { "$ref": "#/$defs/sha256" },
+        "started_at": { "type": "string" },
+        "finished_at": { "type": "string" },
+        "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" } },
+        "cost": { "$ref": "#/$defs/cost" },
+        "result": {},
+        "recovery": { "type": "object" },
+        "receipt_digest": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
