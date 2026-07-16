@@ -28,6 +28,7 @@
     "archie:derive": "node scripts/maker-archie-derivation.mjs",
     "archie:cognition": "node scripts/maker-archie-cognition.mjs",
     "archie:generation-one": "node scripts/archie-generation-one-run.mjs",
+    "archie:launch:frontier": "node scripts/archie-launch-assess.mjs frontier",
     "archie:launch:derive": "node scripts/archie-launch-assess.mjs derive",
     "archie:launch:evaluate": "node scripts/archie-launch-assess.mjs evaluate",
     "archie:launch:resolve": "node scripts/archie-launch-assess.mjs resolve",
