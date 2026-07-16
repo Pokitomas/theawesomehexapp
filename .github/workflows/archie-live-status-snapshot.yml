@@ -33,49 +33,57 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-  control_repair:
+  plugin_repair:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out repair evidence
+      - name: Check out sidecar evidence
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: evidence
           persist-credentials: false
-      - name: Check out isolated control repair branch
+      - name: Check out isolated plugin repair branch
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: agent/archie-control-plane-repair
+          ref: agent/archie-plugin-registry-repair
           path: repair
           fetch-depth: 0
       - name: Use repository Node runtime
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Verify exact base and repair bundle
+      - name: Fetch and verify exact hostile repair bundle
         id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(git -C repair rev-parse HEAD)" = "ba9a777504b96a49df29d2dac45988a3acbfb801"
-          echo "7928445b49ce25460280502aac4c26abfb96a285f99c7417270c1d3789f8b591  evidence/audit/patches/archie-control-plane-repair.patch.gz.b64" | sha256sum --check
-          base64 -d evidence/audit/patches/archie-control-plane-repair.patch.gz.b64 | gzip -dc > control-plane-repair.patch
-          echo "570167cc52d9dfd394afe1116ea07f00948133a7b8237037a41e5da6aedd00ac  control-plane-repair.patch" | sha256sum --check
-          git -C repair apply --check ../control-plane-repair.patch
-      - name: Apply and check hardened control modules
+          test "$(git -C repair rev-parse HEAD)" = "7e2e62afb6e82cf6ad00ecbaa84486f45697a049"
+          gh api "repos/${GITHUB_REPOSITORY}/issues/comments/4987246843" --jq .body > plugin-repair-comment.md
+          awk 'BEGIN{inside=0} /^H4s/{inside=1} inside && /^B64$/{exit} inside{print}' plugin-repair-comment.md > plugin315-repair.b64
+          test -s plugin315-repair.b64
+          base64 -d plugin315-repair.b64 > plugin315-repair.tgz
+          echo "68a4bb662356095d4d0e6724ef8da0d286a832a61f867b60016d6ab9fe7ac084  plugin315-repair.tgz" | sha256sum --check
+          actual="$(tar -tzf plugin315-repair.tgz | sed 's#^\./##' | grep -v '/$' | sort)"
+          expected="$(printf '%s\n' \
+            maker/contracts/plugin-manifest.schema.json \
+            scripts/maker-plugin-registry.mjs \
+            scripts/tests/maker-plugin-registry.test.mjs | sort)"
+          test "$actual" = "$expected"
+      - name: Extract and check repaired plugin registry
         id: syntax
         run: |
           set -euo pipefail
-          git -C repair apply ../control-plane-repair.patch
-          node --check repair/scripts/maker-control-plane.mjs
-          node --check repair/scripts/maker-control-cli.mjs
-          node -e "JSON.parse(require('node:fs').readFileSync('repair/maker/contracts/control-plane.schema.json','utf8'))"
-      - name: Prove focused hostile control suite
+          tar -xzf plugin315-repair.tgz -C repair
+          node --check repair/scripts/maker-plugin-registry.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('repair/maker/contracts/plugin-manifest.schema.json','utf8'))"
+      - name: Prove 27-case hostile plugin suite
         id: focused
         run: |
           set -euo pipefail
           cd repair
-          node --test scripts/tests/maker-control-plane.test.mjs 2>&1 | tee ../control-plane-focused.log
-      - name: Validate exact four-path diff
+          node --test scripts/tests/maker-plugin-registry.test.mjs 2>&1 | tee ../plugin-registry-focused.log
+      - name: Validate exact three-path diff
         id: diff
         run: |
           set -euo pipefail
@@ -83,12 +91,11 @@ jobs:
           git diff --check
           actual="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' \
-            maker/contracts/control-plane.schema.json \
-            scripts/maker-control-cli.mjs \
-            scripts/maker-control-plane.mjs \
-            scripts/tests/maker-control-plane.test.mjs | sort)"
+            maker/contracts/plugin-manifest.schema.json \
+            scripts/maker-plugin-registry.mjs \
+            scripts/tests/maker-plugin-registry.test.mjs | sort)"
           test "$actual" = "$expected"
-      - name: Commit isolated control repair
+      - name: Commit isolated plugin repair
         id: commit
         run: |
           set -euo pipefail
@@ -96,29 +103,28 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            maker/contracts/control-plane.schema.json \
-            scripts/maker-control-cli.mjs \
-            scripts/maker-control-plane.mjs \
-            scripts/tests/maker-control-plane.test.mjs
-          git commit -m "Harden Maker control-plane authority and atomicity"
-          git push origin HEAD:agent/archie-control-plane-repair
+            maker/contracts/plugin-manifest.schema.json \
+            scripts/maker-plugin-registry.mjs \
+            scripts/tests/maker-plugin-registry.test.mjs
+          git commit -m "Harden Maker plugin admission and lifecycle"
+          git push origin HEAD:agent/archie-plugin-registry-repair
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Upload control repair receipts
+      - name: Upload plugin repair receipts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-control-plane-repair-run-${{ github.run_id }}
+          name: archie-plugin-registry-repair-run-${{ github.run_id }}
           path: |
-            control-plane-focused.log
-            control-plane-repair.patch
-            evidence/audit/patches/archie-control-plane-repair.patch.gz.b64
+            plugin-registry-focused.log
+            plugin315-repair.tgz
+            plugin-repair-comment.md
           if-no-files-found: warn
           retention-days: 5
       - name: Update stable phone status
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          CONTROL_HEAD: ${{ steps.commit.outputs.head }}
+          PLUGIN_HEAD: ${{ steps.commit.outputs.head }}
           VERIFY: ${{ steps.verify.outcome }}
           SYNTAX: ${{ steps.syntax.outcome }}
           FOCUSED: ${{ steps.focused.outcome }}
@@ -130,29 +136,27 @@ jobs:
           <!-- archie-live-status:v1 -->
           ## Archie live status
 
-          - observer: GPT-5.6 Thinking
-          - authoritative writer: existing coordinator co-engineer
-          - mode: isolated sidecar repairs; no coordinator edits
+          - observer/finalizer: GPT-5.6 Thinking
+          - authoritative coordinator writer: existing co-engineer remains untouched
+          - mode: isolated repair branches plus finalizer staging; no coordinator edits
           - coordinator: \`agent/archie-democratized-runtime@ba9a777504b96a49df29d2dac45988a3acbfb801\`
           - coordinator drift: none
-          - router seam repair: green at \`4cf88a82adb4b878b1844321baefe182e076e3d9\`
-          - router proof: 43/43 seam; 97 total = 96 pass, 1 declared skip, 0 fail
-          - control workflow run: \`${GITHUB_RUN_ID}\`
-          - control workflow source: \`${GITHUB_SHA}\`
-          - control exact base + bundle: ${VERIFY}
-          - control syntax/schema: ${SYNTAX}
-          - control hostile focused suite: ${FOCUSED}
-          - control exact four-path diff: ${DIFF}
-          - control commit/push: ${COMMIT_RESULT}
-          - control repair head: \`${CONTROL_HEAD:-not-published}\`
-          - control patch SHA-256: \`570167cc52d9dfd394afe1116ea07f00948133a7b8237037a41e5da6aedd00ac\`
-          - composed integration truth: 65/66; one fail-closed runtime authority fixture remains for the integration lane
-          - tokens remaining: 941,504 / 1,310,720 (manual-observed)
-          - next: coordinator writer exact-head reviews/source-admits green repair branches; sidecar proceeds without overlapping writes
+          - router seam: green at \`4cf88a82adb4b878b1844321baefe182e076e3d9\`
+          - control repair: green at \`f611b798a3fb7688c9e86208e4b330ff58db2fc2\` (35/35)
+          - plugin workflow run: \`${GITHUB_RUN_ID}\`
+          - plugin exact source + bundle digest: ${VERIFY}
+          - plugin syntax/schema: ${SYNTAX}
+          - plugin hostile suite: ${FOCUSED}
+          - plugin exact three-path diff: ${DIFF}
+          - plugin commit/push: ${COMMIT_RESULT}
+          - plugin repair head: \`${PLUGIN_HEAD:-not-published}\`
+          - plugin bundle SHA-256: \`68a4bb662356095d4d0e6724ef8da0d286a832a61f867b60016d6ab9fe7ac084\`
+          - tokens remaining: 818,432 / 1,310,720 (manual-observed)
+          - next: stage green control/router/plugin plus repaired worker fleet on the collision-free finalizer branch
 
           Phone commands:
 
-          \`node scripts/archie-live-status.mjs tokens 941504 1310720\`
+          \`node scripts/archie-live-status.mjs tokens 818432 1310720\`
 
           \`node scripts/archie-live-status.mjs watch 20\`
 
