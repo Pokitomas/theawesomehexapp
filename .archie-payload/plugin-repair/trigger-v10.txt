@@ -1,0 +1,1 @@
+Trigger the read-only v2 router/runtime/control-plane composition snapshot for local end-to-end contract proof.
