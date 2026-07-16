@@ -1,0 +1,271 @@
+       charged_credits: nullableNumber(p.budget?.charged_credits),
+@@ -123,6 +132,7 @@ export function emptyOperatorView() {
+   return Object.freeze({
+     schema: 'archie-operator-view/v1', source: 'none', observed_at: null, expires_at: null,
+     route: { sparse: 'unobserved', planner: 'unobserved', selected: 'unobserved', confidence: null, margin: null },
++    derivation: { state: 'unobserved', mode: 'unobserved', proof_digest: null, graph_nodes: null, graph_edges: null, missing_edges: [], model_bytes: null },
+     budget: { decision: 'unobserved', charged_credits: null, usage_evidence: 'unobserved' },
+     teacher: { state: 'unobserved', reason: 'No authenticated runtime receipt loaded.' },
+     learning: { lesson: 'unobserved', retraining: 'unobserved' },
+diff --git a/scripts/maker-archie-planner.mjs b/scripts/maker-archie-planner.mjs
+index 4180fb7..8ba70ef 100755
+--- a/scripts/maker-archie-planner.mjs
++++ b/scripts/maker-archie-planner.mjs
+@@ -3,6 +3,11 @@ import crypto from 'node:crypto';
+ import fs from 'node:fs/promises';
+ import path from 'node:path';
+ import { fileURLToPath } from 'node:url';
++import {
++  deriveArchiePlan,
++  trainArchieDerivationGraph,
++  validateArchieDerivationModel
++} from './maker-archie-derivation.mjs';
+ 
+ export const ARCHIE_CPU_PLANNER_MODEL_SCHEMA = 'archie-cpu-planner-model/v1';
+ export const ARCHIE_CPU_PLAN_SCHEMA = 'archie-cpu-tool-plan/v1';
+@@ -15,7 +20,7 @@ const DEFAULT_THRESHOLD = 0.28;
+ const DEFAULT_MARGIN = 0.025;
+ const DEFAULT_REJECT_THRESHOLD = 0.34;
+ const DEFAULT_NEGATIVE_GAP = 0.03;
+-const DEFAULT_MAX_MODEL_BYTES = 8 * 1024 * 1024;
++const DEFAULT_MAX_MODEL_BYTES = 24 * 1024 * 1024;
+ const VECTOR_SCALE = 127;
+ const CLEAN_LIMIT = 500000;
+ 
+@@ -79,11 +84,33 @@ function featureTokens(value) {
+     if (alias) expanded.push(`tool:${alias}`);
+     if (token.includes('/')) expanded.push(...token.split('/').filter(Boolean));
+     if (token.includes('-')) expanded.push(...token.split('-').filter(Boolean));
++    if (token.includes('_')) expanded.push(...token.split('_').filter(Boolean));
+   }
+   for (let index = 0; index < tokens.length - 1; index += 1) expanded.push(`${tokens[index]}_${tokens[index + 1]}`);
+   return expanded;
+ }
+ 
++function lexicalTerms(value) {
++  return [...new Set(tokenize(value).filter(token => token.length >= 3))].sort();
++}
++
++function lexicalEvidence(queryTerms, candidateTerms) {
++  const query = queryTerms instanceof Set ? queryTerms : new Set(queryTerms || []);
++  const candidate = candidateTerms instanceof Set ? candidateTerms : new Set(candidateTerms || []);
++  let overlap = 0;
++  for (const term of query) if (candidate.has(term)) overlap += 1;
++  const denominator = Math.max(1, Math.min(query.size, candidate.size));
++  return Object.freeze({ overlap, ratio: overlap / denominator });
++}
++
++function taskClauses(value) {
++  const text = clean(value, 10000);
++  const clauses = text.split(/(?:\band then\b|\bthen\b|\bfollowed by\b|\bbefore\b|\bafter\b|\band\b|[,;])/i)
++    .map(item => clean(item, 2000))
++    .filter(item => tokenize(item).length > 0);
++  return clauses.length > 1 ? clauses.slice(0, 12) : [];
++}
++
+ function hashIndex(token, dimensions) {
+   return crypto.createHash('sha256').update(token).digest().readUInt32BE(0) % dimensions;
+ }
+@@ -215,6 +242,43 @@ function greedyDiversity(candidates, maxSteps) {
+   return chosen;
+ }
+ 
++function stepLexicalTerms(step = {}) {
++  const expanded = `${clean(step.tool, 200)} ${clean(step.action, 300)}`.replace(/[_:/-]+/g, ' ');
++  return lexicalTerms(expanded);
++}
++
++function composeClauseSteps(matches, maxSteps) {
++  const selected = [];
++  const deferredTerminal = [];
++  const seen = new Set();
++  const usedPrimitives = new Map();
++  const add = (step, candidate, target = selected) => {
++    const key = `${step.tool}:${step.action}`;
++    if (seen.has(key)) return;
++    const value = { ...step, rationale: `${candidate.primitive.primitive_id}:clause:${clean(candidate.clause, 120)}` };
++    if (/\b(?:dispatch|stage|deploy|publish|release)\b/i.test(step.action)) deferredTerminal.push(value);
++    else target.push(value);
++    seen.add(key);
++  };
++  for (const candidate of matches) {
++    usedPrimitives.set(candidate.primitive.primitive_id, candidate);
++    const clauseTerms = new Set(lexicalTerms(candidate.clause));
++    let bestIndex = 0;
++    let bestOverlap = -1;
++    candidate.primitive.steps.forEach((step, index) => {
++      const overlap = lexicalEvidence(clauseTerms, stepLexicalTerms(step)).overlap;
++      if (overlap > bestOverlap) { bestOverlap = overlap; bestIndex = index; }
++    });
++    for (let index = 0; index <= bestIndex; index += 1) add(candidate.primitive.steps[index], candidate);
++  }
++  for (const candidate of usedPrimitives.values()) {
++    for (const step of candidate.primitive.steps) {
++      if (/\b(?:test|validate|verify|score|receipt)\b/i.test(step.action)) add(step, candidate);
++    }
++  }
++  return [...selected, ...deferredTerminal].slice(0, maxSteps);
++}
++
+ function documentFrequency(documents, dimensions) {
+   const df = new Array(dimensions).fill(0);
+   for (const text of documents) {
+@@ -301,6 +365,7 @@ export function trainArchieCPUPlanner(examples, options = {}) {
+       centroid_q8: quantizeVector(centroid),
+       steps: group.steps,
+       prototype_instruction: clean(prototype.instruction || prototype.input?.text, 2000),
++      lexical_terms: lexicalTerms(group.examples.map(example => exampleText(example)).join(' ')),
+       source_example_ids: sources.sort()
+     }));
+   }
+@@ -311,14 +376,24 @@ export function trainArchieCPUPlanner(examples, options = {}) {
+     reason: clean(example.reason || example.error || example.outcome || 'negative-example', 300),
+     centroid_q8: quantizeVector(weightedVector(exampleText(example), config.dimensions, idf)),
+     instruction: clean(example.instruction || example.input?.text, 2000),
++    lexical_terms: lexicalTerms(exampleText(example)),
+     source_example_id: clean(example.example_id || '', 100)
+   })).sort((left, right) => left.negative_id.localeCompare(right.negative_id));
+ 
+   const lexicalTools = [...new Set(primitives.flatMap(primitive => primitive.steps.map(step => step.tool)))].sort();
++  const derivation = trainArchieDerivationGraph(all, {
++    dimensions: Math.min(config.dimensions, 2048),
++    threshold: options.derivation_threshold ?? 0.42,
++    minimum_grounding: options.derivation_minimum_grounding ?? 0.3,
++    max_steps: config.max_steps,
++    max_expansions: options.derivation_max_expansions ?? 192,
++    knowledge_records: options.knowledge_records || [],
++    trained_at: options.trained_at || new Date().toISOString()
++  });
+   const body = Object.freeze({
+     schema: ARCHIE_CPU_PLANNER_MODEL_SCHEMA,
+-    planner_kind: 'cpu-first-symbolic-vector-planner',
+-    model_family: 'hashed-retrieval-skill-mixture',
++    planner_kind: 'cpu-first-derivational-graph-planner',
++    model_family: 'sparse-derivational-graph-with-lexical-fallback',
+     not_a_neural_language_model: true,
+     detachability: 'standalone-esm-no-maker-runtime-imports',
+     dimensions: config.dimensions,
+@@ -345,6 +420,7 @@ export function trainArchieCPUPlanner(examples, options = {}) {
+       required_step_fields: ['id', 'type', 'tool', 'action', 'args', 'depends_on', 'rationale']
+     },
+     lexical_tools: lexicalTools,
++    derivation,
+     primitives,
+     negatives,
+     training_receipt: {
+@@ -368,6 +444,7 @@ export function validateArchieCPUPlannerModel(model, { max_bytes = DEFAULT_MAX_M
+   const expected = digest(modelBody(model));
+   if (model.model_digest !== expected) throw new Error('Archie CPU planner model integrity check failed.');
+   if (!Array.isArray(model.primitives) || !model.primitives.length) throw new Error('Archie CPU planner needs at least one primitive.');
++  validateArchieDerivationModel(model.derivation, { max_bytes });
+   return true;
+ }
+ 
+@@ -385,38 +462,90 @@ export function planWithArchieCPUPlanner(model, task = {}, options = {}) {
+     max_steps: options.max_steps ?? model.max_steps
+   });
+   const text = taskText(task);
++  const derivation = deriveArchiePlan(model.derivation, task, {
++    threshold: options.derivation_threshold,
++    minimum_grounding: options.derivation_minimum_grounding,
++    max_steps: options.max_steps ?? model.max_steps,
++    max_expansions: options.derivation_max_expansions
++  });
++  const queryTerms = new Set(lexicalTerms(text));
++  const rankPrimitives = queryText => {
++    const vector = weightedVector(queryText, model.dimensions, model.idf || []);
++    const terms = new Set(lexicalTerms(queryText));
++    return model.primitives.map(primitive => ({
++      primitive,
++      score: cosine(vector, dequantizeVector(primitive.centroid_q8)),
++      lexical: lexicalEvidence(terms, primitive.lexical_terms || lexicalTerms(primitive.prototype_instruction))
++    })).sort((left, right) => right.score - left.score || right.lexical.overlap - left.lexical.overlap || left.primitive.primitive_id.localeCompare(right.primitive.primitive_id));
++  };
++  const ranked = rankPrimitives(text);
+   const query = weightedVector(text, model.dimensions, model.idf || []);
+-  const ranked = model.primitives.map(primitive => ({
+-    primitive,
+-    score: cosine(query, dequantizeVector(primitive.centroid_q8))
+-  })).sort((left, right) => right.score - left.score || left.primitive.primitive_id.localeCompare(right.primitive.primitive_id));
+   const negativeRanked = (model.negatives || []).map(negative => ({
+     negative,
+-    score: cosine(query, dequantizeVector(negative.centroid_q8))
+-  })).sort((left, right) => right.score - left.score || left.negative.negative_id.localeCompare(right.negative.negative_id));
++    score: cosine(query, dequantizeVector(negative.centroid_q8)),
++    lexical: lexicalEvidence(queryTerms, negative.lexical_terms || lexicalTerms(negative.instruction))
++  })).sort((left, right) => right.score - left.score || right.lexical.overlap - left.lexical.overlap || left.negative.negative_id.localeCompare(right.negative.negative_id));
++
++  const clauseMatches = [];
++  for (const clause of taskClauses(text)) {
++    const candidate = rankPrimitives(clause)[0];
++    const clauseFloor = Math.max(0.1, config.threshold * 0.45);
++    const anchored = candidate && (candidate.lexical.overlap >= 2 || (candidate.lexical.overlap >= 1 && candidate.score >= clauseFloor));
++    if (!candidate || !anchored || candidate.score < 0.06) continue;
++    clauseMatches.push({ ...candidate, clause });
++  }
+ 
+   const preBeam = ranked.slice(0, config.beam_width);
+   const best = preBeam[0];
+-  const scoreFloor = Math.max(config.threshold, (best?.score || 0) * 0.5);
+-  const beam = preBeam.filter(item => item.score >= scoreFloor);
++  const scoreFloor = Math.max(config.threshold, (best?.score || 0) * 0.58);
++  const beam = preBeam.filter(item => item.score >= scoreFloor && (item.lexical.overlap >= 1 || item.score >= config.threshold * 1.25));
+   const second = beam[1];
+-  const bestNegative = negativeRanked[0] || { score: 0, negative: null };
+-  const confidence = Number(Math.max(0, Math.min(1, best?.score || 0)).toFixed(6));
++  const bestNegative = negativeRanked[0] || { score: 0, lexical: { overlap: 0, ratio: 0 }, negative: null };
++  const compositionalEvidence = new Set(clauseMatches.map(item => item.primitive.primitive_id)).size >= 2;
++  const rawConfidence = compositionalEvidence
++    ? Math.max(best?.score || 0, clauseMatches.reduce((sum, item) => sum + item.score, 0) / clauseMatches.length)
++    : best?.score || 0;
++  const confidence = Number(Math.max(0, Math.min(1, rawConfidence)).toFixed(6));
+   const margin = Number(Math.max(0, confidence - (second?.score || 0)).toFixed(6));
+   const negativeScore = Number(Math.max(0, Math.min(1, bestNegative.score || 0)).toFixed(6));
+   const calibrated = Number(calibrate(confidence, model, margin).toFixed(6));
++  const negativeLexicalGate = bestNegative.lexical.overlap >= 2 && negativeScore >= Math.max(0.12, config.reject_threshold * 0.55);
++  const vectorNegativeGate = negativeScore >= config.reject_threshold && negativeScore >= confidence - config.negative_gap;
++  const positiveAnchor = Boolean(best && best.lexical.overlap >= 2);
+   let state = 'local';
+-  let reason = 'bounded-beam-local-plan';
+-  if (negativeScore >= config.reject_threshold && negativeScore >= confidence - config.negative_gap) {
++  let reason = compositionalEvidence ? 'clause-grounded-skill-composition' : 'bounded-beam-local-plan';
++  if ((negativeLexicalGate && bestNegative.lexical.overlap >= (best?.lexical.overlap || 0)) || vectorNegativeGate) {
+     state = 'reject';
+     reason = `negative-example-suppression:${bestNegative.negative?.negative_id || 'unknown'}`;
+-  } else if (confidence < config.threshold || margin < config.minimum_margin) {
++  } else if (!compositionalEvidence && (confidence < config.threshold || margin < config.minimum_margin || !positiveAnchor)) {
+     state = 'teacher';
+-    reason = confidence < config.threshold ? 'below-confidence-threshold' : 'below-margin-threshold';
++    reason = confidence < config.threshold ? 'below-confidence-threshold' : margin < config.minimum_margin ? 'below-margin-threshold' : 'insufficient-lexical-evidence';
++  }
++
++  let plannerMode = 'lexical-fallback';
++  if (derivation.state === 'reject') {
++    state = 'reject';
++    reason = `derivation-reject:${derivation.rejection?.negative_id || 'forbidden'}`;
++    plannerMode = 'derivational-graph';
++  } else if (derivation.state === 'local') {
++    state = 'local';
++    reason = `derivation:${derivation.mode}`;
++    plannerMode = 'derivational-graph';
++  } else if (state === 'local') {
++    reason = `lexical-fallback:${reason}`;
+   }
+ 
+-  const selectedSteps = state === 'local' ? greedyDiversity(beam, config.max_steps) : [];
+-  const plan = state === 'local' ? buildPlan(selectedSteps) : null;
++  const selectedCandidates = compositionalEvidence ? clauseMatches : beam;
++  const selectedSteps = state === 'local' && derivation.state !== 'local'
++    ? compositionalEvidence ? composeClauseSteps(clauseMatches, config.max_steps) : greedyDiversity(beam, config.max_steps)
++    : [];
++  const plan = state === 'local'
++    ? derivation.state === 'local' ? derivation.plan : buildPlan(selectedSteps, { reason })
++    : null;
++  const finalConfidence = derivation.state === 'local' || derivation.state === 'reject' ? derivation.confidence : confidence;
++  const finalMargin = derivation.state === 'local' ? Math.max(margin, derivation.grounding) : margin;
++  const finalNegativeScore = derivation.state === 'reject' ? derivation.confidence : negativeScore;
++  const finalCalibrated = derivation.state === 'local' ? Math.max(calibrated, derivation.grounding) : calibrated;
+   const receipt = {
+     latency_ms: Number((Number(process.hrtime.bigint() - start) / 1e6).toFixed(3)),
+     heap_delta_bytes: process.memoryUsage().heapUsed - heapStart,
+@@ -424,6 +553,10 @@ export function planWithArchieCPUPlanner(model, task = {}, options = {}) {
