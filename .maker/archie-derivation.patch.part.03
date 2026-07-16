@@ -1,0 +1,252 @@
++            "derivation_latency_ms": {
++              "type": "number",
++              "minimum": 0
++            }
+           }
+         },
+-        "model_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+-        "plan_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
++        "model_digest": {
++          "type": "string",
++          "pattern": "^[0-9a-f]{64}$"
++        },
++        "plan_digest": {
++          "type": "string",
++          "pattern": "^[0-9a-f]{64}$"
++        },
++        "planner_mode": {
++          "enum": [
++            "derivational-graph",
++            "lexical-fallback"
++          ]
++        },
++        "derivation": {
++          "type": "object",
++          "required": [
++            "schema",
++            "state",
++            "disposition",
++            "task_digest",
++            "confidence",
++            "grounding",
++            "mode",
++            "plan",
++            "proof",
++            "teacher_gap",
++            "rejection",
++            "alternatives",
++            "receipts",
++            "model_digest",
++            "plan_digest"
++          ],
++          "properties": {
++            "schema": {
++              "const": "archie-derivation-plan/v1"
++            },
++            "state": {
++              "enum": [
++                "local",
++                "teacher",
++                "reject"
++              ]
++            },
++            "plan_digest": {
++              "type": "string",
++              "pattern": "^[0-9a-f]{64}$"
++            }
++          }
++        }
+       }
+     },
+     "quantizationReceipt": {
+       "type": "object",
+-      "required": ["schema", "vector_encoding", "primitive_count", "max_q8_error", "passed", "receipt_digest"],
++      "required": [
++        "schema",
++        "vector_encoding",
++        "primitive_count",
++        "max_q8_error",
++        "passed",
++        "receipt_digest"
++      ],
+       "properties": {
+-        "schema": { "const": "archie-cpu-quantization-receipt/v1" },
+-        "vector_encoding": { "const": "signed-int8-q8-normalized-centroid" },
+-        "primitive_count": { "type": "integer", "minimum": 1 },
+-        "max_q8_error": { "type": "integer", "minimum": 0 },
+-        "passed": { "const": true },
+-        "receipt_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
++        "schema": {
++          "const": "archie-cpu-quantization-receipt/v1"
++        },
++        "vector_encoding": {
++          "const": "signed-int8-q8-normalized-centroid"
++        },
++        "primitive_count": {
++          "type": "integer",
++          "minimum": 1
++        },
++        "max_q8_error": {
++          "type": "integer",
++          "minimum": 0
++        },
++        "passed": {
++          "const": true
++        },
++        "receipt_digest": {
++          "type": "string",
++          "pattern": "^[0-9a-f]{64}$"
++        }
+       }
+     }
+   }
+diff --git a/maker/index.html b/maker/index.html
+index cbfd664..9a68e89 100644
+--- a/maker/index.html
++++ b/maker/index.html
+@@ -89,6 +89,10 @@
+         <article class="archie-card"><span>CPU PLANNER</span><strong id="archie-planner">Unobserved</strong></article>
+         <article class="archie-card"><span>CONFIDENCE / MARGIN</span><strong id="archie-confidence">Unobserved</strong></article>
+         <article class="archie-card"><span>SELECTED ROUTE</span><strong id="archie-route">Unobserved</strong></article>
++        <article class="archie-card"><span>DERIVATION MODE</span><strong id="archie-derivation">Unobserved</strong></article>
++        <article class="archie-card"><span>KNOWLEDGE GRAPH</span><strong id="archie-graph">Unobserved</strong></article>
++        <article class="archie-card"><span>PROOF DIGEST</span><strong id="archie-proof">Unobserved</strong></article>
++        <article class="archie-card archie-wide"><span>MINIMAL MISSING EDGES</span><ul id="archie-gaps" class="archie-blockers"><li>Unobserved</li></ul></article>
+         <article class="archie-card"><span>BUDGET DECISION</span><strong id="archie-budget">Unobserved</strong></article>
+         <article class="archie-card"><span>TEACHER ESCALATION</span><strong id="archie-teacher">Unobserved</strong></article>
+         <article class="archie-card"><span>LESSON / RETRAIN</span><strong id="archie-learning">Unobserved</strong></article>
+@@ -134,10 +138,10 @@
+       };
+       const set = (id, value) => { $(id).textContent = clean(value || 'Unobserved', 1200); };
+       const empty = () => {
+-        set('archie-sparse', 'Unobserved'); set('archie-planner', 'Unobserved'); set('archie-confidence', 'Unobserved'); set('archie-route', 'Unobserved');
++        set('archie-sparse', 'Unobserved'); set('archie-planner', 'Unobserved'); set('archie-confidence', 'Unobserved'); set('archie-route', 'Unobserved'); set('archie-derivation', 'Unobserved'); set('archie-graph', 'Unobserved'); set('archie-proof', 'Unobserved');
+         set('archie-budget', 'Unobserved'); set('archie-teacher', 'Unobserved'); set('archie-learning', 'Unobserved'); set('archie-corpus', 'Unobserved');
+         set('archie-sync', 'Unobserved'); set('archie-compute', 'Local CPU unobserved; Linux/GPU unavailable until observed'); set('archie-usage', 'Unobserved'); set('archie-storage', 'Unobserved'); set('archie-source', 'None');
+-        $('archie-blockers').replaceChildren(Object.assign(document.createElement('li'), { textContent: 'No authenticated runtime receipt loaded.' }));
++        $('archie-blockers').replaceChildren(Object.assign(document.createElement('li'), { textContent: 'No authenticated runtime receipt loaded.' })); $('archie-gaps').replaceChildren(Object.assign(document.createElement('li'), { textContent: 'Unobserved' }));
+         set('archie-freshness', navigator.onLine ? 'ONLINE / UNOBSERVED' : 'OFFLINE / UNOBSERVED');
+       };
+       const verify = async receipt => {
+@@ -152,8 +156,8 @@
+         return receipt;
+       };
+       const render = receipt => {
+-        const p = receipt.payload || {}, route = p.route || {}, budget = p.budget || {}, teacher = p.teacher || {}, learning = p.learning || {}, corpus = p.corpus || {}, sync = p.sync || {}, compute = p.compute || {};
+-        set('archie-sparse', route.sparse); set('archie-planner', route.planner); set('archie-confidence', Number.isFinite(Number(route.confidence)) ? `${route.confidence} / ${Number.isFinite(Number(route.margin)) ? route.margin : '—'}` : 'Unobserved'); set('archie-route', route.selected);
++        const p = receipt.payload || {}, route = p.route || {}, derivation = p.derivation || {}, budget = p.budget || {}, teacher = p.teacher || {}, learning = p.learning || {}, corpus = p.corpus || {}, sync = p.sync || {}, compute = p.compute || {};
++        set('archie-sparse', route.sparse); set('archie-planner', route.planner); set('archie-confidence', Number.isFinite(Number(route.confidence)) ? `${route.confidence} / ${Number.isFinite(Number(route.margin)) ? route.margin : '—'}` : 'Unobserved'); set('archie-route', route.selected); set('archie-derivation', `${derivation.state || 'Unobserved'} · ${derivation.mode || 'mode unobserved'}`); set('archie-graph', `${Number.isSafeInteger(derivation.graph_nodes) ? derivation.graph_nodes : '—'} nodes / ${Number.isSafeInteger(derivation.graph_edges) ? derivation.graph_edges : '—'} edges · ${Number.isSafeInteger(derivation.model_bytes) ? `${derivation.model_bytes} bytes` : 'size unobserved'}`); set('archie-proof', derivation.proof_digest || 'Unobserved'); const gaps = Array.isArray(derivation.missing_edges) && derivation.missing_edges.length ? derivation.missing_edges : ['None reported']; $('archie-gaps').replaceChildren(...gaps.slice(0, 30).map(item => Object.assign(document.createElement('li'), { textContent: clean(item, 500) }))); 
+         set('archie-budget', `${budget.decision || 'Unobserved'} · ${Number.isFinite(Number(budget.charged_credits)) ? `${budget.charged_credits} credits` : 'cost unobserved'}`);
+         set('archie-teacher', `${teacher.state || 'Unobserved'} · ${teacher.reason || 'no observed reason'}`); set('archie-learning', `${learning.lesson || 'Unobserved'} / ${learning.retraining || 'Unobserved'}`);
+         set('archie-corpus', `${corpus.health || 'Unobserved'} / ${corpus.pack || 'Unobserved'}`); set('archie-sync', `${sync.state || 'Unobserved'}${sync.error ? ` · ${sync.error}` : ''} · generation ${Number.isSafeInteger(sync.generation) ? sync.generation : 'unobserved'} · relay plaintext authority: none`);
+diff --git a/scripts/maker-archie-brain.mjs b/scripts/maker-archie-brain.mjs
+index 06f8aea..ca9af96 100644
+--- a/scripts/maker-archie-brain.mjs
++++ b/scripts/maker-archie-brain.mjs
+@@ -1,6 +1,7 @@
+ import crypto from 'node:crypto';
+ import fs from 'node:fs/promises';
+ import path from 'node:path';
++import { deriveArchiePlan, trainArchieDerivationGraph, validateArchieDerivationModel } from './maker-archie-derivation.mjs';
+ 
+ const MODEL_SCHEMA = 'archie-skill-mixture/v1';
+ const PLAN_SCHEMA = 'archie-compact-plan/v1';
+@@ -139,8 +140,17 @@ export function trainArchieSkillMixture(examples, { dimensions = 1024, threshold
+     });
+   }
+   specialists.sort((left, right) => right.examples - left.examples || left.specialist_id.localeCompare(right.specialist_id));
++  const derivation = trainArchieDerivationGraph(admitted, {
++    dimensions: width,
++    threshold: Math.max(0.2, Math.min(1, Number(threshold))),
++    minimum_grounding: Math.max(0.2, Math.min(1, Number(minimum_margin) * 4)),
++    max_steps: 12,
++    trained_at
++  });
+   const body = {
+     schema: MODEL_SCHEMA,
++    planner_kind: 'portable-derivational-skill-memory',
++    not_a_generative_language_model: true,
+     dimensions: width,
+     threshold: Math.max(0, Math.min(1, Number(threshold))),
+     minimum_margin: Math.max(0, Math.min(1, Number(minimum_margin))),
+@@ -148,6 +158,7 @@ export function trainArchieSkillMixture(examples, { dimensions = 1024, threshold
+     specialist_count: specialists.length,
+     idf,
+     specialists,
++    derivation,
+     trained_at
+   };
+   return Object.freeze({ ...body, model_digest: digest(body) });
+@@ -155,6 +166,8 @@ export function trainArchieSkillMixture(examples, { dimensions = 1024, threshold
+ 
+ export function predictArchiePlan(model, task = {}) {
+   if (model?.schema !== MODEL_SCHEMA || !Array.isArray(model.specialists) || !model.specialists.length) throw new Error('A trained Archie skill mixture is required.');
++  if (!model.derivation) throw new Error('Archie derivation graph is required.');
++  validateArchieDerivationModel(model.derivation);
+   const text = typeof task === 'string' ? task : `${clean(task.instruction || task.request || task.goal)}\n${stableJSONStringify(task.context || null)}`;
+   const vector = weightedVector(text, model.dimensions, model.idf || []);
+   const ranked = model.specialists.map(specialist => ({
+@@ -163,17 +176,33 @@ export function predictArchiePlan(model, task = {}) {
+   })).sort((left, right) => right.score - left.score || left.specialist.specialist_id.localeCompare(right.specialist.specialist_id));
+   const best = ranked[0];
+   const second = ranked[1];
+-  const confidence = Math.max(0, Math.min(1, best?.score || 0));
+-  const margin = Math.max(0, confidence - (second?.score || 0));
+-  const local = confidence >= Number(model.threshold || 0) && margin >= Number(model.minimum_margin || 0);
++  const lexicalConfidence = Math.max(0, Math.min(1, best?.score || 0));
++  const lexicalMargin = Math.max(0, lexicalConfidence - (second?.score || 0));
++  const derivation = deriveArchiePlan(model.derivation, task, {
++    threshold: Math.max(0.2, Number(model.threshold || 0)),
++    minimum_grounding: Math.max(0.2, Number(model.minimum_margin || 0) * 4),
++    max_steps: 12
++  });
++  const sourceIds = new Set(derivation.proof?.used_skills?.flatMap(skillId =>
++    model.derivation.skills.find(skill => skill.skill_id === skillId)?.source_ids || []
++  ) || []);
++  const prototype = ranked.find(item => item.specialist.source_example_ids?.some(id => sourceIds.has(id)))?.specialist || best?.specialist || null;
++  const local = derivation.state === 'local';
++  const rejected = derivation.state === 'reject';
++  const usePrototype = local && derivation.proof?.used_skills?.length === 1 && prototype;
+   const body = {
+     schema: PLAN_SCHEMA,
+-    state: local ? 'local' : 'escalate',
+-    specialist_id: local ? best.specialist.specialist_id : null,
+-    confidence: Number(confidence.toFixed(6)),
+-    margin: Number(margin.toFixed(6)),
+-    plan: local ? best.specialist.target : null,
+-    tool_trace: local ? best.specialist.tool_trace : [],
++    state: rejected ? 'reject' : local ? 'local' : 'escalate',
++    planner_mode: derivation.mode,
++    specialist_id: local ? (prototype?.specialist_id || derivation.proof?.used_skills?.[0] || null) : null,
++    confidence: Number((local ? derivation.confidence : Math.max(derivation.confidence || 0, lexicalConfidence)).toFixed(6)),
++    margin: Number(lexicalMargin.toFixed(6)),
++    grounding: Number((derivation.grounding || 0).toFixed(6)),
++    plan: local ? (usePrototype ? prototype.target : derivation.plan) : null,
++    tool_trace: local ? (usePrototype ? prototype.tool_trace : derivation.plan?.steps || []) : [],
++    derivation,
++    teacher_gap: derivation.teacher_gap,
++    rejection: derivation.rejection,
+     model_digest: model.model_digest,
+     alternatives: ranked.slice(0, 3).map(item => ({ specialist_id: item.specialist.specialist_id, score: Number(item.score.toFixed(6)) }))
+   };
+@@ -213,6 +242,7 @@ export class ArchiePersonalBrain {
+     try {
+       const model = JSON.parse(await fs.readFile(this.modelPath, 'utf8'));
+       if (model?.schema !== MODEL_SCHEMA || model.model_digest !== digest({ ...model, model_digest: undefined })) throw new Error('Archie model integrity check failed.');
++      validateArchieDerivationModel(model.derivation);
+       return model;
+     } catch (error) {
+       if (error?.code === 'ENOENT') return this.train();
+@@ -224,13 +254,13 @@ export class ArchiePersonalBrain {
+     const model = await this.load();
+     const local = predictArchiePlan(model, task);
+     if (local.state === 'local' || !allow_teacher || !this.teacher) return local;
+-    const teacherResult = await this.teacher(task, { local_attempt: local, model });
++    const teacherResult = await this.teacher(task, { local_attempt: local, teacher_gap: local.teacher_gap, model });
+     const instruction = typeof task === 'string' ? task : clean(task.instruction || task.request || task.goal);
+     const stored = await this.corpus.ingest({
+       kind: 'archie_teacher_plan',
+       subject: clean(task.subject || 'default', 300),
+       input: { text: instruction, context: task.context || null },
+-      output: { text: clean(teacherResult?.text || ''), plan: teacherResult?.plan || null },
++      output: { text: clean(teacherResult?.text || ''), plan: teacherResult?.plan || null, abstraction: teacherResult?.abstraction || local.teacher_gap || null },
