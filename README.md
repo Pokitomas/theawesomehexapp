@@ -52,6 +52,8 @@ See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOT
 
 ## Maker engineering surface
 
+Archie and Maker are a separate intelligence-and-execution system. Sideways is one independent application they may inspect and improve through ordinary repository permissions; Sideways is not the AI, its memory substrate, or a privileged self-modification path. See [`ARCHIE_MAKER_VISION.md`](./ARCHIE_MAKER_VISION.md).
+
 From a clean checkout, the primary engineering entrypoint is intentionally small:
 
 ```bash
@@ -60,7 +62,7 @@ npm run maker -- "describe the end state"
 
 The default command passes through the native Archie memory bridge. Before execution, Archie checks the repository-scoped local skill mixture and surfaces any matching reusable plan with its confidence and margin. It does not silently execute or trust that plan: Maker’s four read-only assessments, synthesis, single-writer lease, isolated worktree, verification, draft PR, and human merge boundaries remain authoritative.
 
-After a successful native `sideways-maker-run/v2` receipt, the bridge converts the completed run into redacted corpus evidence, retrains the local skill mixture, and makes repeated work recallable. The private corpus defaults to `~/.sideways/archie/<repository-name>-<path-digest>/`. Set `ARCHIE_CORPUS_ROOT` to choose another location, `ARCHIE_DISABLED=1` to disable memory, or use `npm run maker:raw -- "..."` to bypass the bridge.
+After a successful native `sideways-maker-run/v2` receipt, the bridge converts the completed run into redacted corpus evidence, retrains the local skill mixture, and makes repeated work recallable. This is repository-local project memory, not ambient training of a shared shipped Archie model. The private corpus defaults to `~/.sideways/archie/<repository-name>-<path-digest>/`. Set `ARCHIE_CORPUS_ROOT` to choose another location, `ARCHIE_DISABLED=1` to disable memory, or use `npm run maker:raw -- "..."` to bypass the bridge.
 
 Local Codex or another explicitly configured coding agent performs four parallel read-only assessments, one synthesis, and one isolated writer pass with full repository context. A draft PR is opened before mutation so `.github/workflows/maker-sprawl.yml` can reject path collisions with other open Maker PRs and fan verification across product, social, operator, and hostile lanes. Maker independently runs the exact repository gate and stops unmerged and undeployed.
 

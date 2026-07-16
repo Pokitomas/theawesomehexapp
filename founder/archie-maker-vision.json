@@ -1,0 +1,95 @@
+{
+  "schema": "archie-maker-vision/v1",
+  "product": {
+    "name": "Archie and Maker",
+    "mission": "Turn ambitious objectives into verified digital things.",
+    "current_claim": "research-and-execution-substrate-not-yet-general-product-builder"
+  },
+  "roles": {
+    "Archie": "intelligence, research, derivation, planning, uncertainty, and proof-carrying programs",
+    "Maker": "permissioned execution, tools, isolation, verification, rollback, and delivery",
+    "Foundry": "candidate invention, matched experiments, independent evaluation, and release admission",
+    "Weave": "multi-agent and human coordination with authenticated work state",
+    "Sideways": "independent reference application and ordinary Maker target"
+  },
+  "release_model": {
+    "ship_genius": true,
+    "ambient_shared_model_learning": false,
+    "ordinary_use_updates_shared_weights": false,
+    "private_history_is_training_exhaust": false,
+    "shared_capability_changes_only_by_signed_release": true,
+    "candidate_requires_independent_evaluation": true,
+    "intelligence_and_embodiment_admit_together": true,
+    "maximal_first_release": true
+  },
+  "product_form": {
+    "canonical_interface": null,
+    "chat_window_is_architecture": false,
+    "voice_is_architecture": false,
+    "always_on_daemon_is_architecture": false,
+    "product_form_is_derived_from_human_outcomes": true,
+    "strongest_admitted_surfaces_ship_together": true,
+    "shell_without_brain_is_launchable": false,
+    "brain_without_required_access_is_launchable": false,
+    "target_contract": "founder/archie-launch-target.json",
+    "evaluator": "scripts/archie-launch-contract.mjs"
+  },
+  "sideways_boundary": {
+    "is_ai_product": false,
+    "is_archie_memory": false,
+    "is_maker_subsystem": false,
+    "is_reference_application": true,
+    "receives_privileged_self_modification_path": false,
+    "uses_normal_maker_permissions": true,
+    "ships_independently": true
+  },
+  "capacity_target": {
+    "cursor": "generalize intent-to-execution beyond code editing",
+    "palantir": "synthesize fragmented state without centralized ownership of truth or authority",
+    "spacex": "generalize high-speed sensing, engineering, testing, and iteration across many missions"
+  },
+  "primary_outputs": [
+    "applications",
+    "research-systems",
+    "scientific-experiments",
+    "creative-work",
+    "educational-tools",
+    "open-source-infrastructure",
+    "civic-tools",
+    "accessibility-technology",
+    "simulations",
+    "new-digital-product-categories"
+  ],
+  "universal_build_loop": [
+    "objective",
+    "world-model",
+    "derivation",
+    "challenge",
+    "decision",
+    "permission",
+    "execution",
+    "verification",
+    "delivery",
+    "explicit-research-feedback"
+  ],
+  "forbidden_conflations": [
+    "sideways-is-archie",
+    "sideways-is-maker",
+    "archie-has-execution-authority",
+    "ordinary-use-silently-trains-shared-model",
+    "self-hosting-is-a-backdoor",
+    "fixture-success-proves-general-capability",
+    "persuasive-text-equals-completion",
+    "chat-shell-equals-product",
+    "voice-prototype-equals-embodiment",
+    "background-process-equals-ambient-intelligence"
+  ],
+  "first_impossible_proof": {
+    "objective": "Produce a polished secure tested installable application from a vague ambitious objective and an unfamiliar project context.",
+    "requires_clean_environment_reproduction": true,
+    "requires_clickable_installation": true,
+    "requires_terminal_artifact_receipts": true,
+    "sideways_may_be_one_sample": true,
+    "requires_transfer_beyond_sideways": true
+  }
+}
