@@ -3,7 +3,7 @@ name: Admit exact plugin and worker timeout repair
 on:
   pull_request:
     paths:
-      - '.archie-payload/plugin-repair/trigger-v7.txt'
+      - '.archie-payload/plugin-repair/trigger-v8.txt'
       - '.github/workflows/admit-plugin-worker-timeout-repair.yml'
 
 permissions:
@@ -67,6 +67,83 @@ jobs:
           if 'createFleetAdapterRegistry' not in s:
               s += seam
           p.write_text(s)
+
+          p = Path('scripts/tests/maker-runtime-platform.test.mjs')
+          s = p.read_text()
+          old_import = "import { createPluginRegistry } from '../maker-plugin-registry.mjs';"
+          new_import = "import { createPluginApproval, createPluginPackageReceipt, createPluginRegistry, createPluginSignatureReceipt, normalizePluginManifest } from '../maker-plugin-registry.mjs';"
+          if s.count(old_import) != 1:
+              raise SystemExit('runtime plugin import seam moved')
+          s = s.replace(old_import, new_import)
+          start = s.index('const pluginManifest = overrides => ({')
+          end = s.index('\n\nfunction baseInput', start)
+          helpers = r'''const receiptClock = () => Date.parse('2026-07-15T00:00:00.000Z');
+          function pluginManifest(overrides = {}) {
+            const raw = {
+              id: 'repo.writer', version: '1.0.0', api_compatibility: '1.0.0', kind: 'tool_runtime', entrypoint: 'writer.mjs', execution: 'sandbox_rpc',
+              provenance: { source: 'repository', publisher: 'Pokitomas', license: 'MIT', trusted: false },
+              required_runtime: { api: '1.0.0', node: '>=22', os: ['linux'], arch: ['x64'], isolation: 'sandbox' },
+              declared_capabilities: ['repository_write'],
+              permissions: { filesystem: { read: ['repo/**'], write: [], execute: [] }, network_hosts: [], commands: [], secret_references: ['GITHUB_TOKEN'], capabilities: { repository_write: 'execute' }, privileged: false },
+              configuration_schema: { type: 'object', additionalProperties: false }, dependencies: { required: [], optional: [] }, lifecycle_hooks: { invoke: 'invoke' }, migrations: [], metadata: {},
+              ...overrides
+            };
+            raw.provenance = { source: 'repository', publisher: 'Pokitomas', license: 'MIT', trusted: false, ...(overrides.provenance || {}) };
+            const permissionCapabilities = overrides.permissions?.capabilities || Object.fromEntries((raw.declared_capabilities || []).map(item => [item, 'execute']));
+            raw.permissions = {
+              filesystem: { read: ['repo/**'], write: [], execute: [], ...(overrides.permissions?.filesystem || {}) },
+              network_hosts: overrides.permissions?.network_hosts || [], commands: overrides.permissions?.commands || [],
+              secret_references: overrides.permissions?.secret_references || ['GITHUB_TOKEN'],
+              capabilities: Array.isArray(permissionCapabilities) ? Object.fromEntries(permissionCapabilities.map(item => [item, 'execute'])) : permissionCapabilities,
+              privileged: overrides.permissions?.privileged === true
+            };
+            const packageDigest = overrides.package?.digest || `sha256:${'a'.repeat(64)}`;
+            const archiveDigest = overrides.package?.archive_digest || `sha256:${'b'.repeat(64)}`;
+            const packageReceipt = createPluginPackageReceipt({ plugin_id: raw.id, version: raw.version, package_digest: packageDigest, archive_digest: archiveDigest, inspected_files_digest: `sha256:${'c'.repeat(64)}`, entrypoint: raw.entrypoint, size_bytes: 1234, inspector: 'runtime-fixture-inspector' }, { clock: receiptClock });
+            const signer = overrides.signature?.signer || 'maker-runtime-signer';
+            const signatureReceipt = createPluginSignatureReceipt({ plugin_id: raw.id, version: raw.version, package_digest: packageDigest, signer }, { clock: receiptClock });
+            raw.package = { digest: packageDigest, archive_digest: archiveDigest, size_bytes: 1234, receipt: packageReceipt, ...(overrides.package || {}) };
+            raw.signature = { status: 'verified', signer, receipt: signatureReceipt, ...(overrides.signature || {}) };
+            return raw;
+          }
+          const pluginPolicy = overrides => ({
+            runtime_api: '1.0.0', allowed_licenses: ['MIT'], allowed_sources: ['repository'], require_package_receipt: true, require_signature: true,
+            trusted_builtin_publishers: ['Maker Builtins'],
+            allowed_permissions: { filesystem: { read: ['repo/**'], write: [], execute: [] }, network_hosts: [], commands: [], capabilities: { repository_write: 'execute', release: 'approval_required' } },
+            ...overrides
+          });
+          function pluginApproval(raw, capability, d) {
+            const normalized = normalizePluginManifest(raw);
+            return createPluginApproval({ plugin_id: normalized.id, version: normalized.version, capability, level: 'approval_required', approver: 'runtime-owner', manifest_digest: normalized.manifest_digest }, { clock: d.clock, ttl_ms: 60_000, id: d.id });
+          }'''
+          s = s[:start] + helpers + s[end:]
+          old_registry = """  const manifests = options.manifests || [pluginManifest()];
+            const plugins = createPluginRegistry({
+              manifests,
+              policy: options.policy || pluginPolicy(),
+              approvals: options.approvals || [],
+              sandbox: { invoke: async () => ({ ok: true }) },
+              clock: d.clock,
+              id: d.id
+            });"""
+          new_registry = """  const manifests = options.manifests || [pluginManifest()];
+            const approvals = (options.approvals || []).map(value => {
+              if (typeof value !== 'string') return value;
+              const manifest = manifests.find(item => `${item.id}@${item.version}` === value);
+              if (!manifest) throw new Error(`unknown approval target ${value}`);
+              return pluginApproval(manifest, 'release', d);
+            });
+            const plugins = createPluginRegistry({
+              manifests,
+              policy: options.policy || pluginPolicy(),
+              approvals,
+              sandbox: { invoke: async () => ({ ok: true }) },
+              clock: d.clock,
+              id: d.id
+            });"""
+          if s.count(old_registry) != 1:
+              raise SystemExit('runtime registry fixture seam moved')
+          p.write_text(s.replace(old_registry, new_registry))
           PY
       - name: Capture both timeout repairs and composed runtime proof
         shell: bash
@@ -78,6 +155,8 @@ jobs:
           worker_check_status=$?
           node --check scripts/maker-plugin-registry.mjs > /tmp/plugin-check.log 2>&1
           plugin_check_status=$?
+          node --check scripts/tests/maker-runtime-platform.test.mjs > /tmp/runtime-check.log 2>&1
+          runtime_check_status=$?
           node --test scripts/tests/maker-worker-fleet.test.mjs > /tmp/worker-test.log 2>&1
           worker_status=$?
           node --test scripts/tests/maker-plugin-registry.test.mjs > /tmp/plugin-test.log 2>&1
@@ -86,8 +165,8 @@ jobs:
           runtime_status=$?
           git diff --check > /tmp/diff-check.log 2>&1
           diff_status=$?
-          printf 'npm=%s\nworker_check=%s\nplugin_check=%s\nworker=%s\nplugin=%s\nruntime=%s\ndiff=%s\n' "$npm_status" "$worker_check_status" "$plugin_check_status" "$worker_status" "$plugin_status" "$runtime_status" "$diff_status" | tee /tmp/proof-status.txt
-          for log in /tmp/npm-ci.log /tmp/worker-check.log /tmp/plugin-check.log /tmp/worker-test.log /tmp/plugin-test.log /tmp/runtime-test.log /tmp/diff-check.log; do echo "===== $log ====="; cat "$log"; done
+          printf 'npm=%s\nworker_check=%s\nplugin_check=%s\nruntime_check=%s\nworker=%s\nplugin=%s\nruntime=%s\ndiff=%s\n' "$npm_status" "$worker_check_status" "$plugin_check_status" "$runtime_check_status" "$worker_status" "$plugin_status" "$runtime_status" "$diff_status" | tee /tmp/proof-status.txt
+          for log in /tmp/npm-ci.log /tmp/worker-check.log /tmp/plugin-check.log /tmp/runtime-check.log /tmp/worker-test.log /tmp/plugin-test.log /tmp/runtime-test.log /tmp/diff-check.log; do echo "===== $log ====="; cat "$log"; done
       - name: Upload exact pre-admission proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -98,6 +177,7 @@ jobs:
             /tmp/npm-ci.log
             /tmp/worker-check.log
             /tmp/plugin-check.log
+            /tmp/runtime-check.log
             /tmp/worker-test.log
             /tmp/plugin-test.log
             /tmp/runtime-test.log
@@ -108,22 +188,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(awk -F= '$1=="npm"{print $2}' /tmp/proof-status.txt)" = 0
-          test "$(awk -F= '$1=="worker_check"{print $2}' /tmp/proof-status.txt)" = 0
-          test "$(awk -F= '$1=="plugin_check"{print $2}' /tmp/proof-status.txt)" = 0
-          test "$(awk -F= '$1=="worker"{print $2}' /tmp/proof-status.txt)" = 0
-          test "$(awk -F= '$1=="plugin"{print $2}' /tmp/proof-status.txt)" = 0
-          test "$(awk -F= '$1=="runtime"{print $2}' /tmp/proof-status.txt)" = 0
-          test "$(awk -F= '$1=="diff"{print $2}' /tmp/proof-status.txt)" = 0
+          for key in npm worker_check plugin_check runtime_check worker plugin runtime diff; do test "$(awk -F= -v key="$key" '$1==key{print $2}' /tmp/proof-status.txt)" = 0; done
           remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | cut -f1)"
           test "$remote_head" = "$EXPECTED_TARGET_HEAD"
           git config user.name 'sideways-maker-coordinator'
           git config user.email 'actions@users.noreply.github.com'
-          git add scripts/maker-worker-fleet.mjs scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs maker/contracts/plugin-manifest.schema.json
+          git add scripts/maker-worker-fleet.mjs scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs scripts/tests/maker-runtime-platform.test.mjs maker/contracts/plugin-manifest.schema.json
           git commit -m 'Repair fleet and plugin timeout liveness'
           new_head="$(git rev-parse HEAD)"
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
-          printf 'source_pr=361\nsource_bundle_sha256=%s\nexpected_target_head=%s\nnew_target_head=%s\nworker_timeout_witness=removed_once\nplugin_timeout_witness=removed_once\nworker_compatibility_aliases=2\nworker_tests=25/25\nplugin_tests=32/32\nruntime_tests=passed\n' "$BUNDLE_SHA256" "$EXPECTED_TARGET_HEAD" "$new_head" > /tmp/admission-receipt.txt
+          printf 'source_pr=361\nsource_bundle_sha256=%s\nexpected_target_head=%s\nnew_target_head=%s\nworker_timeout_witness=removed_once\nplugin_timeout_witness=removed_once\nworker_compatibility_aliases=2\nruntime_fixture_trust=receipt_bound\nworker_tests=25/25\nplugin_tests=32/32\nruntime_tests=13/13\n' "$BUNDLE_SHA256" "$EXPECTED_TARGET_HEAD" "$new_head" > /tmp/admission-receipt.txt
       - name: Upload exact admission receipt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
