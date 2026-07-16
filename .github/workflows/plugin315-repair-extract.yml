@@ -1,0 +1,72 @@
+name: Extract reviewed plugin repair bundle
+
+on:
+  pull_request:
+    branches:
+      - agent/plugin315-repair-extractor-base-20260715
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Fetch, extract, and verify published repair bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: 68a4bb662356095d4d0e6724ef8da0d286a832a61f867b60016d6ab9fe7ac084
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/Pokitomas/theawesomehexapp/issues/comments/4987246843 \
+            > "$RUNNER_TEMP/comment.json"
+          python - "$RUNNER_TEMP/comment.json" "$RUNNER_TEMP/plugin315-repair.tgz" <<'PY'
+          import base64, json, re, sys
+          source, target = sys.argv[1:]
+          body = json.load(open(source, encoding='utf-8'))['body']
+          match = re.search(r"base64 -d > /tmp/plugin315-repair\.tgz <<'B64'\n(.*?)\nB64", body, re.S)
+          if not match:
+              raise SystemExit('repair bundle block not found')
+          payload = ''.join(match.group(1).split())
+          open(target, 'wb').write(base64.b64decode(payload, validate=True))
+          PY
+          echo "$EXPECTED_SHA  $RUNNER_TEMP/plugin315-repair.tgz" | sha256sum -c -
+          tar -tzf "$RUNNER_TEMP/plugin315-repair.tgz" | tee "$RUNNER_TEMP/plugin315-repair.paths.txt"
+          python - "$RUNNER_TEMP/plugin315-repair.paths.txt" <<'PY'
+          import sys
+          expected = {
+              'scripts/maker-plugin-registry.mjs',
+              'scripts/tests/maker-plugin-registry.test.mjs',
+              'maker/contracts/plugin-manifest.schema.json',
+          }
+          paths = {line.strip().lstrip('./') for line in open(sys.argv[1], encoding='utf-8') if line.strip() and not line.rstrip().endswith('/')}
+          if paths != expected:
+              raise SystemExit(f'unexpected bundle paths: {sorted(paths)}')
+          PY
+          tar -xzf "$RUNNER_TEMP/plugin315-repair.tgz" -C "$GITHUB_WORKSPACE"
+          node --check scripts/maker-plugin-registry.mjs
+          node --test scripts/tests/maker-plugin-registry.test.mjs | tee "$RUNNER_TEMP/plugin315-repair.test.log"
+          mkdir -p "$RUNNER_TEMP/extracted/scripts/tests" "$RUNNER_TEMP/extracted/maker/contracts"
+          cp scripts/maker-plugin-registry.mjs "$RUNNER_TEMP/extracted/scripts/"
+          cp scripts/tests/maker-plugin-registry.test.mjs "$RUNNER_TEMP/extracted/scripts/tests/"
+          cp maker/contracts/plugin-manifest.schema.json "$RUNNER_TEMP/extracted/maker/contracts/"
+      - name: Upload verified repair bundle and exact files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plugin315-repair-verified
+          path: |
+            ${{ runner.temp }}/plugin315-repair.tgz
+            ${{ runner.temp }}/plugin315-repair.paths.txt
+            ${{ runner.temp }}/plugin315-repair.test.log
+            ${{ runner.temp }}/extracted
+          if-no-files-found: error
+          retention-days: 2
