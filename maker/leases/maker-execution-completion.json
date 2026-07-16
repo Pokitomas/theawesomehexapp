@@ -1,5 +1,5 @@
 {
-  "schema": "sideways-maker-integration-lease/v1",
+  "schema": "sideways-maker-integration-lease/v2",
   "session_id": "maker-execution-completion-20260715",
   "repository": "Pokitomas/theawesomehexapp",
   "base_branch": "main",
@@ -29,6 +29,12 @@
     "scripts/open-model-planning.mjs",
     "scripts/maker-engine.mjs",
     "scripts/maker-source-admission.mjs",
+    "scripts/maker-target-workspace.mjs",
+    "scripts/tests/maker-target-workspace.test.mjs",
+    "maker/contracts/target-workspace.schema.json",
+    "scripts/maker-github-broker.mjs",
+    "scripts/tests/maker-github-broker.test.mjs",
+    "maker/contracts/github-authority.schema.json",
     "maker/runtime/autonomous-agent.mjs",
     "scripts/tests/native-maker-worker.test.mjs",
     "scripts/tests/maker-source-admission.test.mjs",
@@ -38,22 +44,73 @@
     "MAKER_PLATFORM.md",
     "maker/leases/maker-execution-completion.json"
   ],
+  "coordinator_adoptions": [
+    {
+      "issue": 301,
+      "mode": "coordinator_adoption",
+      "reason": "Native worker failed before lease, write, commit, or pull request; the sole integration writer adopted the exact non-overlapping lane.",
+      "failed_run_id": 29459490260,
+      "failed_base_sha": "cde52b39d41a2910047f92bfb6f873c912a6e553",
+      "paths": [
+        "scripts/maker-target-workspace.mjs",
+        "scripts/tests/maker-target-workspace.test.mjs",
+        "maker/contracts/target-workspace.schema.json"
+      ],
+      "state": "implemented-validation-pending"
+    },
+    {
+      "issue": 302,
+      "mode": "coordinator_adoption",
+      "reason": "Native worker failed before lease, write, commit, or pull request; the sole integration writer adopted the exact non-overlapping lane.",
+      "failed_run_id": 29459500525,
+      "failed_base_sha": "cde52b39d41a2910047f92bfb6f873c912a6e553",
+      "paths": [
+        "scripts/maker-github-broker.mjs",
+        "scripts/tests/maker-github-broker.test.mjs",
+        "maker/contracts/github-authority.schema.json"
+      ],
+      "state": "implemented-validation-pending"
+    }
+  ],
+  "integrated_sources": [
+    {
+      "issue": 312,
+      "pull_request": 316,
+      "source_head": "355e6bd4dc6eec28cf530f8f10f7fe86abd79308",
+      "integration_commit": "e3378de4c99fe14226ce7f3993fa6b9bf87f0e93",
+      "state": "integrated"
+    },
+    {
+      "purpose": "Maker worker reliability hotfix",
+      "source_pull_request": 318,
+      "source_head": "b23e21b3c11f53b5415117300ac6200d50ec9a44",
+      "integration_pull_request": 319,
+      "integration_commit": "4431dd494de375d74dbf5b9ad423d10511cd14eb",
+      "main_state": "human-merge-required"
+    }
+  ],
+  "validation": {
+    "pull_request": 320,
+    "base_branch": "agent/maker-validation-base",
+    "base_sha": "4431dd494de375d74dbf5b9ad423d10511cd14eb",
+    "state": "running"
+  },
   "source_lanes": [
-    { "issue": 301, "purpose": "cross-repository workspace", "paths": ["scripts/maker-target-workspace.mjs", "scripts/tests/maker-target-workspace.test.mjs", "maker/contracts/target-workspace.schema.json"] },
-    { "issue": 302, "purpose": "GitHub authority and repository lifecycle", "paths": ["scripts/maker-github-broker.mjs", "scripts/tests/maker-github-broker.test.mjs", "maker/contracts/github-authority.schema.json"] },
-    { "issue": 303, "purpose": "bounded developer tool runtime", "paths": ["maker/runtime/tool-broker.mjs", "scripts/tests/maker-tool-broker.test.mjs", "maker/contracts/tool-policy.schema.json"] },
-    { "issue": 304, "purpose": "operator cockpit", "paths": ["maker/index.html", "maker/maker.css", "maker/maker.js", "maker/sw.js", "maker/manifest.webmanifest", "scripts/tests/maker-console.test.mjs", "scripts/tests/maker-console-phone.mjs"] },
-    { "issue": 305, "purpose": "CI review repair release deployment loop", "paths": ["scripts/maker-delivery-loop.mjs", "scripts/tests/maker-delivery-loop.test.mjs", "maker/contracts/delivery-loop.schema.json"] },
-    { "issue": 306, "purpose": "repository intelligence", "paths": ["scripts/maker-repository-intelligence.mjs", "scripts/tests/maker-repository-intelligence.test.mjs", "maker/contracts/repository-intelligence.schema.json"] },
-    { "issue": 307, "purpose": "transactional editing", "paths": ["maker/runtime/edit-broker.mjs", "scripts/tests/maker-edit-broker.test.mjs", "maker/contracts/edit-transaction.schema.json"] },
-    { "issue": 308, "purpose": "recursive orchestration and memory", "paths": ["scripts/maker-orchestrator.mjs", "scripts/tests/maker-orchestrator.test.mjs", "maker/contracts/orchestration.schema.json"] },
-    { "issue": 309, "purpose": "security and capability policy", "paths": ["scripts/maker-security-policy.mjs", "scripts/tests/maker-security-policy.test.mjs", "maker/contracts/security-policy.schema.json"] },
-    { "issue": 310, "purpose": "evaluation and capability admission", "paths": ["scripts/maker-evaluation.mjs", "scripts/tests/maker-evaluation.test.mjs", "maker/evaluations/capability-suite.json", "maker/contracts/evaluation-receipt.schema.json"] },
-    { "issue": 311, "purpose": "local and hosted control plane", "paths": ["scripts/maker-control-plane.mjs", "scripts/maker-control-cli.mjs", "scripts/tests/maker-control-plane.test.mjs", "maker/contracts/control-plane.schema.json"] },
-    { "issue": 312, "purpose": "Linux and connector relay", "paths": ["scripts/maker-linux-relay.mjs", "scripts/tests/maker-linux-relay.test.mjs", "maker/contracts/linux-relay.schema.json"] },
-    { "issue": 313, "purpose": "model provider routing", "paths": ["scripts/maker-model-router.mjs", "scripts/tests/maker-model-router.test.mjs", "maker/contracts/model-router.schema.json"] },
-    { "issue": 314, "purpose": "worker fleet", "paths": ["scripts/maker-worker-fleet.mjs", "scripts/tests/maker-worker-fleet.test.mjs", "maker/contracts/worker-fleet.schema.json"] },
-    { "issue": 315, "purpose": "permissioned plugin registry", "paths": ["scripts/maker-plugin-registry.mjs", "scripts/tests/maker-plugin-registry.test.mjs", "maker/contracts/plugin-manifest.schema.json"] }
+    { "issue": 301, "mode": "coordinator_adoption", "purpose": "cross-repository workspace", "paths": ["scripts/maker-target-workspace.mjs", "scripts/tests/maker-target-workspace.test.mjs", "maker/contracts/target-workspace.schema.json"] },
+    { "issue": 302, "mode": "coordinator_adoption", "purpose": "GitHub authority and repository lifecycle", "paths": ["scripts/maker-github-broker.mjs", "scripts/tests/maker-github-broker.test.mjs", "maker/contracts/github-authority.schema.json"] },
+    { "issue": 303, "mode": "source_pr", "purpose": "bounded developer tool runtime", "paths": ["maker/runtime/tool-broker.mjs", "scripts/tests/maker-tool-broker.test.mjs", "maker/contracts/tool-policy.schema.json"] },
+    { "issue": 304, "mode": "source_pr", "purpose": "operator cockpit", "paths": ["maker/index.html", "maker/maker.css", "maker/maker.js", "maker/sw.js", "maker/manifest.webmanifest", "scripts/tests/maker-console.test.mjs", "scripts/tests/maker-console-phone.mjs"] },
+    { "issue": 305, "mode": "source_pr", "purpose": "CI review repair release deployment loop", "paths": ["scripts/maker-delivery-loop.mjs", "scripts/tests/maker-delivery-loop.test.mjs", "maker/contracts/delivery-loop.schema.json"] },
+    { "issue": 306, "mode": "source_pr", "purpose": "repository intelligence", "paths": ["scripts/maker-repository-intelligence.mjs", "scripts/tests/maker-repository-intelligence.test.mjs", "maker/contracts/repository-intelligence.schema.json"] },
+    { "issue": 307, "mode": "source_pr", "purpose": "transactional editing", "paths": ["maker/runtime/edit-broker.mjs", "scripts/tests/maker-edit-broker.test.mjs", "maker/contracts/edit-transaction.schema.json"] },
+    { "issue": 308, "mode": "source_pr", "purpose": "recursive orchestration and memory", "paths": ["scripts/maker-orchestrator.mjs", "scripts/tests/maker-orchestrator.test.mjs", "maker/contracts/orchestration.schema.json"] },
+    { "issue": 309, "mode": "source_pr", "purpose": "security and capability policy", "paths": ["scripts/maker-security-policy.mjs", "scripts/tests/maker-security-policy.test.mjs", "maker/contracts/security-policy.schema.json"] },
+    { "issue": 310, "mode": "source_pr", "purpose": "evaluation and capability admission", "paths": ["scripts/maker-evaluation.mjs", "scripts/tests/maker-evaluation.test.mjs", "maker/evaluations/capability-suite.json", "maker/contracts/evaluation-receipt.schema.json"] },
+    { "issue": 311, "mode": "source_pr", "purpose": "local and hosted control plane", "paths": ["scripts/maker-control-plane.mjs", "scripts/maker-control-cli.mjs", "scripts/tests/maker-control-plane.test.mjs", "maker/contracts/control-plane.schema.json"] },
+    { "issue": 312, "mode": "source_pr", "purpose": "Linux and connector relay", "paths": ["scripts/maker-linux-relay.mjs", "scripts/tests/maker-linux-relay.test.mjs", "maker/contracts/linux-relay.schema.json"] },
+    { "issue": 313, "mode": "source_pr", "purpose": "model provider routing", "paths": ["scripts/maker-model-router.mjs", "scripts/tests/maker-model-router.test.mjs", "maker/contracts/model-router.schema.json"] },
+    { "issue": 314, "mode": "source_pr", "purpose": "worker fleet", "paths": ["scripts/maker-worker-fleet.mjs", "scripts/tests/maker-worker-fleet.test.mjs", "maker/contracts/worker-fleet.schema.json"] },
+    { "issue": 315, "mode": "source_pr", "purpose": "permissioned plugin registry", "paths": ["scripts/maker-plugin-registry.mjs", "scripts/tests/maker-plugin-registry.test.mjs", "maker/contracts/plugin-manifest.schema.json"] }
   ],
   "integration_order": [301, 302, 309, 306, 307, 303, 308, 313, 314, 315, 311, 305, 304, 310, 312],
   "termination": "One exact-head verified draft PR to main with every admitted source lane integrated, shared worker/workflow composition complete, and no source PR merged independently to main."
