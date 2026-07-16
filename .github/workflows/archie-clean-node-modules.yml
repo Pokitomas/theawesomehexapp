@@ -1,0 +1,117 @@
+name: Clean and revalidate Archie derivational candidate
+
+on:
+  push:
+    branches:
+      - agent/archie-derivational-cognition-final
+    paths:
+      - .github/workflows/archie-clean-node-modules.yml
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: archie-clean-node-modules
+  cancel-in-progress: false
+
+jobs:
+  clean:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Stage generated-tree cleanup only
+        run: |
+          set -euo pipefail
+          git config user.name 'archie-finalizer[bot]'
+          git config user.email 'archie-finalizer[bot]@users.noreply.github.com'
+          git rm -r --cached --ignore-unmatch node_modules
+          rm -rf node_modules
+          printf 'node_modules/\n' > .gitignore
+          git add .gitignore
+          git rm .github/workflows/archie-clean-node-modules.yml
+      - name: Execute final gate matrix
+        id: gates
+        run: |
+          set +e
+          mkdir -p /tmp/archie-final-logs
+          : > /tmp/archie-final-status.tsv
+          run_gate() {
+            name="$1"
+            shift
+            echo "[gate] $name: $*"
+            "$@" > "/tmp/archie-final-logs/${name}.log" 2>&1
+            code=$?
+            cat "/tmp/archie-final-logs/${name}.log"
+            printf '%s\t%s\n' "$name" "$code" >> /tmp/archie-final-status.tsv
+          }
+          run_gate npm-ci npm ci
+          run_gate test-archie npm run test:archie
+          run_gate test-maker npm run test:maker
+          run_gate benchmark-archie-derive npm run benchmark:archie:derive
+          run_gate test-foundry npm run test:foundry
+          run_gate test-weave npm run test:weave
+          run_gate verify-repository npm run verify:repository
+          if awk -F '\t' '$2 != 0 { failed=1 } END { exit failed ? 0 : 1 }' /tmp/archie-final-status.tsv; then
+            echo 'passed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'passed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish clean validated head
+        if: steps.gates.outputs.passed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git commit -m 'chore: remove generated dependencies from Archie candidate'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          head_sha=$(git rev-parse HEAD)
+          {
+            echo '## Archie derivational candidate clean and green'
+            echo
+            echo "Exact candidate head: \`$head_sha\`"
+            echo
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" = '0' ]; then state='PASS'; else state='FAIL'; fi
+              echo "- $state \`$name\` (exit $code)"
+            done < /tmp/archie-final-status.tsv
+            echo
+            echo '- `node_modules` is removed from version control and ignored.'
+            echo '- Temporary validation workflows are absent from the candidate.'
+            echo '- Candidate remains based on current `main`; no merge or deployment occurred.'
+          } > /tmp/archie-final-comment.md
+          gh issue comment 387 --body-file /tmp/archie-final-comment.md
+      - name: Report cleanup failure
+        if: steps.gates.outputs.passed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## Archie derivational cleanup validation failed'
+            echo
+            while IFS=$'\t' read -r name code; do
+              if [ "$code" = '0' ]; then state='PASS'; else state='FAIL'; fi
+              echo "- $state \`$name\` (exit $code)"
+              if [ "$code" != '0' ]; then
+                echo
+                echo "<details><summary>$name log tail</summary>"
+                echo
+                echo '```text'
+                tail -n 120 "/tmp/archie-final-logs/${name}.log"
+                echo '```'
+                echo '</details>'
+              fi
+            done < /tmp/archie-final-status.tsv
+            echo
+            echo 'No cleanup commit, PR, merge, or deployment was published.'
+          } > /tmp/archie-final-comment.md
+          gh issue comment 387 --body-file /tmp/archie-final-comment.md
+          exit 1
