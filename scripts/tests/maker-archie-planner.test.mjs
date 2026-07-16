@@ -84,6 +84,47 @@ function train(examples = baseExamples(), extra = {}) {
   });
 }
 
+function expectedCalibratedConfidence({ confidence, threshold, slope, margin }) {
+  const centered = (confidence - threshold) * slope + margin * 2;
+  return Number(Math.max(0, Math.min(1, 1 / (1 + Math.exp(-centered)))).toFixed(6));
+}
+
+test('calibrates against a trained zero threshold', () => {
+  const model = train(baseExamples(), { threshold: 0 });
+  const plan = planWithArchieCPUPlanner(model, {
+    instruction: 'Recover a git branch after a merge conflict and verify the repaired repository tests.'
+  });
+  assert.equal(model.threshold, 0);
+  assert.equal(plan.calibrated_confidence, expectedCalibratedConfidence({
+    confidence: plan.confidence,
+    threshold: 0,
+    slope: model.calibration.slope,
+    margin: plan.margin
+  }));
+});
+
+test('calibrates against an inference-time threshold override', () => {
+  const model = train();
+  const threshold = 0.9;
+  const plan = planWithArchieCPUPlanner(model, {
+    instruction: 'Repair the conflicted repo head and run checks after the branch repair.'
+  }, { threshold });
+  const expected = expectedCalibratedConfidence({
+    confidence: plan.confidence,
+    threshold,
+    slope: model.calibration.slope,
+    margin: plan.margin
+  });
+  const modelThresholdResult = expectedCalibratedConfidence({
+    confidence: plan.confidence,
+    threshold: model.threshold,
+    slope: model.calibration.slope,
+    margin: plan.margin
+  });
+  assert.equal(plan.calibrated_confidence, expected);
+  assert.notEqual(plan.calibrated_confidence, modelThresholdResult);
+});
+
 test('generalizes paraphrases without memorizing exact wording', () => {
   const model = train();
   const plan = planWithArchieCPUPlanner(model, { instruction: 'Fix the conflicted repo head and run checks after the branch repair.' });
