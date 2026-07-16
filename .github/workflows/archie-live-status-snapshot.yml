@@ -1,0 +1,52 @@
+name: Archie live-status exact-tree snapshot
+
+on:
+  push:
+    branches:
+      - agent/archie-live-status
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Archive exact sidecar checkout
+        run: |
+          set -euo pipefail
+          tar --exclude=.git -czf "$RUNNER_TEMP/archie-live-status-source.tgz" .
+          sha256sum "$RUNNER_TEMP/archie-live-status-source.tgz" | tee "$RUNNER_TEMP/archie-live-status-source.sha256"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/archie-live-status-source-head.txt"
+      - name: Upload exact sidecar checkout
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-live-status-source-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/archie-live-status-source.tgz
+            ${{ runner.temp }}/archie-live-status-source.sha256
+            ${{ runner.temp }}/archie-live-status-source-head.txt
+          if-no-files-found: error
+          retention-days: 2
+      - name: Publish run receipt to issue 351
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          <!-- archie-sidecar-snapshot:${GITHUB_RUN_ID} -->
+          Archie sidecar exact-tree snapshot uploaded.
+
+          - run: ${GITHUB_RUN_ID}
+          - head: \`${GITHUB_SHA}\`
+          - artifact: \`archie-live-status-source-${GITHUB_SHA}\`
+          - branch: \`${GITHUB_REF_NAME}\`
+
+          No coordinator edit, merge, or deployment.
+          EOF
+          )
+          gh api "repos/${GITHUB_REPOSITORY}/issues/351/comments" -f body="$body" >/dev/null
