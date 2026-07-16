@@ -1,0 +1,123 @@
+## npm-ci
+
+added 51 packages, and audited 52 packages in 980ms
+
+13 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+status=0
+
+## syntax
+status=0
+
+## focused-tests
+TAP version 13
+# Subtest: default public providers are bounded, diverse, credential-free windows
+ok 1 - default public providers are bounded, diverse, credential-free windows
+  ---
+  duration_ms: 7.573182
+  type: 'test'
+  ...
+# Subtest: configured search remains honestly unavailable without a public endpoint
+ok 2 - configured search remains honestly unavailable without a public endpoint
+  ---
+  duration_ms: 0.404128
+  type: 'test'
+  ...
+# Subtest: provider windows deduplicate canonicals across sources before the global limit
+ok 3 - provider windows deduplicate canonicals across sources before the global limit
+  ---
+  duration_ms: 2.084804
+  type: 'test'
+  ...
+# Subtest: source URL and resolved-address policy reject local, reserved, and credentialed targets
+ok 4 - source URL and resolved-address policy reject local, reserved, and credentialed targets
+  ---
+  duration_ms: 7.783452
+  type: 'test'
+  ...
+# Subtest: every redirect hop is resolved and rejected when DNS changes to a private address
+ok 5 - every redirect hop is resolved and rejected when DNS changes to a private address
+  ---
+  duration_ms: 0.984827
+  type: 'test'
+  ...
+# Subtest: robots policy uses longest matching rule and allow wins equal specificity
+ok 6 - robots policy uses longest matching rule and allow wins equal specificity
+  ---
+  duration_ms: 0.562973
+  type: 'test'
+  ...
+# Subtest: RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenance
+ok 7 - RSS, Atom, sitemap, JSON, and HTML normalize with explicit public provenance
+  ---
+  duration_ms: 7.81526
+  type: 'test'
+  ...
+# Subtest: live MIME admission ignores parser hints and HTML canonicals use the final fetched URL
+ok 8 - live MIME admission ignores parser hints and HTML canonicals use the final fetched URL
+  ---
+  duration_ms: 1.379931
+  type: 'test'
+  ...
+# Subtest: invalid configured-source JSON falls back truthfully without aborting the snapshot
+ok 9 - invalid configured-source JSON falls back truthfully without aborting the snapshot
+  ---
+  duration_ms: 0.773104
+  type: 'test'
+  ...
+# Subtest: malformed provider entries become bounded unavailable receipts instead of aborting the build
+ok 10 - malformed provider entries become bounded unavailable receipts instead of aborting the build
+  ---
+  duration_ms: 0.56126
+  type: 'test'
+  ...
+# Subtest: snapshot build is bounded, deduplicated, provenance-bearing, and fails providers honestly
+ok 11 - snapshot build is bounded, deduplicated, provenance-bearing, and fails providers honestly
+  ---
+  duration_ms: 0.749608
+  type: 'test'
+  ...
+# Subtest: snapshot writer emits gzip JSONL plus a finite source receipt
+ok 12 - snapshot writer emits gzip JSONL plus a finite source receipt
+  ---
+  duration_ms: 2.189318
+  type: 'test'
+  ...
+# Subtest: fetch implementation is manually redirected and DNS-pinned
+ok 13 - fetch implementation is manually redirected and DNS-pinned
+  ---
+  duration_ms: 0.667888
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 120.559738
+status=0
+
+## actual-snapshot
+{"schema":"sideways-web-source-snapshot/v2","output":"/tmp/sideways-corpus/general.jsonl.gz","records":1549,"receipts":[{"provider":"wikinews-a","status":"ready","admitted":250,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://en.wikinews.org/w/api.php?action=query&generator=allpages&gapnamespace=0&gaplimit=250&gapfrom=A&prop=extracts%7Cinfo&exintro=1&inprop=url&format=json&origin=*","status":200,"address":"208.80.154.224"}],"bytes":161145,"contentType":"application/json"}},{"provider":"wikinews-i","status":"ready","admitted":250,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://en.wikinews.org/w/api.php?action=query&generator=allpages&gapnamespace=0&gaplimit=250&gapfrom=I&prop=extracts%7Cinfo&exintro=1&inprop=url&format=json&origin=*","status":200,"address":"208.80.154.224"}],"bytes":166586,"contentType":"application/json"}},{"provider":"wikinews-q","status":"ready","admitted":250,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://en.wikinews.org/w/api.php?action=query&generator=allpages&gapnamespace=0&gaplimit=250&gapfrom=Q&prop=extracts%7Cinfo&exintro=1&inprop=url&format=json&origin=*","status":200,"address":"208.80.154.224"}],"bytes":158160,"contentType":"application/json"}},{"provider":"hacker-news-0","status":"ready","admitted":236,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250&page=0","status":200,"address":"34.160.168.181"}],"bytes":227334,"contentType":"application/json"}},{"provider":"hacker-news-1","status":"ready","admitted":239,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250&page=1","status":200,"address":"34.160.168.181"}],"bytes":219105,"contentType":"application/json"}},{"provider":"hacker-news-2","status":"ready","admitted":235,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=250&page=2","status":200,"address":"34.160.168.181"}],"bytes":234616,"contentType":"application/json"}},{"provider":"mastodon-social","status":"unavailable","admitted":0,"error":"source responded 422"},{"provider":"mstdn-social","status":"ready","admitted":40,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://mstdn.social/api/v1/timelines/public?limit=40","status":200,"address":"188.34.142.224"}],"bytes":162414,"contentType":"application/json"}},{"provider":"fosstodon","status":"ready","admitted":26,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://fosstodon.org/api/v1/timelines/public?limit=40","status":200,"address":"151.101.131.52"}],"bytes":182047,"contentType":"application/json"}},{"provider":"hachyderm","status":"ready","admitted":14,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://hachyderm.io/api/v1/timelines/public?limit=40","status":200,"address":"162.216.18.106"}],"bytes":169722,"contentType":"application/json"}},{"provider":"techhub","status":"ready","admitted":9,"evidence":{"robots":{"policy":"not-applicable","allowed":true},"hops":[{"url":"https://techhub.social/api/v1/timelines/public?limit=40","status":200,"address":"104.21.82.233"}],"bytes":173979,"contentType":"application/json"}}]}
+status=0
+
+## snapshot-verifier
+file:///home/runner/work/theawesomehexapp/theawesomehexapp/scripts/verify-web-source-snapshot.mjs:14
+  if (!condition) throw new Error(message);
+                        ^
+
+Error: too few social records: 89 <= 150
+    at requireValue (file:///home/runner/work/theawesomehexapp/theawesomehexapp/scripts/verify-web-source-snapshot.mjs:14:25)
+    at file:///home/runner/work/theawesomehexapp/theawesomehexapp/scripts/verify-web-source-snapshot.mjs:51:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.1
+status=1
+
