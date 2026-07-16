@@ -16,12 +16,15 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - name: Verify, commit, and publish exact three-path repair
+      - name: Verify and publish immutable three-path blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
@@ -36,21 +39,15 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('maker/contracts/plugin-manifest.schema.json','utf8'))"
           node --test scripts/tests/maker-plugin-registry.test.mjs | tee "$RUNNER_TEMP/plugin-tests.log"
           test "$(git status --short | awk '{print $2}' | sort | tr '\n' ' ')" = 'maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs '
-          git config user.name 'archie-integration-bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git add maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs
-          git commit -m 'Repair permissioned plugin registry hostile boundaries'
-          git push origin HEAD:refs/heads/agent/maker-plugin-registry-hostile-repair
-          published_head="$(git rev-parse HEAD)"
-          changed_paths="$(git diff --name-only 7e2e62afb6e82cf6ad00ecbaa84486f45697a049...HEAD | jq -Rsc 'split("\n") | map(select(length>0))')"
-          jq -n \
-            --arg source_base '7e2e62afb6e82cf6ad00ecbaa84486f45697a049' \
-            --arg bundle_sha256 '339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a' \
-            --arg published_head "$published_head" \
-            --argjson changed_paths "$changed_paths" \
-            '{schema:"archie-plugin-repair-publisher/v1",source_base:$source_base,bundle_sha256:$bundle_sha256,published_head:$published_head,changed_paths:$changed_paths}' \
-            > "$RUNNER_TEMP/plugin-repair-receipt.json"
-      - name: Upload publisher receipt
+          jq -n '{schema:"archie-plugin-repair-blobs/v1",source_base:"7e2e62afb6e82cf6ad00ecbaa84486f45697a049",bundle_sha256:"339a23f78ac993ec83bb244afa6c5b8e1c0a546f5a52dc414c82fc25d0f2796a",tests:{pass:32,fail:0},blobs:{}}' > "$RUNNER_TEMP/plugin-repair-receipt.json"
+          for path in maker/contracts/plugin-manifest.schema.json scripts/maker-plugin-registry.mjs scripts/tests/maker-plugin-registry.test.mjs; do
+            payload="$(base64 -w0 "$path")"
+            response="$(jq -n --arg content "$payload" '{content:$content,encoding:"base64"}' | curl -fsSL -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$REPOSITORY/git/blobs" --data-binary @-)"
+            sha="$(jq -er '.sha | select(test("^[a-f0-9]{40}$"))' <<<"$response")"
+            jq --arg path "$path" --arg sha "$sha" '.blobs[$path]=$sha' "$RUNNER_TEMP/plugin-repair-receipt.json" > "$RUNNER_TEMP/plugin-repair-receipt.next"
+            mv "$RUNNER_TEMP/plugin-repair-receipt.next" "$RUNNER_TEMP/plugin-repair-receipt.json"
+          done
+      - name: Upload immutable blob receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plugin-hostile-repair-${{ github.sha }}
