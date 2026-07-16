@@ -29,7 +29,11 @@ test('arguments keep the terminal surface intentionally small', () => {
   assert.equal(parsed.base, 'trunk');
   assert.equal(parsed.agent, 'command');
   assert.equal(parsed.request, 'finish the app');
+  const internal = parseMakerArgs(['--archie-decision-file', '/tmp/decision.json', 'repeat']);
+  assert.equal(internal.archieDecisionFile, '/tmp/decision.json');
+  assert.equal(internal.request, 'repeat');
   assert.throws(() => parseMakerArgs(['--wat']), /Unknown Maker option/);
+  assert.throws(() => parseMakerArgs(['--archie-decision-file']), /requires a path/);
   assert.throws(() => parseMakerArgs(['--agent', 'command', 'x']), /requires/);
 });
 

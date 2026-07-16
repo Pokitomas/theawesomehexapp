@@ -52,6 +52,7 @@ test('normalizes current native Maker receipts into completed corpus evidence', 
     state: 'completed',
     selected_lane: 'operator',
     branch: 'maker/native-memory',
+    base_sha: 'base456',
     head_sha: 'def456',
     pull_request: 'https://github.com/Pokitomas/theawesomehexapp/pull/999',
     verification: ['git diff --check', 'npm run verify:repository'],
@@ -61,10 +62,12 @@ test('normalizes current native Maker receipts into completed corpus evidence', 
   const normalized = nativeMakerReceiptForCorpus(receipt, { repoRoot: '/work/theawesomehexapp' });
   assert.equal(normalized.state, 'completed');
   assert.equal(normalized.task.request, receipt.request);
-  assert.deepEqual(normalized.components.model_route.output.plan, receipt.plan);
+  assert.deepEqual(normalized.components.model_route.output.plan, normalizeReusableMakerPlan(receipt.plan));
   assert.equal(normalized.components.dispatch.adapter, 'native-maker-operator');
   assert.equal(normalized.components.control_job.result.pull_request, receipt.pull_request);
   assert.equal(normalized.components.model_route.attempts.length, 2);
+  assert.equal(normalized.task.proof.base_sha, receipt.base_sha);
+  assert.equal(normalized.task.proof.head_sha, receipt.head_sha);
 });
 
 test('stores a successful native Maker plan and recalls it locally on the repeated request', async t => {
@@ -80,6 +83,7 @@ test('stores a successful native Maker plan and recalls it locally on the repeat
     state: 'completed',
     selected_lane: 'operator',
     branch: 'maker/native-memory',
+    base_sha: 'base-fedcba',
     head_sha: 'fedcba',
     pull_request: 'https://github.com/Pokitomas/theawesomehexapp/pull/1000',
     verification: ['node --test scripts/tests/maker-archie-native.test.mjs'],
@@ -90,7 +94,7 @@ test('stores a successful native Maker plan and recalls it locally on the repeat
   const clock = () => '2026-07-16T08:00:00.000Z';
   const training = { dimensions: 512, threshold: 0.05, minimum_margin: 0.01 };
 
-  const before = await recallNativeMakerPlan({ repoRoot: repository, request, home, env, clock, training });
+  const before = await recallNativeMakerPlan({ repoRoot: repository, request, baseSha: receipt.base_sha, home, env, clock, training });
   assert.equal(before.status, 'miss');
 
   const remembered = await rememberNativeMakerRun({ repoRoot: repository, receipt, home, env, clock, training });
@@ -98,11 +102,19 @@ test('stores a successful native Maker plan and recalls it locally on the repeat
   assert.equal(remembered.document_count, 1);
   assert.equal(remembered.specialist_count, 1);
 
-  const recalled = await recallNativeMakerPlan({ repoRoot: repository, request, home, env, clock, training });
+  const recalled = await recallNativeMakerPlan({ repoRoot: repository, request, baseSha: receipt.base_sha, home, env, clock, training });
   assert.equal(recalled.status, 'local');
   assert.equal(recalled.plan.selected_lane, 'operator');
-  assert.deepEqual(recalled.plan.owned_paths, makerPlan().owned_paths);
+  assert.deepEqual(recalled.plan.owned_paths, normalizeReusableMakerPlan(makerPlan()).owned_paths);
   assert.ok(recalled.confidence >= 0.05);
+  assert.equal(recalled.execution_eligible, true);
+  assert.equal(recalled.execution_basis.kind, 'normalized-exact-verified-recurrence');
+  assert.equal(recalled.execution_basis.base_sha, receipt.base_sha);
+
+  const moved = await recallNativeMakerPlan({ repoRoot: repository, request, baseSha: 'different-base', home, env, clock, training });
+  assert.equal(moved.status, 'local');
+  assert.equal(moved.execution_eligible, false);
+  assert.match(moved.reason, /current base SHA/);
 
   const paths = resolveNativeArchiePaths(repository, { home, env });
   assert.equal(paths.root.startsWith(home), true);
