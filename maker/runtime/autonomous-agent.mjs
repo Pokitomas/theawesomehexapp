@@ -30,8 +30,9 @@ function prompt() {
     '{"tool":"replace","path":"relative/file","before":"exact text","after":"replacement","expected":1}',
     '{"tool":"delete","path":"relative/file"}',
     '{"tool":"run","program":"allowlisted executable","args":["argv","only"]}',
-    '{"tool":"repair_start","failure_id":"failure-1","hypothesis":"root cause"}',
-    '{"tool":"repair_complete","failure_id":"failure-1","evidence":"what changed and why"}',
+    '{"tool":"repair_start","failure_id":"failure-1","hypothesis":"falsifiable root-cause claim"}',
+    'After mutation, rerun the exact failing command. repair_complete is rejected until that command succeeds.',
+    '{"tool":"repair_complete","failure_id":"failure-1","evidence":"what changed and why the successful rerun proves it"}',
     '{"tool":"checkpoint","label":"meaningful state"}',
     '{"tool":"verify","commands":[{"program":"...","args":["..."]}]}',
     '{"tool":"status"}',
@@ -39,6 +40,7 @@ function prompt() {
     '{"tool":"cancel","reason":"why"}',
     '{"tool":"finish","summary":"implemented result","risks":["remaining external facts"]}',
     'No shell strings, network, credentials, merge, deploy, production data, repository settings, or training-spend authority.',
+    'A failed command freezes mutation until repair_start records a hypothesis. Failed repair probes remain attached to the same failure.',
     'Do not claim a test passed unless the engine observation says ok=true. Finish is rejected until state=ready.'
   ].join('\n');
 }
