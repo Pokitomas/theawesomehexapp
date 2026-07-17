@@ -43,6 +43,20 @@ function saveTask(text, route) {
   return task;
 }
 
+function updateSharedTask(text, route) {
+  const prior = loadTask();
+  const next = {
+    schema: 'archie-shared-task/v2',
+    text: clean(text),
+    route,
+    created_at: prior.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    source: prior.source || 'shared-progressive-view'
+  };
+  localStorage.setItem(TASK_KEY, JSON.stringify(next));
+  return next;
+}
+
 function routeHref(route) {
   const href = ROUTES[route] || ROUTES.archie;
   const atRoot = !/\/desktop\/$/.test(location.pathname) && !/\/(?:archie|maker|founder|foundry|world-expo)\//.test(location.pathname);
@@ -108,9 +122,15 @@ const fieldBySurface = {
 };
 const surface = document.body?.dataset.surface;
 const target = surface ? document.querySelector(fieldBySurface[surface]) : null;
-if (target && task.text && !target.value.trim()) {
-  target.value = task.text;
-  target.dispatchEvent(new Event('input', { bubbles: true }));
+if (target && surface) {
+  target.addEventListener('input', () => {
+    const next = updateSharedTask(target.value, surface);
+    if (currentTask) currentTask.textContent = next.text || 'No shared task yet. Start from Home or type below.';
+  });
+  if (task.text && !target.value.trim()) {
+    target.value = task.text;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
 }
 
 document.querySelectorAll('[data-clear-shared-task]').forEach(button => button.addEventListener('click', () => {
