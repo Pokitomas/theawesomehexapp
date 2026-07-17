@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "archie-app-manifest/v1",
+  "title": "Archie App capability manifest",
+  "type": "object",
+  "required": ["schema", "app_id", "version", "human_outcome", "required_faculties", "requirements", "interaction_forms", "manifest_digest"],
+  "properties": {
+    "schema": {"const": "archie-app-manifest/v1"},
+    "app_id": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "human_outcome": {"type": "string", "minLength": 1},
+    "required_faculties": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "optional_faculties": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "requirements": {"type": "object"},
+    "interaction_forms": {"type": "array", "items": {"type": "string"}, "description": "No chat or assistant-voice form is mandatory."},
+    "evidence_gates": {"type": "array"},
+    "degradation": {},
+    "retirement": {},
+    "metadata": {},
+    "manifest_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}
