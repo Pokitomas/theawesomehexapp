@@ -96,7 +96,7 @@ async function main() {
 
   if (options.request && !options.help) {
     const recalled = await recallNativeMakerPlan({ repoRoot: root, request: options.request, baseBranch: options.base, baseSha });
-    if (recalled.status === 'local' && recalled.execution_eligible) {
+    if ((recalled.status === 'local' || recalled.status === 'teacher') && recalled.execution_eligible) {
       const key = randomBytes(32).toString('hex');
       decisionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sideways-archie-maker-decision-'));
       const decisionPath = path.join(decisionRoot, 'decision.json');
@@ -111,7 +111,11 @@ async function main() {
       await fs.writeFile(decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
       makerArgv.push('--archie-decision-file', decisionPath);
       makerEnv.ARCHIE_MAKER_DECISION_KEY = key;
-      process.stdout.write(`[archie] reusable plan candidate ${recalled.specialist_id} confidence=${Number(recalled.confidence).toFixed(3)} margin=${Number(recalled.margin).toFixed(3)}; Maker must verify it before execution\n`);
+      if (recalled.status === 'teacher') {
+        process.stdout.write(`[archie] bounded OpenAI teacher plan ${clean(recalled.teacher_receipt?.response_id, 300) || 'unknown'} admitted to Maker authority and verification gates\n`);
+      } else {
+        process.stdout.write(`[archie] reusable plan candidate ${recalled.specialist_id} confidence=${Number(recalled.confidence).toFixed(3)} margin=${Number(recalled.margin).toFixed(3)}; Maker must verify it before execution\n`);
+      }
     } else if (recalled.status === 'local') {
       process.stdout.write(`[archie] fuzzy reusable-plan candidate ${recalled.specialist_id} remains advisory (${clean(recalled.reason, 500)})\n`);
     } else if (recalled.status === 'failed') {

@@ -81,20 +81,33 @@ export function createArchieMakerDecision({
 } = {}) {
   const instruction = clean(request);
   const plan = normalizeMakerExecutionPlan(recall?.plan);
+  const state = clean(recall?.status, 100);
+  const localRecurrence = state === 'local' && recall?.execution_basis?.kind === 'normalized-exact-verified-recurrence';
+  const freshTeacher = state === 'teacher' && recall?.execution_basis?.kind === 'fresh-bounded-teacher-plan';
   if (!instruction) throw new Error('Archie Maker decision requires a request.');
   if (!repository) throw new Error('Archie Maker decision requires a repository.');
   if (!clean(baseSha, 200)) throw new Error('Archie Maker decision requires an exact base SHA.');
-  if (!plan || recall?.status !== 'local') throw new Error('Archie Maker decision requires a valid local plan.');
-  if (recall.execution_eligible !== true || recall.execution_basis?.kind !== 'normalized-exact-verified-recurrence') {
-    throw new Error('Archie Maker decision requires a normalized-exact verified recurrence.');
+  if (!plan) throw new Error('Archie Maker decision requires a valid exact recurrence or bounded teacher plan.');
+  if (state === 'local' && !localRecurrence) throw new Error('Archie Maker decision requires a normalized-exact verified recurrence.');
+  if (state === 'teacher' && !freshTeacher) throw new Error('Archie Maker decision requires a fresh bounded teacher plan.');
+  if (!localRecurrence && !freshTeacher) throw new Error('Archie Maker decision requires a valid exact recurrence or bounded teacher plan.');
+  if (recall.execution_eligible !== true) throw new Error('Archie Maker decision is not execution eligible.');
+  if (clean(recall.execution_basis?.base_sha, 200) !== clean(baseSha, 200)) throw new Error('Archie Maker decision base SHA does not match.');
+  if (freshTeacher) {
+    const receipt = recall.teacher_receipt;
+    if (receipt?.schema !== 'archie-openai-teacher-receipt/v1') throw new Error('Archie Maker teacher plan lacks a valid teacher receipt.');
+    if (receipt.request_digest !== archieMakerValueDigest(instruction)) throw new Error('Archie Maker teacher receipt request does not match.');
+    if (clean(receipt.base_branch, 200) !== clean(baseBranch, 200) || clean(receipt.base_sha, 200) !== clean(baseSha, 200)) throw new Error('Archie Maker teacher receipt base does not match.');
+    if (receipt.plan_digest !== archieMakerValueDigest(plan)) throw new Error('Archie Maker teacher receipt plan does not match.');
+    const { receipt_digest: claimed, ...receiptBody } = receipt;
+    if (claimed !== archieMakerValueDigest(receiptBody)) throw new Error('Archie Maker teacher receipt integrity check failed.');
   }
-  if (clean(recall.execution_basis?.base_sha, 200) !== clean(baseSha, 200)) throw new Error('Archie Maker recurrence base SHA does not match.');
   const issued = clockDate(clock);
   const expires = new Date(issued.getTime() + Math.max(1000, Number(ttlMs) || 0));
   const body = {
     schema: ARCHIE_MAKER_DECISION_SCHEMA,
-    state: 'local',
-    source: 'native-maker-recall',
+    state: freshTeacher ? 'teacher' : 'local',
+    source: freshTeacher ? 'openai-responses-teacher' : 'native-maker-recall',
     issued_at: issued.toISOString(),
     expires_at: expires.toISOString(),
     request_digest: archieMakerValueDigest(instruction),
@@ -105,11 +118,17 @@ export function createArchieMakerDecision({
     confidence: Number(recall.confidence || 0),
     margin: Number(recall.margin || 0),
     model_digest: clean(recall.model_digest, 200) || null,
-    execution_basis: {
+    execution_basis: freshTeacher ? {
+      kind: 'fresh-bounded-teacher-plan',
+      response_id: clean(recall.execution_basis.response_id, 300),
+      teacher_receipt_digest: clean(recall.execution_basis.teacher_receipt_digest, 200),
+      base_sha: clean(baseSha, 200)
+    } : {
       kind: 'normalized-exact-verified-recurrence',
       example_id: clean(recall.execution_basis.example_id, 300),
       base_sha: clean(baseSha, 200)
     },
+    teacher_receipt: freshTeacher ? recall.teacher_receipt : null,
     plan,
     plan_digest: archieMakerValueDigest(plan)
   };
@@ -127,9 +146,18 @@ export function verifyArchieMakerDecision(value, {
 } = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Archie Maker decision must be an object.');
   if (value.schema !== ARCHIE_MAKER_DECISION_SCHEMA) throw new Error(`Archie Maker decision schema must be ${ARCHIE_MAKER_DECISION_SCHEMA}.`);
-  if (value.state !== 'local' || value.source !== 'native-maker-recall') throw new Error('Archie Maker decision state or source is not executable.');
-  if (value.execution_basis?.kind !== 'normalized-exact-verified-recurrence' || !clean(value.execution_basis?.example_id, 300)) {
-    throw new Error('Archie Maker decision lacks normalized-exact verified recurrence evidence.');
+  const localRecurrence = value.state === 'local' && value.source === 'native-maker-recall' && value.execution_basis?.kind === 'normalized-exact-verified-recurrence';
+  const freshTeacher = value.state === 'teacher' && value.source === 'openai-responses-teacher' && value.execution_basis?.kind === 'fresh-bounded-teacher-plan';
+  if (!localRecurrence && !freshTeacher) throw new Error('Archie Maker decision state or source is not executable.');
+  if (localRecurrence && !clean(value.execution_basis?.example_id, 300)) throw new Error('Archie Maker decision lacks normalized-exact verified recurrence evidence.');
+  if (freshTeacher) {
+    const receipt = value.teacher_receipt;
+    if (receipt?.schema !== 'archie-openai-teacher-receipt/v1') throw new Error('Archie Maker decision lacks a valid teacher receipt.');
+    if (receipt.request_digest !== archieMakerValueDigest(clean(request))) throw new Error('Archie Maker teacher receipt request does not match.');
+    if (clean(receipt.base_branch, 200) !== clean(baseBranch, 200) || clean(receipt.base_sha, 200) !== clean(baseSha, 200)) throw new Error('Archie Maker teacher receipt base does not match.');
+    if (receipt.plan_digest !== archieMakerValueDigest(value.plan)) throw new Error('Archie Maker teacher receipt plan does not match.');
+    const { receipt_digest: claimed, ...receiptBody } = receipt;
+    if (claimed !== archieMakerValueDigest(receiptBody) || claimed !== value.execution_basis.teacher_receipt_digest) throw new Error('Archie Maker teacher receipt integrity check failed.');
   }
   const plan = normalizeMakerExecutionPlan(value.plan);
   if (!plan) throw new Error('Archie Maker decision contains an invalid execution plan.');

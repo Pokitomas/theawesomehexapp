@@ -221,8 +221,26 @@ export class ArchiePersonalBrain {
   }
 
   async plan(task, { allow_teacher = true } = {}) {
-    const model = await this.load();
-    const local = predictArchiePlan(model, task);
+    let model = null;
+    let local;
+    try {
+      model = await this.load();
+      local = predictArchiePlan(model, task);
+    } catch (error) {
+      if (!/at least one completed archie distillation example is required/i.test(clean(error?.message || error, 2000))) throw error;
+      local = Object.freeze({
+        schema: PLAN_SCHEMA,
+        state: 'escalate',
+        specialist_id: null,
+        confidence: 0,
+        margin: 0,
+        plan: null,
+        tool_trace: [],
+        model_digest: null,
+        alternatives: [],
+        plan_digest: digest({ state: 'escalate', reason: 'empty-corpus' })
+      });
+    }
     if (local.state === 'local' || !allow_teacher || !this.teacher) return local;
     const teacherResult = await this.teacher(task, { local_attempt: local, model });
     const instruction = typeof task === 'string' ? task : clean(task.instruction || task.request || task.goal);
@@ -255,6 +273,9 @@ export class ArchiePersonalBrain {
       model_digest: learnedModel.model_digest,
       learned_plan: learned,
       corpus_record: stored,
+      teacher: clean(teacherResult?.teacher || 'external-teacher', 300),
+      teacher_model: clean(teacherResult?.model || '', 300),
+      teacher_receipt: teacherResult?.receipt || null,
       plan_digest: digest({ teacherResult, learned, corpus_record: stored.record_id })
     });
   }

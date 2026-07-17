@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createArchieLinuxCorpus } from './maker-archie-corpus.mjs';
 import { createArchiePersonalBrain } from './maker-archie-brain.mjs';
+import { createOpenAIArchieTeacher } from './maker-archie-openai-teacher.mjs';
 import { normalizeMakerExecutionPlan } from './maker-archie-runtime-contract.mjs';
 
 const clean = (value, limit = 12000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
@@ -80,6 +81,7 @@ function createNativeBrain({ repoRoot, env, home, clock, training }) {
   const brain = createArchiePersonalBrain({
     corpus,
     model_path: paths.model_path,
+    teacher: createOpenAIArchieTeacher({ env, clock }),
     clock,
     training: { dimensions: 1024, threshold: 0.22, minimum_margin: 0.03, ...(training || {}) }
   });
@@ -92,8 +94,9 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
   if (!instruction) return Object.freeze({ status: 'miss', plan: null, reason: 'empty request' });
   const { paths, corpus, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
   try {
-    const result = await brain.plan({ subject: repoKey(repoRoot), instruction, context: { repository: path.basename(path.resolve(repoRoot)), base_branch: clean(baseBranch, 200), base_sha: clean(baseSha, 200) } }, { allow_teacher: false });
-    const plan = result.state === 'local' ? normalizeReusableMakerPlan(result.plan) : null;
+    const result = await brain.plan({ subject: repoKey(repoRoot), instruction, context: { repository: path.basename(path.resolve(repoRoot)), base_branch: clean(baseBranch, 200), base_sha: clean(baseSha, 200) } }, { allow_teacher: true });
+    const teacherPlan = result.state === 'teacher';
+    const plan = result.state === 'local' || teacherPlan ? normalizeReusableMakerPlan(result.plan) : null;
     let executionEligible = false;
     let executionBasis = null;
     let sourceExampleIds = [];
@@ -125,8 +128,18 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
         }
       }
     }
+    if (teacherPlan && plan && result.teacher_receipt) {
+      executionEligible = true;
+      executionBasis = Object.freeze({
+        kind: 'fresh-bounded-teacher-plan',
+        response_id: clean(result.teacher_receipt.response_id, 300),
+        teacher_receipt_digest: clean(result.teacher_receipt.receipt_digest, 200),
+        base_sha: clean(baseSha, 200)
+      });
+    }
     return Object.freeze({
-      status: plan ? 'local' : 'miss',
+      status: teacherPlan && plan ? 'teacher' : plan ? 'local' : 'miss',
+      source: teacherPlan ? 'openai-responses-teacher' : 'native-maker-recall',
       plan,
       confidence: result.confidence ?? 0,
       margin: result.margin ?? 0,
@@ -134,9 +147,10 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
       source_example_ids: sourceExampleIds,
       execution_eligible: executionEligible,
       execution_basis: executionBasis,
+      teacher_receipt: result.teacher_receipt ?? null,
       root: paths.root,
       model_digest: result.model_digest ?? null,
-      reason: plan ? (executionEligible ? null : 'recall remains advisory unless an exact verified recurrence matches the current base SHA') : `archie state ${result.state}`
+      reason: teacherPlan ? 'fresh bounded teacher plan admitted to Maker gates' : plan ? (executionEligible ? null : 'recall remains advisory unless an exact verified recurrence matches the current base SHA') : `archie state ${result.state}`
     });
   } catch (error) {
     const message = clean(error?.message || error, 2000);
