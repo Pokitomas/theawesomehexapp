@@ -1,5 +1,4 @@
 import { execFile } from 'node:child_process';
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -47,33 +46,24 @@ function scoreFile(filename, terms) {
   return score;
 }
 
-async function git(root, args) {
-  const result = await execFileAsync('git', args, { cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024 });
-  return clean(result.stdout, 16 * 1024 * 1024);
+async function git(root, args, { maxBuffer = 16 * 1024 * 1024 } = {}) {
+  const result = await execFileAsync('git', args, { cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer });
+  return String(result.stdout ?? '');
 }
 
-async function readEvidence(root, filename, remaining) {
-  const absolute = path.join(root, filename);
+async function readEvidence(root, baseSha, filename, remaining) {
+  const budget = Math.max(0, Math.min(MAX_FILE_BYTES, remaining));
+  if (!budget) return null;
   try {
-    const stat = await fs.stat(absolute);
-    if (!stat.isFile()) return null;
-    const budget = Math.max(0, Math.min(MAX_FILE_BYTES, remaining));
-    if (!budget) return null;
-    const handle = await fs.open(absolute, 'r');
-    try {
-      const buffer = Buffer.alloc(budget);
-      const { bytesRead } = await handle.read(buffer, 0, budget, 0);
-      const body = buffer.subarray(0, bytesRead).toString('utf8');
-      if (body.includes('\u0000')) return null;
-      return {
-        path: filename,
-        bytes: stat.size,
-        truncated: stat.size > bytesRead,
-        content: body
-      };
-    } finally {
-      await handle.close();
-    }
+    const raw = await git(root, ['show', `${baseSha}:${filename}`], { maxBuffer: Math.max(MAX_FILE_BYTES * 2, budget * 2) });
+    if (raw.includes('\u0000')) return null;
+    const content = raw.slice(0, budget);
+    return {
+      path: filename,
+      bytes: Buffer.byteLength(raw),
+      truncated: Buffer.byteLength(raw) > Buffer.byteLength(content),
+      content
+    };
   } catch {
     return null;
   }
@@ -81,9 +71,14 @@ async function readEvidence(root, filename, remaining) {
 
 export async function buildArchieRepositoryContext({ repoRoot, request, baseBranch = 'main', baseSha = '' } = {}) {
   if (!repoRoot) throw new Error('repoRoot is required.');
+  if (!clean(baseSha, 200)) throw new Error('baseSha is required for exact repository grounding.');
   const root = path.resolve(repoRoot);
   const terms = requestTerms(request);
-  const tracked = (await git(root, ['ls-files'])).split('\n').map(value => value.trim()).filter(isEligibleFile);
+  await git(root, ['cat-file', '-e', `${baseSha}^{commit}`]);
+  const tracked = (await git(root, ['ls-tree', '-r', '--name-only', baseSha]))
+    .split('\n')
+    .map(value => value.trim())
+    .filter(isEligibleFile);
   const ranked = tracked
     .map(filename => ({ filename, score: scoreFile(filename, terms) }))
     .sort((left, right) => right.score - left.score || left.filename.localeCompare(right.filename))
@@ -92,25 +87,24 @@ export async function buildArchieRepositoryContext({ repoRoot, request, baseBran
   const files = [];
   let capturedBytes = 0;
   for (const item of ranked) {
-    const evidence = await readEvidence(root, item.filename, MAX_TOTAL_BYTES - capturedBytes);
+    const evidence = await readEvidence(root, baseSha, item.filename, MAX_TOTAL_BYTES - capturedBytes);
     if (!evidence) continue;
     files.push({ ...evidence, relevance_score: item.score });
     capturedBytes += Buffer.byteLength(evidence.content);
     if (capturedBytes >= MAX_TOTAL_BYTES) break;
   }
 
-  const status = await git(root, ['status', '--short']);
-  const recent = await git(root, ['log', '-n', '12', '--pretty=format:%H%x09%s']);
+  const recent = await git(root, ['log', '-n', '12', '--pretty=format:%H%x09%s', baseSha]);
   return Object.freeze({
     schema: 'archie-repository-context/v1',
     repository: path.basename(root),
     base_branch: clean(baseBranch, 200),
     base_sha: clean(baseSha, 200),
+    source: 'exact-git-commit',
     request_terms: terms,
     tracked_file_count: tracked.length,
     captured_file_count: files.length,
     captured_bytes: capturedBytes,
-    worktree_status: status || 'clean',
     recent_commits: recent.split('\n').filter(Boolean).map(line => {
       const [sha, ...message] = line.split('\t');
       return { sha, message: message.join('\t') };
