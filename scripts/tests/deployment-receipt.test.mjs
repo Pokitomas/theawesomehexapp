@@ -26,7 +26,7 @@ const {
   upsertDeploymentReceipt
 } = receipt;
 
-const immutableAction = name => new RegExp(`uses:\s*${name.replace('/', '\/')}@[0-9a-f]{40}(?:\s+#\s*v\d+)?`);
+const immutableAction = name => new RegExp(`uses:\\s*${name.replace('/', '\\/')}@[0-9a-f]{40}(?:\\s+#\\s*v\\d+)?`);
 
 function loadPagesWorkflow({ workspace = process.env.GITHUB_WORKSPACE || process.cwd(), readFile = readFileSync } = {}) {
   const workflowPath = resolve(workspace, '.github/workflows/pages.yml');
