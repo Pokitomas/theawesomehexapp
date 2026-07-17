@@ -57,8 +57,8 @@ try {
   proof.pushed = status.includes('No execution authority has been granted');
   if (!proof.pushed) throw new Error(`Founder did not preserve the push boundary: ${status}`);
 
-  const preview = await page.locator('#turn-preview').innerText();
-  if (!preview.includes('"push_state": "pushed-objective-only"')) throw new Error('turn receipt missing pushed state');
+  const preview = await page.locator('#turn-preview').textContent();
+  if (!preview?.includes('"push_state": "pushed-objective-only"')) throw new Error('turn receipt missing pushed state');
   if (!preview.includes('"user_workflow_requires_git": false')) throw new Error('turn receipt requires Git');
 
   const shared = await page.evaluate(() => JSON.parse(localStorage.getItem('archie:shared-task:v2') || '{}'));
