@@ -12,8 +12,9 @@ if (!executablePath) throw new Error('no Chromium found');
 
 const proof = {
   executablePath,
-  directions: 0,
+  branches: 0,
   persisted: false,
+  pushed: false,
   overflow: null,
   errors: []
 };
@@ -33,30 +34,39 @@ const browserErrors = [];
 page.on('pageerror', error => browserErrors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
 
+const intention = 'make some actual site about something idk completely different but make it alive';
+
 try {
   await page.goto('http://127.0.0.1:4174/founder/', { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: 'Which future has gravity?' }).waitFor({ state: 'visible' });
-  proof.directions = await page.locator('[data-direction]').count();
-  if (proof.directions !== 3) throw new Error(`expected exactly three founder directions, got ${proof.directions}`);
+  await page.getByRole('heading', { name: 'Make something true.' }).waitFor({ state: 'visible' });
+  await page.locator('#founder-intention').fill(intention);
+  await page.getByRole('button', { name: 'SPRAWL' }).click();
 
-  await page.locator('[data-direction="memory-social"] [data-reaction="pull"]').click();
-  await page.locator('[data-direction="private-remix"] [data-reaction="steal"]').click();
-  await page.locator('[data-direction="scene-social"] [data-reaction="push"]').click();
-  await page.locator('#founder-note').fill('Memory is the social advantage; steal remix tools; keep scenes alive.');
+  proof.branches = await page.locator('[data-branch]').count();
+  if (proof.branches !== 6) throw new Error(`expected six open branches, got ${proof.branches}`);
 
-  const beforeReload = await page.locator('#summary').innerText();
-  proof.summary = beforeReload;
-  if (!beforeReload.includes('social identity with memory: pull')) throw new Error(`missing memory reaction: ${beforeReload}`);
-  if (!beforeReload.includes('private remixable life feed: steal')) throw new Error(`missing remix reaction: ${beforeReload}`);
-  if (!beforeReload.includes('scene-first social world: push')) throw new Error(`missing scene reaction: ${beforeReload}`);
+  await page.locator('[data-branch="missing-capability"] button').click();
+  const selected = await page.locator('[data-branch="missing-capability"]').getAttribute('aria-pressed');
+  if (selected !== 'true') throw new Error('missing-capability branch was not selected');
+
+  await page.getByRole('button', { name: 'PUSH', exact: true }).click();
+  const status = await page.locator('#room-status').innerText();
+  proof.status = status;
+  proof.pushed = status.includes('No execution authority has been granted');
+  if (!proof.pushed) throw new Error(`Founder did not preserve the push boundary: ${status}`);
+
+  const preview = await page.locator('#turn-preview').innerText();
+  if (!preview.includes('"push_state": "pushed-objective-only"')) throw new Error('turn receipt missing pushed state');
+  if (!preview.includes('"user_workflow_requires_git": false')) throw new Error('turn receipt requires Git');
 
   await page.reload({ waitUntil: 'networkidle' });
-  const note = await page.locator('#founder-note').inputValue();
-  proof.note = note;
-  proof.persisted = note === 'Memory is the social advantage; steal remix tools; keep scenes alive.';
-  if (!proof.persisted) throw new Error(`founder note did not persist: ${note}`);
+  const restoredIntention = await page.locator('#founder-intention').inputValue();
+  const restoredSelected = await page.locator('[data-branch="missing-capability"]').getAttribute('aria-pressed');
+  proof.persisted = restoredIntention === intention && restoredSelected === 'true';
+  if (!proof.persisted) throw new Error('Founder turn did not survive reload');
+
   proof.overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  if (proof.overflow > 1) throw new Error(`founder room overflows phone viewport by ${proof.overflow}px`);
+  if (proof.overflow > 1) throw new Error(`Founder overflows phone viewport by ${proof.overflow}px`);
   if (browserErrors.length) throw new Error(browserErrors.join(' | '));
 } catch (error) {
   proof.errors.push(error instanceof Error ? error.message : String(error));
