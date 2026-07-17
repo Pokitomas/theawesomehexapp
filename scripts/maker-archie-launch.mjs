@@ -9,7 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { parseMakerArgs } from './maker-core.mjs';
 import { recallNativeMakerPlan, rememberNativeMakerRun } from './maker-archie-native.mjs';
-import { createArchieMakerDecision } from './maker-archie-runtime-contract.mjs';
+import {
+  createArchieMakerDecision,
+  createArchieMakerLauncherReceipt,
+  createArchieMakerRoutingDecision
+} from './maker-archie-runtime-contract.mjs';
 
 const execFileAsync = promisify(execFile);
 const MAX_CAPTURE = 32 * 1024 * 1024;
@@ -45,6 +49,69 @@ export function extractNativeMakerReceipt(output) {
   return null;
 }
 
+export function archieMakerDisabled(env = process.env) {
+  return /^(?:1|true|yes|on)$/i.test(clean(env?.ARCHIE_DISABLED, 20));
+}
+
+export async function resolveArchieMakerLaunch({
+  repoRoot,
+  request,
+  baseBranch = 'main',
+  baseSha,
+  env = process.env,
+  clock = Date.now,
+  recall = recallNativeMakerPlan,
+  executionKey = null
+} = {}) {
+  if (archieMakerDisabled(env)) {
+    const receipt = createArchieMakerLauncherReceipt({
+      request,
+      repository: repoRoot,
+      baseBranch,
+      baseSha,
+      bypassed: true,
+      clock
+    });
+    return Object.freeze({ bypassed: true, decision: null, execution_decision: null, execution_key: null, recall: null, receipt });
+  }
+
+  const recalled = await recall({ repoRoot, request, baseBranch, baseSha, env, clock });
+  const decision = createArchieMakerRoutingDecision({
+    request,
+    repository: repoRoot,
+    baseBranch,
+    baseSha,
+    recall: recalled,
+    clock
+  });
+
+  let key = null;
+  let executionDecision = null;
+  if (decision.state === 'local_recurrence' && decision.executable) {
+    key = clean(executionKey, 1000) || randomBytes(32).toString('hex');
+    executionDecision = createArchieMakerDecision({
+      request,
+      repository: repoRoot,
+      baseBranch,
+      baseSha,
+      recall: recalled,
+      key,
+      clock
+    });
+  }
+
+  const receipt = createArchieMakerLauncherReceipt({
+    request,
+    repository: repoRoot,
+    baseBranch,
+    baseSha,
+    decision,
+    executionAuthority: executionDecision,
+    clock
+  });
+  return Object.freeze({ bypassed: false, decision, execution_decision: executionDecision, execution_key: key, recall: recalled, receipt });
+}
+
 async function repoRoot() {
   const result = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', timeout: 30000 });
   return clean(result.stdout, 4000);
@@ -77,6 +144,28 @@ function runMaker(argv, root, { env = {} } = {}) {
   });
 }
 
+function writeDecisionStatus(launch) {
+  if (launch.bypassed) {
+    process.stdout.write('[archie] ARCHIE_DISABLED bypassed Archie decision production; running ordinary Maker compatibility behavior\n');
+    return;
+  }
+  const { decision, recall } = launch;
+  if (decision.state === 'local_recurrence') {
+    process.stdout.write(`[archie] exact verified recurrence ${clean(recall?.specialist_id, 300) || 'unknown'} admitted for Maker verification and execution\n`);
+  } else if (decision.state === 'derived_candidate') {
+    process.stdout.write(`[archie] proof-carrying derived candidate ${clean(decision.candidate?.candidate_id, 300) || 'unknown'} is inspectable but non-executable before POK-35 admission\n`);
+  } else if (decision.state === 'teacher_required') {
+    process.stdout.write(`[archie] teacher required: ${clean(decision.reason, 1000)}\n`);
+  } else if (decision.state === 'rejected') {
+    process.stderr.write(`[archie] decision rejected: ${clean(decision.reason, 1000)}\n`);
+  } else if (decision.state === 'failed') {
+    process.stderr.write(`[archie] decision failed closed: ${clean(decision.reason, 1000)}\n`);
+  } else {
+    process.stdout.write(`[archie] no admitted local decision: ${clean(decision.reason, 1000)}\n`);
+  }
+  if (!decision.executable) process.stdout.write('[archie] ordinary Maker compatibility path selected; no local competence claimed\n');
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   let options;
@@ -93,31 +182,25 @@ async function main() {
   const makerArgv = [...argv];
   const makerEnv = {};
   let decisionRoot = null;
+  let launch = null;
 
   if (options.request && !options.help) {
-    const recalled = await recallNativeMakerPlan({ repoRoot: root, request: options.request, baseBranch: options.base, baseSha });
-    if (recalled.status === 'local' && recalled.execution_eligible) {
-      const key = randomBytes(32).toString('hex');
+    launch = await resolveArchieMakerLaunch({
+      repoRoot: root,
+      request: options.request,
+      baseBranch: options.base,
+      baseSha,
+      env: process.env
+    });
+    writeDecisionStatus(launch);
+    process.stdout.write(`[archie:launcher-receipt] ${JSON.stringify(launch.receipt)}\n`);
+
+    if (launch.execution_decision) {
       decisionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sideways-archie-maker-decision-'));
       const decisionPath = path.join(decisionRoot, 'decision.json');
-      const decision = createArchieMakerDecision({
-        request: options.request,
-        repository: root,
-        baseBranch: options.base,
-        baseSha,
-        recall: recalled,
-        key
-      });
-      await fs.writeFile(decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+      await fs.writeFile(decisionPath, `${JSON.stringify(launch.execution_decision, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
       makerArgv.push('--archie-decision-file', decisionPath);
-      makerEnv.ARCHIE_MAKER_DECISION_KEY = key;
-      process.stdout.write(`[archie] reusable plan candidate ${recalled.specialist_id} confidence=${Number(recalled.confidence).toFixed(3)} margin=${Number(recalled.margin).toFixed(3)}; Maker must verify it before execution\n`);
-    } else if (recalled.status === 'local') {
-      process.stdout.write(`[archie] fuzzy reusable-plan candidate ${recalled.specialist_id} remains advisory (${clean(recalled.reason, 500)})\n`);
-    } else if (recalled.status === 'failed') {
-      process.stderr.write(`[archie] recall failed closed: ${clean(recalled.reason, 1000)}\n`);
-    } else if (recalled.status === 'miss') {
-      process.stdout.write(`[archie] no reusable local plan (${clean(recalled.reason || 'miss', 300)})\n`);
+      makerEnv.ARCHIE_MAKER_DECISION_KEY = launch.execution_key;
     }
   }
 
@@ -130,6 +213,8 @@ async function main() {
     process.exitCode = result.code;
     return;
   }
+  if (launch?.bypassed) return;
+
   const receipt = extractNativeMakerReceipt(result.stdout);
   if (!receipt) {
     process.stderr.write('[archie] Maker succeeded but emitted no sideways-maker-run/v2 receipt; memory was not updated.\n');
