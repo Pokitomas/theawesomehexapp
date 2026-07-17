@@ -63,6 +63,8 @@
     "archie:cognition": "node scripts/maker-archie-cognition.mjs",
     "archie:persistent": "node scripts/maker-archie-persistent-core.mjs",
     "archie:generation-one": "node scripts/archie-generation-one-run.mjs",
+    "archie:student:compile": "node scripts/archie-training-compile.mjs",
+    "archie:student:train": "python3 foundry/archie-distill/train.py",
     "archie:student:admit": "node scripts/archie-student-admission.mjs admit",
     "archie:device:evidence": "node scripts/archie-device-evidence.mjs run",
     "archie:launch:frontier": "node scripts/archie-launch-assess.mjs frontier",
