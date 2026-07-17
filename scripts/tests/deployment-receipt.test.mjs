@@ -6,9 +6,12 @@ import receipt from '../deployment-receipt.cjs';
 
 const {
   RECEIPT_TITLE,
+  ARCHIE_RECEIPT_SCHEMA,
+  archieUrl,
   buildDeploymentReceiptBody,
   buildDeploymentSentinel,
   sentinelUrl,
+  verifyArchiePublicReachability,
   verifyLiveDeployment,
   upsertDeploymentReceipt
 } = receipt;
@@ -27,7 +30,7 @@ function loadPagesWorkflow({
   return { workflowPath, workflow };
 }
 
-test('deployment identity and receipt expose the exact live commit', () => {
+test('deployment identity and receipt expose the exact live commit and Archie path', () => {
   assert.deepEqual(buildDeploymentSentinel({
     commit: 'abc123',
     repository: 'Pokitomas/theawesomehexapp'
@@ -41,15 +44,21 @@ test('deployment identity and receipt expose the exact live commit', () => {
     sentinelUrl('https://pokitomas.github.io/theawesomehexapp'),
     'https://pokitomas.github.io/theawesomehexapp/.well-known/sideways-deployment.json'
   );
+  assert.equal(
+    archieUrl('https://pokitomas.github.io/theawesomehexapp'),
+    'https://pokitomas.github.io/theawesomehexapp/archie/'
+  );
 
   const body = buildDeploymentReceiptBody({
     deployedUrl: 'https://pokitomas.github.io/theawesomehexapp',
     commit: 'abc123'
   });
   assert.match(body, /^ROOT_URL=https:\/\/pokitomas\.github\.io\/theawesomehexapp\//);
+  assert.match(body, /ARCHIE_URL=https:\/\/pokitomas\.github\.io\/theawesomehexapp\/archie\//);
   assert.match(body, /COMMIT=abc123/);
   assert.match(body, /DEPLOYMENT_SENTINEL_URL=https:\/\/pokitomas\.github\.io\/theawesomehexapp\/\.well-known\/sideways-deployment\.json/);
   assert.match(body, /LIVE_COMMIT_VERIFIED=true/);
+  assert.match(body, /ARCHIE_ANONYMOUS_REACHABLE=false/);
 });
 
 test('live verification rejects a stale deployment and retries until the expected commit appears', async () => {
@@ -80,7 +89,76 @@ test('live verification rejects a stale deployment and retries until the expecte
   assert.deepEqual(requested[0].options.headers, { 'cache-control': 'no-cache' });
 });
 
-test('receipt upsert creates the first deployment issue', async () => {
+test('Archie public verification uses anonymous requests and binds the live sentinel', async () => {
+  const requested = [];
+  const result = await verifyArchiePublicReachability({
+    deployedUrl: 'https://example.test/app/',
+    expectedCommit: 'new',
+    expectedRepository: 'Pokitomas/theawesomehexapp',
+    attempts: 1,
+    delayMs: 0,
+    async fetchImpl(url, options) {
+      requested.push({ url, options });
+      if (url.includes('.well-known')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() { return { commit: 'new', repository: 'Pokitomas/theawesomehexapp' }; }
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        url: 'https://example.test/app/archie/',
+        async text() { return '<p>ARCHIE / LOCAL INTELLIGENCE</p>'; }
+      };
+    }
+  });
+
+  assert.deepEqual(result, {
+    schema: ARCHIE_RECEIPT_SCHEMA,
+    url: 'https://example.test/app/archie/',
+    anonymous: true,
+    status: 200,
+    login_redirect: false,
+    expected_commit: 'new',
+    observed_commit: 'new'
+  });
+  assert.equal(requested.length, 2);
+  for (const request of requested) {
+    assert.equal(request.options.credentials, 'omit');
+    assert.equal(request.options.redirect, 'follow');
+    assert.equal('authorization' in request.options.headers, false);
+    assert.equal('cookie' in request.options.headers, false);
+  }
+});
+
+test('Archie public verification rejects authentication redirects and false product pages', async () => {
+  await assert.rejects(() => verifyArchiePublicReachability({
+    deployedUrl: 'https://example.test/app/',
+    expectedCommit: 'new',
+    expectedRepository: 'Pokitomas/theawesomehexapp',
+    attempts: 1,
+    delayMs: 0,
+    async fetchImpl(url) {
+      if (url.includes('.well-known')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() { return { commit: 'new', repository: 'Pokitomas/theawesomehexapp' }; }
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        url: 'https://github.com/login',
+        async text() { return '<title>Sign in</title>'; }
+      };
+    }
+  }), /redirected to authentication/);
+});
+
+test('receipt upsert creates the first deployment issue with the Archie receipt', async () => {
   const calls = [];
   const github = {
     rest: {
@@ -97,11 +175,21 @@ test('receipt upsert creates the first deployment issue', async () => {
       }
     }
   };
+  const archieReceipt = {
+    schema: ARCHIE_RECEIPT_SCHEMA,
+    url: 'https://example.test/app/archie/',
+    anonymous: true,
+    status: 200,
+    login_redirect: false,
+    expected_commit: 'abc123',
+    observed_commit: 'abc123'
+  };
 
   const result = await upsertDeploymentReceipt({
     github,
     context: { repo: { owner: 'Pokitomas', repo: 'theawesomehexapp' }, sha: 'abc123' },
-    deployedUrl: 'https://example.test/app/'
+    deployedUrl: 'https://example.test/app/',
+    archieReceipt
   });
 
   assert.equal(result.primary.number, 104);
@@ -109,6 +197,8 @@ test('receipt upsert creates the first deployment issue', async () => {
   assert.equal(calls[0][0], 'create');
   assert.equal(calls[0][1].title, RECEIPT_TITLE);
   assert.match(calls[0][1].body, /COMMIT=abc123/);
+  assert.match(calls[0][1].body, /ARCHIE_ANONYMOUS_REACHABLE=true/);
+  assert.match(calls[0][1].body, /"schema": "archie-public-reachability-receipt\/v1"/);
 });
 
 test('receipt upsert updates the newest open receipt and closes stale duplicates', async () => {
@@ -172,24 +262,34 @@ test('workflow loader anchors to the checked-out workspace instead of the test m
   }]);
 });
 
-test('Pages workflow cannot record a receipt before the live commit is verified', () => {
+test('Pages workflow publishes Archie explicitly and proves it anonymously before recording receipt', () => {
   const { workflow } = loadPagesWorkflow();
   const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
+  const publishArchie = workflow.indexOf('Publish Archie into product artifact');
+  const copyArchie = workflow.indexOf('cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/');
+  const verifyArchieAsset = workflow.indexOf('test -f dist/archie/index.html');
   const uploadArtifactMatch = workflow.match(immutableAction('actions/upload-pages-artifact'));
   const deployJobStart = workflow.indexOf('\n  deploy:\n');
 
   assert.ok(writeSentinel >= 0, 'workflow must write a deployment sentinel');
-  assert.ok(uploadArtifactMatch?.index > writeSentinel, 'sentinel must be inside the uploaded Pages artifact');
+  assert.ok(publishArchie > writeSentinel, 'Archie must be published after the root build creates dist');
+  assert.ok(copyArchie > publishArchie, 'canonical Archie source must be copied into the final artifact');
+  assert.ok(verifyArchieAsset > copyArchie, 'final artifact must verify Archie files');
+  assert.ok(uploadArtifactMatch?.index > verifyArchieAsset, 'verified Archie files must be inside the uploaded Pages artifact');
   assert.ok(deployJobStart > uploadArtifactMatch.index, 'deploy job must follow artifact upload');
 
   const deployJob = workflow.slice(deployJobStart);
   const checkout = deployJob.search(immutableAction('actions/checkout'));
   const deployPages = deployJob.search(immutableAction('actions/deploy-pages'));
   const verifyLive = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-live');
+  const verifyArchie = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-archie-live');
+  const readArchieReceipt = deployJob.indexOf("JSON.parse(fs.readFileSync('archie-public-reachability-receipt.json'", 0);
   const upsertReceipt = deployJob.indexOf('const { upsertDeploymentReceipt } = require');
 
   assert.ok(checkout >= 0, 'deploy job must check out the tested helper');
   assert.ok(deployPages > checkout, 'Pages deployment must follow deploy-job checkout');
-  assert.ok(verifyLive > deployPages, 'live verification must run after Pages deployment');
-  assert.ok(upsertReceipt > verifyLive, 'receipt must be written only after live verification');
+  assert.ok(verifyLive > deployPages, 'live identity verification must run after Pages deployment');
+  assert.ok(verifyArchie > verifyLive, 'anonymous Archie verification must follow exact commit verification');
+  assert.ok(readArchieReceipt > verifyArchie, 'receipt upsert must consume the verified Archie receipt');
+  assert.ok(upsertReceipt > verifyArchie, 'deployment receipt must be written only after Archie is public');
 });
