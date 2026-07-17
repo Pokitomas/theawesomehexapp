@@ -1,5 +1,18 @@
 # Archie local artifact runtime
 
+## Install and first launch
+
+With Node.js 20 or newer, the current source-package preview installs a global `archie` command without a repository clone:
+
+```text
+npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz
+archie
+```
+
+The empty launch is a capability-aware first-run screen. It reports the package and Node versions, platform, Archie home, installed artifact count, local runner discovery, and exact next commands. `archie setup --json` emits the same state as `archie-first-run/v1` for installers and automation. `archie help` retains the full operator command reference.
+
+This preview URL follows mutable `main`; replace `refs/heads/main` with an exact commit SHA when reproducibility matters. It is not a signed native installer. No model or `llama-cli` binary is bundled. `runtime_ready` means the verified artifact runtime is installed, while `execution_ready` requires both an installed artifact and a discoverable local runner. Neither state is an empirical model-capability claim.
+
 This repository has an isolated executable artifact lane behind:
 
 ```text

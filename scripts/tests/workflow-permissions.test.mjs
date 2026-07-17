@@ -7,6 +7,7 @@ const pagesPath = new URL('../../.github/workflows/pages.yml', import.meta.url);
 const lassoPath = new URL('../../.github/workflows/weave-lasso.yml', import.meta.url);
 const makerWorkerPath = new URL('../../.github/workflows/maker-native-worker.yml', import.meta.url);
 const makerCollisionPath = new URL('../../.github/workflows/maker-pr-collision-gate.yml', import.meta.url);
+const archieWindowsInstallPath = new URL('../../.github/workflows/archie-windows-install.yml', import.meta.url);
 const checkoutRef = /uses:\s*actions\/checkout@[0-9a-f]{40}(?:\s+#\s*v4)?\s*$/;
 
 function job(source, name, next = '') {
@@ -34,8 +35,12 @@ function checkoutBlocks(source) {
   return blocks;
 }
 
+async function workflowSource(url) {
+  return (await readFile(url, 'utf8')).replace(/\r\n/g, '\n');
+}
+
 test('PR-reachable Pages jobs stay read-only and never persist checkout credentials', async () => {
-  const source = await readFile(pagesPath, 'utf8');
+  const source = await workflowSource(pagesPath);
   const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
   assert.match(top, /^  contents: read$/m);
   assert.doesNotMatch(top, /(?:pages|id-token|issues): write/);
@@ -50,7 +55,7 @@ test('PR-reachable Pages jobs stay read-only and never persist checkout credenti
 });
 
 test('Pages, OIDC, and issue mutation authority exist only in the push-only deploy job', async () => {
-  const source = await readFile(pagesPath, 'utf8');
+  const source = await workflowSource(pagesPath);
   const deploy = job(source, 'deploy');
   assert.match(deploy, /if: github\.event_name == 'push'/);
   assert.match(deploy, /^      pages: write$/m);
@@ -63,7 +68,7 @@ test('Pages, OIDC, and issue mutation authority exist only in the push-only depl
 });
 
 test('secret-bearing lasso execution uses only trusted default-branch code', async () => {
-  const source = await readFile(lassoPath, 'utf8');
+  const source = await workflowSource(lassoPath);
   const checkouts = checkoutBlocks(source);
   assert.equal(checkouts.length, 1);
   assert.match(checkouts[0], /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
@@ -75,7 +80,7 @@ test('secret-bearing lasso execution uses only trusted default-branch code', asy
 });
 
 test('Maker collision gate uses trusted default-branch code with read-only permissions', async () => {
-  const source = await readFile(makerCollisionPath, 'utf8');
+  const source = await workflowSource(makerCollisionPath);
   assert.match(source, /^on:\n  pull_request_target:/m);
   const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
   assert.match(top, /^  contents: read$/m);
@@ -95,8 +100,23 @@ test('Maker collision gate uses trusted default-branch code with read-only permi
   assert.match(section, /core\.setFailed/);
 });
 
+test('Archie Windows install proof is exact-head, read-only, and exercises the global command', async () => {
+  const source = await workflowSource(archieWindowsInstallPath);
+  assert.match(source, /^permissions:\n  contents: read$/m);
+  assert.doesNotMatch(source, /^\s+(?:contents|pull-requests|issues|actions): write$/m);
+  assert.match(source, /runs-on: windows-latest/);
+  assert.match(source, /npm\.cmd pack --json/);
+  assert.match(source, /npm\.cmd install --global --prefix/);
+  assert.match(source, /& \$archie setup --json/);
+  assert.match(source, /if \(\$state\.execution_ready\)/);
+  const checkouts = checkoutBlocks(source);
+  assert.equal(checkouts.length, 1);
+  assert.match(checkouts[0], /ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  assert.match(checkouts[0], /persist-credentials: false/);
+});
+
 test('native Maker write authority is preflight-gated, trusted-main, draft-PR bounded, and has a zero-secret GitHub Models fallback', async () => {
-  const source = await readFile(makerWorkerPath, 'utf8');
+  const source = await workflowSource(makerWorkerPath);
   const top = source.match(/^permissions:\n([\s\S]*?)\nconcurrency:/m)?.[1] || '';
   assert.match(top, /^  contents: read$/m);
   assert.doesNotMatch(top, /write/);

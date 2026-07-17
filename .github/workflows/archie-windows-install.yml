@@ -1,0 +1,63 @@
+name: Verify Archie Windows install
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/archie.mjs'
+      - 'scripts/archie-first-run.mjs'
+      - 'scripts/archie-runtime-core.mjs'
+      - 'scripts/archie-distill-core.mjs'
+      - 'scripts/archie-distill.mjs'
+      - 'scripts/tests/archie-distill-pipeline.test.mjs'
+      - 'scripts/tests/maker-archie-install.test.mjs'
+      - 'foundry/archie-distill/**'
+      - 'maker/evaluations/archie-distill-qwen3-quality.json'
+      - 'maker/contracts/archie-distill-profile.schema.json'
+      - '.github/workflows/archie-windows-install.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clean-install:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install exact dependency tree
+        run: npm.cmd ci --ignore-scripts
+      - name: Verify install and first-launch contracts
+        run: npm.cmd run test:archie:install
+      - name: Verify distillation contracts
+        run: npm.cmd run test:archie:distill
+      - name: Pack, globally install, and launch like a user
+        shell: pwsh
+        run: |
+          $package = npm.cmd pack --json | ConvertFrom-Json
+          if ($package.Count -ne 1) { throw 'Expected exactly one Archie package.' }
+          $archive = Join-Path $PWD $package[0].filename
+          $installRoot = Join-Path $env:RUNNER_TEMP 'archie-global'
+          $archieHome = Join-Path $env:RUNNER_TEMP 'archie-home'
+          npm.cmd install --global --prefix $installRoot $archive
+          $archie = Join-Path $installRoot 'archie.cmd'
+          if (!(Test-Path -LiteralPath $archie)) { throw "Archie command missing: $archie" }
+          $state = (& $archie setup --json --home $archieHome | ConvertFrom-Json)
+          if ($state.schema -ne 'archie-first-run/v1') { throw 'Wrong first-run schema.' }
+          if (!$state.runtime_ready) { throw 'Installed runtime did not become ready.' }
+          if ($state.execution_ready) { throw 'Empty clean install claimed a runnable model.' }
+          if ($state.installed_artifacts.Count -ne 0) { throw 'Clean install inherited model state.' }
+          $screen = & $archie --no-color --home $archieHome
+          if (($screen -join "`n") -notmatch 'LOCAL WORLD') { throw 'First-launch screen is missing.' }
+          & $archie list --home $archieHome

@@ -1,7 +1,24 @@
 {
   "name": "sideways",
+  "version": "0.1.0",
+  "description": "Archie verified local-model runtime and the Sideways product workspace",
   "private": true,
   "type": "module",
+  "bin": {
+    "archie": "scripts/archie.mjs"
+  },
+  "files": [
+    "scripts/*.mjs",
+    "foundry/archie-neural/*.mjs",
+    "foundry/archie-distill/*.py",
+    "maker/evaluations/archie-equivalence-suite.json",
+    "maker/evaluations/archie-distill-qwen3-quality.json",
+    "maker/contracts/archie-distill-profile.schema.json",
+    "ARCHIE_RUNTIME.md",
+    "ARCHIE_DISTILL.md",
+    "INSTALL.md",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -19,11 +36,14 @@
     "test:archie:admission": "node --test scripts/tests/maker-archie-student-admission.test.mjs",
     "test:archie:device-evidence": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
     "test:archie:phone": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
+    "test:archie:install": "node --test scripts/tests/maker-archie-install.test.mjs",
+    "test:archie:distill": "node --test scripts/tests/archie-distill-pipeline.test.mjs",
     "test:foundry": "node --test foundry/tests/core.test.mjs foundry/tests/calibration.test.mjs foundry/tests/cost-calibration.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs",
     "test:ingestion": "node --test scripts/tests/discovery-connected-import.test.mjs scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs",
     "maker": "node scripts/maker-archie-launch.mjs",
     "maker:model:check": "node scripts/check-open-model-runtime.mjs",
     "archie": "node scripts/archie.mjs",
+    "archie:first-run": "node scripts/archie-first-run.mjs",
     "archie:corpus": "node scripts/maker-archie-corpus.mjs",
     "archie:pack": "node scripts/maker-archie-corpus-pack.mjs",
     "archie:evaluate": "node scripts/maker-archie-benchmark.mjs run --suite maker/evaluations/archie-equivalence-suite.json",

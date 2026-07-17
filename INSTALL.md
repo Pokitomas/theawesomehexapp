@@ -33,59 +33,48 @@ If no install control appears, keep the page as a bookmark. The static app still
 
 Open **[the Sideways root reader](https://pokitomas.github.io/theawesomehexapp/)**. This is the public ranking and discovery surface, not the private personal archive.
 
-## Archie and Maker for developers
+## Archie local runtime
 
-There is not yet a signed one-click native Archie installer. Archie and Maker currently run from the repository with Node.js 20 or newer.
+Archie now installs as a normal global command on Windows, macOS, and Linux. Install [Node.js 20 or newer](https://nodejs.org/en/download), open PowerShell or a terminal, and run:
 
-### Windows
-
-1. Install [Git for Windows](https://git-scm.com/download/win).
-2. Install [Node.js LTS](https://nodejs.org/en/download).
-3. Open PowerShell and paste:
-
-```powershell
-git clone https://github.com/Pokitomas/theawesomehexapp.git
-cd theawesomehexapp
-npm install
-npm run archie -- list
+```bash
+npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz
+archie
 ```
 
-### macOS
+The first launch shows the real state of your local world: runtime version, Archie home, installed model artifacts, local runner availability, and the next exact commands. It exits successfully when the runtime is installed but a model or runner is still missing; that is a setup state, not a fake capability claim.
 
-1. Install [Node.js LTS](https://nodejs.org/en/download).
-2. Open Terminal and paste:
+This is a source-package preview from the mutable `main` branch, not a signed native installer or independently promoted model release. For a reproducible install, replace `refs/heads/main` in the URL with an exact commit SHA. No model is bundled, and installation alone does not prove model capability.
+
+To remove the preview:
+
+```bash
+npm uninstall --global sideways
+```
+
+### Developer checkout
+
+Contributors can still run Archie without a global install:
 
 ```bash
 git clone https://github.com/Pokitomas/theawesomehexapp.git
 cd theawesomehexapp
 npm install
-npm run archie -- list
-```
-
-If `git` is missing, macOS will offer to install the command-line developer tools.
-
-### Linux
-
-Install Git and Node.js 20 or newer using your distribution, then run:
-
-```bash
-git clone https://github.com/Pokitomas/theawesomehexapp.git
-cd theawesomehexapp
-npm install
-npm run archie -- list
+npm run archie
 ```
 
 ## Archie commands
 
-Run commands from inside the cloned repository:
+After global installation, use the short commands directly:
 
 ```bash
-npm run archie -- list
-npm run archie -- pull <model-manifest-or-source>
-npm run archie -- inspect <model-id@version>
-npm run archie -- run <model-id@version>
-npm run archie -- benchmark <model-id@version>
-npm run archie -- remove <model-id@version>
+archie setup --json
+archie list
+archie pull <model-manifest-or-source> --trust-key <publisher-public.pem>
+archie inspect <model-id@version>
+archie run <model-id@version> --prompt "..."
+archie benchmark <model-id@version> --suite <suite.json>
+archie remove <model-id@version>
 ```
 
 Only pull artifacts whose signing key and provenance you trust. `inspect` should be used before `run`.

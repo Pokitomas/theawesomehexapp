@@ -3,6 +3,7 @@
 A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel.
 
 - **Install or open Sideways:** [plain-language install guide](./INSTALL.md)
+- **Install Archie preview:** `npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz`, then run `archie`
 - Root feed: `https://pokitomas.github.io/theawesomehexapp/`
 - Sideways consumer app: `https://pokitomas.github.io/theawesomehexapp/manual/`
 - Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
@@ -53,6 +54,8 @@ See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOT
 ## Maker engineering surface
 
 Archie and Maker are a separate intelligence-and-execution system. Sideways is one independent application they may inspect and improve through ordinary repository permissions; Sideways is not the AI, its memory substrate, or a privileged self-modification path. See [`ARCHIE_MAKER_VISION.md`](./ARCHIE_MAKER_VISION.md).
+
+Archie is exposed as a cross-platform package executable. A bare `archie` launch presents a guided local-world status instead of an operator usage wall; `archie setup --json` provides the same runtime, artifact, and runner readiness state to automation. The source-package preview is installable without cloning the repository, but it bundles no model and makes no capability claim. See [`INSTALL.md`](./INSTALL.md) for the one-command preview and reproducible exact-commit form.
 
 From a clean checkout, the primary engineering entrypoint is intentionally small:
 
