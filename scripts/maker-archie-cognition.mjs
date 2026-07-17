@@ -150,7 +150,11 @@ export class ArchieCognitionRuntime {
   async train() {
     const examples = await this.corpus.examples({ limit: this.plannerTraining.limit || 100000 });
     const positives = examples.filter(example => example?.outcome === 'completed' && !example.negative);
-    if (!positives.length) throw new Error('Archie cognition requires at least one completed corpus example.');
+    if (!positives.length) {
+      const error = new Error('Archie cognition requires at least one completed corpus example.');
+      error.code = 'ARCHIE_COLD_START';
+      throw error;
+    }
     const sparse = await this.sparseBrain.train();
     const trainedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
     const planner = trainArchieCPUPlanner(examples, {
@@ -233,14 +237,33 @@ export class ArchieCognitionRuntime {
 
   async decide(taskInput, { allow_teacher = true } = {}) {
     const task = taskObject(taskInput);
-    const models = await this.load();
-    const sparse = predictArchiePlan(models.sparse, task);
-    const planner = planWithArchieCPUPlanner(models.planner, task);
-    const derivation = deriveArchiePlan(models.derivation, task, this.derivationTraining);
+    const observedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
+
+    // A fresh install has no corpus history at all. Every sub-model trainer
+    // requires at least one completed example to produce a model, which
+    // cannot exist before Maker has ever executed anything. Previously this
+    // threw out of load() and crashed decide() on its very first call ever
+    // — exactly the "unfamiliar environment, non-developer's first request"
+    // scenario ARCHIE_MAKER_VISION.md names as the thing this system must
+    // survive. Treat "no local model yet" as "no local answer" and fall
+    // through to the same teacher-escalation path used whenever local
+    // models disagree or don't know, instead of crashing.
+    let models = null;
+    let coldStart = false;
+    try {
+      models = await this.load();
+    } catch (error) {
+      if (error?.code !== 'ARCHIE_COLD_START') throw error;
+      coldStart = true;
+    }
+
+    const coldStartResult = Object.freeze({ state: 'teacher', reason: 'cold-start-no-local-history', confidence: 0, calibrated_confidence: 0 });
+    const sparse = coldStart ? coldStartResult : predictArchiePlan(models.sparse, task);
+    const planner = coldStart ? coldStartResult : planWithArchieCPUPlanner(models.planner, task);
+    const derivation = coldStart ? coldStartResult : deriveArchiePlan(models.derivation, task, this.derivationTraining);
     const agreement = alignment(sparse, planner);
     const derivationPlannerAgreement = alignment(derivation, planner);
     const derivationSparseAgreement = alignment(derivation, sparse);
-    const observedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
 
     const evidence = {
       sparse,
@@ -342,14 +365,55 @@ export class ArchieCognitionRuntime {
 
     const teacherCall = await this.#callTeacher(task, evidence);
     const teacher = teacherCall.result;
-    const negative = teacher.outcome !== 'completed';
-    const stored = await this.corpus.ingest({
+
+    if (teacher.outcome !== 'completed') {
+      // The teacher itself failed to produce a plan. There is nothing for
+      // Maker to execute, so this is immediately known-negative evidence.
+      const stored = await this.corpus.ingest({
+        kind: 'archie_cognition_teacher_trace',
+        subject: clean(task.subject || 'default', 300),
+        input: { text: task.instruction, context: task.context || null },
+        output: { text: teacher.outcome, plan: null },
+        tool_trace: teacher.tool_trace,
+        outcome: teacher.outcome,
+        source: {
+          system: 'archie-cognition-runtime',
+          run_id: teacher.run_id,
+          teacher: teacher.teacher,
+          model: teacher.model,
+          cost_usd: teacher.cost_usd
+        },
+        tags: ['teacher-escalation', 'negative', 'suppress']
+      });
+      return receipt({
+        schema: ARCHIE_COGNITION_RECEIPT_SCHEMA,
+        observed_at: observedAt,
+        task_digest: digest(task),
+        state: 'reject',
+        disposition: 'reject',
+        selected_route: 'budgeted-teacher',
+        ...evidence,
+        plan: null,
+        tool_trace: teacher.tool_trace,
+        teacher: { ...teacher, budget_receipt: teacherCall.budget_receipt },
+        learning: { corpus_receipt: stored, snapshot_digest: null, learned_route: null }
+      });
+    }
+
+    // The teacher proposed a plan. Per POK-103, the teacher's own "completed"
+    // claim is not evidence that the plan works: only Maker actually executing
+    // and verifying it is. Store this as a pending proposal — outcome
+    // 'proposed' is excluded from the positive skill mixture by
+    // buildDistillationExample — and do not train yet. Call
+    // promoteTeacherProposal(...) with the real Maker receipt once execution
+    // finishes.
+    const proposalRecord = Object.freeze({
       kind: 'archie_cognition_teacher_trace',
       subject: clean(task.subject || 'default', 300),
       input: { text: task.instruction, context: task.context || null },
-      output: { text: teacher.text || (negative ? teacher.outcome : ''), plan: teacher.plan },
+      output: { text: teacher.text || '', plan: teacher.plan },
       tool_trace: teacher.tool_trace,
-      outcome: teacher.outcome,
+      outcome: 'proposed',
       source: {
         system: 'archie-cognition-runtime',
         run_id: teacher.run_id,
@@ -357,24 +421,16 @@ export class ArchieCognitionRuntime {
         model: teacher.model,
         cost_usd: teacher.cost_usd
       },
-      tags: negative ? ['teacher-escalation', 'negative', 'suppress'] : ['teacher-escalation', 'skill-acquisition']
+      tags: ['teacher-escalation', 'proposed']
     });
-    const learned = negative ? null : await this.train();
-    let learnedRoute = null;
-    if (!negative) {
-      const refreshed = await this.load();
-      learnedRoute = {
-        sparse: predictArchiePlan(refreshed.sparse, task),
-        planner: planWithArchieCPUPlanner(refreshed.planner, task),
-        derivation: deriveArchiePlan(refreshed.derivation, task, this.derivationTraining)
-      };
-    }
+    const stored = await this.corpus.ingest(proposalRecord);
+
     return receipt({
       schema: ARCHIE_COGNITION_RECEIPT_SCHEMA,
       observed_at: observedAt,
       task_digest: digest(task),
-      state: negative ? 'reject' : 'teacher',
-      disposition: negative ? 'reject' : 'teacher_completed',
+      state: 'teacher',
+      disposition: 'teacher_proposed',
       selected_route: 'budgeted-teacher',
       ...evidence,
       plan: teacher.plan,
@@ -382,11 +438,97 @@ export class ArchieCognitionRuntime {
       teacher: { ...teacher, budget_receipt: teacherCall.budget_receipt },
       learning: {
         corpus_receipt: stored,
-        snapshot_digest: learned?.snapshot_digest || null,
-        learned_route: learnedRoute
+        snapshot_digest: null,
+        learned_route: null,
+        proposal_record: proposalRecord,
+        plan_digest: digest(teacher.plan)
       }
     });
   }
+
+  // POK-103 gap #2 / POK-106: the only path by which a teacher proposal can
+  // become positive (or negative) training data. Requires the actual
+  // pending receipt from decide() plus the real Maker receipt produced by
+  // executing that exact plan. Rejects mismatched receipts. Idempotent:
+  // corpus.ingest() content-addresses on the normalized record, so replaying
+  // the same promotion twice trains at most once.
+  async promoteTeacherProposal(proposalReceipt, makerReceipt) {
+    if (proposalReceipt?.disposition !== 'teacher_proposed') {
+      throw new Error('promoteTeacherProposal requires a receipt with disposition "teacher_proposed".');
+    }
+    const proposal = proposalReceipt.learning?.proposal_record;
+    if (!proposal?.output) throw new Error('promoteTeacherProposal requires the original proposal_record on the receipt.');
+    const planDigest = digest(proposal.output.plan);
+    if (proposalReceipt.learning.plan_digest !== planDigest) {
+      throw new Error('promoteTeacherProposal rejected: proposal_record does not match the plan_digest on its own receipt.');
+    }
+    if (clean(makerReceipt?.schema, 100) !== 'sideways-maker-run/v2') {
+      throw new Error('promoteTeacherProposal requires a sideways-maker-run/v2 Maker receipt.');
+    }
+    const makerTaskDigest = clean(makerReceipt?.task_digest, 200);
+    if (!makerTaskDigest || makerTaskDigest !== proposalReceipt.task_digest) {
+      throw new Error('promoteTeacherProposal rejected: Maker receipt task_digest does not match the proposed task.');
+    }
+    const makerPlanDigest = clean(makerReceipt?.plan_digest || makerReceipt?.archie_decision?.plan_digest, 200);
+    if (!makerPlanDigest) {
+      throw new Error('promoteTeacherProposal requires a Maker receipt plan_digest.');
+    }
+    if (makerPlanDigest !== planDigest) {
+      throw new Error('promoteTeacherProposal rejected: Maker receipt plan_digest does not match the proposed plan.');
+    }
+    const makerRunId = clean(makerReceipt?.platform_run_id || makerReceipt?.session_id || makerReceipt?.run_id, 300);
+    if (!makerRunId) throw new Error('promoteTeacherProposal requires a Maker run identity.');
+    const makerState = clean(makerReceipt?.state, 100);
+    const verification = (Array.isArray(makerReceipt?.verification) ? makerReceipt.verification : [])
+      .map(item => clean(item, 2000)).filter(Boolean);
+    const verified = makerState === 'completed';
+    if (verified && !clean(makerReceipt?.head_sha, 200)) {
+      throw new Error('promoteTeacherProposal requires a completed Maker receipt head_sha.');
+    }
+    if (verified && !verification.length) {
+      throw new Error('promoteTeacherProposal requires nonempty Maker verification evidence.');
+    }
+    const makerReceiptDigest = clean(makerReceipt?.receipt_digest, 200) || digest(makerReceipt);
+    const promoted = await this.corpus.ingest({
+      kind: 'archie_cognition_teacher_promoted',
+      subject: proposal.subject,
+      input: proposal.input,
+      output: proposal.output,
+      tool_trace: proposal.tool_trace,
+      outcome: verified ? 'completed' : (makerState || 'unknown'),
+      source: {
+        ...proposal.source,
+        maker_run_id: makerRunId,
+        maker_receipt_digest: makerReceiptDigest,
+        maker_head_sha: clean(makerReceipt?.head_sha, 200),
+        maker_verification_digest: digest(verification)
+      },
+      tags: verified
+        ? ['teacher-escalation', 'skill-acquisition', 'promoted-from-proposal']
+        : ['teacher-escalation', 'negative', 'suppress', 'promoted-from-proposal']
+    });
+    const learned = verified && promoted.status !== 'deduplicated' ? await this.train() : null;
+    return receipt({
+      schema: ARCHIE_COGNITION_RECEIPT_SCHEMA,
+      observed_at: new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString(),
+      task_digest: proposalReceipt.task_digest,
+      state: verified ? 'teacher' : 'reject',
+      disposition: verified ? 'teacher_completed' : 'reject',
+      selected_route: 'budgeted-teacher',
+      plan: proposal.output.plan,
+      tool_trace: proposal.tool_trace,
+      teacher: proposalReceipt.teacher,
+      learning: {
+        corpus_receipt: promoted,
+        snapshot_digest: learned?.snapshot_digest || null,
+        promoted_from_record_id: stored_record_id(proposalReceipt)
+      }
+    });
+  }
+}
+
+function stored_record_id(proposalReceipt) {
+  return proposalReceipt?.learning?.corpus_receipt?.record_id || null;
 }
 
 export function createArchieCognitionRuntime(options) {

@@ -278,7 +278,11 @@ export function trainArchieCPUPlanner(examples, options = {}) {
   const all = Array.isArray(examples) ? examples : [];
   const positiveExamples = all.filter(isPositive);
   const negativeExamples = all.filter(isNegative);
-  if (!positiveExamples.length) throw new Error('At least one completed Archie distillation example is required.');
+  if (!positiveExamples.length) {
+    const error = new Error('At least one completed Archie distillation example is required.');
+    error.code = 'ARCHIE_COLD_START';
+    throw error;
+  }
   assertNoNeuralClaim(options.claims || options.metadata || {});
 
   const texts = [

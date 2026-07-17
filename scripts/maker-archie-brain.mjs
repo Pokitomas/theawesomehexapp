@@ -133,7 +133,11 @@ export function trainArchieSkillMixture(examples, {
   const input = Array.isArray(examples) ? examples : [];
   const admitted = input.filter(example => example?.schema === 'archie-distillation-example/v1' && example.instruction && example.outcome === 'completed' && example.negative !== true);
   const negatives = input.filter(example => example?.schema === 'archie-distillation-example/v1' && example.instruction && example.negative === true);
-  if (!admitted.length) throw new Error('At least one completed Archie distillation example is required.');
+  if (!admitted.length) {
+    const error = new Error('At least one completed Archie distillation example is required.');
+    error.code = 'ARCHIE_COLD_START';
+    throw error;
+  }
   const width = Math.max(1024, Math.min(65536, Number(dimensions) || 8192));
   const documents = [...admitted, ...negatives];
   const documentFrequency = new Array(width).fill(0);
