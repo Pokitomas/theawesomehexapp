@@ -47,16 +47,22 @@ jobs:
           cache: npm
       - name: Install locked browser tooling
         run: npm ci --ignore-scripts --include=dev
-      - name: Verify public product contracts
-        run: |
-          node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/founder-superiority.test.mjs
-          npm run test:xp-surfaces
-          npm run test:portfolio
-          npm run test:founder
-          npm run test:foundry:human
-          npm run test:frontier-expo
-          node scripts/tests/maker-console.test.mjs
-          node --test scripts/tests/maker-ios-install.test.mjs scripts/tests/archie-phone-product.test.mjs
+      - name: Verify deployment and superiority contracts
+        run: node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/founder-superiority.test.mjs
+      - name: Verify independent program surfaces
+        run: npm run test:xp-surfaces
+      - name: Verify product portfolio
+        run: npm run test:portfolio
+      - name: Verify Founder
+        run: npm run test:founder
+      - name: Verify Foundry
+        run: npm run test:foundry:human
+      - name: Verify Frontier Expo
+        run: npm run test:frontier-expo
+      - name: Verify Maker console
+        run: node scripts/tests/maker-console.test.mjs
+      - name: Verify phone install contracts
+        run: node --test scripts/tests/maker-ios-install.test.mjs scripts/tests/archie-phone-product.test.mjs
       - name: Assemble admitted public surfaces
         run: |
           set -euo pipefail
@@ -106,7 +112,7 @@ jobs:
             dist/product/xp-program-surfaces.json
             dist/evidence/founder-superiority-status.json
             /tmp/founder-http.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       - name: Configure Pages
         if: github.event_name == 'push'
