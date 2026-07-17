@@ -93,9 +93,11 @@ async function main() {
   const makerArgv = [...argv];
   const makerEnv = {};
   let decisionRoot = null;
+  let recalled = null;
+  let activeDecision = null;
 
   if (options.request && !options.help) {
-    const recalled = await recallNativeMakerPlan({ repoRoot: root, request: options.request, baseBranch: options.base, baseSha });
+    recalled = await recallNativeMakerPlan({ repoRoot: root, request: options.request, baseBranch: options.base, baseSha });
     if ((recalled.status === 'local' || recalled.status === 'teacher') && recalled.execution_eligible) {
       const key = randomBytes(32).toString('hex');
       decisionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sideways-archie-maker-decision-'));
@@ -108,6 +110,7 @@ async function main() {
         recall: recalled,
         key
       });
+      activeDecision = decision;
       await fs.writeFile(decisionPath, `${JSON.stringify(decision, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
       makerArgv.push('--archie-decision-file', decisionPath);
       makerEnv.ARCHIE_MAKER_DECISION_KEY = key;
@@ -130,7 +133,39 @@ async function main() {
   finally { if (decisionRoot) await fs.rm(decisionRoot, { recursive: true, force: true }); }
 
   if (result.code !== 0) {
-    if (result.signal) process.stderr.write(`[archie] Maker terminated by ${result.signal}; memory was not updated.\n`);
+    if (recalled?.status === 'teacher' && activeDecision) {
+      const negative = await rememberNativeMakerRun({
+        repoRoot: root,
+        receipt: {
+          schema: 'sideways-maker-run/v2',
+          state: result.signal ? 'cancelled' : 'failed',
+          request: options.request,
+          session_id: `failed-${activeDecision.teacher_receipt?.response_id || Date.now()}`,
+          base_sha: baseSha,
+          head_sha: null,
+          selected_lane: activeDecision.plan.selected_lane,
+          plan: activeDecision.plan,
+          plan_source: 'archie-openai-teacher',
+          archie_decision: {
+            state: activeDecision.state,
+            source: activeDecision.source,
+            specialist_id: activeDecision.specialist_id,
+            confidence: activeDecision.confidence,
+            margin: activeDecision.margin,
+            model_digest: activeDecision.model_digest,
+            plan_digest: activeDecision.plan_digest,
+            repository_evidence_digest: activeDecision.repository_evidence_digest,
+            execution_basis: activeDecision.execution_basis,
+            teacher_receipt: activeDecision.teacher_receipt
+          },
+          writer_summary: clean(result.stdout, 12000),
+          verification: []
+        }
+      });
+      process.stderr.write(`[archie] teacher execution ${negative.learning_disposition || negative.status}; proposal was not promoted.\n`);
+    } else if (result.signal) {
+      process.stderr.write(`[archie] Maker terminated by ${result.signal}; memory was not updated.\n`);
+    }
     process.exitCode = result.code;
     return;
   }
@@ -144,7 +179,7 @@ async function main() {
     process.stderr.write(`[archie] Maker completed, but local memory update failed: ${clean(memory.error, 1000)}\n`);
     return;
   }
-  process.stdout.write(`[archie] memory ${memory.status}; examples=${memory.document_count ?? 0} specialists=${memory.specialist_count ?? 0}\n`);
+  process.stdout.write(`[archie] memory ${memory.status}; disposition=${memory.learning_disposition || 'recorded'} examples=${memory.document_count ?? 0} negative=${memory.negative_document_count ?? 0} specialists=${memory.specialist_count ?? 0}\n`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
