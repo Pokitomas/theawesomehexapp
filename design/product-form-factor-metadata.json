@@ -1,37 +1,127 @@
 {
   "schema": "archie-product-form-factor-study/v1",
-  "generated_at": "2026-07-17T05:00:00Z",
-  "research_mode": "bounded-public-corpus",
+  "generated_at": "2026-07-17T05:20:00Z",
+  "research_mode": "bounded-multi-domain-public-corpus",
+  "corpus_summary": {
+    "source_records": 17,
+    "publishers": 7,
+    "domains": ["consumer-platform", "developer-tool", "enterprise", "public-service", "accessibility-standard", "conversion-research"],
+    "excluded": ["visual-awards-without-task-context", "screenshots-without-operating-model", "unverifiable-success-claims", "fashion-only-patterns"]
+  },
   "sources": [
     {
       "publisher": "Apple",
+      "source_class": "platform-design-system",
       "url": "https://developer.apple.com/design/human-interface-guidelines/design-principles",
       "signals": ["purpose", "familiarity", "simplicity", "craft", "delight", "responsibility", "recovery"]
     },
     {
       "publisher": "Apple",
+      "source_class": "platform-design-system",
       "url": "https://developer.apple.com/design/human-interface-guidelines/layout",
       "signals": ["hierarchy", "adaptability", "progressive-disclosure", "safe-areas"]
     },
     {
+      "publisher": "Apple",
+      "source_class": "accessibility-guidance",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility/",
+      "signals": ["perceivable", "adaptable", "multimodal", "intuitive"]
+    },
+    {
       "publisher": "GOV.UK Design System",
+      "source_class": "public-service-design-system",
       "url": "https://design-system.service.gov.uk/styles/layout/",
       "signals": ["mobile-first", "bounded-reading-width", "device-agnostic-layout"]
     },
     {
       "publisher": "GOV.UK Design System",
+      "source_class": "public-service-design-system",
       "url": "https://design-system.service.gov.uk/styles/spacing/",
       "signals": ["responsive-spacing", "consistent-rhythm"]
     },
     {
+      "publisher": "GOV.UK Design System",
+      "source_class": "public-service-design-system",
+      "url": "https://design-system.service.gov.uk/styles/type-scale/",
+      "signals": ["relative-type", "readability", "hierarchy"]
+    },
+    {
       "publisher": "Baymard Institute",
+      "source_class": "empirical-usability-research",
       "url": "https://baymard.com/blog/current-state-of-checkout-ux",
-      "signals": ["friction-reduction", "completion", "field-complexity"]
+      "signals": ["friction-reduction", "completion", "field-complexity", "abandonment"]
+    },
+    {
+      "publisher": "Baymard Institute",
+      "source_class": "empirical-usability-research",
+      "url": "https://baymard.com/blog/checkout-usability-apply-buttons",
+      "signals": ["visible-state-change", "hidden-apply-risk", "error-prevention"]
+    },
+    {
+      "publisher": "GitHub Primer",
+      "source_class": "developer-product-design-system",
+      "url": "https://primer.style/product/getting-started/",
+      "signals": ["cohesion", "familiar-metaphors", "responsive-efficiency", "flow"]
+    },
+    {
+      "publisher": "GitHub Primer",
+      "source_class": "accessibility-guidance",
+      "url": "https://primer.style/accessibility/design-guidance/",
+      "signals": ["focus-management", "semantic-html", "text-resizing", "color-independence"]
+    },
+    {
+      "publisher": "Microsoft Fluent 2",
+      "source_class": "cross-platform-design-system",
+      "url": "https://fluent2.microsoft.design/design-principles",
+      "signals": ["platform-natural", "adaptive", "familiar", "trust"]
+    },
+    {
+      "publisher": "Microsoft Fluent 2",
+      "source_class": "cross-platform-design-system",
+      "url": "https://fluent2.microsoft.design/layout",
+      "signals": ["spacing-hierarchy", "proximity", "decision-comfort"]
+    },
+    {
+      "publisher": "Microsoft Fluent 2",
+      "source_class": "accessibility-guidance",
+      "url": "https://fluent2.microsoft.design/accessibility",
+      "signals": ["reflow", "visible-focus", "predictable-navigation", "plain-language"]
+    },
+    {
+      "publisher": "IBM Carbon",
+      "source_class": "enterprise-design-system",
+      "url": "https://carbondesignsystem.com/guidelines/spacing/overview/",
+      "signals": ["spacing-tokens", "intentional-whitespace", "relationship-hierarchy"]
+    },
+    {
+      "publisher": "IBM Carbon",
+      "source_class": "accessibility-guidance",
+      "url": "https://carbondesignsystem.com/guidelines/accessibility/overview/",
+      "signals": ["linear-flow", "cognitive-load", "error-reduction"]
+    },
+    {
+      "publisher": "W3C WAI",
+      "source_class": "accessibility-standard",
+      "url": "https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance",
+      "signals": ["visible-focus", "focus-area", "focus-contrast"]
+    },
+    {
+      "publisher": "W3C WAI",
+      "source_class": "accessibility-standard",
+      "url": "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum",
+      "signals": ["pointer-target-size", "target-spacing", "precision-independence"]
     }
   ],
+  "causal_model": {
+    "input_dimensions": ["outcome", "authority", "evidence", "error-consequence", "frequency", "device", "continuity"],
+    "mediators": ["form-factor", "hierarchy", "density", "disclosure", "feedback", "recovery"],
+    "outcomes": ["completion", "error-rate", "recovery", "comprehension", "retention", "trust"],
+    "claim_boundary": "Form factor mediates product behavior but does not independently prove market success."
+  },
   "shared_tokens": {
     "spacing_px": [4, 8, 12, 16, 24, 32, 48, 64],
-    "minimum_touch_target_px": 44,
+    "primary_touch_target_px": 44,
+    "wcag_minimum_target_px": 24,
     "minimum_touch_text_px": 16,
     "focus_ring_px": 3,
     "content_line_length_ch": 72
@@ -42,28 +132,36 @@
       "dominant_action": "state-objective",
       "density": "calm-progressive",
       "personality": ["luminous", "spatial", "truthful", "recoverable"],
-      "primary_metadata": ["objective_digest", "continuity", "runtime_observation", "authority", "proof"]
+      "primary_metadata": ["objective_digest", "continuity", "runtime_observation", "authority", "proof"],
+      "success_signals": ["objective-completion", "interruption-recovery", "authority-comprehension", "truthful-handoff", "low-false-capability-belief"],
+      "anti_pattern": "generic-chat-shell"
     },
     "maker": {
       "role": "engineering-control-room",
       "dominant_action": "authorize-execution",
       "density": "high-structured",
       "personality": ["precise", "technical", "legible", "consequential"],
-      "primary_metadata": ["repository", "base", "lease", "backend", "tools", "receipts"]
+      "primary_metadata": ["repository", "base", "lease", "backend", "tools", "receipts"],
+      "success_signals": ["valid-task-packet", "exact-base-selection", "lease-visibility", "proof-completeness", "low-destructive-error"],
+      "anti_pattern": "playful-or-raw-terminal-obscurity"
     },
     "founder": {
       "role": "decision-studio",
       "dominant_action": "choose-direction",
       "density": "editorial-comparative",
       "personality": ["bold", "contrasting", "tasteful", "decisive"],
-      "primary_metadata": ["direction", "reaction", "stakes", "decision"]
+      "primary_metadata": ["direction", "reaction", "stakes", "decision"],
+      "success_signals": ["concept-discrimination", "rationale-quality", "decision-confidence", "reversible-exploration", "durable-commitment"],
+      "anti_pattern": "interchangeable-dashboard-cards"
     },
     "sideways": {
       "role": "lived-archive",
       "dominant_action": "save-and-discover",
       "density": "content-first",
       "personality": ["intimate", "quiet", "tactile", "owned"],
-      "primary_metadata": ["provenance", "privacy", "rank", "backup", "identity"]
+      "primary_metadata": ["provenance", "privacy", "rank", "backup", "identity"],
+      "success_signals": ["reading-continuity", "provenance-comprehension", "save-retrieval", "backup-survival", "privacy-comprehension"],
+      "anti_pattern": "engineering-density-in-reading-surface"
     }
   }
 }
