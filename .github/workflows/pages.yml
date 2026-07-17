@@ -58,6 +58,11 @@ jobs:
       - name: Verify bounded discovery and connected import
         run: npm run test:ingestion
 
+      - name: Verify product portfolio and Frontier Expo contracts
+        run: |
+          npm run test:frontier-expo
+          npm run test:portfolio
+
       - name: Extract base product layers
         run: |
           set -euo pipefail
@@ -200,11 +205,12 @@ jobs:
 
       - name: Publish Frontier World Expo research preview
         run: |
-          npm run test:frontier-expo
-          npm run test:portfolio
+          set -euo pipefail
           mkdir -p dist/world-expo dist/design
-          cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
-          cp design/frontier-world-expo.json dist/design/frontier-world-expo.json
+          git show HEAD:world-expo/index.html > dist/world-expo/index.html
+          git show HEAD:world-expo/expo.css > dist/world-expo/expo.css
+          git show HEAD:world-expo/expo.js > dist/world-expo/expo.js
+          git show HEAD:design/frontier-world-expo.json > dist/design/frontier-world-expo.json
 
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
@@ -235,7 +241,6 @@ jobs:
           node --check scripts/deployment-receipt.cjs
           node --check archie/archie.js
           node --check dist/archie/archie.js
-          node --check world-expo/expo.js
           node --check dist/world-expo/expo.js
           node --test scripts/tests/remote-service.test.mjs
           python studio/manual/verify.py
