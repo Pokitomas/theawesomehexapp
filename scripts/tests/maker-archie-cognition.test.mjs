@@ -134,6 +134,33 @@ test('promoteTeacherProposal is idempotent on replay and rejects a receipt for a
   );
 });
 
+test('a genuinely fresh install with zero corpus history does not crash on its first decide() call', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-cognition-coldstart-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const runtime = createArchieCognitionRuntime({
+    root,
+    clock: () => '2026-07-17T00:00:00.000Z',
+    teacher: async () => ({
+      teacher: 'fixture', model: 'teacher', run_id: 'cold-start-1',
+      plan: { steps: [{ tool: 'git', action: 'status' }, { tool: 'git', action: 'repair_conflict' }] },
+      tool_trace: [{ tool: 'git', action: 'status', ok: true }, { tool: 'git', action: 'repair_conflict', ok: true }],
+      outcome: 'completed'
+    })
+  });
+  // No corpus.ingest(), no train() — this is the true first-ever call.
+  const first = await runtime.decide({ instruction: 'Repair a conflicted git branch on a totally fresh install.' });
+  assert.equal(first.state, 'teacher', JSON.stringify(first, null, 2));
+  assert.equal(first.disposition, 'teacher_proposed');
+
+  const promoted = await runtime.promoteTeacherProposal(first, {
+    state: 'completed', platform_run_id: 'run-1', plan_digest: first.learning.plan_digest
+  });
+  assert.ok(promoted.learning.snapshot_digest);
+
+  const second = await runtime.decide({ instruction: 'Repair a conflicted git branch on a totally fresh install.' });
+  assert.equal(second.state, 'local', JSON.stringify(second, null, 2));
+});
+
 test('fails closed on disagreement when no teacher is allowed', async t => {
   const { runtime } = await fixture(t);
   const unresolved = await runtime.decide({ instruction: 'Compose a twelve-tone string quartet from whale migration data.' }, { allow_teacher: false });

@@ -150,7 +150,11 @@ export class ArchieCognitionRuntime {
   async train() {
     const examples = await this.corpus.examples({ limit: this.plannerTraining.limit || 100000 });
     const positives = examples.filter(example => example?.outcome === 'completed' && !example.negative);
-    if (!positives.length) throw new Error('Archie cognition requires at least one completed corpus example.');
+    if (!positives.length) {
+      const error = new Error('Archie cognition requires at least one completed corpus example.');
+      error.code = 'ARCHIE_COLD_START';
+      throw error;
+    }
     const sparse = await this.sparseBrain.train();
     const trainedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
     const planner = trainArchieCPUPlanner(examples, {
@@ -233,14 +237,33 @@ export class ArchieCognitionRuntime {
 
   async decide(taskInput, { allow_teacher = true } = {}) {
     const task = taskObject(taskInput);
-    const models = await this.load();
-    const sparse = predictArchiePlan(models.sparse, task);
-    const planner = planWithArchieCPUPlanner(models.planner, task);
-    const derivation = deriveArchiePlan(models.derivation, task, this.derivationTraining);
+    const observedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
+
+    // A fresh install has no corpus history at all. Every sub-model trainer
+    // requires at least one completed example to produce a model, which
+    // cannot exist before Maker has ever executed anything. Previously this
+    // threw out of load() and crashed decide() on its very first call ever
+    // — exactly the "unfamiliar environment, non-developer's first request"
+    // scenario ARCHIE_MAKER_VISION.md names as the thing this system must
+    // survive. Treat "no local model yet" as "no local answer" and fall
+    // through to the same teacher-escalation path used whenever local
+    // models disagree or don't know, instead of crashing.
+    let models = null;
+    let coldStart = false;
+    try {
+      models = await this.load();
+    } catch (error) {
+      if (error?.code !== 'ARCHIE_COLD_START') throw error;
+      coldStart = true;
+    }
+
+    const coldStartResult = Object.freeze({ state: 'teacher', reason: 'cold-start-no-local-history', confidence: 0, calibrated_confidence: 0 });
+    const sparse = coldStart ? coldStartResult : predictArchiePlan(models.sparse, task);
+    const planner = coldStart ? coldStartResult : planWithArchieCPUPlanner(models.planner, task);
+    const derivation = coldStart ? coldStartResult : deriveArchiePlan(models.derivation, task, this.derivationTraining);
     const agreement = alignment(sparse, planner);
     const derivationPlannerAgreement = alignment(derivation, planner);
     const derivationSparseAgreement = alignment(derivation, sparse);
-    const observedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
 
     const evidence = {
       sparse,

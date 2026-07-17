@@ -85,7 +85,11 @@ function domainOf(text) {
 
 export function trainArchieDerivationModel(examples, options = {}) {
   const positives = (Array.isArray(examples) ? examples : []).filter(item => item?.schema === 'archie-distillation-example/v1' && item.outcome === 'completed' && !item.negative);
-  if (!positives.length) throw new Error('Archie derivation training requires one completed example.');
+  if (!positives.length) {
+    const error = new Error('Archie derivation training requires one completed example.');
+    error.code = 'ARCHIE_COLD_START';
+    throw error;
+  }
   const adapterMap = new Map();
   const familyMap = new Map();
   const transitions = new Map();
