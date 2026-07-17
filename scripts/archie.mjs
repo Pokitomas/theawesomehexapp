@@ -24,6 +24,7 @@ import { createCheckpointUpdatePackage } from './archie-checkpoint-update.mjs';
 import { runResearchCommand } from './archie-research-campaign.mjs';
 import { runArchieSelfHostingSample } from './archie-self-hosting-sample.mjs';
 import { runArchieFirstRun } from './archie-first-run.mjs';
+import { runDistillCommand } from './archie-distill.mjs';
 import {
   benchmarkModel,
   inspectModel,
@@ -56,15 +57,15 @@ function usage() {
 
 Usage:
   archie keygen --type recipient|signing --output-dir <directory>
-  archie package <artifact> --metadata <json> --output-dir <directory> \\
-    --recipient-key <x25519-public.pem> --signing-private <ed25519-private.pem> \\
+  archie package <artifact> --metadata <json> --output-dir <directory> \
+    --recipient-key <x25519-public.pem> --signing-private <ed25519-private.pem> \
     --signing-public <ed25519-public.pem>
-  archie checkpoint <parent-id@version> <artifact> --metadata <json> --lineage <json> \\
-    --output-dir <directory> --recipient-key <x25519-public.pem> \\
+  archie checkpoint <parent-id@version> <artifact> --metadata <json> --lineage <json> \
+    --output-dir <directory> --recipient-key <x25519-public.pem> \
     --signing-private <ed25519-private.pem> --signing-public <ed25519-public.pem>
-  archie self-host-sample --base-sha <sha> --branch <branch> [--seed <n>] \\
+  archie self-host-sample --base-sha <sha> --branch <branch> [--seed <n>] \
     [--target-prefix <path>] [--state-path <path>]
-  archie research create <campaign> --base-sha <sha> --credits 100 \\
+  archie research create <campaign> --base-sha <sha> --credits 100 \
     --evaluation-reserve 20 --allocation <allocation.json>
   archie research materialize --campaign <campaign> [--output <directory>]
   archie research status --campaign <campaign>
@@ -75,6 +76,7 @@ Usage:
   archie remove <id@version>
   archie list
   archie setup [--json] [--no-color]
+  archie distill <init|doctor|teach|attest-teacher|import-teacher> [flags]
 
 Research campaign:
   --root <path>             Repository root. Defaults to cwd.
@@ -141,6 +143,11 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (command === 'help') {
     process.stdout.write(`${usage()}\n`);
+    return;
+  }
+
+  if (command === 'distill') {
+    printJSON(await runDistillCommand({ positionals, flags }));
     return;
   }
 
