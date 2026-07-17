@@ -198,6 +198,14 @@ jobs:
           mkdir -p dist/archie
           cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
 
+      - name: Publish Frontier World Expo research preview
+        run: |
+          npm run test:frontier-expo
+          npm run test:portfolio
+          mkdir -p dist/world-expo
+          cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
+          cp research/frontier-world-expo.json dist/world-expo/frontier-world-expo.json
+
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
@@ -227,6 +235,8 @@ jobs:
           node --check scripts/deployment-receipt.cjs
           node --check archie/archie.js
           node --check dist/archie/archie.js
+          node --check world-expo/expo.js
+          node --check dist/world-expo/expo.js
           node --test scripts/tests/remote-service.test.mjs
           python studio/manual/verify.py
           node studio/manual/tests/remote-terminal-contract.mjs
@@ -275,6 +285,10 @@ jobs:
           test -f dist/archie/manifest.webmanifest
           test -f dist/archie/sw.js
           test -f dist/archie/icon.svg
+          test -f dist/world-expo/index.html
+          test -f dist/world-expo/expo.css
+          test -f dist/world-expo/expo.js
+          test -f dist/world-expo/frontier-world-expo.json
 
       - name: Check Add to Sideways on phone and desktop
         run: |
