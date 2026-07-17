@@ -46,7 +46,13 @@ jobs:
       - name: Verify Foundry cost calibration
         run: node --test foundry/tests/cost-calibration.test.mjs
       - name: Verify Foundry runtime
-        run: node --test foundry/tests/runtime.test.mjs
+        run: |
+          set +e
+          node --test foundry/tests/runtime.test.mjs > foundry-runtime.log 2>&1
+          status=$?
+          set -e
+          cat foundry-runtime.log
+          exit "$status"
       - name: Verify Foundry Generation Zero
         run: node --test foundry/tests/generation-zero.test.mjs
       - name: Verify product portfolio
@@ -88,6 +94,7 @@ jobs:
             foundry/foundry.js
             examples/site
             product/product-portfolio.json
+            foundry-runtime.log
             founder-room-phone.png
             founder-room-proof.json
           if-no-files-found: error
