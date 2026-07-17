@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.github.io/theawesomehexapp/contracts/archie-distill-profile.schema.json",
+  "title": "Archie distillation profile",
+  "type": "object",
+  "required": ["schema", "id", "claim_boundary", "teacher", "student", "teacher_generation", "training", "footprint"],
+  "properties": {
+    "schema": { "const": "archie-distill-profile/v1" },
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "claim_boundary": { "type": "string", "minLength": 20 },
+    "teacher": { "$ref": "#/$defs/model" },
+    "student": { "$ref": "#/$defs/student" },
+    "teacher_generation": {
+      "type": "object",
+      "required": ["context_size", "max_tokens", "temperature", "gpu_layers"],
+      "properties": {
+        "context_size": { "type": "integer", "minimum": 512 },
+        "max_tokens": { "type": "integer", "minimum": 1 },
+        "temperature": { "type": "number", "minimum": 0 },
+        "gpu_layers": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "training": { "type": "object" },
+    "footprint": { "type": "object" }
+  },
+  "$defs": {
+    "student": {
+      "type": "object",
+      "required": ["repository", "revision", "license", "download_bytes"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 3 },
+        "revision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "license": { "type": "string", "minLength": 3 },
+        "download_bytes": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "model": {
+      "allOf": [
+        { "$ref": "#/$defs/student" },
+        {
+          "type": "object",
+          "required": ["filename", "sha256"],
+          "properties": {
+            "filename": { "type": "string", "minLength": 3 },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}
