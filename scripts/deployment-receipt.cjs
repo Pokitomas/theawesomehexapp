@@ -15,6 +15,19 @@ const EXPO_PATH = 'world-expo/';
 const EXAMPLE_PATH = 'examples/site/';
 const FOUNDER_RECEIPT_SCHEMA = 'founder-public-reachability-receipt/v1';
 const ARCHIE_RECEIPT_SCHEMA = 'archie-public-reachability-receipt/v1';
+const PUBLIC_SURFACE_RECEIPT_SCHEMA = 'archie-public-surface-reachability-receipt/v1';
+const PUBLIC_SURFACE_SET_SCHEMA = 'archie-public-surface-set-receipt/v1';
+
+const PUBLIC_SURFACES = Object.freeze([
+  { id: 'root', label: 'ROOT', route: '', marker: /Archie Program Manager/i },
+  { id: 'desktop', label: 'DESKTOP', route: DESKTOP_PATH, marker: /Archie Program Manager/i },
+  { id: 'founder', label: 'FOUNDER', route: FOUNDER_PATH, marker: /FOUNDER\s*\/\s*HUMAN INVENTION POWER/i, schema: FOUNDER_RECEIPT_SCHEMA },
+  { id: 'foundry', label: 'FOUNDRY', route: FOUNDRY_PATH, marker: /Foundry Research Control/i },
+  { id: 'archie', label: 'ARCHIE', route: ARCHIE_PATH, marker: /Archie Knowledge Utility/i, schema: ARCHIE_RECEIPT_SCHEMA },
+  { id: 'maker', label: 'MAKER', route: MAKER_PATH, marker: /MAKER\.EXE\s*\/\s*PROJECT WORKBENCH|Maker Workbench/i },
+  { id: 'expo', label: 'EXPO', route: EXPO_PATH, marker: /Frontier\s*World Expo/i },
+  { id: 'example', label: 'EXAMPLE_OUTPUT', route: EXAMPLE_PATH, marker: /Tiny Public Things/i }
+]);
 
 function normalizeDeployedUrl(value) {
   const raw = String(value || '').trim();
@@ -28,9 +41,20 @@ function routeUrl(deployedUrl, route = '') {
 
 function sentinelUrl(deployedUrl) { return routeUrl(deployedUrl, SENTINEL_PATH); }
 function desktopUrl(deployedUrl) { return routeUrl(deployedUrl); }
+function desktopAliasUrl(deployedUrl) { return routeUrl(deployedUrl, DESKTOP_PATH); }
 function founderUrl(deployedUrl) { return routeUrl(deployedUrl, FOUNDER_PATH); }
 function archieUrl(deployedUrl) { return routeUrl(deployedUrl, ARCHIE_PATH); }
 function foundryUrl(deployedUrl) { return routeUrl(deployedUrl, FOUNDRY_PATH); }
+
+function surfaceDefinition(surface) {
+  const definition = PUBLIC_SURFACES.find(item => item.id === surface);
+  if (!definition) throw new Error(`Unknown public surface: ${surface || '<missing>'}`);
+  return definition;
+}
+
+function surfaceUrl(deployedUrl, surface) {
+  return routeUrl(deployedUrl, surfaceDefinition(surface).route);
+}
 
 function buildDeploymentSentinel({ commit, repository }) {
   if (!commit) throw new Error('A deployment commit is required.');
@@ -45,11 +69,33 @@ function writeDeploymentSentinel({ outputDir = 'dist', commit, repository }) {
   return target;
 }
 
-function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null, archieReceipt = null }) {
+function isSuccessfulSurfaceReceipt(receipt) {
+  return Boolean(receipt && receipt.anonymous === true && receipt.status === 200 && receipt.login_redirect === false && receipt.expected_commit && receipt.observed_commit === receipt.expected_commit);
+}
+
+function inferSurface(receipt) {
+  if (receipt?.surface) return receipt.surface;
+  try {
+    const pathname = new URL(receipt?.url || '').pathname.replace(/\/+$/, '/');
+    for (const definition of PUBLIC_SURFACES) {
+      if (definition.route && pathname.endsWith(`/${definition.route}`)) return definition.id;
+    }
+    return 'root';
+  } catch {
+    return null;
+  }
+}
+
+function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null, archieReceipt = null, surfaceReceipts = [] }) {
   const rootUrl = normalizeDeployedUrl(deployedUrl);
+  const receipts = [...surfaceReceipts];
+  if (founderReceipt && !receipts.some(item => inferSurface(item) === 'founder')) receipts.push(founderReceipt);
+  if (archieReceipt && !receipts.some(item => inferSurface(item) === 'archie')) receipts.push(archieReceipt);
+  const bySurface = new Map(receipts.map(item => [inferSurface(item), item]));
+  const allVerified = PUBLIC_SURFACES.every(definition => isSuccessfulSurfaceReceipt(bySurface.get(definition.id)));
   const lines = [
     `ROOT_URL=${rootUrl}`,
-    `DESKTOP_URL=${desktopUrl(rootUrl)}`,
+    `DESKTOP_URL=${desktopAliasUrl(rootUrl)}`,
     `FOUNDER_URL=${founderUrl(rootUrl)}`,
     `FOUNDRY_URL=${foundryUrl(rootUrl)}`,
     `ARCHIE_URL=${archieUrl(rootUrl)}`,
@@ -59,8 +105,8 @@ function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null
     `COMMIT=${commit}`,
     `DEPLOYMENT_SENTINEL_URL=${sentinelUrl(rootUrl)}`,
     'LIVE_COMMIT_VERIFIED=true',
-    `FOUNDER_ANONYMOUS_REACHABLE=${founderReceipt?.anonymous === true && founderReceipt?.status === 200 && founderReceipt?.login_redirect === false}`,
-    `ARCHIE_ANONYMOUS_REACHABLE=${archieReceipt?.anonymous === true && archieReceipt?.status === 200 && archieReceipt?.login_redirect === false}`,
+    `ALL_PUBLIC_SURFACES_VERIFIED=${allVerified}`,
+    ...PUBLIC_SURFACES.map(definition => `${definition.label}_ANONYMOUS_REACHABLE=${isSuccessfulSurfaceReceipt(bySurface.get(definition.id))}`),
     'ROOT_PRODUCT=Archie Program Manager',
     'PRODUCT_MODEL=independent opaque applications',
     'DESKTOP_CONTRACT=launches separate programs without depicting one cognition pipeline',
@@ -71,9 +117,7 @@ function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null
     'EXAMPLE_CONTRACT=ordinary programs are disposable outputs, not Archie memory or ontology',
     'SUPERIORITY_CLAIM=blocked until blinded matched real-user evidence passes the public protocol and independent admission'
   ];
-  for (const receipt of [founderReceipt, archieReceipt].filter(Boolean)) {
-    lines.push('', '```json', JSON.stringify(receipt, null, 2), '```');
-  }
+  for (const receipt of receipts) lines.push('', '```json', JSON.stringify(receipt, null, 2), '```');
   return lines.join('\n');
 }
 
@@ -111,7 +155,7 @@ function isLoginUrl(value) {
   }
 }
 
-async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, expectedRepository, route, marker, schema, fetchImpl = globalThis.fetch, attempts = 24, delayMs = 5_000 }) {
+async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, expectedRepository, route, marker, schema = PUBLIC_SURFACE_RECEIPT_SCHEMA, surface = null, fetchImpl = globalThis.fetch, attempts = 24, delayMs = 5_000 }) {
   if (typeof fetchImpl !== 'function') throw new Error('A fetch implementation is required.');
   const publicUrl = routeUrl(deployedUrl, route);
   const identityUrl = sentinelUrl(deployedUrl);
@@ -138,7 +182,7 @@ async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, ex
       if (isLoginUrl(finalUrl)) throw new Error(`surface redirected to authentication at ${finalUrl}`);
       const html = await pageResponse.text();
       if (!marker.test(html)) throw new Error(`public surface marker is absent at ${publicUrl}`);
-      return { schema, url: publicUrl, anonymous: true, status: pageResponse.status, login_redirect: false, expected_commit: expectedCommit, observed_commit: sentinel.commit };
+      return { schema, surface, url: publicUrl, anonymous: true, status: pageResponse.status, login_redirect: false, expected_commit: expectedCommit, observed_commit: sentinel.commit };
     } catch (error) {
       lastError = error;
       if (attempt < attempts && delayMs > 0) await sleep(delayMs);
@@ -147,12 +191,18 @@ async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, ex
   throw new Error(`Public surface did not converge at ${publicUrl}: ${lastError?.message || 'unknown error'}`);
 }
 
-function verifyFounderPublicReachability(options) {
-  return verifyPublicSurfaceReachability({ ...options, route: FOUNDER_PATH, marker: /FOUNDER\s*\/\s*HUMAN INVENTION POWER/i, schema: FOUNDER_RECEIPT_SCHEMA });
+function verifyNamedPublicSurface(surface, options) {
+  const definition = surfaceDefinition(surface);
+  return verifyPublicSurfaceReachability({ ...options, route: definition.route, marker: definition.marker, schema: definition.schema || PUBLIC_SURFACE_RECEIPT_SCHEMA, surface: definition.id });
 }
 
-function verifyArchiePublicReachability(options) {
-  return verifyPublicSurfaceReachability({ ...options, route: ARCHIE_PATH, marker: /Archie Knowledge Utility/i, schema: ARCHIE_RECEIPT_SCHEMA });
+function verifyFounderPublicReachability(options) { return verifyNamedPublicSurface('founder', options); }
+function verifyArchiePublicReachability(options) { return verifyNamedPublicSurface('archie', options); }
+
+async function verifyAllPublicSurfaces(options) {
+  const receipts = [];
+  for (const definition of PUBLIC_SURFACES) receipts.push(await verifyNamedPublicSurface(definition.id, options));
+  return { schema: PUBLIC_SURFACE_SET_SCHEMA, expected_commit: options.expectedCommit, receipts };
 }
 
 async function listOpenReceiptIssues({ github, owner, repo }) {
@@ -162,18 +212,15 @@ async function listOpenReceiptIssues({ github, owner, repo }) {
   return issues.filter(issue => !issue.pull_request && acceptedTitles.has(issue.title)).sort((left, right) => right.number - left.number);
 }
 
-async function upsertDeploymentReceipt({ github, context, deployedUrl, founderReceipt = null, archieReceipt = null }) {
+async function upsertDeploymentReceipt({ github, context, deployedUrl, founderReceipt = null, archieReceipt = null, surfaceReceipts = [] }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const commit = context.sha;
-  const body = buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt, archieReceipt });
+  const body = buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt, archieReceipt, surfaceReceipts });
   const matches = await listOpenReceiptIssues({ github, owner, repo });
   let primary;
-  if (matches.length > 0) {
-    primary = (await github.rest.issues.update({ owner, repo, issue_number: matches[0].number, title: RECEIPT_TITLE, body })).data;
-  } else {
-    primary = (await github.rest.issues.create({ owner, repo, title: RECEIPT_TITLE, body })).data;
-  }
+  if (matches.length > 0) primary = (await github.rest.issues.update({ owner, repo, issue_number: matches[0].number, title: RECEIPT_TITLE, body })).data;
+  else primary = (await github.rest.issues.create({ owner, repo, title: RECEIPT_TITLE, body })).data;
   const closedDuplicates = [];
   for (const duplicate of matches.slice(1)) {
     await github.rest.issues.update({ owner, repo, issue_number: duplicate.number, state: 'closed', state_reason: 'not_planned' });
@@ -184,20 +231,25 @@ async function upsertDeploymentReceipt({ github, context, deployedUrl, founderRe
 
 async function runCli() {
   const command = process.argv[2];
+  const options = { deployedUrl: process.env.DEPLOYED_URL, expectedCommit: process.env.EXPECTED_COMMIT, expectedRepository: process.env.EXPECTED_REPOSITORY };
   if (command === 'write-sentinel') {
     const target = writeDeploymentSentinel({ outputDir: process.env.DEPLOYMENT_OUTPUT_DIR || 'dist', commit: process.env.EXPECTED_COMMIT, repository: process.env.EXPECTED_REPOSITORY });
     process.stdout.write(`${target}\n`);
     return;
   }
   if (command === 'verify-live') {
-    const result = await verifyLiveDeployment({ deployedUrl: process.env.DEPLOYED_URL, expectedCommit: process.env.EXPECTED_COMMIT, expectedRepository: process.env.EXPECTED_REPOSITORY });
-    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.stdout.write(`${JSON.stringify(await verifyLiveDeployment(options))}\n`);
     return;
   }
-  if (command === 'verify-founder-live' || command === 'verify-archie-live') {
-    const verify = command === 'verify-founder-live' ? verifyFounderPublicReachability : verifyArchiePublicReachability;
-    const result = await verify({ deployedUrl: process.env.DEPLOYED_URL, expectedCommit: process.env.EXPECTED_COMMIT, expectedRepository: process.env.EXPECTED_REPOSITORY });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (command === 'verify-all-live') {
+    process.stdout.write(`${JSON.stringify(await verifyAllPublicSurfaces(options), null, 2)}\n`);
+    return;
+  }
+  const match = /^verify-([a-z-]+)-live$/.exec(command || '');
+  if (match) {
+    const aliases = { 'example-output': 'example' };
+    const surface = aliases[match[1]] || match[1];
+    process.stdout.write(`${JSON.stringify(await verifyNamedPublicSurface(surface, options), null, 2)}\n`);
     return;
   }
   throw new Error(`Unknown deployment receipt command: ${command || '<missing>'}`);
@@ -213,22 +265,32 @@ module.exports = {
   FOUNDER_PATH,
   ARCHIE_PATH,
   FOUNDRY_PATH,
+  MAKER_PATH,
+  EXPO_PATH,
+  EXAMPLE_PATH,
   FOUNDER_RECEIPT_SCHEMA,
   ARCHIE_RECEIPT_SCHEMA,
+  PUBLIC_SURFACE_RECEIPT_SCHEMA,
+  PUBLIC_SURFACE_SET_SCHEMA,
+  PUBLIC_SURFACES,
   normalizeDeployedUrl,
   routeUrl,
   sentinelUrl,
   desktopUrl,
+  desktopAliasUrl,
   founderUrl,
   archieUrl,
   foundryUrl,
+  surfaceUrl,
   buildDeploymentSentinel,
   writeDeploymentSentinel,
   buildDeploymentReceiptBody,
   verifyLiveDeployment,
   verifyPublicSurfaceReachability,
+  verifyNamedPublicSurface,
   verifyFounderPublicReachability,
   verifyArchiePublicReachability,
+  verifyAllPublicSurfaces,
   listOpenReceiptIssues,
   upsertDeploymentReceipt
 };
