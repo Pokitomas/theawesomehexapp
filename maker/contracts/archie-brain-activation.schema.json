@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "archie-brain-activation/v1",
+  "title": "Trainer-signed Archie brain activation receipt",
+  "type": "object",
+  "required": ["schema", "activated_at", "candidate_package_digest", "mode", "shadow_evaluation", "trainer_key_id", "receipt_digest", "signature"],
+  "properties": {
+    "schema": {"const": "archie-brain-activation/v1"},
+    "activated_at": {"type": "string"},
+    "prior_package_digest": {"type": ["string", "null"]},
+    "candidate_package_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "mode": {"enum": ["cold-start", "hot-swap", "controlled-core-restart"]},
+    "shadow_evaluation": {"type": "object"},
+    "migration_adapter": {},
+    "trainer_key_id": {"type": "string"},
+    "rollback_package_digest": {"type": ["string", "null"]},
+    "receipt_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "signature": {"$ref": "archie-brain-signature/v1"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "archie-brain-package/v1",
+  "title": "Trainer-signed Archie brain package",
+  "type": "object",
+  "required": ["schema", "package_id", "runtime_abi", "working_state_schema", "artifacts", "package_digest"],
+  "properties": {
+    "schema": {"const": "archie-brain-package/v1"},
+    "package_id": {"type": "string", "minLength": 1},
+    "runtime_abi": {"type": "string", "minLength": 1},
+    "working_state_schema": {"type": "string", "minLength": 1},
+    "tokenizer": {},
+    "architecture": {},
+    "artifacts": {"type": "array", "minItems": 1},
+    "sidepus_manifest_digests": {"type": "array", "items": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+    "evaluation_receipts": {"type": "array"},
+    "authority_policy": {},
+    "hardware_envelope": {},
+    "parent_digest": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "metadata": {},
+    "package_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "signature": {"$ref": "archie-brain-signature/v1"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,52 @@
+name: Archie persistent Core
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/maker-archie-persistent-core.mjs'
+      - 'scripts/maker-archie-product-ecology.mjs'
+      - 'scripts/maker-archie-trainer.mjs'
+      - 'scripts/tests/maker-archie-persistent-core.test.mjs'
+      - 'scripts/tests/maker-archie-product-ecology.test.mjs'
+      - 'scripts/tests/maker-archie-trainer.test.mjs'
+      - 'maker/contracts/archie-working-state.schema.json'
+      - 'maker/contracts/archie-candidate-move.schema.json'
+      - 'maker/contracts/archie-app-manifest.schema.json'
+      - 'maker/contracts/archie-brain-*.schema.json'
+      - 'maker/contracts/archie-trainer-proposal.schema.json'
+      - 'package.json'
+      - '.github/workflows/archie-persistent-core.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-head:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Verify persistent cognition, App ecology, and Trainer authority
+        run: npm run test:archie:persistent
+      - name: Exercise promptless no-op cycle
+        run: |
+          root="$(mktemp -d)"
+          npm run --silent archie:persistent -- --root "$root" > persistent-cycle.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receipt = JSON.parse(fs.readFileSync('persistent-cycle.json', 'utf8'));
+          if (receipt.schema !== 'archie-persistent-cycle/v1') process.exit(1);
+          if (receipt.selected?.candidate?.effect_class !== 'no-op') process.exit(1);
+          if (!receipt.cycle_digest || !receipt.next_state_digest) process.exit(1);
+          NODE
