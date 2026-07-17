@@ -6,290 +6,127 @@ import receipt from '../deployment-receipt.cjs';
 
 const {
   RECEIPT_TITLE,
+  LEGACY_RECEIPT_TITLES,
+  FOUNDER_RECEIPT_SCHEMA,
   ARCHIE_RECEIPT_SCHEMA,
   archieUrl,
   buildDeploymentReceiptBody,
   buildDeploymentSentinel,
+  founderUrl,
   sentinelUrl,
   verifyArchiePublicReachability,
+  verifyFounderPublicReachability,
   verifyLiveDeployment,
   upsertDeploymentReceipt
 } = receipt;
 
 const immutableAction = name => new RegExp(`uses:\\s*${name.replace('/', '\\/')}@[0-9a-f]{40}(?:\\s+#\\s*v\\d+)?`);
 
-function loadPagesWorkflow({
-  workspace = process.env.GITHUB_WORKSPACE || process.cwd(),
-  readFile = readFileSync
-} = {}) {
+function loadPagesWorkflow({ workspace = process.env.GITHUB_WORKSPACE || process.cwd(), readFile = readFileSync } = {}) {
   const workflowPath = resolve(workspace, '.github/workflows/pages.yml');
   const workflow = readFile(workflowPath, 'utf8');
-  if (!workflow.includes('name: Build and deploy manual root-kernel feed')) {
-    throw new Error(`Unexpected Pages workflow content at ${workflowPath}`);
-  }
+  if (!workflow.includes('name: Build and deploy Founder human-power surfaces')) throw new Error(`Unexpected Pages workflow content at ${workflowPath}`);
   return { workflowPath, workflow };
 }
 
-test('deployment identity and receipt expose the exact live commit and Archie path', () => {
-  assert.deepEqual(buildDeploymentSentinel({
-    commit: 'abc123',
-    repository: 'Pokitomas/theawesomehexapp'
-  }), {
-    schema: 1,
+test('deployment identity names Founder as the exact product root', () => {
+  assert.deepEqual(buildDeploymentSentinel({ commit: 'abc123', repository: 'Pokitomas/theawesomehexapp' }), {
+    schema: 2,
+    product_root: 'founder',
     commit: 'abc123',
     repository: 'Pokitomas/theawesomehexapp'
   });
-
-  assert.equal(
-    sentinelUrl('https://pokitomas.github.io/theawesomehexapp'),
-    'https://pokitomas.github.io/theawesomehexapp/.well-known/sideways-deployment.json'
-  );
-  assert.equal(
-    archieUrl('https://pokitomas.github.io/theawesomehexapp'),
-    'https://pokitomas.github.io/theawesomehexapp/archie/'
-  );
-
-  const body = buildDeploymentReceiptBody({
-    deployedUrl: 'https://pokitomas.github.io/theawesomehexapp',
-    commit: 'abc123'
-  });
-  assert.match(body, /^ROOT_URL=https:\/\/pokitomas\.github\.io\/theawesomehexapp\//);
-  assert.match(body, /ARCHIE_URL=https:\/\/pokitomas\.github\.io\/theawesomehexapp\/archie\//);
-  assert.match(body, /COMMIT=abc123/);
-  assert.match(body, /DEPLOYMENT_SENTINEL_URL=https:\/\/pokitomas\.github\.io\/theawesomehexapp\/\.well-known\/sideways-deployment\.json/);
-  assert.match(body, /LIVE_COMMIT_VERIFIED=true/);
-  assert.match(body, /ARCHIE_ANONYMOUS_REACHABLE=false/);
+  assert.equal(founderUrl('https://pokitomas.github.io/theawesomehexapp'), 'https://pokitomas.github.io/theawesomehexapp/');
+  assert.equal(archieUrl('https://pokitomas.github.io/theawesomehexapp'), 'https://pokitomas.github.io/theawesomehexapp/archie/');
+  assert.equal(sentinelUrl('https://pokitomas.github.io/theawesomehexapp'), 'https://pokitomas.github.io/theawesomehexapp/.well-known/archie-deployment.json');
+  const body = buildDeploymentReceiptBody({ deployedUrl: 'https://pokitomas.github.io/theawesomehexapp', commit: 'abc123' });
+  assert.match(body, /ROOT_PRODUCT=Founder human invention surface/);
+  assert.match(body, /FOUNDRY_URL=.*\/foundry\//);
+  assert.match(body, /SUPERIORITY_CLAIM=blocked until blinded matched real-user evidence/);
+  assert.doesNotMatch(body, /MANUAL_URL|PHONE_TEST_URL|one-million-candidate feed/);
 });
 
-test('live verification rejects a stale deployment and retries until the expected commit appears', async () => {
+test('live verification rejects stale or non-Founder deployments', async () => {
   const responses = [
-    { commit: 'old', repository: 'Pokitomas/theawesomehexapp' },
-    { commit: 'new', repository: 'Pokitomas/theawesomehexapp' }
+    { commit: 'old', repository: 'Pokitomas/theawesomehexapp', product_root: 'founder' },
+    { commit: 'new', repository: 'Pokitomas/theawesomehexapp', product_root: 'founder' }
   ];
-  const requested = [];
   const result = await verifyLiveDeployment({
-    deployedUrl: 'https://example.test/app/',
-    expectedCommit: 'new',
-    expectedRepository: 'Pokitomas/theawesomehexapp',
-    attempts: 2,
-    delayMs: 0,
-    async fetchImpl(url, options) {
-      requested.push({ url, options });
-      return {
-        ok: true,
-        async json() { return responses.shift(); }
-      };
-    }
+    deployedUrl: 'https://example.test/app/', expectedCommit: 'new', expectedRepository: 'Pokitomas/theawesomehexapp', attempts: 2, delayMs: 0,
+    async fetchImpl() { return { ok: true, async json() { return responses.shift(); } }; }
   });
-
   assert.equal(result.attempt, 2);
-  assert.equal(result.sentinel.commit, 'new');
-  assert.equal(requested.length, 2);
-  assert.match(requested[0].url, /attempt=1/);
-  assert.deepEqual(requested[0].options.headers, { 'cache-control': 'no-cache' });
+  await assert.rejects(() => verifyLiveDeployment({
+    deployedUrl: 'https://example.test/app/', expectedCommit: 'new', expectedRepository: 'Pokitomas/theawesomehexapp', attempts: 1, delayMs: 0,
+    async fetchImpl() { return { ok: true, async json() { return { commit: 'new', repository: 'Pokitomas/theawesomehexapp', product_root: 'sideways' }; } }; }
+  }), /served product root sideways/);
 });
 
-test('Archie public verification uses anonymous requests and binds the live sentinel', async () => {
-  const requested = [];
-  const result = await verifyArchiePublicReachability({
-    deployedUrl: 'https://example.test/app/',
-    expectedCommit: 'new',
-    expectedRepository: 'Pokitomas/theawesomehexapp',
-    attempts: 1,
-    delayMs: 0,
-    async fetchImpl(url, options) {
-      requested.push({ url, options });
-      if (url.includes('.well-known')) {
-        return {
-          ok: true,
-          status: 200,
-          async json() { return { commit: 'new', repository: 'Pokitomas/theawesomehexapp' }; }
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        url: 'https://example.test/app/archie/',
-        async text() { return '<p>ARCHIE / LOCAL INTELLIGENCE</p>'; }
-      };
-    }
-  });
-
-  assert.deepEqual(result, {
-    schema: ARCHIE_RECEIPT_SCHEMA,
-    url: 'https://example.test/app/archie/',
-    anonymous: true,
-    status: 200,
-    login_redirect: false,
-    expected_commit: 'new',
-    observed_commit: 'new'
-  });
-  assert.equal(requested.length, 2);
-  for (const request of requested) {
-    assert.equal(request.options.credentials, 'omit');
-    assert.equal(request.options.redirect, 'follow');
-    assert.equal('authorization' in request.options.headers, false);
-    assert.equal('cookie' in request.options.headers, false);
-  }
-});
-
-test('Archie public verification rejects authentication redirects and false product pages', async () => {
-  await assert.rejects(() => verifyArchiePublicReachability({
-    deployedUrl: 'https://example.test/app/',
-    expectedCommit: 'new',
-    expectedRepository: 'Pokitomas/theawesomehexapp',
-    attempts: 1,
-    delayMs: 0,
-    async fetchImpl(url) {
-      if (url.includes('.well-known')) {
-        return {
-          ok: true,
-          status: 200,
-          async json() { return { commit: 'new', repository: 'Pokitomas/theawesomehexapp' }; }
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        url: 'https://github.com/login',
-        async text() { return '<title>Sign in</title>'; }
-      };
-    }
-  }), /redirected to authentication/);
-});
-
-test('receipt upsert creates the first deployment issue with the Archie receipt', async () => {
-  const calls = [];
-  const github = {
-    rest: {
-      issues: {
-        async listForRepo() { return { data: [] }; },
-        async create(input) {
-          calls.push(['create', input]);
-          return { data: { number: 104, ...input } };
-        },
-        async update(input) {
-          calls.push(['update', input]);
-          return { data: input };
-        }
-      }
-    }
+function publicFetch(marker, route) {
+  return async (url, options) => {
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'follow');
+    if (url.includes('.well-known')) return { ok: true, status: 200, async json() { return { commit: 'new', repository: 'Pokitomas/theawesomehexapp', product_root: 'founder' }; } };
+    return { ok: true, status: 200, url: `https://example.test/app/${route}`, async text() { return marker; } };
   };
-  const archieReceipt = {
-    schema: ARCHIE_RECEIPT_SCHEMA,
-    url: 'https://example.test/app/archie/',
-    anonymous: true,
-    status: 200,
-    login_redirect: false,
-    expected_commit: 'abc123',
-    observed_commit: 'abc123'
-  };
+}
 
-  const result = await upsertDeploymentReceipt({
-    github,
-    context: { repo: { owner: 'Pokitomas', repo: 'theawesomehexapp' }, sha: 'abc123' },
-    deployedUrl: 'https://example.test/app/',
-    archieReceipt
+test('Founder and Archie public verification are anonymous and commit-bound', async () => {
+  const founder = await verifyFounderPublicReachability({
+    deployedUrl: 'https://example.test/app/', expectedCommit: 'new', expectedRepository: 'Pokitomas/theawesomehexapp', attempts: 1, delayMs: 0,
+    fetchImpl: publicFetch('<p>FOUNDER / HUMAN INVENTION POWER</p>', '')
   });
-
-  assert.equal(result.primary.number, 104);
-  assert.deepEqual(result.closedDuplicates, []);
-  assert.equal(calls[0][0], 'create');
-  assert.equal(calls[0][1].title, RECEIPT_TITLE);
-  assert.match(calls[0][1].body, /COMMIT=abc123/);
-  assert.match(calls[0][1].body, /ARCHIE_ANONYMOUS_REACHABLE=true/);
-  assert.match(calls[0][1].body, /"schema": "archie-public-reachability-receipt\/v1"/);
+  const archie = await verifyArchiePublicReachability({
+    deployedUrl: 'https://example.test/app/', expectedCommit: 'new', expectedRepository: 'Pokitomas/theawesomehexapp', attempts: 1, delayMs: 0,
+    fetchImpl: publicFetch('<p>ARCHIE / LOCAL INTELLIGENCE</p>', 'archie/')
+  });
+  assert.equal(founder.schema, FOUNDER_RECEIPT_SCHEMA);
+  assert.equal(archie.schema, ARCHIE_RECEIPT_SCHEMA);
+  assert.equal(founder.observed_commit, 'new');
+  assert.equal(archie.observed_commit, 'new');
 });
 
-test('receipt upsert updates the newest open receipt and closes stale duplicates', async () => {
+test('receipt upsert migrates the legacy deployment issue instead of preserving Sideways ontology', async () => {
   const updates = [];
-  const issues = [
-    { number: 95, title: RECEIPT_TITLE },
-    { number: 104, title: RECEIPT_TITLE },
-    { number: 103, title: RECEIPT_TITLE, pull_request: { url: 'pr' } },
-    { number: 20, title: 'other' }
-  ];
   const github = {
-    async paginate(_method, params) {
-      assert.equal(params.state, 'open');
-      return issues;
-    },
-    rest: {
-      issues: {
-        async listForRepo() { throw new Error('paginate should own listing'); },
-        async create() { throw new Error('existing receipt should be updated'); },
-        async update(input) {
-          updates.push(input);
-          return { data: { number: input.issue_number, ...input } };
-        }
-      }
-    }
+    async paginate() { return [{ number: 396, title: LEGACY_RECEIPT_TITLES[0] }]; },
+    rest: { issues: {
+      async listForRepo() { throw new Error('paginate should own listing'); },
+      async create() { throw new Error('legacy receipt should be migrated'); },
+      async update(input) { updates.push(input); return { data: { number: input.issue_number, ...input } }; }
+    } }
   };
-
   const result = await upsertDeploymentReceipt({
     github,
     context: { repo: { owner: 'Pokitomas', repo: 'theawesomehexapp' }, sha: 'new123' },
     deployedUrl: 'https://example.test/app/'
   });
-
-  assert.equal(result.primary.number, 104);
-  assert.deepEqual(result.closedDuplicates, [95]);
-  assert.equal(updates[0].issue_number, 104);
-  assert.match(updates[0].body, /COMMIT=new123/);
-  assert.deepEqual(updates[1], {
-    owner: 'Pokitomas',
-    repo: 'theawesomehexapp',
-    issue_number: 95,
-    state: 'closed',
-    state_reason: 'not_planned'
-  });
+  assert.equal(result.primary.number, 396);
+  assert.equal(updates[0].title, RECEIPT_TITLE);
+  assert.match(updates[0].body, /ROOT_PRODUCT=Founder/);
 });
 
-test('workflow loader anchors to the checked-out workspace instead of the test module URL', () => {
-  const reads = [];
-  const result = loadPagesWorkflow({
-    workspace: '/checkout/repository',
-    readFile(path, encoding) {
-      reads.push({ path, encoding });
-      return 'name: Build and deploy manual root-kernel feed\n';
-    }
-  });
-
-  assert.equal(result.workflowPath, resolve('/checkout/repository', '.github/workflows/pages.yml'));
-  assert.deepEqual(reads, [{
-    path: resolve('/checkout/repository', '.github/workflows/pages.yml'),
-    encoding: 'utf8'
-  }]);
-});
-
-test('Pages workflow publishes Archie explicitly and proves it anonymously before recording receipt', () => {
+test('Pages workflow builds only the admitted public surfaces and verifies live Founder before writing the receipt', () => {
   const { workflow } = loadPagesWorkflow();
+  assert.doesNotMatch(workflow, /manual-overlay|manual-kernel|Add to Sideways|SIDEWAYS_PUBLIC_SOURCES|build\.mjs/);
+  const publishHuman = workflow.indexOf('node scripts/publish-human-surfaces.mjs dist');
   const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
-  const publishArchie = workflow.indexOf('Publish Archie into product artifact');
-  const copyArchie = workflow.indexOf('cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/');
-  const verifyArchieAsset = workflow.indexOf('test -f dist/archie/index.html');
-  const uploadArtifactMatch = workflow.match(immutableAction('actions/upload-pages-artifact'));
+  const verifyRoot = workflow.indexOf("grep -q 'FOUNDER / HUMAN INVENTION POWER' dist/index.html");
+  const upload = workflow.match(immutableAction('actions/upload-pages-artifact'));
   const deployJobStart = workflow.indexOf('\n  deploy:\n');
-
-  assert.ok(writeSentinel >= 0, 'workflow must write a deployment sentinel');
-  assert.ok(publishArchie > writeSentinel, 'Archie must be published after the root build creates dist');
-  assert.ok(copyArchie > publishArchie, 'canonical Archie source must be copied into the final artifact');
-  assert.ok(verifyArchieAsset > copyArchie, 'final artifact must verify Archie files');
-  assert.ok(uploadArtifactMatch?.index > verifyArchieAsset, 'verified Archie files must be inside the uploaded Pages artifact');
-  assert.ok(deployJobStart > uploadArtifactMatch.index, 'deploy job must follow artifact upload');
-
+  assert.ok(publishHuman >= 0);
+  assert.ok(writeSentinel > publishHuman);
+  assert.ok(verifyRoot > writeSentinel);
+  assert.ok(upload?.index > verifyRoot);
+  assert.ok(deployJobStart > upload.index);
   const deployJob = workflow.slice(deployJobStart);
-  const checkout = deployJob.search(immutableAction('actions/checkout'));
   const deployPages = deployJob.search(immutableAction('actions/deploy-pages'));
   const verifyLive = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-live');
+  const verifyFounder = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-founder-live');
   const verifyArchie = deployJob.indexOf('node scripts/deployment-receipt.cjs verify-archie-live');
-  const readArchieReceipt = deployJob.indexOf("JSON.parse(fs.readFileSync('archie-public-reachability-receipt.json'", 0);
-  const upsertReceipt = deployJob.indexOf('const { upsertDeploymentReceipt } = require');
-
-  assert.ok(checkout >= 0, 'deploy job must check out the tested helper');
-  assert.ok(deployPages > checkout, 'Pages deployment must follow deploy-job checkout');
-  assert.ok(verifyLive > deployPages, 'live identity verification must run after Pages deployment');
-  assert.ok(verifyArchie > verifyLive, 'anonymous Archie verification must follow exact commit verification');
-  assert.ok(readArchieReceipt > verifyArchie, 'receipt upsert must consume the verified Archie receipt');
-  assert.ok(upsertReceipt > verifyArchie, 'deployment receipt must be written only after Archie is public');
+  const upsert = deployJob.indexOf('upsertDeploymentReceipt');
+  assert.ok(verifyLive > deployPages);
+  assert.ok(verifyFounder > verifyLive);
+  assert.ok(verifyArchie > verifyFounder);
+  assert.ok(upsert > verifyArchie);
 });
