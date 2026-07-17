@@ -3,127 +3,90 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#008080">
-  <meta name="description" content="Launch Archie, Maker, Founder, Foundry, and Expo as separate public programs.">
-  <title>Archie Program Manager</title>
+  <meta name="theme-color" content="#f7f7f4">
+  <meta name="description" content="Tell Archie what should happen once. Archie chooses the right workflow and keeps the technical machinery out of the way.">
+  <title>Archie</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="./desktop.css">
 </head>
-<body>
-  <a class="skip-link" href="#programs">Skip to programs</a>
-  <main class="desktop" aria-labelledby="desktop-title">
-    <section class="window program-manager" data-shell="program-manager" aria-labelledby="desktop-title">
-      <header class="title-bar">
-        <span class="app-mark" aria-hidden="true">A:</span>
-        <h1 id="desktop-title">Archie Program Manager</h1>
-        <div class="window-controls" aria-label="Window controls">
-          <button type="button" data-window-action="minimize" aria-label="Minimize Program Manager">_</button>
-          <button type="button" data-window-action="maximize" aria-label="Maximize Program Manager">□</button>
-          <button type="button" data-window-action="close" aria-label="Close Program Manager">×</button>
-        </div>
-      </header>
+<body data-surface="home">
+  <a class="skip-link" href="#universal-task">Skip to request</a>
 
-      <nav class="menu-bar" aria-label="Program Manager menu">
-        <button type="button" data-menu="file">File</button>
-        <button type="button" data-menu="view">View</button>
-        <button type="button" data-menu="help">Help</button>
-      </nav>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Archie home">Archie</a>
+    <nav class="primary-nav" aria-label="Archie views">
+      <a aria-current="page" href="./">Home</a>
+      <a href="../maker/">Build</a>
+      <a href="../founder/">Explore</a>
+      <a href="../foundry/">Research</a>
+      <a href="../world-expo/">Results</a>
+    </nav>
+    <span class="runtime-pill">Prototype · no runtime connected</span>
+  </header>
 
-      <div class="manager-body">
-        <aside class="directory" aria-labelledby="directory-title">
-          <h2 id="directory-title">Program groups</h2>
-          <ul class="tree" role="list">
-            <li><button class="tree-item selected" type="button" data-group="all" aria-pressed="true">All programs</button></li>
-            <li><button class="tree-item" type="button" data-group="make" aria-pressed="false">Make things</button></li>
-            <li><button class="tree-item" type="button" data-group="inspect" aria-pressed="false">Inspect systems</button></li>
-            <li><button class="tree-item" type="button" data-group="research" aria-pressed="false">Research</button></li>
-            <li><button class="tree-item" type="button" data-group="public" aria-pressed="false">Public rooms</button></li>
-          </ul>
-        </aside>
+  <main class="page home-page">
+    <section class="hero" aria-labelledby="home-title">
+      <p class="eyebrow">Archie Program Manager</p>
+      <h1 id="home-title">What should happen?</h1>
+      <p class="hero-copy">Say it the way you would text a smart person. Archie should decide whether this needs an answer, a build, several directions, or a research campaign.</p>
 
-        <section class="program-pane" id="programs" aria-labelledby="programs-title">
-          <header class="pane-heading">
-            <h2 id="programs-title">Installed programs</h2>
-            <p>Choose a program, read its job, then open it. These are separate applications—not stages in one diagram.</p>
-          </header>
-
-          <ul class="program-list" role="listbox" aria-label="Installed programs">
-            <li data-groups="all inspect make">
-              <a href="../archie/" data-program="Archie" aria-describedby="archie-description">
-                <span class="program-name">ARCHIE.EXE</span>
-                <span id="archie-description">Ask, inspect memory, compare plans, and see truthful capability boundaries.</span>
-              </a>
-            </li>
-            <li data-groups="all make inspect">
-              <a href="../maker/" data-program="Maker" aria-describedby="maker-description">
-                <span class="program-name">MAKER.EXE</span>
-                <span id="maker-description">Open a project, authorize work, inspect files, intervene, validate, and hand off.</span>
-              </a>
-            </li>
-            <li data-groups="all make">
-              <a href="../founder/" data-program="Founder" aria-describedby="founder-description">
-                <span class="program-name">FOUNDER.EXE</span>
-                <span id="founder-description">Turn a badly worded intention into several directions and one work packet.</span>
-              </a>
-            </li>
-            <li data-groups="all research inspect">
-              <a href="../foundry/" data-program="Foundry" aria-describedby="foundry-description">
-                <span class="program-name">FOUNDRY.EXE</span>
-                <span id="foundry-description">Configure experiments, open contradictory candidates, and inspect evidence.</span>
-              </a>
-            </li>
-            <li data-groups="all public research">
-              <a href="../world-expo/" data-program="Expo" aria-describedby="expo-description">
-                <span class="program-name">EXPO.EXE</span>
-                <span id="expo-description">Browse runnable experiments, preserved branches, and strange public prototypes.</span>
-              </a>
-            </li>
-          </ul>
-
-          <div class="selection-details" aria-live="polite">
-            <dl>
-              <div><dt>Selected</dt><dd id="selected-program">ARCHIE.EXE</dd></div>
-              <div><dt>Type</dt><dd>Public web application</dd></div>
-              <div><dt>Runtime</dt><dd>Independent route and interface</dd></div>
-              <div><dt>Claim</dt><dd id="selected-claim">Interface prototype; runtime capability remains evidence-bound.</dd></div>
-            </dl>
+      <form id="universal-form" class="task-composer">
+        <label class="sr-only" for="universal-task">What should Archie do?</label>
+        <textarea id="universal-task" maxlength="12000" autofocus placeholder="make a picture of a real face"></textarea>
+        <div class="composer-footer">
+          <div class="route-choice" role="group" aria-label="Workflow preference">
+            <button type="button" data-route="auto" aria-pressed="true">Choose for me</button>
+            <button type="button" data-route="archie" aria-pressed="false">Answer</button>
+            <button type="button" data-route="maker" aria-pressed="false">Build</button>
+            <button type="button" data-route="founder" aria-pressed="false">Explore</button>
+            <button type="button" data-route="foundry" aria-pressed="false">Research</button>
           </div>
-        </section>
-      </div>
-
-      <footer class="window-status">
-        <span id="desktop-status" role="status" aria-live="polite">5 programs installed. No program is running inside this page.</span>
-        <a href="https://github.com/Pokitomas/theawesomehexapp">View source</a>
-      </footer>
+          <button id="universal-go" class="primary-action" type="submit">Go</button>
+        </div>
+      </form>
+      <p id="route-preview" class="route-preview" role="status" aria-live="polite">Archie will choose the smallest workflow that can actually finish the request.</p>
     </section>
+
+    <section class="promise-grid" aria-label="How Archie behaves">
+      <article>
+        <strong>One request</strong>
+        <p>You should not have to know what Founder, Foundry, Maker, packets, candidates, or receipts are before starting.</p>
+      </article>
+      <article>
+        <strong>More machinery only when useful</strong>
+        <p>Repository, evidence, compute, and permission controls appear after Archie decides they matter.</p>
+      </article>
+      <article>
+        <strong>Truth stays visible</strong>
+        <p>A simple interface does not pretend that training, execution, deployment, or independent admission happened.</p>
+      </article>
+    </section>
+
+    <section class="continue-card" aria-labelledby="continue-title">
+      <div>
+        <p class="eyebrow">Specialized views</p>
+        <h2 id="continue-title">Open the machinery only when you need it.</h2>
+      </div>
+      <div class="view-links">
+        <a href="../archie/"><strong>Answer</strong><span>Shape one request and inspect its boundaries.</span></a>
+        <a href="../maker/"><strong>Build</strong><span>Authorize repository work and proof.</span></a>
+        <a href="../founder/"><strong>Explore</strong><span>See genuinely different directions.</span></a>
+        <a href="../foundry/"><strong>Research</strong><span>Generate and preserve a serious campaign.</span></a>
+      </div>
+    </section>
+
+    <details class="truth-details">
+      <summary>What is real right now?</summary>
+      <p>These pages organize requests and create local packets. The shipped local QLoRA runtime remains evidence-bound, and no page claims an admitted trained general model until physical training and independent admission succeed.</p>
+    </details>
   </main>
 
-  <footer class="taskbar" aria-label="Desktop taskbar">
-    <button id="start-button" type="button" aria-expanded="false" aria-controls="start-menu">Start</button>
-    <span class="task-button" aria-current="page">Archie Program Manager</span>
-    <time id="clock" aria-label="Local time">--:--</time>
+  <footer class="site-footer">
+    <span>Archie Program Manager · one request, one workflow</span>
+    <a href="https://github.com/Pokitomas/theawesomehexapp">Source</a>
   </footer>
 
-  <div id="start-menu" class="start-menu" hidden>
-    <strong>ARCHIE SYSTEM</strong>
-    <a href="../archie/">Archie</a>
-    <a href="../maker/">Maker</a>
-    <a href="../foundry/">Foundry</a>
-    <a href="../founder/">Founder</a>
-    <a href="../world-expo/">Expo</a>
-  </div>
-
-  <dialog id="system-dialog">
-    <form method="dialog">
-      <h2>About this desktop</h2>
-      <p>This launcher contains no AI pipeline and performs no hidden work. It opens separate applications with separate jobs.</p>
-      <button>OK</button>
-    </form>
-  </dialog>
-
-  <noscript>
-    <p class="noscript-note">JavaScript is off. Every program link remains usable; filtering, the clock, and desktop menus are unavailable.</p>
-  </noscript>
+  <noscript><p class="noscript-note">JavaScript is off. The specialized views remain available from the navigation.</p></noscript>
   <script type="module" src="./desktop.js"></script>
 </body>
 </html>
