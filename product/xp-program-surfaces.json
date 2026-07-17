@@ -1,0 +1,47 @@
+{
+  "schema": "archie-xp-program-surfaces/v1",
+  "product_model": "independent-programs",
+  "root_surface": "desktop-program-manager",
+  "applications": [
+    { "id": "archie", "route": "/archie/", "job": "knowledge-memory-plan-inspection", "visual_grammar": "windows-utility" },
+    { "id": "maker", "route": "/maker/", "job": "authorized-project-workbench", "visual_grammar": "visual-basic-workbench" },
+    { "id": "founder", "route": "/founder/", "job": "intention-branch-construction", "visual_grammar": "human-invention-room" },
+    { "id": "foundry", "route": "/foundry/", "job": "experiment-control-and-evidence", "visual_grammar": "industrial-laboratory" },
+    { "id": "expo", "route": "/world-expo/", "job": "public-experiment-gallery", "visual_grammar": "independent-exhibition" }
+  ],
+  "visual_rules": {
+    "primary_surfaces": "opaque",
+    "information_primitives": ["menus", "windows", "lists", "files", "fields", "tabs", "dialogs", "inspectors", "logs", "status-bars"],
+    "forbidden": [
+      "glassmorphism",
+      "frosted-panels",
+      "transparent-primary-panels",
+      "bento-dashboard",
+      "image-tile-navigation",
+      "icon-stage-pipeline",
+      "single-product-dashboard",
+      "generic-ai-saas-shell"
+    ]
+  },
+  "mobile": {
+    "model": "one-full-screen-program-at-a-time",
+    "task_switching": "program-manager-or-start-menu",
+    "forbidden_fallback": "stacked-rounded-card-feed"
+  },
+  "accessibility": {
+    "semantic_html": true,
+    "keyboard_complete": true,
+    "screen_reader_state": true,
+    "zoom_reflow": "400-percent",
+    "minimum_phone_target_css_px": 44,
+    "reduced_motion": true,
+    "forced_colors": true,
+    "drag_alternatives_required": true,
+    "essential_text_in_images": false
+  },
+  "playfulness": {
+    "allowed": ["easter-eggs", "strange-help", "optional-sounds", "boot-sequences", "desktop-objects", "owned-output-artifacts"],
+    "forbidden": ["xp-points", "levels", "streaks", "daily-rewards", "loot-boxes", "routine-confetti", "leaderboards", "followers", "engagement-ranking", "fake-progress"]
+  },
+  "claim_boundary": "These are runnable interaction prototypes. Interface behavior is not evidence of model execution, training, repository mutation, deployment, or frontier capability."
+}
