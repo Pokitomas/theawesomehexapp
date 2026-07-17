@@ -3,9 +3,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const RECEIPT_TITLE = 'Founder human-power surface deployed';
-const LEGACY_RECEIPT_TITLES = ['Sideways consumer app deployed'];
+const RECEIPT_TITLE = 'Independent Archie programs deployed';
+const LEGACY_RECEIPT_TITLES = ['Founder human-power surface deployed', 'Sideways consumer app deployed'];
 const SENTINEL_PATH = '.well-known/archie-deployment.json';
+const DESKTOP_PATH = 'desktop/';
+const FOUNDER_PATH = 'founder/';
 const ARCHIE_PATH = 'archie/';
 const FOUNDRY_PATH = 'foundry/';
 const MAKER_PATH = 'maker/';
@@ -25,14 +27,15 @@ function routeUrl(deployedUrl, route = '') {
 }
 
 function sentinelUrl(deployedUrl) { return routeUrl(deployedUrl, SENTINEL_PATH); }
-function founderUrl(deployedUrl) { return routeUrl(deployedUrl); }
+function desktopUrl(deployedUrl) { return routeUrl(deployedUrl); }
+function founderUrl(deployedUrl) { return routeUrl(deployedUrl, FOUNDER_PATH); }
 function archieUrl(deployedUrl) { return routeUrl(deployedUrl, ARCHIE_PATH); }
 function foundryUrl(deployedUrl) { return routeUrl(deployedUrl, FOUNDRY_PATH); }
 
 function buildDeploymentSentinel({ commit, repository }) {
   if (!commit) throw new Error('A deployment commit is required.');
   if (!repository) throw new Error('A deployment repository is required.');
-  return { schema: 2, product_root: 'founder', commit: String(commit), repository: String(repository) };
+  return { schema: 3, product_root: 'desktop-program-manager', product_model: 'independent-programs', commit: String(commit), repository: String(repository) };
 }
 
 function writeDeploymentSentinel({ outputDir = 'dist', commit, repository }) {
@@ -46,8 +49,9 @@ function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null
   const rootUrl = normalizeDeployedUrl(deployedUrl);
   const lines = [
     `ROOT_URL=${rootUrl}`,
+    `DESKTOP_URL=${desktopUrl(rootUrl)}`,
     `FOUNDER_URL=${founderUrl(rootUrl)}`,
-    `FOUNDRY_URL=${routeUrl(rootUrl, FOUNDRY_PATH)}`,
+    `FOUNDRY_URL=${foundryUrl(rootUrl)}`,
     `ARCHIE_URL=${archieUrl(rootUrl)}`,
     `MAKER_URL=${routeUrl(rootUrl, MAKER_PATH)}`,
     `EXPO_URL=${routeUrl(rootUrl, EXPO_PATH)}`,
@@ -57,10 +61,13 @@ function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null
     'LIVE_COMMIT_VERIFIED=true',
     `FOUNDER_ANONYMOUS_REACHABLE=${founderReceipt?.anonymous === true && founderReceipt?.status === 200 && founderReceipt?.login_redirect === false}`,
     `ARCHIE_ANONYMOUS_REACHABLE=${archieReceipt?.anonymous === true && archieReceipt?.status === 200 && archieReceipt?.login_redirect === false}`,
-    'ROOT_PRODUCT=Founder human invention surface',
+    'ROOT_PRODUCT=Archie Program Manager',
+    'PRODUCT_MODEL=independent opaque applications',
+    'DESKTOP_CONTRACT=launches separate programs without depicting one cognition pipeline',
     'FOUNDER_CONTRACT=one unfinished human intention opens six possibilities before explicit PUSH',
     'FOUNDRY_CONTRACT=human-governed speculative model research and release admission',
     'MAKER_CONTRACT=permissioned tested reversible consequence engine',
+    'ARCHIE_CONTRACT=inspectable intention memory and plan utility with truthful runtime boundaries',
     'EXAMPLE_CONTRACT=ordinary programs are disposable outputs, not Archie memory or ontology',
     'SUPERIORITY_CLAIM=blocked until blinded matched real-user evidence passes the public protocol and independent admission'
   ];
@@ -84,7 +91,8 @@ async function verifyLiveDeployment({ deployedUrl, expectedCommit, expectedRepos
       const sentinel = await response.json();
       if (sentinel.commit !== expectedCommit) throw new Error(`served commit ${sentinel.commit || '<missing>'}`);
       if (sentinel.repository !== expectedRepository) throw new Error(`served repository ${sentinel.repository || '<missing>'}`);
-      if (sentinel.product_root !== 'founder') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
+      if (sentinel.product_root !== 'desktop-program-manager') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
+      if (sentinel.product_model !== 'independent-programs') throw new Error(`served product model ${sentinel.product_model || '<missing>'}`);
       return { url: baseUrl, sentinel, attempt };
     } catch (error) {
       lastError = error;
@@ -121,7 +129,8 @@ async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, ex
       const sentinel = await identityResponse.json();
       if (sentinel.commit !== expectedCommit) throw new Error(`served commit ${sentinel.commit || '<missing>'}`);
       if (sentinel.repository !== expectedRepository) throw new Error(`served repository ${sentinel.repository || '<missing>'}`);
-      if (sentinel.product_root !== 'founder') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
+      if (sentinel.product_root !== 'desktop-program-manager') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
+      if (sentinel.product_model !== 'independent-programs') throw new Error(`served product model ${sentinel.product_model || '<missing>'}`);
 
       const pageResponse = await fetchImpl(`${publicUrl}?${nonce}`, requestOptions);
       const finalUrl = pageResponse.url || publicUrl;
@@ -139,11 +148,11 @@ async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, ex
 }
 
 function verifyFounderPublicReachability(options) {
-  return verifyPublicSurfaceReachability({ ...options, route: '', marker: /FOUNDER\s*\/\s*HUMAN INVENTION POWER/i, schema: FOUNDER_RECEIPT_SCHEMA });
+  return verifyPublicSurfaceReachability({ ...options, route: FOUNDER_PATH, marker: /FOUNDER\s*\/\s*HUMAN INVENTION POWER/i, schema: FOUNDER_RECEIPT_SCHEMA });
 }
 
 function verifyArchiePublicReachability(options) {
-  return verifyPublicSurfaceReachability({ ...options, route: ARCHIE_PATH, marker: /ARCHIE\s*\/\s*LOCAL INTELLIGENCE/i, schema: ARCHIE_RECEIPT_SCHEMA });
+  return verifyPublicSurfaceReachability({ ...options, route: ARCHIE_PATH, marker: /Archie Knowledge Utility/i, schema: ARCHIE_RECEIPT_SCHEMA });
 }
 
 async function listOpenReceiptIssues({ github, owner, repo }) {
@@ -200,6 +209,8 @@ module.exports = {
   RECEIPT_TITLE,
   LEGACY_RECEIPT_TITLES,
   SENTINEL_PATH,
+  DESKTOP_PATH,
+  FOUNDER_PATH,
   ARCHIE_PATH,
   FOUNDRY_PATH,
   FOUNDER_RECEIPT_SCHEMA,
@@ -207,6 +218,7 @@ module.exports = {
   normalizeDeployedUrl,
   routeUrl,
   sentinelUrl,
+  desktopUrl,
   founderUrl,
   archieUrl,
   foundryUrl,
