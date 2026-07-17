@@ -1,0 +1,47 @@
+name: Apply exact model-router timeout repair
+
+on:
+  push:
+    branches: [lead/fix-model-router-timeout-20260717]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor == 'Pokitomas'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Apply one exact liveness repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/maker-model-router.mjs')
+          text = path.read_text()
+          needle = 'timer.unref?.();'
+          count = text.count(needle)
+          if count != 1:
+              raise SystemExit(f'expected one model-router timeout unref, found {count}')
+          path.write_text(text.replace(needle, ''))
+          PY
+      - name: Prove focused router contract
+        run: |
+          node --check scripts/maker-model-router.mjs
+          node --test scripts/tests/maker-model-router.test.mjs
+      - name: Commit only the proven source repair
+        run: |
+          rm .github/workflows/lead-fix-model-router-timeout.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/maker-model-router.mjs .github/workflows/lead-fix-model-router-timeout.yml
+          git commit -m 'Repair model router timeout liveness'
+          git push origin HEAD:${{ github.ref_name }}
