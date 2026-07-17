@@ -120,3 +120,51 @@ test('stores a successful native Maker plan and recalls it locally on the repeat
   assert.equal(paths.root.startsWith(home), true);
   assert.equal(normalizeReusableMakerPlan({ title: 'incomplete' }), null);
 });
+
+test('empty Archie corpus escalates once to the bounded OpenAI teacher and seeds local learning', async t => {
+  const root = await tempRoot(t);
+  const repository = path.join(root, 'repository');
+  const home = path.join(root, 'home');
+  await fs.mkdir(repository, { recursive: true });
+  const request = 'Replace intermediary sprawl with one dense Archie reasoning path.';
+  const baseSha = 'a'.repeat(40);
+  const priorFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    async json() {
+      return {
+        id: 'resp_native_teacher',
+        status: 'completed',
+        model: 'gpt-5.1-2025-11-13',
+        output_text: JSON.stringify(makerPlan()),
+        usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 }
+      };
+    },
+    async text() { return ''; }
+  });
+  t.after(() => { globalThis.fetch = priorFetch; });
+
+  const taught = await recallNativeMakerPlan({
+    repoRoot: repository,
+    request,
+    baseBranch: 'main',
+    baseSha,
+    home,
+    env: { OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz' },
+    clock: () => '2026-07-17T20:00:00.000Z',
+    training: { dimensions: 512, threshold: 0.05, minimum_margin: 0.01 }
+  });
+
+  assert.equal(taught.status, 'teacher');
+  assert.equal(taught.source, 'openai-responses-teacher');
+  assert.equal(taught.execution_eligible, true);
+  assert.equal(taught.execution_basis.kind, 'fresh-bounded-teacher-plan');
+  assert.equal(taught.teacher_receipt.response_id, 'resp_native_teacher');
+  assert.equal(taught.plan.selected_lane, 'operator');
+
+  const paths = resolveNativeArchiePaths(repository, { home, env: {} });
+  const stored = JSON.parse(await fs.readFile(paths.model_path, 'utf8'));
+  assert.equal(stored.document_count, 1);
+  assert.equal(stored.specialist_count, 1);
+});
