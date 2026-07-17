@@ -33,11 +33,18 @@ async function fixture(t) {
 
 test('collects deterministic exact-base repository evidence and grounds existing and new subsystem paths', async t => {
   const { root, sha } = await fixture(t);
-  const evidence = await collectRepositoryEvidence({ repoRoot: root, baseSha: sha });
+  await fs.writeFile(path.join(root, 'scripts', 'runtime.mjs'), 'export const runtime = false; // uncommitted mutation\n');
+  const evidence = await collectRepositoryEvidence({ repoRoot: root, baseSha: sha, request: 'repair the runtime and run the focused test' });
   assert.equal(evidence.base_sha, sha);
   assert.equal(evidence.truncated, false);
   assert.ok(evidence.paths.includes('scripts/runtime.mjs'));
   assert.equal(evidence.package_scripts['test:focused'], 'node --test scripts/tests/focused.test.mjs');
+  assert.ok(evidence.captured_source_bytes > 0);
+  const runtimeSource = evidence.source_files.find(item => item.path === 'scripts/runtime.mjs');
+  assert.ok(runtimeSource);
+  assert.match(runtimeSource.content, /runtime = true/);
+  assert.doesNotMatch(runtimeSource.content, /uncommitted mutation/);
+  assert.match(runtimeSource.blob_oid, /^[a-f0-9]{40,64}$/);
   assert.deepEqual(validateRepositoryEvidence(evidence, { expectedBaseSha: sha }), evidence);
 
   const grounding = assertPlanGroundedInRepositoryEvidence({

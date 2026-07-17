@@ -23,7 +23,8 @@ function repositoryEvidence() {
     schema: 'archie-repository-evidence/v1',
     repository: 'theawesomehexapp',
     base_sha: 'a'.repeat(40),
-    collection: 'git-ls-tree-and-git-show',
+    collection: 'exact-git-tree-package-and-ranked-source/v1',
+    request_terms: ['archie', 'finish'],
     path_count: 3,
     included_path_count: 3,
     truncated: false,
@@ -35,6 +36,19 @@ function repositoryEvidence() {
     directories: ['scripts', 'scripts/tests'],
     package_scripts: {},
     package_dependencies: [],
+    source_file_count: 1,
+    captured_source_bytes: 34,
+    source_limits: { max_files: 64, max_file_bytes: 24576, max_total_bytes: 393216 },
+    source_files: [{
+      path: 'scripts/maker-archie-native.mjs',
+      blob_oid: 'b'.repeat(40),
+      bytes: 34,
+      captured_bytes: 34,
+      truncated: false,
+      content: 'export const nativeRuntime = true;',
+      relevance_score: 100
+    }],
+    recent_commits: [{ sha: 'a'.repeat(40), message: 'fixture' }],
     limitations: ['fixture']
   };
   return { ...body, evidence_digest: repositoryEvidenceDigest(body) };
@@ -91,6 +105,7 @@ test('one Responses API call returns a strict Maker plan and evidence receipt', 
   assert.equal(request.body.text.format.type, 'json_schema');
   assert.equal(request.body.text.format.strict, true);
   assert.equal(request.body.reasoning.effort, 'high');
+  assert.equal(request.body.input[0].content[0].text.includes('nativeRuntime'), true);
   assert.deepEqual(result.plan, plan);
   assert.equal(result.receipt.schema, ARCHIE_OPENAI_TEACHER_RECEIPT_SCHEMA);
   assert.equal(result.receipt.response_id, 'resp_fixture');
