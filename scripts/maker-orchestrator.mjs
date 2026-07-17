@@ -45,6 +45,7 @@ function normalizeBudget(input = {}) {
     max_model_calls: bounded(input.max_model_calls, 100, 1, 10000),
     max_reported_tokens: bounded(input.max_reported_tokens, 2000000, 1, 1000000000),
     max_worker_attempts: bounded(input.max_worker_attempts, 3, 1, 12),
+    max_specialist_attempts: bounded(input.max_specialist_attempts, 3, 1, 12),
     max_wall_ms: bounded(input.max_wall_ms, 6 * 60 * 60 * 1000, 1000, 7 * 24 * 60 * 60 * 1000),
     assessment_concurrency: bounded(input.assessment_concurrency, 4, 1, 32)
   });
@@ -201,7 +202,7 @@ function normalizeLane(input = {}, index = 0) {
     depends_on: sortedUnique((input.depends_on || []).map(value => safeId(value, ''))),
     human_gate: input.human_gate === true,
     gate_kind: input.human_gate === true ? clean(input.gate_kind || 'approval', 120) : null,
-    max_attempts: Math.max(1, Math.min(12, Number(input.max_attempts || 0) || 0)) || null
+    max_attempts: input.max_attempts == null ? null : Math.max(1, Math.min(12, Number(input.max_attempts) || 1))
   };
   if (!lane.request) throw new Error(`Orchestration lane ${lane.lane_id} requires a request.`);
   if (!lane.human_gate && !lane.owned_paths.length) throw new Error(`Executable lane ${lane.lane_id} requires owned paths.`);
@@ -285,10 +286,10 @@ function normalizeWorkerResult(input = {}, lane, task) {
 function budgetExceeded(state) {
   const usage = state.usage;
   const budget = state.budget;
-  if (state.events.length >= budget.max_events) return 'event budget exhausted';
-  if (usage.model_calls >= budget.max_model_calls) return 'model-call budget exhausted';
-  if (usage.tokens_in + usage.tokens_out >= budget.max_reported_tokens) return 'reported-token budget exhausted';
-  if (usage.wall_ms >= budget.max_wall_ms) return 'wall-time budget exhausted';
+  if (state.events.length > budget.max_events) return 'event budget exhausted';
+  if (usage.model_calls > budget.max_model_calls) return 'model-call budget exhausted';
+  if (usage.tokens_in + usage.tokens_out > budget.max_reported_tokens) return 'reported-token budget exhausted';
+  if (usage.wall_ms > budget.max_wall_ms) return 'wall-time budget exhausted';
   return null;
 }
 
@@ -427,9 +428,10 @@ export class MakerOrchestrator {
       }));
       for (const { assignment, output, error } of outputs) {
         if (error) {
-          assignment.status = 'failed';
           assignment.failure = clean(redactSecrets(error.message), 2000);
-          await this.#append('assessment.assignment.failed', { assignment_id: assignment.assignment_id, error: assignment.failure });
+          const retrying = assignment.attempts < this.state.budget.max_specialist_attempts;
+          assignment.status = retrying ? 'queued' : 'failed';
+          await this.#append('assessment.assignment.failed', { assignment_id: assignment.assignment_id, error: assignment.failure, attempt: assignment.attempts, retrying });
           continue;
         }
         const findings = (output?.findings || []).map(value => normalizeFinding(value, assignment));
@@ -478,7 +480,7 @@ export class MakerOrchestrator {
     const contradictions = this.state.findings.filter(value => value.kind === 'contradiction').map(value => value.finding_id);
     const plan = normalizeOrchestrationPlan({
       ...output,
-      preserved_contradictions: output?.preserved_contradictions?.length ? output.preserved_contradictions : contradictions,
+      preserved_contradictions: Array.isArray(output?.preserved_contradictions) ? output.preserved_contradictions : contradictions,
       created_from_finding_ids: output?.created_from_finding_ids?.length ? output.created_from_finding_ids : this.state.findings.map(value => value.finding_id)
     }, { base_sha: this.state.task.base_sha, branch: this.state.task.branch });
     for (const contradiction of contradictions) if (!plan.preserved_contradictions.includes(contradiction)) throw new Error(`Synthesis dropped contradiction ${contradiction}.`);
@@ -566,7 +568,8 @@ export class MakerOrchestrator {
       risks: redactSecrets(output?.risks || []),
       receipt_digest: clean(output?.receipt_digest, 64) || null
     };
-    if (!verification.ok || !/^[0-9a-f]{40}$/.test(verification.exact_head_sha || '') || !verification.witnesses.length || verification.witnesses.some(value => !value.ok) || !/^[0-9a-f]{64}$/.test(verification.receipt_digest || '')) {
+    const finalWorkerHead = [...this.state.lanes].reverse().find(value => value.result?.status === 'finished')?.result?.head_sha || null;
+    if (!verification.ok || !/^[0-9a-f]{40}$/.test(verification.exact_head_sha || '') || verification.exact_head_sha !== finalWorkerHead || !verification.witnesses.length || verification.witnesses.some(value => !value.ok) || !/^[0-9a-f]{64}$/.test(verification.receipt_digest || '')) {
       this.state.status = 'blocked';
       this.state.verification = verification;
       await this.#append('verification.failed', verification);
