@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/archie-training-plan.schema.json",
+  "title": "Archie deterministic training plan and receipts",
+  "oneOf": [
+    { "$ref": "#/$defs/plan" },
+    { "$ref": "#/$defs/inputReceipt" },
+    { "$ref": "#/$defs/trainingReceipt" },
+    { "$ref": "#/$defs/sourceIndex" }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "gitOid": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "dataset": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes", "rows"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "rows": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "datasets": {
+      "type": "object",
+      "required": ["pretrain.train", "sft.train", "negative.train", "development-holdout"],
+      "additionalProperties": { "$ref": "#/$defs/dataset" }
+    },
+    "plan": {
+      "type": "object",
+      "required": [
+        "schema",
+        "run_id",
+        "code_commit",
+        "profile",
+        "base_student",
+        "state_contract",
+        "inputs",
+        "datasets",
+        "stages",
+        "budgets",
+        "development_evaluation",
+        "counts",
+        "claim_boundary",
+        "plan_digest"
+      ],
+      "properties": {
+        "schema": { "const": "archie-training-plan/v1" },
+        "run_id": { "type": "string", "minLength": 1 },
+        "code_commit": { "$ref": "#/$defs/gitOid" },
+        "profile": { "type": "object" },
+        "base_student": { "type": "object" },
+        "state_contract": {
+          "type": "object",
+          "required": ["digest", "immutable_digest", "mutable_digest", "runtime_abi"],
+          "properties": {
+            "digest": { "$ref": "#/$defs/digest" },
+            "immutable_digest": { "$ref": "#/$defs/digest" },
+            "mutable_digest": { "$ref": "#/$defs/digest" },
+            "runtime_abi": { "const": "archie-runtime/v1" }
+          },
+          "additionalProperties": false
+        },
+        "inputs": {
+          "type": "object",
+          "required": ["input_digest", "sidepus", "trajectories", "distillation_example_digests"],
+          "properties": {
+            "input_digest": { "$ref": "#/$defs/digest" },
+            "sidepus": { "type": "array" },
+            "trajectories": { "type": "array" },
+            "distillation_example_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "uniqueItems": true }
+          },
+          "additionalProperties": false
+        },
+        "datasets": { "$ref": "#/$defs/datasets" },
+        "stages": { "type": "array" },
+        "budgets": { "type": "object" },
+        "development_evaluation": { "type": "object" },
+        "counts": { "type": "object" },
+        "claim_boundary": { "type": "string" },
+        "plan_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "inputReceipt": {
+      "type": "object",
+      "required": [
+        "schema",
+        "run_id",
+        "plan_digest",
+        "input_digest",
+        "code_commit",
+        "datasets",
+        "counts",
+        "sidepus_manifest_digests",
+        "trajectory_batch_digests",
+        "state_contract_digest",
+        "claim_boundary",
+        "receipt_digest"
+      ],
+      "properties": {
+        "schema": { "const": "archie-training-input-receipt/v1" },
+        "run_id": { "type": "string", "minLength": 1 },
+        "plan_digest": { "$ref": "#/$defs/digest" },
+        "input_digest": { "$ref": "#/$defs/digest" },
+        "code_commit": { "$ref": "#/$defs/gitOid" },
+        "datasets": { "$ref": "#/$defs/datasets" },
+        "counts": { "type": "object" },
+        "sidepus_manifest_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "uniqueItems": true },
+        "trajectory_batch_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "uniqueItems": true },
+        "state_contract_digest": { "$ref": "#/$defs/digest" },
+        "claim_boundary": { "type": "string" },
+        "receipt_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "trainingReceipt": {
+      "type": "object",
+      "required": [
+        "schema",
+        "run_id",
+        "plan_digest",
+        "input_digest",
+        "code_commit",
+        "state_contract_digest",
+        "checkpoint_digest",
+        "mutable_digest",
+        "artifact",
+        "sidepus_manifest_digests",
+        "trajectory_batch_digests",
+        "dataset_digests",
+        "trainer",
+        "metrics",
+        "promotion",
+        "claim_boundary",
+        "receipt_digest"
+      ],
+      "properties": {
+        "schema": { "const": "archie-student-training-receipt/v1" },
+        "run_id": { "type": "string", "minLength": 1 },
+        "plan_digest": { "$ref": "#/$defs/digest" },
+        "input_digest": { "$ref": "#/$defs/digest" },
+        "code_commit": { "$ref": "#/$defs/gitOid" },
+        "state_contract_digest": { "$ref": "#/$defs/digest" },
+        "checkpoint_digest": { "$ref": "#/$defs/digest" },
+        "mutable_digest": { "$ref": "#/$defs/digest" },
+        "artifact": { "type": "object" },
+        "tokenizer": { "type": ["object", "null"] },
+        "sidepus_manifest_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "uniqueItems": true },
+        "trajectory_batch_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "uniqueItems": true },
+        "dataset_digests": { "type": "array", "items": { "$ref": "#/$defs/digest" }, "uniqueItems": true },
+        "trainer": { "type": "object" },
+        "metrics": { "type": "object" },
+        "started_at": { "type": ["string", "null"] },
+        "finished_at": { "type": ["string", "null"] },
+        "promotion": { "const": "not-admitted" },
+        "claim_boundary": { "type": "string" },
+        "receipt_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "sourceIndex": {
+      "type": "object",
+      "required": ["schema", "config", "profile", "state_contract", "sidepus", "trajectory_batches", "distillation_jsonl"],
+      "properties": {
+        "schema": { "const": "archie-training-source-index/v1" },
+        "config": { "type": "object" },
+        "profile": { "type": "object" },
+        "state_contract": { "type": "object" },
+        "sidepus": { "type": "array" },
+        "trajectory_batches": { "type": "array" },
+        "distillation_jsonl": { "type": "array" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
