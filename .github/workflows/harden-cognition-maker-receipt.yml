@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: revive/dead-instance-completion-20260717
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Repair transport hunk counts and apply exact receipt hardening
         shell: bash
@@ -37,7 +37,6 @@ jobs:
           sed -i \
             -e 's/@@ -259,9 +259,14 /@@ -259,9 +259,13 /' \
             -e 's/@@ -459,16 +459,43 /@@ -459,21 +459,46 /' \
-            -e 's/@@ -72,8 +72,19 /@@ -72,8 +72,20 /' \
             -e 's/@@ -131,10 +142,31 /@@ -131,9 +142,27 /' \
             .recovery/harden-cognition-maker-receipt.patch
           git apply --check .recovery/harden-cognition-maker-receipt.patch
