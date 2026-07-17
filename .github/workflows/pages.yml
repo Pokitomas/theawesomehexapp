@@ -192,6 +192,12 @@ jobs:
           mkdir -p dist/maker
           cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
 
+      - name: Publish Archie into product artifact
+        run: |
+          node --test scripts/tests/archie-phone-product.test.mjs
+          mkdir -p dist/archie
+          cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
+
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
@@ -219,6 +225,8 @@ jobs:
           node --check scripts/remote-client.mjs
           node --check scripts/remote-gate.mjs
           node --check scripts/deployment-receipt.cjs
+          node --check archie/archie.js
+          node --check dist/archie/archie.js
           node --test scripts/tests/remote-service.test.mjs
           python studio/manual/verify.py
           node studio/manual/tests/remote-terminal-contract.mjs
@@ -261,6 +269,12 @@ jobs:
           test -f dist/maker/manifest.webmanifest
           test -f dist/maker/sw.js
           test -f dist/maker/icon.svg
+          test -f dist/archie/index.html
+          test -f dist/archie/archie.css
+          test -f dist/archie/archie.js
+          test -f dist/archie/manifest.webmanifest
+          test -f dist/archie/sw.js
+          test -f dist/archie/icon.svg
 
       - name: Check Add to Sideways on phone and desktop
         run: |
@@ -327,16 +341,28 @@ jobs:
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/deployment-receipt.cjs verify-live
 
+      - name: Verify Archie is anonymously reachable
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: |
+          node scripts/deployment-receipt.cjs verify-archie-live > archie-public-reachability-receipt.json
+          cat archie-public-reachability-receipt.json
+
       - name: Upsert successful deployment receipt
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
         with:
           script: |
+            const fs = require('node:fs');
             const { upsertDeploymentReceipt } = require('./scripts/deployment-receipt.cjs');
+            const archieReceipt = JSON.parse(fs.readFileSync('archie-public-reachability-receipt.json', 'utf8'));
             const result = await upsertDeploymentReceipt({
               github,
               context,
-              deployedUrl: process.env.DEPLOYED_URL
+              deployedUrl: process.env.DEPLOYED_URL,
+              archieReceipt
             });
             core.info(`deployment receipt #${result.primary.number}; closed stale receipts: ${result.closedDuplicates.join(', ') || 'none'}`);
