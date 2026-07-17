@@ -68,3 +68,5 @@ jobs:
           git rm .github/workflows/harden-cognition-maker-receipt.yml
           git commit -m '[skip hardening] Bind cognition learning to exact verified Maker receipts'
           git push origin HEAD:revive/dead-instance-completion-20260717
+
+# This second workflow commit intentionally triggers execution; GitHub does not run a newly created workflow from its own creation commit.
