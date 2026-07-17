@@ -42,7 +42,7 @@ jobs:
       - name: Exercise promptless no-op cycle
         run: |
           root="$(mktemp -d)"
-          npm run archie:persistent -- --root "$root" > persistent-cycle.json
+          npm run --silent archie:persistent -- --root "$root" > persistent-cycle.json
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const receipt = JSON.parse(fs.readFileSync('persistent-cycle.json', 'utf8'));
