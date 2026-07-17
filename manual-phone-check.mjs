@@ -33,6 +33,11 @@ async function touch(page, locator) {
   await locator.tap({ timeout: 10000 });
 }
 
+function assertNoAutomaticNavigation(navigations, operation) {
+  if (!navigations.length) return;
+  throw new Error(`${operation} triggered ${navigations.length} automatic main-frame navigation(s): ${navigations.join(', ')}`);
+}
+
 async function openAdd(page, mobile = false) {
   const add = page.getByRole('button', { name: 'ADD', exact: true });
   if (mobile) await touch(page, add); else await add.click();
@@ -65,11 +70,14 @@ await phoneContext.addInitScript(() => {
 });
 const phone = await phoneContext.newPage();
 const phoneErrors = collectErrors(phone);
-let phoneLoads = 0;
-phone.on('load', () => { phoneLoads += 1; });
+// Record actual main-frame navigation requests; a load event can arrive after networkidle.
+const phoneNavigations = [];
+phone.on('request', request => {
+  if (request.isNavigationRequest() && request.frame() === phone.mainFrame()) phoneNavigations.push(request.url());
+});
 await phone.goto('http://127.0.0.1:4173/manual/', { waitUntil: 'networkidle' });
-phoneLoads = 0;
 await phone.waitForFunction(() => document.documentElement.dataset.studioReady === 'yes', { timeout: 15000 });
+phoneNavigations.length = 0;
 await openAdd(phone, true);
 await assertFourChoices(phone);
 await phone.locator('#sidewaysImportFiles[data-phone-ready="yes"]').waitFor({ state: 'attached', timeout: 10000 });
@@ -113,7 +121,7 @@ await chooser.setFiles({
 });
 await phone.locator('.import-complete-panel .capability-private').waitFor({ state: 'visible', timeout: 15000 });
 if (!/Private on this device/i.test(await phone.locator('.import-complete-panel').innerText())) throw new Error('file result did not state private ownership');
-if (phoneLoads !== 0) throw new Error(`file import triggered ${phoneLoads} automatic page load(s)`);
+assertNoAutomaticNavigation(phoneNavigations, 'file import');
 
 const ark = await phone.evaluate(async () => {
   const result = await window.SidewaysSurvival.exportArk({ download: false });
@@ -130,7 +138,7 @@ const restoreChooser = await restoreChooserPromise;
 await restoreChooser.setFiles({ name: ark.name, mimeType: 'application/x-sideways-ark', buffer: Buffer.from(ark.base64, 'base64') });
 await phone.locator('.import-complete-panel .capability-private').waitFor({ state: 'visible', timeout: 15000 });
 if (!/restored transactionally/i.test(await phone.locator('.import-complete-panel').innerText())) throw new Error('Ark restore did not reach committed result');
-if (phoneLoads !== 0) throw new Error(`Ark restore triggered ${phoneLoads} automatic page load(s)`);
+assertNoAutomaticNavigation(phoneNavigations, 'Ark restore');
 if (phoneErrors.length) throw new Error(phoneErrors.join(' | '));
 await phone.screenshot({ path: 'add-to-sideways-phone.png', fullPage: true });
 await phoneContext.close();
@@ -156,7 +164,7 @@ await desktopContext.close();
 
 console.log(JSON.stringify({
   schema: 'sideways-add-journey-receipt/v1',
-  phone: { viewport: '390x844', choices: 4, staticConnections: 'unavailable-honest', sourceControls: true, fileImport: 'private', arkRestore: 'transactional', automaticReloads: phoneLoads },
+  phone: { viewport: '390x844', choices: 4, staticConnections: 'unavailable-honest', sourceControls: true, fileImport: 'private', arkRestore: 'transactional', automaticReloads: phoneNavigations.length },
   desktop: { viewport: '1280x900', choices: 4, twoColumn: true, dropzone: true },
   screenshots: ['add-to-sideways-phone.png', 'add-to-sideways-desktop.png']
 }, null, 2));
