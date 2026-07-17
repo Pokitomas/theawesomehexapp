@@ -29,7 +29,7 @@ test('study states the causal relationship between form factor and verified succ
   for (const product of ['Archie', 'Maker', 'Founder', 'Sideways']) assert.match(study, new RegExp(`### ${product}`));
 });
 
-test('Archie and Founder retain distinct visual languages with accessibility contracts', async () => {
+test('Archie, Founder, and Maker retain distinct visual languages with accessibility contracts', async () => {
   const [archie, deployedArchie, founder, maker] = await Promise.all([
     read('archie/archie.css'),
     read('dist/archie/archie.css'),
@@ -42,11 +42,15 @@ test('Archie and Founder retain distinct visual languages with accessibility con
   assert.match(archie, /min-height:44px/);
   assert.match(archie, /prefers-reduced-motion/);
   assert.match(founder, /--acid:#d8ff3e/);
-  assert.match(founder, /editorial|Georgia|direction/i);
+  assert.match(founder, /Georgia|direction/i);
   assert.match(founder, /prefers-reduced-motion/);
   assert.match(maker, /ui-monospace/);
-  assert.match(maker, /Repository execution/mi, 'Maker CSS must remain tied to its operational control-room vocabulary through adjacent source contracts.');
+  assert.match(maker, /--navy:\s*#10233f/);
+  assert.match(maker, /\.command-panel/);
+  assert.match(maker, /\.state-panel/);
   assert.notEqual(archie, founder);
+  assert.notEqual(archie, maker);
+  assert.notEqual(founder, maker);
 });
 
 test('phone surfaces avoid horizontal-layout assumptions and preserve readable touch text', async () => {
