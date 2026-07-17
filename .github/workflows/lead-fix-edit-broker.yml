@@ -3,6 +3,8 @@ name: Apply edit-broker transaction repair
 on:
   push:
     branches: [lead/fix-edit-broker-20260717]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -15,10 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
           persist-credentials: true
-      - uses: actions/setup-node@49933ea5288ca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Apply exact transaction and fixture repairs
@@ -64,8 +66,9 @@ jobs:
       - name: Commit only proven source and fixture corrections
         run: |
           rm .github/workflows/lead-fix-edit-broker.yml
+          rm -f .lead-edit-trigger
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add maker/runtime/edit-broker.mjs scripts/tests/maker-edit-broker.test.mjs .github/workflows/lead-fix-edit-broker.yml
+          git add maker/runtime/edit-broker.mjs scripts/tests/maker-edit-broker.test.mjs .github/workflows/lead-fix-edit-broker.yml .lead-edit-trigger
           git commit -m 'Repair edit transaction staging and divergence safety'
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
