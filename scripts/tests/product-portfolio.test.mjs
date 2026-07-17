@@ -81,6 +81,8 @@ for (const phrase of ['Archie + Maker', 'Founder is not a standalone product', '
 const pages = fs.readFileSync(path.join(root, '.github/workflows/pages.yml'), 'utf8');
 for (const file of ['index.html', 'expo.css', 'expo.js']) assert.ok(pages.includes(`world-expo/${file}`));
 assert.ok(pages.includes('dist/world-expo'));
+assert.ok(pages.includes('design/frontier-world-expo.json'));
+assert.ok(pages.includes('dist/design/frontier-world-expo.json'));
 assert.ok(pages.includes('test:frontier-expo'));
 
 const invalidAllocation = structuredClone(portfolio);
