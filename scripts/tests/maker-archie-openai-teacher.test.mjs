@@ -5,6 +5,7 @@ import {
   createOpenAIArchieTeacher,
   isOpenAIArchieTeacherConfigured
 } from '../maker-archie-openai-teacher.mjs';
+import { repositoryEvidenceDigest } from '../maker-archie-repository-evidence.mjs';
 
 const plan = {
   title: 'Integrate bounded Archie teacher',
@@ -16,6 +17,40 @@ const plan = {
   focused_tests: ['node --test scripts/tests/maker-archie-openai-teacher.test.mjs'],
   deferred: []
 };
+
+function repositoryEvidence() {
+  const body = {
+    schema: 'archie-repository-evidence/v1',
+    repository: 'theawesomehexapp',
+    base_sha: 'a'.repeat(40),
+    collection: 'git-ls-tree-and-git-show',
+    path_count: 3,
+    included_path_count: 3,
+    truncated: false,
+    paths: [
+      'scripts/maker-archie-native.mjs',
+      'scripts/maker-archie-openai-teacher.mjs',
+      'scripts/tests/maker-archie-openai-teacher.test.mjs'
+    ],
+    directories: ['scripts', 'scripts/tests'],
+    package_scripts: {},
+    package_dependencies: [],
+    limitations: ['fixture']
+  };
+  return { ...body, evidence_digest: repositoryEvidenceDigest(body) };
+}
+
+function task(instruction) {
+  return {
+    instruction,
+    context: {
+      repository: 'theawesomehexapp',
+      base_branch: 'main',
+      base_sha: 'a'.repeat(40),
+      repository_evidence: repositoryEvidence()
+    }
+  };
+}
 
 function response(body, { status = 200 } = {}) {
   return {
@@ -48,10 +83,7 @@ test('one Responses API call returns a strict Maker plan and evidence receipt', 
       });
     }
   });
-  const result = await teacher({
-    instruction: 'Finish Archie without intermediary sprawl.',
-    context: { repository: 'theawesomehexapp', base_branch: 'main', base_sha: 'a'.repeat(40) }
-  }, { local_attempt: { state: 'escalate', confidence: 0.1, margin: 0.01 } });
+  const result = await teacher(task('Finish Archie without intermediary sprawl.'), { local_attempt: { state: 'escalate', confidence: 0.1, margin: 0.01 } });
 
   assert.equal(request.url, 'https://api.openai.com/v1/responses');
   assert.equal(request.options.headers.authorization, 'Bearer sk-test-abcdefghijklmnopqrstuvwxyz');
@@ -64,17 +96,18 @@ test('one Responses API call returns a strict Maker plan and evidence receipt', 
   assert.equal(result.receipt.response_id, 'resp_fixture');
   assert.equal(result.receipt.base_sha, 'a'.repeat(40));
   assert.equal(result.receipt.effect_authority, 'maker-only');
+  assert.equal(result.receipt.repository_evidence_digest, repositoryEvidence().evidence_digest);
   assert.match(result.receipt.receipt_digest, /^[a-f0-9]{64}$/);
 });
 
 test('teacher rejects broad leases, invalid output, and API failures', async () => {
   const env = { OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz' };
   const broad = createOpenAIArchieTeacher({ env, fetchImpl: async () => response({ id: 'x', status: 'completed', output_text: JSON.stringify({ ...plan, owned_paths: ['**'] }) }) });
-  await assert.rejects(() => broad({ instruction: 'broad', context: {} }), /repository-wide/);
+  await assert.rejects(() => broad(task('broad')), /repository-wide/);
 
   const invalid = createOpenAIArchieTeacher({ env, fetchImpl: async () => response({ id: 'x', status: 'completed', output_text: '{nope' }) });
-  await assert.rejects(() => invalid({ instruction: 'invalid', context: {} }), /invalid JSON/);
+  await assert.rejects(() => invalid(task('invalid')), /invalid JSON/);
 
   const failed = createOpenAIArchieTeacher({ env, fetchImpl: async () => response({ error: { message: 'denied' } }, { status: 401 }) });
-  await assert.rejects(() => failed({ instruction: 'failed', context: {} }), /HTTP 401/);
+  await assert.rejects(() => failed(task('failed')), /HTTP 401/);
 });
