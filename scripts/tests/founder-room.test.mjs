@@ -88,21 +88,24 @@ assert.equal(brokenStorage.clear(), false);
 
 if (fs.existsSync('dist')) {
   const publishReceipt = publishHumanSurfaces({ output: 'dist' });
-  assert.equal(publishReceipt.root_surface, 'founder');
+  assert.equal(publishReceipt.root_surface, 'desktop-program-manager');
+  assert.equal(publishReceipt.product_model, 'independent-programs');
   assert.equal(publishReceipt.legacy_sample_is_product_root, false);
   for (const relative of [
     'dist/index.html',
-    'dist/founder.css',
-    'dist/founder.js',
+    'dist/desktop.css',
+    'dist/desktop.js',
+    'dist/desktop/index.html',
     'dist/founder/index.html',
     'dist/foundry/index.html',
     'dist/examples/site/index.html',
     'dist/human-surfaces-publish.json'
   ]) assert.ok(fs.statSync(relative).size > 0, `${relative} must be published`);
   const rootHtml = fs.readFileSync('dist/index.html', 'utf8');
-  assert.match(rootHtml, /Make something true/);
+  assert.match(rootHtml, /Archie Program Manager/);
   assert.match(rootHtml, /href="\.\/foundry\/"/);
-  assert.doesNotMatch(rootHtml, /Sideways/i);
+  assert.match(rootHtml, /href="\.\/archie\/"/);
+  assert.doesNotMatch(rootHtml, /Intention[\s\S]{0,300}Planning[\s\S]{0,300}Reasoning/i);
 }
 
-console.log('Founder contract ok: one human intention opens six non-mirroring branches and push creates an authority-free objective receipt');
+console.log('Founder contract ok: one human intention opens six non-mirroring branches and desktop publication preserves independent program routes');
