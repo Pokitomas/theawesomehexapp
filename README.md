@@ -1,11 +1,29 @@
 # Sideways
 
-A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel.
+A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel, alongside the Archie + Maker intelligence-and-execution family and the Frontier World Expo research system.
+
+## Product map
+
+The repository has two commercial product families and one research system. See [`PRODUCT_PORTFOLIO.md`](./PRODUCT_PORTFOLIO.md) for audiences, pricing and valuation hypotheses, capital allocation, and the decisions to merge or demote surfaces.
+
+- **Sideways public discovery:** `https://pokitomas.github.io/theawesomehexapp/`
+- **Sideways private home:** `https://pokitomas.github.io/theawesomehexapp/manual/`
+- **Archie personal atelier:** `https://pokitomas.github.io/theawesomehexapp/archie/`
+- **Maker software workshop:** `https://pokitomas.github.io/theawesomehexapp/maker/`
+- **Founder decision instrument:** `https://pokitomas.github.io/theawesomehexapp/founder/`
+- **Frontier World Expo research preview:** `https://pokitomas.github.io/theawesomehexapp/world-expo/`
+
+Archie and Maker are one commercial family: Archie owns objective, context, continuity, coordination, and admitted intelligence; Maker owns permissioned mutation, verification, delivery, and rollback. Sideways remains an independent product. Founder is an internal instrument, not a standalone company. Expo exposes its research substrate and blocked promotion state; it does not claim any multimodal candidate has passed.
+
+```bash
+npm run product:portfolio -- validate
+npm run product:portfolio -- routes
+npm run product:portfolio -- market
+npm run product:portfolio -- route /archie/
+```
 
 - **Install or open Sideways:** [plain-language install guide](./INSTALL.md)
 - **Install Archie preview:** `npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz`, then run `archie`
-- Root feed: `https://pokitomas.github.io/theawesomehexapp/`
-- Sideways consumer app: `https://pokitomas.github.io/theawesomehexapp/manual/`
 - Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
 - Sideways debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
 - Phone gate: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
@@ -51,39 +69,37 @@ The **LIVE** window exposes public, read-only repository work state. `/.well-kno
 
 See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) for the protocol boundaries.
 
-## Maker engineering surface
+## Archie and Maker
 
-Archie and Maker are a separate intelligence-and-execution system. Sideways is one independent application they may inspect and improve through ordinary repository permissions; Sideways is not the AI, its memory substrate, or a privileged self-modification path. See [`ARCHIE_MAKER_VISION.md`](./ARCHIE_MAKER_VISION.md).
+Archie and Maker are one intelligence-and-execution family. Sideways is an independent application they may inspect and improve through ordinary repository permissions; Sideways is not the AI, its memory substrate, or a privileged self-modification path. See [`ARCHIE_MAKER_VISION.md`](./ARCHIE_MAKER_VISION.md).
 
-Archie is exposed as a cross-platform package executable. A bare `archie` launch presents a guided local-world status instead of an operator usage wall; `archie setup --json` provides the same runtime, artifact, and runner readiness state to automation. The source-package preview is installable without cloning the repository, but it bundles no model and makes no capability claim. See [`INSTALL.md`](./INSTALL.md) for the one-command preview and reproducible exact-commit form.
+Archie is exposed as a cross-platform package executable. A bare `archie` launch presents a guided local-world status; `archie setup --json` provides the same runtime, artifact, and runner readiness state to automation. The source-package preview bundles no model and makes no capability claim.
 
-From a clean checkout, the primary engineering entrypoint is intentionally small:
+From a clean checkout:
 
 ```bash
 npm run maker -- "describe the end state"
 ```
 
-The default command passes through the native Archie memory bridge. Before execution, Archie checks the repository-scoped local skill mixture and surfaces any matching reusable plan with its confidence and margin. It does not silently execute or trust that plan: Maker’s four read-only assessments, synthesis, single-writer lease, isolated worktree, verification, draft PR, and human merge boundaries remain authoritative.
+The default command passes through the native Archie memory bridge. It may surface matching reusable plans, but Maker’s read-only assessments, synthesis, single-writer lease, isolated worktree, verification, draft PR, and human merge boundaries remain authoritative.
 
-After a successful native `sideways-maker-run/v2` receipt, the bridge converts the completed run into redacted corpus evidence, retrains the local skill mixture, and makes repeated work recallable. This is repository-local project memory, not ambient training of a shared shipped Archie model. The private corpus defaults to `~/.sideways/archie/<repository-name>-<path-digest>/`. Set `ARCHIE_CORPUS_ROOT` to choose another location, `ARCHIE_DISABLED=1` to disable memory, or use `npm run maker:raw -- "..."` to bypass the bridge.
+See [`NATIVE_MAKER.md`](./NATIVE_MAKER.md) for setup, adapters, leases, recovery behavior, and the legacy endpoint-backed worker.
 
-Local Codex or another explicitly configured coding agent performs four parallel read-only assessments, one synthesis, and one isolated writer pass with full repository context. A draft PR is opened before mutation so `.github/workflows/maker-sprawl.yml` can reject path collisions with other open Maker PRs and fan verification across product, social, operator, and hostile lanes. Maker independently runs the exact repository gate and stops unmerged and undeployed.
+## Frontier World Expo
 
-See [`NATIVE_MAKER.md`](./NATIVE_MAKER.md) for setup, custom-agent adapters, leases, recovery behavior, and the legacy endpoint-backed worker.
+The Expo maps frontier benchmarks into twelve lived visual, sonic, speech, music, and persistent-world commissions. It generates six contradictory candidate roles per round and fails promotion closed until exact artifact, device, trace, independent metric, human preference, authorship, provenance, and portable-export receipts are complete.
+
+```bash
+npm run frontier:expo:derive -- --seed 466 --round issue-466 --output round.json
+npm run frontier:expo:materialize -- --round-file round.json --output .archie/frontier-world-expo/issue-466
+npm run frontier:expo:status -- --directory .archie/frontier-world-expo/issue-466
+```
+
+The current `/world-expo/` path is a research preview of this substrate. No candidate is promoted.
 
 ## Verification
 
-The repository gates changes with:
-
-- manual overlay validation
-- exact kernel parity
-- the legacy 390×844 saturation phone gate
-- universal-media phone proof
-- profile-first starter and static-drop proof
-- Ark mirror → backup → delete → restore → audit proof
-- Remote, workflow-permission, social-authority, relational PostgreSQL, and migration-upgrade contracts
-- executable authority-surface drift detection
-- exact-head build and deployment accounting
+The repository gates changes with manual overlay validation, exact kernel parity, phone and media proofs, Ark survival, social and authority contracts, exact-head build/deployment accounting, Frontier Expo contracts, and executable product-route, allocation, valuation-boundary, and Expo-claim checks.
 
 The concentrated private-archive phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
 

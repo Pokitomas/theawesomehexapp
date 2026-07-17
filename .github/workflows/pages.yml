@@ -58,6 +58,11 @@ jobs:
       - name: Verify bounded discovery and connected import
         run: npm run test:ingestion
 
+      - name: Verify product portfolio and Frontier Expo contracts
+        run: |
+          npm run test:frontier-expo
+          npm run test:portfolio
+
       - name: Extract base product layers
         run: |
           set -euo pipefail
@@ -198,6 +203,15 @@ jobs:
           mkdir -p dist/archie
           cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
 
+      - name: Publish Frontier World Expo research preview
+        run: |
+          set -euo pipefail
+          mkdir -p dist/world-expo dist/design
+          git show HEAD:world-expo/index.html > dist/world-expo/index.html
+          git show HEAD:world-expo/expo.css > dist/world-expo/expo.css
+          git show HEAD:world-expo/expo.js > dist/world-expo/expo.js
+          git show HEAD:design/frontier-world-expo.json > dist/design/frontier-world-expo.json
+
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
 
@@ -227,6 +241,7 @@ jobs:
           node --check scripts/deployment-receipt.cjs
           node --check archie/archie.js
           node --check dist/archie/archie.js
+          node --check dist/world-expo/expo.js
           node --test scripts/tests/remote-service.test.mjs
           python studio/manual/verify.py
           node studio/manual/tests/remote-terminal-contract.mjs
@@ -275,6 +290,10 @@ jobs:
           test -f dist/archie/manifest.webmanifest
           test -f dist/archie/sw.js
           test -f dist/archie/icon.svg
+          test -f dist/world-expo/index.html
+          test -f dist/world-expo/expo.css
+          test -f dist/world-expo/expo.js
+          test -f dist/design/frontier-world-expo.json
 
       - name: Check Add to Sideways on phone and desktop
         run: |

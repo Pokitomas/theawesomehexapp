@@ -52,7 +52,7 @@ Once the final merge, exact `main` checks, live sentinel, deployment receipt, co
 
 1. close issues #257–#262 and #264 with exact commit and workflow receipts;
 2. close superseded coordination or expired-agent tasks as replaced, not completed by those agents;
-3. ensure no competing `maker/*` or `agent/*` pull request remains open;
-4. stop the completion swarm.
+3. ensure no competing Sideways-completion `maker/*` or `agent/*` pull request remains open;
+4. stop the Sideways completion swarm.
 
-There is no speculative follow-on optimization, redesign, model research, or new feature lane after this termination rule is satisfied.
+This termination applies only to the bounded Sideways release-completion campaign. It does not prohibit evidence-backed product work governed by [`PRODUCT_PORTFOLIO.md`](./PRODUCT_PORTFOLIO.md), Archie and Maker intelligence/execution research, independent Sideways retention work, or the Frontier World Expo campaign. Those programs must use their own exact promotion gates and may not reopen completed Sideways requirements merely to create motion.
