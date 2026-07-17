@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  ARCHIE_OPENAI_TEACHER_RECEIPT_SCHEMA,
+  createOpenAIArchieTeacher,
+  isOpenAIArchieTeacherConfigured
+} from '../maker-archie-openai-teacher.mjs';
+
+const plan = {
+  title: 'Integrate bounded Archie teacher',
+  branch_slug: 'archie-teacher',
+  selected_lane: 'operator',
+  why_now: 'The default path needs a dense plan without redundant assessment agents.',
+  owned_paths: ['scripts/maker-archie-native.mjs', 'scripts/maker-archie-openai-teacher.mjs'],
+  implementation_prompt: 'Connect the strict teacher plan to Maker while preserving Maker as the only effect boundary.',
+  focused_tests: ['node --test scripts/tests/maker-archie-openai-teacher.test.mjs'],
+  deferred: []
+};
+
+function response(body, { status = 200 } = {}) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async json() { return body; },
+    async text() { return JSON.stringify(body); }
+  };
+}
+
+test('teacher is configured only by a nontrivial API key and can be disabled explicitly', () => {
+  assert.equal(isOpenAIArchieTeacherConfigured({}), false);
+  assert.equal(isOpenAIArchieTeacherConfigured({ OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz' }), true);
+  assert.equal(isOpenAIArchieTeacherConfigured({ OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz', ARCHIE_OPENAI_DISABLED: 'true' }), false);
+});
+
+test('one Responses API call returns a strict Maker plan and evidence receipt', async () => {
+  let request;
+  const teacher = createOpenAIArchieTeacher({
+    env: { OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz', ARCHIE_OPENAI_MODEL: 'gpt-5.1' },
+    clock: () => '2026-07-17T20:00:00.000Z',
+    fetchImpl: async (url, options) => {
+      request = { url, options, body: JSON.parse(options.body) };
+      return response({
+        id: 'resp_fixture',
+        status: 'completed',
+        model: 'gpt-5.1-2025-11-13',
+        output_text: JSON.stringify(plan),
+        usage: { input_tokens: 100, output_tokens: 40, total_tokens: 140 }
+      });
+    }
+  });
+  const result = await teacher({
+    instruction: 'Finish Archie without intermediary sprawl.',
+    context: { repository: 'theawesomehexapp', base_branch: 'main', base_sha: 'a'.repeat(40) }
+  }, { local_attempt: { state: 'escalate', confidence: 0.1, margin: 0.01 } });
+
+  assert.equal(request.url, 'https://api.openai.com/v1/responses');
+  assert.equal(request.options.headers.authorization, 'Bearer sk-test-abcdefghijklmnopqrstuvwxyz');
+  assert.equal(request.body.store, false);
+  assert.equal(request.body.text.format.type, 'json_schema');
+  assert.equal(request.body.text.format.strict, true);
+  assert.equal(request.body.reasoning.effort, 'high');
+  assert.deepEqual(result.plan, plan);
+  assert.equal(result.receipt.schema, ARCHIE_OPENAI_TEACHER_RECEIPT_SCHEMA);
+  assert.equal(result.receipt.response_id, 'resp_fixture');
+  assert.equal(result.receipt.base_sha, 'a'.repeat(40));
+  assert.equal(result.receipt.effect_authority, 'maker-only');
+  assert.match(result.receipt.receipt_digest, /^[a-f0-9]{64}$/);
+});
+
+test('teacher rejects broad leases, invalid output, and API failures', async () => {
+  const env = { OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz' };
+  const broad = createOpenAIArchieTeacher({ env, fetchImpl: async () => response({ id: 'x', status: 'completed', output_text: JSON.stringify({ ...plan, owned_paths: ['**'] }) }) });
+  await assert.rejects(() => broad({ instruction: 'broad', context: {} }), /repository-wide/);
+
+  const invalid = createOpenAIArchieTeacher({ env, fetchImpl: async () => response({ id: 'x', status: 'completed', output_text: '{nope' }) });
+  await assert.rejects(() => invalid({ instruction: 'invalid', context: {} }), /invalid JSON/);
+
+  const failed = createOpenAIArchieTeacher({ env, fetchImpl: async () => response({ error: { message: 'denied' } }, { status: 401 }) });
+  await assert.rejects(() => failed({ instruction: 'failed', context: {} }), /HTTP 401/);
+});
