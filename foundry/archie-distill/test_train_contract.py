@@ -58,7 +58,50 @@ class NeuralTrainerContractTest(unittest.TestCase):
 
     def test_no_network_model_loading(self):
         self.assertGreaterEqual(self.source.count("local_files_only=True"), 2)
+        for variable in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE"):
+            self.assertIn(f'os.environ["{variable}"] = "1"', self.source)
         self.assertNotIn("from_pretrained(profile[", self.source)
+
+    def test_cuda_only_nf4_qlora_has_no_cpu_fallback(self):
+        self.assertIn("if not torch.cuda.is_available():", self.source)
+        self.assertIn("Refusing slow full-precision CPU training", self.source)
+        self.assertNotIn("return torch.float32", self.source)
+        for marker in (
+            "load_in_4bit=True",
+            'bnb_4bit_quant_type="nf4"',
+            "bnb_4bit_use_double_quant=True",
+            "bnb_4bit_compute_dtype=compute_dtype",
+            "prepare_model_for_kbit_training",
+            "is_loaded_in_4bit",
+            "non_adapter_parameters",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_training_is_deterministic_and_memory_bounded(self):
+        for marker in (
+            "CUBLAS_WORKSPACE_CONFIG",
+            "torch.use_deterministic_algorithms(True)",
+            "allow_tf32 = False",
+            '"dataloader_num_workers": 0',
+            '"optim": "paged_adamw_8bit"',
+            '"gradient_checkpointing": True',
+            '"packing": bool(cfg.get("packing", True))',
+            "default=1024",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_receipt_binds_exact_neural_inputs_and_runtime(self):
+        for marker in (
+            "checkpoint_identity",
+            "checkpoint_tokenizer_identity",
+            "dataset_identity(dataset_paths)",
+            "training_order_digest",
+            "package_versions",
+            "torch.cuda.get_device_name",
+            "quantization_values",
+            "artifact_manifest(adapter_dir)",
+        ):
+            self.assertIn(marker, self.source)
 
 
 if __name__ == "__main__":
