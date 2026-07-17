@@ -23,31 +23,33 @@ function copyDirectory(source, destination) {
 export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } = {}) {
   const repositoryRoot = path.resolve(root);
   const outputRoot = path.resolve(repositoryRoot, output);
-  const desktopRoot = path.join(repositoryRoot, 'desktop');
-  const founderRoot = path.join(repositoryRoot, 'founder');
-  const foundryRoot = path.join(repositoryRoot, 'foundry');
+  const applicationDirectories = ['desktop', 'archie', 'maker', 'founder', 'foundry', 'world-expo'];
   const exampleRoot = path.join(repositoryRoot, 'examples', 'site');
 
+  for (const application of applicationDirectories) {
+    const index = path.join(repositoryRoot, application, 'index.html');
+    if (!fs.existsSync(index)) throw new Error(`Missing human surface asset: ${path.relative(repositoryRoot, index)}`);
+  }
   for (const required of [
-    path.join(desktopRoot, 'index.html'),
-    path.join(desktopRoot, 'desktop.css'),
-    path.join(desktopRoot, 'desktop.js'),
-    path.join(founderRoot, 'index.html'),
-    path.join(founderRoot, 'founder.css'),
-    path.join(founderRoot, 'founder.js'),
-    path.join(foundryRoot, 'index.html'),
-    path.join(foundryRoot, 'foundry.css'),
-    path.join(foundryRoot, 'foundry.js'),
-    path.join(exampleRoot, 'index.html'),
-    path.join(exampleRoot, 'site.css'),
-    path.join(exampleRoot, 'site.js')
+    'desktop/desktop.css',
+    'desktop/desktop.js',
+    'archie/archie.js',
+    'maker/maker.js',
+    'maker/runtime-receipt.js',
+    'founder/founder.js',
+    'foundry/foundry.js',
+    'world-expo/expo.js',
+    'examples/site/index.html',
+    'examples/site/site.css',
+    'examples/site/site.js'
   ]) {
-    if (!fs.existsSync(required)) throw new Error(`Missing human surface asset: ${path.relative(repositoryRoot, required)}`);
+    const absolute = path.join(repositoryRoot, required);
+    if (!fs.existsSync(absolute)) throw new Error(`Missing human surface asset: ${required}`);
   }
 
   fs.mkdirSync(outputRoot, { recursive: true });
 
-  const desktopHtml = fs.readFileSync(path.join(desktopRoot, 'index.html'), 'utf8');
+  const desktopHtml = fs.readFileSync(path.join(repositoryRoot, 'desktop', 'index.html'), 'utf8');
   const rootHtml = desktopHtml
     .replaceAll('href="../desktop/"', 'href="./desktop/"')
     .replaceAll('href="../archie/"', 'href="./archie/"')
@@ -57,22 +59,14 @@ export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } =
     .replaceAll('href="../world-expo/"', 'href="./world-expo/"');
 
   fs.writeFileSync(path.join(outputRoot, 'index.html'), rootHtml);
-  copyFile(path.join(desktopRoot, 'desktop.css'), path.join(outputRoot, 'desktop.css'));
-  copyFile(path.join(desktopRoot, 'desktop.js'), path.join(outputRoot, 'desktop.js'));
+  copyFile(path.join(repositoryRoot, 'desktop', 'desktop.css'), path.join(outputRoot, 'desktop.css'));
+  copyFile(path.join(repositoryRoot, 'desktop', 'desktop.js'), path.join(outputRoot, 'desktop.js'));
 
-  const desktopDestination = path.join(outputRoot, 'desktop');
-  fs.rmSync(desktopDestination, { recursive: true, force: true });
-  copyDirectory(desktopRoot, desktopDestination);
-
-  const founderDestination = path.join(outputRoot, 'founder');
-  fs.rmSync(founderDestination, { recursive: true, force: true });
-  copyDirectory(founderRoot, founderDestination);
-
-  const foundryDestination = path.join(outputRoot, 'foundry');
-  fs.rmSync(foundryDestination, { recursive: true, force: true });
-  copyFile(path.join(foundryRoot, 'index.html'), path.join(foundryDestination, 'index.html'));
-  copyFile(path.join(foundryRoot, 'foundry.css'), path.join(foundryDestination, 'foundry.css'));
-  copyFile(path.join(foundryRoot, 'foundry.js'), path.join(foundryDestination, 'foundry.js'));
+  for (const application of applicationDirectories) {
+    const destination = path.join(outputRoot, application);
+    fs.rmSync(destination, { recursive: true, force: true });
+    copyDirectory(path.join(repositoryRoot, application), destination);
+  }
 
   const exampleDestination = path.join(outputRoot, 'examples', 'site');
   fs.rmSync(exampleDestination, { recursive: true, force: true });
@@ -89,8 +83,12 @@ export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } =
       'desktop.css',
       'desktop.js',
       'desktop/index.html',
+      'archie/index.html',
+      'maker/index.html',
+      'maker/runtime-receipt.js',
       'founder/index.html',
       'foundry/index.html',
+      'world-expo/index.html',
       'examples/site/index.html'
     ]
   };
