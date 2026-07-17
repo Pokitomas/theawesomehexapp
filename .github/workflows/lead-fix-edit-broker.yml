@@ -1,0 +1,71 @@
+name: Apply edit-broker transaction repair
+
+on:
+  push:
+    branches: [lead/fix-edit-broker-20260717]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor == 'Pokitomas'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288ca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Apply exact transaction and fixture repairs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('maker/runtime/edit-broker.mjs')
+          s = p.read_text()
+          replacements = [
+            ("const TERMINAL = new Set(['applied', 'rolled_back', 'rollback_failed', 'cancelled']);", "const TERMINAL = new Set(['applied', 'rolled_back', 'rollback_failed', 'cancelled']);\nconst INTERNAL_MUTATIONS = Symbol('internal_mutations');"),
+            ("      backups: path.join(directory, 'backups')\n", "      backups: path.join(directory, 'backups'),\n      staged: path.join(directory, 'staged')\n"),
+            ("return Object.freeze({ ...body, preview_digest: digest(body), internal_mutations: Object.freeze(mutations) });", "const preview = { ...body, preview_digest: digest(body) };\n    Object.defineProperty(preview, INTERNAL_MUTATIONS, { value: Object.freeze(mutations), enumerable: false });\n    return Object.freeze(preview);"),
+            ("    await this.fs.mkdir(paths.backups, { recursive: true, mode: 0o700 });\n    const backupManifest = {};\n    for (const mutation of preview.internal_mutations) {", "    await this.fs.mkdir(paths.backups, { recursive: true, mode: 0o700 });\n    await this.fs.mkdir(paths.staged, { recursive: true, mode: 0o700 });\n    const backupManifest = {};\n    const journalMutations = [];\n    for (const sourceMutation of preview[INTERNAL_MUTATIONS]) {\n      const mutation = { ...sourceMutation };\n      if (mutation.after.exists) {\n        const stagedFile = `${digest(mutation.mutation_id)}.stage`;\n        await this.fs.writeFile(path.join(paths.staged, stagedFile), mutation.staged_content, { encoding: 'utf8', mode: 0o600 });\n        mutation.staged_file = stagedFile;\n        mutation.staged_content = null;\n      } else {\n        mutation.staged_file = null;\n      }\n      journalMutations.push(mutation);"),
+            ("      mutations: preview.internal_mutations,", "      mutations: journalMutations,"),
+            ("    return Object.freeze({ transaction_id: transactionId, journal: redactSecrets(journal), preview: { ...preview, internal_mutations: undefined } });", "    return Object.freeze({ transaction_id: transactionId, journal: redactSecrets(journal), preview });"),
+            ("  async #applyMutation(broker, mutation) {\n    if (mutation.after.exists) return broker.write(mutation.path, mutation.staged_content, { origin: 'control_plane' });\n    if (await exists(this.fs, absolutePath(this.root, mutation.path))) return broker.delete(mutation.path, { origin: 'control_plane' });\n    return { path: mutation.path, already_absent: true };\n  }", "  async #applyMutation(broker, paths, mutation) {\n    if (mutation.after.exists) {\n      if (!mutation.staged_file) throw new Error(`Missing staged file for ${mutation.path}.`);\n      const content = await this.fs.readFile(path.join(paths.staged, mutation.staged_file), 'utf8');\n      if (digest(content) !== mutation.after.sha256) throw new Error(`Staged content digest mismatch for ${mutation.path}.`);\n      return broker.write(mutation.path, content, { origin: 'control_plane' });\n    }\n    if (await exists(this.fs, absolutePath(this.root, mutation.path))) return broker.delete(mutation.path, { origin: 'control_plane' });\n    return { path: mutation.path, already_absent: true };\n  }"),
+            ("          await this.#restoreMutation(broker, paths, state, mutation);\n          if (!(await this.#currentMatches(mutation, 'before'))) throw new Error(`Rollback verification failed for ${mutation.path}.`);", "          if (!(await this.#currentMatches(mutation, 'after'))) throw new Error(`Workspace diverged from the transaction state for ${mutation.path}; refusing rollback.`);\n          await this.#restoreMutation(broker, paths, state, mutation);\n          if (!(await this.#currentMatches(mutation, 'before'))) throw new Error(`Rollback verification failed for ${mutation.path}.`);"),
+            ("          await this.#applyMutation(broker, mutation);", "          await this.#applyMutation(broker, paths, mutation);")
+          ]
+          for old, new in replacements:
+              if s.count(old) != 1:
+                  raise SystemExit(f'edit-broker replacement count for {old[:50]!r}: {s.count(old)}')
+              s = s.replace(old, new)
+          p.write_text(s)
+
+          p = Path('scripts/tests/maker-edit-broker.test.mjs')
+          s = p.read_text()
+          replacements = [
+            ("    base_sha: BASE,\n    branch: 'maker/issue-307-test',", "    base_sha: overrides.base_sha ?? BASE,\n    branch: overrides.branch ?? 'maker/issue-307-test',"),
+            ("    operations: overrides.operations || [", "    operations: overrides.operations ?? [")
+          ]
+          for old, new in replacements:
+              if s.count(old) != 1:
+                  raise SystemExit(f'test replacement count for {old!r}: {s.count(old)}')
+              s = s.replace(old, new)
+          p.write_text(s)
+          PY
+      - name: Prove edit transaction contract
+        run: |
+          node --check maker/runtime/edit-broker.mjs
+          node --test scripts/tests/maker-edit-broker.test.mjs
+      - name: Commit only proven source and fixture corrections
+        run: |
+          rm .github/workflows/lead-fix-edit-broker.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add maker/runtime/edit-broker.mjs scripts/tests/maker-edit-broker.test.mjs .github/workflows/lead-fix-edit-broker.yml
+          git commit -m 'Repair edit transaction staging and divergence safety'
+          git push origin HEAD:${{ github.ref_name }}
