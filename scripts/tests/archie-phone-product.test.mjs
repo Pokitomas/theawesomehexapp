@@ -14,7 +14,7 @@ test('Archie phone surface is installable and offline-capable', async () => {
   assert.match(html, /apple-mobile-web-app-capable/);
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /archie\.js/);
-  assert.match(sw, /archie-phone-v1/);
+  assert.match(sw, /archie-phone-v2/);
   for (const asset of ['./', './index.html', './archie.css', './archie.js', './manifest.webmanifest', './icon.svg']) assert.match(sw, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 

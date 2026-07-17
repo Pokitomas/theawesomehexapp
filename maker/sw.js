@@ -1,3 +1,4 @@
+// Indie workshop shell refresh.
 const CACHE = 'maker-engineering-v3';
 const SHELL = ['./', './index.html', './maker.css', './maker.js', './manifest.webmanifest', './icon.svg'];
 
