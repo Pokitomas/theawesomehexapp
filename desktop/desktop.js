@@ -133,6 +133,13 @@ if (target && surface) {
   }
 }
 
+if (surface === 'maker') {
+  import('../maker/runtime-receipt.js').catch(error => {
+    const status = document.querySelector('#archie-status');
+    if (status) status.textContent = `Runtime receipt controls unavailable: ${clean(error?.message, 240)} No runtime fact was admitted.`;
+  });
+}
+
 document.querySelectorAll('[data-clear-shared-task]').forEach(button => button.addEventListener('click', () => {
   localStorage.removeItem(TASK_KEY);
   if (currentTask) currentTask.textContent = 'No shared task yet. Start from Home or type below.';
