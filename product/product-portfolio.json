@@ -1,0 +1,239 @@
+{
+  "schema": "sideways-product-portfolio/v1",
+  "decided_at": "2026-07-17T07:00:00Z",
+  "claim_boundary": "These are capital-allocation, pricing, and valuation hypotheses for one exact repository state. They are not an appraisal, financing promise, capability claim, or substitute for retention, revenue, independent evaluation, and real-device evidence.",
+  "portfolio_decision": {
+    "commercial_families": [
+      {
+        "id": "archie-maker",
+        "name": "Archie + Maker",
+        "thesis": "One resident intelligence and bounded execution family. Archie owns intent, context, continuity, coordination, and learned assistance; Maker owns authorized mutation, verification, delivery, and rollback.",
+        "surfaces": ["archie", "maker"],
+        "separate_company_for_each_surface": false
+      },
+      {
+        "id": "sideways",
+        "name": "Sideways",
+        "thesis": "An independent local-first personal archive and discovery product whose ranking, ownership, import, and survival value remain useful without Archie.",
+        "surfaces": ["sideways"],
+        "separate_company_for_each_surface": true
+      }
+    ],
+    "research_instruments": ["founder", "expo"],
+    "capital_allocation_percent": {
+      "archie-maker": 55,
+      "sideways": 30,
+      "expo-evidence": 12,
+      "founder-instrument": 3
+    }
+  },
+  "routes": [
+    {
+      "path": "/",
+      "surface": "sideways",
+      "name": "Sideways public discovery",
+      "use_when": "The person wants public discovery, ranking explanations, and a doorway into their owned archive.",
+      "primary_action": "discover-and-open-private-home"
+    },
+    {
+      "path": "/manual/",
+      "surface": "sideways",
+      "name": "Sideways private home",
+      "use_when": "The person wants to import, save, arrange, revisit, back up, or restore their own material.",
+      "primary_action": "own-and-shape-personal-archive"
+    },
+    {
+      "path": "/archie/",
+      "surface": "archie",
+      "name": "Archie personal atelier",
+      "use_when": "The person needs to state an ambitious end state, assemble context and boundaries, preserve continuity, and hand off an evidence-bound objective.",
+      "primary_action": "form-objective-and-authority-packet"
+    },
+    {
+      "path": "/maker/",
+      "surface": "maker",
+      "name": "Maker software workshop",
+      "use_when": "The task requires authorized repository mutation, exact-base execution, verification, receipts, rollback, and delivery.",
+      "primary_action": "author-bounded-engineering-run"
+    },
+    {
+      "path": "/founder/",
+      "surface": "founder",
+      "name": "Founder decision instrument",
+      "use_when": "Competing product directions need explicit reactions, rationale, retained losers, and an exportable decision receipt.",
+      "primary_action": "compare-directions-without-pretending-consensus"
+    }
+  ],
+  "surfaces": {
+    "archie": {
+      "decision": "invest",
+      "product_identity": "resident personal intelligence and coordination layer",
+      "not": ["generic chatbot", "fixed voice assistant", "coding-model brand", "dashboard skin"],
+      "buyer": ["privacy-sensitive power user", "independent creator", "technical founder", "small expert team"],
+      "job_to_be_done": "Turn an underspecified ambition into a persistent, attributable, reversible objective system and coordinate admitted faculties around it.",
+      "current_truth": "The repository has an installable runtime shell, objective packet, workspace substrate, evaluation and admission law, and a distillation pipeline; it does not yet contain an independently admitted generally capable model.",
+      "monetization_hypothesis": {
+        "personal_monthly_usd": [25, 60],
+        "professional_monthly_usd": [80, 250],
+        "team_annual_usd": [15000, 100000],
+        "metering": "subscription-plus-compute"
+      },
+      "value_hypothesis_usd": {
+        "current_code_and_research_asset": [50000, 250000],
+        "after_admitted_model_and_100_retained_payers": [3000000, 12000000],
+        "after_repeatable_paid_team_outcomes": [15000000, 75000000]
+      },
+      "promotion_gates": [
+        "independent hidden evaluation",
+        "second clean-environment reproduction",
+        "real-device capability receipts",
+        "retained paid users",
+        "measured task completion and repair"
+      ]
+    },
+    "maker": {
+      "decision": "merge-commercially-with-archie",
+      "product_identity": "permissioned software execution and evidence engine",
+      "not": ["consumer chatbot", "browser-side executor", "unbounded autonomous employee", "separate mass-market brand"],
+      "buyer": ["software team", "technical founder", "agency", "regulated engineering organization"],
+      "job_to_be_done": "Convert an exact end state into one leased, reviewable, verified change set with explicit authority, cost, provenance, and rollback.",
+      "current_truth": "The repository has substantial orchestration, lease, authority, verification, workspace, and delivery contracts, but open runtime-composition defects and absent admitted intelligence block a broad reliability claim.",
+      "monetization_hypothesis": {
+        "active_user_monthly_usd": [40, 200],
+        "usage_monthly_usd": [0, 1000],
+        "enterprise_annual_usd": [25000, 250000],
+        "metering": "seat-plus-compute-plus-enterprise-controls"
+      },
+      "value_hypothesis_usd": {
+        "current_code_and_research_asset": [100000, 500000],
+        "after_80_percent_independent_task_success": [5000000, 20000000],
+        "after_repeatable_enterprise_pilots": [20000000, 100000000]
+      },
+      "promotion_gates": [
+        "close maker orchestrator, plugin registry, and runtime-platform defects",
+        "independent repository task suite",
+        "cost and latency envelopes",
+        "security and authority audit",
+        "paid pilot renewal"
+      ]
+    },
+    "sideways": {
+      "decision": "invest",
+      "product_identity": "owned personal archive and sideways discovery network",
+      "not": ["second Archie memory", "generic infinite feed", "cloud-only bookmark manager", "root-lab and manual as separate products"],
+      "buyer": ["online archivist", "creator", "community builder", "research-heavy reader", "person leaving closed platforms"],
+      "job_to_be_done": "Bring years of scattered digital life into an owned, remixable, restorable place and use it to discover people, artifacts, and scenes without surrendering the archive.",
+      "current_truth": "This is the strongest current consumer-shaped product: import, local profile, private archive, media, places, backup and restore, deterministic ranking, and optional public authority exist, while automatic multi-device sync and full governance UI remain absent.",
+      "monetization_hypothesis": {
+        "local_personal_monthly_usd": [0, 8],
+        "sync_and_hosting_monthly_usd": [8, 25],
+        "creator_or_community_monthly_usd": [25, 75],
+        "metering": "free-local-plus-paid-sync-hosting-and-community"
+      },
+      "value_hypothesis_usd": {
+        "current_code_and_research_asset": [75000, 350000],
+        "after_10000_retained_monthly_users": [3000000, 15000000],
+        "after_paid_retention_and_network_growth": [15000000, 80000000]
+      },
+      "promotion_gates": [
+        "next-day and month-three return",
+        "successful import and restore",
+        "paid sync demand",
+        "recognizable authorship",
+        "healthy community retention without convergence"
+      ]
+    },
+    "founder": {
+      "decision": "retain-as-instrument",
+      "product_identity": "local decision and product-tournament instrument",
+      "not": ["standalone SaaS", "fourth consumer product", "consulting dashboard", "automatic authority"],
+      "buyer": ["internal product team", "design partner", "independent evaluator"],
+      "job_to_be_done": "Expose incompatible directions, collect explicit judgment, preserve rationale and losing ideas, and produce a deterministic receipt for the next experiment.",
+      "current_truth": "A useful local decision room exists, but it has no independent distribution, collaboration, or willingness-to-pay evidence.",
+      "monetization_hypothesis": {
+        "standalone_monthly_usd": [0, 0],
+        "bundled_value": "included with Archie professional work and Expo evaluations"
+      },
+      "value_hypothesis_usd": {
+        "current_code_and_research_asset": [5000, 25000],
+        "standalone_company": [0, 0],
+        "strategic_uplift_when_it_improves_promotion_decisions": [250000, 3000000]
+      },
+      "promotion_gates": ["blinded decision quality", "revisit and rationale use", "measured reduction in false product promotion"]
+    },
+    "expo": {
+      "decision": "incubate-withheld",
+      "product_identity": "independent multimodal capability exposition and promotion tournament",
+      "not": ["model playground", "service-card gallery", "benchmark marketing page", "claimed shipped product"],
+      "buyer": ["research partner", "model or device team", "creative institution", "enterprise evaluation buyer"],
+      "job_to_be_done": "Translate frontier capability into lived visual, sonic, speech, and persistent-world commissions, retain raw evidence, and select non-dominated embodiments.",
+      "current_truth": "The campaign constitution and issues exist; real multimodal exhibits, physical-device evidence, and an independent promotion tournament do not yet exist.",
+      "visibility": "withheld-until-evidence",
+      "monetization_hypothesis": {
+        "evaluation_program_usd": [50000, 250000],
+        "annual_research_partnership_usd": [100000, 1000000],
+        "consumer_subscription_usd": [0, 0]
+      },
+      "value_hypothesis_usd": {
+        "current_code_and_research_asset": [0, 100000],
+        "after_reproducible_multimodal_pavilion": [1000000, 10000000],
+        "after_independent_enterprise_adoption": [10000000, 50000000]
+      },
+      "promotion_gates": [
+        "working exhibits",
+        "physical-device raw traces",
+        "independent scorers",
+        "portable server-independent exports",
+        "blinded human preference and authorship evidence"
+      ]
+    }
+  },
+  "retirements": [
+    {
+      "assumption": "Every URL is a separate product or company.",
+      "replacement": "URLs are specialized surfaces inside two commercial families and one research system."
+    },
+    {
+      "assumption": "The root ranking laboratory and /manual/ are different Sideways products.",
+      "replacement": "They are public-discovery and private-home entrances to one Sideways promise."
+    },
+    {
+      "assumption": "Maker should be marketed as a standalone consumer app.",
+      "replacement": "Maker is the professional execution surface and enterprise engine of the Archie family."
+    },
+    {
+      "assumption": "Founder deserves independent product investment.",
+      "replacement": "Founder remains a low-cost decision instrument and Expo evaluation surface."
+    },
+    {
+      "assumption": "An Expo issue tree is already a multimodal product.",
+      "replacement": "Expo remains withheld until exhibits and physical-device evidence exist."
+    }
+  ],
+  "market_anchors": [
+    {
+      "product": "Cursor",
+      "official_url": "https://cursor.com/pricing",
+      "observed_anchor": "Individual plans begin around $20 monthly; teams around $40 per user monthly; high-usage tiers and enterprise controls raise the ceiling.",
+      "applies_to": ["archie", "maker"]
+    },
+    {
+      "product": "Devin",
+      "official_url": "https://docs.devin.ai/admin/billing/self-serve",
+      "observed_anchor": "Self-serve ranges from free and $20 individual plans through $200 power-user plans; team full seats are listed around $40 monthly with a team minimum.",
+      "applies_to": ["maker"]
+    },
+    {
+      "product": "Notion",
+      "official_url": "https://www.notion.com/pricing",
+      "observed_anchor": "The business workspace is listed around $20 per member monthly, with custom agents using additional credits.",
+      "applies_to": ["archie", "founder"]
+    },
+    {
+      "product": "Raindrop.io",
+      "official_url": "https://raindrop.io/pro/buy",
+      "observed_anchor": "A durable personal collection product can support a generous free tier and charge for search, archive, backup, and advanced organization.",
+      "applies_to": ["sideways"]
+    }
+  ]
+}
