@@ -3,51 +3,69 @@ import fs from 'node:fs';
 
 const read = path => fs.readFileSync(path, 'utf8');
 const contract = JSON.parse(read('product/xp-program-surfaces.json'));
+const sharedCss = read('desktop/desktop.css');
+const sharedJs = read('desktop/desktop.js');
 const surfaces = [
-  ['desktop', 'desktop/index.html', 'desktop/desktop.css'],
-  ['archie', 'archie/index.html', 'archie/archie.css'],
-  ['maker', 'maker/index.html', 'maker/maker.css'],
-  ['foundry', 'foundry/index.html', 'foundry/foundry.css']
+  ['desktop', 'desktop/index.html', './desktop.css'],
+  ['archie', 'archie/index.html', '../desktop/desktop.css'],
+  ['maker', 'maker/index.html', '../desktop/desktop.css'],
+  ['founder', 'founder/index.html', '../desktop/desktop.css'],
+  ['foundry', 'foundry/index.html', '../desktop/desktop.css'],
+  ['expo', 'world-expo/index.html', '../desktop/desktop.css']
 ];
 
-assert.equal(contract.schema, 'archie-xp-program-surfaces/v1');
-assert.equal(contract.product_model, 'independent-programs');
-assert.equal(contract.root_surface, 'desktop-program-manager');
-assert.equal(contract.mobile.model, 'one-full-screen-program-at-a-time');
+assert.equal(contract.schema, 'archie-public-workflow/v2');
+assert.equal(contract.product_model, 'one-task-progressive-views');
+assert.equal(contract.root_surface, 'one-request-router');
+assert.equal(contract.workflow.automatic_routing, true);
+assert.equal(contract.workflow.shared_state, 'one local task handed between views');
+assert.equal(contract.mobile.minimum_phone_target_css_px, 44);
 assert.equal(contract.accessibility.minimum_phone_target_css_px, 44);
-assert.equal(contract.accessibility.drag_alternatives_required, true);
-assert.ok(contract.visual_rules.forbidden.includes('glassmorphism'));
-assert.ok(contract.visual_rules.forbidden.includes('icon-stage-pipeline'));
-assert.ok(contract.playfulness.forbidden.includes('streaks'));
-assert.ok(contract.playfulness.allowed.includes('strange-help'));
+assert.ok(contract.visual_rules.forbidden.includes('duplicate-request-entry-across-views'));
+assert.ok(contract.visual_rules.forbidden.includes('raw-schema-as-default-interface'));
+assert.ok(contract.visual_rules.forbidden.includes('twenty-four-near-duplicate-candidate-cards'));
 
-const signatures = new Set();
-for (const [name, htmlPath, cssPath] of surfaces) {
+assert.match(sharedCss, /--program-signature:\s*"archie-one-request"/);
+assert.match(sharedCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+assert.match(sharedCss, /@media\s*\(forced-colors:\s*active\)/);
+assert.match(sharedCss, /@media\s*\(max-width:/);
+assert.doesNotMatch(sharedCss, /backdrop-filter|glassmorphism|frosted/i);
+
+for (const [name, htmlPath, stylesheet] of surfaces) {
   const html = read(htmlPath);
-  const css = read(cssPath);
   assert.match(html, /<main\b/, `${name} must have a main landmark`);
   assert.match(html, /class="skip-link"/, `${name} must have a skip link`);
   assert.match(html, /aria-label|aria-labelledby/, `${name} must expose accessible names`);
-  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/, `${name} must support reduced motion`);
-  assert.match(css, /@media\s*\(forced-colors:\s*active\)/, `${name} must support forced colors`);
-  assert.match(css, /@media\s*\(max-width:/, `${name} must have a phone layout`);
-  assert.doesNotMatch(css, /backdrop-filter|rgba\(|hsla\(|opacity\s*:/i, `${name} must keep primary presentation opaque`);
-  assert.doesNotMatch(`${html}\n${css}`, /glassmorphism|frosted|bento|feature-grid|pipeline-step/i, `${name} must reject dashboard-template vocabulary`);
+  assert.ok(html.includes(`href="${stylesheet}"`), `${name} must use the shared interface shell`);
+  assert.match(html, /class="site-header"/, `${name} must use the shared navigation`);
   assert.doesNotMatch(html, /https?:\/\/(?:fonts|cdn|unpkg|jsdelivr)\./i, `${name} must not require remote UI assets`);
-  const signature = css.match(/--program-signature:\s*"([^"]+)"/i)?.[1];
-  assert.ok(signature, `${name} must declare an independent visual signature`);
-  signatures.add(signature);
 }
-assert.equal(signatures.size, surfaces.length, 'every application must have a distinct visual grammar');
 
 const desktop = read('desktop/index.html');
-for (const route of ['../archie/', '../maker/', '../founder/', '../foundry/', '../world-expo/']) assert.ok(desktop.includes(route));
-assert.match(desktop, /data-shell="program-manager"/);
-assert.doesNotMatch(desktop, /Intention[\s\S]{0,300}Planning[\s\S]{0,300}Reasoning/i);
+for (const id of ['universal-task', 'universal-form', 'universal-go', 'route-preview']) assert.ok(desktop.includes(`id="${id}"`));
+for (const route of ['auto', 'archie', 'maker', 'founder', 'foundry']) assert.ok(desktop.includes(`data-route="${route}"`));
+assert.match(desktop, /What should happen\?/);
+assert.match(desktop, /Choose for me/);
+assert.doesNotMatch(desktop, /Installed programs|Program groups|separate applications—not stages/i);
+
+assert.match(sharedJs, /archie:shared-task:v2/);
+for (const key of ['archie:knowledge-utility:v2', 'maker:engineering:task:v2', 'archie:founder:human-turn', 'archie:human-foundry:campaign']) assert.ok(sharedJs.includes(key));
+assert.match(sharedJs, /function inferRoute/);
+assert.match(sharedJs, /choose the smallest workflow/i);
 
 const archie = read('archie/index.html');
-for (const primitive of ['menu-bar', 'toolbar', 'explorer', 'editor', 'inspector', 'status-bar']) assert.ok(archie.includes(primitive));
+assert.match(archie, /Optional context, proof, and permission/);
+assert.match(archie, /Machine packet and runtime truth/);
+const maker = read('maker/index.html');
+assert.match(maker, /Repository, proof, and execution controls/);
+assert.match(maker, /Live public repository state/);
+const founder = read('founder/index.html');
+assert.match(founder, /Show different directions/);
 const foundry = read('foundry/index.html');
-for (const primitive of ['menu-bar', 'instrument-strip', 'candidate-field', 'evidence', 'status-bar']) assert.ok(foundry.includes(primitive));
+assert.match(foundry, /Distinct approaches, not 24 nearly identical cards/);
+assert.match(foundry, /Full campaign manifest and evidence boundary/);
+const foundryJs = read('foundry/foundry.js');
+assert.match(foundryJs, /function distinctDirections/);
+assert.match(foundryJs, /candidates preserved/);
 
-console.log('XP program surfaces contract ok: opaque independent applications, phone fullscreen behavior, accessibility paths, and no glass/icon pipeline');
+console.log('Archie public workflow contract ok: one shared request, automatic routing, progressive views, readable research directions, and truthful advanced evidence');
