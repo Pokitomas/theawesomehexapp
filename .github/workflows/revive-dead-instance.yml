@@ -63,12 +63,16 @@ jobs:
           fi
           git commit -m 'Apply recovered Archie cognition and cold-start fixes'
 
-      - name: Upload exact patch-application failure
+      - name: Upload exact patch-application failure and conflict files
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: recovery-apply-failure
-          path: /tmp/recovery-apply.log
+          name: recovery-apply-conflicts
+          path: |
+            /tmp/recovery-apply.log
+            scripts/maker-archie-benchmark.mjs
+            scripts/maker-archie-cognition.mjs
+            scripts/tests/maker-archie-cognition.test.mjs
           if-no-files-found: error
           retention-days: 1
 
