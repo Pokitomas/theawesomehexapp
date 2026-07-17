@@ -37,30 +37,47 @@ export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date(
       'founder/index.html': [
         '<html lang="en">',
         'name="viewport"',
-        '<main class="shell">',
-        'aria-label="System routes"',
+        '<main class="page surface-page"',
+        'aria-label="Archie views"',
         '<label for="founder-intention">',
         'aria-labelledby="probability-title"',
         'id="branch-field"',
         'id="push-turn"',
-        'role="status" aria-live="polite"'
+        'role="status" aria-live="polite"',
+        '<details class="advanced">'
       ]
     }),
-    inspect(root, 'founder_keyboard_and_touch_baseline', {
-      'founder/founder.css': [
-        'button:focus-visible',
-        'textarea:focus-visible',
-        'outline: 4px solid var(--blue)',
-        'min-height: 54px',
-        '@media (max-width: 980px)',
-        '@media (max-width: 560px)'
+    inspect(root, 'shared_keyboard_touch_reflow_and_disclosure_baseline', {
+      'desktop/desktop.css': [
+        '.skip-link',
+        ':focus-visible',
+        'min-height: 46px',
+        '@media (max-width: 820px)',
+        '@media (max-width: 560px)',
+        '@media (prefers-reduced-motion: reduce)',
+        '@media (forced-colors: active)',
+        '.advanced summary'
       ]
     }),
     inspect(root, 'maker_semantic_controls', {
-      'maker/index.html': ['<html lang="en">', 'name="viewport"', '<main class="shell">', 'role="group"', 'aria-label="Command mode"', '<label for="maker-request">', '<label for="maker-protect">', '<label for="maker-proof">']
+      'maker/index.html': [
+        '<html lang="en">',
+        'name="viewport"',
+        '<main class="page surface-page"',
+        'role="group"',
+        'aria-label="Build mode"',
+        '<label for="maker-request">',
+        '<label for="maker-protect">',
+        '<label for="maker-proof">',
+        '<summary>Repository, proof, and execution controls</summary>',
+        '<summary>Live public repository state</summary>',
+        '<summary>Observed Archie runtime receipt</summary>'
+      ]
     }),
-    inspect(root, 'maker_keyboard_touch_and_reflow_baseline', {
-      'maker/maker.css': ['button:focus-visible', 'a:focus-visible', 'summary:focus-visible', 'min-height: 48px', 'min-height: 54px', 'min-height: 56px', 'overflow-wrap: anywhere', '@media (max-width: 760px)', '@media (max-width: 520px)']
+    inspect(root, 'one_task_progressive_disclosure_contract', {
+      'desktop/index.html': ['id="universal-task"', 'data-route="auto"', 'Choose for me', 'What should happen?'],
+      'desktop/desktop.js': ['archie:shared-task:v2', 'function inferRoute', 'SURFACE_DRAFTS', 'updateSharedTask'],
+      'product/xp-program-surfaces.json': ['one-task-progressive-views', 'one-request-router', 'advanced-controls']
     }),
     inspect(root, 'root_phone_desktop_zoom_contrast_motion_keyboard_network', {
       'scripts/root-product-phone.mjs': [
