@@ -1,20 +1,25 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { jsonBody } from './social-schema.mjs';
+import {
+  COLORS,
+  MAX_FEED,
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+  SOCIAL_VERSION,
+  assertSameOriginMutation,
+  clean,
+  cookieToken,
+  fail,
+  handleOf,
+  jsonBody,
+  nowISO,
+  passwordMatches,
+  passwordRecord,
+  publicAccount,
+  randomId,
+  response,
+  sessionCookie,
+  sha256
+} from './social-schema.mjs';
 
-export const SOCIAL_VERSION = 1;
-export const SESSION_COOKIE = 'sideways_session';
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-export const MAX_FEED = 80;
-const COLORS = new Set(['#335cff', '#2f7d64', '#b24d6b', '#8a5b24', '#6554c0', '#24262b']);
-const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
-
-const clean = value => String(value ?? '').replace(/\u0000/g, '').trim();
-const handleOf = value => clean(value).replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 30);
-const nowISO = now => new Date(now()).toISOString();
-const sha256 = value => createHash('sha256').update(value).digest('hex');
-const randomId = (bytes = 18) => randomBytes(bytes).toString('base64url');
-const response = (status, body = {}, headers = {}) => new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { ...JSON_HEADERS, ...headers } });
-const fail = (status, message) => Object.assign(new Error(message), { status });
 const accountKey = id => `social/account/${id}`;
 const handleKey = handle => `social/handle/${handle}`;
 const sessionKey = token => `social/session/${sha256(token)}`;
@@ -24,53 +29,6 @@ const followKey = (viewerId, targetId) => `social/follow/${viewerId}/${targetId}
 const likeKey = (viewerId, postId) => `social/like/${viewerId}/${postId}`;
 const likePostKey = (postId, viewerId) => `social/like-post/${postId}/${viewerId}`;
 const eventKey = (at, id = randomId(10)) => `social/event/${at.replace(/[-:.TZ]/g, '')}-${id}`;
-
-function safeEqual(a, b) {
-  const A = Buffer.from(String(a));
-  const B = Buffer.from(String(b));
-  return A.length === B.length && timingSafeEqual(A, B);
-}
-
-function passwordRecord(password) {
-  const salt = randomBytes(16).toString('hex');
-  return { salt, hash: scryptSync(password, salt, 64).toString('hex') };
-}
-
-function passwordMatches(password, record = {}) {
-  try {
-    return safeEqual(scryptSync(password, record.salt, 64).toString('hex'), record.hash);
-  } catch {
-    return false;
-  }
-}
-
-function cookieToken(request) {
-  const cookie = request.headers.get('cookie') || '';
-  for (const part of cookie.split(';')) {
-    const [name, ...rest] = part.trim().split('=');
-    if (name === SESSION_COOKIE) return decodeURIComponent(rest.join('='));
-  }
-  return '';
-}
-
-function sessionCookie(token, request, maxAge = Math.floor(SESSION_TTL_MS / 1000)) {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
-function assertSameOriginMutation(request) {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
-  const url = new URL(request.url);
-  const origin = request.headers.get('origin');
-  if (origin && origin !== url.origin) throw fail(403, 'Cross-origin mutation rejected.');
-  const site = request.headers.get('sec-fetch-site');
-  if (site && !['same-origin', 'same-site', 'none'].includes(site)) throw fail(403, 'Cross-site mutation rejected.');
-}
-
-function publicAccount(account) {
-  if (!account) return null;
-  return { id: account.id, handle: account.handle, name: account.name, bio: account.bio, accent: account.accent, createdAt: account.createdAt, updatedAt: account.updatedAt };
-}
 
 async function writeEvent(store, type, actorId, payload, at) {
   const event = { version: SOCIAL_VERSION, id: randomId(12), type, actorId, at, payload };
