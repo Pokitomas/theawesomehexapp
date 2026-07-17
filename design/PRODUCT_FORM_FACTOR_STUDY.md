@@ -18,7 +18,7 @@ Guidance becomes a testable product hypothesis. Adoption, retention, revenue, de
 
 ## Corpus
 
-The machine-readable registry lives in `design/product-form-factor-metadata.json` and currently binds fifteen sources from eight publishers.
+The machine-readable registry lives in `design/product-form-factor-metadata.json` and currently binds sixteen sources from eight publishers.
 
 - Apple Human Interface Guidelines: purpose, agency, flexibility, simplicity, craft, delight, adaptable layout, and accessible multi-input experiences. Sources: https://developer.apple.com/design/human-interface-guidelines/design-principles , https://developer.apple.com/design/human-interface-guidelines/layout , and https://developer.apple.com/design/human-interface-guidelines/accessibility/
 - GOV.UK Design System: small-screen-first composition, bounded reading width, responsive spacing, relative typography, and consistent rhythm. Sources: https://design-system.service.gov.uk/styles/layout/ , https://design-system.service.gov.uk/styles/spacing/ , and https://design-system.service.gov.uk/styles/type-scale/
@@ -26,6 +26,7 @@ The machine-readable registry lives in `design/product-form-factor-metadata.json
 - GitHub Primer: natural reading order, focused responsive layouts, semantic hierarchy, descriptive controls, visible labels, nearby errors, and document metadata. Sources: https://primer.style/product/getting-started/foundations/layout/ and https://primer.style/accessibility/tools-and-resources/checklists/designer-checklist/
 - Microsoft Fluent 2: platform-natural behavior, reliability, proximity, hierarchy through spacing, density control, contrast, reflow, and plain language. Sources: https://fluent2.microsoft.design/design-principles , https://fluent2.microsoft.design/layout , and https://fluent2.microsoft.design/accessibility
 - IBM Carbon: equal-quality experiences, adaptation, semantic structure, and predictable keyboard order. Source: https://carbondesignsystem.com/guidelines/accessibility/overview/
+- Atlassian Design System: design tokens, accessible content, consistent spacing, grid, typography, and reusable visual foundations. Source: https://atlassian.design/foundations
 - Baymard Institute: observed checkout friction, excessive field complexity, visible progress, and completion. Source: https://baymard.com/blog/current-state-of-checkout-ux
 
 ## Relationship model
