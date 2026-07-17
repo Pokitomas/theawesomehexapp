@@ -1,0 +1,69 @@
+{
+  "schema": "archie-product-form-factor-study/v1",
+  "generated_at": "2026-07-17T05:00:00Z",
+  "research_mode": "bounded-public-corpus",
+  "sources": [
+    {
+      "publisher": "Apple",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/design-principles",
+      "signals": ["purpose", "familiarity", "simplicity", "craft", "delight", "responsibility", "recovery"]
+    },
+    {
+      "publisher": "Apple",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/layout",
+      "signals": ["hierarchy", "adaptability", "progressive-disclosure", "safe-areas"]
+    },
+    {
+      "publisher": "GOV.UK Design System",
+      "url": "https://design-system.service.gov.uk/styles/layout/",
+      "signals": ["mobile-first", "bounded-reading-width", "device-agnostic-layout"]
+    },
+    {
+      "publisher": "GOV.UK Design System",
+      "url": "https://design-system.service.gov.uk/styles/spacing/",
+      "signals": ["responsive-spacing", "consistent-rhythm"]
+    },
+    {
+      "publisher": "Baymard Institute",
+      "url": "https://baymard.com/blog/current-state-of-checkout-ux",
+      "signals": ["friction-reduction", "completion", "field-complexity"]
+    }
+  ],
+  "shared_tokens": {
+    "spacing_px": [4, 8, 12, 16, 24, 32, 48, 64],
+    "minimum_touch_target_px": 44,
+    "minimum_touch_text_px": 16,
+    "focus_ring_px": 3,
+    "content_line_length_ch": 72
+  },
+  "products": {
+    "archie": {
+      "role": "intelligence-cockpit",
+      "dominant_action": "state-objective",
+      "density": "calm-progressive",
+      "personality": ["luminous", "spatial", "truthful", "recoverable"],
+      "primary_metadata": ["objective_digest", "continuity", "runtime_observation", "authority", "proof"]
+    },
+    "maker": {
+      "role": "engineering-control-room",
+      "dominant_action": "authorize-execution",
+      "density": "high-structured",
+      "personality": ["precise", "technical", "legible", "consequential"],
+      "primary_metadata": ["repository", "base", "lease", "backend", "tools", "receipts"]
+    },
+    "founder": {
+      "role": "decision-studio",
+      "dominant_action": "choose-direction",
+      "density": "editorial-comparative",
+      "personality": ["bold", "contrasting", "tasteful", "decisive"],
+      "primary_metadata": ["direction", "reaction", "stakes", "decision"]
+    },
+    "sideways": {
+      "role": "lived-archive",
+      "dominant_action": "save-and-discover",
+      "density": "content-first",
+      "personality": ["intimate", "quiet", "tactile", "owned"],
+      "primary_metadata": ["provenance", "privacy", "rank", "backup", "identity"]
+    }
+  }
+}
