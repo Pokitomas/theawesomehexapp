@@ -40,12 +40,14 @@ test('parses argv as a JSON array and rejects shell strings', () => {
 test('runs all ten read-only roles concurrently and emits an integrated experiment receipt', async () => {
   const cwd = await cleanGitRepo();
   const out = await fs.mkdtemp(path.join(os.tmpdir(), 'foundry-output-'));
+  // Cold-start calibration factor (0.5) doubles blended costs: raw cost 1 → blended cost 2.
+  // Budget 6 is required to fit all three strata candidates (3 × cost 2).
   const result = await runParallelFoundry({
     mission,
     agent_argv: [process.execPath, mockAgent],
     cwd,
     out_dir: out,
-    budget: 3,
+    budget: 6,
     timeout_ms: 30000
   });
   assert.equal(result.assignments.length, 10);
