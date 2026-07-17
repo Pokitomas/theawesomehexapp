@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.github.io/theawesomehexapp/contracts/archie-task.schema.json",
+  "title": "Archie task",
+  "type": "object",
+  "required": ["schema", "task_id", "workspace_id", "objective_id", "title", "description", "depends_on", "status", "lease_id", "created_by", "created_at"],
+  "properties": {
+    "schema": { "const": "archie-task/v1" },
+    "task_id": { "$ref": "#/$defs/id" },
+    "workspace_id": { "$ref": "#/$defs/id" },
+    "objective_id": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 20000 },
+    "depends_on": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+    "status": { "enum": ["open", "leased", "running", "review", "changes_requested", "approved", "blocked"] },
+    "lease_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "created_by": { "$ref": "#/$defs/id" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$" }
+  },
+  "additionalProperties": false
+}
