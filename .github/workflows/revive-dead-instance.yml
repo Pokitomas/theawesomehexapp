@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
+  pull-requests: write
 
 concurrency:
   group: revive-dead-instance-completion-${{ github.event.pull_request.number }}
@@ -42,13 +42,36 @@ jobs:
           echo '73c2c219887457953ca56cf2fa5f8c5c8b52033fd9a40bf6e262860c0452e2ab  /tmp/0002.patch' | sha256sum -c -
 
       - name: Apply recovered diffs in dependency order
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           git config user.name 'Archie Recovery Bot'
           git config user.email 'archie-recovery@users.noreply.github.com'
-          git apply --3way --index /tmp/0001.patch
-          git apply --3way --index /tmp/0002.patch
+          : > /tmp/recovery-apply.log
+          git apply --3way --index /tmp/0001.patch >> /tmp/recovery-apply.log 2>&1
+          first=$?
+          if [ "$first" -eq 0 ]; then
+            git apply --3way --index /tmp/0002.patch >> /tmp/recovery-apply.log 2>&1
+            second=$?
+          else
+            second=99
+          fi
+          if [ "$first" -ne 0 ] || [ "$second" -ne 0 ]; then
+            {
+              echo '### Recovery patch application failed'
+              echo
+              echo '```text'
+              cat /tmp/recovery-apply.log
+              echo '```'
+              echo
+              echo "first_patch_exit=$first second_patch_exit=$second"
+            } > /tmp/recovery-comment.md
+            gh pr comment "$PR_NUMBER" --body-file /tmp/recovery-comment.md
+            exit 1
+          fi
           git commit -m 'Apply recovered Archie cognition and cold-start fixes'
 
       - name: Set up Node.js
