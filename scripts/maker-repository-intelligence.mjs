@@ -132,12 +132,20 @@ function exactGitEnv() {
 
 async function runGit(executor, root, args) {
   const value = await executor('git', args, { cwd: root, env: exactGitEnv(), maxBuffer: 64 * 1024 * 1024, timeout: 120000, windowsHide: true });
-  return clean(value.stdout, 64 * 1024 * 1024);
+  return String(value.stdout ?? '').slice(0, 64 * 1024 * 1024);
+}
+
+function normalizeTrackedPath(value) {
+  const relative = String(value ?? '').replace(/\\/g, '/').replace(/^\.\//, '').trim();
+  if (!relative || relative.startsWith('/') || /^[A-Za-z]:\//.test(relative)) throw new Error('Git returned a non-relative repository path.');
+  const parts = relative.split('/');
+  if (parts.some(part => !part || part === '.' || part === '..')) throw new Error(`Git returned an invalid repository path: ${relative}.`);
+  return parts.join('/');
 }
 
 async function trackedFiles(executor, root) {
   const output = await runGit(executor, root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']);
-  return output.split('\0').map(value => value.trim()).filter(Boolean).map(normalizeRelativePath);
+  return output.split('\0').map(value => value.trim()).filter(Boolean).map(normalizeTrackedPath);
 }
 
 function parsePackageManifest(text, relative) {
@@ -362,8 +370,13 @@ export class RepositoryIntelligence {
       if (absolute !== this.root && !absolute.startsWith(`${this.root}${path.sep}`)) continue;
       let stat;
       try { stat = await this.fs.lstat(absolute); } catch { continue; }
-      const inspection = inspectFilesystemEntry({ path: relative, type: stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : stat.isSymbolicLink() ? 'symlink' : 'special', symlink: stat.isSymbolicLink(), nlink: stat.nlink, size: stat.size, max_bytes: options.max_file_bytes });
-      if (!inspection.allowed || !stat.isFile()) continue;
+      const secretPathCandidate = isSecretPath(relative);
+      if (secretPathCandidate) {
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink > 1 || stat.size > options.max_file_bytes) continue;
+      } else {
+        const inspection = inspectFilesystemEntry({ path: relative, type: stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : stat.isSymbolicLink() ? 'symlink' : 'special', symlink: stat.isSymbolicLink(), nlink: stat.nlink, size: stat.size, max_bytes: options.max_file_bytes });
+        if (!inspection.allowed || !stat.isFile()) continue;
+      }
       totalBytes += stat.size;
       if (totalBytes > options.max_total_bytes) { truncated = true; break; }
       selected.push({ relative, absolute, stat });
@@ -418,7 +431,7 @@ export class RepositoryIntelligence {
         secret_finding_count: secretCount,
         manifest: metadata,
         owners: [],
-        read_decision_digest: readDecision.decision_digest
+        read_decision_digest: digest({ capability: readDecision.capability, allowed: readDecision.allowed, rule_ids: readDecision.rule_ids, grant_id: readDecision.grant_id, path: relative })
       };
       files.push(file);
       languageBytes.set(language, (languageBytes.get(language) || 0) + entry.stat.size);
@@ -476,6 +489,7 @@ export class RepositoryIntelligence {
       commands,
       hotspots,
       secret_findings: secretFindings,
+      read_authority_digest: digest(fileRecords.map(file => ({ path: file.path, decision_digest: file.read_decision_digest }))),
       generated_at: this.clock()
     };
     this.map = Object.freeze({ ...body, map_digest: digest(body) });
