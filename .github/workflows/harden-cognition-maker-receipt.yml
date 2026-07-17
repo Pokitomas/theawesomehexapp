@@ -1,9 +1,10 @@
 name: Harden cognition Maker receipt gate
 
 on:
-  push:
+  pull_request:
     branches:
-      - revive/dead-instance-completion-20260717
+      - main
+    types: [synchronize]
     paths:
       - .recovery/harden-cognition-maker-receipt.patch
       - .github/workflows/harden-cognition-maker-receipt.yml
@@ -12,12 +13,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: harden-cognition-maker-receipt
+  group: harden-cognition-maker-receipt-pr
   cancel-in-progress: false
 
 jobs:
   apply-test-clean:
-    if: ${{ !contains(github.event.head_commit.message, '[skip hardening]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -68,5 +68,3 @@ jobs:
           git rm .github/workflows/harden-cognition-maker-receipt.yml
           git commit -m '[skip hardening] Bind cognition learning to exact verified Maker receipts'
           git push origin HEAD:revive/dead-instance-completion-20260717
-
-# This second workflow commit intentionally triggers execution; GitHub does not run a newly created workflow from its own creation commit.
