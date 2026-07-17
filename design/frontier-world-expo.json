@@ -1,0 +1,222 @@
+{
+  "schema": "frontier-world-expo/v1",
+  "generated_at": "2026-07-17T06:30:00Z",
+  "claim_boundary": "This constitution defines a deterministic research and evidence substrate. It does not claim that any candidate is useful, preferred, capable, or promoted until exact artifact, device, human, and resource receipts are attached.",
+  "ontology_policy": {
+    "fixed_surface_category": null,
+    "categories_are_candidates": true,
+    "named_examples": [
+      "app",
+      "terminal",
+      "chat",
+      "room",
+      "world",
+      "website",
+      "operating-system",
+      "document",
+      "agent",
+      "state-machine",
+      "installation",
+      "ritual",
+      "instrument",
+      "performance"
+    ],
+    "anti_dogma": "Any design principle in this file may be violated when exact evidence shows a stronger human result without violating authority, truthful capability, ownership, or reversibility."
+  },
+  "hard_boundaries": [
+    "attributable-consequential-authority",
+    "exact-operating-envelope-claims",
+    "inspectable-owned-state",
+    "portable-independent-rendering",
+    "restorable-provenance-and-branches"
+  ],
+  "automation": {
+    "minimum_execution_share": 0.5,
+    "automated_functions": [
+      "candidate-derivation",
+      "reference-synthesis",
+      "prototype-assembly",
+      "fixture-generation",
+      "hidden-test-generation",
+      "instrumentation",
+      "capture-orchestration",
+      "comparison-packet-assembly",
+      "regression-checking",
+      "recombination-proposals",
+      "retirement-proposals"
+    ],
+    "human_only_boundaries": [
+      "identity-commitment",
+      "public-publication",
+      "consequential-authority-grant",
+      "human-preference-attestation",
+      "promotion-override"
+    ]
+  },
+  "round_contract": {
+    "required_candidate_roles": [
+      "familiar-control",
+      "assumption-inversion",
+      "eccentric-transfer",
+      "loser-recombination",
+      "low-resource-offline",
+      "maximal-expressive-variance"
+    ],
+    "minimum_distinct_embodiments": 6,
+    "promotion_requires_complete_frontier": true,
+    "aggregate_score_forbidden": true
+  },
+  "evaluation_frontiers": {
+    "human": [
+      "creation",
+      "visible-authorship",
+      "recognizable-identity",
+      "revisitation",
+      "transformation",
+      "discovery",
+      "attachment",
+      "mastery",
+      "activity",
+      "survival"
+    ],
+    "capability": [
+      "correctness",
+      "human-preference",
+      "latency",
+      "resource-cost",
+      "continuity",
+      "portability",
+      "authority",
+      "provenance"
+    ]
+  },
+  "evidence_envelope": {
+    "schema": "frontier-world-exhibit-evidence/v1",
+    "required": [
+      "exhibit_id",
+      "candidate_id",
+      "exact_model",
+      "checkpoint_digest",
+      "hardware_identity",
+      "os_identity",
+      "permission_transitions",
+      "network_envelope",
+      "resource_budget",
+      "versioned_intent_bundle",
+      "hidden_variant_digest",
+      "raw_trace_digest",
+      "independent_metrics",
+      "human_preference_receipt",
+      "authorship_receipt",
+      "latency_receipt",
+      "failure_receipt",
+      "provenance_graph",
+      "portable_export_digest"
+    ]
+  },
+  "commissions": [
+    {
+      "id": "poster-alley-exact-language",
+      "district": "poster-alley",
+      "modalities": ["image", "text"],
+      "brief": "Create a dense public poster whose exact wording, hierarchy, symbols, alignment, and small-print constraints remain legible and editable.",
+      "hidden_tests": ["confusable-glyphs", "small-text-legibility", "late-wording-change", "layout-preservation"],
+      "metrics": ["text_exactness", "hierarchy_accuracy", "symbol_accuracy", "edit_locality", "human_preference"]
+    },
+    {
+      "id": "measured-room-spatial-truth",
+      "district": "measured-room",
+      "modalities": ["image", "world"],
+      "brief": "Construct a scene with exact object counts, left-right-front-behind relations, perspective, occlusion, and metric placement.",
+      "hidden_tests": ["count-perturbation", "relation-swap", "occlusion-probe", "measurement-probe"],
+      "metrics": ["object_count_accuracy", "spatial_relation_accuracy", "perspective_accuracy", "occlusion_accuracy", "measurement_accuracy"]
+    },
+    {
+      "id": "six-scene-identity-caravan",
+      "district": "identity-caravan",
+      "modalities": ["image", "world"],
+      "brief": "Carry one owned character or object through six scenes while changing pose, lighting, clothing, and setting without identity drift.",
+      "hidden_tests": ["identity-decoy", "lighting-extreme", "partial-occlusion", "style-transfer"],
+      "metrics": ["identity_continuity", "requested_change_accuracy", "unrequested_change_rate", "authorship_recognition"]
+    },
+    {
+      "id": "one-cut-edit-surgery",
+      "district": "edit-surgery",
+      "modalities": ["image"],
+      "brief": "Change exactly one requested region while preserving every unrelated visual and semantic detail.",
+      "hidden_tests": ["tiny-region", "semantic-neighbor", "texture-continuity", "multi-turn-repair"],
+      "metrics": ["edit_locality", "background_preservation", "semantic_preservation", "repair_count"]
+    },
+    {
+      "id": "truth-mural",
+      "district": "truth-mural",
+      "modalities": ["image", "text", "knowledge"],
+      "brief": "Build a scientific, historical, or instructional visual where factual structure is scored independently from plausibility and style.",
+      "hidden_tests": ["fact-conflict", "causal-order", "label-swap", "source-withholding"],
+      "metrics": ["fact_accuracy", "causal_structure_accuracy", "label_accuracy", "source_provenance"]
+    },
+    {
+      "id": "listening-well-directed-voice",
+      "district": "listening-well",
+      "modalities": ["speech", "audio"],
+      "brief": "Perform directed speech with controlled pace, emotion, pauses, whispers, interruption, correction, and recovery.",
+      "hidden_tests": ["mid-sentence-interruption", "emotion-reversal", "name-correction", "latency-spike"],
+      "metrics": ["naturalness", "prosody_adherence", "speaker_stability", "interruption_recovery", "latency"]
+    },
+    {
+      "id": "translation-procession",
+      "district": "translation-procession",
+      "modalities": ["speech", "audio", "text"],
+      "brief": "Retell one performance across languages while preserving meaning, speaker identity, timing, and emotional contour.",
+      "hidden_tests": ["idiom", "code-switch", "timed-pause", "proper-noun"],
+      "metrics": ["semantic_preservation", "speaker_identity", "timing_alignment", "emotional_contour"]
+    },
+    {
+      "id": "neighborhood-at-2307",
+      "district": "sound-neighborhood",
+      "modalities": ["audio", "world"],
+      "brief": "Generate a steerable soundscape with exact events at specified moments, distances, and directions.",
+      "hidden_tests": ["event-collision", "distance-swap", "direction-probe", "resume-after-pause"],
+      "metrics": ["event_timing", "distance_accuracy", "direction_accuracy", "audio_fidelity", "continuation_accuracy"]
+    },
+    {
+      "id": "branching-songhouse",
+      "district": "songhouse",
+      "modalities": ["music", "speech", "audio"],
+      "brief": "Create a structured song with requested instruments, genre, mood, sections, lyrics, vocal treatment, and duration, then branch it without losing lineage.",
+      "hidden_tests": ["section-reorder", "instrument-removal", "lyric-repair", "continuation-after-crash"],
+      "metrics": ["structure_adherence", "instrument_adherence", "lyric_exactness", "audio_quality", "branch_provenance"]
+    },
+    {
+      "id": "overlap-kitchen-conversation",
+      "district": "overlap-kitchen",
+      "modalities": ["speech", "audio", "memory"],
+      "brief": "Sustain a live conversation through overlap, misunderstanding, correction, remembered context, and self-consistency.",
+      "hidden_tests": ["simultaneous-speakers", "false-memory-probe", "repair-request", "long-gap-return"],
+      "metrics": ["turn_taking", "repair_accuracy", "memory_accuracy", "self_consistency", "response_latency"]
+    },
+    {
+      "id": "continuity-house",
+      "district": "continuity-house",
+      "modalities": ["world", "image", "audio", "memory"],
+      "brief": "Maintain persistent characters, objects, spatial rules, sound, and consequences across revisits and device changes.",
+      "hidden_tests": ["offline-gap", "device-transfer", "single-condition-change", "object-reappearance"],
+      "metrics": ["object_persistence", "causal_response", "spatial_continuity", "temporal_continuity", "restore_success"]
+    },
+    {
+      "id": "branch-garden",
+      "district": "branch-garden",
+      "modalities": ["world", "image", "audio", "text"],
+      "brief": "Fork alternate futures from one owned state, compare them visibly, recombine selected elements, and export the full lineage.",
+      "hidden_tests": ["deep-branch", "conflicting-merge", "partial-export", "renderer-independence"],
+      "metrics": ["branch_integrity", "merge_accuracy", "provenance_completeness", "portable_render_success"]
+    }
+  ],
+  "promotion_law": {
+    "winner_selection": "pareto-frontier-by-exact-operating-envelope",
+    "constrained_fallback_may_overwrite_maximal_claim": false,
+    "missing_required_receipt": "reject",
+    "human_preference_may_be_fabricated": false,
+    "candidate_self_promotion": false
+  }
+}
