@@ -1,0 +1,39 @@
+name: Materialize unresolved Maker runtime
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Collect exact unresolved source
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/unresolved/maker/runtime" "$RUNNER_TEMP/unresolved/maker/contracts" "$RUNNER_TEMP/unresolved/scripts/tests" "$RUNNER_TEMP/unresolved/scripts"
+          cp maker/runtime/edit-broker.mjs "$RUNNER_TEMP/unresolved/maker/runtime/"
+          cp maker/contracts/edit-transaction.schema.json "$RUNNER_TEMP/unresolved/maker/contracts/"
+          cp scripts/tests/maker-edit-broker.test.mjs "$RUNNER_TEMP/unresolved/scripts/tests/"
+          cp scripts/maker-repository-intelligence.mjs "$RUNNER_TEMP/unresolved/scripts/"
+          cp scripts/tests/maker-repository-intelligence.test.mjs "$RUNNER_TEMP/unresolved/scripts/tests/"
+          cp scripts/maker-orchestrator.mjs "$RUNNER_TEMP/unresolved/scripts/"
+          cp scripts/tests/maker-orchestrator.test.mjs "$RUNNER_TEMP/unresolved/scripts/tests/"
+          cp scripts/maker-runtime-platform.mjs "$RUNNER_TEMP/unresolved/scripts/"
+          cp scripts/tests/maker-runtime-platform.test.mjs "$RUNNER_TEMP/unresolved/scripts/tests/"
+          cp scripts/maker-control-plane.mjs scripts/maker-model-router.mjs scripts/maker-plugin-registry.mjs scripts/maker-worker-fleet.mjs "$RUNNER_TEMP/unresolved/scripts/"
+          cp maker/contracts/control-plane.schema.json maker/contracts/model-router.schema.json maker/contracts/plugin-manifest.schema.json maker/contracts/runtime-platform.schema.json maker/contracts/worker-fleet.schema.json "$RUNNER_TEMP/unresolved/maker/contracts/"
+          cp package.json package-lock.json "$RUNNER_TEMP/unresolved/"
+          find "$RUNNER_TEMP/unresolved" -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/unresolved/sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unresolved-maker-runtime-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/unresolved
+          if-no-files-found: error
+          retention-days: 14
