@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tiny Public Things</title>
+  <meta name="description" content="A small field guide to the overlooked objects that make a city usable.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./site.css">
+</head>
+<body>
+  <header class="hero">
+    <p class="issue">FIELD GUIDE 001</p>
+    <h1>Tiny Public Things</h1>
+    <p class="dek">A catalog of the objects nobody announces, everybody uses, and cities quietly depend on.</p>
+    <button id="surprise">SHOW ME ONE</button>
+  </header>
+
+  <main>
+    <nav class="filters" aria-label="Filter field notes">
+      <button data-filter="all" aria-pressed="true">ALL</button>
+      <button data-filter="rest">REST</button>
+      <button data-filter="wayfinding">WAYFINDING</button>
+      <button data-filter="care">CARE</button>
+    </nav>
+
+    <section class="grid" aria-label="Field notes">
+      <article class="thing" data-category="rest" id="bench-gap">
+        <div class="number">01</div>
+        <div class="drawing bench" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="type">REST</p>
+        <h2>The bench with the useful gap</h2>
+        <p>A missing slat can be damage. It can also become the exact place a cane rests without falling.</p>
+      </article>
+
+      <article class="thing" data-category="wayfinding" id="painted-curb">
+        <div class="number">02</div>
+        <div class="drawing curb" aria-hidden="true"><span></span></div>
+        <p class="type">WAYFINDING</p>
+        <h2>Paint that explains a corner</h2>
+        <p>A few inches of color can settle a negotiation between a bus, a bicycle, a delivery driver, and somebody crossing late.</p>
+      </article>
+
+      <article class="thing" data-category="care" id="water-bowl">
+        <div class="number">03</div>
+        <div class="drawing bowl" aria-hidden="true"><span></span></div>
+        <p class="type">CARE</p>
+        <h2>The water bowl nobody owns</h2>
+        <p>Refilled by whoever notices. Maintained by no institution. A tiny commons held together by attention.</p>
+      </article>
+
+      <article class="thing" data-category="rest" id="leaning-rail">
+        <div class="number">04</div>
+        <div class="drawing rail" aria-hidden="true"><span></span><span></span></div>
+        <p class="type">REST</p>
+        <h2>A rail for waiting badly</h2>
+        <p>Not a chair. Still enough to make five minutes hurt less.</p>
+      </article>
+
+      <article class="thing" data-category="wayfinding" id="desire-line">
+        <div class="number">05</div>
+        <div class="drawing path" aria-hidden="true"><span></span></div>
+        <p class="type">WAYFINDING</p>
+        <h2>The path people voted for with their feet</h2>
+        <p>Grass gives way where the official route misunderstood the actual trip.</p>
+      </article>
+
+      <article class="thing" data-category="care" id="shade-patch">
+        <div class="number">06</div>
+        <div class="drawing shade" aria-hidden="true"><span></span></div>
+        <p class="type">CARE</p>
+        <h2>Four square feet of mercy</h2>
+        <p>A narrow patch of shade becomes public infrastructure when the afternoon is hot enough.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <p>Made as one ordinary, replaceable website example. No archive, model, or training role.</p>
+    <a href="../../">Make something else</a>
+  </footer>
+  <script type="module" src="./site.js"></script>
+</body>
+</html>
