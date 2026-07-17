@@ -71,14 +71,15 @@ async function showJSON(root, baseSha, filename) {
 
 function parseTreeEntries(raw) {
   return raw.split('\u0000').filter(Boolean).map((row, index) => {
-    const match = row.match(/^\d+\s+blob\s+([a-f0-9]{40,64})\s+(\d+|-)\t([\s\S]+)$/);
+    const match = row.match(/^\d+\s+(blob|commit)\s+([a-f0-9]{40,64})\s+(\d+|-)\t([\s\S]+)$/);
     if (!match) throw new Error(`Repository evidence could not parse Git tree row ${index + 1}.`);
+    if (match[1] !== 'blob') return null;
     return Object.freeze({
-      oid: match[1],
-      bytes: match[2] === '-' ? null : Number(match[2]),
-      path: clean(match[3], 4000).replace(/\\/g, '/')
+      oid: match[2],
+      bytes: match[3] === '-' ? null : Number(match[3]),
+      path: clean(match[4], 4000).replace(/\\/g, '/')
     });
-  }).filter(item => item.path).sort((left, right) => left.path.localeCompare(right.path));
+  }).filter(item => item?.path).sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function requestTerms(request) {
