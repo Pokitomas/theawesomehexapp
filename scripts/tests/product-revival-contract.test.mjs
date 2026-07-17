@@ -14,7 +14,7 @@ const byId = new Map(audit.surfaces.map(surface => [surface.id, surface]));
 
 const trackedEvidence = relative => relative === 'src/app.js' ? 'scripts/root-product-completion.cjs' : relative;
 
-test('product audit defines one ordinary promise and exactly two default entry surfaces', () => {
+test('legacy sample audit defines one ordinary promise and exactly two sample entry surfaces', () => {
   assert.equal(audit.schema, 'sideways-product-journey-audit/v1');
   assert.equal(audit.primary_promise, PROMISE);
   assert.match(audit.primary_promise, /public world/i);
@@ -28,7 +28,7 @@ test('product audit defines one ordinary promise and exactly two default entry s
   assert.equal(audit.surfaces.filter(surface => surface.default_user_path).length, 2);
 });
 
-test('normal product journey has no code-local partial state and every evidence path resolves', async () => {
+test('legacy sample journey has no code-local partial state and every evidence path resolves', async () => {
   const named = new Set();
   for (const step of audit.journey) {
     assert.ok(byId.has(step.surface), `unknown surface ${step.surface}`);
@@ -47,7 +47,7 @@ test('normal product journey has no code-local partial state and every evidence 
   assert.match(audit.offline_contract, /require no shared mutation/i);
 });
 
-test('root completion installs a direct archive action and ordinary fail-honest explanations idempotently', async () => {
+test('legacy root completion installs a direct archive action and ordinary fail-honest explanations idempotently', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'sideways-root-completion-'));
   try {
     await writeFile(path.join(directory, 'index.html'), '<!doctype html><html><head><title>Root</title></head><body><main><article class="post"><h2>Candidate</h2></article></main></body></html>');
@@ -75,7 +75,7 @@ test('root completion installs a direct archive action and ordinary fail-honest 
   assert.match(ROOT_CSS, /prefers-reduced-motion:reduce/);
 });
 
-test('real root build verifier applies the completion layer and runs phone and desktop proof', async () => {
+test('legacy root verifier still preserves its regression evidence', async () => {
   const verifier = await read('verify-profile-build.py');
   assert.match(verifier, /scripts\/root-product-completion\.cjs/);
   assert.match(verifier, /scripts\/root-product-phone\.mjs/);
@@ -86,10 +86,11 @@ test('real root build verifier applies the completion layer and runs phone and d
   assert.match(verifier, /offline/);
 });
 
-test('internal surfaces remain separately inspectable and outside default consumer copy', async () => {
+test('Founder and Maker remain separately inspectable while the former archive app is only a sample target', async () => {
   const founder = await read('founder/index.html');
   const maker = await read('maker/index.html');
-  assert.match(founder, /FOUNDER ROOM/);
+  assert.match(founder, /Make something true/);
+  assert.match(founder, /HUMAN INVENTION POWER/);
   assert.match(maker, /Maker/i);
   assert.match(audit.release_rule, /outside the normal user path/i);
 });

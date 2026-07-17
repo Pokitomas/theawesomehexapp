@@ -12,8 +12,10 @@ export const DEFAULT_PORTFOLIO_PATH = path.resolve(moduleDirectory, '../product/
 const DECISIONS = new Set([
   'invest',
   'merge-commercially-with-archie',
-  'retain-as-instrument',
-  'incubate-evidence-lab'
+  'publish-human-surface',
+  'operate-human-research-cockpit',
+  'incubate-evidence-lab',
+  'retain-as-example'
 ]);
 
 function canonical(value) {
@@ -59,7 +61,7 @@ export function validatePortfolio(portfolio) {
   if (!portfolio || typeof portfolio !== 'object' || Array.isArray(portfolio)) {
     throw new Error('Product portfolio must be an object.');
   }
-  if (portfolio.schema !== 'sideways-product-portfolio/v1') errors.push('Unsupported product portfolio schema.');
+  if (portfolio.schema !== 'archie-product-portfolio/v2') errors.push('Unsupported product portfolio schema.');
   if (!portfolio.claim_boundary) errors.push('A claim boundary is required.');
 
   const surfaces = portfolio.surfaces;
@@ -101,6 +103,20 @@ export function validatePortfolio(portfolio) {
     if (!routes.some(route => route.surface === id)) errors.push(`surfaces.${id} has no usable route.`);
   }
 
+  const founder = surfaces?.founder;
+  if (founder) {
+    if (founder.decision !== 'publish-human-surface') errors.push('Founder must remain the published human surface.');
+    if (!routes.some(route => route.path === '/' && route.surface === 'founder')) errors.push('Founder must own the public root route.');
+    if (founder.not?.includes('training dashboard') !== true) errors.push('Founder must explicitly reject the training-dashboard role.');
+  }
+
+  const foundry = surfaces?.foundry;
+  if (foundry) {
+    if (foundry.decision !== 'operate-human-research-cockpit') errors.push('Foundry must remain the human-operated research cockpit.');
+    if (!routes.some(route => route.path === '/foundry/' && route.surface === 'foundry')) errors.push('Foundry must use /foundry/.');
+    if (foundry.not?.includes('robot self-administration page') !== true) errors.push('Foundry must reject robot self-administration as its primary role.');
+  }
+
   const expo = surfaces?.expo;
   if (expo) {
     if (expo.visibility !== 'research-preview') errors.push('Expo must remain a research preview until promotion.');
@@ -108,6 +124,8 @@ export function validatePortfolio(portfolio) {
     if (expo.capability_claim !== 'research-substrate-only') errors.push('Expo may claim only the research substrate before completed evidence.');
     if (!routes.some(route => route.path === '/world-expo/' && route.surface === 'expo')) errors.push('Expo research preview must use /world-expo/.');
   }
+
+  if (surfaces?.sideways) errors.push('Sideways may not remain a privileged product surface.');
 
   const allocation = portfolio?.portfolio_decision?.capital_allocation_percent;
   if (!allocation || typeof allocation !== 'object') {
@@ -117,9 +135,19 @@ export function validatePortfolio(portfolio) {
     if (!values.every(value => Number.isFinite(value) && value >= 0)) errors.push('Capital allocation values must be non-negative numbers.');
     const total = values.reduce((sum, value) => sum + value, 0);
     if (total !== 100) errors.push(`Capital allocation must total 100, received ${total}.`);
+    const foundryShare = allocation['foundry-research-subsidy'];
+    if (!Number.isFinite(foundryShare) || foundryShare < 25) errors.push('Foundry research subsidy must receive at least 25% of allocation.');
+  }
+
+  const families = portfolio?.portfolio_decision?.commercial_families;
+  if (!Array.isArray(families) || families.length !== 1) errors.push('Exactly one commercial family is required.');
+  const familySurfaces = families?.[0]?.surfaces || [];
+  for (const required of ['founder', 'archie', 'maker', 'foundry']) {
+    if (!familySurfaces.includes(required)) errors.push(`The Archie family must include ${required}.`);
   }
 
   if (!Array.isArray(portfolio.retirements) || !portfolio.retirements.length) errors.push('At least one retired assumption is required.');
+  if (!portfolio.retirements?.some(item => /Sideways/.test(item.assumption || ''))) errors.push('The Sideways product assumption must be explicitly retired.');
   if (!Array.isArray(portfolio.market_anchors) || portfolio.market_anchors.length < 3) errors.push('At least three market anchors are required.');
 
   if (errors.length) throw new Error(`Product portfolio rejected:\n- ${errors.join('\n- ')}`);
@@ -134,17 +162,25 @@ export function resolveRoute(portfolio, routePath) {
 export function buildAdmissionReceipt(portfolio) {
   validatePortfolio(portfolio);
   const body = {
-    schema: 'sideways-product-portfolio-admission/v1',
+    schema: 'archie-product-portfolio-admission/v2',
     portfolio_schema: portfolio.schema,
     portfolio_digest: digest(portfolio),
     routes: portfolio.routes.map(route => route.path).sort(),
     commercial_families: portfolio.portfolio_decision.commercial_families.map(family => family.id).sort(),
     research_surfaces: portfolio.portfolio_decision.research_instruments.slice().sort(),
+    ordinary_outputs: portfolio.portfolio_decision.ordinary_outputs.slice().sort(),
     allocation_total_percent: Object.values(portfolio.portfolio_decision.capital_allocation_percent).reduce((sum, value) => sum + value, 0),
+    foundry_research_subsidy_percent: portfolio.portfolio_decision.capital_allocation_percent['foundry-research-subsidy'],
+    founder_owns_root: resolveRouteWithoutValidation(portfolio, '/')?.surface === 'founder',
+    sideways_is_privileged_surface: Boolean(portfolio.surfaces.sideways),
     expo_promotion_state: portfolio.surfaces.expo.promotion_state,
     false_completion_claimed: false
   };
   return { ...body, receipt_digest: digest(body) };
+}
+
+function resolveRouteWithoutValidation(portfolio, routePath) {
+  return portfolio.routes.find(route => route.path === routePath) || null;
 }
 
 function usd(value) {
@@ -167,7 +203,7 @@ export function formatRoutes(portfolio) {
 }
 
 function usage() {
-  return 'Usage:\n  npm run product:portfolio -- validate\n  npm run product:portfolio -- routes\n  npm run product:portfolio -- market\n  npm run product:portfolio -- route /archie/\n  npm run product:portfolio -- inspect\n';
+  return 'Usage:\n  npm run product:portfolio -- validate\n  npm run product:portfolio -- routes\n  npm run product:portfolio -- market\n  npm run product:portfolio -- route /\n  npm run product:portfolio -- inspect\n';
 }
 
 export function runCli(argv = process.argv.slice(2), output = process.stdout, errorOutput = process.stderr) {

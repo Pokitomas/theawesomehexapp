@@ -1,93 +1,108 @@
-# Sideways
+# Archie
 
-A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel, alongside the Archie + Maker intelligence-and-execution family and the Frontier World Expo research system.
+Archie is an attempted general intelligence for turning one unfinished human intention into a verified digital reality. Maker executes. Founder gives ordinary humans creation power. Foundry gives ordinary humans model-research power. Expo prevents the research from collapsing into familiar software.
 
-## Product map
+The repository does **not** yet contain an independently admitted generally capable Archie model.
 
-The repository has two commercial product families and one research system. See [`PRODUCT_PORTFOLIO.md`](./PRODUCT_PORTFOLIO.md) for audiences, pricing and valuation hypotheses, capital allocation, and the decisions to merge or demote surfaces.
+## Use the system
 
-- **Sideways public discovery:** `https://pokitomas.github.io/theawesomehexapp/`
-- **Sideways private home:** `https://pokitomas.github.io/theawesomehexapp/manual/`
-- **Archie personal atelier:** `https://pokitomas.github.io/theawesomehexapp/archie/`
-- **Maker software workshop:** `https://pokitomas.github.io/theawesomehexapp/maker/`
-- **Founder decision instrument:** `https://pokitomas.github.io/theawesomehexapp/founder/`
-- **Frontier World Expo research preview:** `https://pokitomas.github.io/theawesomehexapp/world-expo/`
+- **Founder — begin one whole human turn:** `https://pokitomas.github.io/theawesomehexapp/`
+- **Founder direct route:** `https://pokitomas.github.io/theawesomehexapp/founder/`
+- **Archie intelligence surface:** `https://pokitomas.github.io/theawesomehexapp/archie/`
+- **Maker execution surface:** `https://pokitomas.github.io/theawesomehexapp/maker/`
+- **Foundry human research cockpit:** `https://pokitomas.github.io/theawesomehexapp/foundry/`
+- **Frontier World Expo:** `https://pokitomas.github.io/theawesomehexapp/world-expo/`
+- **Ordinary unrelated website example:** `https://pokitomas.github.io/theawesomehexapp/examples/site/`
 
-Archie and Maker are one commercial family: Archie owns objective, context, continuity, coordination, and admitted intelligence; Maker owns permissioned mutation, verification, delivery, and rollback. Sideways remains an independent product. Founder is an internal instrument, not a standalone company. Expo exposes its research substrate and blocked promotion state; it does not claim any multimodal candidate has passed.
+See [`PRODUCT_PORTFOLIO.md`](./PRODUCT_PORTFOLIO.md) for exact roles, research allocation, pricing hypotheses, and promotion gates.
 
-```bash
-npm run product:portfolio -- validate
-npm run product:portfolio -- routes
-npm run product:portfolio -- market
-npm run product:portfolio -- route /archie/
+## One human turn
+
+The intended interaction is:
+
+```text
+one raw human intention
+→ open probability field
+→ independent world model
+→ speculative capability research
+→ challenge and evidence
+→ push boundary
+→ permissioned execution
+→ verification and repair
+→ finished delivery
 ```
 
-- **Install or open Sideways:** [plain-language install guide](./INSTALL.md)
-- **Install Archie preview:** `npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz`, then run `archie`
-- Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
-- Sideways debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
-- Phone gate: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
+The person does not need to write requirements, choose agents, create tickets, manage branches, or supervise ordinary mechanical work. GitHub, terminals, APIs, browsers, filesystems, and deployment systems are optional Maker substrates beneath the experience.
 
-## Three product realities, one ranking kernel
+The system may understand the person deeply enough to act on their behalf for the turn. It may not reduce understanding to agreement, imitation, or a prettier restatement of the prompt.
 
-The root product is a reproducible one-million-candidate reader and ranking laboratory. It combines article, forum, and social-shaped records from Wikinews, Hacker News, and public Mastodon sources while preserving canonical links, authorship, replies, media provenance, and deterministic recommendation features. These delivery candidates are not the canonical public social graph.
+## Founder
 
-`/manual/` contains the user-owned private personal archive. A person can create a local profile, install the small built-in starter fixture, write unpublished local posts, attach images and places, save and delete private material, import personal archives, and move through Feed, Places, Library, Saved, Full, and Desktop modes.
+Founder is the public human invention surface.
 
-A function-capable deployment also exposes a canonical public social authority. Cookie-authenticated actors can create accounts and profiles, publish and delete posts, follow and react; the relational PostgreSQL authority additionally owns communities, membership, moderation actions, immutable appeals, viewer-local controls, event history, and idempotent mutation receipts. Browser caches and feed responses are projections of that authority, never substitutes for it.
+A person can say something compressed or badly formed:
 
-The ranking candidate pool is temporary. Sideways may assemble eligible public projections beside private archive records for one viewer and one feed request, but the kernel owns neither source. Public cache retention, view membership, and active candidate materialization are stored separately so switching feeds changes eligibility without deleting public authority or private archive content.
+```text
+make some actual site about something idk completely different but make it alive
+```
 
-The manual app does not contain a second approximation of the recommender. During every build, `manual-app/kernel.js` is generated from the root `src/app.js` declarations. A brace-aware extractor, syntax verification, kernel-parity workflow, and the phone gate prevent formatting drift or an incomplete copied kernel from shipping.
+Founder should open materially different possibilities and hand one whole objective to Archie. It is not a training dashboard or robot-developer console.
 
-## Import anything useful
+## Archie
 
-The Sideways importer recognizes exports from Instagram, Reddit, TikTok, YouTube, Spotify, X/Twitter, Mastodon, browser bookmarks, RSS/Atom, JSON, JSONL, NDJSON, CSV, plain text, Markdown, and HTML. The normal Library path also preserves PDF, ZIP, Office documents, images, audio, video, and unknown binary files.
+Archie owns the objective, independent world model, research, derivation, capability invention, continuity, uncertainty, and coordination.
 
-Imports are classified by bytes rather than trusted file extensions, hashed in a worker, deduplicated, written in bounded IndexedDB transactions, cancellable between chunks, and reflected in the feed without an automatic page reload. Images and other assets remain blobs with reference-safe deletion and honest fallbacks. Imported social history remains private evidence; it does not become a live identity, publication, or engagement count in the public graph.
+It is not architecturally defined as chat, voice, a dashboard, a coding model, a background daemon, or a single application. Its shipped form must come from complete evidence-bound intelligence-and-embodiment profiles.
 
-## Private ownership and recovery
+Install the source-package preview:
 
-IndexedDB is the canonical hot store for the private personal archive. Sideways exposes four compact Library controls:
+```bash
+npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz
+archie
+```
 
-- **PIN** requests persistent browser storage and mirrors the current private archive into OPFS where supported.
-- **CHECK** audits private records, assets, missing references, orphaned blobs, bytes, and durability status.
-- **BACKUP** creates a versioned, user-owned `.sideways` Ark containing private records, assets, the compatibility ledger, local profile, and places.
-- **RESTORE** transactionally restores an Ark and records the survival receipt.
+The source preview bundles no model and makes no general-capability claim.
 
-OPFS is same-origin redundancy, not an external backup. Browser storage and OPFS can still be evicted together; the downloaded `.sideways` Ark is the boundary that survives origin loss. Public social authority is not silently copied into that private backup; cached public projections are rebuildable delivery state.
+## Maker
 
-## Profiles, posts, places, and media
+Maker is the mostly invisible permissioned consequence engine. It owns tools, leases, isolated work, exact mutations, testing, repair, rollback, and delivery.
 
-Local profiles persist with a display name, handle, biography, accent, avatar treatment, and portable state. The private archive supports text and image records, saved material, deletable local content, place creation and selection, Feed/Full/Desktop media modes, intrinsic image/video/audio/PDF/archive surfaces, and zero-overflow phone layouts.
-
-A static deployment remains a local-only product and can install the same profile-aware starter fixture without a backend. A configured function deployment adds the canonical public social operations described above. The interface currently exposes only part of that server authority; an implemented schema or endpoint is not evidence that every governance operation has a finished consumer UI.
-
-## LIVE work surface
-
-The **LIVE** window exposes public, read-only repository work state. `/.well-known/sideways-remote.json` is discovery metadata only; it is not a second state ledger and does not grant mutation authority. The browser receives no credentials, private payloads, signatures, nonce records, grants, deployment receipts, or remote mutation controls.
-
-See [`REMOTE_WORK.md`](./REMOTE_WORK.md) for the durable entry point and [`REMOTE_THOUGHT.md`](./REMOTE_THOUGHT.md) for the protocol boundaries.
-
-## Archie and Maker
-
-Archie and Maker are one intelligence-and-execution family. Sideways is an independent application they may inspect and improve through ordinary repository permissions; Sideways is not the AI, its memory substrate, or a privileged self-modification path. See [`ARCHIE_MAKER_VISION.md`](./ARCHIE_MAKER_VISION.md).
-
-Archie is exposed as a cross-platform package executable. A bare `archie` launch presents a guided local-world status; `archie setup --json` provides the same runtime, artifact, and runner readiness state to automation. The source-package preview bundles no model and makes no capability claim.
-
-From a clean checkout:
+From a checkout:
 
 ```bash
 npm run maker -- "describe the end state"
 ```
 
-The default command passes through the native Archie memory bridge. It may surface matching reusable plans, but Maker’s read-only assessments, synthesis, single-writer lease, isolated worktree, verification, draft PR, and human merge boundaries remain authoritative.
+This command remains a developer and evaluation path. It is not the intended normal-human interface.
 
-See [`NATIVE_MAKER.md`](./NATIVE_MAKER.md) for setup, adapters, leases, recovery behavior, and the legacy endpoint-backed worker.
+## Foundry
+
+Foundry is the one explicit human-operated training and speculative capability-research cockpit.
+
+It is for biological humans, not primarily for a robot to administer itself. It is intended to make powers previously reserved for model labs accessible without requiring the operator to become an ML infrastructure engineer:
+
+- allocate large token and compute subsidies;
+- launch speculative research campaigns;
+- preserve contradictory candidates;
+- inspect data, provenance, evaluators, and negative evidence;
+- compare complete intelligence-and-embodiment profiles;
+- admit or reject a signed release.
+
+Research should be aggressive. Promotion should be difficult.
+
+```text
+massive speculative search
+→ hidden evaluation
+→ independent reproduction
+→ exact evidence
+→ signed admission
+```
+
+Ordinary private use is not automatically shared training exhaust. Shared intelligence changes only through deliberate research admission and evaluated release engineering.
 
 ## Frontier World Expo
 
-The Expo maps frontier benchmarks into twelve lived visual, sonic, speech, music, and persistent-world commissions. It generates six contradictory candidate roles per round and fails promotion closed until exact artifact, device, trace, independent metric, human preference, authorship, provenance, and portable-export receipts are complete.
+Expo maps frontier capability into twelve lived visual, sonic, speech, music, and persistent-world commissions. Each round creates six contradictory candidate roles and retains raw evidence, human preference, authorship variance, provenance, portability, resource, and device receipts.
 
 ```bash
 npm run frontier:expo:derive -- --seed 466 --round issue-466 --output round.json
@@ -95,16 +110,56 @@ npm run frontier:expo:materialize -- --round-file round.json --output .archie/fr
 npm run frontier:expo:status -- --directory .archie/frontier-world-expo/issue-466
 ```
 
-The current `/world-expo/` path is a research preview of this substrate. No candidate is promoted.
+The current Expo is a research preview. No candidate is promoted.
 
-## Verification
+## Ordinary programs
 
-The repository gates changes with manual overlay validation, exact kernel parity, phone and media proofs, Ark survival, social and authority contracts, exact-head build/deployment accounting, Frontier Expo contracts, and executable product-route, allocation, valuation-boundary, and Expo-claim checks.
+Websites, applications, archives, social tools, games, research portals, and new forms are outputs and test targets. They do not become Archie’s identity, memory, training database, or privileged self-modification path.
 
-The concentrated private-archive phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
+`/examples/site/` is one deliberately unrelated website example. It proves only that exact authored site exists.
 
-## Capability boundary
+The former Sideways implementation remains in repository history and code as sample material and a difficult regression target. It is no longer a product family or required architecture component.
 
-Sideways is a production-shaped hybrid, not a claim that every deployment has every authority. Static GitHub Pages cannot provide canonical shared mutations. A configured server deployment can provide the repository-defined public social graph, but external branch rules, environment protection, installed-app grants, secret values, hosting-team roles, and database grants remain outside repository proof. The private archive still has no automatic multi-device synchronization or upload CDN; portability requires an explicit Ark export.
+### Legacy sample authority boundary
 
-See [`PROGRAM_ONTOLOGY.md`](./PROGRAM_ONTOLOGY.md) for the authority, storage, eligibility, ranking, and portability vocabulary that governs new work.
+Demotion does not erase the sample program’s internal truth. Its configured function deployment still defines a **canonical public social authority** for shared accounts, publication, following, reactions, communities, moderation, appeals, and mutation receipts. Static deployment does not simulate that authority.
+
+**IndexedDB is the canonical hot store for the private personal archive** inside that sample. Its user-owned export and restore boundary remains separate from shared social authority.
+
+The **ranking candidate pool is temporary** delivery state. It may combine eligible public projections with private records for one viewer, but it is neither canonical publication authority nor Archie memory or training data.
+
+These statements preserve regression and authority semantics for an ordinary application that Maker may inspect. They do not restore that application as the product family.
+
+## Product and research contracts
+
+```bash
+npm run product:portfolio -- validate
+npm run product:portfolio -- routes
+npm run product:portfolio -- market
+npm run product:portfolio -- route /
+npm run product:portfolio -- route /foundry/
+npm run test:portfolio
+npm run test:archie
+npm run test:foundry
+```
+
+## Current repository truth
+
+Substantial pieces exist:
+
+- Archie language, memory, planning, derivation, routing, workspace, and evidence substrates;
+- Foundry candidate packaging, deterministic campaign allocation, distillation, evaluation, and admission plumbing;
+- Maker authority, leases, isolated execution, verification, repair, delivery, and rollback contracts;
+- Weave coordination and replay protection;
+- model artifact encryption, signing, runtime, and checkpoint boundaries;
+- capability-frontier and launch-profile evaluation;
+- Frontier Expo commissions and fail-closed evidence envelopes;
+- several large sample applications and test targets.
+
+The missing center remains empirical intelligence. The repository has not demonstrated an admitted model that reliably completes unfamiliar whole-product objectives for non-developers.
+
+## First impossible proof
+
+Give a non-developer one input box, an unfamiliar environment, and a bounded resource envelope. Let them state one vague ambitious intention. Return a polished, secure, tested, installable product that did not previously exist—with no manual Git or ticket workflow, clean-environment reproduction, clickable delivery, exact receipts, and honest uncertainty.
+
+A persuasive answer is not completion. Changed reality is.
