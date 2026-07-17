@@ -6,6 +6,12 @@ const ROUTES = Object.freeze({
   foundry: '../foundry/'
 });
 const LABELS = Object.freeze({ archie: 'Answer', maker: 'Build', founder: 'Explore', foundry: 'Research' });
+const SURFACE_DRAFTS = Object.freeze({
+  archie: ['archie:knowledge-utility:v2', 'objective'],
+  maker: ['maker:engineering:task:v2', 'request'],
+  founder: ['archie:founder:human-turn', 'intention'],
+  foundry: ['archie:human-foundry:campaign', 'objective']
+});
 
 function clean(value, limit = 12000) {
   return String(value || '').trim().slice(0, limit);
@@ -14,6 +20,13 @@ function clean(value, limit = 12000) {
 function loadTask() {
   try { return JSON.parse(localStorage.getItem(TASK_KEY) || '{}'); }
   catch { return {}; }
+}
+
+function hasSurfaceDraft(surface) {
+  const [key, field] = SURFACE_DRAFTS[surface] || [];
+  if (!key) return false;
+  try { return Boolean(clean(JSON.parse(localStorage.getItem(key) || '{}')?.[field])); }
+  catch { return false; }
 }
 
 function inferRoute(text) {
@@ -127,7 +140,7 @@ if (target && surface) {
     const next = updateSharedTask(target.value, surface);
     if (currentTask) currentTask.textContent = next.text || 'No shared task yet. Start from Home or type below.';
   });
-  if (task.text && !target.value.trim()) {
+  if (task.text && !target.value.trim() && !hasSurfaceDraft(surface)) {
     target.value = task.text;
     target.dispatchEvent(new Event('input', { bubbles: true }));
   }
