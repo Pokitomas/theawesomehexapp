@@ -3,26 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#10233f">
+  <meta name="theme-color" content="#008080">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Maker">
   <meta name="description" content="Repository-general engineering task authoring and execution truth for Maker.">
-  <title>Maker Engineering</title>
+  <title>Maker Workbench</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./maker.css">
 </head>
 <body>
+  <a class="skip-link" href="#command-panel">Skip to engineering task</a>
   <main class="shell">
     <header class="masthead">
       <div>
-        <p class="eyebrow">MAKER / ENGINEERING</p>
+        <p class="eyebrow">MAKER.EXE / PROJECT WORKBENCH</p>
         <h1>Build software.</h1>
         <p class="lede">Define the repository, exact base, protected reality, and proof. Maker runs through an authorized isolated worker—not inside this browser.</p>
       </div>
-      <a class="repo-link" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">OPEN REPOSITORY</a>
+      <a class="repo-link" href="../desktop/">CLOSE WORKBENCH</a>
     </header>
+
+    <nav class="menu-bar" aria-label="Maker menu">
+      <a href="#command-panel">File</a>
+      <a href="#state-heading">View</a>
+      <a href="#archie-runtime">Runtime</a>
+      <a href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">Source</a>
+      <a href="../desktop/">Window</a>
+    </nav>
 
     <section class="truth-strip" aria-label="Execution truth">
       <article><span>BROWSER</span><strong>Task author only</strong></article>
@@ -31,7 +40,7 @@
       <article><span>NATIVE MODEL</span><strong id="native-model-state">Admission required</strong></article>
     </section>
 
-    <section class="command-panel" aria-labelledby="command-heading">
+    <section id="command-panel" class="command-panel" aria-labelledby="command-heading">
       <div class="command-copy">
         <div class="section-heading">
           <p class="section-number">01</p>
@@ -115,6 +124,7 @@
       <details><summary>COMMAND PACKET — DOES NOT CLAIM EXECUTION</summary><pre id="archie-command-preview" class="archie-command">No command exported.</pre></details>
     </section>
   </main>
+  <noscript><p class="noscript-note">JavaScript is off. Maker remains readable, but task receipts, public-state refresh, and runtime-receipt verification are unavailable.</p></noscript>
   <script type="module" src="./maker.js"></script>
   <script type="module">
       const $ = id => document.getElementById(id);
