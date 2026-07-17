@@ -70,16 +70,68 @@ test('honors safe observation controls and refuses ungrounded lexical near-neigh
   assert.equal(teacherCalls(), 0);
 });
 
-test('uses a teacher once, persists the lesson, retrains both routes, and handles the paraphrased recurrence locally', async t => {
+function makerReceipt(overrides = {}) {
+  return { state: 'completed', platform_run_id: 'run-1', receipt_digest: 'd'.repeat(16), ...overrides };
+}
+
+test('a teacher proposal is stored as pending and does not train until Maker verifies (POK-103 gap #2)', async t => {
   const { runtime, teacherCalls } = await fixture(t);
   const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
   assert.equal(first.state, 'teacher', JSON.stringify(first, null, 2));
-  assert.equal(first.learning.learned_route.sparse.state, 'local');
-  assert.equal(first.learning.learned_route.planner.state, 'local');
+  assert.equal(first.disposition, 'teacher_proposed');
+  // Not learned yet: no learned_route, no snapshot from this call.
+  assert.equal(first.learning.learned_route, null);
+  assert.equal(first.learning.snapshot_digest, null);
+  // The proposal must not have entered the positive skill mixture.
+  const examples = await runtime.corpus.examples({ limit: 1000 });
+  assert.ok(!examples.some(example => example.outcome === 'completed' && example.instruction.includes('irrigation')));
+
+  // Because nothing was promoted, a paraphrase still cannot resolve locally.
+  const repeated = await runtime.decide({ instruction: 'Use telemetry readings to schedule irrigation for the crop.' });
+  assert.equal(repeated.state, 'teacher', JSON.stringify(repeated, null, 2));
+  assert.equal(teacherCalls(), 2);
+});
+
+test('promoteTeacherProposal trains only after a successful Maker receipt, then resolves the paraphrase locally', async t => {
+  const { runtime } = await fixture(t);
+  const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
+  const promoted = await runtime.promoteTeacherProposal(first, makerReceipt());
+  assert.equal(promoted.disposition, 'teacher_completed');
+  assert.ok(promoted.learning.snapshot_digest);
+
   const repeated = await runtime.decide({ instruction: 'Use telemetry readings to schedule irrigation for the crop.' });
   assert.equal(repeated.state, 'local', JSON.stringify(repeated, null, 2));
-  assert.equal(teacherCalls(), 1);
   assert.ok(repeated.plan.steps.some(step => step.tool === 'irrigation'));
+});
+
+test('promoteTeacherProposal records negative evidence and does not train on a dry run, writer failure, or verification failure', async t => {
+  for (const failedState of ['dry_run', 'writer_failed', 'verification_failed']) {
+    const { runtime } = await fixture(t);
+    const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
+    const outcome = await runtime.promoteTeacherProposal(first, makerReceipt({ state: failedState }));
+    assert.equal(outcome.disposition, 'reject', failedState);
+    assert.equal(outcome.learning.snapshot_digest, null, failedState);
+    const examples = await runtime.corpus.examples({ limit: 1000 });
+    assert.ok(examples.some(example => example.negative && example.tags.includes('promoted-from-proposal')), failedState);
+    assert.ok(!examples.some(example => example.outcome === 'completed' && example.instruction.includes('irrigation')), failedState);
+  }
+});
+
+test('promoteTeacherProposal is idempotent on replay and rejects a receipt for a different plan', async t => {
+  const { runtime } = await fixture(t);
+  const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
+  const receipt = makerReceipt({ plan_digest: first.learning.plan_digest });
+
+  const once = await runtime.promoteTeacherProposal(first, receipt);
+  const again = await runtime.promoteTeacherProposal(first, receipt);
+  assert.equal(once.learning.corpus_receipt.status, 'stored');
+  assert.equal(again.learning.corpus_receipt.status, 'deduplicated');
+  assert.equal(again.learning.snapshot_digest, null, 'a deduplicated replay must not retrain');
+
+  await assert.rejects(
+    () => runtime.promoteTeacherProposal(first, makerReceipt({ plan_digest: 'f'.repeat(64) })),
+    /plan_digest does not match/
+  );
 });
 
 test('fails closed on disagreement when no teacher is allowed', async t => {
