@@ -89,8 +89,9 @@ const unexpectedBrowserErrors = () => browserErrors.filter(message => !/ERR_INTE
 page.on('pageerror', error => browserErrors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
 const openDetails = async label => {
-  const details = page.locator('details').filter({ has: page.locator('summary', { hasText: label }) });
-  if (await details.getAttribute('open') === null) await details.locator('summary').click();
+  const summary = page.locator('details > summary').filter({ hasText: label }).first();
+  const details = summary.locator('..');
+  if (await details.getAttribute('open') === null) await summary.click();
 };
 try {
   await page.goto('http://127.0.0.1:4175/maker/', { waitUntil: 'networkidle' });
@@ -98,7 +99,7 @@ try {
   await openDetails('Repository, proof, and execution controls');
   await openDetails('Live public repository state');
   await openDetails('Observed Archie runtime receipt');
-  await page.waitForFunction(() => document.querySelector('#archie-status')?.textContent.includes('No authenticated runtime receipt'));
+  await page.waitForFunction(() => document.querySelector('#archie-compute')?.textContent.includes('unavailable until observed'));
   proof.executionTruthVisible = await page.locator('text=Task author only').count() > 0
     && await page.locator('text=One leased branch').count() > 0
     && (await page.locator('#tool-state').innerText()).includes('rollback');
