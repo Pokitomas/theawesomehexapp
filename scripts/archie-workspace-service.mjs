@@ -1,12 +1,12 @@
 import http from 'node:http';
 import { URL } from 'node:url';
 import {
-  FileWorkspaceProvider,
   WorkspaceAuthorityError,
   WorkspaceError,
   WorkspaceNotFoundError,
   createWorkspaceEngine
 } from './archie-workspace-core.mjs';
+import { SafeFileWorkspaceProvider } from './archie-workspace-file-provider.mjs';
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
@@ -189,7 +189,7 @@ export async function startWorkspaceService({
   engine = null,
   authenticate = null
 } = {}) {
-  const selectedProvider = provider || new FileWorkspaceProvider(root);
+  const selectedProvider = provider || new SafeFileWorkspaceProvider(root);
   const selectedEngine = engine || createWorkspaceEngine({ provider: selectedProvider });
   const server = http.createServer();
 
