@@ -27,7 +27,8 @@ const set = (id, value) => {
 };
 
 function empty() {
-  for (const id of ['archie-sparse', 'archie-planner', 'archie-confidence', 'archie-route', 'archie-budget', 'archie-teacher', 'archie-learning', 'archie-corpus', 'archie-sync', 'archie-compute', 'archie-usage', 'archie-storage']) set(id, 'Unobserved');
+  for (const id of ['archie-sparse', 'archie-planner', 'archie-confidence', 'archie-route', 'archie-budget', 'archie-teacher', 'archie-learning', 'archie-corpus', 'archie-sync', 'archie-usage', 'archie-storage']) set(id, 'Unobserved');
+  set('archie-compute', 'Unobserved · Linux unavailable until observed · GPU unavailable until observed');
   set('archie-source', 'None');
   $('archie-blockers')?.replaceChildren(Object.assign(document.createElement('li'), { textContent: 'No authenticated runtime receipt loaded.' }));
 }
