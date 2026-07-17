@@ -4,35 +4,73 @@ import path from 'node:path';
 import test from 'node:test';
 
 const read = file => fs.readFile(path.resolve(file), 'utf8');
+const readMetadata = async () => JSON.parse(await read('design/product-form-factor-metadata.json'));
 
-test('form-factor study binds a multi-domain public corpus to four distinct product roles', async () => {
-  const metadata = JSON.parse(await read('design/product-form-factor-metadata.json'));
+test('form-factor study binds a diverse and internally consistent public corpus', async () => {
+  const metadata = await readMetadata();
   assert.equal(metadata.schema, 'archie-product-form-factor-study/v1');
   assert.equal(metadata.research_mode, 'bounded-multi-domain-public-corpus');
-  assert.ok(metadata.sources.length >= 15);
-  assert.ok(new Set(metadata.sources.map(source => source.publisher)).size >= 7);
+  assert.ok(metadata.sources.length >= 18);
+
+  const publishers = new Set(metadata.sources.map(source => source.publisher));
+  const sourceClasses = new Set(metadata.sources.map(source => source.source_class));
+  assert.ok(publishers.size >= 8);
+  assert.ok(sourceClasses.size >= 8);
+  assert.equal(metadata.corpus_summary.source_records, metadata.sources.length);
+  assert.equal(metadata.corpus_summary.publishers, publishers.size);
   assert.equal(new Set(metadata.sources.map(source => source.url)).size, metadata.sources.length, 'source URLs must be unique');
+
   for (const source of metadata.sources) {
     assert.match(source.url, /^https:\/\//);
     assert.ok(source.source_class);
     assert.ok(Array.isArray(source.signals) && source.signals.length >= 2);
   }
+
   assert.ok(metadata.corpus_summary.domains.length >= 6);
   assert.ok(metadata.corpus_summary.excluded.length >= 4);
-  assert.deepEqual(Object.keys(metadata.products).sort(), ['archie', 'founder', 'maker', 'sideways']);
-  assert.equal(new Set(Object.values(metadata.products).map(product => product.role)).size, 4);
-  assert.equal(new Set(Object.values(metadata.products).map(product => product.dominant_action)).size, 4);
-  assert.equal(new Set(Object.values(metadata.products).map(product => product.anti_pattern)).size, 4);
-  for (const product of Object.values(metadata.products)) {
-    assert.ok(product.success_signals.length >= 5);
-    assert.ok(product.primary_metadata.length >= 4);
+});
+
+test('causal model exposes falsifiable hypotheses and measurable proxies', async () => {
+  const metadata = await readMetadata();
+  assert.match(metadata.causal_model.claim_boundary, /does not independently prove market success/i);
+  assert.ok(metadata.causal_model.input_dimensions.length >= 7);
+  assert.ok(metadata.causal_model.mediators.length >= 6);
+  assert.ok(metadata.causal_model.outcomes.length >= 6);
+  assert.ok(metadata.causal_model.evaluation_hypotheses.length >= 5);
+  assert.equal(new Set(metadata.causal_model.evaluation_hypotheses.map(item => item.id)).size, metadata.causal_model.evaluation_hypotheses.length);
+
+  for (const item of metadata.causal_model.evaluation_hypotheses) {
+    assert.ok(item.hypothesis.length >= 24);
+    assert.ok(item.success_proxies.length >= 2);
   }
+});
+
+test('four product roles bind distinct actions, metrics, metadata, and tracked style contracts', async () => {
+  const metadata = await readMetadata();
+  assert.deepEqual(Object.keys(metadata.products).sort(), ['archie', 'founder', 'maker', 'sideways']);
+
+  const products = Object.values(metadata.products);
+  assert.equal(new Set(products.map(product => product.role)).size, 4);
+  assert.equal(new Set(products.map(product => product.dominant_action)).size, 4);
+  assert.equal(new Set(products.map(product => product.anti_pattern)).size, 4);
+
+  for (const product of products) {
+    assert.ok(product.success_signals.length >= 5);
+    assert.ok(product.success_metrics.length >= 3);
+    assert.ok(product.primary_metadata.length >= 4);
+    assert.ok(product.style_contracts.length >= 1);
+    for (const contract of product.style_contracts) await fs.access(path.resolve(contract));
+  }
+
   assert.ok(metadata.shared_tokens.primary_touch_target_px >= 44);
   assert.ok(metadata.shared_tokens.wcag_minimum_target_px >= 24);
   assert.ok(metadata.shared_tokens.minimum_touch_text_px >= 16);
+  assert.ok(metadata.shared_tokens.focus_ring_px >= 2);
+  assert.equal(metadata.shared_tokens.state_requires_non_color_cue, true);
+  assert.equal(metadata.shared_tokens.reduced_motion_required, true);
 });
 
-test('study states the causal relationship and its measurement boundary', async () => {
+test('study states the causal relationship, evaluation hypotheses, and measurement boundary', async () => {
   const study = await read('design/PRODUCT_FORM_FACTOR_STUDY.md');
   for (const phrase of [
     'software ambition',
@@ -41,10 +79,13 @@ test('study states the causal relationship and its measurement boundary', async 
     'suitable form factor',
     'measurable product success',
     'A form factor is successful when it minimizes the distance between intent and verified completion',
+    'Evaluation hypotheses',
+    'Executable style contracts',
     'not proof that styling alone causes market success'
   ]) assert.match(study, new RegExp(phrase, 'i'));
+
   for (const product of ['Archie', 'Maker', 'Founder', 'Sideways']) assert.match(study, new RegExp(`### ${product}`));
-  for (const publisher of ['Apple', 'GOV.UK', 'Baymard', 'GitHub Primer', 'Microsoft Fluent', 'IBM Carbon', 'W3C']) {
+  for (const publisher of ['Apple', 'GOV.UK', 'Baymard', 'GitHub Primer', 'Microsoft Fluent', 'IBM Carbon', 'Atlassian', 'W3C']) {
     assert.match(study, new RegExp(publisher, 'i'));
   }
 });
