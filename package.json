@@ -10,8 +10,12 @@
   "files": [
     "scripts/*.mjs",
     "foundry/archie-neural/*.mjs",
+    "foundry/archie-distill/*.py",
     "maker/evaluations/archie-equivalence-suite.json",
+    "maker/evaluations/archie-distill-qwen3-quality.json",
+    "maker/contracts/archie-distill-profile.schema.json",
     "ARCHIE_RUNTIME.md",
+    "ARCHIE_DISTILL.md",
     "INSTALL.md",
     "README.md"
   ],
@@ -33,6 +37,7 @@
     "test:archie:device-evidence": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
     "test:archie:phone": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
     "test:archie:install": "node --test scripts/tests/maker-archie-install.test.mjs",
+    "test:archie:distill": "node --test scripts/tests/archie-distill-pipeline.test.mjs",
     "test:foundry": "node --test foundry/tests/core.test.mjs foundry/tests/calibration.test.mjs foundry/tests/cost-calibration.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs",
     "test:ingestion": "node --test scripts/tests/discovery-connected-import.test.mjs scripts/tests/web-source-snapshot.test.mjs scripts/tests/web-source-providers.test.mjs",
     "maker": "node scripts/maker-archie-launch.mjs",
