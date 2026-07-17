@@ -1,13 +1,13 @@
 {
   "name": "Maker Engineering",
   "short_name": "Maker",
-  "description": "Repository-general engineering task authoring and execution truth.",
+  "description": "A repository-general indie software workshop for authoring exact build cards and reading execution truth.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f6f3eb",
-  "theme_color": "#10233f",
+  "background_color": "#f8f1d6",
+  "theme_color": "#ff7657",
   "icons": [
     {
       "src": "./icon.svg",
