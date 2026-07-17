@@ -23,6 +23,7 @@ import {
 import { createCheckpointUpdatePackage } from './archie-checkpoint-update.mjs';
 import { runResearchCommand } from './archie-research-campaign.mjs';
 import { runArchieSelfHostingSample } from './archie-self-hosting-sample.mjs';
+import { runArchieFirstRun } from './archie-first-run.mjs';
 import {
   benchmarkModel,
   inspectModel,
@@ -73,6 +74,7 @@ Usage:
   archie benchmark <id@version> --suite <suite.json> [--runner <path>]
   archie remove <id@version>
   archie list
+  archie setup [--json] [--no-color]
 
 Research campaign:
   --root <path>             Repository root. Defaults to cwd.
@@ -126,7 +128,18 @@ export async function main(argv = process.argv.slice(2)) {
   const command = positionals[0] || (has(flags, '--help') ? 'help' : '');
   const home = path.resolve(last(flags, '--home', resolveArchieHome()));
 
-  if (!command || command === 'help') {
+  if (!command) {
+    await runArchieFirstRun(argv);
+    return;
+  }
+
+  if (command === 'setup' || command === 'welcome') {
+    const commandIndex = argv.indexOf(command);
+    await runArchieFirstRun(argv.filter((_, index) => index !== commandIndex));
+    return;
+  }
+
+  if (command === 'help') {
     process.stdout.write(`${usage()}\n`);
     return;
   }

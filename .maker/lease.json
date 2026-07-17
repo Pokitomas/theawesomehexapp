@@ -9,14 +9,18 @@
   "selected_lane": "product",
   "owned_paths": [
     ".github/workflows/archie-windows-install.yml",
+    ".maker/lease.json",
     "ARCHIE_RUNTIME.md",
     "INSTALL.md",
     "README.md",
+    "audit/authority-manifest.json",
+    "audit/authority-manifest.workflow-projection.mjs",
     "package-lock.json",
     "package.json",
     "scripts/archie-first-run.mjs",
     "scripts/archie.mjs",
-    "scripts/tests/maker-archie-install.test.mjs"
+    "scripts/tests/maker-archie-install.test.mjs",
+    "scripts/tests/workflow-permissions.test.mjs"
   ],
   "writer_count": 1,
   "authority": {
