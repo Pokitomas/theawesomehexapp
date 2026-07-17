@@ -3,8 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const RECEIPT_TITLE = 'Independent Archie programs deployed';
-const LEGACY_RECEIPT_TITLES = ['Founder human-power surface deployed', 'Sideways consumer app deployed'];
+const RECEIPT_TITLE = 'Archie one-task public workflow deployed';
+const LEGACY_RECEIPT_TITLES = ['Independent Archie programs deployed', 'Founder human-power surface deployed', 'Sideways consumer app deployed'];
 const SENTINEL_PATH = '.well-known/archie-deployment.json';
 const DESKTOP_PATH = 'desktop/';
 const FOUNDER_PATH = 'founder/';
@@ -59,7 +59,7 @@ function surfaceUrl(deployedUrl, surface) {
 function buildDeploymentSentinel({ commit, repository }) {
   if (!commit) throw new Error('A deployment commit is required.');
   if (!repository) throw new Error('A deployment repository is required.');
-  return { schema: 3, product_root: 'desktop-program-manager', product_model: 'independent-programs', commit: String(commit), repository: String(repository) };
+  return { schema: 4, product_root: 'one-request-router', product_model: 'one-task-progressive-views', commit: String(commit), repository: String(repository) };
 }
 
 function writeDeploymentSentinel({ outputDir = 'dist', commit, repository }) {
@@ -108,12 +108,12 @@ function buildDeploymentReceiptBody({ deployedUrl, commit, founderReceipt = null
     `ALL_PUBLIC_SURFACES_VERIFIED=${allVerified}`,
     ...PUBLIC_SURFACES.map(definition => `${definition.label}_ANONYMOUS_REACHABLE=${isSuccessfulSurfaceReceipt(bySurface.get(definition.id))}`),
     'ROOT_PRODUCT=Archie Program Manager',
-    'PRODUCT_MODEL=independent opaque applications',
-    'DESKTOP_CONTRACT=launches separate programs without depicting one cognition pipeline',
-    'FOUNDER_CONTRACT=one unfinished human intention opens six possibilities before explicit PUSH',
-    'FOUNDRY_CONTRACT=human-governed speculative model research and release admission',
-    'MAKER_CONTRACT=permissioned tested reversible consequence engine',
-    'ARCHIE_CONTRACT=inspectable intention memory and plan utility with truthful runtime boundaries',
+    'PRODUCT_MODEL=one task with progressive specialized views',
+    'DESKTOP_CONTRACT=accepts one rough request and selects the smallest useful workflow',
+    'FOUNDER_CONTRACT=exploration view opens six materially different directions before commitment',
+    'FOUNDRY_CONTRACT=preserves the full governed campaign while showing distinct readable approaches',
+    'MAKER_CONTRACT=result-first build view reveals repository proof and backend controls only when needed',
+    'ARCHIE_CONTRACT=answer view keeps context proof and authority optional while preserving a portable packet',
     'EXAMPLE_CONTRACT=ordinary programs are disposable outputs, not Archie memory or ontology',
     'SUPERIORITY_CLAIM=blocked until blinded matched real-user evidence passes the public protocol and independent admission'
   ];
@@ -135,8 +135,8 @@ async function verifyLiveDeployment({ deployedUrl, expectedCommit, expectedRepos
       const sentinel = await response.json();
       if (sentinel.commit !== expectedCommit) throw new Error(`served commit ${sentinel.commit || '<missing>'}`);
       if (sentinel.repository !== expectedRepository) throw new Error(`served repository ${sentinel.repository || '<missing>'}`);
-      if (sentinel.product_root !== 'desktop-program-manager') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
-      if (sentinel.product_model !== 'independent-programs') throw new Error(`served product model ${sentinel.product_model || '<missing>'}`);
+      if (sentinel.product_root !== 'one-request-router') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
+      if (sentinel.product_model !== 'one-task-progressive-views') throw new Error(`served product model ${sentinel.product_model || '<missing>'}`);
       return { url: baseUrl, sentinel, attempt };
     } catch (error) {
       lastError = error;
@@ -173,8 +173,8 @@ async function verifyPublicSurfaceReachability({ deployedUrl, expectedCommit, ex
       const sentinel = await identityResponse.json();
       if (sentinel.commit !== expectedCommit) throw new Error(`served commit ${sentinel.commit || '<missing>'}`);
       if (sentinel.repository !== expectedRepository) throw new Error(`served repository ${sentinel.repository || '<missing>'}`);
-      if (sentinel.product_root !== 'desktop-program-manager') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
-      if (sentinel.product_model !== 'independent-programs') throw new Error(`served product model ${sentinel.product_model || '<missing>'}`);
+      if (sentinel.product_root !== 'one-request-router') throw new Error(`served product root ${sentinel.product_root || '<missing>'}`);
+      if (sentinel.product_model !== 'one-task-progressive-views') throw new Error(`served product model ${sentinel.product_model || '<missing>'}`);
 
       const pageResponse = await fetchImpl(`${publicUrl}?${nonce}`, requestOptions);
       const finalUrl = pageResponse.url || publicUrl;
