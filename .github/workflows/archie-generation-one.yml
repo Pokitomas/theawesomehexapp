@@ -34,6 +34,18 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Execute provider-neutral student admission tests
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          npm run test:archie:admission 2>&1 | tee artifacts/archie-admission.log
+      - name: Execute hash-bound real-device evidence tests
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          npm run test:archie:device-evidence 2>&1 | tee artifacts/archie-device-evidence.log
       - name: Run Archie evaluation tests
         shell: bash
         run: |
@@ -160,6 +172,8 @@ jobs:
         with:
           name: archie-generation-one-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
+            artifacts/archie-admission.log
+            artifacts/archie-device-evidence.log
             artifacts/archie-generation-one-receipt.json
             artifacts/archie-generation-one-test.log
             artifacts/archie-benchmark-command.log

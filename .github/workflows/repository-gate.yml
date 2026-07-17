@@ -28,22 +28,26 @@ jobs:
       - name: Install locked runtime dependencies
         run: npm ci --ignore-scripts
       - name: Verify exact repository tree
+        shell: bash
         env:
           CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REPOSITORY_VERIFICATION_RECEIPT: repository-verification.json
-        run: npm run verify:repository
+        run: |
+          set -o pipefail
+          npm run verify:repository 2>&1 | tee repository-verification.log
       - name: Generate dependency and action provenance
         if: always()
         env:
           CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/generate-supply-chain-inventory.mjs supply-chain-inventory.json
-      - name: Upload exact-tree receipt, provenance, lock, and workflow sources
+      - name: Upload exact-tree receipt, provenance, lock, workflow sources, and full log
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: repository-verification-${{ github.sha }}
           path: |
             repository-verification.json
+            repository-verification.log
             supply-chain-inventory.json
             package-lock.json
             .github/workflows
