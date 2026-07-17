@@ -3,178 +3,39 @@
   "generated_at": "2026-07-17T05:45:00Z",
   "research_mode": "bounded-public-design-system-corpus",
   "method": {
-    "inclusion_rule": "Public, first-party platform guidance, standards, product design systems, or disclosed usability research with an actionable interface claim.",
+    "inclusion_rule": "Public first-party platform guidance, standards, product design systems, or disclosed usability research with an actionable interface claim.",
     "exclusion_rule": "Screenshot galleries, trend roundups, awards, unsourced opinion, and popularity rankings are not evidence of product success.",
     "inference_policy": "Normative and practice-derived guidance generates testable product hypotheses. It does not by itself prove that visual styling causes adoption, retention, revenue, or task success.",
-    "source_count": 15,
+    "source_count": 16,
     "publisher_count": 8
   },
   "sources": [
-    {
-      "id": "apple-principles",
-      "publisher": "Apple",
-      "source_type": "platform-guideline",
-      "evidence_strength": "practice-derived",
-      "url": "https://developer.apple.com/design/human-interface-guidelines/design-principles",
-      "signals": ["purpose", "agency", "flexibility", "simplicity", "craft", "delight"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "apple-layout",
-      "publisher": "Apple",
-      "source_type": "platform-guideline",
-      "evidence_strength": "practice-derived",
-      "url": "https://developer.apple.com/design/human-interface-guidelines/layout",
-      "signals": ["hierarchy", "adaptability", "familiarity", "safe-areas"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "apple-accessibility",
-      "publisher": "Apple",
-      "source_type": "platform-guideline",
-      "evidence_strength": "practice-derived",
-      "url": "https://developer.apple.com/design/human-interface-guidelines/accessibility/",
-      "signals": ["intuitive", "perceivable", "adaptable", "multiple-input-modes"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "govuk-layout",
-      "publisher": "GOV.UK Design System",
-      "source_type": "government-design-system",
-      "evidence_strength": "practice-derived",
-      "url": "https://design-system.service.gov.uk/styles/layout/",
-      "signals": ["mobile-first", "single-column-first", "bounded-reading-width", "device-agnostic-layout"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "govuk-spacing",
-      "publisher": "GOV.UK Design System",
-      "source_type": "government-design-system",
-      "evidence_strength": "practice-derived",
-      "url": "https://design-system.service.gov.uk/styles/spacing/",
-      "signals": ["responsive-spacing", "consistent-rhythm"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "govuk-type-scale",
-      "publisher": "GOV.UK Design System",
-      "source_type": "government-design-system",
-      "evidence_strength": "practice-derived",
-      "url": "https://design-system.service.gov.uk/styles/type-scale/",
-      "signals": ["relative-type", "responsive-legibility", "vertical-rhythm"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "wcag-22",
-      "publisher": "W3C WAI",
-      "source_type": "accessibility-standard",
-      "evidence_strength": "normative",
-      "url": "https://www.w3.org/TR/WCAG22/",
-      "signals": ["keyboard-operability", "focus-visible", "target-size", "reflow", "non-color-state"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "wcag-target-size",
-      "publisher": "W3C WAI",
-      "source_type": "accessibility-standard",
-      "evidence_strength": "normative",
-      "url": "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum",
-      "signals": ["24px-aa-floor", "target-spacing", "pointer-operability"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "primer-layout",
-      "publisher": "GitHub Primer",
-      "source_type": "product-design-system",
-      "evidence_strength": "practice-derived",
-      "url": "https://primer.style/product/getting-started/foundations/layout/",
-      "signals": ["natural-reading-order", "focused-experience", "responsive-completeness", "attention-respect"],
-      "applicable_products": ["maker", "archie", "sideways"]
-    },
-    {
-      "id": "primer-checklist",
-      "publisher": "GitHub Primer",
-      "source_type": "product-design-system",
-      "evidence_strength": "standards-mapped",
-      "url": "https://primer.style/accessibility/tools-and-resources/checklists/designer-checklist/",
-      "signals": ["semantic-hierarchy", "descriptive-controls", "visible-labels", "error-proximity", "metadata"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "fluent-principles",
-      "publisher": "Microsoft Fluent 2",
-      "source_type": "product-design-system",
-      "evidence_strength": "practice-derived",
-      "url": "https://fluent2.microsoft.design/design-principles",
-      "signals": ["platform-naturalness", "familiarity", "reliability", "trust"],
-      "applicable_products": ["archie", "maker"]
-    },
-    {
-      "id": "fluent-layout",
-      "publisher": "Microsoft Fluent 2",
-      "source_type": "product-design-system",
-      "evidence_strength": "practice-derived",
-      "url": "https://fluent2.microsoft.design/layout",
-      "signals": ["proximity", "hierarchy-by-space", "density-control", "four-pixel-ramp"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "fluent-accessibility",
-      "publisher": "Microsoft Fluent 2",
-      "source_type": "product-design-system",
-      "evidence_strength": "standards-mapped",
-      "url": "https://fluent2.microsoft.design/accessibility",
-      "signals": ["predictable-navigation", "contrast", "400-percent-reflow", "plain-language"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "carbon-accessibility",
-      "publisher": "IBM Carbon",
-      "source_type": "product-design-system",
-      "evidence_strength": "standards-mapped",
-      "url": "https://carbondesignsystem.com/guidelines/accessibility/overview/",
-      "signals": ["equal-quality-experience", "adaptation", "semantic-html", "logical-focus-order"],
-      "applicable_products": ["archie", "founder", "maker", "sideways"]
-    },
-    {
-      "id": "baymard-checkout-friction",
-      "publisher": "Baymard Institute",
-      "source_type": "usability-research",
-      "evidence_strength": "observational-and-testing",
-      "url": "https://baymard.com/blog/current-state-of-checkout-ux",
-      "signals": ["friction-reduction", "completion", "field-complexity", "visible-progress"],
-      "applicable_products": ["archie", "maker"]
-    }
+    {"id":"apple-principles","publisher":"Apple","source_type":"platform-guideline","evidence_strength":"practice-derived","url":"https://developer.apple.com/design/human-interface-guidelines/design-principles","signals":["purpose","agency","flexibility","simplicity","craft","delight"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"apple-layout","publisher":"Apple","source_type":"platform-guideline","evidence_strength":"practice-derived","url":"https://developer.apple.com/design/human-interface-guidelines/layout","signals":["hierarchy","adaptability","familiarity","safe-areas"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"apple-accessibility","publisher":"Apple","source_type":"platform-guideline","evidence_strength":"practice-derived","url":"https://developer.apple.com/design/human-interface-guidelines/accessibility/","signals":["intuitive","perceivable","adaptable","multiple-input-modes"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"govuk-layout","publisher":"GOV.UK Design System","source_type":"government-design-system","evidence_strength":"practice-derived","url":"https://design-system.service.gov.uk/styles/layout/","signals":["mobile-first","single-column-first","bounded-reading-width","device-agnostic-layout"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"govuk-spacing","publisher":"GOV.UK Design System","source_type":"government-design-system","evidence_strength":"practice-derived","url":"https://design-system.service.gov.uk/styles/spacing/","signals":["responsive-spacing","consistent-rhythm"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"govuk-type-scale","publisher":"GOV.UK Design System","source_type":"government-design-system","evidence_strength":"practice-derived","url":"https://design-system.service.gov.uk/styles/type-scale/","signals":["relative-type","responsive-legibility","vertical-rhythm"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"wcag-22","publisher":"W3C WAI","source_type":"accessibility-standard","evidence_strength":"normative","url":"https://www.w3.org/TR/WCAG22/","signals":["keyboard-operability","focus-visible","target-size","reflow","non-color-state"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"wcag-target-size","publisher":"W3C WAI","source_type":"accessibility-standard","evidence_strength":"normative","url":"https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum","signals":["24px-aa-floor","target-spacing","pointer-operability"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"primer-layout","publisher":"GitHub Primer","source_type":"product-design-system","evidence_strength":"practice-derived","url":"https://primer.style/product/getting-started/foundations/layout/","signals":["natural-reading-order","focused-experience","responsive-completeness","attention-respect"],"applicable_products":["maker","archie","sideways"]},
+    {"id":"primer-checklist","publisher":"GitHub Primer","source_type":"product-design-system","evidence_strength":"standards-mapped","url":"https://primer.style/accessibility/tools-and-resources/checklists/designer-checklist/","signals":["semantic-hierarchy","descriptive-controls","visible-labels","error-proximity","metadata"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"fluent-principles","publisher":"Microsoft Fluent 2","source_type":"product-design-system","evidence_strength":"practice-derived","url":"https://fluent2.microsoft.design/design-principles","signals":["platform-naturalness","familiarity","reliability","trust"],"applicable_products":["archie","maker"]},
+    {"id":"fluent-layout","publisher":"Microsoft Fluent 2","source_type":"product-design-system","evidence_strength":"practice-derived","url":"https://fluent2.microsoft.design/layout","signals":["proximity","hierarchy-by-space","density-control","four-pixel-ramp"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"fluent-accessibility","publisher":"Microsoft Fluent 2","source_type":"product-design-system","evidence_strength":"standards-mapped","url":"https://fluent2.microsoft.design/accessibility","signals":["predictable-navigation","contrast","400-percent-reflow","plain-language"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"carbon-accessibility","publisher":"IBM Carbon","source_type":"product-design-system","evidence_strength":"standards-mapped","url":"https://carbondesignsystem.com/guidelines/accessibility/overview/","signals":["equal-quality-experience","adaptation","semantic-html","logical-focus-order"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"atlassian-foundations","publisher":"Atlassian Design System","source_type":"product-design-system","evidence_strength":"practice-derived","url":"https://atlassian.design/foundations","signals":["design-tokens","accessible-content","spacing","grid","typography","consistent-components"],"applicable_products":["archie","founder","maker","sideways"]},
+    {"id":"baymard-checkout-friction","publisher":"Baymard Institute","source_type":"usability-research","evidence_strength":"observational-and-testing","url":"https://baymard.com/blog/current-state-of-checkout-ux","signals":["friction-reduction","completion","field-complexity","visible-progress"],"applicable_products":["archie","maker"]}
   ],
   "derived_relationships": [
-    {
-      "id": "task-form-fit",
-      "hypothesis": "A surface whose hierarchy and density match its dominant task reduces orientation and mode-switch cost.",
-      "success_proxies": ["time_to_primary_action_ms", "task_completion_rate", "wrong-surface_navigation_rate"]
-    },
-    {
-      "id": "authority-legibility",
-      "hypothesis": "Visible authority, capability, and receipt boundaries reduce false-completion beliefs without hiding useful actions.",
-      "success_proxies": ["authority_comprehension_rate", "false_completion_rate", "proof_inspection_rate"]
-    },
-    {
-      "id": "progressive-evidence",
-      "hypothesis": "Keeping primary work prominent while progressively disclosing machine evidence improves completion without sacrificing inspectability.",
-      "success_proxies": ["task_completion_rate", "evidence_retrieval_success_rate", "primary_action_time_ms"]
-    },
-    {
-      "id": "responsive-operability",
-      "hypothesis": "Complete reflow, readable controls, and visible focus preserve task success across phone, desktop, zoom, keyboard, and touch contexts.",
-      "success_proxies": ["horizontal_overflow_px", "keyboard_completion_rate", "touch_error_rate", "zoom_reflow_failure_count"]
-    },
-    {
-      "id": "product-recognition",
-      "hypothesis": "Distinct visual languages help users recognize the product role and expected consequence before acting.",
-      "success_proxies": ["five_second_role_identification_rate", "cross_product_action_error_rate"]
-    }
+    {"id":"task-form-fit","hypothesis":"A surface whose hierarchy and density match its dominant task reduces orientation and mode-switch cost.","success_proxies":["time_to_primary_action_ms","task_completion_rate","wrong_surface_navigation_rate"]},
+    {"id":"authority-legibility","hypothesis":"Visible authority, capability, and receipt boundaries reduce false-completion beliefs without hiding useful actions.","success_proxies":["authority_comprehension_rate","false_completion_rate","proof_inspection_rate"]},
+    {"id":"progressive-evidence","hypothesis":"Keeping primary work prominent while progressively disclosing machine evidence improves completion without sacrificing inspectability.","success_proxies":["task_completion_rate","evidence_retrieval_success_rate","primary_action_time_ms"]},
+    {"id":"responsive-operability","hypothesis":"Complete reflow, readable controls, and visible focus preserve task success across phone, desktop, zoom, keyboard, and touch contexts.","success_proxies":["horizontal_overflow_px","keyboard_completion_rate","touch_error_rate","zoom_reflow_failure_count"]},
+    {"id":"product-recognition","hypothesis":"Distinct visual languages help users recognize the product role and expected consequence before acting.","success_proxies":["five_second_role_identification_rate","cross_product_action_error_rate"]}
   ],
   "shared_tokens": {
-    "spacing_px": [4, 8, 12, 16, 24, 32, 48, 64],
+    "spacing_px": [4,8,12,16,24,32,48,64],
     "minimum_target_aa_px": 24,
     "preferred_touch_target_px": 44,
     "minimum_touch_text_px": 16,
@@ -184,41 +45,9 @@
     "reduced_motion_required": true
   },
   "products": {
-    "archie": {
-      "role": "intelligence-cockpit",
-      "dominant_action": "state-objective",
-      "density": "calm-progressive",
-      "personality": ["luminous", "spatial", "truthful", "recoverable"],
-      "primary_metadata": ["objective_digest", "continuity", "runtime_observation", "authority", "proof"],
-      "style_contracts": ["archie/archie.css", "dist/archie/archie.css"],
-      "success_metrics": ["objective_packet_completion_rate", "authority_comprehension_rate", "false_execution_belief_rate"]
-    },
-    "maker": {
-      "role": "engineering-control-room",
-      "dominant_action": "authorize-execution",
-      "density": "high-structured",
-      "personality": ["precise", "technical", "legible", "consequential"],
-      "primary_metadata": ["repository", "base", "lease", "backend", "tools", "receipts"],
-      "style_contracts": ["maker/maker.css"],
-      "success_metrics": ["dispatch_completion_rate", "authority_error_rate", "receipt_retrieval_success_rate"]
-    },
-    "founder": {
-      "role": "decision-studio",
-      "dominant_action": "choose-direction",
-      "density": "editorial-comparative",
-      "personality": ["bold", "contrasting", "tasteful", "decisive"],
-      "primary_metadata": ["direction", "reaction", "stakes", "decision"],
-      "style_contracts": ["founder/founder.css"],
-      "success_metrics": ["direction_differentiation_rate", "decision_completion_rate", "decision_recall_rate"]
-    },
-    "sideways": {
-      "role": "lived-archive",
-      "dominant_action": "save-and-discover",
-      "density": "content-first",
-      "personality": ["intimate", "quiet", "tactile", "owned"],
-      "primary_metadata": ["provenance", "privacy", "rank", "backup", "identity"],
-      "style_contracts": ["studio/manual/product/sideways-human.css"],
-      "success_metrics": ["save_and_restore_success_rate", "provenance_comprehension_rate", "content_readability_rate"]
-    }
+    "archie": {"role":"intelligence-cockpit","dominant_action":"state-objective","density":"calm-progressive","personality":["luminous","spatial","truthful","recoverable"],"primary_metadata":["objective_digest","continuity","runtime_observation","authority","proof"],"style_contracts":["archie/archie.css","dist/archie/archie.css"],"success_metrics":["objective_packet_completion_rate","authority_comprehension_rate","false_execution_belief_rate"]},
+    "maker": {"role":"engineering-control-room","dominant_action":"authorize-execution","density":"high-structured","personality":["precise","technical","legible","consequential"],"primary_metadata":["repository","base","lease","backend","tools","receipts"],"style_contracts":["maker/maker.css"],"success_metrics":["dispatch_completion_rate","authority_error_rate","receipt_retrieval_success_rate"]},
+    "founder": {"role":"decision-studio","dominant_action":"choose-direction","density":"editorial-comparative","personality":["bold","contrasting","tasteful","decisive"],"primary_metadata":["direction","reaction","stakes","decision"],"style_contracts":["founder/founder.css"],"success_metrics":["direction_differentiation_rate","decision_completion_rate","decision_recall_rate"]},
+    "sideways": {"role":"lived-archive","dominant_action":"save-and-discover","density":"content-first","personality":["intimate","quiet","tactile","owned"],"primary_metadata":["provenance","privacy","rank","backup","identity"],"style_contracts":["studio/manual/product/sideways-human.css"],"success_metrics":["save_and_restore_success_rate","provenance_comprehension_rate","content_readability_rate"]}
   }
 }
