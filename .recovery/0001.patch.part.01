@@ -1,0 +1,166 @@
+-      const refreshed = await this.load();
+-      learnedRoute = {
+-        sparse: predictArchiePlan(refreshed.sparse, task),
+-        planner: planWithArchieCPUPlanner(refreshed.planner, task),
+-        derivation: deriveArchiePlan(refreshed.derivation, task, this.derivationTraining)
+-      };
+-    }
++    const stored = await this.corpus.ingest(proposalRecord);
++
+     return receipt({
+       schema: ARCHIE_COGNITION_RECEIPT_SCHEMA,
+       observed_at: observedAt,
+       task_digest: digest(task),
+-      state: negative ? 'reject' : 'teacher',
+-      disposition: negative ? 'reject' : 'teacher_completed',
++      state: 'teacher',
++      disposition: 'teacher_proposed',
+       selected_route: 'budgeted-teacher',
+       ...evidence,
+       plan: teacher.plan,
+@@ -382,13 +415,74 @@ export class ArchieCognitionRuntime {
+       teacher: { ...teacher, budget_receipt: teacherCall.budget_receipt },
+       learning: {
+         corpus_receipt: stored,
++        snapshot_digest: null,
++        learned_route: null,
++        proposal_record: proposalRecord,
++        plan_digest: digest(teacher.plan)
++      }
++    });
++  }
++
++  // POK-103 gap #2 / POK-106: the only path by which a teacher proposal can
++  // become positive (or negative) training data. Requires the actual
++  // pending receipt from decide() plus the real Maker receipt produced by
++  // executing that exact plan. Rejects mismatched receipts. Idempotent:
++  // corpus.ingest() content-addresses on the normalized record, so replaying
++  // the same promotion twice trains at most once.
++  async promoteTeacherProposal(proposalReceipt, makerReceipt) {
++    if (proposalReceipt?.disposition !== 'teacher_proposed') {
++      throw new Error('promoteTeacherProposal requires a receipt with disposition "teacher_proposed".');
++    }
++    const proposal = proposalReceipt.learning?.proposal_record;
++    if (!proposal?.output) throw new Error('promoteTeacherProposal requires the original proposal_record on the receipt.');
++    const planDigest = digest(proposal.output.plan);
++    if (proposalReceipt.learning.plan_digest !== planDigest) {
++      throw new Error('promoteTeacherProposal rejected: proposal_record does not match the plan_digest on its own receipt.');
++    }
++    if (makerReceipt?.plan_digest && makerReceipt.plan_digest !== planDigest) {
++      throw new Error('promoteTeacherProposal rejected: Maker receipt plan_digest does not match the proposed plan.');
++    }
++    const verified = makerReceipt?.state === 'completed';
++    const promoted = await this.corpus.ingest({
++      kind: 'archie_cognition_teacher_promoted',
++      subject: proposal.subject,
++      input: proposal.input,
++      output: proposal.output,
++      tool_trace: proposal.tool_trace,
++      outcome: verified ? 'completed' : (clean(makerReceipt?.state, 100) || 'unknown'),
++      source: {
++        ...proposal.source,
++        maker_run_id: clean(makerReceipt?.platform_run_id || makerReceipt?.run_id || '', 300),
++        maker_receipt_digest: clean(makerReceipt?.receipt_digest || '', 200)
++      },
++      tags: verified
++        ? ['teacher-escalation', 'skill-acquisition', 'promoted-from-proposal']
++        : ['teacher-escalation', 'negative', 'suppress', 'promoted-from-proposal']
++    });
++    const learned = verified && promoted.status !== 'deduplicated' ? await this.train() : null;
++    return receipt({
++      schema: ARCHIE_COGNITION_RECEIPT_SCHEMA,
++      observed_at: new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString(),
++      task_digest: proposalReceipt.task_digest,
++      state: verified ? 'teacher' : 'reject',
++      disposition: verified ? 'teacher_completed' : 'reject',
++      selected_route: 'budgeted-teacher',
++      plan: proposal.output.plan,
++      tool_trace: proposal.tool_trace,
++      teacher: proposalReceipt.teacher,
++      learning: {
++        corpus_receipt: promoted,
+         snapshot_digest: learned?.snapshot_digest || null,
+-        learned_route: learnedRoute
++        promoted_from_record_id: stored_record_id(proposalReceipt)
+       }
+     });
+   }
+ }
+ 
++function stored_record_id(proposalReceipt) {
++  return proposalReceipt?.learning?.corpus_receipt?.record_id || null;
++}
++
+ export function createArchieCognitionRuntime(options) {
+   return new ArchieCognitionRuntime(options);
+ }
+diff --git a/scripts/overlay-vault.mjs b/scripts/overlay-vault.mjs
+new file mode 100644
+index 0000000..71a4f2e
+--- /dev/null
++++ b/scripts/overlay-vault.mjs
+@@ -0,0 +1,212 @@
++#!/usr/bin/env node
++// Overlay Vault: one append-only container for dead-run overlay state dumps.
++//
++// Replaces root-level `<name>.part.NN` / `<name>.b64.part.NNN` sprawl with a
++// single self-describing binary file (default: overlays.vault).
++//
++// Container format (SWVAULT1):
++//   magic "SWVAULT1\n"
++//   repeated records:
++//     [8-byte big-endian uint64: header length]
++//     [JSON header: {name, createdAt, sha256, bytes, encoding, files}]
++//     [payload bytes: the xz-compressed tarball, stored verbatim]
++//
++// Appending a new dead state is a pure append; no rewrite, no index to corrupt.
++//
++// Commands:
++//   pack [--root DIR] [--vault FILE]      consolidate all loose part sets
++//   add <tarball.tar.xz|dir> [--name N]   append one overlay
++//   list [--vault FILE]                   show entries
++//   verify [--vault FILE]                 re-hash every payload
++//   extract <name> [--out DIR]            write <name>.tar.xz back out
++//   restore-loose <name> [--chunk BYTES]  re-emit legacy base64 part files
++
++import { createHash } from 'node:crypto';
++import { execFileSync } from 'node:child_process';
++import fs from 'node:fs';
++import path from 'node:path';
++
++const MAGIC = Buffer.from('SWVAULT1\n');
++const XZ_MAGIC = Buffer.from([0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00]);
++const PART_RE = /^(?<name>.+?)\.(?:b64\.)?part\.(?<num>\d+)$/;
++
++const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
++
++function parseArgs(argv) {
++  const args = { _: [] };
++  for (let i = 0; i < argv.length; i++) {
++    if (argv[i].startsWith('--')) args[argv[i].slice(2)] = argv[i + 1] ?? true, i++;
++    else args._.push(argv[i]);
++  }
++  return args;
++}
++
++function discoverPartSets(root) {
++  const sets = new Map();
++  for (const entry of fs.readdirSync(root)) {
++    const m = PART_RE.exec(entry);
++    if (!m) continue;
++    const list = sets.get(m.groups.name) ?? [];
++    list.push({ file: entry, num: Number(m.groups.num) });
++    sets.set(m.groups.name, list);
++  }
++  for (const [name, list] of sets) {
++    list.sort((a, b) => a.num - b.num);
++    const nums = list.map((p) => p.num);
++    for (let i = 0; i < nums.length; i++) {
++      if (nums[i] !== i) throw new Error(`${name}: missing part ${i} (have ${nums.join(',')})`);
++    }
++  }
++  return sets;
++}
++
++function joinSet(root, list) {
++  const joined = Buffer.concat(list.map((p) => fs.readFileSync(path.join(root, p.file))));
