@@ -1,0 +1,31 @@
+name: Materialize full current source
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Archive exact base tree
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/full-source"
+          git archive --format=tar HEAD | gzip -9 > "$RUNNER_TEMP/full-source/theawesomehexapp-${{ github.event.pull_request.base.sha }}.tar.gz"
+          sha256sum "$RUNNER_TEMP/full-source"/*.tar.gz > "$RUNNER_TEMP/full-source/sha256.txt"
+          git rev-parse HEAD > "$RUNNER_TEMP/full-source/commit.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: full-current-main-${{ github.event.pull_request.base.sha }}
+          path: ${{ runner.temp }}/full-source
+          if-no-files-found: error
+          retention-days: 14
