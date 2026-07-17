@@ -117,16 +117,18 @@ function endpointTransport(mode) {
   return 'remote';
 }
 function endpointLocality(placement) {
-  const privacy = placement.worker?.placement?.privacy;
+  const privacy = placement.worker?.privacy;
   if (privacy === 'private') return 'private';
-  return ['local', 'remote', 'hybrid'].includes(placement.worker?.placement?.locality) ? placement.worker.placement.locality : 'unknown';
+  const locality = placement.worker?.endpoint?.locality;
+  return ['local', 'remote', 'hybrid'].includes(locality) ? locality : 'unknown';
 }
 
 export function buildRuntimeProfile({ route, placement, pluginAuthority, modelTask, planning = {}, clock = Date.now }) {
   const trueCapabilities = Object.entries(route.provider_descriptor?.capabilities || {})
     .filter(([, evidence]) => evidence?.value === true)
     .map(([name]) => name);
-  const modelCapabilities = unique([...trueCapabilities, ...(modelTask.required || []), ...(modelTask.preferred || [])]);
+  const routedCapabilities = route.runtime_profile?.intelligence?.capabilities || [];
+  const modelCapabilities = unique([...trueCapabilities, ...routedCapabilities, ...(modelTask.required || []), ...(modelTask.preferred || [])]);
   const mode = placement.worker.mode;
   return Object.freeze({
     runtime_id: `maker:${placement.worker_id}:${route.provider.id}`,
@@ -143,7 +145,7 @@ export function buildRuntimeProfile({ route, placement, pluginAuthority, modelTa
       ownership: endpointOwnership(mode),
       transport: endpointTransport(mode),
       locality: endpointLocality(placement),
-      capacity: placement.worker?.platform?.labels?.includes('burst') ? 'burst' : (placement.worker?.resources?.concurrency > 1 ? 'shared' : 'dedicated'),
+      capacity: placement.worker?.endpoint?.capacity || (placement.worker?.labels?.includes('burst') ? 'burst' : ((placement.worker?.concurrency?.limit || 1) > 1 ? 'shared' : 'dedicated')),
       throttling: 'bounded',
       label: `${placement.worker.mode} Maker worker`
     },
@@ -185,8 +187,8 @@ function recoverableCode(code) {
 export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugins, clock = Date.now, id = randomUUID } = {}) {
   for (const [name, value, methods] of [
     ['control', control, ['submit', 'claim', 'complete', 'fail', 'cancel', 'view', 'heartbeat']],
-    ['modelRouter', modelRouter, ['execute', 'providers']],
-    ['fleet', fleet, ['enqueue', 'scheduleNext', 'dispatch', 'heartbeat', 'finish', 'cancel']],
+    ['modelRouter', modelRouter, ['route']],
+    ['fleet', fleet, ['enqueue', 'place', 'schedule', 'heartbeat', 'complete', 'cancel', 'getWorker']],
     ['plugins', plugins, ['snapshot']]
   ]) {
     if (!value || methods.some(method => typeof value[method] !== 'function')) throw new MakerRuntimePlatformError('invalid_dependency', `${name} runtime contract is incomplete`);
@@ -226,26 +228,36 @@ export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugin
       const targetRepository = clean(request.target_repository || request.repository, 500);
       const modelTask = {
         id: clean(input.model_task?.id || `${runId}:model`, 300),
-        type: input.model_task?.type || modelTypeForMode(request.mode),
+        profile: input.model_task?.profile || input.model_task?.type || modelTypeForMode(request.mode),
         role: input.model_task?.role,
-        required: input.model_task?.required,
-        preferred: input.model_task?.preferred,
+        required_capabilities: input.model_task?.required_capabilities || input.model_task?.required,
+        preferred_capabilities: input.model_task?.preferred_capabilities || input.model_task?.preferred,
         context_tokens: input.model_task?.context_tokens,
         output_tokens: input.model_task?.output_tokens,
-        latency: input.model_task?.latency,
-        privacy_minimum: input.model_task?.privacy_minimum,
-        locality_preference: input.model_task?.locality_preference,
-        region_preference: input.model_task?.region_preference,
+        max_latency_class: input.model_task?.max_latency_class || input.model_task?.latency,
+        privacy: input.model_task?.privacy || input.model_task?.privacy_minimum,
+        locality: input.model_task?.locality || input.model_task?.locality_preference,
+        region: input.model_task?.region || input.model_task?.region_preference,
         max_cost_usd: input.model_task?.max_cost_usd,
         input_tokens: input.model_task?.input_tokens,
         output_schema: input.model_task?.output_schema
       };
-      context.route = await modelRouter.execute(modelTask, input.model_state || {}, input.model_options || {});
-      const descriptor = modelRouter.providers().find(provider => provider.id === context.route.provider.id);
-      context.route = Object.freeze({ ...context.route, provider_descriptor: descriptor ? redactPlatformSecrets(descriptor) : null });
+      const routed = await modelRouter.route({ ...modelTask, state: input.model_state || {} }, input.model_options || {});
+      const providerId = routed.provider?.id || routed.selected_provider;
+      const providerKind = routed.provider?.kind || routed.provider_kind;
+      if (!providerId || !providerKind) throw new MakerRuntimePlatformError('no_provider', 'model route did not identify a provider', 503, {}, true);
+      const routedIntelligence = routed.runtime_profile?.intelligence || {};
+      const provider = routed.provider || {
+        id: providerId,
+        kind: providerKind,
+        display_name: routedIntelligence.engine_label || 'Maker intelligence',
+        engine_label: routedIntelligence.engine_label || 'Maker intelligence',
+        admission: { admitted: routedIntelligence.admission === 'verified' }
+      };
+      context.route = Object.freeze({ ...routed, provider: Object.freeze(provider), provider_descriptor: null });
 
       fleetTaskId = clean(input.fleet_task?.id || `${runId}:fleet`, 300);
-      fleet.enqueue({
+      const fleetTask = {
         id: fleetTaskId,
         repository: targetRepository,
         owner: input.fleet_task?.owner,
@@ -256,10 +268,14 @@ export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugin
         preferences: input.fleet_task?.preferences || {},
         retry: input.fleet_task?.retry || {},
         reservation: input.fleet_task?.reservation || 'normal',
+        state: redactPlatformSecrets({ platform_run_id: runId, model_route_digest: context.route.receipt_digest }),
         created_at: new Date(clock()).toISOString()
-      });
-      context.placement = fleet.scheduleNext();
-      if (!context.placement) throw new MakerRuntimePlatformError('capacity_unavailable', 'no worker placement was produced', 503, {}, true);
+      };
+      fleet.enqueue(fleetTask);
+      const plannedPlacement = fleet.place(fleetTask);
+      const selectedWorker = fleet.getWorker(plannedPlacement.worker_id);
+      if (!selectedWorker) throw new MakerRuntimePlatformError('capacity_unavailable', 'selected worker disappeared before claim', 503, { worker_id: plannedPlacement.worker_id }, true);
+      context.placement = Object.freeze({ ...plannedPlacement, worker: selectedWorker, workspace: { isolation: selectedWorker.isolation?.container ? 'container' : 'process' } });
 
       context.pluginSnapshot = plugins.snapshot();
       const requiredAuthority = unique(request.runtime_requirements?.authority || input.required_authority);
@@ -273,7 +289,7 @@ export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugin
         route: context.route,
         placement: context.placement,
         pluginAuthority: context.pluginAuthority,
-        modelTask: { ...modelTask, role: modelTask.role || ({ planning: 'planner', repository_mapping: 'mapper', coding: 'implementer', debugging: 'debugger', review: 'reviewer', summarization: 'summarizer', browser_interpretation: 'browser', grading: 'grader' })[modelTask.type] || 'implementer' },
+        modelTask: { ...modelTask, required: modelTask.required_capabilities, preferred: modelTask.preferred_capabilities, role: modelTask.role || ({ planning: 'planner', repository_mapping: 'mapper', coding: 'implementer', debugging: 'debugger', review: 'reviewer', summarization: 'summarizer', browser_interpretation: 'browser', grading: 'grader' })[modelTask.profile] || 'implementer' },
         planning: input.planning || {},
         clock
       });
@@ -295,19 +311,18 @@ export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugin
       if (!controlClaim || controlClaim.id !== context.controlJob.id) throw new MakerRuntimePlatformError('control_claim_failed', 'selected runtime could not claim the durable job', 409, {}, true);
       context.controlJob = controlClaim;
 
-      context.dispatch = await fleet.dispatch(context.placement, {
-        platform_run_id: runId,
-        job_id: context.controlJob.id,
-        request: context.controlRequest,
-        model_route: context.route,
-        authority: context.pluginAuthority
-      });
-      if (!context.dispatch.ok) {
+      const execution = await fleet.schedule();
+      if (!execution || execution.placement?.worker_id !== context.placement.worker_id) {
+        throw new MakerRuntimePlatformError('capacity_unavailable', 'admitted placement was not the scheduled execution', 503, { expected_worker_id: context.placement.worker_id, observed_worker_id: execution?.placement?.worker_id }, true);
+      }
+      context.placement = Object.freeze({ ...execution.placement, worker: selectedWorker, workspace: { isolation: selectedWorker.isolation?.container ? 'container' : 'process' } });
+      context.dispatch = execution.dispatch || null;
+      if (execution.state === 'dispatch_failed' || !context.dispatch?.ok) {
         const error = new MakerRuntimePlatformError(
-          context.dispatch.error?.code || 'dispatch_failed',
-          context.dispatch.error?.message || 'worker dispatch failed',
+          execution.error?.code || context.dispatch?.error?.code || 'dispatch_failed',
+          execution.error?.message || context.dispatch?.error?.message || 'worker dispatch failed',
           502,
-          { adapter: context.dispatch.adapter },
+          { mode: context.dispatch?.mode || selectedWorker.mode },
           input.dispatch_recoverable !== false
         );
         context.controlJob = await control.fail(context.controlJob.id, controlClaim.lease.token, error);
@@ -317,7 +332,7 @@ export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugin
       }
 
       await control.heartbeat(context.controlJob.id, controlClaim.lease.token);
-      fleet.heartbeat(fleetTaskId, context.placement.lease.fencing_token);
+      fleet.heartbeat(fleetTaskId, execution.lease.token, execution.lease.fence);
       const result = context.dispatch.output?.result ?? context.dispatch.output ?? {};
       context.controlJob = await control.complete(context.controlJob.id, controlClaim.lease.token, {
         ...redactPlatformSecrets(result),
@@ -326,16 +341,21 @@ export function createMakerRuntimePlatform({ control, modelRouter, fleet, plugin
         placement_digest: context.placement.receipt_digest,
         plugin_registry_digest: context.pluginSnapshot.receipt_digest
       });
-      context.fleetResult = fleet.finish(fleetTaskId, context.placement.lease.fencing_token, {
+      context.fleetResult = fleet.complete(fleetTaskId, execution.lease.token, execution.lease.fence, {
         cost_usd: context.dispatch.output?.cost_usd ?? 0,
-        result_digest: platformDigest(result)
+        references: { result_digest: platformDigest(result) },
+        detail: redactPlatformSecrets(result)
       });
       context.presentation = await control.view(context.controlJob.id);
       return receipt(runId, 'completed', context);
     } catch (caught) {
+      const compatibilityCode = ({
+        unverified_identity: 'unverified_capacity',
+        external_infrastructure_blocker: 'adapter_unavailable'
+      })[caught?.code] || caught?.code || 'platform_failed';
       const error = caught instanceof MakerRuntimePlatformError
         ? caught
-        : new MakerRuntimePlatformError(clean(caught.code || 'platform_failed', 100), clean(caught.message || 'platform failed', 2000), caught.status || 500, caught.detail || {}, recoverableCode(caught.code));
+        : new MakerRuntimePlatformError(clean(compatibilityCode, 100), clean(caught.message || 'platform failed', 2000), caught.status || 500, caught.detail || {}, recoverableCode(compatibilityCode));
       if (context.controlJob) {
         try {
           const current = await control.get(context.controlJob.id);
