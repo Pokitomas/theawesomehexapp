@@ -224,4 +224,27 @@ test('empty corpus uses exact repository evidence and promotes a teacher plan on
 
   const replay = await rememberNativeMakerRun({ repoRoot: repository, receipt: completed, home, env: {}, clock: () => '2026-07-17T20:07:00.000Z', training });
   assert.equal(replay.status, 'deduplicated');
+
+  const mismatched = await rememberNativeMakerRun({
+    repoRoot: repository,
+    receipt: { ...completed, session_id: 'native-teacher-mismatch', plan: { ...completed.plan, title: 'Mismatched plan' } },
+    home,
+    env: {},
+    clock: () => '2026-07-17T20:08:00.000Z',
+    training
+  });
+  assert.equal(mismatched.status, 'failed');
+  assert.match(mismatched.error, /pending plan mismatch/);
+
+  const failed = await rememberNativeMakerRun({
+    repoRoot: repository,
+    receipt: { ...completed, session_id: 'native-teacher-failed', state: 'failed', head_sha: null, verification: [], writer_summary: 'Writer or verification failed.' },
+    home,
+    env: {},
+    clock: () => '2026-07-17T20:09:00.000Z',
+    training
+  });
+  assert.equal(failed.status, 'stored');
+  assert.equal(failed.learning_disposition, 'negative-evidence-recorded');
+  assert.ok(failed.negative_document_count >= 1);
 });
