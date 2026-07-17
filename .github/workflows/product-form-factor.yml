@@ -35,4 +35,4 @@ jobs:
           node --check archie/archie.js
           node --check dist/archie/archie.js
       - name: Verify no accidental diff damage
-        run: git diff --check HEAD^
+        run: git diff --check
