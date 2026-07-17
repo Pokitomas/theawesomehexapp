@@ -41,7 +41,7 @@ export function inspectOperationsReality({ root = defaultRoot, observedAt = new 
   const repositoryFacts = [
     inspectFile(root, 'pages_workflow_least_privilege', '.github/workflows/pages.yml', ['permissions:\n  contents: read', 'pages: write', 'id-token: write', 'issues: write', 'persist-credentials: false']),
     inspectFile(root, 'pages_exact_commit_verification', '.github/workflows/pages.yml', ['actions/deploy-pages@', 'Verify deployed commit identity', 'deployment-receipt.cjs verify-live', 'Upsert successful deployment receipt']),
-    inspectFile(root, 'deployment_sentinel_contract', 'scripts/deployment-receipt.cjs', ['write-sentinel', 'verify-live', 'sideways-deployment.json']),
+    inspectFile(root, 'deployment_sentinel_contract', 'scripts/deployment-receipt.cjs', ['write-sentinel', 'verify-live', 'archie-deployment.json', "product_root: 'founder'"]),
     inspectFile(root, 'relational_schema_bootstrap', 'netlify/functions/social-entrypoint-core.mjs', ['ensureSocialSchema', 'schemaReady ||=', 'Social database schema is unavailable.']),
     inspectFile(root, 'relational_migration_runner', 'netlify/functions/social-postgres-migrations.mjs', ['social_schema_migrations', 'pg_advisory']),
     inspectFile(root, 'whole_repository_verification', 'scripts/verify-repository.mjs', ['audit/repository-verification.json', 'checked_head_sha', 'candidate_head_sha']),
