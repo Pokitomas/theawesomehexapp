@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 import { extractNativeMakerReceipt } from '../maker-archie-launch.mjs';
 import {
   nativeMakerReceiptForCorpus,
@@ -12,10 +14,28 @@ import {
   resolveNativeArchiePaths
 } from '../maker-archie-native.mjs';
 
+const execFileAsync = promisify(execFile);
+
 async function tempRoot(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-native-test-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   return root;
+}
+
+async function initEvidenceRepository(repository) {
+  await fs.mkdir(path.join(repository, 'scripts', 'tests'), { recursive: true });
+  await Promise.all([
+    fs.writeFile(path.join(repository, 'package.json'), `${JSON.stringify({ scripts: { 'test:archie': 'node --test scripts/tests/maker-archie-native.test.mjs' } }, null, 2)}\n`),
+    fs.writeFile(path.join(repository, 'scripts', 'maker-archie-native.mjs'), 'export const native = true;\n'),
+    fs.writeFile(path.join(repository, 'scripts', 'maker-archie-launch.mjs'), 'export const launch = true;\n'),
+    fs.writeFile(path.join(repository, 'scripts', 'tests', 'maker-archie-native.test.mjs'), 'export const testFixture = true;\n')
+  ]);
+  await execFileAsync('git', ['init'], { cwd: repository });
+  await execFileAsync('git', ['config', 'user.name', 'Archie Test'], { cwd: repository });
+  await execFileAsync('git', ['config', 'user.email', 'archie-test@example.invalid'], { cwd: repository });
+  await execFileAsync('git', ['add', '.'], { cwd: repository });
+  await execFileAsync('git', ['commit', '-m', 'fixture'], { cwd: repository });
+  return String((await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repository })).stdout).trim();
 }
 
 function makerPlan() {
@@ -121,13 +141,12 @@ test('stores a successful native Maker plan and recalls it locally on the repeat
   assert.equal(normalizeReusableMakerPlan({ title: 'incomplete' }), null);
 });
 
-test('empty Archie corpus escalates once to the bounded OpenAI teacher and seeds local learning', async t => {
+test('empty corpus uses exact repository evidence and promotes a teacher plan only after verified Maker completion', async t => {
   const root = await tempRoot(t);
   const repository = path.join(root, 'repository');
   const home = path.join(root, 'home');
-  await fs.mkdir(repository, { recursive: true });
+  const baseSha = await initEvidenceRepository(repository);
   const request = 'Replace intermediary sprawl with one dense Archie reasoning path.';
-  const baseSha = 'a'.repeat(40);
   const priorFetch = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: true,
@@ -145,6 +164,7 @@ test('empty Archie corpus escalates once to the bounded OpenAI teacher and seeds
   });
   t.after(() => { globalThis.fetch = priorFetch; });
 
+  const training = { dimensions: 512, threshold: 0.05, minimum_margin: 0.01 };
   const taught = await recallNativeMakerPlan({
     repoRoot: repository,
     request,
@@ -153,7 +173,7 @@ test('empty Archie corpus escalates once to the bounded OpenAI teacher and seeds
     home,
     env: { OPENAI_API_KEY: 'sk-test-abcdefghijklmnopqrstuvwxyz' },
     clock: () => '2026-07-17T20:00:00.000Z',
-    training: { dimensions: 512, threshold: 0.05, minimum_margin: 0.01 }
+    training
   });
 
   assert.equal(taught.status, 'teacher');
@@ -161,10 +181,47 @@ test('empty Archie corpus escalates once to the bounded OpenAI teacher and seeds
   assert.equal(taught.execution_eligible, true);
   assert.equal(taught.execution_basis.kind, 'fresh-bounded-teacher-plan');
   assert.equal(taught.teacher_receipt.response_id, 'resp_native_teacher');
+  assert.equal(taught.teacher_receipt.repository_evidence_digest, taught.repository_evidence_digest);
   assert.equal(taught.plan.selected_lane, 'operator');
 
   const paths = resolveNativeArchiePaths(repository, { home, env: {} });
-  const stored = JSON.parse(await fs.readFile(paths.model_path, 'utf8'));
-  assert.equal(stored.document_count, 1);
-  assert.equal(stored.specialist_count, 1);
+  await assert.rejects(fs.access(paths.model_path), error => error?.code === 'ENOENT');
+  const proposalLines = (await fs.readFile(path.join(paths.root, 'records.jsonl'), 'utf8')).trim().split(/\r?\n/);
+  assert.equal(proposalLines.length, 1);
+  await assert.rejects(fs.access(path.join(paths.root, 'examples.jsonl')), error => error?.code === 'ENOENT');
+
+  const completed = {
+    schema: 'sideways-maker-run/v2',
+    request,
+    session_id: 'native-teacher-completed',
+    state: 'completed',
+    selected_lane: 'operator',
+    branch: 'maker/teacher-completed',
+    base_sha: baseSha,
+    head_sha: 'b'.repeat(40),
+    verification: ['node --test scripts/tests/maker-archie-native.test.mjs'],
+    writer_summary: 'Teacher plan completed and independently verified.',
+    plan: taught.plan,
+    archie_decision: {
+      specialist_id: taught.specialist_id,
+      confidence: taught.confidence,
+      margin: taught.margin,
+      model_digest: taught.model_digest,
+      plan_digest: taught.teacher_receipt.plan_digest,
+      execution_basis: taught.execution_basis
+    }
+  };
+  const promoted = await rememberNativeMakerRun({ repoRoot: repository, receipt: completed, home, env: {}, clock: () => '2026-07-17T20:05:00.000Z', training });
+  assert.equal(promoted.status, 'stored');
+  assert.equal(promoted.learning_disposition, 'teacher-proposal-promoted-after-verification');
+  assert.equal(promoted.document_count, 1);
+  assert.equal(promoted.specialist_count, 1);
+
+  const recalled = await recallNativeMakerPlan({ repoRoot: repository, request, baseSha, home, env: {}, clock: () => '2026-07-17T20:06:00.000Z', training });
+  assert.equal(recalled.status, 'local');
+  assert.equal(recalled.execution_eligible, true);
+  assert.equal(recalled.execution_basis.kind, 'normalized-exact-verified-recurrence');
+
+  const replay = await rememberNativeMakerRun({ repoRoot: repository, receipt: completed, home, env: {}, clock: () => '2026-07-17T20:07:00.000Z', training });
+  assert.equal(replay.status, 'deduplicated');
 });
