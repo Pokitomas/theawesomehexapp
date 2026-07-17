@@ -9,6 +9,7 @@ import {
 } from '../archie-trajectory.mjs';
 
 const sha = value => crypto.createHash('sha256').update(String(value)).digest('hex');
+const git = value => sha(value).slice(0, 40);
 
 function admittedTrajectory(overrides = {}) {
   const request = 'Update one file and run its focused test.';
@@ -18,9 +19,9 @@ function admittedTrajectory(overrides = {}) {
     provenance: {
       repository: 'Pokitomas/fixture',
       branch: 'archie-neural-contracts',
-      base_sha: sha('base'),
-      head_sha: sha('head'),
-      code_commit: sha('head'),
+      base_sha: git('base'),
+      head_sha: git('head'),
+      code_commit: git('head'),
       request_digest: sha(request),
       plan_digest: sha('plan'),
       patch_digest: sha('patch'),
@@ -58,8 +59,8 @@ test('completed trajectory without patch evidence is rejected', () => {
     provenance: {
       repository: 'Pokitomas/fixture',
       branch: 'archie-neural-contracts',
-      base_sha: sha('base'),
-      head_sha: sha('head'),
+      base_sha: git('base'),
+      head_sha: git('head'),
       request_digest: sha('Update one file and run its focused test.')
     }
   });
@@ -88,8 +89,8 @@ test('Maker receipts compile into ordered provenance-bound trajectories', () => 
     repository: 'Pokitomas/fixture',
     branch: 'main',
     request,
-    base_sha: sha('base'),
-    head_sha: sha('head'),
+    base_sha: git('base'),
+    head_sha: git('head'),
     patch_digest: sha('patch'),
     plan: { steps: [{ tool: 'files', action: 'write' }] },
     verification: ['node --test passed'],
