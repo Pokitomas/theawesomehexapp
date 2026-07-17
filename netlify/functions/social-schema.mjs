@@ -4,6 +4,7 @@ export const SOCIAL_VERSION = 1;
 export const SESSION_COOKIE = 'sideways_session';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const MAX_FEED = 80;
+export const MAX_MUTATION_BODY_BYTES = 64 * 1024;
 export const COLORS = new Set(['#335cff', '#2f7d64', '#b24d6b', '#8a5b24', '#6554c0', '#24262b']);
 export const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 
@@ -79,10 +80,41 @@ export function assertSameOriginMutation(request) {
   if (site && !['same-origin', 'same-site', 'none'].includes(site)) throw fail(403, 'Cross-site mutation rejected.');
 }
 
+export async function readBoundedBody(request, maximumBytes = MAX_MUTATION_BODY_BYTES) {
+  const declaredLength = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
+    throw fail(413, 'Request is too large.');
+  }
+  if (!request.body) return Buffer.alloc(0);
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > maximumBytes) {
+        try { void reader.cancel().catch(() => {}); } catch {}
+        throw fail(413, 'Request is too large.');
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+  return Buffer.concat(chunks, total);
+}
+
 export async function jsonBody(request) {
-  const length = Number(request.headers.get('content-length') || 0);
-  if (length > 64 * 1024) throw fail(413, 'Request is too large.');
-  return request.json().catch(() => { throw fail(400, 'Valid JSON required.'); });
+  const body = await readBoundedBody(request);
+  try {
+    return JSON.parse(body.toString('utf8'));
+  } catch {
+    throw fail(400, 'Valid JSON required.');
+  }
 }
 
 export function response(status, body = {}, headers = {}) {

@@ -1,6 +1,41 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMemoryStore, createSocialService } from '../../netlify/functions/social-core.mjs';
+import { MAX_MUTATION_BODY_BYTES } from '../../netlify/functions/social-schema.mjs';
+
+function registrationBodyAtSize(size, handle) {
+  const body = {
+    name: 'Bounded account',
+    handle,
+    password: 'correct horse battery staple',
+    padding: ''
+  };
+  const paddingBytes = size - Buffer.byteLength(JSON.stringify(body));
+  assert.ok(paddingBytes >= 0);
+  body.padding = 'x'.repeat(paddingBytes);
+  const serialized = JSON.stringify(body);
+  assert.equal(Buffer.byteLength(serialized), size);
+  return serialized;
+}
+
+function streamedRequest(op, serialized, chunkSize = 16 * 1024) {
+  const encoder = new TextEncoder();
+  let offset = 0;
+  const body = new ReadableStream({
+    pull(controller) {
+      if (offset >= serialized.length) return controller.close();
+      const end = Math.min(serialized.length, offset + chunkSize);
+      controller.enqueue(encoder.encode(serialized.slice(offset, end)));
+      offset = end;
+    }
+  });
+  return new Request(`https://sideways.test/api/social?op=${op}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+    duplex: 'half'
+  });
+}
 
 function client(service) {
   let cookie = '';
@@ -137,4 +172,36 @@ test('mutations reject a cross-origin request', async () => {
     body: JSON.stringify({ name: 'X', handle: 'xx', password: '12345678' })
   }));
   assert.equal(response.status, 403);
+});
+
+test('registration enforces the byte limit without trusting content-length', async () => {
+  const store = createMemoryStore();
+  const service = createSocialService({ store });
+
+  const oversized = await service(streamedRequest(
+    'register',
+    registrationBodyAtSize(MAX_MUTATION_BODY_BYTES + 1, 'oversized')
+  ));
+  assert.equal(oversized.status, 413);
+  assert.deepEqual(await oversized.json(), { error: 'Request is too large.' });
+  assert.equal(store.snapshot().size, 0);
+
+  const declaredOversized = await service(new Request('https://sideways.test/api/social?op=register', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'content-length': String(MAX_MUTATION_BODY_BYTES + 1)
+    },
+    body: '{}'
+  }));
+  assert.equal(declaredOversized.status, 413);
+  assert.equal(store.snapshot().size, 0);
+
+  const boundary = await service(new Request('https://sideways.test/api/social?op=register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: registrationBodyAtSize(MAX_MUTATION_BODY_BYTES, 'boundary')
+  }));
+  assert.equal(boundary.status, 201);
+  assert.equal((await boundary.json()).account.handle, 'boundary');
 });
