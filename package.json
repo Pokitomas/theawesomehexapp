@@ -41,7 +41,7 @@
     "test:archie:device-evidence": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
     "test:archie:phone": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
     "test:archie:install": "node --test scripts/tests/maker-archie-install.test.mjs",
-    "test:archie:distill": "node --test scripts/tests/archie-distill-pipeline.test.mjs",
+    "test:archie:distill": "python3 foundry/archie-distill/test_train_contract.py && node --test scripts/tests/archie-distill-pipeline.test.mjs",
     "test:archie:workspace": "node --test scripts/tests/archie-workspace-substrate.test.mjs",
     "test:frontier-expo": "node --test scripts/tests/frontier-world-expo.test.mjs",
     "test:frontier-surface": "node --test scripts/tests/frontier-surface-assembly.test.mjs",
