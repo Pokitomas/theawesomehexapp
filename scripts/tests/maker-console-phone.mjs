@@ -101,7 +101,7 @@ try {
   await openDetails('Observed Archie runtime receipt');
   await page.waitForFunction(() => document.querySelector('#archie-compute')?.textContent.includes('unavailable until observed'));
   proof.executionTruthVisible = await page.locator('text=Task author only').count() > 0
-    && await page.locator('text=One leased branch').count() > 0
+    && /required before first write/i.test(await page.locator('#lease-state').innerText())
     && (await page.locator('#tool-state').innerText()).includes('rollback');
   if (!proof.executionTruthVisible) throw new Error('execution truth is not visible after opening advanced controls');
   proof.archieDefaultTruth = await page.locator('#archie-sparse').innerText() === 'Unobserved'
