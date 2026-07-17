@@ -10,11 +10,16 @@ on:
       - 'scripts/archie-runtime-core.mjs'
       - 'scripts/archie-distill-core.mjs'
       - 'scripts/archie-distill.mjs'
+      - 'scripts/archie-workspace-core.mjs'
+      - 'scripts/archie-workspace-service.mjs'
+      - 'scripts/archie-workspace.mjs'
       - 'scripts/tests/archie-distill-pipeline.test.mjs'
+      - 'scripts/tests/archie-workspace-substrate.test.mjs'
       - 'scripts/tests/maker-archie-install.test.mjs'
       - 'foundry/archie-distill/**'
       - 'maker/evaluations/archie-distill-qwen3-quality.json'
-      - 'maker/contracts/archie-distill-profile.schema.json'
+      - 'maker/contracts/archie-*.schema.json'
+      - 'ARCHIE_WORKSPACES.md'
       - '.github/workflows/archie-windows-install.yml'
   push:
     branches: [main]
@@ -42,6 +47,8 @@ jobs:
         run: npm.cmd run test:archie:install
       - name: Verify distillation contracts
         run: npm.cmd run test:archie:distill
+      - name: Verify native workspace contracts
+        run: npm.cmd run test:archie:workspace
       - name: Pack, globally install, and launch like a user
         shell: pwsh
         run: |
@@ -50,6 +57,7 @@ jobs:
           $archive = Join-Path $PWD $package[0].filename
           $installRoot = Join-Path $env:RUNNER_TEMP 'archie-global'
           $archieHome = Join-Path $env:RUNNER_TEMP 'archie-home'
+          $workspaceRoot = Join-Path $env:RUNNER_TEMP 'archie-workspaces'
           npm.cmd install --global --prefix $installRoot $archive
           $archie = Join-Path $installRoot 'archie.cmd'
           if (!(Test-Path -LiteralPath $archie)) { throw "Archie command missing: $archie" }
@@ -60,4 +68,9 @@ jobs:
           if ($state.installed_artifacts.Count -ne 0) { throw 'Clean install inherited model state.' }
           $screen = & $archie --no-color --home $archieHome
           if (($screen -join "`n") -notmatch 'LOCAL WORLD') { throw 'First-launch screen is missing.' }
+          $demo = (& $archie workspace demo --root $workspaceRoot | ConvertFrom-Json)
+          if ($demo.schema -ne 'archie-workspace-demo-result/v1') { throw 'Native workspace demo did not complete.' }
+          if (!$demo.head_digest -or !$demo.rollback_id) { throw 'Native workspace demo lacks evidence or rollback.' }
+          $public = (& $archie workspace inspect $demo.workspace_id --root $workspaceRoot | ConvertFrom-Json)
+          if ($public.workspace.visibility -ne 'public') { throw 'Anonymous public workspace inspection failed.' }
           & $archie list --home $archieHome
