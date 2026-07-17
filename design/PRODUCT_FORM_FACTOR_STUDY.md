@@ -21,6 +21,7 @@ The corpus deliberately spans consumer platforms, public services, developer too
 - Microsoft Fluent 2: platform-natural behavior, adaptive layout, hierarchy through spacing, predictable navigation, concise content, visible focus, and reflow without loss. Sources: https://fluent2.microsoft.design/design-principles , https://fluent2.microsoft.design/layout , and https://fluent2.microsoft.design/accessibility
 - GitHub Primer: cohesive familiar metaphors, accessibility from the start, responsive efficiency, compact productive interaction, semantic structure, and explicit focus management. Sources: https://primer.style/product/getting-started/ , https://primer.style/accessibility/foundations/accessibility-at-github/ , and https://primer.style/accessibility/design-guidance/
 - IBM Carbon: intentional spacing as hierarchy, repeatable spatial tokens, linear cognitive paths, and reduced cognitive load. Sources: https://carbondesignsystem.com/guidelines/spacing/overview/ and https://carbondesignsystem.com/guidelines/accessibility/overview/
+- Atlassian Design System: reusable foundations for tokens, accessible content, spacing, grid, typography, and consistent components. Source: https://atlassian.design/foundations
 
 ### Public-service and standards systems
 
@@ -51,6 +52,16 @@ software ambition
 Form factor is a mediator between capability and behavior. It cannot rescue weak software, but it can expose or conceal capability, shorten or lengthen the path to completion, prevent or induce authority mistakes, and determine whether users can recover. A form factor is successful when it minimizes the distance between intent and verified completion without concealing uncertainty, authority, cost, or failure.
 
 The product family is therefore rejected if it converges on one fashionable shell. Shared accessibility and spacing laws are infrastructure; personality, density, color, radius, motion, and disclosure must follow the work.
+
+## Evaluation hypotheses
+
+The corpus produces hypotheses with named success proxies rather than aesthetic certainty. The canonical machine-readable versions live under `causal_model.evaluation_hypotheses`.
+
+- **Task–form fit:** task-matched hierarchy and density should reduce orientation and mode-switch cost. Measure time to primary action, completion, and wrong-surface navigation.
+- **Authority legibility:** visible capability, authority, and receipt boundaries should reduce false-completion belief. Measure authority comprehension, false completion, and proof inspection.
+- **Progressive evidence:** primary work should remain prominent while evidence stays retrievable. Measure completion, evidence-retrieval success, and primary-action time.
+- **Responsive operability:** complete reflow and visible focus should preserve task success across phone, zoom, keyboard, and touch. Measure overflow, keyboard completion, touch error, and zoom-reflow failure.
+- **Product recognition:** distinct visual languages should communicate role and consequence before action. Measure five-second role identification and cross-product action error.
 
 ## Product personalities and success vectors
 
@@ -103,6 +114,17 @@ All products share:
 - local recovery and visible destructive-action boundaries;
 - progressive disclosure for receipts and machine metadata;
 - product-specific color, radius, density, and motion rather than one reskinned template.
+
+## Executable style contracts
+
+The metadata binds each role to its tracked source of visual truth:
+
+- Archie: `archie/archie.css` and byte-identical deployed parity at `dist/archie/archie.css`.
+- Maker: `maker/maker.css`.
+- Founder: `founder/founder.css`.
+- Sideways: `studio/manual/product/sideways-human.css`, applied as the final ordinary-user presentation layer.
+
+The regression gate verifies that every contract exists, remains distinct, and stays associated with the intended product role and success metrics.
 
 ## Admission tests
 
