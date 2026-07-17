@@ -30,6 +30,7 @@ SOCIAL_STYLE_MARKER = '<link rel="stylesheet" href="./social-client.css" data-so
 REMOTE_STYLE_MARKER = '<link rel="stylesheet" href="./remote-terminal.css" data-remote-terminal>'
 SURVIVAL_STYLE_MARKER = '<link rel="stylesheet" href="./survival-ledger.css" data-survival-ledger>'
 HUMAN_STYLE_MARKER = '<link rel="stylesheet" href="./sideways-human.css" data-sideways-human>'
+INDIE_STYLE_MARKER = '<link rel="stylesheet" href="./sideways-indie.css" data-sideways-indie>'
 REMOTE_SERVICE_MARKER = '<link rel="service-desc" href="./.well-known/sideways-remote.json" type="application/json" data-sideways-remote>'
 SCRIPT_MARKER = '<script type="module" src="./studio.js" data-studio-product></script>'
 WORKSPACE_SCRIPT_MARKER = '<script type="module" src="./workspace-ui.js" data-workspace-product></script>'
@@ -105,9 +106,10 @@ def remove_retired_social(text: str) -> str:
 def place_human_layer_last() -> None:
     index = MANUAL / "index.html"
     text = index.read_text(encoding="utf-8")
-    for marker in (HUMAN_STYLE_MARKER, HUMAN_SCRIPT_MARKER):
+    for marker in (HUMAN_STYLE_MARKER, INDIE_STYLE_MARKER, HUMAN_SCRIPT_MARKER):
         text = text.replace(f"  {marker}\n", "").replace(marker, "")
     text = inject_once(text, HUMAN_STYLE_MARKER, "</head>")
+    text = inject_once(text, INDIE_STYLE_MARKER, "</head>")
     text = inject_once(text, HUMAN_SCRIPT_MARKER, "</body>")
     index.write_text(text, encoding="utf-8")
 
@@ -181,7 +183,7 @@ def main() -> None:
         "studio.css", "studio-components.css", "studio-reset.css", "workspace.css", "card-layout.css",
         "workspace-chrome.css", "workspace-chrome-polish.css", "future-media.css", "future-media-polish.css",
         "future-media-final.css", "future-media-mobile.css", "frontier.css", "social-client.css",
-        "remote-terminal.css", "survival-ledger.css", "sideways-human.css", "studio.js", "copy.js", "starter-pack.js", "actions.js",
+        "remote-terminal.css", "survival-ledger.css", "sideways-human.css", "sideways-indie.css", "studio.js", "copy.js", "starter-pack.js", "actions.js",
         "workspace-db.js", "workspace-profile.js", "workspace-records.js", "network-records.js",
         "workspace-migration.js", "survival-ledger.js", "workspace.js", "workspace-ui.js", "core-actions.js",
         "workspace-chrome.js", "universal-media.js", "media-modes.js", "frontier.js", "social-client.js",
@@ -203,7 +205,7 @@ def main() -> None:
         STYLE_MARKER, COMPONENT_STYLE_MARKER, RESET_STYLE_MARKER, WORKSPACE_STYLE_MARKER, CARD_LAYOUT_STYLE_MARKER,
         CHROME_STYLE_MARKER, CHROME_POLISH_STYLE_MARKER, FUTURE_MEDIA_STYLE_MARKER, FUTURE_MEDIA_POLISH_STYLE_MARKER,
         FUTURE_MEDIA_FINAL_STYLE_MARKER, FUTURE_MEDIA_MOBILE_STYLE_MARKER, FRONTIER_STYLE_MARKER, SOCIAL_STYLE_MARKER,
-        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, HUMAN_STYLE_MARKER, REMOTE_SERVICE_MARKER,
+        REMOTE_STYLE_MARKER, SURVIVAL_STYLE_MARKER, HUMAN_STYLE_MARKER, INDIE_STYLE_MARKER, REMOTE_SERVICE_MARKER,
     ):
         text = inject_once(text, marker, "</head>")
     for marker in (
@@ -224,7 +226,7 @@ def main() -> None:
         runpy.run_path(str(IMPORT_INSTALLER), run_name="__main__")
 
     place_human_layer_last()
-    print("applied local ownership, public social projection, Ark recovery, human Sideways presentation, and separated developer surfaces")
+    print("applied local ownership, public social projection, Ark recovery, indie human presentation, and separated developer surfaces")
 
 
 if __name__ == "__main__":
