@@ -1,119 +1,134 @@
 # Product Portfolio Constitution
 
-This is the commercial and product-allocation companion to `product/product-portfolio.json` and `scripts/product-portfolio.mjs`. It decides what each surviving surface is, who it is for, why it deserves investment, what gets merged or demoted, and what evidence must exist before stronger market claims are allowed.
+This repository contains one attempted general-intelligence product family, two human power surfaces, one evidence ground, and replaceable programs created by the system.
 
-The dollar ranges are planning hypotheses for this exact repository state. They are not an appraisal, financing promise, acquisition offer, or claim that unfinished research already has product-market fit.
+The dollar ranges are planning hypotheses, not appraisals or capability claims. The repository does not yet contain an independently admitted generally capable Archie model.
 
 ## The decision
 
-There are **two commercial product families**, not six unrelated apps.
+There is **one commercial family: Archie**.
 
-1. **Archie + Maker** are one intelligence-and-execution family. Archie owns ambition, context, continuity, coordination, learning proposals, and capability selection. Maker owns bounded mutation, exact-base work, verification, receipts, delivery, and rollback. They may remain different surfaces because they serve different moments, but they should not be funded, marketed, or valued as unrelated companies.
-2. **Sideways** is the independent consumer product. The public root and `/manual/` are two entrances to one promise: discover through the world, then keep and shape your own world.
+- **Founder** is the public human invention surface. A person says one unfinished thing in their own language and begins a whole-system turn without learning developer workflow.
+- **Archie** owns the objective, independent world model, unfamiliar-domain research, capability invention, continuity, and coordination.
+- **Maker** owns permissioned consequence, verification, repair, delivery, and rollback. It is mostly invisible during ordinary use.
+- **Foundry** is the human-operated training and capability-research cockpit. It gives ordinary humans powers previously reserved for model labs: large token and compute allocation, speculative campaigns, candidate comparison, evidence inspection, and release admission.
+- **Expo** is the anti-convergence research ground. It keeps capability and embodiment research from collapsing into familiar software and blocks promotion until exact evidence exists.
+- **Ordinary programs** are outputs. A site, game, archive, social tool, research portal, or entirely new form may be created and replaced without becoming part of Archie’s identity or memory.
 
-**Founder is not a standalone product.** It remains a cheap internal instrument for exposing competing directions, preserving rationale, and feeding the next experiment.
+The former Sideways implementation is no longer a product family, consumer identity, memory system, training database, or privileged architecture component. Its code may remain as historical sample material and a regression target.
 
-**Expo is a research preview.** `/world-expo/` makes the deterministic campaign, twelve commissions, six contradictory candidate roles, evidence law, and blocked promotion state visible. It is not evidence that a visual, audio, speech, music, or persistent-world candidate has passed.
-
-Capital allocation:
+## Capital allocation
 
 | Area | Share | Reason |
 |---|---:|---|
-| Archie + Maker | 55% | Largest upside and deepest technical moat, with the largest remaining intelligence and reliability gap. |
-| Sideways | 30% | Strongest current consumer-shaped product and fastest route to measured retention and paid demand. |
-| Expo evidence | 12% | Funds real exhibits, physical-device traces, and independent promotion without treating the shell as capability. |
-| Founder instrument | 3% | Keep it useful, local, and cheap; do not build a company around it. |
+| Archie intelligence | 35% | Highest-ceiling capability work and largest empirical gap. |
+| Foundry research subsidy | 35% | Aggressive speculative training, operators, evaluators, candidate generation, and independent admission. |
+| Maker execution | 20% | Convert intelligence into safe, verified consequence across tools and environments. |
+| Founder human surface | 5% | Keep human access offensively simple rather than building another developer console. |
+| Expo evidence | 5% | Preserve radical form diversity and exact multimodal promotion evidence. |
 
-## Every live path has one job
+Research should spend generously when resources are available. Exploration is broad; promotion and claims remain fail-closed.
 
-| Path | What it is | Use it for | Who it is for |
-|---|---|---|---|
-| `/` | Sideways public discovery | Find public material through transparent ranking and enter the owned archive. | Curious readers, community members, and research-heavy users. |
-| `/manual/` | Sideways private home | Import, save, arrange, revisit, back up, and restore personal material. | Online archivists, creators, community builders, and people leaving closed platforms. |
-| `/archie/` | Archie personal atelier | State what should exist, gather context and boundaries, preserve continuity, and produce an objective packet. | Privacy-sensitive power users, creators, founders, and small expert teams. |
-| `/maker/` | Maker software workshop | Author an exact-base engineering run with explicit authority, proof, rollback, and delivery boundaries. | Software teams, technical founders, agencies, and regulated organizations. |
-| `/founder/` | Founder decision instrument | Compare incompatible product directions, preserve rationale, and export a deterministic receipt. | Internal product teams, design partners, and independent evaluators. |
-| `/world-expo/` | Frontier World Expo research preview | Inspect commissions, candidate routes, metric families, portability rules, and the blocked evidence ledger. | Research partners, model/device teams, creative institutions, and evaluation buyers. |
+## Live paths
+
+| Path | What it is | Use it for |
+|---|---|---|
+| `/` | Founder human invention surface | Say one unfinished thing and begin one whole turn. |
+| `/founder/` | Founder direct route | Open possibilities, preserve alternatives, and push one branch. |
+| `/archie/` | Archie intelligence surface | Inspect the intelligence, context, continuity, and capability boundary. |
+| `/maker/` | Maker execution surface | Inspect authority, execution, verification, rollback, and delivery. |
+| `/foundry/` | Human research cockpit | Allocate research subsidy, create contradictory candidates, inspect evidence, and govern release admission. |
+| `/world-expo/` | Frontier World Expo | Inspect commissions, contradictory forms, evidence law, and blocked promotion. |
+| `/examples/site/` | Replaceable website output | Open an actual unrelated site that has no training, memory, or architectural privilege. |
+
+GitHub, branches, tickets, terminals, and developer dashboards are optional Maker substrates. They are not the normal user journey.
+
+## Founder
+
+**What it is:** the easiest possible way for a biological human to wield invention and development power.
+
+**Not:** a training dashboard, robot-developer console, requirements form, prompt tutorial, or mirror that explains the user back to themselves.
+
+**Job:** accept compressed human language, open materially different possibilities, and carry the objective into Archie and Maker without forcing the person to supervise mechanical work.
+
+**Current boundary:** the existing decision-room prototype must still be replaced by and connected as the one-intention experience. A static interface does not prove autonomous creation.
+
+**Pricing hypothesis:** $20–$60 monthly personal or $75–$250 professional, bundled with Archie.
+
+**Value hypothesis:** current code/research **$10,000–$50,000**; after 100 retained non-developer creators **$1 million–$5 million**; after repeatable paid creation outcomes **$5 million–$25 million**.
 
 ## Archie
 
-**What it is:** a resident personal intelligence and coordination layer. It is not architecturally a chat app, voice assistant, coding-model brand, or dashboard. Its exact embodiment must come from the strongest admitted model, faculties, permissions, hardware, latency, continuity, privacy, and resource envelope.
+**What it is:** an attempted general intelligence responsible for a whole human objective.
 
-**Why push it:** this is the highest-ceiling product. A trustworthy local intelligence that preserves context, coordinates work, inspects evidence, and operates through user-owned state is meaningfully different from a prompt window. The repository already has an installable runtime shell, objective packets, native workspaces, model admission law, capability-frontier selection, and an evidence-bound distillation pipeline.
+**Not:** a generic chatbot, user mirror, fixed voice assistant, coding-model brand, training database, or single-app workflow.
 
-**Current boundary:** no independently admitted generally capable model exists in the repository. Interface craft, deterministic declared-suite substitution, and training plumbing do not establish intelligence.
+**Job:** construct an independent world model, research unfamiliar domains, invent missing faculties, coordinate programs, and remain responsible for the intended end state until verified delivery.
 
-**Who pays:** privacy-sensitive professionals, independent creators, technical founders, and small teams.
+**Current boundary:** the repository has substantial runtime, workspace, derivation, evaluation, admission, launch-frontier, and distillation substrates. It does not contain an independently admitted generally capable model.
 
-**Pricing hypothesis:** $25–$60 monthly personal, $80–$250 monthly professional, or $15,000–$100,000 annual team agreements plus compute.
+**Pricing hypothesis:** $25–$60 monthly personal, $80–$250 professional, or $15,000–$100,000 annual team agreements plus compute.
 
 **Value hypothesis:** current code/research **$50,000–$250,000**; after one admitted model and 100 retained payers **$3 million–$12 million**; after repeatable paid team outcomes **$15 million–$75 million**.
 
 ## Maker
 
-**What it is:** the permissioned software execution and evidence engine of the Archie family. It turns an exact end state into one leased, reviewable, verified change set with explicit authority, cost, provenance, and rollback.
+**What it is:** the mostly invisible permissioned consequence engine.
 
-**Why push it:** the market pays materially for AI coding agents and enterprise controls. Maker’s differentiation is not another coding chat; it is exact-base execution, one-writer authority, independent verification, retained negative evidence, delivery receipts, and rollback.
+**Not:** the source of intent, an unbounded autonomous employee, a GitHub task queue, or a separate mass-market consumer company.
 
-**Why merge it commercially with Archie:** Archie decides and coordinates; Maker executes. The execution surface stays separately inspectable for professionals and enterprises, but it is not a separate consumer company.
+**Job:** at push, collapse one selected branch into a real artifact or action under exact authority, resources, reversibility, verification, and delivery constraints.
 
-**Pricing hypothesis:** $40–$200 per active user monthly, usage/compute up to roughly $1,000 monthly for power users, and $25,000–$250,000 annual enterprise agreements.
+**Current boundary:** substantial leases, isolated work, authority, verification, and delivery contracts exist. Open runtime-composition defects and absent admitted intelligence block a broad autonomous reliability claim.
+
+**Pricing hypothesis:** $40–$200 per active user monthly, compute usage up to roughly $1,000 monthly for power users, and $25,000–$250,000 annual enterprise agreements.
 
 **Value hypothesis:** current code/research **$100,000–$500,000**; after at least 80% independent task success **$5 million–$20 million**; after renewed enterprise pilots **$20 million–$100 million**.
 
-Open issues #447, #448, and #450 directly block a broad reliability claim.
+## Foundry
 
-## Sideways
+**What it is:** the one explicit human-operated training and speculative capability-research cockpit.
 
-**What it is:** an owned personal archive and sideways discovery network. It is not a second Archie memory substrate, generic infinite feed, or cloud-only bookmark manager.
+**Not:** ordinary product use, a robot self-administration page, silent user-data harvesting, a cheap prompt lab, or automatic promotion.
 
-**Why push it:** this is the strongest present-day consumer product in the repository. It already has private import, profiles, posts, media, places, deterministic discovery, backup, restore, and optional public authority. It can create value before a frontier model is trained.
+**Job:** let a human spend large token and compute subsidy on contradictory candidates, inspect provenance and negative results, choose hidden evaluation, and admit a stronger signed release without becoming a full ML infrastructure team.
 
-The root and `/manual/` are one product: the root is the public doorway; `/manual/` is the owned home.
+**Current boundary:** deterministic campaigns, candidate packaging, distillation, evaluation, and admission substrates exist. The complete human cockpit and repeatable generally stronger release evidence do not yet exist.
 
-**Pricing hypothesis:** free local ownership, $8–$25 monthly sync/hosting, and $25–$75 monthly creator/community tiers.
+**Pricing hypothesis:** $100–$1,000 monthly for independent researchers or $25,000–$250,000 annual team agreements, with compute subsidized or passed through separately.
 
-**Value hypothesis:** current code/research **$75,000–$350,000**; after 10,000 retained monthly users **$3 million–$15 million**; after paid retention and healthy network growth **$15 million–$80 million**.
-
-## Founder
-
-**What it is:** a local decision and product-tournament instrument.
-
-**Why retain it:** it cheaply preserves rejected directions and explicit judgment, reducing product amnesia and premature convergence.
-
-**Why not push it as a company:** it has no independent distribution, collaboration, retention, or willingness-to-pay evidence. Standalone company value is currently **$0**. Current code/research utility is approximately **$5,000–$25,000**, with possible strategic uplift only when it demonstrably improves promotion decisions.
+**Value hypothesis:** current code/research **$75,000–$400,000**; after reproducible candidate improvement **$5 million–$30 million**; after several admitted release generations **$30 million–$200 million**.
 
 ## Expo
 
-**What it is now:** a deterministic research kernel and authored exhibition ground. It exposes twelve multimodal commissions, six contradictory candidate roles per round, a 50% automation floor, fail-closed evidence envelopes, and a Pareto promotion law.
+**What it is:** an independent multimodal capability exposition and anti-convergence tournament.
 
-**Why push it:** if completed truthfully, it can become a research moat, enterprise evaluation product, and the mechanism that discovers unfamiliar computing forms rather than copying current interfaces.
+**Current boundary:** the campaign kernel, twelve commissions, six contradictory candidate strata, and evidence envelope exist. No candidate has completed its commission or earned promotion.
 
-**Why the claim remains blocked:** there are no completed candidate artifacts, physical-device raw traces, independent scorers, portable server-independent exhibit exports, or blinded human preference/authorship results yet.
-
-**Pricing hypothesis after proof:** $50,000–$250,000 evaluation programs or $100,000–$1 million annual research partnerships. Consumer subscription value remains **$0** until recurring consumer use exists.
+**Pricing hypothesis after proof:** $50,000–$250,000 evaluation programs or $100,000–$1 million annual research partnerships.
 
 **Value hypothesis:** current kernel/surface **$25,000–$150,000**; after a reproducible multimodal pavilion **$1 million–$10 million**; after independent enterprise adoption **$10 million–$50 million**.
 
-## What is deleted conceptually
+## Research and training law
 
-- Every URL is no longer treated as a separate product or company.
-- The root ranking laboratory and `/manual/` are no longer separate Sideways brands.
-- Maker is no longer a standalone mass-market consumer app.
-- Founder no longer receives independent product investment.
-- A live Expo shell no longer receives multimodal capability language merely because it renders.
-- No polished interface can raise a capability claim above the evidence.
+Foundry and Archie may pursue speculative research aggressively:
 
-The files and URLs remain because they perform useful jobs. Deletion means removing false ontology and investment, not breaking valid paths for theatrical simplification.
+- large token and compute subsidy when available;
+- many contradictory candidates;
+- unusual model mixtures, operators, curricula, evaluators, modalities, and embodiments;
+- capabilities absent from the original user request;
+- negative results preserved for recombination;
+- automated mechanical campaign work.
 
-## Market anchors
+Private ordinary use is not automatically shared training exhaust. Shared intelligence changes through deliberate research admission, independent evaluation, provenance, reproduction, and signed release.
 
-These constrain pricing; they do not prove value.
+## Push law
 
-- Cursor official pricing places individual AI coding around $20 monthly, teams around $40 per user monthly, and higher-usage tiers above that: `https://cursor.com/pricing`.
-- Devin official self-serve documentation lists free, $20 Pro, $200 Max, and team full-seat pricing around $40 monthly with a team minimum: `https://docs.devin.ai/admin/billing/self-serve`.
-- Notion official pricing places its AI business workspace around $20 per member monthly and meters custom-agent work with credits: `https://www.notion.com/pricing`.
-- Raindrop.io demonstrates the free-plus-paid archive/search/backup model for personal collections: `https://raindrop.io/pro/buy`.
+Keep the intended end state stable and the route probabilistic until consequence.
+
+Collapse occurs only when the system must mutate, publish, contact someone, spend outside an admitted envelope, take an identity-bearing action, create difficult-to-reverse state, or make a capability claim.
+
+At push, select decisively under authority, evidence, resource, reversibility, and verification constraints. Preserve losing branches and what could reopen them.
 
 ## Executable use
 
@@ -121,8 +136,9 @@ These constrain pricing; they do not prove value.
 npm run product:portfolio -- validate
 npm run product:portfolio -- routes
 npm run product:portfolio -- market
-npm run product:portfolio -- route /archie/
+npm run product:portfolio -- route /
+npm run product:portfolio -- route /foundry/
 npm run test:portfolio
 ```
 
-The validator rejects duplicate or missing routes, unsupported investment decisions, malformed value ranges, allocation that does not total 100%, and any Expo claim stronger than `research-substrate-only` while promotion remains evidence-blocked.
+The validator rejects Sideways as a privileged surface, a non-human Foundry role, Founder losing the root route, insufficient research subsidy, malformed market ranges, false Expo promotion, or allocation that does not total 100%.
