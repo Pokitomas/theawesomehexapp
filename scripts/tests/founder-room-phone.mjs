@@ -10,8 +10,10 @@ const executablePath = [
 ].filter(Boolean).find(path => fs.existsSync(path));
 if (!executablePath) throw new Error('no Chromium found');
 
+const founderUrl = process.env.FOUNDER_TEST_URL || 'http://127.0.0.1:4174/founder/';
 const proof = {
   executablePath,
+  founderUrl,
   branches: 0,
   persisted: false,
   pushed: false,
@@ -37,7 +39,7 @@ page.on('console', message => { if (message.type() === 'error') browserErrors.pu
 const intention = 'make some actual site about something idk completely different but make it alive';
 
 try {
-  await page.goto('http://127.0.0.1:4174/founder/', { waitUntil: 'networkidle' });
+  await page.goto(founderUrl, { waitUntil: 'networkidle' });
   await page.getByRole('heading', { name: 'Make something true.' }).waitFor({ state: 'visible' });
   await page.locator('#founder-intention').fill(intention);
   await page.getByRole('button', { name: 'SPRAWL' }).click();
