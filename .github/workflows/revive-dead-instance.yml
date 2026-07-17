@@ -31,50 +31,78 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           fetch-depth: 0
 
-      - name: Reconstruct and verify recovered patches
+      - name: Reconstruct and verify the recovered vault patch
         shell: bash
         run: |
           set -euo pipefail
           cat .recovery/0001.patch.part.* > /tmp/0001.patch
-          cat .recovery/0002.patch.part.* > /tmp/0002.patch
           sed -i 's/|  60 ++++ -$/|  60 ++++-/' /tmp/0001.patch
           echo 'b18e8e171deead37e066adb2d895b6027b2db0a774cf99dcc364994c93c2cc9e  /tmp/0001.patch' | sha256sum -c -
-          echo '73c2c219887457953ca56cf2fa5f8c5c8b52033fd9a40bf6e262860c0452e2ab  /tmp/0002.patch' | sha256sum -c -
 
-      - name: Apply recovered diffs in dependency order
+      - name: Admit only the genuinely missing Overlay Vault implementation
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           git config user.name 'Archie Recovery Bot'
           git config user.email 'archie-recovery@users.noreply.github.com'
-          : > /tmp/recovery-apply.log
-          git apply --3way --index /tmp/0001.patch >> /tmp/recovery-apply.log 2>&1
-          first=$?
-          if [ "$first" -eq 0 ]; then
-            git apply --3way --index /tmp/0002.patch >> /tmp/recovery-apply.log 2>&1
-            second=$?
-          else
-            second=99
-          fi
-          printf '\nfirst_patch_exit=%s second_patch_exit=%s\n' "$first" "$second" >> /tmp/recovery-apply.log
-          if [ "$first" -ne 0 ] || [ "$second" -ne 0 ]; then
-            cat /tmp/recovery-apply.log
+
+          # Current main already contains stronger versions of the teacher
+          # promotion and cold-start changes. Apply the recovered patch only to
+          # recover its clean new files, then resolve the three expected
+          # overlapping files to current main rather than regressing them.
+          set +e
+          git apply --3way --index /tmp/0001.patch
+          apply_status=$?
+          set -e
+
+          conflicts="$(git diff --name-only --diff-filter=U | sort)"
+          expected="$(printf '%s\n' \
+            scripts/maker-archie-benchmark.mjs \
+            scripts/maker-archie-cognition.mjs \
+            scripts/tests/maker-archie-cognition.test.mjs | sort)"
+          if [ "$apply_status" -eq 0 ] || [ "$conflicts" != "$expected" ]; then
+            echo "Unexpected recovery apply state: status=$apply_status" >&2
+            echo "Expected conflicts:" >&2
+            printf '%s\n' "$expected" >&2
+            echo "Observed conflicts:" >&2
+            printf '%s\n' "$conflicts" >&2
             exit 1
           fi
-          git commit -m 'Apply recovered Archie cognition and cold-start fixes'
 
-      - name: Upload exact patch-application failure and conflict files
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: recovery-apply-conflicts
-          path: |
-            /tmp/recovery-apply.log
-            scripts/maker-archie-benchmark.mjs
-            scripts/maker-archie-cognition.mjs
+          git checkout --ours -- \
+            scripts/maker-archie-benchmark.mjs \
+            scripts/maker-archie-cognition.mjs \
             scripts/tests/maker-archie-cognition.test.mjs
-          if-no-files-found: error
-          retention-days: 1
+          git add \
+            scripts/maker-archie-benchmark.mjs \
+            scripts/maker-archie-cognition.mjs \
+            scripts/tests/maker-archie-cognition.test.mjs
+
+          test -f scripts/overlay-vault.mjs
+          test -f scripts/tests/overlay-vault.test.mjs
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const testPath = 'scripts/tests/overlay-vault.test.mjs';
+          const current = pkg.scripts['test:archie:portable'];
+          if (!current.includes(testPath)) pkg.scripts['test:archie:portable'] = `${current} ${testPath}`;
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+          git add package.json scripts/overlay-vault.mjs scripts/tests/overlay-vault.test.mjs
+
+          changed="$(git diff --cached --name-only | sort)"
+          expected_changed="$(printf '%s\n' \
+            package.json \
+            scripts/overlay-vault.mjs \
+            scripts/tests/overlay-vault.test.mjs | sort)"
+          if [ "$changed" != "$expected_changed" ]; then
+            echo 'Recovery produced an unexpected staged tree:' >&2
+            printf '%s\n' "$changed" >&2
+            exit 1
+          fi
+          git commit -m 'Add hash-verified append-only Overlay Vault'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -86,9 +114,9 @@ jobs:
         shell: bash
         run: npm ci
 
-      - name: Run focused recovered regressions
+      - name: Run focused Overlay Vault regression
         shell: bash
-        run: node --test scripts/tests/maker-archie-cognition.test.mjs scripts/tests/overlay-vault.test.mjs
+        run: node --test scripts/tests/overlay-vault.test.mjs
 
       - name: Run full Archie and Maker verification matrix
         shell: bash
