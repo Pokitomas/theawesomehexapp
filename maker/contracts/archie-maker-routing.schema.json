@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sideways.local/contracts/archie-maker-routing.schema.json",
+  "title": "Archie Maker routing decision and launcher receipt",
+  "oneOf": [
+    { "$ref": "#/$defs/routingDecision" },
+    { "$ref": "#/$defs/launcherReceipt" }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "routingDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "decided_at",
+        "request_digest",
+        "repository_digest",
+        "base_branch",
+        "base_sha",
+        "state",
+        "source",
+        "executable",
+        "reason",
+        "recurrence",
+        "candidate",
+        "decision_digest"
+      ],
+      "properties": {
+        "schema": { "const": "sideways-archie-maker-routing-decision/v1" },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "repository_digest": { "$ref": "#/$defs/digest" },
+        "base_branch": { "type": "string", "minLength": 1 },
+        "base_sha": { "type": "string", "minLength": 1 },
+        "state": {
+          "enum": [
+            "local_recurrence",
+            "derived_candidate",
+            "teacher_required",
+            "rejected",
+            "miss",
+            "failed"
+          ]
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "executable": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 },
+        "recurrence": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["specialist_id", "example_id", "plan_digest", "basis_digest"],
+              "properties": {
+                "specialist_id": { "type": ["string", "null"] },
+                "example_id": { "type": "string", "minLength": 1 },
+                "plan_digest": { "$ref": "#/$defs/digest" },
+                "basis_digest": { "$ref": "#/$defs/digest" }
+              }
+            }
+          ]
+        },
+        "candidate": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidate_id",
+                "source",
+                "plan",
+                "plan_digest",
+                "proof",
+                "proof_digest"
+              ],
+              "properties": {
+                "candidate_id": { "type": "string", "minLength": 1 },
+                "source": { "type": "string", "minLength": 1 },
+                "plan": { "type": "object" },
+                "plan_digest": { "$ref": "#/$defs/digest" },
+                "proof": { "type": "object" },
+                "proof_digest": { "$ref": "#/$defs/digest" }
+              }
+            }
+          ]
+        },
+        "decision_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "launcherReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "emitted_at",
+        "request_digest",
+        "repository_digest",
+        "base_branch",
+        "base_sha",
+        "bypassed",
+        "selected_state",
+        "source",
+        "executable",
+        "reason",
+        "decision_digest",
+        "exact_recurrence_decision_digest",
+        "receipt_digest"
+      ],
+      "properties": {
+        "schema": { "const": "sideways-archie-maker-launcher-receipt/v1" },
+        "emitted_at": { "type": "string", "format": "date-time" },
+        "request_digest": { "$ref": "#/$defs/digest" },
+        "repository_digest": { "$ref": "#/$defs/digest" },
+        "base_branch": { "type": "string", "minLength": 1 },
+        "base_sha": { "type": "string", "minLength": 1 },
+        "bypassed": { "type": "boolean" },
+        "selected_state": {
+          "type": ["string", "null"],
+          "enum": [
+            "local_recurrence",
+            "derived_candidate",
+            "teacher_required",
+            "rejected",
+            "miss",
+            "failed",
+            null
+          ]
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "executable": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 },
+        "decision_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/digest" },
+            { "type": "null" }
+          ]
+        },
+        "exact_recurrence_decision_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/digest" },
+            { "type": "null" }
+          ]
+        },
+        "receipt_digest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}
