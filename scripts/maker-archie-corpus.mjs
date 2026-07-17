@@ -333,8 +333,20 @@ export class ArchieLinuxCorpus {
         output?.branch ? { name: output.branch, media_type: 'text/x-git-ref' } : null,
         output?.pull_request ? { name: output.pull_request, media_type: 'text/uri-list', uri: output.pull_request } : null
       ].filter(Boolean),
-      tags: ['maker', 'teacher-trace', receipt?.state || 'unknown']
+      tags: ['maker', 'teacher-trace', receipt?.state || 'unknown', ...(receipt?.state === 'completed' ? [] : ['negative', 'do-not-repeat'])]
     });
+  }
+
+  async findBySourceRunId(runId, { kind = null } = {}) {
+    const wanted = clean(runId, 300);
+    if (!wanted) return null;
+    const rows = await readJSONLines(this.recordsPath);
+    for (const row of [...rows].reverse()) {
+      if (kind && row.kind !== kind) continue;
+      const record = JSON.parse(await fs.readFile(path.join(this.root, row.object_path), 'utf8'));
+      if (clean(record.source?.run_id, 300) === wanted) return record;
+    }
+    return null;
   }
 
   async query(text, { limit = 8, kinds = null, outcomes = null } = {}) {
@@ -360,7 +372,7 @@ export class ArchieLinuxCorpus {
 
   async examples({ limit = 1000 } = {}) {
     const rows = await readJSONLines(this.examplesPath);
-    const selected = rows.slice(-Math.max(1, Math.min(100000, Number(limit) || 1000)));
+    const selected = rows.slice(-Math.max(1, Math.min(250000, Number(limit) || 1000)));
     return Promise.all(selected.map(row => fs.readFile(path.join(this.root, row.example_path), 'utf8').then(JSON.parse)));
   }
 

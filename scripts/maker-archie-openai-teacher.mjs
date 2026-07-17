@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { MAKER_LANES, planSchema } from './maker-core.mjs';
 import { normalizeMakerExecutionPlan } from './maker-archie-runtime-contract.mjs';
+import { assertPlanGroundedInRepositoryEvidence, validateRepositoryEvidence } from './maker-archie-repository-evidence.mjs';
 
 export const ARCHIE_OPENAI_TEACHER_RECEIPT_SCHEMA = 'archie-openai-teacher-receipt/v1';
 
@@ -45,11 +46,18 @@ function teacherSchema() {
   };
 }
 
-function normalizedTeacherPlan(value) {
+function normalizedTeacherPlan(value, repositoryEvidence) {
   const plan = normalizeMakerExecutionPlan(value);
   if (!plan) throw new Error('OpenAI teacher returned an invalid Maker plan.');
   if (plan.owned_paths.includes('**')) throw new Error('OpenAI teacher cannot acquire a repository-wide path lease.');
+  assertPlanGroundedInRepositoryEvidence(plan, repositoryEvidence);
   return plan;
+}
+
+function usageCounter(value, field) {
+  const number = Number(value ?? 0);
+  if (!Number.isFinite(number) || number < 0) throw new Error(`OpenAI teacher ${field} must be a finite non-negative number.`);
+  return number;
 }
 
 function apiUrl(env) {
@@ -78,6 +86,7 @@ export function createOpenAIArchieTeacher({
     const instruction = clean(typeof task === 'string' ? task : task.instruction || task.request || task.goal, 12000);
     if (!instruction) throw new Error('OpenAI Archie teacher requires an instruction.');
     const context = canonical(typeof task === 'object' && task ? task.context || null : null);
+    const repositoryEvidence = validateRepositoryEvidence(context?.repository_evidence, { expectedBaseSha: context?.base_sha });
     const started = new Date(typeof clock === 'function' ? clock() : clock ?? Date.now());
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(new Error('OpenAI Archie teacher timed out.')), Math.max(1000, Number(timeoutMs) || 120000));
@@ -90,8 +99,8 @@ export function createOpenAIArchieTeacher({
         'You are the bounded reasoning faculty inside Archie, not an autonomous executor.',
         'Produce one dense implementation plan for Maker. Maker is the only component allowed to cause effects.',
         'Prefer the smallest coherent architecture and direct data flow. Reject agent swarms, handoff chains, dashboards, neuron metaphors, and middleware that does not add necessary evidence or authority.',
-        'Use the repository-relative paths most likely to own the change. Never request a repository-wide ** lease.',
-        'Do not claim code was inspected, tests passed, or deployment occurred. Return only the strict plan object.'
+        'Use only paths and package scripts grounded in the supplied exact-base repository evidence. New files require an evidenced parent subsystem. Never request a repository-wide ** lease.',
+        'Do not claim code was inspected beyond the supplied evidence, tests passed, or deployment occurred. Return only the strict plan object.'
       ].join('\n'),
       input: [{
         role: 'user',
@@ -146,24 +155,31 @@ export function createOpenAIArchieTeacher({
     let parsed;
     try { parsed = JSON.parse(outputText(payload)); }
     catch (error) { throw new Error(`OpenAI Archie teacher returned invalid JSON: ${clean(error?.message || error, 1000)}`); }
-    const plan = normalizedTeacherPlan(parsed);
+    const plan = normalizedTeacherPlan(parsed, repositoryEvidence);
     const planDigest = digest(plan);
+    const responseId = clean(payload.id, 300);
+    const responseModel = clean(payload.model || model, 300);
+    if (!responseId) throw new Error('OpenAI teacher returned no response ID.');
+    if (!responseModel) throw new Error('OpenAI teacher returned no model identity.');
+    const usage = {
+      input_tokens: usageCounter(payload?.usage?.input_tokens, 'input_tokens'),
+      output_tokens: usageCounter(payload?.usage?.output_tokens, 'output_tokens'),
+      total_tokens: usageCounter(payload?.usage?.total_tokens, 'total_tokens')
+    };
     const receiptBody = {
       schema: ARCHIE_OPENAI_TEACHER_RECEIPT_SCHEMA,
       created_at: started.toISOString(),
-      response_id: clean(payload.id, 300),
+      response_id: responseId,
       teacher: 'openai-responses',
-      model: clean(payload.model || model, 300),
+      model: responseModel,
       request_digest: digest(instruction),
       context_digest: digest(context),
       base_branch: clean(context?.base_branch, 200) || null,
       base_sha: clean(context?.base_sha, 200) || null,
+      repository_evidence_digest: repositoryEvidence.evidence_digest,
+      repository_evidence_path_count: repositoryEvidence.path_count,
       plan_digest: planDigest,
-      usage: {
-        input_tokens: Number(payload?.usage?.input_tokens || 0),
-        output_tokens: Number(payload?.usage?.output_tokens || 0),
-        total_tokens: Number(payload?.usage?.total_tokens || 0)
-      },
+      usage,
       storage: 'disabled',
       effect_authority: 'maker-only'
     };

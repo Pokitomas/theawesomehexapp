@@ -6,6 +6,7 @@ const request = 'Complete the Archie intellect path.';
 const repository = '/tmp/theawesomehexapp';
 const baseSha = 'a'.repeat(40);
 const key = 'k'.repeat(64);
+const evidenceDigest = 'e'.repeat(64);
 const plan = {
   title: 'Complete Archie intellect path',
   branch_slug: 'archie-intellect',
@@ -28,6 +29,8 @@ function teacherReceipt() {
     context_digest: archieMakerValueDigest({ repository: 'theawesomehexapp', base_branch: 'main', base_sha: baseSha }),
     base_branch: 'main',
     base_sha: baseSha,
+    repository_evidence_digest: evidenceDigest,
+    repository_evidence_path_count: 3,
     plan_digest: archieMakerValueDigest(plan),
     usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
     storage: 'disabled',
@@ -53,6 +56,7 @@ test('fresh teacher plans enter Maker only through an integrity-bound current-ba
         kind: 'fresh-bounded-teacher-plan',
         response_id: receipt.response_id,
         teacher_receipt_digest: receipt.receipt_digest,
+        repository_evidence_digest: evidenceDigest,
         base_sha: baseSha
       },
       teacher_receipt: receipt
@@ -61,6 +65,7 @@ test('fresh teacher plans enter Maker only through an integrity-bound current-ba
   assert.equal(decision.state, 'teacher');
   assert.equal(decision.source, 'openai-responses-teacher');
   assert.equal(decision.execution_basis.kind, 'fresh-bounded-teacher-plan');
+  assert.equal(decision.repository_evidence_digest, evidenceDigest);
   assert.deepEqual(verifyArchieMakerDecision(decision, { request, repository, baseBranch: 'main', baseSha, key, clock: () => '2026-07-17T20:01:00.000Z' }).plan, plan);
 });
 
@@ -70,7 +75,7 @@ test('teacher plan tampering fails closed before Maker can use it', () => {
     status: 'teacher',
     plan,
     execution_eligible: true,
-    execution_basis: { kind: 'fresh-bounded-teacher-plan', response_id: receipt.response_id, teacher_receipt_digest: receipt.receipt_digest, base_sha: baseSha },
+    execution_basis: { kind: 'fresh-bounded-teacher-plan', response_id: receipt.response_id, teacher_receipt_digest: receipt.receipt_digest, repository_evidence_digest: evidenceDigest, base_sha: baseSha },
     teacher_receipt: receipt
   };
   assert.throws(() => createArchieMakerDecision({ request, repository, baseBranch: 'main', baseSha, key, recall: { ...recall, plan: { ...plan, title: 'tampered' } } }), /plan does not match/);
