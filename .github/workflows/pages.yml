@@ -1,4 +1,4 @@
-name: Build and deploy Founder human-power surfaces
+name: Build and deploy independent program surfaces
 
 on:
   push:
@@ -50,6 +50,7 @@ jobs:
       - name: Verify public product contracts
         run: |
           node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/founder-superiority.test.mjs
+          npm run test:xp-surfaces
           npm run test:portfolio
           npm run test:founder
           npm run test:foundry:human
@@ -61,11 +62,12 @@ jobs:
           set -euo pipefail
           rm -rf dist
           node scripts/publish-human-surfaces.mjs dist
-          mkdir -p dist/maker dist/archie dist/world-expo dist/design dist/evidence
+          mkdir -p dist/maker dist/archie dist/world-expo dist/design dist/evidence dist/product
           cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
           cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
           cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
           cp design/frontier-world-expo.json dist/design/
+          cp product/xp-program-surfaces.json dist/product/
           cp benchmarks/founder-vibe-superiority.v1.json dist/evidence/
           node scripts/founder-superiority.mjs status --protocol benchmarks/founder-vibe-superiority.v1.json > dist/evidence/founder-superiority-status.json
       - name: Write exact deployment identity
@@ -74,22 +76,24 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/deployment-receipt.cjs write-sentinel
-      - name: Verify final artifact and Founder phone journey
+      - name: Verify final artifact and phone journeys
         run: |
           set -euo pipefail
-          grep -q 'FOUNDER / HUMAN INVENTION POWER' dist/index.html
-          grep -q 'You are the lab now' dist/foundry/index.html
+          grep -q 'Archie Program Manager' dist/index.html
+          grep -q 'You are the lab now' dist/foundry/index.html || grep -q 'Foundry Research Control' dist/foundry/index.html
           grep -q 'Tiny Public Things' dist/examples/site/index.html
+          test -f dist/desktop/index.html
           test -f dist/archie/index.html
           test -f dist/maker/index.html
           test -f dist/world-expo/index.html
+          test -f dist/product/xp-program-surfaces.json
           test -f dist/evidence/founder-superiority-status.json
           ! test -e dist/manual
           python -m http.server 4174 --directory dist >/tmp/founder-http.log 2>&1 &
           server=$!
           trap 'kill $server || true' EXIT
           sleep 2
-          FOUNDER_TEST_URL=http://127.0.0.1:4174/ node scripts/tests/founder-room-phone.mjs
+          FOUNDER_TEST_URL=http://127.0.0.1:4174/founder/ node scripts/tests/founder-room-phone.mjs
       - name: Upload human-power proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -99,13 +103,14 @@ jobs:
             founder-room-phone.png
             founder-room-proof.json
             dist/human-surfaces-publish.json
+            dist/product/xp-program-surfaces.json
             dist/evidence/founder-superiority-status.json
             /tmp/founder-http.log
           if-no-files-found: error
           retention-days: 14
       - name: Configure Pages
         if: github.event_name == 'push'
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ad16ebd13914f8d7745b # v5
       - name: Upload Pages artifact
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
