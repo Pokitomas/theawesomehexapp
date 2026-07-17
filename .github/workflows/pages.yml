@@ -148,16 +148,14 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/deployment-receipt.cjs verify-live
-      - name: Verify Founder and Archie are anonymously reachable
+      - name: Verify every final application is anonymously reachable
         env:
           DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: |
-          node scripts/deployment-receipt.cjs verify-founder-live > founder-public-reachability-receipt.json
-          node scripts/deployment-receipt.cjs verify-archie-live > archie-public-reachability-receipt.json
-          cat founder-public-reachability-receipt.json
-          cat archie-public-reachability-receipt.json
+          node scripts/deployment-receipt.cjs verify-all-live > public-surface-reachability-receipts.json
+          cat public-surface-reachability-receipts.json
       - name: Upsert successful deployment receipt
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
@@ -166,13 +164,11 @@ jobs:
           script: |
             const fs = require('node:fs');
             const { upsertDeploymentReceipt } = require('./scripts/deployment-receipt.cjs');
-            const founderReceipt = JSON.parse(fs.readFileSync('founder-public-reachability-receipt.json', 'utf8'));
-            const archieReceipt = JSON.parse(fs.readFileSync('archie-public-reachability-receipt.json', 'utf8'));
+            const publicSurfaceSet = JSON.parse(fs.readFileSync('public-surface-reachability-receipts.json', 'utf8'));
             const result = await upsertDeploymentReceipt({
               github,
               context,
               deployedUrl: process.env.DEPLOYED_URL,
-              founderReceipt,
-              archieReceipt
+              surfaceReceipts: publicSurfaceSet.receipts
             });
             core.info(`deployment receipt #${result.primary.number}; closed stale receipts: ${result.closedDuplicates.join(', ') || 'none'}`);
