@@ -37,7 +37,8 @@ test('release completion admits every code-local lane and preserves exact extern
   assert.ok(report.external_and_intentionally_unsupported.includes('screen_reader_journeys'));
   assert.ok(report.external_and_intentionally_unsupported.includes('cross_browser_behavior'));
   assert.ok(report.external_and_intentionally_unsupported.includes('live_pages_served_commit'));
-  assert.match(report.termination_rule, /terminate the completion swarm/i);
+  assert.match(report.termination_rule, /terminate the bounded Sideways completion swarm/i);
+  assert.match(report.termination_rule, /separate portfolio program/i);
 });
 
 test('release policy forbids silent completion and requires post-merge deployment identity', async () => {
@@ -47,14 +48,16 @@ test('release policy forbids silent completion and requires post-merge deploymen
   assert.equal(new Set(policy.required_exact_head_workflows).size, policy.required_exact_head_workflows.length);
   assert.ok(policy.post_merge_requirements.some(item => /sentinel equals the final merge commit/i.test(item)));
   assert.ok(policy.post_merge_requirements.some(item => /no competing Maker or agent lease/i.test(item)));
-  assert.match(policy.termination_rule, /Do not spawn speculative follow-on work/i);
+  assert.match(policy.termination_rule, /Do not spawn speculative follow-on work inside that closed release campaign/i);
+  assert.match(policy.termination_rule, /Evidence-backed work governed by a separate portfolio program/i);
 });
 
-test('program completion document separates demonstrated, external, and unsupported reality', async () => {
+test('program completion document separates demonstrated, external, unsupported, and scoped termination reality', async () => {
   const document = await read('PROGRAM_COMPLETION.md');
   for (const heading of ['Demonstrated code-local completion', 'Exact-head workflow admission', 'Post-merge deployment proof', 'External and intentionally unsupported boundaries', 'Termination']) assert.match(document, new RegExp(`## ${heading}`));
   assert.match(document, /\.well-known\/sideways-deployment\.json/);
   assert.match(document, /screen reader/i);
   assert.match(document, /Firefox|WebKit/);
-  assert.match(document, /no speculative follow-on/i);
+  assert.match(document, /bounded Sideways release-completion campaign/i);
+  assert.match(document, /PRODUCT_PORTFOLIO\.md/);
 });
