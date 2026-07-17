@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#e9ff70">
+  <title>Frontier World Expo</title>
+  <meta name="description" content="A live exposition of measured multimodal commissions, divergent computing forms, and portable evidence.">
+  <link rel="stylesheet" href="./expo.css">
+</head>
+<body>
+  <a class="skip" href="#grounds">Enter the grounds</a>
+  <header class="gate">
+    <p class="stamp">EXACT EVIDENCE / NO SACRED INTERFACE</p>
+    <h1>Frontier<br>World Expo</h1>
+    <p class="thesis">Not a model playground. Not a row of services. Enter through a commission and see what the system can make, preserve, repair, and prove.</p>
+    <div class="gate-actions" aria-label="Expo controls">
+      <button id="new-route" type="button">Draw another route</button>
+      <button id="export-route" type="button">Carry this route away</button>
+    </div>
+  </header>
+
+  <main id="grounds" class="grounds">
+    <section class="orientation" aria-labelledby="orientation-title">
+      <div>
+        <p class="kicker">YOU ARE HERE</p>
+        <h2 id="orientation-title">A temporary route through an unfinished world</h2>
+      </div>
+      <p>The route changes. The evidence rules do not. Every station must leave an artifact, a trace, a failure record, a provenance graph, and a portable exit.</p>
+    </section>
+
+    <section class="route-yard" aria-labelledby="route-title">
+      <div class="rail-label">
+        <span>ROUTE TICKET</span>
+        <strong id="route-seed">0000</strong>
+      </div>
+      <h2 id="route-title">Six contradictory embodiments</h2>
+      <div id="candidate-route" class="candidate-route" aria-live="polite"></div>
+    </section>
+
+    <section class="map-key" aria-labelledby="key-title">
+      <h2 id="key-title">The grounds are arranged by human commission, not provider capability</h2>
+      <p>Image, speech, sound, music, memory, and persistent worlds meet inside the work. A station can use several modalities without becoming a service tab.</p>
+    </section>
+
+    <section id="districts" class="districts" aria-label="Expo districts"></section>
+
+    <section class="ledger" aria-labelledby="ledger-title">
+      <div>
+        <p class="kicker">THE LEDGER</p>
+        <h2 id="ledger-title">Nothing is promoted because it looked impressive once.</h2>
+      </div>
+      <div id="frontiers" class="frontiers"></div>
+      <p class="ledger-note">Missing one required receipt blocks promotion. A constrained fallback cannot overwrite the strongest truthful claim.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built to be forked, exported, independently rendered, and contradicted by stronger evidence.</p>
+    <output id="load-state" aria-live="polite">Opening the gates…</output>
+  </footer>
+  <script type="module" src="./expo.js"></script>
+</body>
+</html>
