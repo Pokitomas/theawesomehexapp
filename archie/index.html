@@ -3,134 +3,131 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#3a6ea5">
+  <meta name="theme-color" content="#f7f7f4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Archie">
-  <meta name="description" content="Archie is an inspectable local intention, memory, and plan utility.">
-  <title>Archie Knowledge Utility</title>
+  <meta name="description" content="Ask Archie once, then reveal context, proof, and authority only when they matter.">
+  <title>Archie — Answer</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./archie.css">
+  <link rel="stylesheet" href="../desktop/desktop.css">
 </head>
-<body>
-  <a class="skip-link" href="#request-editor">Skip to request editor</a>
-  <main class="application" aria-labelledby="app-title">
-    <header class="title-bar">
-      <span class="app-icon" aria-hidden="true">A</span>
-      <h1 id="app-title">Archie Knowledge Utility</h1>
-      <span id="runtime-state" class="runtime-state">RUNTIME UNOBSERVED</span>
-      <div class="window-controls" aria-label="Window controls">
-        <button type="button" aria-label="Minimize Archie">_</button>
-        <button type="button" aria-label="Maximize Archie">□</button>
-        <a href="../desktop/" aria-label="Close Archie and return to Program Manager">×</a>
-      </div>
-    </header>
+<body data-surface="archie">
+  <a class="skip-link" href="#objective">Skip to request</a>
+  <header class="site-header">
+    <a class="brand" href="../desktop/">Archie</a>
+    <nav class="primary-nav" aria-label="Archie views">
+      <a href="../desktop/">Home</a>
+      <a aria-current="page" href="./">Answer</a>
+      <a href="../maker/">Build</a>
+      <a href="../founder/">Explore</a>
+      <a href="../foundry/">Research</a>
+      <a href="../world-expo/">Results</a>
+    </nav>
+    <span id="runtime-state" class="runtime-pill">RUNTIME UNOBSERVED</span>
+  </header>
 
-    <nav class="menu-bar" aria-label="Archie menu">
+  <main class="page surface-page" aria-labelledby="app-title">
+    <section class="surface-intro">
+      <div>
+        <p class="eyebrow">Archie Knowledge Utility · Answer</p>
+        <h1 id="app-title">Ask once.</h1>
+        <p>Archie turns a rough request into one portable objective. The technical packet exists, but it does not have to dominate the experience.</p>
+      </div>
+      <aside class="task-context">
+        <span>Shared task</span>
+        <strong id="current-task">No shared task yet.</strong>
+      </aside>
+    </section>
+
+    <section class="workspace-card" id="request-editor" aria-labelledby="editor-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Request</p>
+          <h2 id="editor-title">What should be true when this is done?</h2>
+        </div>
+        <button id="install" class="quiet-action" type="button" hidden>Install</button>
+      </div>
+
+      <form id="archie-form" class="field-stack">
+        <label for="objective">Your request
+          <textarea id="objective" class="primary-textarea" maxlength="12000" placeholder="Tell Archie what should happen. Bad spelling is accepted."></textarea>
+        </label>
+
+        <div class="route-choice" role="group" aria-label="Starter requests">
+          <button type="button" data-prompt="Build a complete installable product from this idea, with truthful capability boundaries and a simple path for normal people.">Make a product</button>
+          <button type="button" data-prompt="Investigate this problem, compare competing explanations, and return a verified decision with evidence.">Investigate</button>
+          <button type="button" data-prompt="Repair the current system without breaking protected behavior, then prove the exact result.">Repair</button>
+        </div>
+
+        <div class="actions">
+          <a id="maker" class="primary-action" href="../maker/">Continue to Build</a>
+          <button id="copy" class="secondary-action" type="button">Copy request packet</button>
+          <button id="share" class="secondary-action" type="button">Share</button>
+          <button id="clear" class="quiet-action" type="button">Clear</button>
+        </div>
+        <p id="status-message" class="status-line" role="status" aria-live="polite">Ready. Local organizer only; no model execution claimed.</p>
+      </form>
+    </section>
+
+    <details class="workspace-card advanced">
+      <summary>Optional context, proof, and permission</summary>
+      <div class="field-stack">
+        <div class="field-grid">
+          <label for="project">Project, place, URL, or folder
+            <input id="project" placeholder="owner/repo, URL, folder, or project name">
+          </label>
+          <label for="base">Starting point
+            <input id="base" placeholder="main, exact SHA, document, or current state">
+          </label>
+        </div>
+        <label for="protected">Do not break
+          <textarea id="protected" maxlength="6000" placeholder="What must not be lost, exposed, changed, spent, contacted, or deployed?"></textarea>
+        </label>
+        <label for="proof">How will we know it worked?
+          <textarea id="proof" maxlength="6000" placeholder="A test, artifact, journey, receipt, or reaction that proves the result."></textarea>
+        </label>
+        <fieldset class="authority">
+          <legend>Allowed operations</legend>
+          <label><input type="checkbox" value="read" checked> Read</label>
+          <label><input type="checkbox" value="research" checked> Research</label>
+          <label><input type="checkbox" value="write"> Write</label>
+          <label><input type="checkbox" value="run"> Run</label>
+          <label><input type="checkbox" value="contact"> Contact</label>
+          <label><input type="checkbox" value="spend"> Spend</label>
+          <label><input type="checkbox" value="deploy"> Deploy</label>
+        </fieldset>
+      </div>
+    </details>
+
+    <details class="workspace-card advanced">
+      <summary data-open-packet>Machine packet and runtime truth</summary>
+      <div class="truth-strip" aria-label="Runtime observation">
+        <span><i id="network-dot" aria-hidden="true"></i><strong id="continuity-state">Local notebook only</strong></span>
+        <span>No admitted general model yet</span>
+        <span>Execution not performed here</span>
+      </div>
+      <div id="packet-card" class="plain-note"><strong>NO OBJECTIVE YET</strong><p>Enter a request to create a portable packet.</p></div>
+      <pre id="packet" tabindex="0">No packet yet.</pre>
+    </details>
+
+    <div hidden aria-hidden="true">
       <button type="button" data-command="new">File</button>
       <button type="button" data-command="copy">Edit</button>
       <button type="button" data-command="view">View</button>
       <button type="button" data-command="inspect">Inspect</button>
       <button type="button" data-command="help">Help</button>
-      <button id="install" type="button" hidden>Install</button>
-    </nav>
-
-    <div class="toolbar" role="toolbar" aria-label="Archie commands">
-      <button type="button" data-prompt="Build a complete installable product from this idea, with truthful capability boundaries and a simple path for normal people.">New product</button>
-      <button type="button" data-prompt="Investigate this problem, compare competing explanations, and return a verified decision with evidence.">Investigate</button>
-      <button type="button" data-prompt="Repair the current system without breaking protected behavior, then prove the exact result.">Repair</button>
-      <button id="copy" type="button">Copy packet</button>
-      <button id="share" type="button">Share</button>
-      <a id="maker" href="../maker/">Open Maker</a>
+      <button type="button" data-focus="objective">Request</button>
+      <button type="button" data-focus="project">Workspace</button>
+      <button type="button" data-focus="protected">Boundaries</button>
+      <button type="button" data-focus="proof">Proof</button>
+      <button type="button" data-focus="packet">Packet</button>
     </div>
-
-    <div class="workspace">
-      <aside class="explorer" aria-labelledby="explorer-title">
-        <h2 id="explorer-title">Explorer</h2>
-        <ul role="tree" aria-label="Archie workspace">
-          <li role="treeitem" aria-selected="true"><button type="button" data-focus="objective">Request</button></li>
-          <li role="treeitem"><button type="button" data-focus="project">Workspace</button></li>
-          <li role="treeitem"><button type="button" data-focus="protected">Boundaries</button></li>
-          <li role="treeitem"><button type="button" data-focus="proof">Proof</button></li>
-          <li role="treeitem"><button type="button" data-focus="packet">Packet</button></li>
-        </ul>
-        <section class="runtime-box" aria-label="Runtime observation">
-          <h3>Runtime observation</h3>
-          <p><span id="network-dot" aria-hidden="true"></span><strong id="continuity-state">Local notebook only</strong></p>
-          <p>Execution occurs only through an admitted runtime and Maker permissions.</p><p><strong>No admitted general model yet.</strong> Archie has not observed or executed a model from this page.</p>
-        </section>
-      </aside>
-
-      <section class="editor" id="request-editor" aria-labelledby="editor-title">
-        <div class="tab-strip" role="tablist" aria-label="Open Archie documents">
-          <button role="tab" aria-selected="true" type="button">request.archie</button>
-          <button role="tab" aria-selected="false" type="button" data-open-packet>packet.json</button>
-        </div>
-
-        <form id="archie-form">
-          <fieldset>
-            <legend id="editor-title">Request</legend>
-            <label for="objective">What should exist?</label>
-            <textarea id="objective" maxlength="12000" placeholder="Describe the finished reality. Bad spelling is accepted."></textarea>
-          </fieldset>
-
-          <fieldset class="two-column">
-            <legend>Workspace identity</legend>
-            <label for="project">Project, place, URL, or folder
-              <input id="project" placeholder="owner/repo, URL, folder, or project name">
-            </label>
-            <label for="base">Starting point
-              <input id="base" placeholder="main, exact SHA, document, or current state">
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Boundaries and proof</legend>
-            <label for="protected">Do not break</label>
-            <textarea id="protected" class="short" maxlength="6000" placeholder="What must not be lost, exposed, changed, spent, contacted, or deployed?"></textarea>
-            <label for="proof">How we know it worked</label>
-            <textarea id="proof" class="short" maxlength="6000" placeholder="What test, artifact, journey, receipt, or reaction proves the result?"></textarea>
-          </fieldset>
-
-          <fieldset class="authority">
-            <legend>Authorized operations</legend>
-            <label><input type="checkbox" value="read" checked> Read</label>
-            <label><input type="checkbox" value="research" checked> Research</label>
-            <label><input type="checkbox" value="write"> Write</label>
-            <label><input type="checkbox" value="run"> Run</label>
-            <label><input type="checkbox" value="contact"> Contact</label>
-            <label><input type="checkbox" value="spend"> Spend</label>
-            <label><input type="checkbox" value="deploy"> Deploy</label>
-          </fieldset>
-        </form>
-      </section>
-
-      <aside class="inspector" aria-labelledby="inspector-title">
-        <h2 id="inspector-title">Properties</h2>
-        <dl>
-          <div><dt>Object</dt><dd>archie-objective-packet/v1</dd></div>
-          <div><dt>Storage</dt><dd>Local device</dd></div>
-          <div><dt>Execution</dt><dd>Not performed</dd></div>
-          <div><dt>Model</dt><dd>Unobserved</dd></div>
-          <div><dt>Human gates</dt><dd>Merge, credentials, spending</dd></div>
-        </dl>
-        <h3>Packet summary</h3>
-        <div id="packet-card" class="summary-output"><strong>NO OBJECTIVE YET</strong><p>Enter a request to create a portable packet.</p></div>
-        <button id="clear" type="button">Clear local notebook</button>
-      </aside>
-    </div>
-
-    <section class="output" aria-labelledby="output-title">
-      <header><h2 id="output-title">Machine output</h2><span>packet.json</span></header>
-      <pre id="packet" tabindex="0">No packet yet.</pre>
-    </section>
-
-    <footer class="status-bar">
-      <span id="status-message" role="status" aria-live="polite">Ready. Local organizer only; no model execution claimed.</span>
-      <span>INS</span><span>UTF-8</span><span>LOCAL</span>
-    </footer>
   </main>
+
+  <footer class="site-footer"><span>Simple by default. Exact packet available on demand.</span><a href="../desktop/">Home</a></footer>
   <noscript><p class="noscript-note">JavaScript is off. Archie remains readable, but packet creation and local recovery are unavailable.</p></noscript>
+  <script type="module" src="../desktop/desktop.js"></script>
   <script type="module" src="./archie.js"></script>
 </body>
 </html>

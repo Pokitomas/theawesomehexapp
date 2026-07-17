@@ -1,5 +1,6 @@
 export const TURN_VERSION = 'human-founder-turn/v2';
 export const STORAGE_KEY = 'archie:founder:human-turn';
+export const SHARED_TASK_KEY = 'archie:shared-task:v2';
 export const BRANCH_LENSES = Object.freeze([
   {
     id: 'literal-artifact',
@@ -99,6 +100,13 @@ export function pushTurn(input = {}) {
   return normalizeTurn({ ...turn, push_state: 'pushed-objective-only' });
 }
 
+export function selectedObjective(input = {}) {
+  const turn = normalizeTurn(input);
+  const branch = turn.branches.find(item => item.id === turn.selected_branch);
+  if (!turn.intention || !branch) return '';
+  return clean(`${branch.title}. ${branch.proposition}`, 12000);
+}
+
 export function stableReceipt(input = {}) {
   return `${JSON.stringify(normalizeTurn(input), null, 2)}\n`;
 }
@@ -138,6 +146,24 @@ export function createTurnStorage(storage) {
   });
 }
 
+export function handoffSelectedObjective(storage, input = {}, clock = () => new Date()) {
+  const turn = normalizeTurn(input);
+  const text = selectedObjective(turn);
+  if (!text || turn.push_state !== 'pushed-objective-only') return false;
+  const createdAt = clock().toISOString();
+  const shared = { schema: 'archie-shared-task/v2', text, route: 'maker', created_at: createdAt, source: 'founder-selected-direction' };
+  const maker = { repository: 'Pokitomas/theawesomehexapp', base_revision: 'main', backend: 'auto', mode: 'build', request: text, protect: '', proof: '' };
+  const archie = { objective: text, project: '', base: '', protected: '', proof: '', authorities: ['read', 'research'] };
+  try {
+    storage?.setItem(SHARED_TASK_KEY, JSON.stringify(shared));
+    storage?.setItem('maker:engineering:task:v2', JSON.stringify(maker));
+    storage?.setItem('archie:knowledge-utility:v2', JSON.stringify(archie));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function downloadReceipt(doc, receipt) {
   const blob = new Blob([receipt], { type: 'application/json' });
   const href = URL.createObjectURL(blob);
@@ -167,7 +193,7 @@ export function mountFounder(doc = document, storage = localStorage) {
       if (!turn.branches.length) {
         const empty = doc.createElement('p');
         empty.className = 'empty';
-        empty.textContent = 'The field is empty. Founder may leave the wording behind once you sprawl it.';
+        empty.textContent = 'Your directions will appear here.';
         field.append(empty);
       } else {
         for (const branch of turn.branches) {
@@ -219,10 +245,11 @@ export function mountFounder(doc = document, storage = localStorage) {
   doc.querySelector('#push-turn')?.addEventListener('click', () => {
     const pushed = pushTurn(turn);
     if (pushed.push_state !== 'pushed-objective-only') {
-      setStatus(turn.branches.length ? 'Select one branch before push. The others will remain preserved.' : 'Sprawl the intention before push.');
+      setStatus(turn.branches.length ? 'Select one direction before using it. The others will remain preserved.' : 'Show different directions first.');
       return;
     }
     commit(pushed);
+    if (!handoffSelectedObjective(storage, pushed)) setStatus(`${summarizeTurn(pushed)} Shared handoff could not be stored on this device.`);
   });
 
   doc.querySelector('#copy-receipt')?.addEventListener('click', async () => {
@@ -231,7 +258,7 @@ export function mountFounder(doc = document, storage = localStorage) {
       await navigator.clipboard.writeText(stableReceipt(turn));
       setStatus('Turn receipt copied. This is an objective packet, not proof of execution.');
     } catch {
-      setStatus('Clipboard unavailable. Use DOWNLOAD JSON instead.');
+      setStatus('Clipboard unavailable. Use Download JSON instead.');
     }
   });
 

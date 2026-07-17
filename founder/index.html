@@ -2,71 +2,98 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Founder — Make Something True</title>
-  <meta name="description" content="One unfinished human intention becomes an open possibility field and an explicit push toward verified reality.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f7f4">
+  <title>Founder — Explore</title>
+  <meta name="description" content="Turn one rough intention into several genuinely different directions without exposing the full machinery by default.">
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./founder.css">
+  <link rel="stylesheet" href="../desktop/desktop.css">
 </head>
-<body>
-  <main class="shell">
-    <header class="masthead">
-      <p class="eyebrow">FOUNDER / HUMAN INVENTION POWER</p>
-      <h1>Make something true.</h1>
-      <p class="brief">Say it badly. Misspell it. Contradict yourself. You are not applying for permission to have developer powers.</p>
-      <nav aria-label="System routes">
-        <a href="../archie/">Archie</a>
-        <a href="../foundry/">Foundry</a>
-        <a href="../world-expo/">Expo</a>
-        <a href="../examples/site/">Example output</a>
-      </nav>
-    </header>
+<body data-surface="founder">
+  <a class="skip-link" href="#founder-intention">Skip to intention</a>
+  <header class="site-header">
+    <a class="brand" href="../desktop/">Archie</a>
+    <nav class="primary-nav" aria-label="Archie views">
+      <a href="../desktop/">Home</a>
+      <a href="../archie/">Answer</a>
+      <a href="../maker/">Build</a>
+      <a aria-current="page" href="./">Explore</a>
+      <a href="../foundry/">Research</a>
+      <a href="../world-expo/">Results</a>
+    </nav>
+    <span class="runtime-pill">Local directions only</span>
+  </header>
 
-    <section class="intention" aria-labelledby="intention-title">
+  <main class="page surface-page" aria-labelledby="founder-title">
+    <section class="surface-intro">
       <div>
-        <p class="step">01 / DISTURBANCE</p>
-        <h2 id="intention-title">What do you want to exist?</h2>
-        <label for="founder-intention">One human sentence. No requirements document.</label>
-        <textarea id="founder-intention" maxlength="1800" placeholder="make some actual site about something idk completely different but make it alive"></textarea>
+        <p class="eyebrow">FOUNDER / HUMAN INVENTION POWER</p>
+        <h1 id="founder-title">Make something true.</h1>
+        <p>Say it badly. Misspell it. Contradict yourself. Founder opens several real directions without making you write a requirements document first.</p>
       </div>
-      <aside>
-        <button id="open-field" class="open">SPRAWL</button>
-        <p id="room-status" role="status" aria-live="polite">Nothing has been interpreted yet.</p>
+      <aside class="task-context">
+        <span>Shared task</span>
+        <strong id="current-task">No shared task yet.</strong>
       </aside>
     </section>
 
-    <section class="probability" aria-labelledby="probability-title">
+    <section class="workspace-card intention" aria-labelledby="intention-title">
       <div class="section-head">
         <div>
-          <p class="step">02 / OPEN PROBABILITY</p>
+          <p class="eyebrow">Start here</p>
+          <h2 id="intention-title">What do you want to exist?</h2>
+        </div>
+      </div>
+      <div class="field-stack">
+        <label for="founder-intention">One human sentence
+          <textarea id="founder-intention" class="primary-textarea" maxlength="1800" placeholder="make some actual site about something idk completely different but make it alive"></textarea>
+        </label>
+        <div class="actions">
+          <button id="open-field" class="primary-action" type="button">Show different directions</button>
+          <button id="reset-room" class="quiet-action" type="button">Reset</button>
+        </div>
+        <p id="room-status" class="status-line" role="status" aria-live="polite">Nothing has been interpreted yet.</p>
+      </div>
+    </section>
+
+    <section class="workspace-card probability" aria-labelledby="probability-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Directions</p>
           <h2 id="probability-title">Do not collapse because one answer sounds smart.</h2>
         </div>
-        <p id="branch-count">0 live branches</p>
+        <p id="branch-count" class="status-line">0 live branches</p>
       </div>
-      <div id="branch-field" class="branch-field">
-        <p class="empty">The field is empty. Founder may leave the wording behind once you sprawl it.</p>
+      <div id="branch-field" class="branch-field" aria-live="polite">
+        <p class="empty">Your directions will appear here.</p>
       </div>
     </section>
 
-    <section class="push" aria-labelledby="push-title">
-      <div>
-        <p class="step">03 / CONSEQUENCE</p>
-        <h2 id="push-title">Push only when reality must change.</h2>
-        <p>The selected branch becomes an objective packet for Archie and Maker. Mutation, publication, contact, spending, identity-bearing action, irreversible state, and capability claims still require exact authority and evidence.</p>
+    <section class="workspace-card push" aria-labelledby="push-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Choose</p>
+          <h2 id="push-title">Use one direction when it is stronger.</h2>
+          <p>The selected direction becomes the shared objective for Answer and Build. No execution authority is granted here.</p>
+        </div>
       </div>
-      <div class="push-controls">
-        <button id="push-turn">PUSH</button>
-        <button id="copy-receipt" class="quiet">COPY RECEIPT</button>
-        <button id="download-receipt" class="quiet">DOWNLOAD JSON</button>
-        <button id="reset-room" class="quiet">RESET</button>
+      <div class="actions">
+        <button id="push-turn" class="primary-action" type="button">Use this direction</button>
+        <a class="secondary-action" href="../maker/">Continue to Build</a>
       </div>
-      <pre id="turn-preview" tabindex="0">No turn receipt yet.</pre>
+      <details class="advanced">
+        <summary>Portable receipt</summary>
+        <div class="actions">
+          <button id="copy-receipt" class="secondary-action" type="button">Copy receipt</button>
+          <button id="download-receipt" class="secondary-action" type="button">Download JSON</button>
+        </div>
+        <pre id="turn-preview" tabindex="0">No turn receipt yet.</pre>
+      </details>
     </section>
-
-    <footer>
-      <p>This surface currently creates a local, deterministic objective receipt. It does not claim an Archie model executed the turn.</p>
-    </footer>
   </main>
+
+  <footer class="site-footer"><span>Explore first. Commit only when one direction earns it.</span><span><a href="../foundry/">Research</a> · <a href="../examples/site/">Example output</a></span></footer>
+  <script type="module" src="../desktop/desktop.js"></script>
   <script type="module" src="./founder.js"></script>
 </body>
 </html>

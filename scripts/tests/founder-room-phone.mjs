@@ -42,7 +42,7 @@ try {
   await page.goto(founderUrl, { waitUntil: 'networkidle' });
   await page.getByRole('heading', { name: 'Make something true.' }).waitFor({ state: 'visible' });
   await page.locator('#founder-intention').fill(intention);
-  await page.getByRole('button', { name: 'SPRAWL' }).click();
+  await page.getByRole('button', { name: 'Show different directions' }).click();
 
   proof.branches = await page.locator('[data-branch]').count();
   if (proof.branches !== 6) throw new Error(`expected six open branches, got ${proof.branches}`);
@@ -51,15 +51,18 @@ try {
   const selected = await page.locator('[data-branch="missing-capability"]').getAttribute('aria-pressed');
   if (selected !== 'true') throw new Error('missing-capability branch was not selected');
 
-  await page.getByRole('button', { name: 'PUSH', exact: true }).click();
+  await page.getByRole('button', { name: 'Use this direction', exact: true }).click();
   const status = await page.locator('#room-status').innerText();
   proof.status = status;
   proof.pushed = status.includes('No execution authority has been granted');
   if (!proof.pushed) throw new Error(`Founder did not preserve the push boundary: ${status}`);
 
-  const preview = await page.locator('#turn-preview').innerText();
-  if (!preview.includes('"push_state": "pushed-objective-only"')) throw new Error('turn receipt missing pushed state');
+  const preview = await page.locator('#turn-preview').textContent();
+  if (!preview?.includes('"push_state": "pushed-objective-only"')) throw new Error('turn receipt missing pushed state');
   if (!preview.includes('"user_workflow_requires_git": false')) throw new Error('turn receipt requires Git');
+
+  const shared = await page.evaluate(() => JSON.parse(localStorage.getItem('archie:shared-task:v2') || '{}'));
+  if (!shared.text || shared.route !== 'maker') throw new Error('selected Founder direction was not handed to the shared build task');
 
   await page.reload({ waitUntil: 'networkidle' });
   const restoredIntention = await page.locator('#founder-intention').inputValue();

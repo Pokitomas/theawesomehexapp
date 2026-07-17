@@ -31,19 +31,19 @@ const immutableAction = name => new RegExp(`uses:\\s*${name.replace('/', '\\/')}
 function loadPagesWorkflow({ workspace = process.env.GITHUB_WORKSPACE || process.cwd(), readFile = readFileSync } = {}) {
   const workflowPath = resolve(workspace, '.github/workflows/pages.yml');
   const workflow = readFile(workflowPath, 'utf8');
-  if (!workflow.includes('name: Build and deploy independent program surfaces')) throw new Error(`Unexpected Pages workflow content at ${workflowPath}`);
+  if (!workflow.includes('name: Build and deploy Archie one-task workflow')) throw new Error(`Unexpected Pages workflow content at ${workflowPath}`);
   return { workflowPath, workflow };
 }
 
-const sentinel = (commit = 'new') => ({ schema: 3, product_root: 'desktop-program-manager', product_model: 'independent-programs', commit, repository: 'Pokitomas/theawesomehexapp' });
+const sentinel = (commit = 'new') => ({ schema: 4, product_root: 'one-request-router', product_model: 'one-task-progressive-views', commit, repository: 'Pokitomas/theawesomehexapp' });
 
 function successfulReceipt(surface, commit = 'new') {
   return { schema: 'test/v1', surface, url: surfaceUrl('https://example.test/app/', surface), anonymous: true, status: 200, login_redirect: false, expected_commit: commit, observed_commit: commit };
 }
 
-test('deployment identity names Program Manager as the exact product root', () => {
+test('deployment identity names the one-request router as the exact product root', () => {
   assert.deepEqual(buildDeploymentSentinel({ commit: 'abc123', repository: 'Pokitomas/theawesomehexapp' }), {
-    schema: 3, product_root: 'desktop-program-manager', product_model: 'independent-programs', commit: 'abc123', repository: 'Pokitomas/theawesomehexapp'
+    schema: 4, product_root: 'one-request-router', product_model: 'one-task-progressive-views', commit: 'abc123', repository: 'Pokitomas/theawesomehexapp'
   });
   assert.equal(desktopUrl('https://pokitomas.github.io/theawesomehexapp'), 'https://pokitomas.github.io/theawesomehexapp/');
   assert.equal(desktopAliasUrl('https://pokitomas.github.io/theawesomehexapp'), 'https://pokitomas.github.io/theawesomehexapp/desktop/');
@@ -53,21 +53,22 @@ test('deployment identity names Program Manager as the exact product root', () =
   const receipts = PUBLIC_SURFACES.map(item => successfulReceipt(item.id, 'abc123'));
   const body = buildDeploymentReceiptBody({ deployedUrl: 'https://pokitomas.github.io/theawesomehexapp', commit: 'abc123', surfaceReceipts: receipts });
   assert.match(body, /ROOT_PRODUCT=Archie Program Manager/);
-  assert.match(body, /PRODUCT_MODEL=independent opaque applications/);
+  assert.match(body, /PRODUCT_MODEL=one task with progressive specialized views/);
+  assert.match(body, /DESKTOP_CONTRACT=accepts one rough request and selects the smallest useful workflow/);
   assert.match(body, /DESKTOP_URL=.*\/desktop\//);
   assert.match(body, /ALL_PUBLIC_SURFACES_VERIFIED=true/);
   for (const definition of PUBLIC_SURFACES) assert.match(body, new RegExp(`${definition.label}_ANONYMOUS_REACHABLE=true`));
   assert.doesNotMatch(body, /MANUAL_URL|PHONE_TEST_URL|one-million-candidate feed/);
 });
 
-test('receipt fails closed when even one public program is missing', () => {
+test('receipt fails closed when even one public view is missing', () => {
   const receipts = PUBLIC_SURFACES.filter(item => item.id !== 'maker').map(item => successfulReceipt(item.id));
   const body = buildDeploymentReceiptBody({ deployedUrl: 'https://example.test/app/', commit: 'new', surfaceReceipts: receipts });
   assert.match(body, /ALL_PUBLIC_SURFACES_VERIFIED=false/);
   assert.match(body, /MAKER_ANONYMOUS_REACHABLE=false/);
 });
 
-test('live verification rejects stale or non-Program-Manager deployments', async () => {
+test('live verification rejects stale or wrong-product deployments', async () => {
   const responses = [sentinel('old'), sentinel('new')];
   const result = await verifyLiveDeployment({ deployedUrl: 'https://example.test/app/', expectedCommit: 'new', expectedRepository: 'Pokitomas/theawesomehexapp', attempts: 2, delayMs: 0, async fetchImpl() { return { ok: true, async json() { return responses.shift(); } }; } });
   assert.equal(result.attempt, 2);
@@ -89,7 +90,7 @@ function publicFetch() {
   };
 }
 
-test('every final program is anonymously reachable, independently marked, and commit-bound', async () => {
+test('every final view is anonymously reachable, independently marked, and commit-bound', async () => {
   const result = await verifyAllPublicSurfaces({ deployedUrl: 'https://example.test/app/', expectedCommit: 'new', expectedRepository: 'Pokitomas/theawesomehexapp', attempts: 1, delayMs: 0, fetchImpl: publicFetch() });
   assert.equal(result.schema, PUBLIC_SURFACE_SET_SCHEMA);
   assert.equal(result.receipts.length, PUBLIC_SURFACES.length);
@@ -105,7 +106,7 @@ test('every final program is anonymously reachable, independently marked, and co
   assert.equal(archie.schema, ARCHIE_RECEIPT_SCHEMA);
 });
 
-test('receipt upsert migrates legacy deployment issues to the complete independent-program receipt', async () => {
+test('receipt upsert migrates legacy deployment issues to the one-task workflow receipt', async () => {
   const updates = [];
   const github = { async paginate() { return [{ number: 396, title: LEGACY_RECEIPT_TITLES[0] }]; }, rest: { issues: {
     async listForRepo() { throw new Error('paginate should own listing'); },
@@ -125,12 +126,14 @@ test('Pages workflow verifies every live route before writing the final receipt'
   const publishHuman = workflow.indexOf('node scripts/publish-human-surfaces.mjs dist');
   const writeSentinel = workflow.indexOf('node scripts/deployment-receipt.cjs write-sentinel');
   const verifyRoot = workflow.indexOf("grep -q 'Archie Program Manager' dist/index.html");
+  const verifyPrompt = workflow.indexOf("grep -q 'What should happen?' dist/index.html");
   const upload = workflow.match(immutableAction('actions/upload-pages-artifact'));
   const deployJobStart = workflow.indexOf('\n  deploy:\n');
   assert.ok(publishHuman >= 0);
   assert.ok(writeSentinel > publishHuman);
   assert.ok(verifyRoot > writeSentinel);
-  assert.ok(upload?.index > verifyRoot);
+  assert.ok(verifyPrompt > verifyRoot);
+  assert.ok(upload?.index > verifyPrompt);
   assert.ok(deployJobStart > upload.index);
   const deployJob = workflow.slice(deployJobStart);
   const deployPages = deployJob.search(immutableAction('actions/deploy-pages'));

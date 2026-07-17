@@ -1,6 +1,15 @@
-// Indie workshop shell refresh.
-const CACHE = 'maker-engineering-v3';
-const SHELL = ['./', './index.html', './maker.css', './maker.js', './manifest.webmanifest', './icon.svg'];
+// Result-first Maker shell with shared Archie navigation.
+const CACHE = 'maker-engineering-v4';
+const SHELL = [
+  './',
+  './index.html',
+  './maker.js',
+  './runtime-receipt.js',
+  './manifest.webmanifest',
+  './icon.svg',
+  '../desktop/desktop.css',
+  '../desktop/desktop.js'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

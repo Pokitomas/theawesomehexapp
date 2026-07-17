@@ -12,6 +12,17 @@ const LENSES = Object.freeze([
   ['maximal', 'What becomes possible if token and compute scarcity is temporarily ignored?']
 ]);
 
+const LENS_LABELS = Object.freeze({
+  capacity: 'Invent a reusable ability',
+  inversion: 'Question the premise',
+  operator: 'Improve the tool, not the model',
+  embodiment: 'Change the physical form',
+  adversary: 'Try to prove the goal wrong',
+  transfer: 'Borrow from another craft',
+  minimal: 'Find the smallest real solution',
+  maximal: 'Ignore scarcity temporarily'
+});
+
 function clean(value, limit = 1600) { return String(value || '').trim().slice(0, limit); }
 
 export function normalizeCampaign(input = {}) {
@@ -76,6 +87,16 @@ function download(doc, campaign) {
   URL.revokeObjectURL(href);
 }
 
+function distinctDirections(candidates = []) {
+  const byLens = new Map();
+  for (const candidate of candidates) if (!byLens.has(candidate.lens)) byLens.set(candidate.lens, candidate);
+  return [...byLens.values()];
+}
+
+function plainProposition(candidate) {
+  return clean(candidate?.proposition).replace(/\s+Research cycle \d+ begins from[\s\S]*$/i, '').trim();
+}
+
 export function mountFoundry(doc = document, storage = localStorage) {
   const persistence = createStorage(storage);
   let campaign = persistence.load();
@@ -96,23 +117,26 @@ export function mountFoundry(doc = document, storage = localStorage) {
     if (count) count.value = String(campaign.candidate_count);
     if (countOutput) countOutput.value = String(campaign.candidate_count);
     for (const input of doc.querySelectorAll('input[name="lane"]')) input.checked = campaign.lanes.includes(input.value);
-    if (fieldCount) fieldCount.textContent = `${campaign.candidates.length} live branches`;
+    const directions = distinctDirections(campaign.candidates);
+    if (fieldCount) fieldCount.textContent = campaign.candidates.length ? `${directions.length} directions · ${campaign.candidates.length} candidates preserved` : '0 directions';
     if (field) {
       field.replaceChildren();
-      if (!campaign.candidates.length) {
+      if (!directions.length) {
         const empty = doc.createElement('p');
         empty.className = 'empty';
-        empty.textContent = 'The specimen table is empty. Run the field to derive contradictory branches.';
+        empty.textContent = 'Your strongest distinct research directions will appear here.';
         field.append(empty);
       } else {
-        for (const candidate of campaign.candidates) {
+        for (const candidate of directions) {
           const row = doc.createElement('article');
           row.className = 'candidate';
           const label = doc.createElement('b');
-          label.textContent = `${candidate.id} / ${candidate.lens}`;
+          label.textContent = LENS_LABELS[candidate.lens] || candidate.lens;
           const proposition = doc.createElement('p');
-          proposition.textContent = candidate.proposition;
-          row.append(label, proposition);
+          proposition.textContent = plainProposition(candidate);
+          const applied = doc.createElement('p');
+          applied.textContent = `Applied to: ${campaign.objective}`;
+          row.append(label, proposition, applied);
           field.append(row);
         }
       }
@@ -126,25 +150,26 @@ export function mountFoundry(doc = document, storage = localStorage) {
     if (!raw) { setStatus('Enter an objective first. Bad wording is allowed.'); objective?.focus(); return; }
     campaign = buildCampaign({ objective: raw, subsidy: subsidy?.value, candidate_count: count?.value, lanes: selectedLanes() });
     persistence.save(campaign);
-    setStatus(`Derived ${campaign.candidates.length} specimens under ${campaign.subsidy} subsidy. No capability has been promoted.`);
+    const directions = distinctDirections(campaign.candidates);
+    setStatus(`Found ${directions.length} readable directions from ${campaign.candidates.length} preserved candidates. No capability has been promoted.`);
     render();
   });
   doc.querySelector('#push-campaign')?.addEventListener('click', async () => {
-    if (!campaign.candidates.length) { setStatus('Run the field before copying a campaign manifest.'); return; }
-    try { await navigator.clipboard?.writeText(stableManifest(campaign)); setStatus('Manifest copied. This authorizes research planning, not capability promotion.'); }
-    catch { setStatus('Manifest is ready in the evidence console. Clipboard access was unavailable.'); }
+    if (!campaign.candidates.length) { setStatus('Find approaches before copying a campaign manifest.'); return; }
+    try { await navigator.clipboard?.writeText(stableManifest(campaign)); setStatus('Full manifest copied. This authorizes research planning, not capability promotion.'); }
+    catch { setStatus('The full manifest is visible below. Clipboard access was unavailable.'); }
   });
   doc.querySelector('#download-manifest')?.addEventListener('click', () => {
-    if (!campaign.candidates.length) { setStatus('Run the field before saving a campaign.'); return; }
+    if (!campaign.candidates.length) { setStatus('Find approaches before saving a campaign.'); return; }
     download(doc, campaign); setStatus('Campaign manifest saved.');
   });
   doc.querySelector('#reset-foundry')?.addEventListener('click', () => {
-    persistence.clear(); campaign = normalizeCampaign(); setStatus('Station reset. No campaign exists.'); render();
+    persistence.clear(); campaign = normalizeCampaign(); setStatus('Reset. No campaign exists.'); render();
   });
   doc.querySelectorAll('[data-menu]').forEach(button => button.addEventListener('click', () => {
     setStatus(button.dataset.menu === 'help'
-      ? 'Help: configure a field, derive specimens, inspect the manifest, then carry it into an admitted research runtime.'
-      : `${button.textContent} menu contains no hidden execution command in this prototype.`);
+      ? 'Write one objective, inspect the distinct directions, and open the full manifest only when exact research machinery matters.'
+      : `${button.textContent} contains no hidden execution command in this prototype.`);
   }));
   render();
   return Object.freeze({ getCampaign: () => normalizeCampaign(campaign) });

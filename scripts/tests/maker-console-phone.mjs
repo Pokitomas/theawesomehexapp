@@ -88,13 +88,22 @@ const browserErrors = [];
 const unexpectedBrowserErrors = () => browserErrors.filter(message => !/ERR_INTERNET_DISCONNECTED/.test(message));
 page.on('pageerror', error => browserErrors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
+const openDetails = async label => {
+  const summary = page.locator('details > summary').filter({ hasText: label }).first();
+  const details = summary.locator('..');
+  if (await details.getAttribute('open') === null) await summary.click();
+};
 try {
   await page.goto('http://127.0.0.1:4175/maker/', { waitUntil: 'networkidle' });
   await page.getByRole('heading', { name: 'Build software.' }).waitFor({ state: 'visible' });
+  await openDetails('Repository, proof, and execution controls');
+  await openDetails('Live public repository state');
+  await openDetails('Observed Archie runtime receipt');
+  await page.waitForFunction(() => document.querySelector('#archie-compute')?.textContent.includes('unavailable until observed'));
   proof.executionTruthVisible = await page.locator('text=Task author only').count() > 0
-    && await page.locator('text=One leased branch').count() > 0
+    && /required before first write/i.test(await page.locator('#lease-state').innerText())
     && (await page.locator('#tool-state').innerText()).includes('rollback');
-  if (!proof.executionTruthVisible) throw new Error('execution truth is not visible');
+  if (!proof.executionTruthVisible) throw new Error('execution truth is not visible after opening advanced controls');
   proof.archieDefaultTruth = await page.locator('#archie-sparse').innerText() === 'Unobserved'
     && /unavailable until observed/i.test(await page.locator('#archie-compute').innerText())
     && await page.locator('text=Training complete').count() === 0
@@ -173,6 +182,7 @@ try {
     && await page.locator('[data-mode="explore"]').getAttribute('aria-pressed') === 'true';
   if (!proof.persisted) throw new Error('engineering task did not survive phone reload');
   if (browserErrors.length) throw new Error(`unexpected browser errors before degraded-state test: ${browserErrors.join(' | ')}`);
+  await openDetails('Live public repository state');
   await context.unrouteAll({ behavior: 'wait' });
   await context.setOffline(true);
   await page.locator('#refresh-state').click();

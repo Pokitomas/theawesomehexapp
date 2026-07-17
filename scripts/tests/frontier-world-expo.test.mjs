@@ -74,23 +74,24 @@ test('materialization fails closed with explicit evidence placeholders and statu
   assert.equal(report.aggregate_score_forbidden, true);
 });
 
-test('the live Expo is commission-shaped, portable, responsive, and not a service-tab gallery', async () => {
-  const [html, css, client] = await Promise.all([
+test('the live Expo is a plain results view while preserving portable evidence routes', async () => {
+  const [html, sharedCss, client] = await Promise.all([
     read('world-expo/index.html'),
-    read('world-expo/expo.css'),
+    read('desktop/desktop.css'),
     read('world-expo/expo.js')
   ]);
-  for (const phrase of ['NO SACRED INTERFACE', 'Enter through a commission', 'Six contradictory embodiments', 'Nothing is promoted']) {
+  for (const phrase of ['Things Archie made', 'human commission', 'Evidence before promotion', 'Promotion ledger']) {
     assert.match(html, new RegExp(phrase, 'i'));
   }
   assert.doesNotMatch(html, />\s*Image Generator\s*</i);
   assert.doesNotMatch(html, />\s*Audio API\s*</i);
   assert.doesNotMatch(html, />\s*Model Playground\s*</i);
   assert.match(client, /frontier-world-expo-route\/v1/);
-  assert.match(html, /Carry this route away/i);
+  assert.match(html, /Export this route/i);
   assert.match(client, /link\.download = `frontier-world-expo-route-/);
-  assert.match(css, /@media \(max-width: 760px\)/);
-  assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /focus-visible/);
-  assert.match(css, /min-height: 48px/);
+  assert.match(html, /\.\.\/desktop\/desktop\.css/);
+  assert.match(sharedCss, /@media \(max-width: 820px\)/);
+  assert.match(sharedCss, /prefers-reduced-motion/);
+  assert.match(sharedCss, /focus-visible/);
+  assert.match(sharedCss, /min-height: 46px/);
 });
