@@ -39,44 +39,19 @@ jobs:
           sed -i 's/|  60 ++++ -$/|  60 ++++-/' /tmp/0001.patch
           echo 'b18e8e171deead37e066adb2d895b6027b2db0a774cf99dcc364994c93c2cc9e  /tmp/0001.patch' | sha256sum -c -
 
-      - name: Admit only the genuinely missing Overlay Vault implementation
+      - name: Extract only the genuinely missing Overlay Vault files
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'Archie Recovery Bot'
           git config user.email 'archie-recovery@users.noreply.github.com'
 
-          # Current main already contains stronger versions of the teacher
-          # promotion and cold-start changes. Apply the recovered patch only to
-          # recover its clean new files, then resolve the three expected
-          # overlapping files to current main rather than regressing them.
-          set +e
-          git apply --3way --index /tmp/0001.patch
-          apply_status=$?
-          set -e
-
-          conflicts="$(git diff --name-only --diff-filter=U | sort)"
-          expected="$(printf '%s\n' \
-            scripts/maker-archie-benchmark.mjs \
-            scripts/maker-archie-cognition.mjs \
-            scripts/tests/maker-archie-cognition.test.mjs | sort)"
-          if [ "$apply_status" -eq 0 ] || [ "$conflicts" != "$expected" ]; then
-            echo "Unexpected recovery apply state: status=$apply_status" >&2
-            echo "Expected conflicts:" >&2
-            printf '%s\n' "$expected" >&2
-            echo "Observed conflicts:" >&2
-            printf '%s\n' "$conflicts" >&2
-            exit 1
-          fi
-
-          git checkout --ours -- \
-            scripts/maker-archie-benchmark.mjs \
-            scripts/maker-archie-cognition.mjs \
-            scripts/tests/maker-archie-cognition.test.mjs
-          git add \
-            scripts/maker-archie-benchmark.mjs \
-            scripts/maker-archie-cognition.mjs \
-            scripts/tests/maker-archie-cognition.test.mjs
+          # Teacher promotion and cold-start are already on main in stronger
+          # form. Apply only the two new-file paths from the recovered patch.
+          git apply --index \
+            --include=scripts/overlay-vault.mjs \
+            --include=scripts/tests/overlay-vault.test.mjs \
+            /tmp/0001.patch
 
           test -f scripts/overlay-vault.mjs
           test -f scripts/tests/overlay-vault.test.mjs
@@ -90,14 +65,14 @@ jobs:
           if (!current.includes(testPath)) pkg.scripts['test:archie:portable'] = `${current} ${testPath}`;
           fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
           NODE
-          git add package.json scripts/overlay-vault.mjs scripts/tests/overlay-vault.test.mjs
+          git add package.json
 
           changed="$(git diff --cached --name-only | sort)"
-          expected_changed="$(printf '%s\n' \
+          expected="$(printf '%s\n' \
             package.json \
             scripts/overlay-vault.mjs \
             scripts/tests/overlay-vault.test.mjs | sort)"
-          if [ "$changed" != "$expected_changed" ]; then
+          if [ "$changed" != "$expected" ]; then
             echo 'Recovery produced an unexpected staged tree:' >&2
             printf '%s\n' "$changed" >&2
             exit 1
