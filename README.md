@@ -120,6 +120,16 @@ Websites, applications, archives, social tools, games, research portals, and new
 
 The former Sideways implementation remains in repository history and code as sample material and a difficult regression target. It is no longer a product family or required architecture component.
 
+### Legacy sample authority boundary
+
+Demotion does not erase the sample program’s internal truth. Its configured function deployment still defines a **canonical public social authority** for shared accounts, publication, following, reactions, communities, moderation, appeals, and mutation receipts. Static deployment does not simulate that authority.
+
+**IndexedDB is the canonical hot store for the private personal archive** inside that sample. Its user-owned export and restore boundary remains separate from shared social authority.
+
+The **ranking candidate pool is temporary** delivery state. It may combine eligible public projections with private records for one viewer, but it is neither canonical publication authority nor Archie memory or training data.
+
+These statements preserve regression and authority semantics for an ordinary application that Maker may inspect. They do not restore that application as the product family.
+
 ## Product and research contracts
 
 ```bash
