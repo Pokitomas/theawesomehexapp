@@ -31,36 +31,15 @@ jobs:
           git clone --quiet --depth 1 --branch revive/dead-instance-completion-20260717 \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
 
-      - name: Repair transport hunk metadata and apply exact receipt hardening
+      - name: Recount and apply exact receipt hardening
         shell: bash
         working-directory: repo
         run: |
           set -euo pipefail
           git config user.name 'Archie Recovery Bot'
           git config user.email 'archie-recovery@users.noreply.github.com'
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('.recovery/harden-cognition-maker-receipt.patch')
-          text = path.read_text(encoding='utf-8')
-          replacements = {
-              '@@ -259,9 +259,14 ': '@@ -259,9 +259,13 ',
-              '@@ -459,16 +459,43 ': '@@ -459,21 +459,46 ',
-              '@@ -97,7 +108,7 ': '@@ -97,6 +108,6 ',
-              '@@ -122,7 +133,7 ': '@@ -122,6 +133,6 ',
-              '@@ -131,10 +142,31 ': '@@ -131,9 +142,27 ',
-              '@@ -154,9 +186,7 ': '@@ -154,9 +183,7 ',
-          }
-          for old, new in replacements.items():
-              if old not in text:
-                  raise SystemExit(f'missing expected patch header: {old!r}')
-              text = text.replace(old, new, 1)
-          path.write_text(text, encoding='utf-8')
-          for number, line in enumerate(text.splitlines(), 1):
-              if line.startswith('@@'):
-                  print(f'{number}: {line}')
-          PY
-          git apply --check --verbose .recovery/harden-cognition-maker-receipt.patch
-          git apply --index .recovery/harden-cognition-maker-receipt.patch
+          git apply --recount --check --verbose .recovery/harden-cognition-maker-receipt.patch
+          git apply --recount --index .recovery/harden-cognition-maker-receipt.patch
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
