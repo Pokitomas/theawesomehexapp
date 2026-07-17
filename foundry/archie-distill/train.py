@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
-"""Evidence-bound neural training entrypoint for Archie.
+"""Evidence-bound, CUDA-only QLoRA training entrypoint for Archie.
 
-This performs real gradient updates against the local student checkpoint. It accepts
-compiled Archie training workspaces, mixes continued-pretraining and trajectory SFT,
-turns admitted negative trajectories into explicit correction targets, evaluates on
-the development split, and emits a byte-bound receipt. It never promotes the result.
+This performs real 4-bit NF4 QLoRA gradient updates against a pinned local
+student checkpoint. It accepts compiled Archie training workspaces, mixes
+continued-pretraining and trajectory SFT, turns admitted negative trajectories
+into explicit correction targets, evaluates on the development split, and
+emits a byte-bound receipt. It never downloads weights, silently falls back to
+full-precision CPU training, or promotes the result.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import inspect
 import json
 import os
 import pathlib
+import platform
 import random
 import time
 from typing import Any
@@ -107,12 +111,57 @@ def artifact_manifest(root: pathlib.Path) -> list[dict[str, Any]]:
     return files
 
 
-def choose_dtype(torch: Any) -> Any:
-    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-        return torch.bfloat16
-    if torch.cuda.is_available():
-        return torch.float16
-    return torch.float32
+def directory_identity(root: pathlib.Path) -> dict[str, Any]:
+    files = artifact_manifest(root)
+    return {
+        "digest": hashlib.sha256(stable(files).encode("utf-8")).hexdigest(),
+        "file_count": len(files),
+        "bytes": sum(item["bytes"] for item in files),
+    }
+
+
+def tokenizer_identity(root: pathlib.Path) -> dict[str, Any]:
+    names = {
+        "added_tokens.json",
+        "chat_template.jinja",
+        "merges.txt",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer.model",
+        "tokenizer_config.json",
+        "vocab.json",
+    }
+    files = [
+        item for item in artifact_manifest(root)
+        if pathlib.PurePosixPath(item["path"]).name in names
+        or pathlib.PurePosixPath(item["path"]).name.startswith("tokenizer")
+    ]
+    return {
+        "digest": hashlib.sha256(stable(files).encode("utf-8")).hexdigest(),
+        "file_count": len(files),
+        "files": files,
+    }
+
+
+def dataset_identity(paths: dict[str, pathlib.Path]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, path in paths.items():
+        result[name] = {
+            "present": path.exists(),
+            "bytes": path.stat().st_size if path.exists() else 0,
+            "sha256": sha256(path) if path.exists() else None,
+        }
+    return result
+
+
+def package_versions(names: list[str]) -> dict[str, str | None]:
+    versions: dict[str, str | None] = {}
+    for name in names:
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[name] = None
+    return versions
 
 
 def supported_kwargs(callable_object: Any, values: dict[str, Any]) -> dict[str, Any]:
@@ -129,7 +178,7 @@ def main() -> None:
     parser.add_argument("--workspace", required=True, help="Compiled Archie training workspace")
     parser.add_argument("--output", required=True)
     parser.add_argument("--model-dir", help="Override workspace/models/student")
-    parser.add_argument("--max-seq-length", type=int, default=4096)
+    parser.add_argument("--max-seq-length", type=int, default=1024)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=8)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--pretrain-weight", type=float, default=0.25)
@@ -141,8 +190,14 @@ def main() -> None:
     profile = read_json(profile_path)
     cfg = require_profile(profile)
     seed = int(cfg["seed"])
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    os.environ["HF_DATASETS_OFFLINE"] = "1"
     random.seed(seed)
-    os.environ.setdefault("PYTHONHASHSEED", str(seed))
 
     plan_path = workspace / "training-plan.json"
     plan = read_json(plan_path)
@@ -150,25 +205,41 @@ def main() -> None:
         raise SystemExit("Workspace does not contain an Archie training plan v1.")
 
     datasets_dir = workspace / "datasets"
-    pretrain_rows = read_jsonl(datasets_dir / "pretrain.train.jsonl")
-    sft_rows = read_jsonl(datasets_dir / "sft.train.jsonl")
-    negative_rows = read_jsonl(datasets_dir / "negative.train.jsonl")
-    development_rows = read_jsonl(datasets_dir / "development-holdout.jsonl")
+    dataset_paths = {
+        "continued_pretraining": datasets_dir / "pretrain.train.jsonl",
+        "trajectory_sft": datasets_dir / "sft.train.jsonl",
+        "negative_correction": datasets_dir / "negative.train.jsonl",
+        "development_holdout": datasets_dir / "development-holdout.jsonl",
+    }
+    pretrain_rows = read_jsonl(dataset_paths["continued_pretraining"])
+    sft_rows = read_jsonl(dataset_paths["trajectory_sft"])
+    negative_rows = read_jsonl(dataset_paths["negative_correction"])
+    development_rows = read_jsonl(dataset_paths["development_holdout"])
     if not sft_rows and not negative_rows and not pretrain_rows:
         raise SystemExit("No neural training rows were supplied.")
 
     try:
         import torch
         from datasets import Dataset
-        from peft import LoraConfig
+        from peft import LoraConfig, prepare_model_for_kbit_training
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainingArguments
         from trl import SFTTrainer
     except Exception as exc:
-        raise SystemExit("Pinned neural training dependencies are not installed in this environment.") from exc
+        raise SystemExit("Pinned CUDA QLoRA dependencies are not installed in this environment.") from exc
+
+    if not torch.cuda.is_available():
+        raise SystemExit(
+            "Archie QLoRA requires a supported local CUDA GPU. "
+            "Refusing slow full-precision CPU training."
+        )
 
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
     model_dir = pathlib.Path(args.model_dir).resolve() if args.model_dir else workspace / "models" / "student"
     if not model_dir.exists():
@@ -177,26 +248,35 @@ def main() -> None:
         raise SystemExit(f"Refusing to overwrite existing output: {output}")
     output.mkdir(parents=True)
 
+    checkpoint_identity = directory_identity(model_dir)
+    checkpoint_tokenizer_identity = tokenizer_identity(model_dir)
     tokenizer = AutoTokenizer.from_pretrained(model_dir, local_files_only=True, trust_remote_code=False)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    dtype = choose_dtype(torch)
-    quantization = None
-    if torch.cuda.is_available():
-        quantization = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_compute_dtype=dtype,
-        )
+
+    compute_dtype = torch.float16
+    quantization_values = {
+        "load_in_4bit": True,
+        "bnb_4bit_quant_type": "nf4",
+        "bnb_4bit_use_double_quant": True,
+        "bnb_4bit_compute_dtype": "float16",
+    }
+    quantization = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=compute_dtype,
+    )
     model = AutoModelForCausalLM.from_pretrained(
         model_dir,
         quantization_config=quantization,
-        device_map="auto" if torch.cuda.is_available() else None,
-        torch_dtype=None if quantization else dtype,
+        device_map={"": torch.cuda.current_device()},
         local_files_only=True,
         trust_remote_code=False,
     )
+    if not getattr(model, "is_loaded_in_4bit", False):
+        raise SystemExit("Student checkpoint did not load in 4-bit mode; refusing a false QLoRA receipt.")
+    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
     model.config.use_cache = False
 
     neural_rows: list[dict[str, str]] = []
@@ -214,6 +294,11 @@ def main() -> None:
     random.shuffle(neural_rows)
     if not neural_rows:
         raise SystemExit("Dataset mixing produced zero training rows.")
+    training_order = [
+        {"index": index, "lane": row["lane"], "text_sha256": hashlib.sha256(row["text"].encode("utf-8")).hexdigest()}
+        for index, row in enumerate(neural_rows)
+    ]
+    training_order_digest = hashlib.sha256(stable(training_order).encode("utf-8")).hexdigest()
 
     eval_rows: list[dict[str, str]] = []
     for row in development_rows:
@@ -237,30 +322,36 @@ def main() -> None:
         "per_device_eval_batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "gradient_checkpointing": True,
+        "gradient_checkpointing_kwargs": {"use_reentrant": False},
+        "optim": "paged_adamw_8bit",
+        "dataloader_num_workers": 0,
         "logging_steps": 1,
         "save_strategy": "epoch",
         "eval_strategy": "epoch" if eval_dataset is not None else "no",
         "evaluation_strategy": "epoch" if eval_dataset is not None else "no",
         "seed": seed,
         "data_seed": seed,
+        "full_determinism": True,
+        "tf32": False,
         "report_to": [],
         "remove_unused_columns": False,
-        "bf16": dtype == torch.bfloat16,
-        "fp16": dtype == torch.float16,
+        "bf16": False,
+        "fp16": True,
     }
     training_args = TrainingArguments(**supported_kwargs(TrainingArguments.__init__, training_argument_values))
+    lora_values = {
+        "r": int(cfg["lora_rank"]),
+        "lora_alpha": int(cfg["lora_alpha"]),
+        "lora_dropout": float(cfg.get("lora_dropout", 0.0)),
+        "bias": "none",
+        "task_type": "CAUSAL_LM",
+        "target_modules": cfg.get("target_modules", "all-linear"),
+    }
     trainer_values = {
         "model": model,
         "train_dataset": train_dataset,
         "eval_dataset": eval_dataset,
-        "peft_config": LoraConfig(
-            r=int(cfg["lora_rank"]),
-            lora_alpha=int(cfg["lora_alpha"]),
-            lora_dropout=float(cfg.get("lora_dropout", 0.05)),
-            bias="none",
-            task_type="CAUSAL_LM",
-            target_modules=cfg.get("target_modules", "all-linear"),
-        ),
+        "peft_config": LoraConfig(**lora_values),
         "args": training_args,
         "dataset_text_field": "text",
         "max_seq_length": args.max_seq_length,
@@ -269,6 +360,12 @@ def main() -> None:
         "processing_class": tokenizer,
     }
     trainer = SFTTrainer(**supported_kwargs(SFTTrainer.__init__, trainer_values))
+    trainable_parameters = [name for name, parameter in trainer.model.named_parameters() if parameter.requires_grad]
+    if not trainable_parameters:
+        raise SystemExit("QLoRA produced zero trainable adapter parameters.")
+    non_adapter_parameters = [name for name in trainable_parameters if "lora_" not in name]
+    if non_adapter_parameters:
+        raise SystemExit(f"QLoRA attempted to train non-adapter parameters: {non_adapter_parameters[:8]}")
 
     result = trainer.train()
     adapter_dir = output / "adapter"
@@ -276,33 +373,68 @@ def main() -> None:
     tokenizer.save_pretrained(adapter_dir)
     evaluation = trainer.evaluate() if eval_dataset is not None else None
 
+    gpu_index = torch.cuda.current_device()
+    gpu_properties = torch.cuda.get_device_properties(gpu_index)
     receipt = {
         "schema": SCHEMA,
         "profile": {"id": profile.get("id"), "sha256": sha256(profile_path)},
         "training_plan": {"sha256": sha256(plan_path), "plan_digest": plan.get("plan_digest")},
-        "student_checkpoint": {"path": str(model_dir), "revision": profile.get("student", {}).get("revision")},
+        "student_checkpoint": {
+            "path": str(model_dir),
+            "revision": profile.get("student", {}).get("revision"),
+            **checkpoint_identity,
+            "tokenizer": checkpoint_tokenizer_identity,
+        },
         "datasets": {
+            "identities": dataset_identity(dataset_paths),
             "continued_pretraining_rows": len(pretrain_rows),
             "trajectory_sft_rows": len(sft_rows),
             "negative_correction_rows": len(negative_rows),
             "development_rows": len(development_rows),
             "effective_train_rows": len(neural_rows),
+            "training_order_digest": training_order_digest,
+        },
+        "runtime": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "packages": package_versions(["torch", "transformers", "datasets", "peft", "trl", "bitsandbytes", "accelerate"]),
+            "cuda": torch.version.cuda,
+            "cudnn": torch.backends.cudnn.version(),
+            "gpu": {
+                "index": gpu_index,
+                "name": torch.cuda.get_device_name(gpu_index),
+                "capability": list(torch.cuda.get_device_capability(gpu_index)),
+                "total_memory_bytes": gpu_properties.total_memory,
+            },
         },
         "optimization": {
-            "method": "qlora-multilane-sft",
+            "method": "cuda-nf4-double-quant-qlora-multilane-sft",
+            "quantization": quantization_values,
+            "optimizer": "paged_adamw_8bit",
             "seed": seed,
             "epochs": float(cfg["epochs"]),
             "learning_rate": float(cfg["learning_rate"]),
-            "lora_rank": int(cfg["lora_rank"]),
-            "lora_alpha": int(cfg["lora_alpha"]),
+            "lora": lora_values,
+            "trainable_parameter_names": trainable_parameters,
             "max_seq_length": args.max_seq_length,
+            "batch_size": args.batch_size,
+            "gradient_accumulation_steps": args.gradient_accumulation_steps,
+            "gradient_checkpointing": True,
+            "packing": bool(cfg.get("packing", True)),
             "pretrain_weight": args.pretrain_weight,
+            "determinism": {
+                "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
+                "deterministic_algorithms": True,
+                "tf32": False,
+                "dataloader_num_workers": 0,
+                "claim": "Deterministic reproduction is bounded to the same pinned checkpoint, data order, GPU class, CUDA stack, and library versions.",
+            },
         },
         "train_metrics": result.metrics,
         "development_metrics": evaluation,
         "artifacts": artifact_manifest(adapter_dir),
         "promotion": "not-admitted",
-        "claim_boundary": "Real local gradient training completed. Capability, safety, authority, and production promotion remain unproven until independent hidden evaluation and admission.",
+        "claim_boundary": "Real local CUDA NF4 QLoRA gradient training completed. Capability, safety, authority, and production promotion remain unproven until independent hidden evaluation and admission.",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     receipt["receipt_digest"] = hashlib.sha256(stable(receipt).encode("utf-8")).hexdigest()
