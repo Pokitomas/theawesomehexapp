@@ -22,6 +22,7 @@ for (const id of ['founder-intention', 'open-field', 'branch-field', 'push-turn'
 }
 assert.ok(html.includes('Make something true.'));
 assert.ok(html.includes('Say it badly.'));
+assert.ok(html.includes('Show different directions'));
 assert.ok(html.includes('../foundry/'));
 assert.ok(html.includes('../examples/site/'));
 assert.ok(html.includes('<link rel="icon" href="data:,">'));
@@ -88,8 +89,8 @@ assert.equal(brokenStorage.clear(), false);
 
 if (fs.existsSync('dist')) {
   const publishReceipt = publishHumanSurfaces({ output: 'dist' });
-  assert.equal(publishReceipt.root_surface, 'desktop-program-manager');
-  assert.equal(publishReceipt.product_model, 'independent-programs');
+  assert.equal(publishReceipt.root_surface, 'one-request-router');
+  assert.equal(publishReceipt.product_model, 'one-task-progressive-views');
   assert.equal(publishReceipt.legacy_sample_is_product_root, false);
   for (const relative of [
     'dist/index.html',
@@ -103,9 +104,11 @@ if (fs.existsSync('dist')) {
   ]) assert.ok(fs.statSync(relative).size > 0, `${relative} must be published`);
   const rootHtml = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(rootHtml, /Archie Program Manager/);
+  assert.match(rootHtml, /What should happen\?/);
+  assert.match(rootHtml, /id="universal-task"/);
   assert.match(rootHtml, /href="\.\/foundry\/"/);
   assert.match(rootHtml, /href="\.\/archie\/"/);
-  assert.doesNotMatch(rootHtml, /Intention[\s\S]{0,300}Planning[\s\S]{0,300}Reasoning/i);
+  assert.doesNotMatch(rootHtml, /Installed programs|Program groups/i);
 }
 
-console.log('Founder contract ok: one human intention opens six non-mirroring branches and desktop publication preserves independent program routes');
+console.log('Founder contract ok: one human intention opens six non-mirroring branches and the public root carries one task into progressive views');
