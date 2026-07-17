@@ -3,94 +3,126 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#2b2b2b">
-  <meta name="description" content="Foundry is a human-governed experiment control program for contradictory capability research.">
-  <title>Foundry Research Control</title>
+  <meta name="theme-color" content="#f7f7f4">
+  <meta name="description" content="Foundry turns one research objective into a small readable set of distinct directions while preserving the full evidence manifest underneath.">
+  <title>Foundry — Research</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./foundry.css">
+  <link rel="stylesheet" href="../desktop/desktop.css">
 </head>
-<body>
-  <a class="skip-link" href="#research-objective">Skip to experiment objective</a>
-  <main class="laboratory" aria-labelledby="foundry-title">
-    <header class="title-bar">
-      <span class="lab-mark" aria-hidden="true">F</span>
-      <h1 id="foundry-title">Foundry Research Control / Station 01</h1>
-      <div class="window-controls" aria-label="Window controls">
-        <button type="button" aria-label="Minimize Foundry">_</button>
-        <button type="button" aria-label="Maximize Foundry">□</button>
-        <a href="../desktop/" aria-label="Close Foundry and return to Program Manager">×</a>
-      </div>
-    </header>
-
-    <nav class="menu-bar" aria-label="Foundry menu">
-      <button type="button" data-menu="campaign">Campaign</button>
-      <button type="button" data-menu="specimen">Specimen</button>
-      <button type="button" data-menu="instrument">Instrument</button>
-      <button type="button" data-menu="evidence">Evidence</button>
-      <button type="button" data-menu="help">Help</button>
+<body data-surface="foundry">
+  <a class="skip-link" href="#research-objective">Skip to research objective</a>
+  <header class="site-header">
+    <a class="brand" href="../desktop/">Archie</a>
+    <nav class="primary-nav" aria-label="Archie views">
+      <a href="../desktop/">Home</a>
+      <a href="../archie/">Answer</a>
+      <a href="../maker/">Build</a>
+      <a href="../founder/">Explore</a>
+      <a aria-current="page" href="./">Research</a>
+      <a href="../world-expo/">Results</a>
     </nav>
+    <span class="runtime-pill">Human governed · no training claimed</span>
+  </header>
 
-    <div class="instrument-strip" role="toolbar" aria-label="Laboratory commands">
-      <button id="open-field" class="run-command" type="button">RUN FIELD</button>
-      <button id="push-campaign" type="button">COPY MANIFEST</button>
-      <button id="download-manifest" type="button">SAVE JSON</button>
-      <button id="reset-foundry" type="button">RESET STATION</button>
-      <span id="status" role="status" aria-live="polite">Station idle. This program creates a governed research manifest; it does not claim training occurred.</span>
-    </div>
+  <main class="page surface-page" aria-labelledby="foundry-title">
+    <section class="surface-intro">
+      <div>
+        <p class="eyebrow">Foundry Research Control</p>
+        <h1 id="foundry-title">Find a stronger way.</h1>
+        <p>You are the lab now. A human governs the frontier. Foundry preserves many candidates in the manifest, but shows only the distinct directions a person can actually reason about.</p>
+      </div>
+      <aside class="task-context">
+        <span>Shared task</span>
+        <strong id="current-task">No shared task yet.</strong>
+      </aside>
+    </section>
 
-    <div class="lab-grid">
-      <section class="configuration" aria-labelledby="configuration-title">
-        <header class="pane-title"><h2 id="configuration-title">Campaign configuration</h2><span>INPUT</span></header>
-        <div class="pane-content"><p class="lab-truth"><strong>You are the lab now.</strong> A human governs the frontier. This station creates a campaign manifest; it does not claim a training run occurred.</p>
-          <label for="research-objective">What should intelligence become able to do?</label>
-          <textarea id="research-objective" maxlength="1600" placeholder="Say it badly. The research field may leave your wording behind."></textarea>
+    <section class="workspace-card configuration" aria-labelledby="configuration-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Research objective</p>
+          <h2 id="configuration-title">What should intelligence become able to do?</h2>
+        </div>
+      </div>
+      <div class="field-stack">
+        <p class="plain-note"><strong>You are the lab now.</strong> A human governs the frontier. This page creates a campaign manifest; it does not claim a training run occurred.</p>
+        <label for="research-objective">Objective
+          <textarea id="research-objective" class="primary-textarea" maxlength="1600" placeholder="make a picture of a real face"></textarea>
+        </label>
+        <div class="actions">
+          <button id="open-field" class="primary-action" type="button">Find stronger approaches</button>
+          <button id="reset-foundry" class="quiet-action" type="button">Reset</button>
+        </div>
+        <p id="status" class="status-line" role="status" aria-live="polite">Ready. No research run or capability promotion has occurred.</p>
+      </div>
+    </section>
 
-          <div class="property-sheet">
-            <label for="subsidy">Compute subsidy</label>
+    <details class="workspace-card advanced">
+      <summary>Research budget and lanes</summary>
+      <div class="field-stack">
+        <div class="field-grid">
+          <label for="subsidy">Compute subsidy
             <select id="subsidy">
               <option value="generous">Generous</option>
               <option value="massive" selected>Massive</option>
               <option value="maximum">Maximum available</option>
             </select>
-            <label for="candidate-count">Candidate count</label>
-            <div class="range-control"><input id="candidate-count" type="range" min="6" max="64" step="2" value="24"><output id="candidate-output" for="candidate-count">24</output></div>
-          </div>
-
-          <fieldset>
-            <legend>Research lanes</legend>
-            <label><input type="checkbox" name="lane" value="models" checked> Models</label>
-            <label><input type="checkbox" name="lane" value="tools" checked> Tools and operators</label>
-            <label><input type="checkbox" name="lane" value="embodiment" checked> Embodiment</label>
-            <label><input type="checkbox" name="lane" value="evaluation" checked> Evaluation</label>
-            <label><input type="checkbox" name="lane" value="alien" checked> Unnamed capabilities</label>
-          </fieldset>
+          </label>
+          <label for="candidate-count">Candidate count
+            <span class="range-control"><input id="candidate-count" type="range" min="6" max="64" step="2" value="24"><output id="candidate-output" for="candidate-count">24</output></span>
+          </label>
         </div>
-      </section>
+        <fieldset>
+          <legend>Research lanes</legend>
+          <label><input type="checkbox" name="lane" value="models" checked> Models</label>
+          <label><input type="checkbox" name="lane" value="tools" checked> Tools and operators</label>
+          <label><input type="checkbox" name="lane" value="embodiment" checked> Embodiment</label>
+          <label><input type="checkbox" name="lane" value="evaluation" checked> Evaluation</label>
+          <label><input type="checkbox" name="lane" value="alien" checked> Unnamed capabilities</label>
+        </fieldset>
+      </div>
+    </details>
 
-      <section class="specimens" aria-labelledby="specimens-title">
-        <header class="pane-title"><h2 id="specimens-title">Candidate specimens</h2><span id="field-count">0 live branches</span></header>
-        <div class="candidate-field" id="candidate-field" aria-live="polite">
-          <p class="empty">The specimen table is empty. Run the field to derive contradictory branches.</p>
+    <section class="workspace-card specimens" aria-labelledby="specimens-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Readable directions</p>
+          <h2 id="specimens-title">Distinct approaches, not 24 nearly identical cards.</h2>
         </div>
-      </section>
+        <p id="field-count" class="status-line">0 directions</p>
+      </div>
+      <div class="candidate-field" id="candidate-field" aria-live="polite">
+        <p class="empty">Your strongest distinct research directions will appear here.</p>
+      </div>
+    </section>
 
-      <aside class="evidence" aria-labelledby="evidence-title">
-        <header class="pane-title"><h2 id="evidence-title">Evidence console</h2><span>READ ONLY</span></header>
-        <dl>
-          <div><dt>Operator</dt><dd>Human required</dd></div>
-          <div><dt>Promotion</dt><dd>Blocked pending independent evidence</dd></div>
-          <div><dt>Execution</dt><dd>Not performed in browser</dd></div>
-          <div><dt>Training data</dt><dd>Ordinary use excluded</dd></div>
-        </dl>
-        <pre id="manifest-preview" tabindex="0">No manifest yet.</pre>
-      </aside>
+    <details class="workspace-card advanced evidence">
+      <summary>Full campaign manifest and evidence boundary</summary>
+      <dl class="truth-strip">
+        <div><dt>Operator</dt><dd>Human required</dd></div>
+        <div><dt>Promotion</dt><dd>Blocked pending independent evidence</dd></div>
+        <div><dt>Execution</dt><dd>Not performed in browser</dd></div>
+        <div><dt>Training data</dt><dd>Ordinary use excluded</dd></div>
+      </dl>
+      <div class="actions">
+        <button id="push-campaign" class="secondary-action" type="button">Copy full manifest</button>
+        <button id="download-manifest" class="secondary-action" type="button">Download JSON</button>
+      </div>
+      <pre id="manifest-preview" tabindex="0">No manifest yet.</pre>
+    </details>
+
+    <div hidden aria-hidden="true">
+      <button type="button" data-menu="campaign">Campaign</button>
+      <button type="button" data-menu="specimen">Specimen</button>
+      <button type="button" data-menu="instrument">Instrument</button>
+      <button type="button" data-menu="evidence">Evidence</button>
+      <button type="button" data-menu="help">Help</button>
     </div>
-
-    <footer class="status-bar">
-      <span>FOUNDRY station ready</span><span>HUMAN GOVERNED</span><span>OFFLINE MANIFEST</span>
-    </footer>
   </main>
+
+  <footer class="site-footer"><span>Readable directions above. Exact manifest below.</span><a href="../desktop/">Home</a></footer>
   <noscript><p class="noscript-note">JavaScript is off. Foundry remains readable, but candidate derivation and manifest export are unavailable.</p></noscript>
+  <script type="module" src="../desktop/desktop.js"></script>
   <script type="module" src="./foundry.js"></script>
 </body>
 </html>
