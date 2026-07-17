@@ -42,11 +42,9 @@ jobs:
           echo '73c2c219887457953ca56cf2fa5f8c5c8b52033fd9a40bf6e262860c0452e2ab  /tmp/0002.patch' | sha256sum -c -
 
       - name: Apply recovered diffs in dependency order
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         shell: bash
         run: |
-          set -u
+          set +e
           git config user.name 'Archie Recovery Bot'
           git config user.email 'archie-recovery@users.noreply.github.com'
           : > /tmp/recovery-apply.log
@@ -58,23 +56,21 @@ jobs:
           else
             second=99
           fi
+          printf '\nfirst_patch_exit=%s second_patch_exit=%s\n' "$first" "$second" >> /tmp/recovery-apply.log
           if [ "$first" -ne 0 ] || [ "$second" -ne 0 ]; then
-            git reset --hard HEAD
-            {
-              echo '# Recovery patch application failure'
-              echo
-              echo '```text'
-              cat /tmp/recovery-apply.log
-              echo '```'
-              echo
-              echo "first_patch_exit=$first second_patch_exit=$second"
-            } > RECOVERY_APPLY_FAILURE.md
-            git add RECOVERY_APPLY_FAILURE.md
-            git commit -m 'Record exact recovery patch application failure'
-            git push origin HEAD:"$HEAD_REF"
+            cat /tmp/recovery-apply.log
             exit 1
           fi
           git commit -m 'Apply recovered Archie cognition and cold-start fixes'
+
+      - name: Upload exact patch-application failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery-apply-failure
+          path: /tmp/recovery-apply.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
