@@ -580,7 +580,7 @@ async function raceWithTimeout(invoke, timeoutMs, controller) {
           controller.abort(new Error('provider attempt timed out'));
           reject(new ModelRouterError('provider_timeout', 'provider attempt timed out; completion state is indeterminate unless the transport honors AbortSignal', 504));
         }, timeoutMs);
-        timer.unref?.();
+        
       })
     ]);
   } finally {
