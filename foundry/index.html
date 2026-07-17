@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Foundry — You Are the Lab</title>
+  <meta name="description" content="A human-operated cockpit for aggressively subsidized speculative capability research.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./foundry.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">FOUNDRY / HUMAN RESEARCH POWER</p>
+      <h1>You are the lab now.</h1>
+      <p class="lede">Launch absurdly ambitious capability research without pretending you are an ML infrastructure team. Archie may propose. Automation may execute. A human governs the frontier.</p>
+      <nav aria-label="Product routes">
+        <a href="../">Founder</a>
+        <a href="../archie/">Archie</a>
+        <a href="../world-expo/">Expo</a>
+      </nav>
+    </header>
+
+    <section class="cockpit" aria-labelledby="campaign-title">
+      <div class="input-panel">
+        <p class="stamp">01 / DISTURB THE MODEL</p>
+        <h2 id="campaign-title">What should intelligence become able to do?</h2>
+        <label for="research-objective">Say it badly. The research field may leave your wording behind.</label>
+        <textarea id="research-objective" maxlength="1600" placeholder="make it able to investigate the internet like a real PI but also discover the capability i didnt know to ask for"></textarea>
+
+        <div class="controls">
+          <label>Token + compute subsidy
+            <select id="subsidy">
+              <option value="generous">Generous</option>
+              <option value="massive" selected>Massive</option>
+              <option value="maximum">Maximum available</option>
+            </select>
+          </label>
+          <label>Contradictory candidates
+            <input id="candidate-count" type="range" min="6" max="64" step="2" value="24">
+            <output id="candidate-output" for="candidate-count">24</output>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend>Research lanes</legend>
+          <label><input type="checkbox" name="lane" value="models" checked> Models</label>
+          <label><input type="checkbox" name="lane" value="tools" checked> Tools + operators</label>
+          <label><input type="checkbox" name="lane" value="embodiment" checked> Embodiment</label>
+          <label><input type="checkbox" name="lane" value="evaluation" checked> Evaluation</label>
+          <label><input type="checkbox" name="lane" value="alien" checked> Unnamed capabilities</label>
+        </fieldset>
+
+        <button id="open-field" class="primary">OPEN THE FIELD</button>
+        <p id="status" role="status" aria-live="polite">No campaign exists yet. This surface currently creates a governed research manifest; it does not claim a training run occurred.</p>
+      </div>
+
+      <div class="field-panel">
+        <div class="field-head">
+          <div>
+            <p class="stamp">02 / KEEP IT OPEN</p>
+            <h2>Probability field</h2>
+          </div>
+          <span id="field-count">0 live branches</span>
+        </div>
+        <div id="candidate-field" class="candidate-field" aria-live="polite">
+          <p class="empty">The field is empty. Spend before you simplify.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="push-panel" aria-labelledby="push-title">
+      <div>
+        <p class="stamp">03 / HUMAN ADMISSION</p>
+        <h2 id="push-title">Push research, not a capability claim.</h2>
+        <p>Opening a campaign authorizes exploration inside the declared budget. Promotion still requires hidden evaluation, provenance, independent reproduction, and a signed release.</p>
+      </div>
+      <div class="push-actions">
+        <button id="push-campaign">PUSH CAMPAIGN MANIFEST</button>
+        <button id="download-manifest" class="quiet">DOWNLOAD JSON</button>
+        <button id="reset-foundry" class="quiet">RESET</button>
+      </div>
+      <pre id="manifest-preview" tabindex="0">No manifest yet.</pre>
+    </section>
+  </main>
+  <script type="module" src="./foundry.js"></script>
+</body>
+</html>
