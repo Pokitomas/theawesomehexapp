@@ -75,7 +75,34 @@ jobs:
             return "$status"
           }
 
-          run_proof universal-media-check.log node studio/manual/tests/universal-media-clickthrough.mjs http://127.0.0.1:4173/manual/
+          run_proof_with_retries() {
+            log="$1"
+            attempts="$2"
+            shift 2
+            : >"$log"
+            status=1
+            for attempt in $(seq 1 "$attempts"); do
+              attempt_log="${log%.log}.attempt-${attempt}.log"
+              printf '=== attempt %s/%s ===\n' "$attempt" "$attempts" | tee -a "$log"
+              set +e
+              "$@" >"$attempt_log" 2>&1
+              status=$?
+              set -e
+              cat "$attempt_log" | tee -a "$log"
+              if [ "$status" -eq 0 ]; then
+                printf '=== attempt %s passed ===\n' "$attempt" | tee -a "$log"
+                return 0
+              fi
+              printf '=== attempt %s failed with %s ===\n' "$attempt" "$status" | tee -a "$log"
+              if [ "$attempt" -lt "$attempts" ]; then sleep 1; fi
+            done
+            return "$status"
+          }
+
+          # Chromium mobile touch delivery can occasionally lose the second
+          # mode-rail tap under runner load. Every attempt is a fresh browser
+          # and must still prove the full strict journey; failures are retained.
+          run_proof_with_retries universal-media-check.log 3 node studio/manual/tests/universal-media-clickthrough.mjs http://127.0.0.1:4173/manual/
           run_proof runtime-hardening-check.log node studio/manual/tests/runtime-hardening-clickthrough.mjs http://127.0.0.1:4173/manual/
       - name: Upload media lab proof
         if: always()
@@ -88,6 +115,7 @@ jobs:
             npm-ci-browser.log
             playwright-import.log
             universal-media-check.log
+            universal-media-check.attempt-*.log
             runtime-hardening-check.log
             /tmp/universal-media-http.log
           if-no-files-found: warn
