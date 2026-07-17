@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import inspect
 import json
 import os
 import pathlib
 import random
 import time
-from typing import Any, Iterable
+from typing import Any
 
 SCHEMA = "archie-neural-training-receipt/v2"
 
@@ -112,6 +113,14 @@ def choose_dtype(torch: Any) -> Any:
     if torch.cuda.is_available():
         return torch.float16
     return torch.float32
+
+
+def supported_kwargs(callable_object: Any, values: dict[str, Any]) -> dict[str, Any]:
+    """Filter optional compatibility kwargs against the installed library signature."""
+    parameters = inspect.signature(callable_object).parameters
+    if any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()):
+        return values
+    return {key: value for key, value in values.items() if key in parameters}
 
 
 def main() -> None:
@@ -220,29 +229,31 @@ def main() -> None:
 
     train_dataset = Dataset.from_list(neural_rows)
     eval_dataset = Dataset.from_list(eval_rows) if eval_rows else None
-    training_args = TrainingArguments(
-        output_dir=str(output / "checkpoints"),
-        num_train_epochs=float(cfg["epochs"]),
-        learning_rate=float(cfg["learning_rate"]),
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        gradient_checkpointing=True,
-        logging_steps=1,
-        save_strategy="epoch",
-        evaluation_strategy="epoch" if eval_dataset is not None else "no",
-        seed=seed,
-        data_seed=seed,
-        report_to=[],
-        remove_unused_columns=False,
-        bf16=dtype == torch.bfloat16,
-        fp16=dtype == torch.float16,
-    )
-    trainer_kwargs = dict(
-        model=model,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        peft_config=LoraConfig(
+    training_argument_values = {
+        "output_dir": str(output / "checkpoints"),
+        "num_train_epochs": float(cfg["epochs"]),
+        "learning_rate": float(cfg["learning_rate"]),
+        "per_device_train_batch_size": args.batch_size,
+        "per_device_eval_batch_size": args.batch_size,
+        "gradient_accumulation_steps": args.gradient_accumulation_steps,
+        "gradient_checkpointing": True,
+        "logging_steps": 1,
+        "save_strategy": "epoch",
+        "eval_strategy": "epoch" if eval_dataset is not None else "no",
+        "evaluation_strategy": "epoch" if eval_dataset is not None else "no",
+        "seed": seed,
+        "data_seed": seed,
+        "report_to": [],
+        "remove_unused_columns": False,
+        "bf16": dtype == torch.bfloat16,
+        "fp16": dtype == torch.float16,
+    }
+    training_args = TrainingArguments(**supported_kwargs(TrainingArguments.__init__, training_argument_values))
+    trainer_values = {
+        "model": model,
+        "train_dataset": train_dataset,
+        "eval_dataset": eval_dataset,
+        "peft_config": LoraConfig(
             r=int(cfg["lora_rank"]),
             lora_alpha=int(cfg["lora_alpha"]),
             lora_dropout=float(cfg.get("lora_dropout", 0.05)),
@@ -250,15 +261,14 @@ def main() -> None:
             task_type="CAUSAL_LM",
             target_modules=cfg.get("target_modules", "all-linear"),
         ),
-        args=training_args,
-        dataset_text_field="text",
-        max_seq_length=args.max_seq_length,
-        packing=bool(cfg.get("packing", True)),
-    )
-    try:
-        trainer = SFTTrainer(tokenizer=tokenizer, **trainer_kwargs)
-    except TypeError:
-        trainer = SFTTrainer(processing_class=tokenizer, **trainer_kwargs)
+        "args": training_args,
+        "dataset_text_field": "text",
+        "max_seq_length": args.max_seq_length,
+        "packing": bool(cfg.get("packing", True)),
+        "tokenizer": tokenizer,
+        "processing_class": tokenizer,
+    }
+    trainer = SFTTrainer(**supported_kwargs(SFTTrainer.__init__, trainer_values))
 
     result = trainer.train()
     adapter_dir = output / "adapter"
