@@ -41,6 +41,8 @@ jobs:
           sed -i \
             -e 's/@@ -259,9 +259,14 /@@ -259,9 +259,13 /' \
             -e 's/@@ -459,16 +459,43 /@@ -459,21 +459,46 /' \
+            -e 's/@@ -97,7 +108,7 /@@ -97,6 +108,6 /' \
+            -e 's/@@ -122,7 +133,7 /@@ -122,6 +133,6 /' \
             -e 's/@@ -131,10 +142,31 /@@ -131,9 +142,27 /' \
             .recovery/harden-cognition-maker-receipt.patch
           git apply --check --verbose .recovery/harden-cognition-maker-receipt.patch
