@@ -1,0 +1,78 @@
+name: Apply repository-intelligence repair
+
+on:
+  push:
+    branches: [lead/fix-repository-intelligence-20260717]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor == 'Pokitomas'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Apply exact checkout scanning repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/maker-repository-intelligence.mjs')
+          s = p.read_text()
+
+          marker = "async function trackedFiles(executor, root) {"
+          helper = """function normalizeTrackedPath(value) {
+            const relative = String(value ?? '').replace(/\\\\/g, '/').replace(/^\.\//, '').trim();
+            if (!relative || relative.startsWith('/') || /^[A-Za-z]:\//.test(relative)) throw new Error('Git returned a non-relative repository path.');
+            const parts = relative.split('/');
+            if (parts.some(part => !part || part === '.' || part === '..')) throw new Error(`Git returned an invalid repository path: ${relative}.`);
+            return parts.join('/');
+          }
+
+          """
+          if s.count(marker) != 1:
+              raise SystemExit(f'trackedFiles marker count: {s.count(marker)}')
+          s = s.replace(marker, helper + marker)
+
+          replacements = [
+            ("async function runGit(executor, root, args) {\n  const value = await executor('git', args, { cwd: root, env: exactGitEnv(), maxBuffer: 64 * 1024 * 1024, timeout: 120000, windowsHide: true });\n  return clean(value.stdout, 64 * 1024 * 1024);\n}", "async function runGit(executor, root, args) {\n  const value = await executor('git', args, { cwd: root, env: exactGitEnv(), maxBuffer: 64 * 1024 * 1024, timeout: 120000, windowsHide: true });\n  return String(value.stdout ?? '').slice(0, 64 * 1024 * 1024);\n}"),
+            ("return output.split('\\0').map(value => value.trim()).filter(Boolean).map(normalizeRelativePath);", "return output.split('\\0').map(value => value.trim()).filter(Boolean).map(normalizeTrackedPath);"),
+            ("      const inspection = inspectFilesystemEntry({ path: relative, type: stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : stat.isSymbolicLink() ? 'symlink' : 'special', symlink: stat.isSymbolicLink(), nlink: stat.nlink, size: stat.size, max_bytes: options.max_file_bytes });\n      if (!inspection.allowed || !stat.isFile()) continue;", "      const secretPathCandidate = isSecretPath(relative);\n      if (secretPathCandidate) {\n        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink > 1 || stat.size > options.max_file_bytes) continue;\n      } else {\n        const inspection = inspectFilesystemEntry({ path: relative, type: stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : stat.isSymbolicLink() ? 'symlink' : 'special', symlink: stat.isSymbolicLink(), nlink: stat.nlink, size: stat.size, max_bytes: options.max_file_bytes });\n        if (!inspection.allowed || !stat.isFile()) continue;\n      }"),
+            ("read_decision_digest: readDecision.decision_digest", "read_decision_digest: digest({ capability: readDecision.capability, allowed: readDecision.allowed, rule_ids: readDecision.rule_ids, grant_id: readDecision.grant_id, path: relative })"),
+            ("      hotspots,\n      secret_findings: secretFindings,\n      generated_at: this.clock()", "      hotspots,\n      secret_findings: secretFindings,\n      read_authority_digest: digest(fileRecords.map(file => ({ path: file.path, decision_digest: file.read_decision_digest }))),\n      generated_at: this.clock()")
+          ]
+          for old, new in replacements:
+              if s.count(old) != 1:
+                  raise SystemExit(f'source replacement count for {old[:60]!r}: {s.count(old)}')
+              s = s.replace(old, new)
+          p.write_text(s)
+
+          p = Path('scripts/tests/maker-repository-intelligence.test.mjs')
+          s = p.read_text()
+          old = "import { MakerSecurityPolicy } from '../maker-security-policy.mjs';"
+          new = "import { MakerSecurityPolicy, digest } from '../maker-security-policy.mjs';"
+          if s.count(old) != 1:
+              raise SystemExit(f'test import count: {s.count(old)}')
+          p.write_text(s.replace(old, new))
+          PY
+      - name: Prove repository map contract
+        run: |
+          node --check scripts/maker-repository-intelligence.mjs
+          node --test scripts/tests/maker-repository-intelligence.test.mjs
+      - name: Commit only proven source and fixture corrections
+        run: |
+          rm .github/workflows/lead-fix-repository-intelligence.yml
+          rm -f .lead-repository-intelligence-trigger
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/maker-repository-intelligence.mjs scripts/tests/maker-repository-intelligence.test.mjs .github/workflows/lead-fix-repository-intelligence.yml .lead-repository-intelligence-trigger
+          git commit -m 'Repair repository intelligence checkout scanning'
+          git push origin HEAD:${{ github.ref_name }}
