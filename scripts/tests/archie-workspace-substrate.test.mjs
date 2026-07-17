@@ -4,13 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  FileWorkspaceProvider,
   MemoryWorkspaceProvider,
   WorkspaceAuthorityError,
   WorkspaceConflictError,
   createWorkspaceEngine,
   verifyWorkspaceEventStream
 } from '../archie-workspace-core.mjs';
+import { SafeFileWorkspaceProvider } from '../archie-workspace-file-provider.mjs';
 import { startWorkspaceService } from '../archie-workspace-service.mjs';
 
 function deterministicEngine(provider) {
@@ -159,16 +159,18 @@ test('event-chain tampering is independently detectable', async () => {
   assert.throws(() => verifyWorkspaceEventStream(events, 'workspace_chain'), /payload digest mismatch/);
 });
 
-test('file provider survives restart and verifies artifact bytes', async () => {
+test('safe file provider survives restart, verifies bytes, and never projects local filesystem paths', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-workspace-'));
-  const provider = new FileWorkspaceProvider(root);
+  const provider = new SafeFileWorkspaceProvider(root);
   const engine = deterministicEngine(provider);
-  await completeJourney(engine, { visibility: 'private' });
-  const restarted = deterministicEngine(new FileWorkspaceProvider(root));
-  const state = await restarted.inspect('workspace_alpha', { principalId: 'owner_local' });
+  await completeJourney(engine, { visibility: 'public' });
+  const restarted = deterministicEngine(new SafeFileWorkspaceProvider(root));
+  const state = await restarted.inspect('workspace_alpha');
   assert.equal(state.publications.publication_alpha.promotion_id, 'promotion_alpha');
-  const artifact = await restarted.readArtifact('workspace_alpha', 'artifact_repaired', { principalId: 'owner_local' });
-  assert.equal(artifact.artifact.sha256, artifact.artifact.provider_uri.split('/').at(-1));
+  const artifact = await restarted.readArtifact('workspace_alpha', 'artifact_repaired');
+  assert.equal(artifact.artifact.provider_uri, `archie-artifact://workspace_alpha/${artifact.artifact.sha256}`);
+  assert.doesNotMatch(JSON.stringify(state), /file:\/\//i);
+  assert.equal(JSON.stringify(state).includes(root), false);
   assert.equal(artifact.bytes.length, artifact.artifact.size_bytes);
 });
 
