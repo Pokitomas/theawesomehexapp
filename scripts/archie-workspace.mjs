@@ -4,8 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { has, integer, last, parseArguments, printJSON, requiredFlag } from './archie-cli-core.mjs';
-import { FileWorkspaceProvider, createWorkspaceEngine } from './archie-workspace-core.mjs';
+import { integer, last, parseArguments, printJSON, requiredFlag } from './archie-cli-core.mjs';
+import { createWorkspaceEngine } from './archie-workspace-core.mjs';
+import { SafeFileWorkspaceProvider } from './archie-workspace-file-provider.mjs';
 import { startWorkspaceService } from './archie-workspace-service.mjs';
 
 function defaultRoot(home = path.join(os.homedir(), '.archie')) {
@@ -35,7 +36,7 @@ async function demo(engine, { title = 'Archie native workspace demonstration', v
   await engine.execute(workspaceId, 'owner_local', 'agent.register', { agent_id: 'agent_maker', label: 'Local Maker adapter', kind: 'service', provider: 'local' });
   await engine.execute(workspaceId, 'owner_local', 'agent.register', { agent_id: 'reviewer_local', label: 'Independent local reviewer', kind: 'human' });
   await engine.execute(workspaceId, 'owner_local', 'agent.register', { agent_id: 'policy_local', label: 'Local promotion principal', kind: 'policy' });
-  const graph = await engine.execute(workspaceId, 'owner_local', 'task_graph.create', {
+  await engine.execute(workspaceId, 'owner_local', 'task_graph.create', {
     objective_id: objectiveId,
     tasks: [{ task_id: 'task_result', title: 'Produce the bounded result', description: 'Create, review, repair, verify, approve, publish, and retain rollback.' }]
   });
@@ -121,7 +122,7 @@ async function demo(engine, { title = 'Archie native workspace demonstration', v
 export async function runWorkspaceCommand({ positionals, flags, home = path.join(os.homedir(), '.archie'), output = process.stdout }) {
   const subcommand = positionals[1] || 'help';
   const root = path.resolve(last(flags, '--root', defaultRoot(home)));
-  const provider = new FileWorkspaceProvider(root);
+  const provider = new SafeFileWorkspaceProvider(root);
   const engine = createWorkspaceEngine({ provider });
 
   if (subcommand === 'help') {
