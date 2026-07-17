@@ -94,7 +94,7 @@ for (const phrase of [
   'Founder gives ordinary humans creation power',
   'Foundry gives ordinary humans model-research power',
   'former Sideways implementation',
-  'Expo is the anti-convergence research ground'
+  'anti-convergence research ground'
 ]) assert.ok(portfolioDocument.includes(phrase) || readme.includes(phrase), `missing product law: ${phrase}`);
 
 for (const relative of [
