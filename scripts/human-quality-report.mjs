@@ -77,7 +77,7 @@ export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date(
     inspect(root, 'one_task_progressive_disclosure_contract', {
       'desktop/index.html': ['id="universal-task"', 'data-route="auto"', 'Choose for me', 'What should happen?'],
       'desktop/desktop.js': ['archie:shared-task:v2', 'function inferRoute', 'SURFACE_DRAFTS', 'updateSharedTask'],
-      'product/xp-program-surfaces.json': ['one-task-progressive-views', 'one-request-router', 'advanced-controls']
+      'product/xp-program-surfaces.json': ['one-task-progressive-views', 'one-request-router', 'advanced_controls']
     }),
     inspect(root, 'root_phone_desktop_zoom_contrast_motion_keyboard_network', {
       'scripts/root-product-phone.mjs': [
