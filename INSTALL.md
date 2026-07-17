@@ -2,6 +2,26 @@
 
 This page separates the things you can use immediately from developer tools that require a computer.
 
+## Archie on a phone
+
+Open **[Archie](https://pokitomas.github.io/theawesomehexapp/archie/)**.
+
+### iPhone or iPad
+
+1. Open the link in Safari.
+2. Tap Share.
+3. Tap **Add to Home Screen**.
+4. Tap **Add**.
+
+### Android
+
+1. Open the link in Chrome.
+2. Open Chrome's menu.
+3. Tap **Install app** or **Add to Home screen**.
+4. Confirm.
+
+The phone app is a local-first objective and authority cockpit. It stores drafts on that device, prepares digest-bound objective packets, and hands authorized work to Maker. It does not pretend that model inference, repository mutation, deployment, or completion happened inside the browser.
+
 ## Sideways for normal people
 
 ### iPhone or iPad
@@ -35,26 +55,22 @@ Open **[the Sideways root reader](https://pokitomas.github.io/theawesomehexapp/)
 
 ## Archie local runtime
 
-Archie now installs as a normal global command on Windows, macOS, and Linux. Install [Node.js 20 or newer](https://nodejs.org/en/download), open PowerShell or a terminal, and run:
+Archie installs as a global command on Windows, macOS, and Linux. Install [Node.js 20 or newer](https://nodejs.org/en/download), open PowerShell or a terminal, and run:
 
 ```bash
 npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz
 archie
 ```
 
-The first launch shows the real state of your local world: runtime version, Archie home, installed model artifacts, local runner availability, and the next exact commands. It exits successfully when the runtime is installed but a model or runner is still missing; that is a setup state, not a fake capability claim.
+The first launch reports the exact local runtime, installed artifacts, runner availability, and next commands. No model is bundled, and installation alone does not prove model capability.
 
-This is a source-package preview from the mutable `main` branch, not a signed native installer or independently promoted model release. For a reproducible install, replace `refs/heads/main` in the URL with an exact commit SHA. No model is bundled, and installation alone does not prove model capability.
-
-To remove the preview:
+To remove it:
 
 ```bash
 npm uninstall --global sideways
 ```
 
 ### Developer checkout
-
-Contributors can still run Archie without a global install:
 
 ```bash
 git clone https://github.com/Pokitomas/theawesomehexapp.git
@@ -64,8 +80,6 @@ npm run archie
 ```
 
 ## Archie commands
-
-After global installation, use the short commands directly:
 
 ```bash
 archie setup --json
@@ -77,37 +91,33 @@ archie benchmark <model-id@version> --suite <suite.json>
 archie remove <model-id@version>
 ```
 
-Only pull artifacts whose signing key and provenance you trust. `inspect` should be used before `run`.
+Only pull artifacts whose signing key and provenance you trust. Use `inspect` before `run`.
 
 ## Maker command
 
-Maker is the permissioned coding executor. From the repository:
+Maker is the permissioned executor. From the repository:
 
 ```bash
 npm run maker -- "describe the exact end state"
 ```
 
-Maker may require a configured local coding-agent adapter. It creates bounded work, verifies the exact tree, and leaves merge authority with the human operator.
+Maker may require a configured local coding-agent adapter. It creates bounded work, verifies the exact tree, and preserves explicit merge and deployment authority.
 
 ## Verify the checkout
-
-Run the focused Archie tests:
 
 ```bash
 npm run test:archie
 npm run test:archie:evaluation
-```
-
-Run the repository gate before trusting a development change:
-
-```bash
+node --test scripts/tests/archie-phone-product.test.mjs
 npm run verify:repository
 ```
 
-Passing infrastructure tests proves the runtime contracts work. It does not by itself prove that an Archie model is highly capable. Use a packaged model's independent benchmark receipt for that claim.
+Passing infrastructure tests proves runtime and product contracts. It does not by itself prove that an Archie model is broadly capable.
 
 ## Current product boundary
 
-- **Sideways:** usable today as a browser-installed private archive and public reader.
-- **Maker:** usable from a developer checkout as the permissioned execution layer.
-- **Archie:** usable as a local artifact/runtime and research system, but not yet presented as an empirically promoted general model without an independent benchmark receipt.
+- **Archie phone:** installable objective, authority, continuity, and handoff surface.
+- **Archie runtime:** local artifact, planning, research, evaluation, and distillation system.
+- **Maker:** permissioned execution layer.
+- **Sideways:** independent browser-installed archive and public reader.
+- **General intelligence claim:** still blocked until an admitted model and complete launch profile pass independent held-out evidence.
