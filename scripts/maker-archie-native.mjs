@@ -3,8 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { createArchieLinuxCorpus } from './maker-archie-corpus.mjs';
 import { createArchiePersonalBrain } from './maker-archie-brain.mjs';
-import { createOpenAIArchieTeacher } from './maker-archie-openai-teacher.mjs';
-import { normalizeMakerExecutionPlan } from './maker-archie-runtime-contract.mjs';
+import { createOpenAIArchieTeacher, isOpenAIArchieTeacherConfigured } from './maker-archie-openai-teacher.mjs';
+import { archieMakerValueDigest, normalizeMakerExecutionPlan } from './maker-archie-runtime-contract.mjs';
+import { collectRepositoryEvidence } from './maker-archie-repository-evidence.mjs';
 
 const clean = (value, limit = 12000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
@@ -20,7 +21,7 @@ function repoKey(repoRoot) {
 }
 
 function valueDigest(value) {
-  return crypto.createHash('sha256').update(JSON.stringify(value ?? null)).digest('hex');
+  return archieMakerValueDigest(value);
 }
 
 function normalizedInstruction(value) {
@@ -35,21 +36,31 @@ export function resolveNativeArchiePaths(repoRoot, { env = process.env, home = o
 
 export const normalizeReusableMakerPlan = normalizeMakerExecutionPlan;
 
+function teacherDecision(receipt) {
+  return receipt?.archie_decision?.state === 'teacher' ? receipt.archie_decision : null;
+}
+
 export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
   const plan = normalizeReusableMakerPlan(receipt?.plan);
   const verification = Array.isArray(receipt?.verification) ? receipt.verification.map(item => clean(item, 1000)).filter(Boolean) : [];
   const repository = clean(receipt?.repository || repoRoot || 'default', 1000);
+  const decision = teacherDecision(receipt);
+  const teacherReceipt = decision?.teacher_receipt || null;
   const result = {
     branch: clean(receipt?.branch, 1000),
     pull_request: clean(receipt?.pull_request, 2000),
     head_sha: clean(receipt?.head_sha, 200),
     writer_summary: clean(receipt?.writer_summary, 200000),
-    verification
+    verification,
+    teacher_response_id: clean(teacherReceipt?.response_id, 300) || null,
+    teacher_receipt_digest: clean(teacherReceipt?.receipt_digest, 200) || null,
+    repository_evidence_digest: clean(decision?.repository_evidence_digest || teacherReceipt?.repository_evidence_digest, 200) || null
   };
+  const state = clean(receipt?.state || (receipt?.head_sha ? 'completed' : 'unknown'), 100);
   return Object.freeze({
     schema: 'sideways-maker-runtime-platform-receipt/v1',
     platform_run_id: clean(receipt?.session_id || receipt?.platform_run_id, 300),
-    state: clean(receipt?.state || (receipt?.head_sha ? 'completed' : 'unknown'), 100),
+    state,
     task: {
       repository,
       request: clean(receipt?.request, 500000),
@@ -58,18 +69,27 @@ export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
       proof: {
         base_sha: clean(receipt?.base_sha, 200),
         head_sha: clean(receipt?.head_sha, 200),
-        verification
+        verification,
+        plan_digest: plan ? valueDigest(plan) : null,
+        teacher_response_id: result.teacher_response_id,
+        teacher_receipt_digest: result.teacher_receipt_digest,
+        repository_evidence_digest: result.repository_evidence_digest
       }
     },
     components: {
       model_route: {
-        receipt_digest: valueDigest(plan),
-        provider: { id: 'sideways-native-maker', display_name: 'Sideways Native Maker' },
+        receipt_digest: teacherReceipt?.receipt_digest || valueDigest(plan),
+        provider: teacherReceipt
+          ? { id: clean(teacherReceipt.model, 300), display_name: 'OpenAI bounded Archie teacher', engine_label: clean(teacherReceipt.teacher, 300) }
+          : { id: 'sideways-native-maker', display_name: 'Sideways Native Maker' },
         output: { plan },
-        attempts: verification.map((item, index) => ({ provider_id: 'native-verifier', status: 'completed', duration_ms: null, verification: item, sequence: index + 1 })),
+        attempts: [
+          ...(teacherReceipt ? [{ provider_id: clean(teacherReceipt.model, 300), status: 'completed', duration_ms: null, response_id: clean(teacherReceipt.response_id, 300) }] : []),
+          ...verification.map((item, index) => ({ provider_id: 'native-verifier', status: 'completed', duration_ms: null, verification: item, sequence: index + 1 }))
+        ],
         usage: { cost_usd: null }
       },
-      dispatch: { ok: true, adapter: `native-maker-${clean(receipt?.selected_lane || plan?.selected_lane || 'unknown', 120)}`, output: { result } },
+      dispatch: { ok: state === 'completed', adapter: `native-maker-${clean(receipt?.selected_lane || plan?.selected_lane || 'unknown', 120)}`, output: { result } },
       control_job: { result }
     }
   });
@@ -83,7 +103,15 @@ function createNativeBrain({ repoRoot, env, home, clock, training }) {
     model_path: paths.model_path,
     teacher: createOpenAIArchieTeacher({ env, clock }),
     clock,
-    training: { dimensions: 1024, threshold: 0.22, minimum_margin: 0.03, ...(training || {}) }
+    training: {
+      dimensions: 8192,
+      threshold: 0.22,
+      minimum_margin: 0.03,
+      negative_suppression_threshold: 0.55,
+      negative_penalty: 0.65,
+      limit: 250000,
+      ...(training || {})
+    }
   });
   return { paths, corpus, brain };
 }
@@ -94,7 +122,19 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
   if (!instruction) return Object.freeze({ status: 'miss', plan: null, reason: 'empty request' });
   const { paths, corpus, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
   try {
-    const result = await brain.plan({ subject: repoKey(repoRoot), instruction, context: { repository: path.basename(path.resolve(repoRoot)), base_branch: clean(baseBranch, 200), base_sha: clean(baseSha, 200) } }, { allow_teacher: true });
+    const repositoryEvidence = isOpenAIArchieTeacherConfigured(env)
+      ? await collectRepositoryEvidence({ repoRoot, baseSha, maxPaths: Number(env.ARCHIE_REPOSITORY_EVIDENCE_MAX_PATHS || 12000) })
+      : null;
+    const result = await brain.plan({
+      subject: repoKey(repoRoot),
+      instruction,
+      context: {
+        repository: path.basename(path.resolve(repoRoot)),
+        base_branch: clean(baseBranch, 200),
+        base_sha: clean(baseSha, 200),
+        repository_evidence: repositoryEvidence
+      }
+    }, { allow_teacher: true });
     const teacherPlan = result.state === 'teacher';
     const plan = result.state === 'local' || teacherPlan ? normalizeReusableMakerPlan(result.plan) : null;
     let executionEligible = false;
@@ -106,7 +146,7 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
       sourceExampleIds = Array.isArray(specialist?.source_example_ids) ? specialist.source_example_ids : [];
       if (sourceExampleIds.length) {
         const sourceSet = new Set(sourceExampleIds);
-        const examples = await corpus.examples({ limit: training.limit || 100000 });
+        const examples = await corpus.examples({ limit: training.limit || 250000 });
         const exact = examples.find(example => {
           if (!sourceSet.has(example.example_id) || normalizedInstruction(example.instruction) !== normalizedInstruction(instruction)) return false;
           const proof = example.compact_context?.proof;
@@ -120,37 +160,45 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
         });
         if (exact) {
           executionEligible = true;
-          executionBasis = Object.freeze({
-            kind: 'normalized-exact-verified-recurrence',
-            example_id: exact.example_id,
-            base_sha: clean(baseSha, 200)
-          });
+          executionBasis = Object.freeze({ kind: 'normalized-exact-verified-recurrence', example_id: exact.example_id, base_sha: clean(baseSha, 200) });
         }
       }
     }
-    if (teacherPlan && plan && result.teacher_receipt) {
-      executionEligible = true;
-      executionBasis = Object.freeze({
-        kind: 'fresh-bounded-teacher-plan',
-        response_id: clean(result.teacher_receipt.response_id, 300),
-        teacher_receipt_digest: clean(result.teacher_receipt.receipt_digest, 200),
-        base_sha: clean(baseSha, 200)
-      });
+    if (teacherPlan && plan && result.teacher_receipt && repositoryEvidence) {
+      const receiptEvidenceMatches = result.teacher_receipt.repository_evidence_digest === repositoryEvidence.evidence_digest;
+      executionEligible = receiptEvidenceMatches;
+      if (receiptEvidenceMatches) {
+        executionBasis = Object.freeze({
+          kind: 'fresh-bounded-teacher-plan',
+          response_id: clean(result.teacher_receipt.response_id, 300),
+          teacher_receipt_digest: clean(result.teacher_receipt.receipt_digest, 200),
+          repository_evidence_digest: repositoryEvidence.evidence_digest,
+          base_sha: clean(baseSha, 200)
+        });
+      }
     }
     return Object.freeze({
       status: teacherPlan && plan ? 'teacher' : plan ? 'local' : 'miss',
       source: teacherPlan ? 'openai-responses-teacher' : 'native-maker-recall',
       plan,
       confidence: result.confidence ?? 0,
+      raw_confidence: result.raw_confidence ?? result.confidence ?? 0,
+      negative_score: result.negative_score ?? 0,
+      negative_suppressed: result.negative_suppressed ?? false,
       margin: result.margin ?? 0,
       specialist_id: result.specialist_id ?? null,
       source_example_ids: sourceExampleIds,
       execution_eligible: executionEligible,
       execution_basis: executionBasis,
       teacher_receipt: result.teacher_receipt ?? null,
+      repository_evidence_digest: repositoryEvidence?.evidence_digest || null,
       root: paths.root,
       model_digest: result.model_digest ?? null,
-      reason: teacherPlan ? 'fresh bounded teacher plan admitted to Maker gates' : plan ? (executionEligible ? null : 'recall remains advisory unless an exact verified recurrence matches the current base SHA') : `archie state ${result.state}`
+      reason: teacherPlan
+        ? (executionEligible ? 'fresh evidence-bound teacher plan admitted to Maker gates' : 'teacher plan lacked exact repository-evidence binding')
+        : plan
+          ? (executionEligible ? null : 'recall remains advisory unless an exact verified recurrence matches the current base SHA')
+          : `archie state ${result.state}`
     });
   } catch (error) {
     const message = clean(error?.message || error, 2000);
@@ -159,14 +207,66 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
   }
 }
 
+async function assertTeacherPromotion(corpus, receipt, normalized) {
+  const decision = teacherDecision(receipt);
+  if (!decision) return null;
+  const teacherReceipt = decision.teacher_receipt;
+  if (!teacherReceipt?.response_id || !teacherReceipt?.receipt_digest) throw new Error('Teacher promotion lacks the original teacher receipt.');
+  if (teacherReceipt.request_digest !== valueDigest(clean(receipt.request, 500000))) throw new Error('Teacher promotion request digest mismatch.');
+  if (teacherReceipt.plan_digest !== valueDigest(normalizeReusableMakerPlan(receipt.plan))) throw new Error('Teacher promotion plan digest mismatch.');
+  if (clean(teacherReceipt.base_sha, 200) !== clean(receipt.base_sha, 200)) throw new Error('Teacher promotion base SHA mismatch.');
+  if (decision.execution_basis?.response_id !== teacherReceipt.response_id) throw new Error('Teacher promotion response ID mismatch.');
+  if (decision.execution_basis?.teacher_receipt_digest !== teacherReceipt.receipt_digest) throw new Error('Teacher promotion receipt digest mismatch.');
+  if (decision.repository_evidence_digest !== teacherReceipt.repository_evidence_digest) throw new Error('Teacher promotion repository evidence mismatch.');
+  const pending = await corpus.findBySourceRunId(teacherReceipt.response_id, { kind: 'archie_teacher_plan' });
+  if (!pending || pending.outcome !== 'proposed') throw new Error('Teacher promotion has no matching pending proposal.');
+  if (clean(pending.input?.text, 500000) !== clean(receipt.request, 500000)) throw new Error('Teacher promotion pending request mismatch.');
+  if (valueDigest(pending.output?.plan) !== teacherReceipt.plan_digest) throw new Error('Teacher promotion pending plan mismatch.');
+  if (clean(pending.source?.route_digest, 200) !== teacherReceipt.receipt_digest) throw new Error('Teacher promotion pending receipt identity mismatch.');
+  if (normalized.state === 'completed') {
+    if (!clean(receipt.head_sha, 200)) throw new Error('Teacher promotion requires a completed head SHA.');
+    if (!normalized.task.proof.verification.length) throw new Error('Teacher promotion requires nonempty independent verification.');
+  }
+  return pending;
+}
+
 export async function rememberNativeMakerRun({ repoRoot, receipt, env = process.env, home = os.homedir(), clock = Date.now, training = {} } = {}) {
   if (disabled(env)) return Object.freeze({ status: 'disabled' });
   const { paths, corpus, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
   try {
     const normalized = nativeMakerReceiptForCorpus(receipt, { repoRoot });
+    await assertTeacherPromotion(corpus, receipt, normalized);
     const corpusReceipt = await corpus.recordMakerRun(normalized, { input: { request: normalized.task.request } });
-    const model = await brain.train();
-    return Object.freeze({ status: corpusReceipt.status, record_id: corpusReceipt.record_id, example_id: corpusReceipt.example_id, root: paths.root, model_digest: model.model_digest, document_count: model.document_count, specialist_count: model.specialist_count });
+    if (normalized.state !== 'completed') {
+      let model = null;
+      try { model = corpusReceipt.status === 'deduplicated' ? await brain.load() : await brain.train(); }
+      catch (error) {
+        if (!/at least one completed archie distillation example is required/i.test(clean(error?.message || error, 2000))) throw error;
+      }
+      return Object.freeze({
+        status: corpusReceipt.status,
+        learning_disposition: 'negative-evidence-recorded',
+        record_id: corpusReceipt.record_id,
+        example_id: corpusReceipt.example_id,
+        root: paths.root,
+        model_digest: model?.model_digest || null,
+        document_count: model?.document_count || 0,
+        negative_document_count: model?.negative_document_count || 1,
+        specialist_count: model?.specialist_count || 0
+      });
+    }
+    const model = corpusReceipt.status === 'deduplicated' ? await brain.load() : await brain.train();
+    return Object.freeze({
+      status: corpusReceipt.status,
+      learning_disposition: teacherDecision(receipt) ? 'teacher-proposal-promoted-after-verification' : 'verified-run-admitted',
+      record_id: corpusReceipt.record_id,
+      example_id: corpusReceipt.example_id,
+      root: paths.root,
+      model_digest: model.model_digest,
+      document_count: model.document_count,
+      negative_document_count: model.negative_document_count,
+      specialist_count: model.specialist_count
+    });
   } catch (error) {
     return Object.freeze({ status: 'failed', root: paths.root, error: clean(error?.message || error, 2000) });
   }
