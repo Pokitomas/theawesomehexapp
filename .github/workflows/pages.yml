@@ -202,9 +202,9 @@ jobs:
         run: |
           npm run test:frontier-expo
           npm run test:portfolio
-          mkdir -p dist/world-expo
+          mkdir -p dist/world-expo dist/design
           cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
-          cp research/frontier-world-expo.json dist/world-expo/frontier-world-expo.json
+          cp design/frontier-world-expo.json dist/design/frontier-world-expo.json
 
       - name: Verify empty manual edition
         run: python verify-manual-edition.py
@@ -288,7 +288,7 @@ jobs:
           test -f dist/world-expo/index.html
           test -f dist/world-expo/expo.css
           test -f dist/world-expo/expo.js
-          test -f dist/world-expo/frontier-world-expo.json
+          test -f dist/design/frontier-world-expo.json
 
       - name: Check Add to Sideways on phone and desktop
         run: |
