@@ -462,21 +462,46 @@ export class ArchieCognitionRuntime {
     if (proposalReceipt.learning.plan_digest !== planDigest) {
       throw new Error('promoteTeacherProposal rejected: proposal_record does not match the plan_digest on its own receipt.');
     }
-    if (makerReceipt?.plan_digest && makerReceipt.plan_digest !== planDigest) {
+    if (clean(makerReceipt?.schema, 100) !== 'sideways-maker-run/v2') {
+      throw new Error('promoteTeacherProposal requires a sideways-maker-run/v2 Maker receipt.');
+    }
+    const makerTaskDigest = clean(makerReceipt?.task_digest, 200);
+    if (!makerTaskDigest || makerTaskDigest !== proposalReceipt.task_digest) {
+      throw new Error('promoteTeacherProposal rejected: Maker receipt task_digest does not match the proposed task.');
+    }
+    const makerPlanDigest = clean(makerReceipt?.plan_digest || makerReceipt?.archie_decision?.plan_digest, 200);
+    if (!makerPlanDigest) {
+      throw new Error('promoteTeacherProposal requires a Maker receipt plan_digest.');
+    }
+    if (makerPlanDigest !== planDigest) {
       throw new Error('promoteTeacherProposal rejected: Maker receipt plan_digest does not match the proposed plan.');
     }
-    const verified = makerReceipt?.state === 'completed';
+    const makerRunId = clean(makerReceipt?.platform_run_id || makerReceipt?.session_id || makerReceipt?.run_id, 300);
+    if (!makerRunId) throw new Error('promoteTeacherProposal requires a Maker run identity.');
+    const makerState = clean(makerReceipt?.state, 100);
+    const verification = (Array.isArray(makerReceipt?.verification) ? makerReceipt.verification : [])
+      .map(item => clean(item, 2000)).filter(Boolean);
+    const verified = makerState === 'completed';
+    if (verified && !clean(makerReceipt?.head_sha, 200)) {
+      throw new Error('promoteTeacherProposal requires a completed Maker receipt head_sha.');
+    }
+    if (verified && !verification.length) {
+      throw new Error('promoteTeacherProposal requires nonempty Maker verification evidence.');
+    }
+    const makerReceiptDigest = clean(makerReceipt?.receipt_digest, 200) || digest(makerReceipt);
     const promoted = await this.corpus.ingest({
       kind: 'archie_cognition_teacher_promoted',
       subject: proposal.subject,
       input: proposal.input,
       output: proposal.output,
       tool_trace: proposal.tool_trace,
-      outcome: verified ? 'completed' : (clean(makerReceipt?.state, 100) || 'unknown'),
+      outcome: verified ? 'completed' : (makerState || 'unknown'),
       source: {
         ...proposal.source,
-        maker_run_id: clean(makerReceipt?.platform_run_id || makerReceipt?.run_id || '', 300),
-        maker_receipt_digest: clean(makerReceipt?.receipt_digest || '', 200)
+        maker_run_id: makerRunId,
+        maker_receipt_digest: makerReceiptDigest,
+        maker_head_sha: clean(makerReceipt?.head_sha, 200),
+        maker_verification_digest: digest(verification)
       },
       tags: verified
         ? ['teacher-escalation', 'skill-acquisition', 'promoted-from-proposal']

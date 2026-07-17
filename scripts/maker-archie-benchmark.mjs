@@ -261,9 +261,13 @@ export async function runArchieEquivalenceBenchmark({ suite, root = null, clock 
         // one-shot adaptation, not just teacher escalation. See POK-103/106:
         // decide() alone must never be sufficient to train.
         await runtime.promoteTeacherProposal(result, {
+          schema: 'sideways-maker-run/v2',
           state: 'completed',
           platform_run_id: `benchmark-${episode.id}`,
-          plan_digest: result.learning.plan_digest
+          task_digest: result.task_digest,
+          plan_digest: result.learning.plan_digest,
+          head_sha: `benchmark-${episode.id}-verified-head`,
+          verification: ['controlled benchmark fixture matched the required terminal plan']
         });
       }
       results.push({

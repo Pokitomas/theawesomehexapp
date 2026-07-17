@@ -70,8 +70,19 @@ test('honors safe observation controls and refuses ungrounded lexical near-neigh
   assert.equal(teacherCalls(), 0);
 });
 
-function makerReceipt(overrides = {}) {
-  return { state: 'completed', platform_run_id: 'run-1', receipt_digest: 'd'.repeat(16), ...overrides };
+function makerReceipt(proposalReceipt, overrides = {}) {
+  const state = overrides.state || 'completed';
+  return {
+    schema: 'sideways-maker-run/v2',
+    state,
+    platform_run_id: 'run-1',
+    receipt_digest: 'd'.repeat(64),
+    task_digest: proposalReceipt.task_digest,
+    plan_digest: proposalReceipt.learning.plan_digest,
+    head_sha: state === 'completed' ? 'a'.repeat(40) : null,
+    verification: state === 'completed' ? ['independent test and verification passed'] : [],
+    ...overrides
+  };
 }
 
 test('a teacher proposal is stored as pending and does not train until Maker verifies (POK-103 gap #2)', async t => {
@@ -95,7 +106,7 @@ test('a teacher proposal is stored as pending and does not train until Maker ver
 test('promoteTeacherProposal trains only after a successful Maker receipt, then resolves the paraphrase locally', async t => {
   const { runtime } = await fixture(t);
   const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
-  const promoted = await runtime.promoteTeacherProposal(first, makerReceipt());
+  const promoted = await runtime.promoteTeacherProposal(first, makerReceipt(first));
   assert.equal(promoted.disposition, 'teacher_completed');
   assert.ok(promoted.learning.snapshot_digest);
 
@@ -108,7 +119,7 @@ test('promoteTeacherProposal records negative evidence and does not train on a d
   for (const failedState of ['dry_run', 'writer_failed', 'verification_failed']) {
     const { runtime } = await fixture(t);
     const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
-    const outcome = await runtime.promoteTeacherProposal(first, makerReceipt({ state: failedState }));
+    const outcome = await runtime.promoteTeacherProposal(first, makerReceipt(first, { state: failedState }));
     assert.equal(outcome.disposition, 'reject', failedState);
     assert.equal(outcome.learning.snapshot_digest, null, failedState);
     const examples = await runtime.corpus.examples({ limit: 1000 });
@@ -120,7 +131,7 @@ test('promoteTeacherProposal records negative evidence and does not train on a d
 test('promoteTeacherProposal is idempotent on replay and rejects a receipt for a different plan', async t => {
   const { runtime } = await fixture(t);
   const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
-  const receipt = makerReceipt({ plan_digest: first.learning.plan_digest });
+  const receipt = makerReceipt(first);
 
   const once = await runtime.promoteTeacherProposal(first, receipt);
   const again = await runtime.promoteTeacherProposal(first, receipt);
@@ -129,9 +140,27 @@ test('promoteTeacherProposal is idempotent on replay and rejects a receipt for a
   assert.equal(again.learning.snapshot_digest, null, 'a deduplicated replay must not retrain');
 
   await assert.rejects(
-    () => runtime.promoteTeacherProposal(first, makerReceipt({ plan_digest: 'f'.repeat(64) })),
+    () => runtime.promoteTeacherProposal(first, makerReceipt(first, { plan_digest: 'f'.repeat(64) })),
     /plan_digest does not match/
   );
+});
+
+test('promoteTeacherProposal rejects incomplete or unbound successful Maker receipts before learning', async t => {
+  const { runtime } = await fixture(t);
+  const first = await runtime.decide({ instruction: 'Turn field telemetry into a crop irrigation schedule.' });
+  const invalid = [
+    [makerReceipt(first, { schema: 'not-a-maker-receipt' }), /sideways-maker-run\/v2/],
+    [makerReceipt(first, { task_digest: 'f'.repeat(64) }), /task_digest does not match/],
+    [makerReceipt(first, { plan_digest: '' }), /requires a Maker receipt plan_digest/],
+    [makerReceipt(first, { platform_run_id: '' }), /run identity/],
+    [makerReceipt(first, { head_sha: null }), /head_sha/],
+    [makerReceipt(first, { verification: [] }), /verification evidence/]
+  ];
+  for (const [receipt, pattern] of invalid) {
+    await assert.rejects(() => runtime.promoteTeacherProposal(first, receipt), pattern);
+  }
+  const examples = await runtime.corpus.examples({ limit: 1000 });
+  assert.ok(!examples.some(example => example.outcome === 'completed' && example.instruction.includes('irrigation')));
 });
 
 test('a genuinely fresh install with zero corpus history does not crash on its first decide() call', async t => {
@@ -152,9 +181,7 @@ test('a genuinely fresh install with zero corpus history does not crash on its f
   assert.equal(first.state, 'teacher', JSON.stringify(first, null, 2));
   assert.equal(first.disposition, 'teacher_proposed');
 
-  const promoted = await runtime.promoteTeacherProposal(first, {
-    state: 'completed', platform_run_id: 'run-1', plan_digest: first.learning.plan_digest
-  });
+  const promoted = await runtime.promoteTeacherProposal(first, makerReceipt(first));
   assert.ok(promoted.learning.snapshot_digest);
 
   const second = await runtime.decide({ instruction: 'Repair a conflicted git branch on a totally fresh install.' });
