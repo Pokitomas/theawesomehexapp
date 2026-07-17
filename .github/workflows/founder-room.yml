@@ -35,12 +35,14 @@ jobs:
           cache: npm
       - name: Install locked browser tooling
         run: npm ci --ignore-scripts
-      - name: Verify human power contracts
-        run: |
-          npm run test:founder
-          npm run test:foundry
-          npm run test:portfolio
-          node --test scripts/tests/maker-archie-vision.test.mjs
+      - name: Verify Founder contract
+        run: npm run test:founder
+      - name: Verify Foundry contract
+        run: npm run test:foundry
+      - name: Verify product portfolio
+        run: npm run test:portfolio
+      - name: Verify Archie human-power vision
+        run: node --test scripts/tests/maker-archie-vision.test.mjs
       - name: Verify browser assets
         run: |
           node --check founder/founder.js
