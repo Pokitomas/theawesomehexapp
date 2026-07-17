@@ -23,11 +23,15 @@ function copyDirectory(source, destination) {
 export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } = {}) {
   const repositoryRoot = path.resolve(root);
   const outputRoot = path.resolve(repositoryRoot, output);
+  const desktopRoot = path.join(repositoryRoot, 'desktop');
   const founderRoot = path.join(repositoryRoot, 'founder');
   const foundryRoot = path.join(repositoryRoot, 'foundry');
   const exampleRoot = path.join(repositoryRoot, 'examples', 'site');
 
   for (const required of [
+    path.join(desktopRoot, 'index.html'),
+    path.join(desktopRoot, 'desktop.css'),
+    path.join(desktopRoot, 'desktop.js'),
     path.join(founderRoot, 'index.html'),
     path.join(founderRoot, 'founder.css'),
     path.join(founderRoot, 'founder.js'),
@@ -43,16 +47,21 @@ export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } =
 
   fs.mkdirSync(outputRoot, { recursive: true });
 
-  const founderHtml = fs.readFileSync(path.join(founderRoot, 'index.html'), 'utf8');
-  const rootHtml = founderHtml
+  const desktopHtml = fs.readFileSync(path.join(desktopRoot, 'index.html'), 'utf8');
+  const rootHtml = desktopHtml
     .replaceAll('href="../archie/"', 'href="./archie/"')
+    .replaceAll('href="../maker/"', 'href="./maker/"')
+    .replaceAll('href="../founder/"', 'href="./founder/"')
     .replaceAll('href="../foundry/"', 'href="./foundry/"')
-    .replaceAll('href="../world-expo/"', 'href="./world-expo/"')
-    .replaceAll('href="../examples/site/"', 'href="./examples/site/"');
+    .replaceAll('href="../world-expo/"', 'href="./world-expo/"');
 
   fs.writeFileSync(path.join(outputRoot, 'index.html'), rootHtml);
-  copyFile(path.join(founderRoot, 'founder.css'), path.join(outputRoot, 'founder.css'));
-  copyFile(path.join(founderRoot, 'founder.js'), path.join(outputRoot, 'founder.js'));
+  copyFile(path.join(desktopRoot, 'desktop.css'), path.join(outputRoot, 'desktop.css'));
+  copyFile(path.join(desktopRoot, 'desktop.js'), path.join(outputRoot, 'desktop.js'));
+
+  const desktopDestination = path.join(outputRoot, 'desktop');
+  fs.rmSync(desktopDestination, { recursive: true, force: true });
+  copyDirectory(desktopRoot, desktopDestination);
 
   const founderDestination = path.join(outputRoot, 'founder');
   fs.rmSync(founderDestination, { recursive: true, force: true });
@@ -70,13 +79,15 @@ export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } =
 
   const receipt = {
     schema: 'archie-human-surfaces-publish/v1',
-    root_surface: 'founder',
-    routes: ['/', '/founder/', '/foundry/', '/examples/site/'],
+    root_surface: 'desktop-program-manager',
+    routes: ['/', '/desktop/', '/archie/', '/maker/', '/founder/', '/foundry/', '/world-expo/', '/examples/site/'],
     legacy_sample_is_product_root: false,
+    product_model: 'independent-programs',
     files: [
       'index.html',
-      'founder.css',
-      'founder.js',
+      'desktop.css',
+      'desktop.js',
+      'desktop/index.html',
       'founder/index.html',
       'foundry/index.html',
       'examples/site/index.html'
