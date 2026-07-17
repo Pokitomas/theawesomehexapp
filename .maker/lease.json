@@ -1,0 +1,27 @@
+{
+  "schema": "sideways-maker-lease/v1",
+  "session_id": "20260717004534-abbafb",
+  "request": "Create a genuinely capable, normally installable Archie product with a cool polished Minecraft-like install and first-launch experience. Aggressively identify and implement the highest-leverage code-local step: one obvious install path, minimal terminal friction, strong Windows behavior, delightful onboarding, honest capability boundaries, focused tests, exact-tree verification, and a draft PR for human review.",
+  "branch": "maker/maker-archie-install-first-launch-20260717004534-abbafb",
+  "base_branch": "main",
+  "base_sha": "6d5afba1633febe38c755b79037956a4eb62e434",
+  "created_at": "2026-07-17T00:56:43.194Z",
+  "selected_lane": "product",
+  "owned_paths": [
+    ".github/workflows/archie-windows-install.yml",
+    "ARCHIE_RUNTIME.md",
+    "INSTALL.md",
+    "README.md",
+    "package-lock.json",
+    "package.json",
+    "scripts/archie-first-run.mjs",
+    "scripts/archie.mjs",
+    "scripts/tests/maker-archie-install.test.mjs"
+  ],
+  "writer_count": 1,
+  "authority": {
+    "merge": "human",
+    "deploy": "human",
+    "secrets": "never-in-prompt-or-receipt"
+  }
+}
