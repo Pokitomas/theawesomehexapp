@@ -12,6 +12,7 @@ import {
   stableReceipt,
   summarizeTurn
 } from '../../founder/founder.js';
+import { publishHumanSurfaces } from '../publish-human-surfaces.mjs';
 
 const html = fs.readFileSync('founder/index.html', 'utf8');
 const css = fs.readFileSync('founder/founder.css', 'utf8');
@@ -84,5 +85,24 @@ const brokenStorage = createTurnStorage({
 assert.deepEqual(brokenStorage.load(), normalizeTurn());
 assert.equal(brokenStorage.save(pushed), false);
 assert.equal(brokenStorage.clear(), false);
+
+if (fs.existsSync('dist')) {
+  const publishReceipt = publishHumanSurfaces({ output: 'dist' });
+  assert.equal(publishReceipt.root_surface, 'founder');
+  assert.equal(publishReceipt.legacy_sample_is_product_root, false);
+  for (const relative of [
+    'dist/index.html',
+    'dist/founder.css',
+    'dist/founder.js',
+    'dist/founder/index.html',
+    'dist/foundry/index.html',
+    'dist/examples/site/index.html',
+    'dist/human-surfaces-publish.json'
+  ]) assert.ok(fs.statSync(relative).size > 0, `${relative} must be published`);
+  const rootHtml = fs.readFileSync('dist/index.html', 'utf8');
+  assert.match(rootHtml, /Make something true/);
+  assert.match(rootHtml, /href="\.\/foundry\/"/);
+  assert.doesNotMatch(rootHtml, /Sideways/i);
+}
 
 console.log('Founder contract ok: one human intention opens six non-mirroring branches and push creates an authority-free objective receipt');
