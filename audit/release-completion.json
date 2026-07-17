@@ -47,5 +47,5 @@
     "completion issues and superseded coordination tasks close with exact transport receipts",
     "no competing Maker or agent lease remains open"
   ],
-  "termination_rule": "After code-local admission, exact-head workflow success, final main deployment identity, and issue/lease closure are proved, terminate the completion swarm. Do not spawn speculative follow-on work."
+  "termination_rule": "After code-local admission, exact-head workflow success, final main deployment identity, and issue/lease closure are proved, terminate the bounded Sideways completion swarm. Do not spawn speculative follow-on work inside that closed release campaign. Evidence-backed work governed by a separate portfolio program and its own promotion gates remains permitted."
 }
