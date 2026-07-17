@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
   group: revive-dead-instance-completion-${{ github.event.pull_request.number }}
@@ -43,8 +43,7 @@ jobs:
 
       - name: Apply recovered diffs in dependency order
         env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         shell: bash
         run: |
           set -u
@@ -60,16 +59,19 @@ jobs:
             second=99
           fi
           if [ "$first" -ne 0 ] || [ "$second" -ne 0 ]; then
+            git reset --hard HEAD
             {
-              echo '### Recovery patch application failed'
+              echo '# Recovery patch application failure'
               echo
               echo '```text'
               cat /tmp/recovery-apply.log
               echo '```'
               echo
               echo "first_patch_exit=$first second_patch_exit=$second"
-            } > /tmp/recovery-comment.md
-            gh pr comment "$PR_NUMBER" --body-file /tmp/recovery-comment.md
+            } > RECOVERY_APPLY_FAILURE.md
+            git add RECOVERY_APPLY_FAILURE.md
+            git commit -m 'Record exact recovery patch application failure'
+            git push origin HEAD:"$HEAD_REF"
             exit 1
           fi
           git commit -m 'Apply recovered Archie cognition and cold-start fixes'
