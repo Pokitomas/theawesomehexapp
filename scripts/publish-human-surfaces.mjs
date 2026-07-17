@@ -49,6 +49,7 @@ export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } =
 
   const desktopHtml = fs.readFileSync(path.join(desktopRoot, 'index.html'), 'utf8');
   const rootHtml = desktopHtml
+    .replaceAll('href="../desktop/"', 'href="./desktop/"')
     .replaceAll('href="../archie/"', 'href="./archie/"')
     .replaceAll('href="../maker/"', 'href="./maker/"')
     .replaceAll('href="../founder/"', 'href="./founder/"')
@@ -78,11 +79,11 @@ export function publishHumanSurfaces({ root = process.cwd(), output = 'dist' } =
   copyDirectory(exampleRoot, exampleDestination);
 
   const receipt = {
-    schema: 'archie-human-surfaces-publish/v1',
-    root_surface: 'desktop-program-manager',
+    schema: 'archie-human-surfaces-publish/v2',
+    root_surface: 'one-request-router',
     routes: ['/', '/desktop/', '/archie/', '/maker/', '/founder/', '/foundry/', '/world-expo/', '/examples/site/'],
     legacy_sample_is_product_root: false,
-    product_model: 'independent-programs',
+    product_model: 'one-task-progressive-views',
     files: [
       'index.html',
       'desktop.css',
