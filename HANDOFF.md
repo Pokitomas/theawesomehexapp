@@ -1,18 +1,18 @@
 # Engineering handoff
 
-## Current authority
+## Final repository state
+
+The independent-program product direction is merged to `main` through PR #511.
+
+- Merge SHA: `4b2386606a8e43e7914fd0e837cec5f496cc9e49`
+- Exact feature head merged: `33338a96f4cb6035e09e92de598a72caae192ec7`
+- GitHub authority: #506
+- Linear authority: POK-101
+- Product contract: `product/xp-program-surfaces.json`
 
 The repository product direction is **independent, opaque applications**, not a shared AI dashboard or cognition pipeline.
 
-Issue authority:
-
-- GitHub: #506 — Replace the glass dashboard with separate XP-era web applications
-- Linear: POK-101
-- Implementation PR: #511
-
-The implementation branch is `feat/xp-program-surfaces`.
-
-## What now exists
+## What exists
 
 - `/` and `/desktop/` — Archie Program Manager. It launches separate programs and performs no hidden model work.
 - `/archie/` — Archie Knowledge Utility with Explorer, request editor, properties inspector, portable objective packets, local recovery, and explicit runtime boundaries.
@@ -38,8 +38,6 @@ Do not reintroduce:
 Use title bars, menus, buttons, lists, files, fields, tabs, dialogs, inspectors, logs, status bars, and opaque application surfaces.
 
 ## Evidence and contracts
-
-`product/xp-program-surfaces.json` is the versioned product contract.
 
 `scripts/tests/xp-program-surfaces.test.mjs` rejects shared visual signatures, glass/translucency, pipeline vocabulary, remote UI dependencies, missing reduced-motion and forced-color support, and missing phone layouts.
 
@@ -67,13 +65,11 @@ The public applications are runnable interaction surfaces. Their existence does 
 
 Archie remains an evidence-gated learned planning/model system with persistent Core and Generation One infrastructure. External effects remain Maker-authorized. Capability promotion remains evidence-bound.
 
-## Finalization procedure
+## Remaining operational check
 
-1. Require the exact PR head to pass `Build and deploy independent program surfaces` and `Verify exact repository tree`.
-2. Confirm the phone Maker, Archie persistent Core, Generation One evidence, workflow authority, and human-power checks are green or intentionally skipped by path policy.
-3. Merge PR #511 without replacing the exact tested head.
-4. Confirm the main-branch Pages run deploys the Program Manager root and produces a live commit-bound deployment receipt.
-5. Record the merge SHA and deployment receipt on #506 and POK-101, then close them only when live verification succeeds.
+The code merge is complete. The next operator only needs to inspect the `main`-branch Pages run for merge SHA `4b2386606a8e43e7914fd0e837cec5f496cc9e49`, confirm the Program Manager root and independent `/founder/` and `/archie/` reachability receipts, then close #506 and POK-101 if live verification is green.
+
+Do not rewrite or reopen the product architecture merely because deployment propagation or one CI witness needs repair. Fix the exact operational failure and preserve the merged product contract.
 
 ## Successor authority
 
