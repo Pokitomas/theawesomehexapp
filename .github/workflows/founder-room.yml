@@ -39,8 +39,16 @@ jobs:
         run: npm run test:founder
       - name: Verify Foundry human surface
         run: npm run test:foundry:human
-      - name: Verify Foundry core research
-        run: node --test foundry/tests/core.test.mjs foundry/tests/calibration.test.mjs foundry/tests/cost-calibration.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs
+      - name: Verify Foundry core
+        run: node --test foundry/tests/core.test.mjs
+      - name: Verify Foundry calibration
+        run: node --test foundry/tests/calibration.test.mjs
+      - name: Verify Foundry cost calibration
+        run: node --test foundry/tests/cost-calibration.test.mjs
+      - name: Verify Foundry runtime
+        run: node --test foundry/tests/runtime.test.mjs
+      - name: Verify Foundry Generation Zero
+        run: node --test foundry/tests/generation-zero.test.mjs
       - name: Verify product portfolio
         run: npm run test:portfolio
       - name: Verify Archie human-power vision
