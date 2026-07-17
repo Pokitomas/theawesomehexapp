@@ -7,6 +7,13 @@ on:
     paths:
       - .recovery/**
       - .github/workflows/revive-dead-instance.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
+    paths:
+      - .recovery/**
+      - .github/workflows/revive-dead-instance.yml
 
 permissions:
   contents: write
@@ -17,7 +24,7 @@ concurrency:
 
 jobs:
   recover-verify-push:
-    if: ${{ !contains(github.event.head_commit.message, '[skip recovery]') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[skip recovery]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
