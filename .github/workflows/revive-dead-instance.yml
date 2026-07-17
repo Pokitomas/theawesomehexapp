@@ -41,14 +41,15 @@ jobs:
           echo 'b18e8e171deead37e066adb2d895b6027b2db0a774cf99dcc364994c93c2cc9e  /tmp/0001.patch' | sha256sum -c -
           echo '73c2c219887457953ca56cf2fa5f8c5c8b52033fd9a40bf6e262860c0452e2ab  /tmp/0002.patch' | sha256sum -c -
 
-      - name: Apply dead-instance commits in dependency order
+      - name: Apply recovered diffs in dependency order
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'Archie Recovery Bot'
           git config user.email 'archie-recovery@users.noreply.github.com'
-          git am --3way /tmp/0001.patch
-          git am --3way /tmp/0002.patch
+          git apply --3way --index /tmp/0001.patch
+          git apply --3way --index /tmp/0002.patch
+          git commit -m 'Apply recovered Archie cognition and cold-start fixes'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -81,5 +82,5 @@ jobs:
         run: |
           set -euo pipefail
           git rm -r .recovery .github/workflows/revive-dead-instance.yml
-          git commit -m 'Apply and verify dead-instance Archie recovery'
+          git commit -m 'Remove recovery staging after verification'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
