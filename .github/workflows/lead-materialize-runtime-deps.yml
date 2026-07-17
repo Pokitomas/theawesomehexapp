@@ -1,0 +1,29 @@
+name: Materialize Maker runtime dependencies
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Collect exact dependencies
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/runtime-deps/maker/runtime" "$RUNNER_TEMP/runtime-deps/scripts"
+          cp maker/runtime/tool-broker.mjs "$RUNNER_TEMP/runtime-deps/maker/runtime/"
+          cp scripts/maker-security-policy.mjs "$RUNNER_TEMP/runtime-deps/scripts/"
+          find "$RUNNER_TEMP/runtime-deps" -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/runtime-deps/sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: maker-runtime-deps-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/runtime-deps
+          if-no-files-found: error
+          retention-days: 14
