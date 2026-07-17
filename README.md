@@ -1,11 +1,28 @@
 # Sideways
 
-A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel.
+A local-first personal archive and public social instrument built around one inspectable saturation-ranking kernel, alongside the Archie + Maker intelligence-and-execution family.
+
+## Product map
+
+The repository has two commercial product families and one research system. See [`PRODUCT_PORTFOLIO.md`](./PRODUCT_PORTFOLIO.md) for audiences, pricing hypotheses, valuation gates, capital allocation, and the decisions to merge or demote surfaces.
+
+- **Sideways public discovery:** `https://pokitomas.github.io/theawesomehexapp/`
+- **Sideways private home:** `https://pokitomas.github.io/theawesomehexapp/manual/`
+- **Archie personal atelier:** `https://pokitomas.github.io/theawesomehexapp/archie/`
+- **Maker software workshop:** `https://pokitomas.github.io/theawesomehexapp/maker/`
+- **Founder decision instrument:** `https://pokitomas.github.io/theawesomehexapp/founder/`
+
+Archie and Maker are one commercial family: Archie owns objective, context, continuity, coordination, and admitted intelligence; Maker owns permissioned mutation, verification, delivery, and rollback. Sideways remains an independent product. Founder is an internal instrument, not a standalone company. Expo remains withheld until real exhibits, physical-device evidence, and independent promotion exist.
+
+```bash
+npm run product:portfolio -- validate
+npm run product:portfolio -- routes
+npm run product:portfolio -- market
+npm run product:portfolio -- route /archie/
+```
 
 - **Install or open Sideways:** [plain-language install guide](./INSTALL.md)
 - **Install Archie preview:** `npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz`, then run `archie`
-- Root feed: `https://pokitomas.github.io/theawesomehexapp/`
-- Sideways consumer app: `https://pokitomas.github.io/theawesomehexapp/manual/`
 - Root debug: `https://pokitomas.github.io/theawesomehexapp/?debug=1`
 - Sideways debug: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1`
 - Phone gate: `https://pokitomas.github.io/theawesomehexapp/manual/?debug=1&test=1&autorun=1`
@@ -84,6 +101,7 @@ The repository gates changes with:
 - Remote, workflow-permission, social-authority, relational PostgreSQL, and migration-upgrade contracts
 - executable authority-surface drift detection
 - exact-head build and deployment accounting
+- executable product-route, investment, valuation-boundary, and Expo-withholding checks
 
 The concentrated private-archive phone test must load exactly twenty records, enter saturation, fire the boundary, and visibly move the gate above zero. The Ark proof requires all four controls to exist as soon as the vault rail becomes visible and verifies zero horizontal overflow after destructive recovery.
 
