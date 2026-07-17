@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "archie-working-state/v1",
+  "title": "Archie persistent working state",
+  "type": "object",
+  "required": ["schema", "core_id", "revision", "created_at", "updated_at", "observations", "cycles", "state_digest"],
+  "properties": {
+    "schema": {"const": "archie-working-state/v1"},
+    "core_id": {"type": "string", "minLength": 1},
+    "revision": {"type": "integer", "minimum": 0},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "observations": {"type": "array"},
+    "active_questions": {"type": "array"},
+    "hypotheses": {"type": "array"},
+    "commitments": {"type": "array"},
+    "uncertainties": {"type": "array"},
+    "trainer_proposals": {"type": "array"},
+    "cycles": {"type": "array"},
+    "custom": {"type": "object"},
+    "state_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": true
+}

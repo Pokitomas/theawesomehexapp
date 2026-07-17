@@ -15,9 +15,23 @@ const overrides = {
   }
 };
 
+const persistentCoreWorkflowRow = {
+  id: 'workflow.archie-persistent-core', f: 'workflow', op: 'Verify persistent cognition, Archie App admission, and Trainer brain-package authority',
+  actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head',
+  auth: 'contents:read only', object: 'Check result and local ephemeral working-state fixture', owner: 'Repository CI configuration',
+  deny: 'event or path filter does not match|checkout or dependency setup fails|persistent cognition tests fail|promptless cycle receipt is malformed',
+  replay: 'Exact workflow run, pull-request head SHA, test command, and promptless cycle receipt.',
+  pub: 'Public check status and test names.', priv: 'Ephemeral runner working state is discarded; no secrets or durable Trainer key are consumed.', st: 'e',
+  s: ['workflow-permission:.github/workflows/archie-persistent-core.yml:contents:read'],
+  impl: [['.github/workflows/archie-persistent-core.yml', 'contents: read', 'persist-credentials: false', 'npm run test:archie:persistent', 'Exercise promptless no-op cycle']],
+  allow: [['scripts/tests/maker-archie-persistent-core.test.mjs', 'persistent cognition can cycle without a prompt and truthfully choose no-op']],
+  denyW: [['scripts/tests/maker-archie-persistent-core.test.mjs', 'external effects fail closed without explicit runtime authority']]
+};
+
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
+  persistentCoreWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({
