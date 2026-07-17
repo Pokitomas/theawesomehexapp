@@ -6,7 +6,7 @@ import { inspectHumanQuality } from '../human-quality-report.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-test('human quality report admits executable exact-head witnesses and preserves unsupported runtime boundaries', () => {
+test('human quality report admits progressive views and preserves unsupported runtime boundaries', () => {
   const report = inspectHumanQuality({ root, observedAt: '2026-07-15T07:00:00.000Z' });
   assert.equal(report.schema, 'sideways-human-quality/v2');
   assert.equal(report.status, 'partial', JSON.stringify(report.stale, null, 2));
@@ -15,9 +15,9 @@ test('human quality report admits executable exact-head witnesses and preserves 
   const verified = new Set(report.verified.map(item => item.id));
   for (const id of [
     'founder_semantic_controls',
-    'founder_keyboard_and_touch_baseline',
+    'shared_keyboard_touch_reflow_and_disclosure_baseline',
     'maker_semantic_controls',
-    'maker_keyboard_touch_and_reflow_baseline',
+    'one_task_progressive_disclosure_contract',
     'root_phone_desktop_zoom_contrast_motion_keyboard_network',
     'manual_primary_phone_journey',
     'social_phone_authority_and_overflow',
