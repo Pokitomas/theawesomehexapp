@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.github.io/theawesomehexapp/contracts/archie-run.schema.json",
+  "title": "Archie run",
+  "type": "object",
+  "required": ["schema", "run_id", "workspace_id", "task_id", "agent_id", "lease_id", "parent_run_id", "status", "started_at", "completed_at", "summary", "event_count", "run_event_head", "artifact_ids"],
+  "properties": {
+    "schema": { "const": "archie-run/v1" },
+    "run_id": { "$ref": "#/$defs/id" },
+    "workspace_id": { "$ref": "#/$defs/id" },
+    "task_id": { "$ref": "#/$defs/id" },
+    "agent_id": { "$ref": "#/$defs/id" },
+    "lease_id": { "$ref": "#/$defs/id" },
+    "parent_run_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "status": { "enum": ["running", "completed", "blocked"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "summary": { "type": ["string", "null"], "maxLength": 20000 },
+    "event_count": { "type": "integer", "minimum": 0 },
+    "run_event_head": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "artifact_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}
