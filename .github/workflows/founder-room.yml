@@ -37,8 +37,10 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify Founder contract
         run: npm run test:founder
-      - name: Verify Foundry contract
-        run: npm run test:foundry
+      - name: Verify Foundry human surface
+        run: npm run test:foundry:human
+      - name: Verify Foundry core research
+        run: node --test foundry/tests/core.test.mjs foundry/tests/calibration.test.mjs foundry/tests/cost-calibration.test.mjs foundry/tests/runtime.test.mjs foundry/tests/generation-zero.test.mjs
       - name: Verify product portfolio
         run: npm run test:portfolio
       - name: Verify Archie human-power vision
