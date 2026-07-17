@@ -81,7 +81,7 @@ dl div:last-child { border-bottom: 0; }
 dt, dd { margin: 0; padding: 4px 5px; overflow-wrap: anywhere; }
 dt { font-weight: 700; background: #efefef; }
 .actions, .archie-actions { display: grid; gap: 4px; }
-.actions > *, .archie-actions button { min-height: 34px; display: flex; align-items: center; justify-content: center; text-align: center; }
+.actions > *, .archie-actions button { min-height: 56px; display: flex; align-items: center; justify-content: center; text-align: center; }
 .actions .primary { color: #fff; background: var(--title-a); }
 .actions .quiet { background: var(--face); }
 .actions .disabled { color: #777; text-shadow: 1px 1px #fff; cursor: not-allowed; }
@@ -126,6 +126,10 @@ pre { max-width: 100%; max-height: 360px; overflow: auto; margin: 0; padding: 7p
   button, a, input, select { min-height: 44px; }
   textarea { min-height: 130px; font-size: 16px; }
   input, select { font-size: 16px; }
+}
+@media (max-width: 760px) {
+  .command-copy, .dispatch-panel, .state-panel, .archie-console { padding: 6px; }
+  .actions > *, .archie-actions button { width: 100%; }
 }
 @media (max-width: 520px) {
   .mode-grid { grid-template-columns: 1fr 1fr; }
