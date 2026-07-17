@@ -27,6 +27,7 @@ jobs:
         with:
           ref: revive/dead-instance-completion-20260717
           fetch-depth: 1
+          show-progress: false
 
       - name: Repair transport hunk counts and apply exact receipt hardening
         shell: bash
@@ -39,7 +40,7 @@ jobs:
             -e 's/@@ -459,16 +459,43 /@@ -459,21 +459,46 /' \
             -e 's/@@ -131,10 +142,31 /@@ -131,9 +142,27 /' \
             .recovery/harden-cognition-maker-receipt.patch
-          git apply --check .recovery/harden-cognition-maker-receipt.patch
+          git apply --check --verbose .recovery/harden-cognition-maker-receipt.patch
           git apply --index .recovery/harden-cognition-maker-receipt.patch
 
       - name: Set up Node.js
