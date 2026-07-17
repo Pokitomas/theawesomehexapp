@@ -1,31 +1,34 @@
 name: Revive dead-instance completion
 
 on:
-  push:
+  pull_request:
     branches:
-      - revive/dead-instance-completion-20260717
+      - main
     paths:
       - .recovery/**
       - .github/workflows/revive-dead-instance.yml
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
-  group: revive-dead-instance-completion
+  group: revive-dead-instance-completion-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   recover-verify-push:
-    if: ${{ !contains(github.event.head_commit.message, '[skip recovery]') }}
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/archie-dead-instance-recovery-exec'
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
     steps:
-      - name: Check out exact recovery branch
+      - name: Check out the PR merge tree
         uses: actions/checkout@v4
         with:
-          ref: revive/dead-instance-completion-20260717
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           fetch-depth: 0
 
       - name: Reconstruct and verify recovered patches
@@ -34,12 +37,7 @@ jobs:
           set -euo pipefail
           cat .recovery/0001.patch.part.* > /tmp/0001.patch
           cat .recovery/0002.patch.part.* > /tmp/0002.patch
-
-          # Repair the single cosmetic diffstat spacing introduced while moving
-          # the dead-session patch through the GitHub contents API. The actual
-          # unified diff was staged byte-for-byte.
           sed -i 's/|  60 ++++ -$/|  60 ++++-/' /tmp/0001.patch
-
           echo 'b18e8e171deead37e066adb2d895b6027b2db0a774cf99dcc364994c93c2cc9e  /tmp/0001.patch' | sha256sum -c -
           echo '73c2c219887457953ca56cf2fa5f8c5c8b52033fd9a40bf6e262860c0452e2ab  /tmp/0002.patch' | sha256sum -c -
 
@@ -76,15 +74,12 @@ jobs:
           npm run test:archie:persistent
           npm run test:archie:portable
           npm run test:archie:evaluation
+          npm run test:archie:distill
 
-      - name: Record exact verified head and push
+      - name: Replace staging artifacts with the verified implementation
         shell: bash
         run: |
           set -euo pipefail
-          printf 'base=%s\nverified_head=%s\nworkflow_run=%s\n' \
-            '1356a56dfe21d931ef0cad21f41050ebb7ac0684' \
-            "$(git rev-parse HEAD)" \
-            "${GITHUB_RUN_ID}" > .recovery/APPLIED
-          git add .recovery/APPLIED
-          git commit -m '[skip recovery] Apply and verify dead-instance completion'
-          git push origin HEAD:revive/dead-instance-completion-20260717
+          git rm -r .recovery .github/workflows/revive-dead-instance.yml
+          git commit -m 'Apply and verify dead-instance Archie recovery'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
