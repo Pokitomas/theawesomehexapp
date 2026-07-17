@@ -1,13 +1,19 @@
-name: Prove founder room
+name: Prove human power surfaces
 
 on:
   pull_request:
     paths:
       - 'founder/**'
-      - 'maker/**'
-      - 'audit/product-journey.json'
+      - 'foundry/**'
+      - 'examples/site/**'
+      - 'product/product-portfolio.json'
+      - 'PRODUCT_PORTFOLIO.md'
+      - 'ARCHIE_MAKER_VISION.md'
+      - 'README.md'
+      - 'scripts/product-portfolio.mjs'
       - 'scripts/tests/founder-room*.mjs'
-      - 'scripts/tests/product-revival-contract.test.mjs'
+      - 'scripts/tests/foundry-human.test.mjs'
+      - 'scripts/tests/product-portfolio.test.mjs'
       - '.github/workflows/founder-room.yml'
       - 'package.json'
       - 'package-lock.json'
@@ -17,7 +23,7 @@ permissions:
   contents: read
 
 jobs:
-  founder-room:
+  human-power:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -29,34 +35,47 @@ jobs:
           cache: npm
       - name: Install locked browser tooling
         run: npm ci --ignore-scripts
-      - name: Verify founder decision model
-        run: node scripts/tests/founder-room.test.mjs
-      - name: Verify product journey surface separation
-        run: node --test scripts/tests/product-revival-contract.test.mjs
+      - name: Verify human power contracts
+        run: |
+          npm run test:founder
+          npm run test:foundry
+          npm run test:portfolio
+          node --test scripts/tests/maker-archie-vision.test.mjs
       - name: Verify browser assets
         run: |
           node --check founder/founder.js
+          node --check foundry/foundry.js
+          node --check examples/site/site.js
           node --check scripts/tests/founder-room-phone.mjs
           test -s founder/index.html
           test -s founder/founder.css
-          grep -q 'Social identity with memory' founder/index.html
-          grep -q 'Private remixable life feed' founder/index.html
-          grep -q 'Scene-first social world' founder/index.html
-      - name: Prove founder journey at 390x844
+          test -s foundry/index.html
+          test -s foundry/foundry.css
+          test -s examples/site/index.html
+          grep -q 'Make something true' founder/index.html
+          grep -q 'You are the lab now' foundry/index.html
+          grep -q 'Tiny Public Things' examples/site/index.html
+          ! grep -qi 'Sideways' founder/index.html
+          ! grep -qi 'Sideways' foundry/index.html
+      - name: Prove Founder journey at 390x844
         run: |
           python -m http.server 4174 >/tmp/founder-http.log 2>&1 &
           server=$!
           trap 'kill $server || true' EXIT
           sleep 2
           node scripts/tests/founder-room-phone.mjs
-      - name: Upload founder room preview
+      - name: Upload human power preview
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sideways-founder-room
+          name: human-power-surfaces
           path: |
             founder
-            audit/product-journey.json
+            foundry/index.html
+            foundry/foundry.css
+            foundry/foundry.js
+            examples/site
+            product/product-portfolio.json
             founder-room-phone.png
             founder-room-proof.json
           if-no-files-found: error
