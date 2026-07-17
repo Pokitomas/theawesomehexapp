@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.github.io/theawesomehexapp/contracts/archie-artifact.schema.json",
+  "title": "Archie artifact",
+  "type": "object",
+  "required": ["schema", "artifact_id", "workspace_id", "run_id", "name", "media_type", "sha256", "size_bytes", "provider_uri", "created_by", "created_at"],
+  "properties": {
+    "schema": { "const": "archie-artifact/v1" },
+    "artifact_id": { "$ref": "#/$defs/id" },
+    "workspace_id": { "$ref": "#/$defs/id" },
+    "run_id": { "$ref": "#/$defs/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "media_type": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "sha256": { "$ref": "#/$defs/sha256" },
+    "size_bytes": { "type": "integer", "minimum": 1, "maximum": 52428800 },
+    "provider_uri": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "created_by": { "$ref": "#/$defs/id" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}

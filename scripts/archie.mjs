@@ -25,6 +25,7 @@ import { runResearchCommand } from './archie-research-campaign.mjs';
 import { runArchieSelfHostingSample } from './archie-self-hosting-sample.mjs';
 import { runArchieFirstRun } from './archie-first-run.mjs';
 import { runDistillCommand } from './archie-distill.mjs';
+import { runWorkspaceCommand } from './archie-workspace.mjs';
 import {
   benchmarkModel,
   inspectModel,
@@ -69,6 +70,7 @@ Usage:
     --evaluation-reserve 20 --allocation <allocation.json>
   archie research materialize --campaign <campaign> [--output <directory>]
   archie research status --campaign <campaign>
+  archie workspace <init|list|inspect|command|serve|demo> [flags]
   archie pull <manifest> --trust-key <publisher-public.pem> [--device-key <x25519-private.pem>]
   archie run <id@version> --prompt <text> [--runner <path>]
   archie inspect <id@version>
@@ -77,6 +79,12 @@ Usage:
   archie list
   archie setup [--json] [--no-color]
   archie distill <init|doctor|teach|attest-teacher|import-teacher> [flags]
+
+Native workspace:
+  init creates a public, private, or locally sealed provider-neutral workspace.
+  serve starts the local anonymous-read workspace service on 127.0.0.1:8787.
+  demo executes objective → task → lease → run → review → repair → evidence → promotion → publication → rollback.
+  Workspace state lives outside Git under ARCHIE_HOME unless --root is supplied.
 
 Research campaign:
   --root <path>             Repository root. Defaults to cwd.
@@ -148,6 +156,12 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (command === 'distill') {
     printJSON(await runDistillCommand({ positionals, flags }));
+    return;
+  }
+
+  if (command === 'workspace') {
+    const result = await runWorkspaceCommand({ positionals, flags, home });
+    if (result) printJSON(result);
     return;
   }
 

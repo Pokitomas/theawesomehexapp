@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.github.io/theawesomehexapp/contracts/archie-workspace-event.schema.json",
+  "title": "Archie workspace event",
+  "type": "object",
+  "required": ["schema", "event_id", "workspace_id", "sequence", "type", "actor_id", "occurred_at", "previous_event_digest", "payload", "payload_digest", "event_digest"],
+  "properties": {
+    "schema": { "const": "archie-workspace-event/v1" },
+    "event_id": { "$ref": "#/$defs/id" },
+    "workspace_id": { "$ref": "#/$defs/id" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "type": { "type": "string", "minLength": 3, "maxLength": 120 },
+    "actor_id": { "$ref": "#/$defs/id" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "previous_event_digest": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "payload": { "type": "object" },
+    "payload_digest": { "$ref": "#/$defs/sha256" },
+    "event_digest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}
