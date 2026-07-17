@@ -1,5 +1,1483 @@
 #!/usr/bin/env node
-import{createHash as e,randomUUID as t}from"node:crypto";const r=(e,t=2e4)=>String(e??"").replace(/\u0000/g,"").trim().slice(0,t),o=e=>structuredClone(e),a=e=>new Date(e()).toISOString(),s=(e,t,r=0,o=Number.MAX_SAFE_INTEGER)=>{const a=Number(e);return Number.isFinite(a)?Math.max(r,Math.min(o,a)):t},i=(e,t=0,r=Number.MAX_SAFE_INTEGER)=>{if(null==e||""===e)return null;const o=Number(e);return Number.isFinite(o)?Math.max(t,Math.min(r,o)):null},n=(e,t=0,r=Number.MAX_SAFE_INTEGER)=>{const o=i(e,t,r);return null===o?null:Math.round(o)},c=(e,t=200)=>[...new Set((Array.isArray(e)?e:[]).map(e=>r(e,200)).filter(Boolean))].slice(0,t),d=e=>null!==e&&"object"==typeof e&&!Array.isArray(e);function l(e){return Array.isArray(e)?e.map(l):d(e)?Object.fromEntries(Object.keys(e).sort().map(t=>[t,l(e[t])])):e}export const fleetDigest=t=>e("sha256").update(JSON.stringify(l(t))).digest("hex");const u=/^sha256:[a-f0-9]{64}$/,p=/(?:^|[_-])(?:secret|token|password|authorization|cookie|private[_-]?key|api[_-]?key|credential|session)(?:$|[_-])/i,m=/^(?:input|output|context|prompt|completion|total)_tokens?$/i,_=/(?:^|[_-])(?:url|uri|host|hostname|endpoint_url|runner_label|runner_labels|model_id|provider_id|vendor)(?:$|[_-])/i,k=/\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})\b/gi,h=/https?:\/\/[^\s"'<>]+/gi;export function redactFleetSecrets(e,t=0){return t>12?"[truncated]":Array.isArray(e)?e.slice(0,300).map(e=>redactFleetSecrets(e,t+1)):d(e)?Object.fromEntries(Object.entries(e).slice(0,500).map(([e,o])=>[r(e,200),p.test(e)&&!m.test(e)?"[redacted]":redactFleetSecrets(o,t+1)])):"string"==typeof e?r(e.replace(k,"[redacted]"),2e4):["number","boolean"].includes(typeof e)||null===e?e:r(e,2e3)}function w(e,t=0){return t>10?"[truncated]":Array.isArray(e)?e.slice(0,200).map(e=>w(e,t+1)):d(e)?Object.fromEntries(Object.entries(e).slice(0,300).map(([e,o])=>[r(e,200),p.test(e)||_.test(e)?"[redacted]":w(o,t+1)])):"string"==typeof e?r(e.replace(k,"[redacted]").replace(h,"[redacted-url]"),1e4):["number","boolean"].includes(typeof e)||null===e?e:r(e,2e3)}export class WorkerFleetError extends Error{constructor(e,t,r=400,o={}){super(t),this.name="WorkerFleetError",this.code=e,this.status=r,this.detail=redactFleetSecrets(o)}}const f=new Set(["github_actions","self_hosted","remote_http","in_process","local_control"]),y=new Set(["healthy","degraded","offline","unknown"]),v=new Set(["active","draining","quarantined","offline"]),b=new Set(["attested","verified","unverified","unknown"]),g=new Set(["local","remote","hybrid","private","unknown"]),x=new Set(["dedicated","shared","burst","unknown"]),F=new Set(["none","bounded","provider","unknown"]),E=Object.freeze({unknown:-1,none:0,restricted:1,egress:2,full:3}),W=Object.freeze({unknown:-1,public:0,provider:1,contractual:2,private:3,local:4});function z(e,t,o="unknown"){const a=r(e,100).toLowerCase();return t.has(a)?a:o}function M(e,t,o=200){const a=r(e,o);k.lastIndex=0,h.lastIndex=0;const s=!a||k.test(a)||h.test(a);return k.lastIndex=0,h.lastIndex=0,s?t:a}function q(e={}){const t=r(e.endpoint_digest,200).toLowerCase();return u.test(t)?t:`sha256:${fleetDigest({ownership:r(e.ownership,100).toLowerCase(),transport:r(e.transport,100).toLowerCase(),locality:r(e.locality,100).toLowerCase(),capacity:r(e.capacity,100).toLowerCase()})}`}function C(e,t,o={}){if(!d(e))return null;const a={schema:r(e.schema,100),worker_id:r(e.worker_id,300),subject:r(e.subject,500),mode:r(e.mode,100).toLowerCase(),endpoint_digest:r(e.endpoint_digest,200).toLowerCase(),state:r(e.state,40).toLowerCase(),issuer:r(e.issuer,300),observed_at:r(e.observed_at,100),issued_at:r(e.issued_at,100),digest:r(e.digest,200).toLowerCase()};a.valid=a.schema===t&&u.test(a.digest)&&`sha256:${fleetDigest(function(e={}){const{digest:t,valid:r,...o}=e;return Object.fromEntries(Object.entries(o).filter(([,e])=>""!==e))}(e))}`===a.digest;for(const[e,t]of Object.entries(o))t&&a[e]!==t&&(a.valid=!1);return Object.freeze(a)}export function normalizeWorkerDescriptor(e={}){const t=r(e.id,300),o=r(e.mode,100).toLowerCase();if(!t)throw new WorkerFleetError("worker_id_required","worker id is required");if(!f.has(o))throw new WorkerFleetError("worker_mode_invalid",`unsupported worker mode: ${o}`);const a=e.endpoint||{},l={ownership:r(a.ownership||"unknown",100).toLowerCase(),transport:r(a.transport||("local_control"===o||"in_process"===o?"local":"remote_http"===o?"remote":"relay"),100).toLowerCase(),locality:z(a.locality??e.locality,g),capacity:z(a.capacity,x),throttling:z(a.throttling,F),label:M(a.label,"local"===a.locality?"Your local Maker runtime":"Maker execution runtime"),endpoint_digest:q(a)},u=z(e.identity?.status,b),p=r(e.identity?.subject,500),m=C(e.identity?.receipt,"sideways-maker-worker-attestation/v1",{worker_id:t,subject:p,mode:o,endpoint_digest:l.endpoint_digest}),_=z(d(e.health)?e.health.state:e.health,y),k=C(d(e.health)?e.health.receipt:e.health_receipt,"sideways-maker-worker-health/v1",{worker_id:t,endpoint_digest:l.endpoint_digest,state:_}),h={schema:"sideways-maker-worker/v1",id:t,display_name:M(e.display_name||t,"Maker worker"),identity:{status:u,subject:p,issuer:r(e.identity?.issuer||m?.issuer,300),receipt:m,trusted:["attested","verified"].includes(u)&&!0===m?.valid},mode:o,platform:{os:r(e.platform?.os||"unknown",100).toLowerCase(),architecture:r(e.platform?.architecture||e.platform?.arch||"unknown",100).toLowerCase()},labels:c(e.labels||e.platform?.labels),capabilities:c(e.capabilities),toolchains:c(e.toolchains||e.platform?.toolchains),providers:c(e.providers||e.platform?.providers),models:c(e.models),network:{mode:r(e.network?.mode||"unknown",40).toLowerCase()in E?r(e.network?.mode||"unknown",40).toLowerCase():"unknown",allowed_hosts:c(e.network?.allowed_hosts)},isolation:{container:!0===e.isolation?.container||!0===e.isolation?.containers,sandbox:!0===e.isolation?.sandbox,ephemeral_workspace:!0===e.isolation?.ephemeral_workspace},resources:{cpu:i(e.resources?.cpu,.1,1e5),memory_mb:n(e.resources?.memory_mb,1,10**9),disk_mb:n(e.resources?.disk_mb,1,10**12),time_ms:n(e.resources?.time_ms,1e3,2592e6)},concurrency:{limit:n(e.concurrency?.limit??e.resources?.concurrency,1,1e5),active:Math.round(s(e.concurrency?.active,0,0,1e5)),queue_depth:Math.round(s(e.concurrency?.queue_depth??e.resources?.queue_depth,0,0,10**9))},endpoint:l,region:r(e.region||e.placement?.region||"unknown",100).toLowerCase(),privacy:r(e.privacy||e.placement?.privacy||"unknown",100).toLowerCase(),cost:{per_minute_usd:i(e.cost?.per_minute_usd,0,10**6),per_job_usd:i(e.cost?.per_job_usd,0,10**6)},latency_ms:n(e.latency_ms??e.placement?.latency_ms,0,10**9),health:{state:_,evidence:!0===k?.valid?"observed":"unknown",observed_at:r((d(e.health)?e.health.observed_at:"")||k?.observed_at,100),receipt:k},operator_state:z(e.operator_state??e.state,v,"active"),reliability:{successes:Math.round(s(e.reliability?.successes,0,0,10**9)),failures:Math.round(s(e.reliability?.failures,0,0,10**9)),lost:Math.round(s(e.reliability?.lost??e.reliability?.lost_runs,0,0,10**9))},recovery:{checkpointing:!0===e.recovery?.checkpointing,mode:r(e.recovery?.mode||"none",100).toLowerCase()},operator_weight:s(e.operator_weight??e.placement?.operator_rank,0,-1e3,1e3),metadata:w(e.metadata||{}),observed_at:r(e.observed_at||k?.observed_at||new Date(0).toISOString(),100)};return h.descriptor_digest=fleetDigest({...h,descriptor_digest:void 0}),Object.freeze(h)}export function normalizeFleetTask(e={},o=Date.now,i=t){const n=r(e.repository,500);if(!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(n))throw new WorkerFleetError("repository_invalid","repository must be owner/name");const d=e.requirements||e,l=r(d.network||"none",40).toLowerCase();return Object.freeze({schema:"sideways-maker-fleet-task/v1",id:r(e.id||i(),300),owner:r(e.owner||n.split("/")[0],300),repository:n,backend:r(e.backend||"auto",100),priority:s(e.priority,50,0,100),reservation:["normal","repair","recovery"].includes(e.reservation)?e.reservation:!0===e.recovery?"recovery":"normal",created_at:r(e.created_at||a(o),100),capabilities:c(d.capabilities),labels:c(d.labels),toolchains:c(d.toolchains),providers:c(d.providers),models:c(d.models),modes:c(d.modes),platform:{os:r(d.platform?.os||d.os||"any",100).toLowerCase(),architecture:r(d.platform?.architecture||d.arch||"any",100).toLowerCase()},network:l in E?l:"none",allowed_hosts:c(d.allowed_hosts),isolation:{container:!0===d.isolation?.container||!0===d.containers,sandbox:!0===d.isolation?.sandbox||!0===d.sandbox,ephemeral_workspace:!1!==d.isolation?.ephemeral_workspace&&!1!==d.ephemeral_workspace},resources:{cpu:s(d.resources?.cpu??d.cpu,1,.1,1e5),memory_mb:Math.round(s(d.resources?.memory_mb??d.memory_mb,512,1,10**9)),disk_mb:Math.round(s(d.resources?.disk_mb??d.disk_mb,512,1,10**12)),time_ms:Math.round(s(d.resources?.time_ms??d.time_ms,18e5,1e3,2592e6))},region:r(d.region||"any",100).toLowerCase(),locality:r(d.locality||"any",100).toLowerCase(),privacy:r(d.privacy||d.privacy_minimum||"public",100).toLowerCase(),capacity:r(d.capacity||"any",100).toLowerCase(),dedicated_capacity:!0===d.dedicated_capacity,recoverable:!0===d.recoverable,max_latency_ms:s(d.max_latency_ms,Number.MAX_SAFE_INTEGER,0,10**9),max_cost_usd:s(d.max_cost_usd,10**9,0,10**9),allow_unverified:!0===e.allow_unverified,allow_unknown_cost:!0===e.allow_unknown_cost,retry_lost:!1!==e.retry_lost,max_attempts:Math.round(s(e.max_attempts??e.retry?.max_attempts,3,1,100)),attempt:Math.round(s(e.attempt,1,1,100)),state:redactFleetSecrets(e.state||{})})}function j(e,t){const r=new Set(e);return t.every(e=>r.has(e))}function A(e,t){return Number.isFinite(e.cost.per_minute_usd)&&Number.isFinite(e.cost.per_job_usd)?e.cost.per_job_usd+t.resources.time_ms/6e4*e.cost.per_minute_usd:null}export function scoreWorker(e,t,r={}){const o=t.schema?t:normalizeFleetTask(t),a=[];e.identity.trusted||o.allow_unverified||a.push("identity_unverified"),"observed"!==e.health.evidence&&a.push("health_unobserved"),["offline","unknown"].includes(e.health.state)&&a.push(`worker_${e.health.state}`),["draining","quarantined","offline"].includes(e.operator_state)&&a.push(`worker_${e.operator_state}`),o.modes.length&&!o.modes.includes(e.mode)&&a.push("mode_mismatch"),"any"!==o.platform.os&&e.platform.os!==o.platform.os&&a.push("os_mismatch"),"any"!==o.platform.architecture&&e.platform.architecture!==o.platform.architecture&&a.push("architecture_mismatch"),j(e.capabilities,o.capabilities)||a.push("capability_mismatch"),j(e.labels,o.labels)||a.push("label_mismatch"),j(e.toolchains,o.toolchains)||a.push("toolchain_mismatch"),j(e.providers,o.providers)||a.push("provider_mismatch"),j(e.models,o.models)||a.push("model_mismatch"),(E[e.network.mode]??-1)<(E[o.network]??0)&&a.push("network_mismatch"),o.allowed_hosts.some(t=>!e.network.allowed_hosts.includes(t)&&"full"!==e.network.mode)&&a.push("network_host_mismatch"),o.isolation.container&&!e.isolation.container&&a.push("container_required"),o.isolation.sandbox&&!e.isolation.sandbox&&a.push("sandbox_required"),o.isolation.ephemeral_workspace&&!e.isolation.ephemeral_workspace&&a.push("ephemeral_workspace_required");for(const t of["cpu","memory_mb","disk_mb","time_ms"])Number.isFinite(e.resources[t])?e.resources[t]<o.resources[t]&&a.push(`${t}_insufficient`):a.push(`${t}_unknown`);Number.isFinite(e.concurrency.limit)?e.concurrency.active>=e.concurrency.limit&&a.push("worker_capacity_exhausted"):a.push("concurrency_unknown"),"any"!==o.region&&e.region!==o.region&&a.push("region_mismatch"),"any"!==o.locality&&e.endpoint.locality!==o.locality&&a.push("locality_mismatch"),(W[e.privacy]??-1)<(W[o.privacy]??0)&&a.push("privacy_mismatch"),"any"!==o.capacity&&e.endpoint.capacity!==o.capacity&&a.push("capacity_mismatch"),o.dedicated_capacity&&"dedicated"!==e.endpoint.capacity&&a.push("dedicated_capacity_required"),!o.recoverable||e.recovery.checkpointing&&"none"!==e.recovery.mode||a.push("recovery_required"),Number.isFinite(e.latency_ms)?e.latency_ms>o.max_latency_ms&&a.push("latency_ceiling"):a.push("latency_unknown");const s=A(e,o);if(null!==s||o.allow_unknown_cost?null!==s&&s>o.max_cost_usd&&a.push("cost_ceiling"):a.push("cost_unknown"),r.quota_exhausted&&a.push("quota_exhausted"),r.duplicate_active&&a.push("duplicate_execution"),r.adapter_unavailable&&a.push("adapter_unavailable"),a.length)return Object.freeze({worker_id:e.id,eligible:!1,score:-1/0,reasons:c(a),estimated_cost_usd:s});let i=1e3;return i+=function(e){const t=e.reliability.successes+e.reliability.failures+e.reliability.lost,r=t?e.reliability.successes/t:.5;return Math.round(300*r-25*e.reliability.lost)}(e),i-=20*e.concurrency.queue_depth,i-=30*e.concurrency.active,i-=Math.round(e.latency_ms/10),null!==s&&(i-=Math.round(100*s)),i+=40*(W[e.privacy]||0),i+="local"===e.endpoint.locality?80:0,i+="healthy"===e.health.state?50:-100,i+=e.operator_weight,"normal"!==o.reservation&&e.labels.includes(o.reservation)&&(i+=100),Object.freeze({worker_id:e.id,eligible:!0,score:i,reasons:[],estimated_cost_usd:s})}export function rankWorkers(e,t,r={}){return e.map(e=>({worker:e,...scoreWorker(e,t,r[e.id]||{})})).filter(e=>e.eligible).sort((e,t)=>t.score-e.score||e.worker.id.localeCompare(t.worker.id))}export function normalizeArtifactReferences(e={}){const t=(e,t)=>{if(!d(e))return null;if(["content","data","bytes","payload","base64"].some(t=>t in e))throw new WorkerFleetError("artifact_payload_denied",`${t} receipts must reference payloads, not embed them`);const o=r(e.digest,200).toLowerCase(),a=r(e.uri||e.url,2e3),s=n(e.size_bytes,0,10**12);if(!u.test(o))throw new WorkerFleetError("artifact_digest_invalid",`${t} digest is required`);if(!a)throw new WorkerFleetError("artifact_uri_required",`${t} URI is required`);if(null===s)throw new WorkerFleetError("artifact_size_required",`${t} size is required`);return Object.freeze({schema:"sideways-maker-artifact-reference/v1",kind:t,name:r(e.name||t,300),uri:a,digest:o,size_bytes:s,retention:r(e.retention||"bounded",100),provenance:r(e.provenance||"worker-reported",300),workspace_id:r(e.workspace_id,300)})};return Object.freeze({artifacts:(Array.isArray(e.artifacts)?e.artifacts:[]).map(e=>t(e,"artifact")).filter(Boolean).slice(0,200),logs:(Array.isArray(e.logs)?e.logs:[]).map(e=>t(e,"log")).filter(Boolean).slice(0,200)})}export function createWorkerAdapterRegistry({clock:e=Date.now,timeout_ms:t=12e4}={}){const i=new Map;return Object.freeze({register(e={}){const t=r(e.mode,100).toLowerCase();if(!f.has(t))throw new WorkerFleetError("adapter_mode_invalid",`unsupported adapter mode: ${t}`);if(i.has(t))throw new WorkerFleetError("adapter_duplicate",`adapter already registered: ${t}`,409);const o=Object.freeze({mode:t,available:!0===e.available&&"function"==typeof e.dispatch,reason:r(e.reason,1e3),dispatch:e.dispatch});return i.set(t,o),{mode:t,available:o.available,reason:o.available?"":o.reason||"transport unavailable"}},describe:()=>[...i.values()].map(e=>({mode:e.mode,available:e.available,reason:e.available?"":e.reason||"transport unavailable"})).sort((e,t)=>e.mode.localeCompare(t.mode)),async dispatch(n,c,d={}){const l=i.get(r(n,100).toLowerCase());if(!l)throw new WorkerFleetError("adapter_not_found",`adapter not found: ${n}`,404);if(!l.available)throw new WorkerFleetError("adapter_unavailable",l.reason||"adapter unavailable",503);const u=new AbortController,p=Math.round(s(d.timeout_ms,t,1,18e5));let m;const _=a(e);try{const t=await Promise.race([Promise.resolve().then(()=>l.dispatch({...o(c),signal:u.signal})),new Promise((e,t)=>{m=setTimeout(()=>{u.abort(new Error("worker dispatch timed out")),t(new WorkerFleetError("dispatch_timeout","worker dispatch timed out; transport completion is indeterminate unless AbortSignal is honored",504))},p),m})]);return Object.freeze({schema:"sideways-maker-fleet-dispatch/v1",mode:n,ok:!0,output:redactFleetSecrets(t),started_at:_,finished_at:a(e)})}finally{clearTimeout(m)}}})}export function registerDefaultWorkerAdapters(e,t={}){return[...f].map(r=>e.register({mode:r,available:"function"==typeof t[r],dispatch:t[r],reason:`${r} transport not configured`}))}export function createWorkerFleet({workers:e=[],clock:i=Date.now,id:n=t,lease_ms:c=3e5,starvation_ms:l=6e5,recovery_reserve:u=1,quotas:p={},adapters:m=createWorkerAdapterRegistry({clock:i}),dispatch_timeout_ms:_=12e4}={}){const k=new Map,h=new Map,w=new Map,f=[],y=new Map,v=new Map,b=new Map;for(const t of e){const e=t.schema?t:normalizeWorkerDescriptor(t);if(k.has(e.id))throw new WorkerFleetError("worker_duplicate",`worker already registered: ${e.id}`,409);k.set(e.id,e)}function g(e,t={}){const r=Object.freeze({schema:"sideways-maker-fleet-event/v1",sequence:f.length+1,event_id:n(),type:e,at:a(i),detail:redactFleetSecrets(t)});return f.push(r),r}function x(e){return[`owner:${e.owner}`,`repository:${e.repository}`,`backend:${e.backend}`]}function F(e){const t=p[e]||{};return{concurrency:Math.round(s(t.concurrency,10**9,0,10**9)),cost_usd:s(t.cost_usd,10**9,0,10**9)}}function E(e){return v.has(e)||v.set(e,{active:0,reserved_cost_usd:0,cost_usd:0,completed:0}),v.get(e)}function W(e,t=0){const r=[];for(const o of x(e)){const e=F(o),a=E(o);a.active>=e.concurrency&&r.push({key:o,dimension:"concurrency"}),a.cost_usd+a.reserved_cost_usd+s(t,0,0)>e.cost_usd&&r.push({key:o,dimension:"cost_usd"})}return r}function z(e){const t="running"===w.get(e.id)?.state,r=Object.fromEntries(m.describe().map(e=>[e.mode,e.available]));return Object.fromEntries([...k.values()].map(o=>{const a=A(o,e)||0;return[o.id,{quota_exhausted:W(e,a).length>0,duplicate_active:t,adapter_unavailable:!0!==r[o.mode]}]}))}function M(e,t,a=""){const s=k.get(r(e,300));if(!s)throw new WorkerFleetError("worker_not_found","worker not found",404);const i=normalizeWorkerDescriptor({...o(s),operator_state:t,metadata:{...o(s.metadata||{}),operator_reason:r(a,1e3)}});return k.set(i.id,i),g(`worker.${t}`,{worker_id:i.id,reason:a}),i}function q(e,t){const a=k.get(r(e,300));if(!a)throw new WorkerFleetError("worker_not_found","worker not found",404);const s=normalizeWorkerDescriptor({...o(a),health:t,observed_at:d(t)?t.observed_at:a.observed_at});if("observed"!==s.health.evidence)throw new WorkerFleetError("health_receipt_invalid","digest-bound observed health receipt required");return k.set(s.id,s),g("worker.health_observed",{worker_id:s.id,state:s.health.state}),s}function C(e){const t=e.schema?e:normalizeFleetTask(e,i,n);if(h.has(t.id)||w.has(t.id))throw new WorkerFleetError("task_duplicate",`task already exists: ${t.id}`,409);const r={task:t,state:"queued",revision:1,enqueued_at:a(i),updated_at:a(i),last_error:null};return h.set(t.id,r),g("task.queued",{task_id:t.id,owner:t.owner,priority:t.priority,reservation:t.reservation}),o(r)}function j(e){const t=Math.max(0,i()-Date.parse(e.enqueued_at)),r=Math.floor(t/Math.max(1,l)),o="recovery"===e.task.reservation?100:"repair"===e.task.reservation?75:0;return e.task.priority+Math.min(1e3,10*r)+o}function S(){return[...h.values()].filter(e=>"queued"===e.state).sort((e,t)=>{const r=j(t)-j(e);if(r)return r;const o=E(`owner:${e.task.owner}`).active,a=E(`owner:${t.task.owner}`).active;if(o!==a)return o-a;const s=b.get(e.task.owner)||0,i=b.get(t.task.owner)||0;return s!==i?s-i:e.enqueued_at.localeCompare(t.enqueued_at)||e.task.id.localeCompare(t.task.id)})}function O(e){const t=e.schema?e:normalizeFleetTask(e,i,n),r=rankWorkers([...k.values()],t,z(t));if(!r.length){const e=function(e){const t=[...k.values()];if(!t.length)return{code:"capacity_unavailable",blockers:[]};const r=z(e),o=t.map(t=>({worker_id:t.id,reasons:scoreWorker(t,e,r[t.id]||{}).reasons}));return o.every(e=>e.reasons.includes("identity_unverified"))?{code:"unverified_identity",blockers:o}:o.every(e=>e.reasons.includes("health_unobserved")||e.reasons.some(e=>e.startsWith("worker_")))?{code:"unhealthy_worker",blockers:o}:o.every(e=>e.reasons.includes("quota_exhausted"))?{code:"quota_exhausted",blockers:o}:o.every(e=>e.reasons.includes("adapter_unavailable"))?{code:"external_infrastructure_blocker",blockers:o}:o.every(e=>e.reasons.includes("cost_unknown"))?{code:"cost_unknown",blockers:o}:{code:"capability_mismatch",blockers:o}}(t);throw new WorkerFleetError(e.code,"no eligible worker",503,e)}const s=r[0],c={schema:"sideways-maker-placement/v1",placement_id:n(),task_id:t.id,worker_id:s.worker.id,worker_mode:s.worker.mode,reservation:t.reservation,score:s.score,estimated_cost_usd:s.estimated_cost_usd,worker_digest:s.worker.descriptor_digest,task_digest:fleetDigest(t),endpoint:o(s.worker.endpoint),workspace:{schema:"sideways-maker-workspace-placement/v1",workspace_id:`workspace:${t.id}:${t.attempt}`,ephemeral:s.worker.isolation.ephemeral_workspace,isolation:s.worker.isolation.sandbox?"sandbox":s.worker.isolation.container?"container":"process"},considered:r.map(e=>({worker_id:e.worker.id,score:e.score})),placed_at:a(i),receipt_digest:""};return c.runtime_profile=function(e,t,r){return Object.freeze({schema:"sideways-maker-runtime-profile/v1",runtime_id:`maker-worker-${fleetDigest({worker:e.id,endpoint:e.endpoint.endpoint_digest}).slice(0,16)}`,display_name:"Maker execution runtime",status:e.health.state,intelligence:{selection:"adaptive",engine_label:"Admitted Maker intelligence",architecture:"unknown",admission:"unknown",capabilities:e.capabilities},endpoint:{ownership:["user","project","managed","hybrid"].includes(e.endpoint.ownership)?e.endpoint.ownership:"unknown",transport:["local","remote","hybrid","relay"].includes(e.endpoint.transport)?e.endpoint.transport:"unknown",locality:e.endpoint.locality,capacity:e.endpoint.capacity,throttling:e.endpoint.throttling,label:e.endpoint.label},planning:{strategy:"adaptive",scheduler:"priority",parallelism:Math.max(1,e.concurrency.limit||1),speculation:!1,recovery:e.recovery.checkpointing?"checkpoint":"lease",confidence_threshold:.8},execution:{role:"normal"===t.reservation?"implementer":t.reservation,modes:[e.mode],transport:"local"===e.endpoint.transport?"direct":"relay"===e.endpoint.transport?"relay":"queue",workspace:e.isolation.sandbox?"container":e.isolation.ephemeral_workspace?"isolated":"repository",verification:"continuous",checkpointing:e.recovery.checkpointing?"enabled":"bounded",recovery:"none"===e.recovery.mode?"lease":e.recovery.mode},authority:{capabilities:{}},presentation:{headline:"Maker is building your thing",activity:"Running on admitted compute",tone:"friendly",visible:!0},observed_at:a(r)})}(s.worker,c,i),c.receipt_digest=fleetDigest({...c,receipt_digest:void 0}),Object.freeze(c)}function $(e){for(const t of x(e.task)){const r=E(t);r.active+=1,r.reserved_cost_usd+=s(e.placement.estimated_cost_usd,0,0)}const t=k.get(e.placement.worker_id);k.set(t.id,normalizeWorkerDescriptor({...o(t),concurrency:{...t.concurrency,active:t.concurrency.active+1}}))}function D(e,t=null){for(const r of x(e.task)){const o=E(r);o.active=Math.max(0,o.active-1),o.reserved_cost_usd=Math.max(0,o.reserved_cost_usd-s(e.placement.estimated_cost_usd,0,0)),null!==t&&(o.cost_usd+=t,o.completed+=1)}const r=k.get(e.placement.worker_id);r&&k.set(r.id,normalizeWorkerDescriptor({...o(r),concurrency:{...r.concurrency,active:Math.max(0,r.concurrency.active-1)}}))}function L(e){e.lease={...e.lease,token:"[expired]"}}function N(e,t,o){const a=w.get(r(e,300));if(!a)throw new WorkerFleetError("execution_not_found","execution not found",404);if("running"!==a.state)throw new WorkerFleetError("execution_not_running","execution is not running",409);if(a.lease.token!==r(t,300))throw new WorkerFleetError("lease_token_mismatch","active lease token required",409);if(Number(o)!==a.lease.fence)throw new WorkerFleetError("fence_mismatch","current fencing token required",409);if(Date.parse(a.lease.expires_at)<=i())throw new WorkerFleetError("lease_expired","worker lease expired",409);return a}function R(e,t){if(t>e.task.max_cost_usd)throw new WorkerFleetError("task_budget_exhausted","actual worker cost exceeds task ceiling",429,{cost:t,limit:e.task.max_cost_usd});for(const r of x(e.task)){const o=E(r),a=F(r);if(o.cost_usd+Math.max(0,o.reserved_cost_usd-s(e.placement.estimated_cost_usd,0,0))+t>a.cost_usd)throw new WorkerFleetError("quota_exhausted","actual worker cost exceeds quota",429,{key:r,cost:t,limit:a.cost_usd})}}function I(e){if(!e)return null;const t=o(e);return t.lease?.token&&(t.lease.token="[redacted]"),redactFleetSecrets(t)}return Object.freeze({register:function(e){const t=normalizeWorkerDescriptor(e);if(k.has(t.id))throw new WorkerFleetError("worker_duplicate",`worker already registered: ${t.id}`,409);return k.set(t.id,t),g("worker.registered",{worker_id:t.id,digest:t.descriptor_digest,trusted:t.identity.trusted,health:t.health}),t},replace:function(e){const t=normalizeWorkerDescriptor(e);return k.set(t.id,t),g("worker.updated",{worker_id:t.id,digest:t.descriptor_digest,trusted:t.identity.trusted,health:t.health}),t},getWorker:e=>k.get(r(e,300))||null,listWorkers:()=>[...k.values()].sort((e,t)=>e.id.localeCompare(t.id)),observeHealth:q,drain:(e,t)=>M(e,"draining",t),quarantine:(e,t)=>M(e,"quarantined",t),recoverWorker:function(e,t,a=""){const s=q(e,t),i=normalizeWorkerDescriptor({...o(s),operator_state:"active",metadata:{...o(s.metadata||{}),recovery_reason:r(a,1e3)}});return k.set(i.id,i),g("worker.recovered",{worker_id:i.id,reason:a}),i},submit:C,enqueue:C,place:O,schedule:async function(){const e=S();if(!e.length)return null;const t=e.some(e=>"normal"!==e.task.reservation),s=[...w.values()].filter(e=>"running"===e.state&&"normal"!==e.task.reservation).length,d=[...k.values()].reduce((e,t)=>e+(t.concurrency.limit||0),0),l=[...w.values()].filter(e=>"running"===e.state).length,p=e.filter(e=>"normal"!==e.task.reservation||!t||d-l>Math.max(0,u-s));p.sort((e,t)=>Number("normal"!==t.task.reservation)-Number("normal"!==e.task.reservation)||j(t)-j(e));for(const e of p){let t;try{t=O(e.task)}catch(t){e.last_error={code:t.code,detail:redactFleetSecrets(t.detail)},e.updated_at=a(i),h.set(e.task.id,e);continue}const s=k.get(t.worker_id),d=(y.get(e.task.id)||0)+1;y.set(e.task.id,d);const l={schema:"sideways-maker-worker-lease/v1",lease_id:n(),task_id:e.task.id,worker_id:s.id,token:n(),fence:d,claimed_at:a(i),expires_at:new Date(i()+c).toISOString()};l.digest=fleetDigest({...l,token:"[redacted]",digest:void 0});const u={schema:"sideways-maker-fleet-execution/v1",task:e.task,placement:t,lease:l,state:"dispatching",revision:1,started_at:a(i),updated_at:a(i),result:null,error:null,dispatch:null};w.set(e.task.id,u),e.state="dispatching",e.updated_at=a(i),h.set(e.task.id,e),$(u),b.set(e.task.owner,(b.get(e.task.owner)||0)+1);const p={schema:"sideways-maker-worker-dispatch/v1",task:e.task,placement:t,lease:o(l)};try{return u.dispatch=await m.dispatch(s.mode,p,{timeout_ms:Math.min(_,e.task.resources.time_ms)}),u.state="running",u.revision+=1,u.updated_at=a(i),e.state="running",e.revision+=1,e.updated_at=a(i),w.set(e.task.id,u),h.set(e.task.id,e),g("task.scheduled",{task_id:e.task.id,worker_id:s.id,fence:d,placement_id:t.placement_id}),o(u)}catch(t){return D(u),u.state="dispatch_failed",u.revision+=1,u.updated_at=a(i),u.error={code:r(t.code||"dispatch_failed",100),message:r(redactFleetSecrets(t.message),2e3),recoverable:!0,indeterminate:"dispatch_timeout"===t.code,references:normalizeArtifactReferences()},L(u),w.set(e.task.id,u),e.state="queued",e.revision+=1,e.updated_at=a(i),e.last_error=u.error,h.set(e.task.id,e),g("task.dispatch_failed",{task_id:e.task.id,worker_id:s.id,error:u.error}),o(u)}}return null},heartbeat:function(e,t,r){const s=N(e,t,r);return s.lease.expires_at=new Date(i()+c).toISOString(),s.revision+=1,s.updated_at=a(i),w.set(s.task.id,s),g("task.heartbeat",{task_id:s.task.id,worker_id:s.lease.worker_id,fence:r}),o(s)},complete:function(e,t,r,n={}){const c=N(e,t,r),d=normalizeArtifactReferences(n.references||n),l=s(n.cost_usd,c.placement.estimated_cost_usd??0,0,10**9);R(c,l),c.state="completed",c.revision+=1,c.updated_at=a(i),c.result={schema:"sideways-maker-fleet-usage/v1",task_id:c.task.id,worker_id:c.placement.worker_id,cost_usd:l,duration_ms:Math.max(0,i()-Date.parse(c.started_at)),references:d,detail:redactFleetSecrets(n.detail||{})},D(c,l),L(c);const u=h.get(c.task.id);return u&&(u.state="completed",u.revision+=1,u.updated_at=a(i),h.set(c.task.id,u)),w.set(c.task.id,c),g("task.completed",{task_id:c.task.id,worker_id:c.placement.worker_id,cost_usd:l}),o(c)},fail:function(e,t,c,d={}){const l=N(e,t,c),u=s(d.cost_usd,0,0,10**9);u&&R(l,u),l.state="failed",l.revision+=1,l.updated_at=a(i),l.error={code:r(d.code||"worker_failed",100),message:r(redactFleetSecrets(d.message||"worker failed"),2e3),recoverable:!0===d.recoverable,references:normalizeArtifactReferences(d.references||{})},D(l,u||null),L(l),w.set(l.task.id,l);const p=h.get(l.task.id);return p&&(l.error.recoverable&&l.task.attempt<l.task.max_attempts?(p.task=normalizeFleetTask({...l.task,attempt:l.task.attempt+1,reservation:"recovery"},i,n),p.state="queued"):p.state="failed",p.revision+=1,p.updated_at=a(i),p.last_error=l.error,h.set(p.task.id,p)),g("task.failed",{task_id:l.task.id,worker_id:l.placement.worker_id,error:l.error}),o(l)},cancel:function(e,t=""){const o=r(e,300),s=w.get(o),n=h.get(o);if(!s&&!n)throw new WorkerFleetError("task_not_found","task not found",404);return"running"!==s?.state&&"dispatching"!==s?.state||(D(s),s.state="cancelled",s.revision+=1,s.updated_at=a(i),s.error={code:"cancelled",message:r(t||"cancelled by operator",1e3),recoverable:!1,references:normalizeArtifactReferences()},L(s),w.set(o,s)),n&&(n.state="cancelled",n.revision+=1,n.updated_at=a(i),h.set(o,n)),g("task.cancelled",{task_id:o,reason:t}),I(s||n)},recoverExpired:function(){const e=[];for(const t of w.values()){if("running"!==t.state||Date.parse(t.lease.expires_at)>i())continue;D(t),t.state="lost",t.revision+=1,t.updated_at=a(i),t.error={code:"worker_lost",message:"worker heartbeat expired",recoverable:t.task.retry_lost,references:normalizeArtifactReferences()},L(t),w.set(t.task.id,t);const r=k.get(t.placement.worker_id);r&&k.set(r.id,normalizeWorkerDescriptor({...o(r),operator_state:"offline",reliability:{...r.reliability,lost:r.reliability.lost+1}}));const s=h.get(t.task.id);s&&t.task.retry_lost&&t.task.attempt<t.task.max_attempts?(s.task=normalizeFleetTask({...t.task,attempt:t.task.attempt+1,reservation:"recovery"},i,n),s.state="queued",s.revision+=1,s.updated_at=a(i),s.last_error=t.error,h.set(s.task.id,s),e.push(s.task.id)):s&&(s.state="failed",s.revision+=1,s.updated_at=a(i),s.last_error=t.error,h.set(s.task.id,s)),g("task.worker_lost",{task_id:t.task.id,worker_id:t.placement.worker_id,retried:e.includes(t.task.id)})}return e},getExecution:e=>I(w.get(r(e,300))),getTask:e=>h.has(r(e,300))?o(h.get(r(e,300))):null,listQueue:()=>S().map(o),snapshot:function(){const e={schema:"sideways-maker-fleet-snapshot/v1",workers:[...k.values()].sort((e,t)=>e.id.localeCompare(t.id)),queue:[...h.values()].sort((e,t)=>e.task.id.localeCompare(t.task.id)),executions:[...w.values()].sort((e,t)=>e.task.id.localeCompare(t.task.id)).map(I),quotas:redactFleetSecrets(p),usage:[...v.entries()].sort(([e],[t])=>e.localeCompare(t)),adapters:m.describe(),events:o(f),observed_at:a(i),snapshot_digest:""};return e.snapshot_digest=fleetDigest({...e,snapshot_digest:void 0}),Object.freeze(e)},usage:()=>Object.fromEntries([...v.entries()].map(([e,t])=>[e,o(t)])),events:e=>f.filter(t=>t.sequence>(Number(e)||0)).map(o)})}
+import { createHash as e, randomUUID as t } from "node:crypto";
+const r = (e, t = 2e4) =>
+    String(e ?? "")
+      .replace(/\u0000/g, "")
+      .trim()
+      .slice(0, t),
+  o = (e) => structuredClone(e),
+  a = (e) => new Date(e()).toISOString(),
+  s = (e, t, r = 0, o = Number.MAX_SAFE_INTEGER) => {
+    const a = Number(e);
+    return Number.isFinite(a) ? Math.max(r, Math.min(o, a)) : t;
+  },
+  i = (e, t = 0, r = Number.MAX_SAFE_INTEGER) => {
+    if (null == e || "" === e) return null;
+    const o = Number(e);
+    return Number.isFinite(o) ? Math.max(t, Math.min(r, o)) : null;
+  },
+  n = (e, t = 0, r = Number.MAX_SAFE_INTEGER) => {
+    const o = i(e, t, r);
+    return null === o ? null : Math.round(o);
+  },
+  c = (e, t = 200) =>
+    [
+      ...new Set(
+        (Array.isArray(e) ? e : []).map((e) => r(e, 200)).filter(Boolean),
+      ),
+    ].slice(0, t),
+  d = (e) => null !== e && "object" == typeof e && !Array.isArray(e);
+function l(e) {
+  return Array.isArray(e)
+    ? e.map(l)
+    : d(e)
+      ? Object.fromEntries(
+          Object.keys(e)
+            .sort()
+            .map((t) => [t, l(e[t])]),
+        )
+      : e;
+}
+export const fleetDigest = (t) =>
+  e("sha256")
+    .update(JSON.stringify(l(t)))
+    .digest("hex");
+const u = /^sha256:[a-f0-9]{64}$/,
+  p =
+    /(?:^|[_-])(?:secret|token|password|authorization|cookie|private[_-]?key|api[_-]?key|credential|session)(?:$|[_-])/i,
+  m = /^(?:input|output|context|prompt|completion|total)_tokens?$/i,
+  _ =
+    /(?:^|[_-])(?:url|uri|host|hostname|endpoint_url|runner_label|runner_labels|model_id|provider_id|vendor)(?:$|[_-])/i,
+  k =
+    /\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})\b/gi,
+  h = /https?:\/\/[^\s"'<>]+/gi;
+export function redactFleetSecrets(e, t = 0) {
+  return t > 12
+    ? "[truncated]"
+    : Array.isArray(e)
+      ? e.slice(0, 300).map((e) => redactFleetSecrets(e, t + 1))
+      : d(e)
+        ? Object.fromEntries(
+            Object.entries(e)
+              .slice(0, 500)
+              .map(([e, o]) => [
+                r(e, 200),
+                p.test(e) && !m.test(e)
+                  ? "[redacted]"
+                  : redactFleetSecrets(o, t + 1),
+              ]),
+          )
+        : "string" == typeof e
+          ? r(e.replace(k, "[redacted]"), 2e4)
+          : ["number", "boolean"].includes(typeof e) || null === e
+            ? e
+            : r(e, 2e3);
+}
+function w(e, t = 0) {
+  return t > 10
+    ? "[truncated]"
+    : Array.isArray(e)
+      ? e.slice(0, 200).map((e) => w(e, t + 1))
+      : d(e)
+        ? Object.fromEntries(
+            Object.entries(e)
+              .slice(0, 300)
+              .map(([e, o]) => [
+                r(e, 200),
+                p.test(e) || _.test(e) ? "[redacted]" : w(o, t + 1),
+              ]),
+          )
+        : "string" == typeof e
+          ? r(e.replace(k, "[redacted]").replace(h, "[redacted-url]"), 1e4)
+          : ["number", "boolean"].includes(typeof e) || null === e
+            ? e
+            : r(e, 2e3);
+}
+export class WorkerFleetError extends Error {
+  constructor(e, t, r = 400, o = {}) {
+    (super(t),
+      (this.name = "WorkerFleetError"),
+      (this.code = e),
+      (this.status = r),
+      (this.detail = redactFleetSecrets(o)));
+  }
+}
+const f = new Set([
+    "github_actions",
+    "self_hosted",
+    "remote_http",
+    "in_process",
+    "local_control",
+  ]),
+  y = new Set(["healthy", "degraded", "offline", "unknown"]),
+  v = new Set(["active", "draining", "quarantined", "offline"]),
+  b = new Set(["attested", "verified", "unverified", "unknown"]),
+  g = new Set(["local", "remote", "hybrid", "private", "unknown"]),
+  x = new Set(["dedicated", "shared", "burst", "unknown"]),
+  F = new Set(["none", "bounded", "provider", "unknown"]),
+  E = Object.freeze({
+    unknown: -1,
+    none: 0,
+    restricted: 1,
+    egress: 2,
+    full: 3,
+  }),
+  W = Object.freeze({
+    unknown: -1,
+    public: 0,
+    provider: 1,
+    contractual: 2,
+    private: 3,
+    local: 4,
+  });
+function z(e, t, o = "unknown") {
+  const a = r(e, 100).toLowerCase();
+  return t.has(a) ? a : o;
+}
+function M(e, t, o = 200) {
+  const a = r(e, o);
+  ((k.lastIndex = 0), (h.lastIndex = 0));
+  const s = !a || k.test(a) || h.test(a);
+  return ((k.lastIndex = 0), (h.lastIndex = 0), s ? t : a);
+}
+function q(e = {}) {
+  const t = r(e.endpoint_digest, 200).toLowerCase();
+  return u.test(t)
+    ? t
+    : `sha256:${fleetDigest({ ownership: r(e.ownership, 100).toLowerCase(), transport: r(e.transport, 100).toLowerCase(), locality: r(e.locality, 100).toLowerCase(), capacity: r(e.capacity, 100).toLowerCase() })}`;
+}
+function C(e, t, o = {}) {
+  if (!d(e)) return null;
+  const a = {
+    schema: r(e.schema, 100),
+    worker_id: r(e.worker_id, 300),
+    subject: r(e.subject, 500),
+    mode: r(e.mode, 100).toLowerCase(),
+    endpoint_digest: r(e.endpoint_digest, 200).toLowerCase(),
+    state: r(e.state, 40).toLowerCase(),
+    issuer: r(e.issuer, 300),
+    observed_at: r(e.observed_at, 100),
+    issued_at: r(e.issued_at, 100),
+    digest: r(e.digest, 200).toLowerCase(),
+  };
+  a.valid =
+    a.schema === t &&
+    u.test(a.digest) &&
+    `sha256:${fleetDigest(
+      (function (e = {}) {
+        const { digest: t, valid: r, ...o } = e;
+        return Object.fromEntries(
+          Object.entries(o).filter(([, e]) => "" !== e),
+        );
+      })(e),
+    )}` === a.digest;
+  for (const [e, t] of Object.entries(o)) t && a[e] !== t && (a.valid = !1);
+  return Object.freeze(a);
+}
+export function normalizeWorkerDescriptor(e = {}) {
+  const t = r(e.id, 300),
+    o = r(e.mode, 100).toLowerCase();
+  if (!t)
+    throw new WorkerFleetError("worker_id_required", "worker id is required");
+  if (!f.has(o))
+    throw new WorkerFleetError(
+      "worker_mode_invalid",
+      `unsupported worker mode: ${o}`,
+    );
+  const a = e.endpoint || {},
+    l = {
+      ownership: r(a.ownership || "unknown", 100).toLowerCase(),
+      transport: r(
+        a.transport ||
+          ("local_control" === o || "in_process" === o
+            ? "local"
+            : "remote_http" === o
+              ? "remote"
+              : "relay"),
+        100,
+      ).toLowerCase(),
+      locality: z(a.locality ?? e.locality, g),
+      capacity: z(a.capacity, x),
+      throttling: z(a.throttling, F),
+      label: M(
+        a.label,
+        "local" === a.locality
+          ? "Your local Maker runtime"
+          : "Maker execution runtime",
+      ),
+      endpoint_digest: q(a),
+    },
+    u = z(e.identity?.status, b),
+    p = r(e.identity?.subject, 500),
+    m = C(e.identity?.receipt, "sideways-maker-worker-attestation/v1", {
+      worker_id: t,
+      subject: p,
+      mode: o,
+      endpoint_digest: l.endpoint_digest,
+    }),
+    _ = z(d(e.health) ? e.health.state : e.health, y),
+    k = C(
+      d(e.health) ? e.health.receipt : e.health_receipt,
+      "sideways-maker-worker-health/v1",
+      { worker_id: t, endpoint_digest: l.endpoint_digest, state: _ },
+    ),
+    h = {
+      schema: "sideways-maker-worker/v1",
+      id: t,
+      display_name: M(e.display_name || t, "Maker worker"),
+      identity: {
+        status: u,
+        subject: p,
+        issuer: r(e.identity?.issuer || m?.issuer, 300),
+        receipt: m,
+        trusted: ["attested", "verified"].includes(u) && !0 === m?.valid,
+      },
+      mode: o,
+      platform: {
+        os: r(e.platform?.os || "unknown", 100).toLowerCase(),
+        architecture: r(
+          e.platform?.architecture || e.platform?.arch || "unknown",
+          100,
+        ).toLowerCase(),
+      },
+      labels: c(e.labels || e.platform?.labels),
+      capabilities: c(e.capabilities),
+      toolchains: c(e.toolchains || e.platform?.toolchains),
+      providers: c(e.providers || e.platform?.providers),
+      models: c(e.models),
+      network: {
+        mode:
+          r(e.network?.mode || "unknown", 40).toLowerCase() in E
+            ? r(e.network?.mode || "unknown", 40).toLowerCase()
+            : "unknown",
+        allowed_hosts: c(e.network?.allowed_hosts),
+      },
+      isolation: {
+        container:
+          !0 === e.isolation?.container || !0 === e.isolation?.containers,
+        sandbox: !0 === e.isolation?.sandbox,
+        ephemeral_workspace: !0 === e.isolation?.ephemeral_workspace,
+      },
+      resources: {
+        cpu: i(e.resources?.cpu, 0.1, 1e5),
+        memory_mb: n(e.resources?.memory_mb, 1, 10 ** 9),
+        disk_mb: n(e.resources?.disk_mb, 1, 10 ** 12),
+        time_ms: n(e.resources?.time_ms, 1e3, 2592e6),
+      },
+      concurrency: {
+        limit: n(e.concurrency?.limit ?? e.resources?.concurrency, 1, 1e5),
+        active: Math.round(s(e.concurrency?.active, 0, 0, 1e5)),
+        queue_depth: Math.round(
+          s(
+            e.concurrency?.queue_depth ?? e.resources?.queue_depth,
+            0,
+            0,
+            10 ** 9,
+          ),
+        ),
+      },
+      endpoint: l,
+      region: r(
+        e.region || e.placement?.region || "unknown",
+        100,
+      ).toLowerCase(),
+      privacy: r(
+        e.privacy || e.placement?.privacy || "unknown",
+        100,
+      ).toLowerCase(),
+      cost: {
+        per_minute_usd: i(e.cost?.per_minute_usd, 0, 10 ** 6),
+        per_job_usd: i(e.cost?.per_job_usd, 0, 10 ** 6),
+      },
+      latency_ms: n(e.latency_ms ?? e.placement?.latency_ms, 0, 10 ** 9),
+      health: {
+        state: _,
+        evidence: !0 === k?.valid ? "observed" : "unknown",
+        observed_at: r(
+          (d(e.health) ? e.health.observed_at : "") || k?.observed_at,
+          100,
+        ),
+        receipt: k,
+      },
+      operator_state: z(e.operator_state ?? e.state, v, "active"),
+      reliability: {
+        successes: Math.round(s(e.reliability?.successes, 0, 0, 10 ** 9)),
+        failures: Math.round(s(e.reliability?.failures, 0, 0, 10 ** 9)),
+        lost: Math.round(
+          s(e.reliability?.lost ?? e.reliability?.lost_runs, 0, 0, 10 ** 9),
+        ),
+      },
+      recovery: {
+        checkpointing: !0 === e.recovery?.checkpointing,
+        mode: r(e.recovery?.mode || "none", 100).toLowerCase(),
+      },
+      operator_weight: s(
+        e.operator_weight ?? e.placement?.operator_rank,
+        0,
+        -1e3,
+        1e3,
+      ),
+      metadata: w(e.metadata || {}),
+      observed_at: r(
+        e.observed_at || k?.observed_at || new Date(0).toISOString(),
+        100,
+      ),
+    };
+  return (
+    (h.descriptor_digest = fleetDigest({ ...h, descriptor_digest: void 0 })),
+    Object.freeze(h)
+  );
+}
+export function normalizeFleetTask(e = {}, o = Date.now, i = t) {
+  const n = r(e.repository, 500);
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(n))
+    throw new WorkerFleetError(
+      "repository_invalid",
+      "repository must be owner/name",
+    );
+  const d = e.requirements || e,
+    l = r(d.network || "none", 40).toLowerCase();
+  return Object.freeze({
+    schema: "sideways-maker-fleet-task/v1",
+    id: r(e.id || i(), 300),
+    owner: r(e.owner || n.split("/")[0], 300),
+    repository: n,
+    backend: r(e.backend || "auto", 100),
+    priority: s(e.priority, 50, 0, 100),
+    reservation: ["normal", "repair", "recovery"].includes(e.reservation)
+      ? e.reservation
+      : !0 === e.recovery
+        ? "recovery"
+        : "normal",
+    created_at: r(e.created_at || a(o), 100),
+    capabilities: c(d.capabilities),
+    labels: c(d.labels),
+    toolchains: c(d.toolchains),
+    providers: c(d.providers),
+    models: c(d.models),
+    modes: c(d.modes),
+    platform: {
+      os: r(d.platform?.os || d.os || "any", 100).toLowerCase(),
+      architecture: r(
+        d.platform?.architecture || d.arch || "any",
+        100,
+      ).toLowerCase(),
+    },
+    network: l in E ? l : "none",
+    allowed_hosts: c(d.allowed_hosts),
+    isolation: {
+      container: !0 === d.isolation?.container || !0 === d.containers,
+      sandbox: !0 === d.isolation?.sandbox || !0 === d.sandbox,
+      ephemeral_workspace:
+        !1 !== d.isolation?.ephemeral_workspace && !1 !== d.ephemeral_workspace,
+    },
+    resources: {
+      cpu: s(d.resources?.cpu ?? d.cpu, 1, 0.1, 1e5),
+      memory_mb: Math.round(
+        s(d.resources?.memory_mb ?? d.memory_mb, 512, 1, 10 ** 9),
+      ),
+      disk_mb: Math.round(
+        s(d.resources?.disk_mb ?? d.disk_mb, 512, 1, 10 ** 12),
+      ),
+      time_ms: Math.round(
+        s(d.resources?.time_ms ?? d.time_ms, 18e5, 1e3, 2592e6),
+      ),
+    },
+    region: r(d.region || "any", 100).toLowerCase(),
+    locality: r(d.locality || "any", 100).toLowerCase(),
+    privacy: r(d.privacy || d.privacy_minimum || "public", 100).toLowerCase(),
+    capacity: r(d.capacity || "any", 100).toLowerCase(),
+    dedicated_capacity: !0 === d.dedicated_capacity,
+    recoverable: !0 === d.recoverable,
+    max_latency_ms: s(d.max_latency_ms, Number.MAX_SAFE_INTEGER, 0, 10 ** 9),
+    max_cost_usd: s(d.max_cost_usd, 10 ** 9, 0, 10 ** 9),
+    allow_unverified: !0 === e.allow_unverified,
+    allow_unknown_cost: !0 === e.allow_unknown_cost,
+    retry_lost: !1 !== e.retry_lost,
+    max_attempts: Math.round(
+      s(e.max_attempts ?? e.retry?.max_attempts, 3, 1, 100),
+    ),
+    attempt: Math.round(s(e.attempt, 1, 1, 100)),
+    state: redactFleetSecrets(e.state || {}),
+  });
+}
+function j(e, t) {
+  const r = new Set(e);
+  return t.every((e) => r.has(e));
+}
+function A(e, t) {
+  return Number.isFinite(e.cost.per_minute_usd) &&
+    Number.isFinite(e.cost.per_job_usd)
+    ? e.cost.per_job_usd + (t.resources.time_ms / 6e4) * e.cost.per_minute_usd
+    : null;
+}
+export function scoreWorker(e, t, r = {}) {
+  const o = t.schema ? t : normalizeFleetTask(t),
+    a = [];
+  (e.identity.trusted || o.allow_unverified || a.push("identity_unverified"),
+    "observed" !== e.health.evidence && a.push("health_unobserved"),
+    ["offline", "unknown"].includes(e.health.state) &&
+      a.push(`worker_${e.health.state}`),
+    ["draining", "quarantined", "offline"].includes(e.operator_state) &&
+      a.push(`worker_${e.operator_state}`),
+    o.modes.length && !o.modes.includes(e.mode) && a.push("mode_mismatch"),
+    "any" !== o.platform.os &&
+      e.platform.os !== o.platform.os &&
+      a.push("os_mismatch"),
+    "any" !== o.platform.architecture &&
+      e.platform.architecture !== o.platform.architecture &&
+      a.push("architecture_mismatch"),
+    j(e.capabilities, o.capabilities) || a.push("capability_mismatch"),
+    j(e.labels, o.labels) || a.push("label_mismatch"),
+    j(e.toolchains, o.toolchains) || a.push("toolchain_mismatch"),
+    j(e.providers, o.providers) || a.push("provider_mismatch"),
+    j(e.models, o.models) || a.push("model_mismatch"),
+    (E[e.network.mode] ?? -1) < (E[o.network] ?? 0) &&
+      a.push("network_mismatch"),
+    o.allowed_hosts.some(
+      (t) => !e.network.allowed_hosts.includes(t) && "full" !== e.network.mode,
+    ) && a.push("network_host_mismatch"),
+    o.isolation.container &&
+      !e.isolation.container &&
+      a.push("container_required"),
+    o.isolation.sandbox && !e.isolation.sandbox && a.push("sandbox_required"),
+    o.isolation.ephemeral_workspace &&
+      !e.isolation.ephemeral_workspace &&
+      a.push("ephemeral_workspace_required"));
+  for (const t of ["cpu", "memory_mb", "disk_mb", "time_ms"])
+    Number.isFinite(e.resources[t])
+      ? e.resources[t] < o.resources[t] && a.push(`${t}_insufficient`)
+      : a.push(`${t}_unknown`);
+  (Number.isFinite(e.concurrency.limit)
+    ? e.concurrency.active >= e.concurrency.limit &&
+      a.push("worker_capacity_exhausted")
+    : a.push("concurrency_unknown"),
+    "any" !== o.region && e.region !== o.region && a.push("region_mismatch"),
+    "any" !== o.locality &&
+      e.endpoint.locality !== o.locality &&
+      a.push("locality_mismatch"),
+    (W[e.privacy] ?? -1) < (W[o.privacy] ?? 0) && a.push("privacy_mismatch"),
+    "any" !== o.capacity &&
+      e.endpoint.capacity !== o.capacity &&
+      a.push("capacity_mismatch"),
+    o.dedicated_capacity &&
+      "dedicated" !== e.endpoint.capacity &&
+      a.push("dedicated_capacity_required"),
+    !o.recoverable ||
+      (e.recovery.checkpointing && "none" !== e.recovery.mode) ||
+      a.push("recovery_required"),
+    Number.isFinite(e.latency_ms)
+      ? e.latency_ms > o.max_latency_ms && a.push("latency_ceiling")
+      : a.push("latency_unknown"));
+  const s = A(e, o);
+  if (
+    (null !== s || o.allow_unknown_cost
+      ? null !== s && s > o.max_cost_usd && a.push("cost_ceiling")
+      : a.push("cost_unknown"),
+    r.quota_exhausted && a.push("quota_exhausted"),
+    r.duplicate_active && a.push("duplicate_execution"),
+    r.adapter_unavailable && a.push("adapter_unavailable"),
+    a.length)
+  )
+    return Object.freeze({
+      worker_id: e.id,
+      eligible: !1,
+      score: -1 / 0,
+      reasons: c(a),
+      estimated_cost_usd: s,
+    });
+  let i = 1e3;
+  return (
+    (i += (function (e) {
+      const t =
+          e.reliability.successes + e.reliability.failures + e.reliability.lost,
+        r = t ? e.reliability.successes / t : 0.5;
+      return Math.round(300 * r - 25 * e.reliability.lost);
+    })(e)),
+    (i -= 20 * e.concurrency.queue_depth),
+    (i -= 30 * e.concurrency.active),
+    (i -= Math.round(e.latency_ms / 10)),
+    null !== s && (i -= Math.round(100 * s)),
+    (i += 40 * (W[e.privacy] || 0)),
+    (i += "local" === e.endpoint.locality ? 80 : 0),
+    (i += "healthy" === e.health.state ? 50 : -100),
+    (i += e.operator_weight),
+    "normal" !== o.reservation &&
+      e.labels.includes(o.reservation) &&
+      (i += 100),
+    Object.freeze({
+      worker_id: e.id,
+      eligible: !0,
+      score: i,
+      reasons: [],
+      estimated_cost_usd: s,
+    })
+  );
+}
+export function rankWorkers(e, t, r = {}) {
+  return e
+    .map((e) => ({ worker: e, ...scoreWorker(e, t, r[e.id] || {}) }))
+    .filter((e) => e.eligible)
+    .sort(
+      (e, t) => t.score - e.score || e.worker.id.localeCompare(t.worker.id),
+    );
+}
+export function normalizeArtifactReferences(e = {}) {
+  const t = (e, t) => {
+    if (!d(e)) return null;
+    if (["content", "data", "bytes", "payload", "base64"].some((t) => t in e))
+      throw new WorkerFleetError(
+        "artifact_payload_denied",
+        `${t} receipts must reference payloads, not embed them`,
+      );
+    const o = r(e.digest, 200).toLowerCase(),
+      a = r(e.uri || e.url, 2e3),
+      s = n(e.size_bytes, 0, 10 ** 12);
+    if (!u.test(o))
+      throw new WorkerFleetError(
+        "artifact_digest_invalid",
+        `${t} digest is required`,
+      );
+    if (!a)
+      throw new WorkerFleetError(
+        "artifact_uri_required",
+        `${t} URI is required`,
+      );
+    if (null === s)
+      throw new WorkerFleetError(
+        "artifact_size_required",
+        `${t} size is required`,
+      );
+    return Object.freeze({
+      schema: "sideways-maker-artifact-reference/v1",
+      kind: t,
+      name: r(e.name || t, 300),
+      uri: a,
+      digest: o,
+      size_bytes: s,
+      retention: r(e.retention || "bounded", 100),
+      provenance: r(e.provenance || "worker-reported", 300),
+      workspace_id: r(e.workspace_id, 300),
+    });
+  };
+  return Object.freeze({
+    artifacts: (Array.isArray(e.artifacts) ? e.artifacts : [])
+      .map((e) => t(e, "artifact"))
+      .filter(Boolean)
+      .slice(0, 200),
+    logs: (Array.isArray(e.logs) ? e.logs : [])
+      .map((e) => t(e, "log"))
+      .filter(Boolean)
+      .slice(0, 200),
+  });
+}
+export function createWorkerAdapterRegistry({
+  clock: e = Date.now,
+  timeout_ms: t = 12e4,
+} = {}) {
+  const i = new Map();
+  return Object.freeze({
+    register(e = {}) {
+      const t = r(e.mode, 100).toLowerCase();
+      if (!f.has(t))
+        throw new WorkerFleetError(
+          "adapter_mode_invalid",
+          `unsupported adapter mode: ${t}`,
+        );
+      if (i.has(t))
+        throw new WorkerFleetError(
+          "adapter_duplicate",
+          `adapter already registered: ${t}`,
+          409,
+        );
+      const o = Object.freeze({
+        mode: t,
+        available: !0 === e.available && "function" == typeof e.dispatch,
+        reason: r(e.reason, 1e3),
+        dispatch: e.dispatch,
+      });
+      return (
+        i.set(t, o),
+        {
+          mode: t,
+          available: o.available,
+          reason: o.available ? "" : o.reason || "transport unavailable",
+        }
+      );
+    },
+    describe: () =>
+      [...i.values()]
+        .map((e) => ({
+          mode: e.mode,
+          available: e.available,
+          reason: e.available ? "" : e.reason || "transport unavailable",
+        }))
+        .sort((e, t) => e.mode.localeCompare(t.mode)),
+    async dispatch(n, c, d = {}) {
+      const l = i.get(r(n, 100).toLowerCase());
+      if (!l)
+        throw new WorkerFleetError(
+          "adapter_not_found",
+          `adapter not found: ${n}`,
+          404,
+        );
+      if (!l.available)
+        throw new WorkerFleetError(
+          "adapter_unavailable",
+          l.reason || "adapter unavailable",
+          503,
+        );
+      const u = new AbortController(),
+        p = Math.round(s(d.timeout_ms, t, 1, 18e5));
+      let m;
+      const _ = a(e);
+      try {
+        const t = await Promise.race([
+          Promise.resolve().then(() =>
+            l.dispatch({ ...o(c), signal: u.signal }),
+          ),
+          new Promise((e, t) => {
+            ((m = setTimeout(() => {
+              (u.abort(new Error("worker dispatch timed out")),
+                t(
+                  new WorkerFleetError(
+                    "dispatch_timeout",
+                    "worker dispatch timed out; transport completion is indeterminate unless AbortSignal is honored",
+                    504,
+                  ),
+                ));
+            }, p)),
+              m);
+          }),
+        ]);
+        return Object.freeze({
+          schema: "sideways-maker-fleet-dispatch/v1",
+          mode: n,
+          ok: !0,
+          output: redactFleetSecrets(t),
+          started_at: _,
+          finished_at: a(e),
+        });
+      } finally {
+        clearTimeout(m);
+      }
+    },
+  });
+}
+export function registerDefaultWorkerAdapters(e, t = {}) {
+  return [...f].map((r) =>
+    e.register({
+      mode: r,
+      available: "function" == typeof t[r],
+      dispatch: t[r],
+      reason: `${r} transport not configured`,
+    }),
+  );
+}
+export function createWorkerFleet({
+  workers: e = [],
+  clock: i = Date.now,
+  id: n = t,
+  lease_ms: c = 3e5,
+  starvation_ms: l = 6e5,
+  recovery_reserve: u = 1,
+  quotas: p = {},
+  adapters: m = createWorkerAdapterRegistry({ clock: i }),
+  dispatch_timeout_ms: _ = 12e4,
+} = {}) {
+  const k = new Map(),
+    h = new Map(),
+    w = new Map(),
+    f = [],
+    y = new Map(),
+    v = new Map(),
+    b = new Map();
+  for (const t of e) {
+    const e = t.schema ? t : normalizeWorkerDescriptor(t);
+    if (k.has(e.id))
+      throw new WorkerFleetError(
+        "worker_duplicate",
+        `worker already registered: ${e.id}`,
+        409,
+      );
+    k.set(e.id, e);
+  }
+  function g(e, t = {}) {
+    const r = Object.freeze({
+      schema: "sideways-maker-fleet-event/v1",
+      sequence: f.length + 1,
+      event_id: n(),
+      type: e,
+      at: a(i),
+      detail: redactFleetSecrets(t),
+    });
+    return (f.push(r), r);
+  }
+  function x(e) {
+    return [
+      `owner:${e.owner}`,
+      `repository:${e.repository}`,
+      `backend:${e.backend}`,
+    ];
+  }
+  function F(e) {
+    const t = p[e] || {};
+    return {
+      concurrency: Math.round(s(t.concurrency, 10 ** 9, 0, 10 ** 9)),
+      cost_usd: s(t.cost_usd, 10 ** 9, 0, 10 ** 9),
+    };
+  }
+  function E(e) {
+    return (
+      v.has(e) ||
+        v.set(e, {
+          active: 0,
+          reserved_cost_usd: 0,
+          cost_usd: 0,
+          completed: 0,
+        }),
+      v.get(e)
+    );
+  }
+  function W(e, t = 0) {
+    const r = [];
+    for (const o of x(e)) {
+      const e = F(o),
+        a = E(o);
+      (a.active >= e.concurrency &&
+        r.push({ key: o, dimension: "concurrency" }),
+        a.cost_usd + a.reserved_cost_usd + s(t, 0, 0) > e.cost_usd &&
+          r.push({ key: o, dimension: "cost_usd" }));
+    }
+    return r;
+  }
+  function z(e) {
+    const t = "running" === w.get(e.id)?.state,
+      r = Object.fromEntries(m.describe().map((e) => [e.mode, e.available]));
+    return Object.fromEntries(
+      [...k.values()].map((o) => {
+        const a = A(o, e) || 0;
+        return [
+          o.id,
+          {
+            quota_exhausted: W(e, a).length > 0,
+            duplicate_active: t,
+            adapter_unavailable: !0 !== r[o.mode],
+          },
+        ];
+      }),
+    );
+  }
+  function M(e, t, a = "") {
+    const s = k.get(r(e, 300));
+    if (!s)
+      throw new WorkerFleetError("worker_not_found", "worker not found", 404);
+    const i = normalizeWorkerDescriptor({
+      ...o(s),
+      operator_state: t,
+      metadata: { ...o(s.metadata || {}), operator_reason: r(a, 1e3) },
+    });
+    return (
+      k.set(i.id, i),
+      g(`worker.${t}`, { worker_id: i.id, reason: a }),
+      i
+    );
+  }
+  function q(e, t) {
+    const a = k.get(r(e, 300));
+    if (!a)
+      throw new WorkerFleetError("worker_not_found", "worker not found", 404);
+    const s = normalizeWorkerDescriptor({
+      ...o(a),
+      health: t,
+      observed_at: d(t) ? t.observed_at : a.observed_at,
+    });
+    if ("observed" !== s.health.evidence)
+      throw new WorkerFleetError(
+        "health_receipt_invalid",
+        "digest-bound observed health receipt required",
+      );
+    return (
+      k.set(s.id, s),
+      g("worker.health_observed", { worker_id: s.id, state: s.health.state }),
+      s
+    );
+  }
+  function C(e) {
+    const t = e.schema ? e : normalizeFleetTask(e, i, n);
+    if (h.has(t.id) || w.has(t.id))
+      throw new WorkerFleetError(
+        "task_duplicate",
+        `task already exists: ${t.id}`,
+        409,
+      );
+    const r = {
+      task: t,
+      state: "queued",
+      revision: 1,
+      enqueued_at: a(i),
+      updated_at: a(i),
+      last_error: null,
+    };
+    return (
+      h.set(t.id, r),
+      g("task.queued", {
+        task_id: t.id,
+        owner: t.owner,
+        priority: t.priority,
+        reservation: t.reservation,
+      }),
+      o(r)
+    );
+  }
+  function j(e) {
+    const t = Math.max(0, i() - Date.parse(e.enqueued_at)),
+      r = Math.floor(t / Math.max(1, l)),
+      o =
+        "recovery" === e.task.reservation
+          ? 100
+          : "repair" === e.task.reservation
+            ? 75
+            : 0;
+    return e.task.priority + Math.min(1e3, 10 * r) + o;
+  }
+  function S() {
+    return [...h.values()]
+      .filter((e) => "queued" === e.state)
+      .sort((e, t) => {
+        const r = j(t) - j(e);
+        if (r) return r;
+        const o = E(`owner:${e.task.owner}`).active,
+          a = E(`owner:${t.task.owner}`).active;
+        if (o !== a) return o - a;
+        const s = b.get(e.task.owner) || 0,
+          i = b.get(t.task.owner) || 0;
+        return s !== i
+          ? s - i
+          : e.enqueued_at.localeCompare(t.enqueued_at) ||
+              e.task.id.localeCompare(t.task.id);
+      });
+  }
+  function O(e) {
+    const t = e.schema ? e : normalizeFleetTask(e, i, n),
+      r = rankWorkers([...k.values()], t, z(t));
+    if (!r.length) {
+      const e = (function (e) {
+        const t = [...k.values()];
+        if (!t.length) return { code: "capacity_unavailable", blockers: [] };
+        const r = z(e),
+          o = t.map((t) => ({
+            worker_id: t.id,
+            reasons: scoreWorker(t, e, r[t.id] || {}).reasons,
+          }));
+        return o.every((e) => e.reasons.includes("identity_unverified"))
+          ? { code: "unverified_identity", blockers: o }
+          : o.every(
+                (e) =>
+                  e.reasons.includes("health_unobserved") ||
+                  e.reasons.some((e) => e.startsWith("worker_")),
+              )
+            ? { code: "unhealthy_worker", blockers: o }
+            : o.every((e) => e.reasons.includes("quota_exhausted"))
+              ? { code: "quota_exhausted", blockers: o }
+              : o.every((e) => e.reasons.includes("adapter_unavailable"))
+                ? { code: "external_infrastructure_blocker", blockers: o }
+                : o.every((e) => e.reasons.includes("cost_unknown"))
+                  ? { code: "cost_unknown", blockers: o }
+                  : { code: "capability_mismatch", blockers: o };
+      })(t);
+      throw new WorkerFleetError(e.code, "no eligible worker", 503, e);
+    }
+    const s = r[0],
+      c = {
+        schema: "sideways-maker-placement/v1",
+        placement_id: n(),
+        task_id: t.id,
+        worker_id: s.worker.id,
+        worker_mode: s.worker.mode,
+        reservation: t.reservation,
+        score: s.score,
+        estimated_cost_usd: s.estimated_cost_usd,
+        worker_digest: s.worker.descriptor_digest,
+        task_digest: fleetDigest(t),
+        endpoint: o(s.worker.endpoint),
+        workspace: {
+          schema: "sideways-maker-workspace-placement/v1",
+          workspace_id: `workspace:${t.id}:${t.attempt}`,
+          ephemeral: s.worker.isolation.ephemeral_workspace,
+          isolation: s.worker.isolation.sandbox
+            ? "sandbox"
+            : s.worker.isolation.container
+              ? "container"
+              : "process",
+        },
+        considered: r.map((e) => ({ worker_id: e.worker.id, score: e.score })),
+        placed_at: a(i),
+        receipt_digest: "",
+      };
+    return (
+      (c.runtime_profile = (function (e, t, r) {
+        return Object.freeze({
+          schema: "sideways-maker-runtime-profile/v1",
+          runtime_id: `maker-worker-${fleetDigest({ worker: e.id, endpoint: e.endpoint.endpoint_digest }).slice(0, 16)}`,
+          display_name: "Maker execution runtime",
+          status: e.health.state,
+          intelligence: {
+            selection: "adaptive",
+            engine_label: "Admitted Maker intelligence",
+            architecture: "unknown",
+            admission: "unknown",
+            capabilities: e.capabilities,
+          },
+          endpoint: {
+            ownership: ["user", "project", "managed", "hybrid"].includes(
+              e.endpoint.ownership,
+            )
+              ? e.endpoint.ownership
+              : "unknown",
+            transport: ["local", "remote", "hybrid", "relay"].includes(
+              e.endpoint.transport,
+            )
+              ? e.endpoint.transport
+              : "unknown",
+            locality: e.endpoint.locality,
+            capacity: e.endpoint.capacity,
+            throttling: e.endpoint.throttling,
+            label: e.endpoint.label,
+          },
+          planning: {
+            strategy: "adaptive",
+            scheduler: "priority",
+            parallelism: Math.max(1, e.concurrency.limit || 1),
+            speculation: !1,
+            recovery: e.recovery.checkpointing ? "checkpoint" : "lease",
+            confidence_threshold: 0.8,
+          },
+          execution: {
+            role: "normal" === t.reservation ? "implementer" : t.reservation,
+            modes: [e.mode],
+            transport:
+              "local" === e.endpoint.transport
+                ? "direct"
+                : "relay" === e.endpoint.transport
+                  ? "relay"
+                  : "queue",
+            workspace: e.isolation.sandbox
+              ? "container"
+              : e.isolation.ephemeral_workspace
+                ? "isolated"
+                : "repository",
+            verification: "continuous",
+            checkpointing: e.recovery.checkpointing ? "enabled" : "bounded",
+            recovery: "none" === e.recovery.mode ? "lease" : e.recovery.mode,
+          },
+          authority: { capabilities: {} },
+          presentation: {
+            headline: "Maker is building your thing",
+            activity: "Running on admitted compute",
+            tone: "friendly",
+            visible: !0,
+          },
+          observed_at: a(r),
+        });
+      })(s.worker, c, i)),
+      (c.receipt_digest = fleetDigest({ ...c, receipt_digest: void 0 })),
+      Object.freeze(c)
+    );
+  }
+  function $(e) {
+    for (const t of x(e.task)) {
+      const r = E(t);
+      ((r.active += 1),
+        (r.reserved_cost_usd += s(e.placement.estimated_cost_usd, 0, 0)));
+    }
+    const t = k.get(e.placement.worker_id);
+    k.set(
+      t.id,
+      normalizeWorkerDescriptor({
+        ...o(t),
+        concurrency: { ...t.concurrency, active: t.concurrency.active + 1 },
+      }),
+    );
+  }
+  function D(e, t = null) {
+    for (const r of x(e.task)) {
+      const o = E(r);
+      ((o.active = Math.max(0, o.active - 1)),
+        (o.reserved_cost_usd = Math.max(
+          0,
+          o.reserved_cost_usd - s(e.placement.estimated_cost_usd, 0, 0),
+        )),
+        null !== t && ((o.cost_usd += t), (o.completed += 1)));
+    }
+    const r = k.get(e.placement.worker_id);
+    r &&
+      k.set(
+        r.id,
+        normalizeWorkerDescriptor({
+          ...o(r),
+          concurrency: {
+            ...r.concurrency,
+            active: Math.max(0, r.concurrency.active - 1),
+          },
+        }),
+      );
+  }
+  function L(e) {
+    e.lease = { ...e.lease, token: "[expired]" };
+  }
+  function N(e, t, o) {
+    const a = w.get(r(e, 300));
+    if (!a)
+      throw new WorkerFleetError(
+        "execution_not_found",
+        "execution not found",
+        404,
+      );
+    if ("running" !== a.state)
+      throw new WorkerFleetError(
+        "execution_not_running",
+        "execution is not running",
+        409,
+      );
+    if (a.lease.token !== r(t, 300))
+      throw new WorkerFleetError(
+        "lease_token_mismatch",
+        "active lease token required",
+        409,
+      );
+    if (Number(o) !== a.lease.fence)
+      throw new WorkerFleetError(
+        "fence_mismatch",
+        "current fencing token required",
+        409,
+      );
+    if (Date.parse(a.lease.expires_at) <= i())
+      throw new WorkerFleetError("lease_expired", "worker lease expired", 409);
+    return a;
+  }
+  function R(e, t) {
+    if (t > e.task.max_cost_usd)
+      throw new WorkerFleetError(
+        "task_budget_exhausted",
+        "actual worker cost exceeds task ceiling",
+        429,
+        { cost: t, limit: e.task.max_cost_usd },
+      );
+    for (const r of x(e.task)) {
+      const o = E(r),
+        a = F(r);
+      if (
+        o.cost_usd +
+          Math.max(
+            0,
+            o.reserved_cost_usd - s(e.placement.estimated_cost_usd, 0, 0),
+          ) +
+          t >
+        a.cost_usd
+      )
+        throw new WorkerFleetError(
+          "quota_exhausted",
+          "actual worker cost exceeds quota",
+          429,
+          { key: r, cost: t, limit: a.cost_usd },
+        );
+    }
+  }
+  function I(e) {
+    if (!e) return null;
+    const t = o(e);
+    return (
+      t.lease?.token && (t.lease.token = "[redacted]"),
+      redactFleetSecrets(t)
+    );
+  }
+  return Object.freeze({
+    register: function (e) {
+      const t = normalizeWorkerDescriptor(e);
+      if (k.has(t.id))
+        throw new WorkerFleetError(
+          "worker_duplicate",
+          `worker already registered: ${t.id}`,
+          409,
+        );
+      return (
+        k.set(t.id, t),
+        g("worker.registered", {
+          worker_id: t.id,
+          digest: t.descriptor_digest,
+          trusted: t.identity.trusted,
+          health: t.health,
+        }),
+        t
+      );
+    },
+    replace: function (e) {
+      const t = normalizeWorkerDescriptor(e);
+      return (
+        k.set(t.id, t),
+        g("worker.updated", {
+          worker_id: t.id,
+          digest: t.descriptor_digest,
+          trusted: t.identity.trusted,
+          health: t.health,
+        }),
+        t
+      );
+    },
+    getWorker: (e) => k.get(r(e, 300)) || null,
+    listWorkers: () => [...k.values()].sort((e, t) => e.id.localeCompare(t.id)),
+    observeHealth: q,
+    drain: (e, t) => M(e, "draining", t),
+    quarantine: (e, t) => M(e, "quarantined", t),
+    recoverWorker: function (e, t, a = "") {
+      const s = q(e, t),
+        i = normalizeWorkerDescriptor({
+          ...o(s),
+          operator_state: "active",
+          metadata: { ...o(s.metadata || {}), recovery_reason: r(a, 1e3) },
+        });
+      return (
+        k.set(i.id, i),
+        g("worker.recovered", { worker_id: i.id, reason: a }),
+        i
+      );
+    },
+    submit: C,
+    enqueue: C,
+    place: O,
+    schedule: async function () {
+      const e = S();
+      if (!e.length) return null;
+      const t = e.some((e) => "normal" !== e.task.reservation),
+        s = [...w.values()].filter(
+          (e) => "running" === e.state && "normal" !== e.task.reservation,
+        ).length,
+        d = [...k.values()].reduce((e, t) => e + (t.concurrency.limit || 0), 0),
+        l = [...w.values()].filter((e) => "running" === e.state).length,
+        p = e.filter(
+          (e) =>
+            "normal" !== e.task.reservation || !t || d - l > Math.max(0, u - s),
+        );
+      p.sort(
+        (e, t) =>
+          Number("normal" !== t.task.reservation) -
+            Number("normal" !== e.task.reservation) || j(t) - j(e),
+      );
+      for (const e of p) {
+        let t;
+        try {
+          t = O(e.task);
+        } catch (t) {
+          ((e.last_error = {
+            code: t.code,
+            detail: redactFleetSecrets(t.detail),
+          }),
+            (e.updated_at = a(i)),
+            h.set(e.task.id, e));
+          continue;
+        }
+        const s = k.get(t.worker_id),
+          d = (y.get(e.task.id) || 0) + 1;
+        y.set(e.task.id, d);
+        const l = {
+          schema: "sideways-maker-worker-lease/v1",
+          lease_id: n(),
+          task_id: e.task.id,
+          worker_id: s.id,
+          token: n(),
+          fence: d,
+          claimed_at: a(i),
+          expires_at: new Date(i() + c).toISOString(),
+        };
+        l.digest = fleetDigest({ ...l, token: "[redacted]", digest: void 0 });
+        const u = {
+          schema: "sideways-maker-fleet-execution/v1",
+          task: e.task,
+          placement: t,
+          lease: l,
+          state: "dispatching",
+          revision: 1,
+          started_at: a(i),
+          updated_at: a(i),
+          result: null,
+          error: null,
+          dispatch: null,
+        };
+        (w.set(e.task.id, u),
+          (e.state = "dispatching"),
+          (e.updated_at = a(i)),
+          h.set(e.task.id, e),
+          $(u),
+          b.set(e.task.owner, (b.get(e.task.owner) || 0) + 1));
+        const p = {
+          schema: "sideways-maker-worker-dispatch/v1",
+          task: e.task,
+          placement: t,
+          lease: o(l),
+        };
+        try {
+          return (
+            (u.dispatch = await m.dispatch(s.mode, p, {
+              timeout_ms: Math.min(_, e.task.resources.time_ms),
+            })),
+            (u.state = "running"),
+            (u.revision += 1),
+            (u.updated_at = a(i)),
+            (e.state = "running"),
+            (e.revision += 1),
+            (e.updated_at = a(i)),
+            w.set(e.task.id, u),
+            h.set(e.task.id, e),
+            g("task.scheduled", {
+              task_id: e.task.id,
+              worker_id: s.id,
+              fence: d,
+              placement_id: t.placement_id,
+            }),
+            o(u)
+          );
+        } catch (t) {
+          return (
+            D(u),
+            (u.state = "dispatch_failed"),
+            (u.revision += 1),
+            (u.updated_at = a(i)),
+            (u.error = {
+              code: r(t.code || "dispatch_failed", 100),
+              message: r(redactFleetSecrets(t.message), 2e3),
+              recoverable: !0,
+              indeterminate: "dispatch_timeout" === t.code,
+              references: normalizeArtifactReferences(),
+            }),
+            L(u),
+            w.set(e.task.id, u),
+            (e.state = "queued"),
+            (e.revision += 1),
+            (e.updated_at = a(i)),
+            (e.last_error = u.error),
+            h.set(e.task.id, e),
+            g("task.dispatch_failed", {
+              task_id: e.task.id,
+              worker_id: s.id,
+              error: u.error,
+            }),
+            o(u)
+          );
+        }
+      }
+      return null;
+    },
+    heartbeat: function (e, t, r) {
+      const s = N(e, t, r);
+      return (
+        (s.lease.expires_at = new Date(i() + c).toISOString()),
+        (s.revision += 1),
+        (s.updated_at = a(i)),
+        w.set(s.task.id, s),
+        g("task.heartbeat", {
+          task_id: s.task.id,
+          worker_id: s.lease.worker_id,
+          fence: r,
+        }),
+        o(s)
+      );
+    },
+    complete: function (e, t, r, n = {}) {
+      const c = N(e, t, r),
+        d = normalizeArtifactReferences(n.references || n),
+        l = s(n.cost_usd, c.placement.estimated_cost_usd ?? 0, 0, 10 ** 9);
+      (R(c, l),
+        (c.state = "completed"),
+        (c.revision += 1),
+        (c.updated_at = a(i)),
+        (c.result = {
+          schema: "sideways-maker-fleet-usage/v1",
+          task_id: c.task.id,
+          worker_id: c.placement.worker_id,
+          cost_usd: l,
+          duration_ms: Math.max(0, i() - Date.parse(c.started_at)),
+          references: d,
+          detail: redactFleetSecrets(n.detail || {}),
+        }),
+        D(c, l),
+        L(c));
+      const u = h.get(c.task.id);
+      return (
+        u &&
+          ((u.state = "completed"),
+          (u.revision += 1),
+          (u.updated_at = a(i)),
+          h.set(c.task.id, u)),
+        w.set(c.task.id, c),
+        g("task.completed", {
+          task_id: c.task.id,
+          worker_id: c.placement.worker_id,
+          cost_usd: l,
+        }),
+        o(c)
+      );
+    },
+    fail: function (e, t, c, d = {}) {
+      const l = N(e, t, c),
+        u = s(d.cost_usd, 0, 0, 10 ** 9);
+      (u && R(l, u),
+        (l.state = "failed"),
+        (l.revision += 1),
+        (l.updated_at = a(i)),
+        (l.error = {
+          code: r(d.code || "worker_failed", 100),
+          message: r(redactFleetSecrets(d.message || "worker failed"), 2e3),
+          recoverable: !0 === d.recoverable,
+          references: normalizeArtifactReferences(d.references || {}),
+        }),
+        D(l, u || null),
+        L(l),
+        w.set(l.task.id, l));
+      const p = h.get(l.task.id);
+      return (
+        p &&
+          (l.error.recoverable && l.task.attempt < l.task.max_attempts
+            ? ((p.task = normalizeFleetTask(
+                {
+                  ...l.task,
+                  attempt: l.task.attempt + 1,
+                  reservation: "recovery",
+                },
+                i,
+                n,
+              )),
+              (p.state = "queued"))
+            : (p.state = "failed"),
+          (p.revision += 1),
+          (p.updated_at = a(i)),
+          (p.last_error = l.error),
+          h.set(p.task.id, p)),
+        g("task.failed", {
+          task_id: l.task.id,
+          worker_id: l.placement.worker_id,
+          error: l.error,
+        }),
+        o(l)
+      );
+    },
+    cancel: function (e, t = "") {
+      const o = r(e, 300),
+        s = w.get(o),
+        n = h.get(o);
+      if (!s && !n)
+        throw new WorkerFleetError("task_not_found", "task not found", 404);
+      return (
+        ("running" !== s?.state && "dispatching" !== s?.state) ||
+          (D(s),
+          (s.state = "cancelled"),
+          (s.revision += 1),
+          (s.updated_at = a(i)),
+          (s.error = {
+            code: "cancelled",
+            message: r(t || "cancelled by operator", 1e3),
+            recoverable: !1,
+            references: normalizeArtifactReferences(),
+          }),
+          L(s),
+          w.set(o, s)),
+        n &&
+          ((n.state = "cancelled"),
+          (n.revision += 1),
+          (n.updated_at = a(i)),
+          h.set(o, n)),
+        g("task.cancelled", { task_id: o, reason: t }),
+        I(s || n)
+      );
+    },
+    recoverExpired: function () {
+      const e = [];
+      for (const t of w.values()) {
+        if ("running" !== t.state || Date.parse(t.lease.expires_at) > i())
+          continue;
+        (D(t),
+          (t.state = "lost"),
+          (t.revision += 1),
+          (t.updated_at = a(i)),
+          (t.error = {
+            code: "worker_lost",
+            message: "worker heartbeat expired",
+            recoverable: t.task.retry_lost,
+            references: normalizeArtifactReferences(),
+          }),
+          L(t),
+          w.set(t.task.id, t));
+        const r = k.get(t.placement.worker_id);
+        r &&
+          k.set(
+            r.id,
+            normalizeWorkerDescriptor({
+              ...o(r),
+              operator_state: "offline",
+              reliability: { ...r.reliability, lost: r.reliability.lost + 1 },
+            }),
+          );
+        const s = h.get(t.task.id);
+        (s && t.task.retry_lost && t.task.attempt < t.task.max_attempts
+          ? ((s.task = normalizeFleetTask(
+              {
+                ...t.task,
+                attempt: t.task.attempt + 1,
+                reservation: "recovery",
+              },
+              i,
+              n,
+            )),
+            (s.state = "queued"),
+            (s.revision += 1),
+            (s.updated_at = a(i)),
+            (s.last_error = t.error),
+            h.set(s.task.id, s),
+            e.push(s.task.id))
+          : s &&
+            ((s.state = "failed"),
+            (s.revision += 1),
+            (s.updated_at = a(i)),
+            (s.last_error = t.error),
+            h.set(s.task.id, s)),
+          g("task.worker_lost", {
+            task_id: t.task.id,
+            worker_id: t.placement.worker_id,
+            retried: e.includes(t.task.id),
+          }));
+      }
+      return e;
+    },
+    getExecution: (e) => I(w.get(r(e, 300))),
+    getTask: (e) => (h.has(r(e, 300)) ? o(h.get(r(e, 300))) : null),
+    listQueue: () => S().map(o),
+    snapshot: function () {
+      const e = {
+        schema: "sideways-maker-fleet-snapshot/v1",
+        workers: [...k.values()].sort((e, t) => e.id.localeCompare(t.id)),
+        queue: [...h.values()].sort((e, t) =>
+          e.task.id.localeCompare(t.task.id),
+        ),
+        executions: [...w.values()]
+          .sort((e, t) => e.task.id.localeCompare(t.task.id))
+          .map(I),
+        quotas: redactFleetSecrets(p),
+        usage: [...v.entries()].sort(([e], [t]) => e.localeCompare(t)),
+        adapters: m.describe(),
+        events: o(f),
+        observed_at: a(i),
+        snapshot_digest: "",
+      };
+      return (
+        (e.snapshot_digest = fleetDigest({ ...e, snapshot_digest: void 0 })),
+        Object.freeze(e)
+      );
+    },
+    usage: () =>
+      Object.fromEntries([...v.entries()].map(([e, t]) => [e, o(t)])),
+    events: (e) => f.filter((t) => t.sequence > (Number(e) || 0)).map(o),
+  });
+}
 
 export const createFleetAdapterRegistry = createWorkerAdapterRegistry;
 export const registerDefaultFleetAdapters = registerDefaultWorkerAdapters;
