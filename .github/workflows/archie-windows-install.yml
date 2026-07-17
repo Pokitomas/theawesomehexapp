@@ -8,7 +8,13 @@ on:
       - 'scripts/archie.mjs'
       - 'scripts/archie-first-run.mjs'
       - 'scripts/archie-runtime-core.mjs'
+      - 'scripts/archie-distill-core.mjs'
+      - 'scripts/archie-distill.mjs'
+      - 'scripts/tests/archie-distill-pipeline.test.mjs'
       - 'scripts/tests/maker-archie-install.test.mjs'
+      - 'foundry/archie-distill/**'
+      - 'maker/evaluations/archie-distill-qwen3-quality.json'
+      - 'maker/contracts/archie-distill-profile.schema.json'
       - '.github/workflows/archie-windows-install.yml'
   push:
     branches: [main]
@@ -34,6 +40,8 @@ jobs:
         run: npm.cmd ci --ignore-scripts
       - name: Verify install and first-launch contracts
         run: npm.cmd run test:archie:install
+      - name: Verify distillation contracts
+        run: npm.cmd run test:archie:distill
       - name: Pack, globally install, and launch like a user
         shell: pwsh
         run: |
