@@ -35,7 +35,7 @@
     "test:archie:runtime": "node --test scripts/tests/maker-archie-runtime.test.mjs",
     "test:archie:learning": "node --test scripts/tests/maker-archie-corpus.test.mjs scripts/tests/maker-archie-brain.test.mjs scripts/tests/maker-archie-budget.test.mjs scripts/tests/maker-archie-planner.test.mjs scripts/tests/maker-archie-cognition.test.mjs scripts/tests/maker-archie-derivation.test.mjs",
     "test:archie:persistent": "node --test scripts/tests/maker-archie-persistent-core.test.mjs scripts/tests/maker-archie-product-ecology.test.mjs scripts/tests/maker-archie-trainer.test.mjs",
-    "test:archie:portable": "node --test scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-sync.test.mjs",
+    "test:archie:portable": "node --test scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-sync.test.mjs scripts/tests/overlay-vault.test.mjs",
     "test:archie:evaluation": "node --test scripts/tests/maker-archie-benchmark.test.mjs scripts/tests/maker-archie-derivation-benchmark.test.mjs scripts/tests/archie-generation-one-run.test.mjs",
     "test:archie:admission": "node --test scripts/tests/maker-archie-student-admission.test.mjs",
     "test:archie:device-evidence": "node --test scripts/tests/maker-archie-device-evidence.test.mjs",
