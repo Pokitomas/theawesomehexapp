@@ -49,8 +49,8 @@ function security() {
 
 function lease(overrides = {}) {
   return {
-    base_sha: BASE,
-    branch: 'maker/issue-307-test',
+    base_sha: overrides.base_sha ?? BASE,
+    branch: overrides.branch ?? 'maker/issue-307-test',
     writer_count: 1,
     owned_paths: ['src/**'],
     authority: { merge: 'human', deploy: 'human' },
@@ -74,10 +74,10 @@ function transaction(overrides = {}) {
   return {
     transaction_id: overrides.transaction_id || 'tx-1',
     repository: 'acme/widgets',
-    base_sha: BASE,
-    branch: 'maker/issue-307-test',
+    base_sha: overrides.base_sha ?? BASE,
+    branch: overrides.branch ?? 'maker/issue-307-test',
     request: 'Apply the exact bounded patch.',
-    operations: overrides.operations || [
+    operations: overrides.operations ?? [
       { operation_id: 'replace-a', kind: 'replace', path: 'src/a.txt', before: 'beta', after: 'gamma', expected: { occurrences: 1 } },
       { operation_id: 'create-c', kind: 'create', path: 'src/c.txt', content: 'charlie\n', expected: { exists: false } }
     ]

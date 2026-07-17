@@ -18,6 +18,7 @@ const RECEIPT_SCHEMA = 'sideways-maker-edit-receipt/v1';
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 const MAX_OPERATIONS = 500;
 const TERMINAL = new Set(['applied', 'rolled_back', 'rollback_failed', 'cancelled']);
+const INTERNAL_MUTATIONS = Symbol('internal_mutations');
 
 const clean = (value, limit = 20000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 const nowISO = () => new Date().toISOString();
@@ -266,7 +267,8 @@ export class MakerEditBroker {
     return Object.freeze({
       directory,
       journal: path.join(directory, 'journal.json'),
-      backups: path.join(directory, 'backups')
+      backups: path.join(directory, 'backups'),
+      staged: path.join(directory, 'staged')
     });
   }
 
@@ -337,7 +339,9 @@ export class MakerEditBroker {
       diff: clean(diffs.join('\n\n'), 200000),
       created_at: this.clock()
     };
-    return Object.freeze({ ...body, preview_digest: digest(body), internal_mutations: Object.freeze(mutations) });
+    const preview = { ...body, preview_digest: digest(body) };
+    Object.defineProperty(preview, INTERNAL_MUTATIONS, { value: Object.freeze(mutations), enumerable: false });
+    return Object.freeze(preview);
   }
 
   async begin(input = {}) {
@@ -346,8 +350,20 @@ export class MakerEditBroker {
     const paths = this.#paths(transactionId);
     if (await exists(this.fs, paths.journal)) throw new Error(`Edit transaction already exists: ${transactionId}.`);
     await this.fs.mkdir(paths.backups, { recursive: true, mode: 0o700 });
+    await this.fs.mkdir(paths.staged, { recursive: true, mode: 0o700 });
     const backupManifest = {};
-    for (const mutation of preview.internal_mutations) {
+    const journalMutations = [];
+    for (const sourceMutation of preview[INTERNAL_MUTATIONS]) {
+      const mutation = { ...sourceMutation };
+      if (mutation.after.exists) {
+        const stagedFile = `${digest(mutation.mutation_id)}.stage`;
+        await this.fs.writeFile(path.join(paths.staged, stagedFile), mutation.staged_content, { encoding: 'utf8', mode: 0o600 });
+        mutation.staged_file = stagedFile;
+        mutation.staged_content = null;
+      } else {
+        mutation.staged_file = null;
+      }
+      journalMutations.push(mutation);
       if (!mutation.before.exists) continue;
       const backupName = `${digest(mutation.path)}.bak`;
       const backupPath = path.join(paths.backups, backupName);
@@ -371,14 +387,14 @@ export class MakerEditBroker {
       created_at: this.clock(),
       updated_at: null,
       current_mutation: null,
-      mutations: preview.internal_mutations,
+      mutations: journalMutations,
       backups: backupManifest,
       diff_digest: digest(preview.diff),
       errors: [],
       receipt: null
     };
     const journal = await this.#writeJournal(paths, state);
-    return Object.freeze({ transaction_id: transactionId, journal: redactSecrets(journal), preview: { ...preview, internal_mutations: undefined } });
+    return Object.freeze({ transaction_id: transactionId, journal: redactSecrets(journal), preview });
   }
 
   #toolBroker(paths, attempt) {
@@ -400,8 +416,13 @@ export class MakerEditBroker {
     return snapshot.exists === expected.exists && snapshot.sha256 === expected.sha256;
   }
 
-  async #applyMutation(broker, mutation) {
-    if (mutation.after.exists) return broker.write(mutation.path, mutation.staged_content, { origin: 'control_plane' });
+  async #applyMutation(broker, paths, mutation) {
+    if (mutation.after.exists) {
+      if (!mutation.staged_file) throw new Error(`Missing staged file for ${mutation.path}.`);
+      const content = await this.fs.readFile(path.join(paths.staged, mutation.staged_file), 'utf8');
+      if (digest(content) !== mutation.after.sha256) throw new Error(`Staged content digest mismatch for ${mutation.path}.`);
+      return broker.write(mutation.path, content, { origin: 'control_plane' });
+    }
     if (await exists(this.fs, absolutePath(this.root, mutation.path))) return broker.delete(mutation.path, { origin: 'control_plane' });
     return { path: mutation.path, already_absent: true };
   }
@@ -432,6 +453,7 @@ export class MakerEditBroker {
         if (await this.#currentMatches(mutation, 'before')) {
           mutation.rollback_status = 'already_restored';
         } else {
+          if (!(await this.#currentMatches(mutation, 'after'))) throw new Error(`Workspace diverged from the transaction state for ${mutation.path}; refusing rollback.`);
           await this.#restoreMutation(broker, paths, state, mutation);
           if (!(await this.#currentMatches(mutation, 'before'))) throw new Error(`Rollback verification failed for ${mutation.path}.`);
           mutation.rollback_status = 'restored';
@@ -495,7 +517,7 @@ export class MakerEditBroker {
           mutation.status = 'applied';
           mutation.applied_at ||= this.clock();
         } else if (await this.#currentMatches(mutation, 'before')) {
-          await this.#applyMutation(broker, mutation);
+          await this.#applyMutation(broker, paths, mutation);
           mutation.status = 'applied';
           mutation.applied_at = this.clock();
         } else {
