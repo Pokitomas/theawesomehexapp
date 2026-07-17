@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMakerControlPlane } from '../maker-control-plane.mjs';
-import { createModelRouter } from '../maker-model-router.mjs';
-import { createFleetAdapterRegistry, createWorkerFleet, registerDefaultFleetAdapters } from '../maker-worker-fleet.mjs';
+import { createModelRouter, createProviderRegistry } from '../maker-model-router.mjs';
+import { createFleetAdapterRegistry, createWorkerFleet, fleetDigest, registerDefaultFleetAdapters } from '../maker-worker-fleet.mjs';
 import { createPluginRegistry } from '../maker-plugin-registry.mjs';
 import {
   buildRuntimeProfile,
@@ -26,40 +26,70 @@ const provider = overrides => ({
   id: 'provider-a',
   display_name: 'Admitted Engine',
   kind: 'openai_compatible',
-  health: 'healthy',
-  availability: { value: true, source: 'observed' },
+  availability: 'healthy',
+  availability_evidence: 'observed',
   capabilities: {
-    structured_json: { value: true, source: 'observed' },
-    tool_use: { value: true, source: 'observed' },
-    streaming: { value: true, source: 'configured' },
-    multimodal: { value: false, source: 'observed' },
-    context_tokens: { value: 128000, source: 'observed' },
-    output_tokens: { value: 32000, source: 'observed' },
-    latency_class: { value: 'fast', source: 'observed' },
-    privacy: { value: 'private', source: 'configured' },
-    region: { value: 'us-west', source: 'configured' },
-    locality: { value: 'remote', source: 'observed' }
+    structured_json: { value: true, evidence: 'observed' },
+    tool_use: { value: true, evidence: 'observed' },
+    streaming: { value: true, evidence: 'configured' },
+    multimodal: { value: false, evidence: 'observed' },
+    reasoning: { value: true, evidence: 'observed' },
+    coding: { value: true, evidence: 'observed' },
+    browser_interpretation: { value: false, evidence: 'observed' }
   },
-  cost: { input_per_million_usd: 1, output_per_million_usd: 2, request_usd: 0 },
-  reliability: { success_rate: 0.99, samples: 100, consecutive_failures: 0 },
-  metadata: { engine_label: 'Admitted Engine' },
+  limits: {
+    context_tokens: { value: 128000, evidence: 'observed' },
+    output_tokens: { value: 32000, evidence: 'observed' }
+  },
+  latency_class: { value: 'interactive', evidence: 'observed' },
+  privacy: { value: 'private', evidence: 'configured' },
+  region: { value: 'us-west', evidence: 'configured' },
+  locality: { value: 'remote', evidence: 'observed' },
+  cost: {
+    input_per_million: { value: 1, evidence: 'configured' },
+    output_per_million: { value: 2, evidence: 'configured' }
+  },
+  reliability: { successes: 99, failures: 1, consecutive_failures: 0 },
+  public: { engine_label: 'Admitted Engine', endpoint_label: 'Managed Maker runtime' },
   ...overrides
 });
 
-const worker = overrides => ({
-  id: 'worker-a',
-  display_name: 'Worker A',
-  mode: 'self_hosted',
-  identity: { state: 'attested', issuer: 'maker', subject: 'worker-a', digest: 'sha256:abc' },
-  platform: { os: 'linux', arch: 'x64', labels: ['coding', 'repair'], toolchains: ['node', 'git'], providers: ['native'] },
-  isolation: { containers: true, sandbox: true, ephemeral_workspace: true, network: 'restricted' },
-  resources: { cpu: 8, memory_mb: 16384, disk_mb: 100000, time_ms: 3600000, concurrency: 1, queue_depth: 0 },
-  placement: { region: 'us-west', locality: 'local', privacy: 'local', latency_ms: 10, cost_per_hour_usd: 1 },
-  health: { state: 'healthy' },
-  reliability: { success_rate: 0.99, samples: 100, lost_runs: 0 },
-  state: 'active',
-  ...overrides
-});
+function signedFleetReceipt(body) {
+  return { ...body, digest: `sha256:${fleetDigest(body)}` };
+}
+
+const worker = overrides => {
+  const endpoint = {
+    ownership: 'user', transport: 'relay', locality: 'local', capacity: 'dedicated', throttling: 'bounded',
+    label: 'Maker execution runtime', endpoint_digest: `sha256:${'b'.repeat(64)}`
+  };
+  const descriptor = {
+    id: 'worker-a', display_name: 'Worker A', mode: 'self_hosted', endpoint,
+    identity: {
+      status: 'verified', subject: 'worker-a', issuer: 'maker',
+      receipt: signedFleetReceipt({
+        schema: 'sideways-maker-worker-attestation/v1', worker_id: 'worker-a', subject: 'worker-a', mode: 'self_hosted',
+        endpoint_digest: endpoint.endpoint_digest, issuer: 'maker', issued_at: '2026-07-15T00:00:00.000Z'
+      })
+    },
+    platform: { os: 'linux', architecture: 'x64' },
+    labels: ['coding', 'repair'], capabilities: ['repository_write'], toolchains: ['node', 'git'], providers: ['native'], models: [],
+    network: { mode: 'restricted', allowed_hosts: [] },
+    isolation: { container: true, sandbox: true, ephemeral_workspace: true },
+    resources: { cpu: 8, memory_mb: 16384, disk_mb: 100000, time_ms: 3600000 },
+    concurrency: { limit: 1, active: 0, queue_depth: 0 },
+    region: 'us-west', privacy: 'private', cost: { per_minute_usd: 0.01, per_job_usd: 0 }, latency_ms: 10,
+    health: {
+      state: 'healthy', observed_at: '2026-07-15T00:00:00.000Z',
+      receipt: signedFleetReceipt({
+        schema: 'sideways-maker-worker-health/v1', worker_id: 'worker-a', endpoint_digest: endpoint.endpoint_digest,
+        state: 'healthy', issuer: 'maker', observed_at: '2026-07-15T00:00:00.000Z'
+      })
+    },
+    operator_state: 'active', reliability: { successes: 99, failures: 1, lost: 0 }, recovery: { checkpointing: true, mode: 'journaled' }
+  };
+  return { ...descriptor, ...overrides };
+};
 
 const pluginManifest = overrides => ({
   id: 'repo.writer',
@@ -129,7 +159,7 @@ function makeRuntime(options = {}) {
   const transports = options.transports || {
     'provider-a': async () => ({ output: { plan: 'implement' }, usage: { input_tokens: 100, output_tokens: 10, cost_usd: 0.01 } })
   };
-  const modelRouter = createModelRouter({ providers, transports, clock: d.clock, id: d.id, sleep: async ms => d.advance(ms), retries: options.model_retries ?? 0 });
+  const modelRouter = createModelRouter({ registry: createProviderRegistry(providers), transports, clock: d.clock, id: d.id, sleep: async ms => d.advance(ms), retries: options.model_retries ?? 0 });
   const adapters = createFleetAdapterRegistry({ clock: d.clock });
   registerDefaultFleetAdapters(adapters, {
     self_hosted: options.dispatch || (async () => ({ result: { branch: 'agent/integrated', pull_request: 'https://github.com/Pokitomas/theawesomehexapp/pull/999' }, cost_usd: 0.2 }))
@@ -170,7 +200,7 @@ test('happy path composes route, placement, authority, durable claim, dispatch, 
 
 test('provider fallback preserves the selected fallback route in the platform receipt', async () => {
   const runtime = makeRuntime({
-    providers: [provider({ id: 'primary', preferences: { operator_rank: 10 } }), provider({ id: 'fallback' })],
+    providers: [provider({ id: 'primary', operator_weight: 10 }), provider({ id: 'fallback' })],
     transports: {
       primary: async () => { throw new Error('primary unavailable'); },
       fallback: async () => ({ output: { plan: 'fallback' }, usage: { input_tokens: 10, output_tokens: 2, cost_usd: 0 } })
@@ -191,7 +221,7 @@ test('incompatible fleet capacity blocks before durable claim', async () => {
 });
 
 test('unverified workers are rejected as unverified capacity', async () => {
-  const runtime = makeRuntime({ workers: [worker({ identity: { state: 'unverified' } })] });
+  const runtime = makeRuntime({ workers: [worker({ identity: { status: 'unverified' } })] });
   const receipt = await runtime.platform.run(baseInput());
   assert.equal(receipt.state, 'blocked');
   assert.equal(receipt.error.code, 'unverified_capacity');
@@ -202,7 +232,7 @@ test('missing admitted plugin capability blocks and releases fleet placement', a
   const receipt = await runtime.platform.run(baseInput());
   assert.equal(receipt.state, 'blocked');
   assert.equal(receipt.error.code, 'plugin_capability_missing');
-  assert.equal(runtime.fleet.snapshot().tasks[0].state, 'cancelled');
+  assert.equal(runtime.fleet.snapshot().queue[0].state, 'cancelled');
 });
 
 test('approval-gated deployment authority blocks until the capability is explicitly approved', async () => {
@@ -232,7 +262,7 @@ test('dispatch failure becomes a recoverable failed control job and public recei
   assert.equal(receipt.error.recoverable, true);
   assert.equal(receipt.components.control_job.state, 'failed');
   assert.equal(receipt.components.presentation.state, 'failed');
-  assert.equal(runtime.fleet.snapshot().tasks[0].state, 'cancelled');
+  assert.equal(runtime.fleet.snapshot().queue[0].state, 'cancelled');
 });
 
 test('stale control lease is surfaced as recoverable after a worker returns late', async () => {
@@ -246,7 +276,7 @@ test('stale control lease is surfaced as recoverable after a worker returns late
 
 test('unavailable worker adapter is explicit and does not fabricate dispatch success', async () => {
   const d = deterministic();
-  const modelRouter = createModelRouter({ providers: [provider()], transports: { 'provider-a': async () => ({ output: { plan: 'x' } }) }, clock: d.clock, id: d.id });
+  const modelRouter = createModelRouter({ registry: createProviderRegistry([provider()]), transports: { 'provider-a': async () => ({ output: { plan: 'x' } }) }, clock: d.clock, id: d.id });
   const adapters = createFleetAdapterRegistry({ clock: d.clock });
   registerDefaultFleetAdapters(adapters, {});
   const fleet = createWorkerFleet({ workers: [worker()], adapters, clock: d.clock, id: d.id, lease_ms: 1000 });
