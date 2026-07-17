@@ -1,4 +1,4 @@
-name: Build and deploy independent program surfaces
+name: Build and deploy Archie one-task workflow
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
         run: npm ci --ignore-scripts --include=dev
       - name: Verify deployment and superiority contracts
         run: node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/founder-superiority.test.mjs
-      - name: Verify independent program surfaces
+      - name: Verify one-task progressive views
         run: npm run test:xp-surfaces
       - name: Verify product portfolio
         run: npm run test:portfolio
@@ -86,6 +86,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'Archie Program Manager' dist/index.html
+          grep -q 'What should happen?' dist/index.html
           grep -q 'You are the lab now' dist/foundry/index.html || grep -q 'Foundry Research Control' dist/foundry/index.html
           grep -q 'Tiny Public Things' dist/examples/site/index.html
           test -f dist/desktop/index.html
@@ -148,7 +149,7 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/deployment-receipt.cjs verify-live
-      - name: Verify every final application is anonymously reachable
+      - name: Verify every final view is anonymously reachable
         env:
           DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
           EXPECTED_COMMIT: ${{ github.sha }}
