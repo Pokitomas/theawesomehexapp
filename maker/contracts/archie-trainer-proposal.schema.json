@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "archie-trainer-proposal/v1",
+  "title": "Core-to-Trainer durable learning proposal",
+  "type": "object",
+  "required": ["schema", "proposed_at", "core_state_digest", "candidate", "capacity_estimate", "status", "proposal_digest"],
+  "properties": {
+    "schema": {"const": "archie-trainer-proposal/v1"},
+    "proposed_at": {"type": "string"},
+    "core_state_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "candidate": {"$ref": "archie-candidate-move/v1"},
+    "capacity_estimate": {"type": "object"},
+    "status": {"const": "proposal-only"},
+    "protect": {"type": "string"},
+    "proposal_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}
