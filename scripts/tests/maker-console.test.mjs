@@ -28,6 +28,7 @@ import {
 
 const html = fs.readFileSync('maker/index.html', 'utf8');
 const css = fs.readFileSync('maker/maker.css', 'utf8');
+const sharedCss = fs.readFileSync('desktop/desktop.css', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('maker/manifest.webmanifest', 'utf8'));
 const worker = fs.readFileSync('maker/sw.js', 'utf8');
 const icon = fs.readFileSync('maker/icon.svg', 'utf8');
@@ -47,19 +48,25 @@ for (const backend of BACKENDS) assert.ok(html.includes(`value="${backend}"`), `
 assert.ok(html.includes('Build software.'));
 assert.ok(html.includes('Task author only'));
 assert.ok(html.includes('OPEN AUTHORIZED TASK'));
+assert.ok(html.includes('Repository, proof, and execution controls'));
+assert.ok(html.includes('../desktop/desktop.css'));
+assert.ok(html.includes('../desktop/desktop.js'));
 assert.ok(!html.includes('SEND TO CO-ENGINEERS'));
 assert.ok(!html.includes('SIDEWAYS / DEV / LIVE'));
 assert.ok(css.includes('@media (max-width: 520px)'));
 assert.ok(css.includes('min-height: 58px'));
+assert.ok(sharedCss.includes('@media (max-width: 560px)'));
 assert.equal(manifest.name, 'Maker Engineering');
 assert.equal(manifest.display, 'standalone');
-assert.ok(worker.includes("maker-engineering-v3"));
-assert.ok(worker.includes("url.origin !== self.location.origin"));
+assert.ok(worker.includes('maker-engineering-v4'));
+assert.ok(worker.includes('../desktop/desktop.css'));
+assert.ok(worker.includes('../desktop/desktop.js'));
+assert.ok(worker.includes('url.origin !== self.location.origin'));
 assert.ok(icon.startsWith('<svg'));
 assert.equal(STORAGE_KEY, 'maker:engineering:task:v2');
 assert.notEqual('maker:archie:receipt:v1', STORAGE_KEY);
 assert.ok(css.includes('.archie-console :focus-visible'));
-assert.ok(css.includes('prefers-reduced-motion: reduce'));
+assert.ok(sharedCss.includes('prefers-reduced-motion: reduce'));
 assert.ok(!html.includes('<style>'));
 assert.ok(!html.includes('Training complete'));
 assert.ok(!html.includes('GPU available'));
@@ -172,4 +179,4 @@ assert.equal(calls.length, 3);
 assert.ok(calls.every(url => url.includes('/repos/acme/widgets/')));
 assert.deepEqual(fetched, state);
 
-console.log('maker engineering console contract ok: repository-general task authoring remains separate from execution authority');
+console.log('maker engineering console contract ok: result-first task authoring remains separate from execution authority and the shared phone shell is cached');
