@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import { RepositoryIntelligence } from '../maker-repository-intelligence.mjs';
-import { MakerSecurityPolicy } from '../maker-security-policy.mjs';
+import { MakerSecurityPolicy, digest } from '../maker-security-policy.mjs';
 
 const execFileAsync = promisify(execFile);
 const CLOCK = () => '2026-07-16T00:00:00.000Z';
