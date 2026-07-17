@@ -1,32 +1,40 @@
 {
-  "schema": "archie-xp-program-surfaces/v1",
-  "product_model": "independent-programs",
-  "root_surface": "desktop-program-manager",
-  "applications": [
-    { "id": "archie", "route": "/archie/", "job": "knowledge-memory-plan-inspection", "visual_grammar": "windows-utility" },
-    { "id": "maker", "route": "/maker/", "job": "authorized-project-workbench", "visual_grammar": "visual-basic-workbench" },
-    { "id": "founder", "route": "/founder/", "job": "intention-branch-construction", "visual_grammar": "human-invention-room" },
-    { "id": "foundry", "route": "/foundry/", "job": "experiment-control-and-evidence", "visual_grammar": "industrial-laboratory" },
-    { "id": "expo", "route": "/world-expo/", "job": "public-experiment-gallery", "visual_grammar": "independent-exhibition" }
+  "schema": "archie-public-workflow/v2",
+  "product_model": "one-task-progressive-views",
+  "root_surface": "one-request-router",
+  "workflow": {
+    "entry": "one rough human request",
+    "automatic_routing": true,
+    "routes": ["answer", "build", "explore", "research"],
+    "shared_state": "one local task handed between views",
+    "default_behavior": "choose the smallest workflow that can finish the request",
+    "advanced_controls": "hidden until relevant"
+  },
+  "views": [
+    { "id": "archie", "route": "/archie/", "human_label": "Answer", "job": "shape one request and reveal boundaries on demand" },
+    { "id": "maker", "route": "/maker/", "human_label": "Build", "job": "authorize repository work and proof" },
+    { "id": "founder", "route": "/founder/", "human_label": "Explore", "job": "open genuinely different directions before commitment" },
+    { "id": "foundry", "route": "/foundry/", "human_label": "Research", "job": "preserve a full campaign while showing only distinct readable approaches" },
+    { "id": "expo", "route": "/world-expo/", "human_label": "Results", "job": "show artifacts, evidence, failures, and portable exits" }
   ],
   "visual_rules": {
-    "primary_surfaces": "opaque",
-    "information_primitives": ["menus", "windows", "lists", "files", "fields", "tabs", "dialogs", "inspectors", "logs", "status-bars"],
+    "shared_shell": true,
+    "primary_action_count": "one per view",
+    "progressive_disclosure": true,
+    "information_primitives": ["plain-language-request", "one-primary-action", "details", "status", "artifact", "receipt"],
     "forbidden": [
-      "glassmorphism",
-      "frosted-panels",
-      "transparent-primary-panels",
-      "bento-dashboard",
-      "image-tile-navigation",
-      "icon-stage-pipeline",
-      "single-product-dashboard",
-      "generic-ai-saas-shell"
+      "user-must-understand-internal-subsystems-before-starting",
+      "duplicate-request-entry-across-views",
+      "raw-schema-as-default-interface",
+      "twenty-four-near-duplicate-candidate-cards",
+      "generic-ai-saas-dashboard",
+      "fake-runtime-state"
     ]
   },
   "mobile": {
-    "model": "one-full-screen-program-at-a-time",
-    "task_switching": "program-manager-or-start-menu",
-    "forbidden_fallback": "stacked-rounded-card-feed"
+    "model": "one readable task with optional detail drawers",
+    "task_switching": "shared top navigation",
+    "minimum_phone_target_css_px": 44
   },
   "accessibility": {
     "semantic_html": true,
@@ -36,12 +44,7 @@
     "minimum_phone_target_css_px": 44,
     "reduced_motion": true,
     "forced_colors": true,
-    "drag_alternatives_required": true,
     "essential_text_in_images": false
   },
-  "playfulness": {
-    "allowed": ["easter-eggs", "strange-help", "optional-sounds", "boot-sequences", "desktop-objects", "owned-output-artifacts"],
-    "forbidden": ["xp-points", "levels", "streaks", "daily-rewards", "loot-boxes", "routine-confetti", "leaderboards", "followers", "engagement-ranking", "fake-progress"]
-  },
-  "claim_boundary": "These are runnable interaction prototypes. Interface behavior is not evidence of model execution, training, repository mutation, deployment, or frontier capability."
+  "claim_boundary": "The shared workflow organizes intent and produces local packets. It does not claim model execution, training, repository mutation, deployment, or independent capability admission."
 }
