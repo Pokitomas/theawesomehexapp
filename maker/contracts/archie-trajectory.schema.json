@@ -23,9 +23,9 @@
       "properties": {
         "repository": { "type": "string", "minLength": 1 },
         "branch": { "type": ["string", "null"] },
-        "base_sha": { "$ref": "#/$defs/digest" },
-        "head_sha": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
-        "code_commit": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "base_sha": { "$ref": "#/$defs/gitOid" },
+        "head_sha": { "oneOf": [{ "$ref": "#/$defs/gitOid" }, { "type": "null" }] },
+        "code_commit": { "oneOf": [{ "$ref": "#/$defs/gitOid" }, { "type": "null" }] },
         "request_digest": { "$ref": "#/$defs/digest" },
         "plan_digest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
         "patch_digest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
@@ -100,7 +100,8 @@
     "recorded_at": { "type": ["string", "null"] }
   },
   "$defs": {
-    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "gitOid": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" }
   },
   "additionalProperties": false
 }
