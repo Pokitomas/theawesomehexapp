@@ -5,8 +5,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "archie": "scripts/archie.mjs",
-    "archie-workspace": "scripts/archie-workspace.mjs"
+    "archie": "scripts/archie.mjs"
   },
   "files": [
     "scripts/*.mjs",
