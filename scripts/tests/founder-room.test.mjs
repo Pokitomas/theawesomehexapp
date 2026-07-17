@@ -20,7 +20,7 @@ assert.ok(html.includes('id="copy-receipt"'));
 assert.ok(html.includes('id="download-receipt"'));
 assert.ok(html.includes('id="room-status"'));
 assert.ok(html.includes('<link rel="icon" href="data:,">'), 'founder room must not emit an implicit favicon 404');
-assert.ok(css.includes('@media (max-width: 520px)'));
+assert.match(css, /@media\s*\(max-width:\s*520px\)/);
 
 const normalized = normalizeDecision({
   reactions: {
