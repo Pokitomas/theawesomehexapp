@@ -37,7 +37,8 @@ export function resolveNativeArchiePaths(repoRoot, { env = process.env, home = o
 export const normalizeReusableMakerPlan = normalizeMakerExecutionPlan;
 
 function teacherDecision(receipt) {
-  return receipt?.archie_decision?.state === 'teacher' ? receipt.archie_decision : null;
+  const decision = receipt?.archie_decision;
+  return decision?.state === 'teacher' || decision?.execution_basis?.kind === 'fresh-bounded-teacher-plan' ? decision : null;
 }
 
 export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
@@ -46,15 +47,18 @@ export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
   const repository = clean(receipt?.repository || repoRoot || 'default', 1000);
   const decision = teacherDecision(receipt);
   const teacherReceipt = decision?.teacher_receipt || null;
+  const teacherResponseId = clean(teacherReceipt?.response_id || decision?.execution_basis?.response_id, 300) || null;
+  const teacherReceiptDigest = clean(teacherReceipt?.receipt_digest || decision?.execution_basis?.teacher_receipt_digest, 200) || null;
+  const repositoryEvidenceDigest = clean(teacherReceipt?.repository_evidence_digest || decision?.repository_evidence_digest || decision?.execution_basis?.repository_evidence_digest, 200) || null;
   const result = {
     branch: clean(receipt?.branch, 1000),
     pull_request: clean(receipt?.pull_request, 2000),
     head_sha: clean(receipt?.head_sha, 200),
     writer_summary: clean(receipt?.writer_summary, 200000),
     verification,
-    teacher_response_id: clean(teacherReceipt?.response_id, 300) || null,
-    teacher_receipt_digest: clean(teacherReceipt?.receipt_digest, 200) || null,
-    repository_evidence_digest: clean(decision?.repository_evidence_digest || teacherReceipt?.repository_evidence_digest, 200) || null
+    teacher_response_id: teacherResponseId,
+    teacher_receipt_digest: teacherReceiptDigest,
+    repository_evidence_digest: repositoryEvidenceDigest
   };
   const state = clean(receipt?.state || (receipt?.head_sha ? 'completed' : 'unknown'), 100);
   return Object.freeze({
@@ -78,13 +82,13 @@ export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
     },
     components: {
       model_route: {
-        receipt_digest: teacherReceipt?.receipt_digest || valueDigest(plan),
-        provider: teacherReceipt
-          ? { id: clean(teacherReceipt.model, 300), display_name: 'OpenAI bounded Archie teacher', engine_label: clean(teacherReceipt.teacher, 300) }
+        receipt_digest: teacherReceiptDigest || valueDigest(plan),
+        provider: decision
+          ? { id: clean(teacherReceipt?.model || 'bounded-teacher', 300), display_name: 'OpenAI bounded Archie teacher', engine_label: clean(teacherReceipt?.teacher || 'openai-responses', 300) }
           : { id: 'sideways-native-maker', display_name: 'Sideways Native Maker' },
         output: { plan },
         attempts: [
-          ...(teacherReceipt ? [{ provider_id: clean(teacherReceipt.model, 300), status: 'completed', duration_ms: null, response_id: clean(teacherReceipt.response_id, 300) }] : []),
+          ...(decision ? [{ provider_id: clean(teacherReceipt?.model || 'bounded-teacher', 300), status: 'completed', duration_ms: null, response_id: teacherResponseId }] : []),
           ...verification.map((item, index) => ({ provider_id: 'native-verifier', status: 'completed', duration_ms: null, verification: item, sequence: index + 1 }))
         ],
         usage: { cost_usd: null }
@@ -210,19 +214,26 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
 async function assertTeacherPromotion(corpus, receipt, normalized) {
   const decision = teacherDecision(receipt);
   if (!decision) return null;
-  const teacherReceipt = decision.teacher_receipt;
-  if (!teacherReceipt?.response_id || !teacherReceipt?.receipt_digest) throw new Error('Teacher promotion lacks the original teacher receipt.');
-  if (teacherReceipt.request_digest !== valueDigest(clean(receipt.request, 500000))) throw new Error('Teacher promotion request digest mismatch.');
-  if (teacherReceipt.plan_digest !== valueDigest(normalizeReusableMakerPlan(receipt.plan))) throw new Error('Teacher promotion plan digest mismatch.');
-  if (clean(teacherReceipt.base_sha, 200) !== clean(receipt.base_sha, 200)) throw new Error('Teacher promotion base SHA mismatch.');
-  if (decision.execution_basis?.response_id !== teacherReceipt.response_id) throw new Error('Teacher promotion response ID mismatch.');
-  if (decision.execution_basis?.teacher_receipt_digest !== teacherReceipt.receipt_digest) throw new Error('Teacher promotion receipt digest mismatch.');
-  if (decision.repository_evidence_digest !== teacherReceipt.repository_evidence_digest) throw new Error('Teacher promotion repository evidence mismatch.');
-  const pending = await corpus.findBySourceRunId(teacherReceipt.response_id, { kind: 'archie_teacher_plan' });
+  const teacherReceipt = decision.teacher_receipt || null;
+  const responseId = clean(teacherReceipt?.response_id || decision.execution_basis?.response_id, 300);
+  const receiptDigest = clean(teacherReceipt?.receipt_digest || decision.execution_basis?.teacher_receipt_digest, 200);
+  const evidenceDigest = clean(teacherReceipt?.repository_evidence_digest || decision.repository_evidence_digest || decision.execution_basis?.repository_evidence_digest, 200);
+  if (!responseId || !receiptDigest || !evidenceDigest) throw new Error('Teacher promotion lacks the original teacher response, receipt, or evidence identity.');
+  if (teacherReceipt) {
+    if (teacherReceipt.request_digest !== valueDigest(clean(receipt.request, 500000))) throw new Error('Teacher promotion request digest mismatch.');
+    if (teacherReceipt.plan_digest !== valueDigest(normalizeReusableMakerPlan(receipt.plan))) throw new Error('Teacher promotion plan digest mismatch.');
+    if (clean(teacherReceipt.base_sha, 200) !== clean(receipt.base_sha, 200)) throw new Error('Teacher promotion base SHA mismatch.');
+  }
+  if (decision.execution_basis?.response_id !== responseId) throw new Error('Teacher promotion response ID mismatch.');
+  if (decision.execution_basis?.teacher_receipt_digest !== receiptDigest) throw new Error('Teacher promotion receipt digest mismatch.');
+  if (clean(decision.execution_basis?.repository_evidence_digest || decision.repository_evidence_digest, 200) !== evidenceDigest) throw new Error('Teacher promotion repository evidence mismatch.');
+  const pending = await corpus.findBySourceRunId(responseId, { kind: 'archie_teacher_plan' });
   if (!pending || pending.outcome !== 'proposed') throw new Error('Teacher promotion has no matching pending proposal.');
   if (clean(pending.input?.text, 500000) !== clean(receipt.request, 500000)) throw new Error('Teacher promotion pending request mismatch.');
-  if (valueDigest(pending.output?.plan) !== teacherReceipt.plan_digest) throw new Error('Teacher promotion pending plan mismatch.');
-  if (clean(pending.source?.route_digest, 200) !== teacherReceipt.receipt_digest) throw new Error('Teacher promotion pending receipt identity mismatch.');
+  if (valueDigest(pending.output?.plan) !== valueDigest(normalizeReusableMakerPlan(receipt.plan))) throw new Error('Teacher promotion pending plan mismatch.');
+  if (clean(pending.source?.route_digest, 200) !== receiptDigest) throw new Error('Teacher promotion pending receipt identity mismatch.');
+  if (clean(pending.input?.context?.base_sha, 200) !== clean(receipt.base_sha, 200)) throw new Error('Teacher promotion pending base SHA mismatch.');
+  if (clean(pending.input?.context?.repository_evidence?.evidence_digest, 200) !== evidenceDigest) throw new Error('Teacher promotion pending repository evidence mismatch.');
   if (normalized.state === 'completed') {
     if (!clean(receipt.head_sha, 200)) throw new Error('Teacher promotion requires a completed head SHA.');
     if (!normalized.task.proof.verification.length) throw new Error('Teacher promotion requires nonempty independent verification.');
