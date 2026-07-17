@@ -1,148 +1,196 @@
-# Product form factor as operational architecture
+# Indie form factors as product engines
 
-Archie treats form factor as part of the executable product profile rather than decoration. The interface determines what users understand, authorize, recover, trust, and complete. A sophisticated product therefore matches visible form to actual authority, capability, frequency, and consequence.
+The product family should not look like security software merely because its boundaries are truthful. Safety, authority, and receipts remain behavioral contracts. The visible form should instead make each program feel worth entering, making, revisiting, and sharing.
 
-## Corpus protocol
+This study therefore centers the independent web: personal homepages, Neocities, IndieWeb practice, expressive online communities, and research on identity, mastery, retention, and community survival.
 
-The study uses a bounded public corpus rather than popularity screenshots or aesthetic imitation. Sources are admitted when they provide at least one of:
+## What counts as success
 
-1. a published platform or product design system;
-2. an accessibility standard or implementation guide;
-3. empirical usability findings tied to completion or abandonment;
-4. an explicit model of hierarchy, density, adaptation, feedback, or recovery.
+Indie success is not one leaderboard number. Research on online communities separates growth, retention, long-term survival, and activity because they are related but not interchangeable. A product may be small and deeply alive, large and disposable, or visually famous but rarely revisited.
 
-The corpus deliberately spans consumer platforms, public services, developer tools, enterprise systems, accessibility standards, and conversion research. Visual fashion, awards, screenshots without operating context, and unverifiable claims are excluded. Each source is reduced to reusable signals in `design/product-form-factor-metadata.json`; no product copies another product's skin.
+For this family, success means some combination of:
 
-## Evidence pulled into the product model
+- people can recognize what kind of place they entered;
+- making the first meaningful thing is easy;
+- the result feels personally authored rather than template-owned;
+- updates create reasons to return;
+- discovery leads sideways into other people, artifacts, and interests;
+- content remains portable and user-owned;
+- the product survives without requiring infinite growth;
+- the interface is memorable without becoming unusable.
 
-### Platform and product systems
+## Corpus
 
-- Apple Human Interface Guidelines: purpose, familiarity, simplicity, craft, delight, responsibility, hierarchy, adaptability, progressive disclosure, safe areas, and recovery. Sources: https://developer.apple.com/design/human-interface-guidelines/design-principles , https://developer.apple.com/design/human-interface-guidelines/layout , and https://developer.apple.com/design/human-interface-guidelines/accessibility/
-- Microsoft Fluent 2: platform-natural behavior, adaptive layout, hierarchy through spacing, predictable navigation, concise content, visible focus, and reflow without loss. Sources: https://fluent2.microsoft.design/design-principles , https://fluent2.microsoft.design/layout , and https://fluent2.microsoft.design/accessibility
-- GitHub Primer: cohesive familiar metaphors, accessibility from the start, responsive efficiency, compact productive interaction, semantic structure, and explicit focus management. Sources: https://primer.style/product/getting-started/ , https://primer.style/accessibility/foundations/accessibility-at-github/ , and https://primer.style/accessibility/design-guidance/
-- IBM Carbon: intentional spacing as hierarchy, repeatable spatial tokens, linear cognitive paths, and reduced cognitive load. Sources: https://carbondesignsystem.com/guidelines/spacing/overview/ and https://carbondesignsystem.com/guidelines/accessibility/overview/
-- Atlassian Design System: reusable foundations for tokens, accessible content, spacing, grid, typography, and consistent components. Source: https://atlassian.design/foundations
+### Neocities
 
-### Public-service and standards systems
+Neocities explicitly frames itself as a canvas for independent, creative sites rather than a generic social profile. It emphasizes personality, open source, a permanent free option, no advertising, no data sale, easy downloads, custom domains, and anti-lock-in. Its browse surface exposes tags, site names, views, and radically different personal forms instead of forcing one feed template.
 
-- GOV.UK Design System: mobile-first single-column composition, bounded reading width, responsive spacing scales, relative typography, and consistent vertical rhythm. Sources: https://design-system.service.gov.uk/styles/layout/ , https://design-system.service.gov.uk/styles/spacing/ , and https://design-system.service.gov.uk/styles/type-scale/
-- W3C WCAG 2.2 guidance: reflow, visible and unobscured focus, non-color state communication, pointer target sizing, keyboard operation, and reduced dependence on precision. Sources: https://www.w3.org/WAI/WCAG22/Understanding/reflow.html , https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance , https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html , and https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum
+Sources:
 
-### Empirical completion research
+- https://neocities.org/about
+- https://neocities.org/browse
 
-- Baymard usability research: friction and excessive field complexity materially cause abandonment; strong interfaces reduce visible work, clarify progress, and avoid hidden save or apply states. Sources: https://baymard.com/blog/current-state-of-checkout-ux and https://baymard.com/blog/checkout-usability-apply-buttons
+Derived patterns:
 
-## Archie derivation
+- blank-canvas authorship;
+- site identity before platform identity;
+- visible diversity rather than one optimized skin;
+- tags and neighborhoods as discovery infrastructure;
+- ownership and portability as part of the product promise;
+- low-cost entry with room for endless elaboration.
 
-The relationship is causal but not monocausal:
+### IndieWeb
+
+The IndieWeb principles prioritize owning identity and content, publishing on one’s own site, showing human-readable information first, designing experience before protocols, using the thing personally, and keeping the web fun.
+
+Sources:
+
+- https://indieweb.org/
+- https://indieweb.org/principles
+
+Derived patterns:
+
+- personal utility before platform scale;
+- artifact-first interaction rather than dashboard-first interaction;
+- visible authorship and provenance;
+- plurality of approaches instead of product monoculture;
+- creation loops that produce something the user can keep.
+
+### Personal-homepage research
+
+Research on personal homepages describes them as media for identity construction and self-presentation. Studies of young people connect homepage creation with mastery, identity exploration, and socialization. Work comparing personal and institution-managed pages shows how standardized corporate forms can suppress multi-dimensional identity.
+
+Sources:
+
+- https://academic.oup.com/jcmc/article/7/3/JCMC737/4584273
+- https://pubmed.ncbi.nlm.nih.gov/18331139/
+- https://research-portal.uea.ac.uk/en/publications/individuality-or-conformity-identity-in-personal-and-university-a/
+
+Derived patterns:
+
+- customization is functional identity work, not decorative noise;
+- visible progress creates mastery;
+- collections, shrines, logs, and personal taxonomies are legitimate primary forms;
+- over-standardization can erase the reason a person cares about the product.
+
+### Community success research
+
+Research across many online communities finds that distinctive and dynamic identities are associated with stronger retention, while highly distinctive communities can also create newcomer barriers. Other work shows that community success is multi-dimensional and that different outcomes have different predictors.
+
+Sources:
+
+- https://arxiv.org/abs/1705.09665
+- https://arxiv.org/abs/1903.07724
+
+Derived patterns:
+
+- recognizable identity helps retention;
+- visible recent activity makes a place feel alive;
+- strong personality needs obvious entry points for newcomers;
+- success must be measured separately as return, activity, survival, creation, and connection.
+
+## Causal model
 
 ```text
-software ambition
-→ exact user outcome
-→ required authority and evidence
-→ consequence of error
-→ dominant interaction frequency
-→ device and continuity envelope
-→ suitable form factor
-→ hierarchy, density, and disclosure policy
-→ feedback, completion, and recovery behavior
-→ measurable product success
+human motive
+→ first expressive act
+→ visible authored artifact
+→ recognizable place identity
+→ update and discovery loops
+→ return, mastery, attachment, and community connection
+→ sustainable indie success
 ```
 
-Form factor is a mediator between capability and behavior. It cannot rescue weak software, but it can expose or conceal capability, shorten or lengthen the path to completion, prevent or induce authority mistakes, and determine whether users can recover. A form factor is successful when it minimizes the distance between intent and verified completion without concealing uncertainty, authority, cost, or failure.
+Form factor matters because it changes whether a person feels like an operator filling out a system or an author making a place.
 
-The product family is therefore rejected if it converges on one fashionable shell. Shared accessibility and spacing laws are infrastructure; personality, density, color, radius, motion, and disclosure must follow the work.
+The product rejects the following default chain:
 
-## Evaluation hypotheses
+```text
+serious software
+→ dark dashboard
+→ warning-colored status chips
+→ security-console density
+→ generic enterprise legitimacy
+```
 
-The corpus produces hypotheses with named success proxies rather than aesthetic certainty. The canonical machine-readable versions live under `causal_model.evaluation_hypotheses`.
+Truthfulness does not require that aesthetic. Boundaries should be plain, local, and proportionate; they should not become the emotional center of every screen.
 
-- **Task–form fit:** task-matched hierarchy and density should reduce orientation and mode-switch cost. Measure time to primary action, completion, and wrong-surface navigation.
-- **Authority legibility:** visible capability, authority, and receipt boundaries should reduce false-completion belief. Measure authority comprehension, false completion, and proof inspection.
-- **Progressive evidence:** primary work should remain prominent while evidence stays retrievable. Measure completion, evidence-retrieval success, and primary-action time.
-- **Responsive operability:** complete reflow and visible focus should preserve task success across phone, zoom, keyboard, and touch. Measure overflow, keyboard completion, touch error, and zoom-reflow failure.
-- **Product recognition:** distinct visual languages should communicate role and consequence before action. Measure five-second role identification and cross-product action error.
+## Shared indie laws
 
-## Product personalities and success vectors
+Every product should expose:
 
-### Archie — intelligence cockpit
+1. **A nameable place.** A visitor can describe the form in ordinary language: atelier, workshop, zine wall, homepage.
+2. **A first expressive act.** The opening screen invites making, choosing, collecting, or writing—not configuring infrastructure.
+3. **Visible authorship.** The result visibly belongs to a person or project.
+4. **A progress trace.** Updates, drafts, logs, collections, or receipts show that the place changes over time.
+5. **Sideways discovery.** Tags, related artifacts, references, neighbors, or paths create curiosity beyond the primary task.
+6. **Portable output.** The meaningful artifact can be copied, exported, downloaded, or moved.
+7. **Specific personality.** Color, typography, rhythm, labels, and layout follow the product’s culture rather than a shared dashboard kit.
+8. **Newcomer handles.** Personality does not erase obvious navigation, readable controls, reflow, keyboard access, or clear primary actions.
 
-- Emotional target: calm expectancy, not terminal anxiety.
-- Dominant action: articulate an outcome and preserve context.
-- Form: soft dark spatial canvas, large editorial objective field, luminous admission signals, compact authority controls.
-- Metadata: objective digest, continuity mode, runtime observation, authority grants, proof requirements.
-- Success vector: objective completion, interruption recovery, authority comprehension, truthful handoff, low false-capability belief.
-- Failure to avoid: looking like a generic chat box or pretending the phone performed execution.
+## Product forms
 
-### Maker — engineering control room
+### Archie — personal atelier
 
-- Emotional target: precision and operational confidence.
-- Dominant action: bind work to repository, base, authority, and proof.
-- Form: high-density desktop control surface that collapses cleanly into a single mobile column.
-- Metadata: exact base, backend, lease, tools, status, workflow state, receipts.
-- Success vector: valid task packets, exact-base selection, lease visibility, proof completeness, low destructive-action error.
-- Failure to avoid: playful styling that obscures consequences or a raw terminal aesthetic that makes ordinary work illegible.
+Archie is the place where an unfinished desire becomes a shaped brief.
 
-### Founder — decision studio
+- Form: notebook, scrapbook, idea board, and takeaway packet.
+- First expressive act: write what should exist.
+- Return loop: reopen a local draft, refine it, carry it into another workshop.
+- Personality: cream paper, colored tape, stamps, uneven cards, editorial text.
+- Avoid: black glass, glowing runtime telemetry, command-center prestige, generic chatbot framing.
 
-- Emotional target: taste, comparison, consequence.
-- Dominant action: compare directions and commit to a product interpretation.
-- Form: editorial gallery with materially different concepts, oversized typography, deliberate contrast, and visible decision stakes.
-- Metadata: direction, reaction, decision summary, rejection rationale.
-- Success vector: concept discrimination, rationale quality, decision confidence, reversible exploration, durable commitment record.
-- Failure to avoid: visual sameness between alternatives or a dashboard that reduces creative judgment to status cards.
+### Maker — software workshop
 
-### Sideways — lived archive
+Maker is where a build card becomes visible work.
 
-- Emotional target: intimate ownership and discovery.
-- Dominant action: save, revisit, connect, and browse personal or public material.
-- Form: content-first reading surface with quiet controls and strong separation between private archive and public discovery.
-- Metadata: provenance, rank, privacy, backup state, identity, moderation authority.
-- Success vector: reading continuity, provenance comprehension, save and retrieval success, backup survival, privacy comprehension.
-- Failure to avoid: importing Maker or Archie operational density into a reading product.
+- Form: garage bench, graph paper, build cards, labels, parts bins, and a public build log.
+- First expressive act: state the end result and starting material.
+- Return loop: inspect open work, recent runs, receipts, and the next build card.
+- Personality: coral shop sign, graph grid, paper cards, bright status labels, physical depth.
+- Avoid: SOC dashboard, terminal cosplay, military authorization language as visual identity.
 
-## Shared system
+### Founder — indie zine decision wall
 
-All products share:
+Founder is where competing interpretations are placed beside each other and judged.
 
-- a 4/8/12/16/24/32/48/64 spacing grammar;
-- readable system typography with editorial display sizes and monospaced evidence metadata;
-- at least 44px for primary touch controls and at least the WCAG 2.2 minimum or equivalent spacing for compact secondary targets;
-- 16px touch text for editable controls to preserve legibility and avoid mobile zoom traps;
-- strong, visible, unobscured focus and reduced-motion support;
-- explicit state labels that never depend on color alone;
-- local recovery and visible destructive-action boundaries;
-- progressive disclosure for receipts and machine metadata;
-- product-specific color, radius, density, and motion rather than one reskinned template.
+- Form: zine spread, moodboard, pinned concepts, marginal notes, and a decision page.
+- First expressive act: react to materially different directions.
+- Return loop: revisit rejected directions and the recorded rationale.
+- Personality: tape, collage, rotated sheets, oversized serif headlines, clashing but deliberate color.
+- Avoid: interchangeable product cards, sanitized consultant deck, generic analytics dashboard.
+
+### Sideways — neighborhood homepage
+
+Sideways is a personal corner of the web that opens into other corners.
+
+- Form: homepage, collection cabinet, update log, reading stack, and neighborhood path.
+- First expressive act: save, post, import, or arrange something personally meaningful.
+- Return loop: new updates, saved material, collections, places, and neighboring sources.
+- Personality: warm paper, colored tabs, visitor-page energy, explicit “you are here” navigation, authored cards.
+- Avoid: institutional wiki, enterprise content system, invisible ownership, infinite-feed sameness.
 
 ## Executable style contracts
 
-The metadata binds each role to its tracked source of visual truth:
+- Archie: `archie/archie.css`
+- Maker: `maker/maker.css`
+- Founder: `founder/founder.css`
+- Sideways base: `studio/manual/product/sideways-human.css`
+- Sideways final indie layer: `studio/manual/product/sideways-indie.css`
 
-- Archie: `archie/archie.css` and byte-identical deployed parity at `dist/archie/archie.css`.
-- Maker: `maker/maker.css`.
-- Founder: `founder/founder.css`.
-- Sideways: `studio/manual/product/sideways-human.css`, applied as the final ordinary-user presentation layer.
+The Sideways installer must copy and load the indie layer after the ordinary human layer.
 
-The regression gate verifies that every contract exists, remains distinct, and stays associated with the intended product role and success metrics.
+## Evaluation
 
-## Admission tests
+The first evaluation is not “does this look professional?” It is:
 
-A surface is rejected when:
+- Can a new person identify the place in five seconds?
+- Can they make or choose something meaningful without setup detours?
+- Does the artifact feel personally authored?
+- Can they find evidence of change over time?
+- Is there an obvious path to another artifact, source, collection, or neighbor?
+- Can they export or carry the result elsewhere?
+- Do they remember which product they used a day later?
+- Do they return because the place feels alive, not because a notification coerced them?
 
-1. the primary outcome cannot be identified in five seconds;
-2. the primary action is visually equal to secondary actions;
-3. authority is implied rather than stated;
-4. mobile or 400% zoom requires horizontal scrolling for ordinary operation;
-5. editable touch controls fall below 16px;
-6. primary touch controls fall below 44px without an admitted equivalent;
-7. state is communicated by color alone;
-8. generated machine data is mistaken for completed work;
-9. destructive actions lack separation or recovery;
-10. the visual personality does not match the work performed;
-11. the product cannot explain its current capability boundary;
-12. two products become visually interchangeable after their labels are removed.
-
-## Measurement boundary
-
-The study defines hypotheses and executable admission checks, not proof that styling alone causes market success. Product success must be measured with task completion, error, recovery, comprehension, retention, and trust data for the exact surface. Popularity, screenshots, and visual polish are not substitutes for those outcomes.
+Repository tests can prove style contracts, responsive rules, installation order, and product distinction. Human studies or production telemetry are still required to prove mastery, attachment, retention, discovery, and long-term survival.
