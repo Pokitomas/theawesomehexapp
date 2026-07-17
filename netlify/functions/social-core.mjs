@@ -1,4 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { jsonBody } from './social-schema.mjs';
 
 export const SOCIAL_VERSION = 1;
 export const SESSION_COOKIE = 'sideways_session';
@@ -64,12 +65,6 @@ function assertSameOriginMutation(request) {
   if (origin && origin !== url.origin) throw fail(403, 'Cross-origin mutation rejected.');
   const site = request.headers.get('sec-fetch-site');
   if (site && !['same-origin', 'same-site', 'none'].includes(site)) throw fail(403, 'Cross-site mutation rejected.');
-}
-
-async function jsonBody(request) {
-  const length = Number(request.headers.get('content-length') || 0);
-  if (length > 64 * 1024) throw fail(413, 'Request is too large.');
-  return request.json().catch(() => { throw fail(400, 'Valid JSON required.'); });
 }
 
 function publicAccount(account) {

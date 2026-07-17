@@ -33,6 +33,28 @@ function oversizedRequest({ idempotent = true } = {}) {
   });
 }
 
+function chunkedOversizedRequest() {
+  const bytes = new TextEncoder().encode('x'.repeat(MAX_MUTATION_BODY_BYTES + 1));
+  let offset = 0;
+  const body = new ReadableStream({
+    pull(controller) {
+      if (offset >= bytes.length) return controller.close();
+      const end = Math.min(bytes.length, offset + 16 * 1024);
+      controller.enqueue(bytes.subarray(offset, end));
+      offset = end;
+    }
+  });
+  return new Request('https://sideways.test/api/social?op=post', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'idempotency-key': 'chunked-oversized-request'
+    },
+    body,
+    duplex: 'half'
+  });
+}
+
 test('request identity is keyed, deterministic, body-bound, operation-bound, and non-consuming', async () => {
   const first = request('register', { handle: 'ida', password: 'secret one' });
   const second = request('register', { handle: 'ida', password: 'secret one' });
@@ -53,6 +75,13 @@ test('request identity rejects an oversized body even without a content-length h
   );
 });
 
+test('request identity rejects a chunked stream when it crosses the byte limit', async () => {
+  await assert.rejects(
+    mutationRequestDigest(chunkedOversizedRequest(), SECRET),
+    error => error.status === 413
+  );
+});
+
 test('the relational HTTP service converts receipt-bearing pre-handler denial into a 413 response', async () => {
   const service = createRelationalSocialService({ authority: {}, sessionSecret: SECRET });
   const result = await service(oversizedRequest());
@@ -60,14 +89,15 @@ test('the relational HTTP service converts receipt-bearing pre-handler denial in
   assert.deepEqual(await result.json(), { error: 'Request is too large.' });
 });
 
-test('non-idempotent mutations preserve the existing handler path', async () => {
+test('non-idempotent mutations are rejected before the handler when the body is oversized', async () => {
   let reached = false;
   const result = await withSocialMutationContext(oversizedRequest({ idempotent: false }), SECRET, () => {
     reached = true;
     return 'unchanged';
   });
-  assert.equal(reached, true);
-  assert.equal(result, 'unchanged');
+  assert.equal(reached, false);
+  assert.equal(result.status, 413);
+  assert.deepEqual(await result.json(), { error: 'Request is too large.' });
 });
 
 test('mutation identity remains isolated across concurrent async request chains', async () => {
