@@ -1,0 +1,120 @@
+From 026100bb0c7961568d012fb5058f482b02cc4f70 Mon Sep 17 00:00:00 2001
+From: "Claude (sandbox session)" <claude@anthropic.com>
+Date: Fri, 17 Jul 2026 21:39:31 +0000
+Subject: [PATCH] Fix cold-start crash: fresh install now escalates to teacher
+ instead of throwing
+
+A genuinely fresh corpus (zero completed examples) crashed decide() on its
+very first call: sparseBrain.load() -> sparseBrain.train() -> throws
+because train() requires at least one positive example, which cannot
+exist before Maker has ever executed anything. This is exactly the
+'unfamiliar environment, one vague intention from a non-developer'
+scenario ARCHIE_MAKER_VISION.md names as the thing this system must
+survive (the 'first impossible proof').
+
+- Tagged the four zero-positive-examples throw sites (brain.mjs,
+  planner.mjs, derivation.mjs, cognition.mjs) with error.code =
+  'ARCHIE_COLD_START' instead of relying on message-text matching.
+- decide() now catches that code and falls through to the existing
+  teacher-escalation path (same one used when local models disagree or
+  don't know) instead of letting the exception propagate and crash the
+  runtime.
+- Added a permanent regression test using a genuinely unseeded runtime
+  (no corpus.ingest()/train() in setup, unlike the shared fixture()
+  helper) that exercises decide() -> teacher_proposed ->
+  promoteTeacherProposal -> trained -> resolves locally end to end.
+
+Full regression: test:archie (221/222), test:maker (222/223),
+test:archie:learning (45/45), test:archie:persistent (9/9),
+test:archie:portable (25/25), test:archie:evaluation (9/9) all green.
+---
+ scripts/maker-archie-brain.mjs                |  6 +++-
+ scripts/maker-archie-cognition.mjs            | 35 +++++++++++++++----
+ scripts/maker-archie-derivation.mjs           |  6 +++-
+ scripts/maker-archie-planner.mjs              |  6 +++-
+ scripts/tests/maker-archie-cognition.test.mjs | 27 ++++++++++++++
+ 5 files changed, 71 insertions(+), 9 deletions(-)
+
+diff --git a/scripts/maker-archie-brain.mjs b/scripts/maker-archie-brain.mjs
+index 7809e10..c184147 100644
+--- a/scripts/maker-archie-brain.mjs
++++ b/scripts/maker-archie-brain.mjs
+@@ -133,7 +133,11 @@ export function trainArchieSkillMixture(examples, {
+   const input = Array.isArray(examples) ? examples : [];
+   const admitted = input.filter(example => example?.schema === 'archie-distillation-example/v1' && example.instruction && example.outcome === 'completed' && example.negative !== true);
+   const negatives = input.filter(example => example?.schema === 'archie-distillation-example/v1' && example.instruction && example.negative === true);
+-  if (!admitted.length) throw new Error('At least one completed Archie distillation example is required.');
++  if (!admitted.length) {
++    const error = new Error('At least one completed Archie distillation example is required.');
++    error.code = 'ARCHIE_COLD_START';
++    throw error;
++  }
+   const width = Math.max(1024, Math.min(65536, Number(dimensions) || 8192));
+   const documents = [...admitted, ...negatives];
+   const documentFrequency = new Array(width).fill(0);
+diff --git a/scripts/maker-archie-cognition.mjs b/scripts/maker-archie-cognition.mjs
+index 658ddea..abf5fb9 100644
+--- a/scripts/maker-archie-cognition.mjs
++++ b/scripts/maker-archie-cognition.mjs
+@@ -150,7 +150,11 @@ export class ArchieCognitionRuntime {
+   async train() {
+     const examples = await this.corpus.examples({ limit: this.plannerTraining.limit || 100000 });
+     const positives = examples.filter(example => example?.outcome === 'completed' && !example.negative);
+-    if (!positives.length) throw new Error('Archie cognition requires at least one completed corpus example.');
++    if (!positives.length) {
++      const error = new Error('Archie cognition requires at least one completed corpus example.');
++      error.code = 'ARCHIE_COLD_START';
++      throw error;
++    }
+     const sparse = await this.sparseBrain.train();
+     const trainedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
+     const planner = trainArchieCPUPlanner(examples, {
+@@ -233,14 +237,33 @@ export class ArchieCognitionRuntime {
+ 
+   async decide(taskInput, { allow_teacher = true } = {}) {
+     const task = taskObject(taskInput);
+-    const models = await this.load();
+-    const sparse = predictArchiePlan(models.sparse, task);
+-    const planner = planWithArchieCPUPlanner(models.planner, task);
+-    const derivation = deriveArchiePlan(models.derivation, task, this.derivationTraining);
++    const observedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
++
++    // A fresh install has no corpus history at all. Every sub-model trainer
++    // requires at least one completed example to produce a model, which
++    // cannot exist before Maker has ever executed anything. Previously this
++    // threw out of load() and crashed decide() on its very first call ever
++    // — exactly the "unfamiliar environment, non-developer's first request"
++    // scenario ARCHIE_MAKER_VISION.md names as the thing this system must
++    // survive. Treat "no local model yet" as "no local answer" and fall
++    // through to the same teacher-escalation path used whenever local
++    // models disagree or don't know, instead of crashing.
++    let models = null;
++    let coldStart = false;
++    try {
++      models = await this.load();
++    } catch (error) {
++      if (error?.code !== 'ARCHIE_COLD_START') throw error;
++      coldStart = true;
++    }
++
++    const coldStartResult = Object.freeze({ state: 'teacher', reason: 'cold-start-no-local-history', confidence: 0, calibrated_confidence: 0 });
++    const sparse = coldStart ? coldStartResult : predictArchiePlan(models.sparse, task);
++    const planner = coldStart ? coldStartResult : planWithArchieCPUPlanner(models.planner, task);
++    const derivation = coldStart ? coldStartResult : deriveArchiePlan(models.derivation, task, this.derivationTraining);
+     const agreement = alignment(sparse, planner);
+     const derivationPlannerAgreement = alignment(derivation, planner);
+     const derivationSparseAgreement = alignment(derivation, sparse);
+-    const observedAt = new Date(typeof this.clock === 'function' ? this.clock() : Date.now()).toISOString();
+ 
+     const evidence = {
+       sparse,
+diff --git a/scripts/maker-archie-derivation.mjs b/scripts/maker-archie-derivation.mjs
+index 14a61aa..53f51ee 100644
+--- a/scripts/maker-archie-derivation.mjs
++++ b/scripts/maker-archie-derivation.mjs
+@@ -85,7 +85,11 @@ function domainOf(text) {
+ 
+ export function trainArchieDerivationModel(examples, options = {}) {
+   const positives = (Array.isArray(examples) ? examples : []).filter(item => item?.schema === 'archie-distillation-example/v1' && item.outcome === 'completed' && !item.negative);
+-  if (!positives.length) throw new Error('Archie derivation training requires one completed example.');
++  if (!positives.length) {

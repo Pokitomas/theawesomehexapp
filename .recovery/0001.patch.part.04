@@ -1,0 +1,49 @@
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-'));
++  makeOverlaySet(dir, 'gamma-overlay', 100);
++  run(dir, 'pack');
++  const second = run(dir, 'pack');
++  assert.match(second, /skip gamma-overlay: already in vault/);
++});
++
++test('pack refuses a set with a missing part instead of silently corrupting', () => {
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-'));
++  makeOverlaySet(dir, 'delta-overlay', 60);
++  const parts = fs.readdirSync(dir).filter((f) => f.startsWith('delta-overlay.part.'));
++  assert.ok(parts.length >= 3, 'test needs at least 3 parts');
++  fs.rmSync(path.join(dir, parts[1]));
++  const out = runExpectFailure(dir, 'pack');
++  assert.match(out ?? '', /missing part 1/);
++});
++
++test('verify detects payload corruption', () => {
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-'));
++  makeOverlaySet(dir, 'epsilon-overlay', 100);
++  run(dir, 'pack');
++  assert.match(run(dir, 'verify'), /OK\s+epsilon-overlay/);
++
++  const vaultPath = path.join(dir, 'overlays.vault');
++  const buf = fs.readFileSync(vaultPath);
++  buf[buf.length - 5] ^= 0xff; // flip a payload byte
++  fs.writeFileSync(vaultPath, buf);
++  assert.match(runExpectFailure(dir, 'verify'), /FAIL epsilon-overlay/);
++});
++
++test('add appends a directory as a new overlay and restore-loose reproduces legacy parts', () => {
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-'));
++  const appDir = path.join(dir, 'zeta-app');
++  fs.mkdirSync(appDir);
++  fs.writeFileSync(path.join(appDir, 'main.js'), 'export default 1;\n');
++  run(dir, 'add', 'zeta-app', '--name', 'zeta-overlay');
++  assert.match(run(dir, 'list'), /zeta-overlay/);
++
++  run(dir, 'restore-loose', 'zeta-overlay', '--chunk', '80');
++  const parts = fs.readdirSync(dir).filter((f) => f.startsWith('zeta-overlay.part.'));
++  assert.ok(parts.length > 1);
++  const joined = parts.sort().map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('');
++  run(dir, 'extract', 'zeta-overlay');
++  const original = fs.readFileSync(path.join(dir, 'zeta-overlay.tar.xz'));
++  assert.equal(joined, original.toString('base64'));
++});
+-- 
+2.43.0
+

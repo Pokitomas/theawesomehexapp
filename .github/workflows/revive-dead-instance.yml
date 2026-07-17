@@ -1,0 +1,101 @@
+name: Complete dead-instance recovery
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .recovery/**
+      - .github/workflows/revive-dead-instance.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: complete-dead-instance-recovery-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-collapse:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/archie-dead-instance-recovery-exec'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out the PR merge tree
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          fetch-depth: 0
+
+      - name: Verify recovered implementation is already present on current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/overlay-vault.mjs)" = '71a4f2e77bfc848149370b13584532a2a7888a2f'
+          test "$(git hash-object scripts/tests/overlay-vault.test.mjs)" = '99fbaa3f1947cbc3f04030f0918ea41c36ba5915'
+          grep -q 'promoteTeacherProposal' scripts/maker-archie-cognition.mjs
+          grep -q 'teacher_proposed' scripts/maker-archie-cognition.mjs
+          grep -q 'ARCHIE_COLD_START' scripts/maker-archie-brain.mjs
+          grep -q 'ARCHIE_COLD_START' scripts/maker-archie-planner.mjs
+          grep -q 'ARCHIE_COLD_START' scripts/maker-archie-derivation.mjs
+          grep -q 'ARCHIE_COLD_START' scripts/maker-archie-cognition.mjs
+
+      - name: Wire Overlay Vault into the durable portable suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Archie Recovery Bot'
+          git config user.email 'archie-recovery@users.noreply.github.com'
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const testPath = 'scripts/tests/overlay-vault.test.mjs';
+          const current = pkg.scripts['test:archie:portable'];
+          if (!current.includes(testPath)) pkg.scripts['test:archie:portable'] = `${current} ${testPath}`;
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+          git add package.json
+          test "$(git diff --cached --name-only)" = 'package.json'
+          git commit -m 'Run Overlay Vault integrity tests in the portable suite'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install exact dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Run focused Overlay Vault regression
+        shell: bash
+        run: node --test scripts/tests/overlay-vault.test.mjs
+
+      - name: Run full Archie and Maker verification matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:archie
+          npm run test:maker
+          npm run test:archie:learning
+          npm run test:archie:persistent
+          npm run test:archie:portable
+          npm run test:archie:evaluation
+          npm run test:archie:distill
+
+      - name: Delete recovery scaffolding and push the verified one-file integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -r .recovery .github/workflows/revive-dead-instance.yml
+          if git ls-files --error-unmatch RECOVERY_APPLY_FAILURE.md >/dev/null 2>&1; then
+            git rm RECOVERY_APPLY_FAILURE.md
+          fi
+          git commit -m 'Remove completed dead-instance recovery scaffolding'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
