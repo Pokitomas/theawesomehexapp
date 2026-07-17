@@ -65,7 +65,7 @@ test('trains a local mixture of tiny skill specialists and escalates genuinely u
   assert.equal(unknown.plan, null);
 });
 
-test('uses an expensive teacher once, stores the lesson, retrains, and handles the repeated task locally', async t => {
+test('stores teacher proposals as pending and excludes them from positive local learning', async t => {
   const root = await tempRoot(t);
   const corpus = createArchieLinuxCorpus({ root: path.join(root, 'corpus'), clock: () => '2026-07-16T03:01:00.000Z' });
   await corpus.ingest({
@@ -96,7 +96,8 @@ test('uses an expensive teacher once, stores the lesson, retrains, and handles t
           { tool: 'irrigation', action: 'schedule', ok: true }
         ],
         outcome: 'completed',
-        text: `learned ${task.instruction}`
+        text: `proposed ${task.instruction}`,
+        receipt: { receipt_digest: `receipt-${teacherCalls}` }
       };
     }
   });
@@ -106,13 +107,15 @@ test('uses an expensive teacher once, stores the lesson, retrains, and handles t
   assert.equal(first.state, 'teacher');
   assert.equal(teacherCalls, 1);
   assert.equal(first.corpus_record.status, 'stored');
-  assert.equal(first.learned_plan.state, 'local');
+  assert.equal(first.learned_plan, null);
 
   const second = await brain.plan(task);
-  assert.equal(second.state, 'local');
-  assert.equal(teacherCalls, 1);
-  assert.deepEqual(second.plan, first.plan);
-  assert.equal((await corpus.examples()).length, 2);
+  assert.equal(second.state, 'teacher');
+  assert.equal(teacherCalls, 2);
+  assert.equal((await corpus.examples()).length, 1);
+  const pending = await corpus.findBySourceRunId('teacher-1', { kind: 'archie_teacher_plan' });
+  assert.equal(pending.outcome, 'proposed');
+  assert.ok(pending.tags.includes('exclude-positive-distillation'));
 });
 
 test('refuses a tampered locally trained model', async t => {
