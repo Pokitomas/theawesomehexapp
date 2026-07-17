@@ -22,15 +22,18 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Check out exact branch
-        uses: actions/checkout@v4
-        with:
-          ref: revive/dead-instance-completion-20260717
-          fetch-depth: 1
-          show-progress: false
+      - name: Quietly clone exact branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 --branch revive/dead-instance-completion-20260717 \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
 
       - name: Repair transport hunk counts and apply exact receipt hardening
         shell: bash
+        working-directory: repo
         run: |
           set -euo pipefail
           git config user.name 'Archie Recovery Bot'
@@ -48,15 +51,19 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+          cache-dependency-path: repo/package-lock.json
 
       - name: Install exact dependencies
+        working-directory: repo
         run: npm ci
 
       - name: Run focused cognition regressions
+        working-directory: repo
         run: node --test scripts/tests/maker-archie-cognition.test.mjs
 
       - name: Run complete Archie and Maker matrix
         shell: bash
+        working-directory: repo
         run: |
           set -euo pipefail
           npm run test:archie
@@ -68,6 +75,7 @@ jobs:
 
       - name: Remove temporary hardening machinery and push tested tree
         shell: bash
+        working-directory: repo
         run: |
           set -euo pipefail
           git rm .recovery/harden-cognition-maker-receipt.patch
