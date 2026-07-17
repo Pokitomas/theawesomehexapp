@@ -376,7 +376,7 @@ export function createPluginRegistry({
         Promise.resolve(runner(record.manifest, capability, redactPluginSecrets(input), { configuration: record.configuration, signal: options.signal })),
         new Promise((_, reject) => {
           timer = setTimeout(() => reject(new MakerPluginError('plugin_timeout', 'plugin invocation timed out', 504)), finite(options.timeout_ms, timeout_ms, 1, 30 * 60 * 1000));
-          timer.unref?.();
+          
         })
       ]);
       state.failures = 0;
