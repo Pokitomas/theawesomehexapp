@@ -127,7 +127,15 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
   const { paths, corpus, brain } = createNativeBrain({ repoRoot, env, home, clock, training });
   try {
     const repositoryEvidence = isOpenAIArchieTeacherConfigured(env)
-      ? await collectRepositoryEvidence({ repoRoot, baseSha, maxPaths: Number(env.ARCHIE_REPOSITORY_EVIDENCE_MAX_PATHS || 12000) })
+      ? await collectRepositoryEvidence({
+          repoRoot,
+          baseSha,
+          request: instruction,
+          maxPaths: Number(env.ARCHIE_REPOSITORY_EVIDENCE_MAX_PATHS || 12000),
+          maxSourceFiles: Number(env.ARCHIE_REPOSITORY_EVIDENCE_MAX_SOURCE_FILES || 64),
+          maxFileBytes: Number(env.ARCHIE_REPOSITORY_EVIDENCE_MAX_FILE_BYTES || 24576),
+          maxSourceBytes: Number(env.ARCHIE_REPOSITORY_EVIDENCE_MAX_SOURCE_BYTES || 393216)
+        })
       : null;
     const result = await brain.plan({
       subject: repoKey(repoRoot),
