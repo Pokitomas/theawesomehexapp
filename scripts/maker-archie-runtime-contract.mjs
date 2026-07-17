@@ -4,7 +4,19 @@ import path from 'node:path';
 import { MAKER_LANES, normalizeLeasePaths, slugify } from './maker-core.mjs';
 
 export const ARCHIE_MAKER_DECISION_SCHEMA = 'sideways-archie-maker-decision/v1';
+export const ARCHIE_MAKER_ROUTING_DECISION_SCHEMA = 'sideways-archie-maker-routing-decision/v1';
+export const ARCHIE_MAKER_LAUNCHER_RECEIPT_SCHEMA = 'sideways-archie-maker-launcher-receipt/v1';
+export const ARCHIE_MAKER_ROUTING_STATES = Object.freeze([
+  'local_recurrence',
+  'derived_candidate',
+  'teacher_required',
+  'rejected',
+  'miss',
+  'failed'
+]);
+
 const ALLOWED_LANES = new Set(MAKER_LANES.map(value => value.id));
+const ROUTING_STATES = new Set(ARCHIE_MAKER_ROUTING_STATES);
 const clean = (value, limit = 12000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
 function canonical(value) {
@@ -67,6 +79,152 @@ export function normalizeMakerExecutionPlan(value) {
 
 function repositoryDigest(repository) {
   return archieMakerValueDigest(path.resolve(clean(repository, 4000)));
+}
+
+function normalizeDerivedCandidate(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const plan = normalizeMakerExecutionPlan(value.plan);
+  const proof = value.proof && typeof value.proof === 'object' && !Array.isArray(value.proof) ? canonical(value.proof) : null;
+  const proofDigest = clean(value.proof_digest, 200);
+  if (!plan || !proof || proofDigest !== archieMakerValueDigest(proof)) return null;
+  return Object.freeze({
+    candidate_id: clean(value.candidate_id, 300) || archieMakerValueDigest({ plan, proof }).slice(0, 24),
+    source: clean(value.source, 300) || 'archie-derived-candidate',
+    plan,
+    plan_digest: archieMakerValueDigest(plan),
+    proof,
+    proof_digest: proofDigest
+  });
+}
+
+export function createArchieMakerRoutingDecision({
+  request,
+  repository,
+  baseBranch = 'main',
+  baseSha,
+  recall,
+  clock = Date.now
+} = {}) {
+  const instruction = clean(request);
+  const exactBaseSha = clean(baseSha, 200);
+  if (!instruction) throw new Error('Archie Maker routing decision requires a request.');
+  if (!repository) throw new Error('Archie Maker routing decision requires a repository.');
+  if (!exactBaseSha) throw new Error('Archie Maker routing decision requires an exact base SHA.');
+
+  const status = clean(recall?.status, 120).toLowerCase();
+  let state = 'failed';
+  let source = clean(recall?.source, 300) || 'native-maker-recall';
+  let executable = false;
+  let reason = clean(recall?.reason, 4000);
+  let recurrence = null;
+  let candidate = null;
+
+  if (status === 'local') {
+    const plan = normalizeMakerExecutionPlan(recall?.plan);
+    const exactRecurrence = Boolean(
+      plan
+      && recall?.execution_eligible === true
+      && recall?.execution_basis?.kind === 'normalized-exact-verified-recurrence'
+      && clean(recall?.execution_basis?.example_id, 300)
+      && clean(recall?.execution_basis?.base_sha, 200) === exactBaseSha
+    );
+    if (exactRecurrence) {
+      state = 'local_recurrence';
+      executable = true;
+      reason = reason || 'normalized exact verified recurrence matched the current base SHA';
+      recurrence = Object.freeze({
+        specialist_id: clean(recall?.specialist_id, 300) || null,
+        example_id: clean(recall.execution_basis.example_id, 300),
+        plan_digest: archieMakerValueDigest(plan),
+        basis_digest: archieMakerValueDigest(recall.execution_basis)
+      });
+    } else {
+      state = 'miss';
+      reason = reason || 'local recall is advisory and lacks current-base exact recurrence authority';
+    }
+  } else if (status === 'derived_candidate') {
+    candidate = normalizeDerivedCandidate(recall?.candidate || recall);
+    if (candidate) {
+      state = 'derived_candidate';
+      source = candidate.source;
+      reason = reason || 'proof-carrying candidate is inspectable but cannot execute before adapter and evidence admission';
+    } else {
+      state = 'failed';
+      reason = 'derived candidate failed plan or proof integrity normalization';
+    }
+  } else if (status === 'teacher_required') {
+    state = 'teacher_required';
+    reason = reason || 'local capability is insufficient and a teacher is required';
+  } else if (status === 'rejected') {
+    state = 'rejected';
+    reason = reason || 'the candidate or request was explicitly rejected';
+  } else if (status === 'miss' || !status) {
+    state = 'miss';
+    reason = reason || 'no admitted local decision was available';
+  } else if (status === 'failed') {
+    state = 'failed';
+    reason = reason || 'Archie decision production failed closed';
+  } else {
+    state = 'failed';
+    reason = `unsupported Archie routing status: ${status}`;
+  }
+
+  if (!ROUTING_STATES.has(state)) throw new Error(`Unsupported Archie Maker routing state: ${state}`);
+  const body = {
+    schema: ARCHIE_MAKER_ROUTING_DECISION_SCHEMA,
+    decided_at: clockDate(clock).toISOString(),
+    request_digest: archieMakerValueDigest(instruction),
+    repository_digest: repositoryDigest(repository),
+    base_branch: clean(baseBranch, 200),
+    base_sha: exactBaseSha,
+    state,
+    source,
+    executable,
+    reason,
+    recurrence,
+    candidate
+  };
+  return Object.freeze({ ...body, decision_digest: archieMakerValueDigest(body) });
+}
+
+export function createArchieMakerLauncherReceipt({
+  request,
+  repository,
+  baseBranch = 'main',
+  baseSha,
+  decision = null,
+  executionAuthority = null,
+  bypassed = false,
+  clock = Date.now
+} = {}) {
+  const instruction = clean(request);
+  const exactBaseSha = clean(baseSha, 200);
+  if (!instruction) throw new Error('Archie Maker launcher receipt requires a request.');
+  if (!repository) throw new Error('Archie Maker launcher receipt requires a repository.');
+  if (!exactBaseSha) throw new Error('Archie Maker launcher receipt requires an exact base SHA.');
+  if (bypassed && decision) throw new Error('Disabled Archie bypass cannot include a routing decision.');
+  if (!bypassed && (!decision || decision.schema !== ARCHIE_MAKER_ROUTING_DECISION_SCHEMA)) {
+    throw new Error('Archie Maker launcher receipt requires one routing decision unless bypassed.');
+  }
+  if (decision?.executable === true && !executionAuthority) throw new Error('Executable local recurrence requires exact recurrence execution authority.');
+  if (decision?.executable !== true && executionAuthority) throw new Error('Non-executable Archie state cannot carry execution authority.');
+
+  const body = {
+    schema: ARCHIE_MAKER_LAUNCHER_RECEIPT_SCHEMA,
+    emitted_at: clockDate(clock).toISOString(),
+    request_digest: archieMakerValueDigest(instruction),
+    repository_digest: repositoryDigest(repository),
+    base_branch: clean(baseBranch, 200),
+    base_sha: exactBaseSha,
+    bypassed: Boolean(bypassed),
+    selected_state: decision?.state ?? null,
+    source: decision?.source ?? 'archie-disabled',
+    executable: decision?.executable === true,
+    reason: decision?.reason ?? 'ARCHIE_DISABLED bypassed decision production; ordinary Maker compatibility path selected',
+    decision_digest: decision?.decision_digest ?? null,
+    exact_recurrence_decision_digest: executionAuthority ? archieMakerValueDigest(executionAuthority) : null
+  };
+  return Object.freeze({ ...body, receipt_digest: archieMakerValueDigest(body) });
 }
 
 export function createArchieMakerDecision({
