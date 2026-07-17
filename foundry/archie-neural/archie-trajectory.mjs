@@ -21,6 +21,7 @@ export const TRAJECTORY_EVENT_TYPES = Object.freeze([
 ]);
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const GIT_OID_PATTERN = /^[a-f0-9]{40,64}$/;
 const clean = (value, limit = 200000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
 function canonical(value) {
@@ -41,6 +42,13 @@ function sha256(value, field, { required = true } = {}) {
   const normalized = clean(value, 128).toLowerCase();
   if (!normalized && !required) return null;
   if (!SHA256_PATTERN.test(normalized)) throw new Error(`${field} must be a SHA-256 hex digest.`);
+  return normalized;
+}
+
+function gitOid(value, field, { required = true } = {}) {
+  const normalized = clean(value, 128).toLowerCase();
+  if (!normalized && !required) return null;
+  if (!GIT_OID_PATTERN.test(normalized)) throw new Error(`${field} must be a 40- or 64-character Git object ID.`);
   return normalized;
 }
 
@@ -109,9 +117,9 @@ function normalizeProvenance(value) {
   return Object.freeze({
     repository,
     branch: clean(item.branch, 500) || null,
-    base_sha: sha256(item.base_sha, 'provenance.base_sha'),
-    head_sha: sha256(item.head_sha, 'provenance.head_sha', { required: false }),
-    code_commit: sha256(item.code_commit || item.head_sha, 'provenance.code_commit', { required: false }),
+    base_sha: gitOid(item.base_sha, 'provenance.base_sha'),
+    head_sha: gitOid(item.head_sha, 'provenance.head_sha', { required: false }),
+    code_commit: gitOid(item.code_commit || item.head_sha, 'provenance.code_commit', { required: false }),
     request_digest: requestDigest,
     plan_digest: sha256(item.plan_digest, 'provenance.plan_digest', { required: false }),
     patch_digest: sha256(item.patch_digest, 'provenance.patch_digest', { required: false }),
