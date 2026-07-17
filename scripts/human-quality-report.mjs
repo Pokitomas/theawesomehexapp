@@ -34,10 +34,27 @@ function inspect(root, id, files, kind = 'repository') {
 export function inspectHumanQuality({ root = defaultRoot, observedAt = new Date().toISOString() } = {}) {
   const repositoryFacts = [
     inspect(root, 'founder_semantic_controls', {
-      'founder/index.html': ['<html lang="en">', 'name="viewport"', '<main class="shell">', 'aria-label="Product directions"', 'role="group"', '<label class="note-label" for="founder-note">', 'role="status" aria-live="polite"']
+      'founder/index.html': [
+        '<html lang="en">',
+        'name="viewport"',
+        '<main class="shell">',
+        'aria-label="System routes"',
+        '<label for="founder-intention">',
+        'aria-labelledby="probability-title"',
+        'id="branch-field"',
+        'id="push-turn"',
+        'role="status" aria-live="polite"'
+      ]
     }),
     inspect(root, 'founder_keyboard_and_touch_baseline', {
-      'founder/founder.css': ['button:focus-visible', 'textarea:focus-visible', 'outline: 4px solid var(--blue)', 'min-height: 48px', '@media (max-width: 980px)', '@media (max-width: 520px)']
+      'founder/founder.css': [
+        'button:focus-visible',
+        'textarea:focus-visible',
+        'outline: 4px solid var(--blue)',
+        'min-height: 54px',
+        '@media (max-width: 980px)',
+        '@media (max-width: 560px)'
+      ]
     }),
     inspect(root, 'maker_semantic_controls', {
       'maker/index.html': ['<html lang="en">', 'name="viewport"', '<main class="shell">', 'role="group"', 'aria-label="Command mode"', '<label for="maker-request">', '<label for="maker-protect">', '<label for="maker-proof">']
