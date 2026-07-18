@@ -1,5 +1,5 @@
 {
-  "version": 15,
+  "version": 16,
   "suites": [
     { "id": "git-diff-check", "command": ["git", "diff", "--check"] },
     { "id": "native-changed-check", "command": ["node", "scripts/native-changed-check.mjs"] },
@@ -10,7 +10,8 @@
     { "id": "recursive-weave", "command": ["npm", "run", "test:recursive-weave"] },
     { "id": "native-maker", "command": ["npm", "run", "test:native-maker"] },
     { "id": "maker-orchestrator", "command": ["npm", "run", "test:maker"] },
-    { "id": "iphone-and-intelligence-admission", "command": ["node", "--test", "scripts/tests/maker-archie-device-evidence.test.mjs", "scripts/tests/archie-iphone-quantization-research.test.mjs", "scripts/tests/archie-intelligence-campaign.test.mjs"] },
+    { "id": "iphone-and-intelligence-admission", "command": ["node", "--test", "scripts/tests/maker-archie-device-evidence.test.mjs", "scripts/tests/archie-iphone-quantization-research.test.mjs", "scripts/tests/archie-intelligence-campaign.test.mjs", "scripts/tests/archie-candidate-completion.test.mjs"] },
+    { "id": "canonical-candidate-completion", "command": ["npm", "run", "test:archie:completion"] },
     { "id": "architecture-quantization-campaign", "command": ["npm", "run", "test:archie:architecture"] },
     { "id": "discovery-connected-import", "command": ["npm", "run", "test:ingestion"] },
     { "id": "social-memory", "command": ["npm", "run", "test:social"] },
