@@ -6,11 +6,13 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { HybridQueue, HybridQueueError } from './archie-hybrid-queue.mjs';
+import { tokenSha256 } from './archie-hosted-security.mjs';
 import { importWorkspaceBundle, verifyWorkspaceBundle } from './archie-workspace-portable.mjs';
 import { startHostedArchied } from './archied-hosted.mjs';
 
 export const ARCHIE_HYBRID_HOSTED_SCHEMA = 'archie-hybrid-hosted-runtime/v1';
 const MAX_JSON_BODY = 12 * 1024 * 1024;
+const HASH_PATTERN = /^[a-f0-9]{64}$/;
 
 function integer(value, label, { min = 0, max = 65_535 } = {}) {
   const parsed = Number(value);
@@ -22,6 +24,12 @@ function secureEqual(left, right) {
   const a = crypto.createHash('sha256').update(String(left ?? '')).digest();
   const b = crypto.createHash('sha256').update(String(right ?? '')).digest();
   return crypto.timingSafeEqual(a, b);
+}
+
+function requiredHash(value, label) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!HASH_PATTERN.test(normalized)) throw new Error(`${label} must be a lowercase SHA-256 digest.`);
+  return normalized;
 }
 
 function bearer(request) {
@@ -60,17 +68,14 @@ async function readJson(request, limit = MAX_JSON_BODY) {
     chunks.push(chunk);
   }
   if (!chunks.length) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    throw Object.assign(new Error('Request body must be valid JSON.'), { status: 400, code: 'invalid_json' });
-  }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  catch { throw Object.assign(new Error('Request body must be valid JSON.'), { status: 400, code: 'invalid_json' }); }
 }
 
 function cleanProxyHeaders(headers) {
   const result = { ...headers };
   for (const name of [
-    'authorization', 'host', 'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+    'host', 'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
     'te', 'trailer', 'transfer-encoding', 'upgrade', 'forwarded', 'x-forwarded-for', 'x-forwarded-host',
     'x-forwarded-port', 'x-forwarded-proto', 'x-archie-principal'
   ]) delete result[name];
@@ -90,21 +95,39 @@ function routeParts(pathname) {
   return pathname.split('/').filter(Boolean).map(value => decodeURIComponent(value));
 }
 
-export function resolveHybridHostedConfig({ env = process.env, home = null, founderToken = null, runnerToken = null, host = null, port = null, publicOrigin = null } = {}) {
-  const selectedFounder = String(founderToken || env.ARCHIED_FOUNDER_TOKEN || '');
+export function resolveHybridHostedConfig({
+  env = process.env,
+  home = null,
+  founderTokenSha256 = null,
+  developerTokenSha256 = null,
+  sessionKey = null,
+  secretKey = null,
+  runnerToken = null,
+  host = null,
+  port = null,
+  publicUrl = null,
+  allowInsecure = null
+} = {}) {
+  const founderHash = requiredHash(founderTokenSha256 || env.ARCHIED_FOUNDER_TOKEN_SHA256, 'ARCHIED_FOUNDER_TOKEN_SHA256');
+  const developerHash = requiredHash(developerTokenSha256 || env.ARCHIED_DEVELOPER_TOKEN_SHA256, 'ARCHIED_DEVELOPER_TOKEN_SHA256');
   const selectedRunner = String(runnerToken || env.ARCHIED_RUNNER_TOKEN || '');
-  if (selectedFounder.length < 24) throw new Error('ARCHIED_FOUNDER_TOKEN must contain at least 24 characters.');
   if (selectedRunner.length < 24) throw new Error('ARCHIED_RUNNER_TOKEN must contain at least 24 characters.');
-  if (secureEqual(selectedFounder, selectedRunner)) throw new Error('Founder and runner tokens must be distinct.');
+  const runnerHash = tokenSha256(selectedRunner);
+  if (secureEqual(founderHash, developerHash) || secureEqual(runnerHash, founderHash) || secureEqual(runnerHash, developerHash)) {
+    throw new Error('Founder, developer, and runner authorities must be distinct.');
+  }
   return Object.freeze({
     schema: ARCHIE_HYBRID_HOSTED_SCHEMA,
     home: path.resolve(home || env.ARCHIE_HOME || path.join(os.homedir(), '.archie')),
-    founder_token: selectedFounder,
+    founder_token_sha256: founderHash,
+    developer_token_sha256: developerHash,
+    session_key: sessionKey || env.ARCHIED_SESSION_KEY,
+    secret_key: secretKey || env.ARCHIED_SECRET_KEY,
     runner_token: selectedRunner,
     host: host || env.ARCHIED_HOST || '0.0.0.0',
     port: integer(port ?? env.ARCHIED_PORT ?? '8787', 'ARCHIED_PORT'),
-    public_origin: String(publicOrigin || env.ARCHIED_PUBLIC_ORIGIN || '').trim().replace(/\/$/, '') || null,
-    cookie_secure: env.ARCHIED_COOKIE_SECURE
+    public_url: String(publicUrl || env.ARCHIED_PUBLIC_URL || '').trim() || null,
+    allow_insecure: allowInsecure === true || env.ARCHIED_ALLOW_INSECURE_HOSTED === '1'
   });
 }
 
@@ -118,14 +141,20 @@ export async function startHybridHostedArchied(options = {}) {
   });
   const address = server.address();
   const actualPort = typeof address === 'object' && address?.port ? address.port : config.port;
-  const publicOrigin = config.public_origin || `http://127.0.0.1:${actualPort}`;
+  const publicUrl = config.public_url || `http://127.0.0.1:${actualPort}/`;
+  const normalizedPublicUrl = new URL(publicUrl).href;
+  const publicOrigin = new URL(normalizedPublicUrl).origin;
   const hosted = await startHostedArchied({
     home: config.home,
-    token: config.founder_token,
+    founderTokenSha256: config.founder_token_sha256,
+    developerTokenSha256: config.developer_token_sha256,
+    sessionKey: config.session_key,
+    secretKey: config.secret_key,
     host: '127.0.0.1',
     port: 0,
-    publicOrigin,
-    env: { ARCHIED_COOKIE_SECURE: config.cookie_secure ?? (publicOrigin.startsWith('https://') ? 'true' : 'false') }
+    publicUrl: normalizedPublicUrl,
+    allowInsecure: config.allow_insecure || new URL(normalizedPublicUrl).protocol === 'http:',
+    env: {}
   });
 
   const descriptor = Object.freeze({
@@ -142,8 +171,7 @@ export async function startHybridHostedArchied(options = {}) {
       lease_fencing: true,
       expiring_heartbeats: true,
       portable_workspace_return: true,
-      hosted_import_digest_verified: true,
-      admission_serialized_with_terminal_commit: true
+      hosted_import_digest_verified: true
     },
     canonical_workspace_state: hosted.descriptor.canonical_state,
     source_host_required: false,
@@ -153,8 +181,10 @@ export async function startHybridHostedArchied(options = {}) {
 
   function requireRole(request, role) {
     const token = bearer(request);
-    const expected = role === 'runner' ? config.runner_token : config.founder_token;
-    if (!token || !secureEqual(token, expected)) {
+    const accepted = role === 'runner'
+      ? token && secureEqual(token, config.runner_token)
+      : hosted.authenticateToken(token)?.role === 'founder';
+    if (!accepted) {
       throw Object.assign(new Error(`${role === 'runner' ? 'Runner' : 'Founder'} bearer authentication is required.`), { status: 401, code: 'authentication_required' });
     }
   }
@@ -178,41 +208,10 @@ export async function startHybridHostedArchied(options = {}) {
     return Object.freeze({ workspace_id: imported.workspace_id, bundle_digest: imported.bundle_digest, imported: true, already_present: false });
   }
 
-  async function admitAndComplete(jobId, lease, resultEnvelope) {
-    return queue.mutate(async () => {
-      queue.assertLease(jobId, lease);
-      const importReceipt = await importResultBundle(resultEnvelope);
-      const bundle = verifyWorkspaceBundle(resultEnvelope?.bundle);
-      const normalized = {
-        schema: 'archie-hybrid-result/v1',
-        workspace_id: bundle.workspace_id,
-        bundle_digest: bundle.bundle_digest,
-        head_digest: bundle.head_digest,
-        event_count: bundle.event_count,
-        artifact_count: bundle.artifacts.length,
-        completed_by_runner: String(lease.runner_id || '').trim().slice(0, 160),
-        claim_boundary: String(resultEnvelope?.claim_boundary || 'The hybrid runner completed a bounded local Archie journey and returned an integrity-checked portable workspace. No model, device, deployment, or customer-value claim is implied.').replace(/\u0000/g, '').trim().slice(0, 2_000)
-      };
-      await queue.append('job.completed', {
-        job_id: jobId,
-        lease_id: lease.lease_id,
-        runner_id: lease.runner_id,
-        fencing_token: lease.fencing_token,
-        result: normalized
-      });
-      return Object.freeze({
-        job: structuredClone(queue.state.jobs[jobId]),
-        import: importReceipt
-      });
-    });
-  }
-
   function proxy(request, response) {
     const target = new URL(request.url || '/', hosted.url);
     const headers = cleanProxyHeaders(request.headers);
     headers.host = target.host;
-    headers['x-forwarded-proto'] = new URL(publicOrigin).protocol.slice(0, -1);
-    headers['x-forwarded-host'] = new URL(publicOrigin).host;
     const upstream = http.request(target, { method: request.method, headers }, upstreamResponse => {
       response.writeHead(upstreamResponse.statusCode || 502, {
         ...copyResponseHeaders(upstreamResponse.headers),
@@ -240,33 +239,28 @@ export async function startHybridHostedArchied(options = {}) {
         jsonResponse(response, 200, descriptor);
         return;
       }
-
       if (method === 'GET' && pathname === '/v1/hybrid/status') {
         requireRole(request, 'founder');
         jsonResponse(response, 200, { schema: 'archie-hybrid-status/v1', service: descriptor, queue: await queue.snapshot() });
         return;
       }
-
       if (method === 'POST' && pathname === '/v1/hybrid/jobs') {
         requireRole(request, 'founder');
         const job = await queue.submit(await readJson(request, 32 * 1024));
         jsonResponse(response, 201, { schema: 'archie-hybrid-job-submission/v1', job });
         return;
       }
-
       if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'jobs' && parts[3] && parts.length === 4 && method === 'GET') {
         requireRole(request, 'founder');
         jsonResponse(response, 200, { schema: 'archie-hybrid-job-status/v1', job: await queue.inspect(parts[3]) });
         return;
       }
-
       if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'jobs' && parts[3] && parts[4] === 'cancel' && parts.length === 5 && method === 'POST') {
         requireRole(request, 'founder');
         const body = await readJson(request, 16 * 1024);
         jsonResponse(response, 200, { schema: 'archie-hybrid-job-status/v1', job: await queue.cancel(parts[3], body.reason) });
         return;
       }
-
       if (method === 'POST' && pathname === '/v1/hybrid/lease') {
         requireRole(request, 'runner');
         const job = await queue.lease(await readJson(request, 32 * 1024));
@@ -277,31 +271,28 @@ export async function startHybridHostedArchied(options = {}) {
         jsonResponse(response, 200, { schema: 'archie-hybrid-lease/v1', job });
         return;
       }
-
       if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'jobs' && parts[3] && parts[4] === 'heartbeat' && parts.length === 5 && method === 'POST') {
         requireRole(request, 'runner');
         const body = await readJson(request, 32 * 1024);
-        const job = await queue.heartbeat(parts[3], body, body.ttl_ms);
-        jsonResponse(response, 200, { schema: 'archie-hybrid-lease/v1', job });
+        jsonResponse(response, 200, { schema: 'archie-hybrid-lease/v1', job: await queue.heartbeat(parts[3], body, body.ttl_ms) });
         return;
       }
-
       if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'jobs' && parts[3] && parts[4] === 'fail' && parts.length === 5 && method === 'POST') {
         requireRole(request, 'runner');
         const body = await readJson(request, 64 * 1024);
-        const job = await queue.fail(parts[3], body, body.failure);
-        jsonResponse(response, 200, { schema: 'archie-hybrid-job-status/v1', job });
+        jsonResponse(response, 200, { schema: 'archie-hybrid-job-status/v1', job: await queue.fail(parts[3], body, body.failure) });
         return;
       }
-
       if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'jobs' && parts[3] && parts[4] === 'complete' && parts.length === 5 && method === 'POST') {
         requireRole(request, 'runner');
         const body = await readJson(request);
-        const completed = await admitAndComplete(parts[3], body, body.result);
-        jsonResponse(response, 200, { schema: 'archie-hybrid-completion/v1', ...completed });
+        queue.assertLease(parts[3], body);
+        const importReceipt = await importResultBundle(body.result);
+        const { bundle: _bundle, ...result } = body.result || {};
+        const job = await queue.complete(parts[3], body, result);
+        jsonResponse(response, 200, { schema: 'archie-hybrid-completion/v1', job, import: importReceipt });
         return;
       }
-
       proxy(request, response);
     } catch (error) {
       if (response.headersSent) {
