@@ -169,9 +169,17 @@ actor ModelLifecycleManager {
             signingPublicKey: signingPublicKey
         )
         try verifyArtifact(at: source, manifest: manifest)
-        try preflight(requiredBytes: manifest.artifactBytes * 2)
+        let (requiredBytes, overflow) = manifest.artifactBytes.multipliedReportingOverflow(by: 2)
+        guard !overflow else { throw RuntimeFailure.invalidManifest("artifact size overflow") }
+        try preflight(requiredBytes: requiredBytes)
 
         let destination = revisionDirectory(manifest.revisionSHA256)
+        if fileManager.fileExists(atPath: destination.path),
+           let installed = try? verifiedPackage(at: destination),
+           installed.manifest == manifest {
+            return try activate(manifest.revisionSHA256, operation: "activate-existing", source: sourceDescription)
+        }
+
         let staging = versions.appendingPathComponent("staging-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: staging) }
@@ -213,7 +221,9 @@ actor ModelLifecycleManager {
             throw ModelLifecycleFailure.partialArtifactTooLarge
         }
         let remaining = manifest.artifactBytes - partialBytes
-        try preflight(requiredBytes: remaining + manifest.artifactBytes)
+        let (requiredBytes, overflow) = remaining.addingReportingOverflow(manifest.artifactBytes)
+        guard !overflow else { throw RuntimeFailure.invalidManifest("download size overflow") }
+        try preflight(requiredBytes: requiredBytes)
 
         if remaining > 0 {
             var request = URLRequest(url: remoteURL)
@@ -236,7 +246,7 @@ actor ModelLifecycleManager {
                 if fileManager.fileExists(atPath: partial.path) {
                     try fileManager.removeItem(at: partial)
                 }
-                try fileManager.moveItem(at: temporary, to: partial)
+                try fileManager.copyItem(at: temporary, to: partial)
             } else {
                 throw ModelLifecycleFailure.invalidHTTPStatus(http.statusCode)
             }
@@ -272,7 +282,8 @@ actor ModelLifecycleManager {
                 operation: "verify-active",
                 manifest: package.manifest,
                 previous: try readPointer(previousPointer)?.revisionSHA256,
-                source: "active-pointer"
+                source: "active-pointer",
+                manifestData: package.manifestData
             )
         }
 
@@ -280,7 +291,7 @@ actor ModelLifecycleManager {
         if let previous = try readPointer(previousPointer)?.revisionSHA256 {
             candidates.append(previous)
         }
-        candidates.append(contentsOf: try installedRevisions().reversed())
+        candidates.append(contentsOf: (try installedRevisions()).reversed())
         for candidate in candidates where (try? verifiedPackage(at: revisionDirectory(candidate))) != nil {
             return try activate(candidate, operation: "recover", source: "verified-fallback")
         }
@@ -294,23 +305,29 @@ actor ModelLifecycleManager {
             throw ModelLifecycleFailure.revisionNotInstalled(revisionSHA256)
         }
         let package = try verifiedPackage(at: directory)
-        let wasActive = try readPointer(activePointer)?.revisionSHA256 == revisionSHA256
-        let wasPrevious = try readPointer(previousPointer)?.revisionSHA256 == revisionSHA256
-        try fileManager.removeItem(at: directory)
-        if wasPrevious { try? fileManager.removeItem(at: previousPointer) }
-        if wasActive {
-            try? fileManager.removeItem(at: activePointer)
-            if let previous = try readPointer(previousPointer)?.revisionSHA256,
-               fileManager.fileExists(atPath: revisionDirectory(previous).path) {
-                return try activate(previous, operation: "remove-and-fallback", source: "previous-pointer")
-            }
-        }
-        return try receipt(
+        let activeRevision = try readPointer(activePointer)?.revisionSHA256
+        let previousRevision = try readPointer(previousPointer)?.revisionSHA256
+        let removalReceipt = try receipt(
             operation: "remove",
             manifest: package.manifest,
-            previous: try readPointer(previousPointer)?.revisionSHA256,
-            source: "installed-revision"
+            previous: previousRevision,
+            source: "installed-revision",
+            manifestData: package.manifestData
         )
+
+        try fileManager.removeItem(at: directory)
+        if previousRevision == revisionSHA256 {
+            try? fileManager.removeItem(at: previousPointer)
+        }
+        if activeRevision == revisionSHA256 {
+            try? fileManager.removeItem(at: activePointer)
+            if let previousRevision,
+               previousRevision != revisionSHA256,
+               fileManager.fileExists(atPath: revisionDirectory(previousRevision).path) {
+                _ = try activate(previousRevision, operation: "remove-and-fallback", source: "previous-pointer")
+            }
+        }
+        return removalReceipt
     }
 
     func activeRevision() throws -> String? {
@@ -395,7 +412,8 @@ actor ModelLifecycleManager {
             operation: operation,
             manifest: package.manifest,
             previous: current,
-            source: source
+            source: source,
+            manifestData: package.manifestData
         )
     }
 
@@ -480,10 +498,12 @@ actor ModelLifecycleManager {
         operation: String,
         manifest: ModelManifest,
         previous: String?,
-        source: String
+        source: String,
+        manifestData suppliedManifestData: Data? = nil
     ) throws -> ModelLifecycleReceipt {
-        let package = revisionDirectory(manifest.revisionSHA256)
-        let manifestData = try Data(contentsOf: package.appendingPathComponent("manifest.json"))
+        let manifestData = try suppliedManifestData ?? Data(
+            contentsOf: revisionDirectory(manifest.revisionSHA256).appendingPathComponent("manifest.json")
+        )
         let occurredAt = ISO8601DateFormatter().string(from: clock())
         let body = ReceiptBody(
             schema: "archie-phone-model-lifecycle-receipt/v1",
