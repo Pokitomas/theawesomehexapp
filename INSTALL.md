@@ -70,6 +70,19 @@ To remove it:
 npm uninstall --global sideways
 ```
 
+### Linux CPU-only Archie Lite
+
+For an ordinary Linux computer without a CUDA GPU, install the pinned CPU-only llama.cpp runner and Archie:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/scripts/install-archie-lite-linux.sh | bash
+archie lite doctor
+archie lite inspect --model ~/Models/model.gguf
+archie lite run --model ~/Models/model.gguf --prompt "Plan my next task"
+```
+
+Archie Lite does not download a model automatically. Choose a small quantized GGUF whose license you accept. It reads bounded model metadata, calculates grouped-query-attention KV-cache bytes per token, reserves system RAM, caps context to a conservative machine-specific maximum, and forces llama.cpp CPU mode with zero GPU layers. See [ARCHIE_LITE.md](./ARCHIE_LITE.md) for the exact formula and truth boundary.
+
 ### Developer checkout
 
 ```bash
@@ -89,6 +102,9 @@ archie inspect <model-id@version>
 archie run <model-id@version> --prompt "..."
 archie benchmark <model-id@version> --suite <suite.json>
 archie remove <model-id@version>
+archie lite doctor
+archie lite inspect --model <model.gguf>
+archie lite run --model <model.gguf> --prompt "..."
 ```
 
 Only pull artifacts whose signing key and provenance you trust. Use `inspect` before `run`.
@@ -118,6 +134,7 @@ Passing infrastructure tests proves runtime and product contracts. It does not b
 
 - **Archie phone:** installable objective, authority, continuity, and handoff surface.
 - **Archie runtime:** local artifact, planning, research, evaluation, and distillation system.
+- **Archie Lite:** bounded CPU inference for a user-supplied quantized GGUF model.
 - **Maker:** permissioned execution layer.
 - **Sideways:** independent browser-installed archive and public reader.
 - **General intelligence claim:** still blocked until an admitted model and complete launch profile pass independent held-out evidence.

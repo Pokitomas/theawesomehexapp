@@ -22,8 +22,8 @@ No model is downloaded automatically. Choose a GGUF model whose license you acce
 ## Inspect before running
 
 ```bash
-archie-lite doctor
-archie-lite inspect --model ~/Models/model.gguf
+archie lite doctor
+archie lite inspect --model ~/Models/model.gguf
 ```
 
 The inspection result includes:
@@ -38,17 +38,10 @@ The inspection result includes:
 ## Run
 
 ```bash
-archie-lite run \
+archie lite run \
   --model ~/Models/model.gguf \
   --prompt "Plan the safest way to repair this repository" \
   --max-tokens 256
-```
-
-The same surface is available through `archie lite`:
-
-```bash
-archie lite inspect --model ~/Models/model.gguf
-archie lite run --model ~/Models/model.gguf --prompt "Summarize this task"
 ```
 
 Use `--context N` to request a smaller context. Archie caps an oversized request to the computed safe maximum. `--force-context` overrides that cap and is deliberately explicit because it can cause memory pressure or process termination.

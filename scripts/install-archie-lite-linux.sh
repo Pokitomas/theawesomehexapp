@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Linux" ]]; then
-  echo "archie-lite installer: Linux is required." >&2
+  echo "archie lite installer: Linux is required." >&2
   exit 1
 fi
 
@@ -13,7 +13,7 @@ REPOSITORY_TARBALL="${ARCHIE_REPOSITORY_TARBALL:-https://github.com/Pokitomas/th
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {
-    echo "archie-lite installer: missing required command: $1" >&2
+    echo "archie lite installer: missing required command: $1" >&2
     exit 1
   }
 }
@@ -25,7 +25,7 @@ need node
 
 node_major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
 if [[ -z "$node_major" || "$node_major" -lt 20 ]]; then
-  echo "archie-lite installer: Node.js 20 or newer is required; found $(node --version)." >&2
+  echo "archie lite installer: Node.js 20 or newer is required; found $(node --version)." >&2
   exit 1
 fi
 
@@ -56,9 +56,9 @@ Add this to your shell profile when $PREFIX/bin is not already on PATH:
   export PATH="$PREFIX/bin:\$PATH"
 
 Then use a small quantized GGUF model:
-  archie-lite doctor
-  archie-lite inspect --model ~/Models/model.gguf
-  archie-lite run --model ~/Models/model.gguf --prompt "Plan my next task"
+  archie lite doctor
+  archie lite inspect --model ~/Models/model.gguf
+  archie lite run --model ~/Models/model.gguf --prompt "Plan my next task"
 
 The installer compiled llama.cpp with CUDA disabled. Archie Lite also forces -ngl 0
 and calculates a conservative context limit from RAM and GGUF KV-cache metadata.
