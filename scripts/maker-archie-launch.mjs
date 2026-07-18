@@ -133,19 +133,19 @@ async function main() {
   finally { if (decisionRoot) await fs.rm(decisionRoot, { recursive: true, force: true }); }
 
   if (result.code !== 0) {
-    if (recalled?.status === 'teacher' && activeDecision) {
+    if ((recalled?.status === 'teacher' || recalled?.status === 'local') && activeDecision) {
       const negative = await rememberNativeMakerRun({
         repoRoot: root,
         receipt: {
           schema: 'sideways-maker-run/v2',
           state: result.signal ? 'cancelled' : 'failed',
           request: options.request,
-          session_id: `failed-${activeDecision.teacher_receipt?.response_id || Date.now()}`,
+          session_id: `failed-${activeDecision.teacher_receipt?.response_id || activeDecision.specialist_id || 'archie'}-${Date.now()}`,
           base_sha: baseSha,
           head_sha: null,
           selected_lane: activeDecision.plan.selected_lane,
           plan: activeDecision.plan,
-          plan_source: 'archie-openai-teacher',
+          plan_source: recalled.status === 'teacher' ? 'archie-openai-teacher' : 'archie-local-recurrence',
           archie_decision: {
             state: activeDecision.state,
             source: activeDecision.source,
@@ -162,7 +162,8 @@ async function main() {
           verification: []
         }
       });
-      process.stderr.write(`[archie] teacher execution ${negative.learning_disposition || negative.status}; proposal was not promoted.\n`);
+      const route = recalled.status === 'teacher' ? 'teacher execution' : `local specialist ${activeDecision.specialist_id}`;
+      process.stderr.write(`[archie] ${route} ${negative.learning_disposition || negative.status}; terminal failure was recorded.\n`);
     } else if (result.signal) {
       process.stderr.write(`[archie] Maker terminated by ${result.signal}; memory was not updated.\n`);
     }
@@ -179,7 +180,7 @@ async function main() {
     process.stderr.write(`[archie] Maker completed, but local memory update failed: ${clean(memory.error, 1000)}\n`);
     return;
   }
-  process.stdout.write(`[archie] memory ${memory.status}; disposition=${memory.learning_disposition || 'recorded'} examples=${memory.document_count ?? 0} negative=${memory.negative_document_count ?? 0} specialists=${memory.specialist_count ?? 0}\n`);
+  process.stdout.write(`[archie] memory ${memory.status}; disposition=${memory.learning_disposition || 'recorded'} examples=${memory.document_count ?? 0} unique=${memory.unique_document_count ?? memory.document_count ?? 0} negative=${memory.negative_document_count ?? 0} specialists=${memory.specialist_count ?? 0} reliability=${memory.reliability_evidence_count ?? 0}\n`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {

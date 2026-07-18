@@ -41,6 +41,11 @@ function teacherDecision(receipt) {
   return decision?.state === 'teacher' || decision?.execution_basis?.kind === 'fresh-bounded-teacher-plan' ? decision : null;
 }
 
+function localDecision(receipt) {
+  const decision = receipt?.archie_decision;
+  return decision?.state === 'local' || decision?.execution_basis?.kind === 'normalized-exact-verified-recurrence' ? decision : null;
+}
+
 export function nativeMakerReceiptForCorpus(receipt, { repoRoot } = {}) {
   const plan = normalizeReusableMakerPlan(receipt?.plan);
   const verification = Array.isArray(receipt?.verification) ? receipt.verification.map(item => clean(item, 1000)).filter(Boolean) : [];
@@ -113,6 +118,15 @@ function createNativeBrain({ repoRoot, env, home, clock, training }) {
       minimum_margin: 0.03,
       negative_suppression_threshold: 0.55,
       negative_penalty: 0.65,
+      duplicate_weight_cap: 5,
+      reliability_prior_alpha: 1,
+      reliability_prior_beta: 1,
+      reliability_floor: 0.6,
+      reliability_activation_min: 3,
+      calibrate_operating_point: true,
+      cross_validation_folds: 5,
+      cross_validation_minimum_documents: 4,
+      cross_validation_target_precision: 0.9,
       limit: 250000,
       ...(training || {})
     }
@@ -194,10 +208,13 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
       source: teacherPlan ? 'openai-responses-teacher' : 'native-maker-recall',
       plan,
       confidence: result.confidence ?? 0,
+      similarity_confidence: result.similarity_confidence ?? result.confidence ?? 0,
+      calibrated_confidence: result.calibrated_confidence ?? result.confidence ?? 0,
       raw_confidence: result.raw_confidence ?? result.confidence ?? 0,
       negative_score: result.negative_score ?? 0,
       negative_suppressed: result.negative_suppressed ?? false,
       margin: result.margin ?? 0,
+      reliability: result.reliability ?? null,
       specialist_id: result.specialist_id ?? null,
       source_example_ids: sourceExampleIds,
       execution_eligible: executionEligible,
@@ -256,35 +273,68 @@ export async function rememberNativeMakerRun({ repoRoot, receipt, env = process.
     const normalized = nativeMakerReceiptForCorpus(receipt, { repoRoot });
     await assertTeacherPromotion(corpus, receipt, normalized);
     const corpusReceipt = await corpus.recordMakerRun(normalized, { input: { request: normalized.task.request } });
+    const local = localDecision(receipt);
+    const reuseReceipt = local?.specialist_id
+      ? await brain.recordPlanOutcome({
+          specialist_id: local.specialist_id,
+          task: {
+            subject: repoKey(repoRoot),
+            instruction: normalized.task.request,
+            context: {
+              repository: normalized.task.repository,
+              base_sha: normalized.task.proof.base_sha,
+              head_sha: normalized.task.proof.head_sha,
+              verification: normalized.task.proof.verification
+            }
+          },
+          plan: normalized.components.model_route.output.plan,
+          state: normalized.state,
+          model_digest: local.model_digest,
+          plan_digest: local.plan_digest || normalized.task.proof.plan_digest,
+          run_id: normalized.platform_run_id,
+          receipt
+        })
+      : null;
+    const shouldRetrain = corpusReceipt.status !== 'deduplicated' || (reuseReceipt && reuseReceipt.status !== 'deduplicated');
     if (normalized.state !== 'completed') {
       let model = null;
-      try { model = corpusReceipt.status === 'deduplicated' ? await brain.load() : await brain.train(); }
+      try { model = shouldRetrain ? await brain.train() : await brain.load(); }
       catch (error) {
         if (!/at least one completed archie distillation example is required/i.test(clean(error?.message || error, 2000))) throw error;
       }
       return Object.freeze({
         status: corpusReceipt.status,
-        learning_disposition: 'negative-evidence-recorded',
+        learning_disposition: local ? 'negative-evidence-and-local-reliability-recorded' : 'negative-evidence-recorded',
         record_id: corpusReceipt.record_id,
         example_id: corpusReceipt.example_id,
+        reuse_record_id: reuseReceipt?.record_id || null,
         root: paths.root,
         model_digest: model?.model_digest || null,
         document_count: model?.document_count || 0,
+        unique_document_count: model?.unique_document_count || 0,
         negative_document_count: model?.negative_document_count || 1,
-        specialist_count: model?.specialist_count || 0
+        specialist_count: model?.specialist_count || 0,
+        reliability_evidence_count: model?.reliability_evidence_count || 0
       });
     }
-    const model = corpusReceipt.status === 'deduplicated' ? await brain.load() : await brain.train();
+    const model = shouldRetrain ? await brain.train() : await brain.load();
     return Object.freeze({
       status: corpusReceipt.status,
-      learning_disposition: teacherDecision(receipt) ? 'teacher-proposal-promoted-after-verification' : 'verified-run-admitted',
+      learning_disposition: teacherDecision(receipt)
+        ? 'teacher-proposal-promoted-after-verification'
+        : local
+          ? 'verified-local-reuse-recorded'
+          : 'verified-run-admitted',
       record_id: corpusReceipt.record_id,
       example_id: corpusReceipt.example_id,
+      reuse_record_id: reuseReceipt?.record_id || null,
       root: paths.root,
       model_digest: model.model_digest,
       document_count: model.document_count,
+      unique_document_count: model.unique_document_count,
       negative_document_count: model.negative_document_count,
-      specialist_count: model.specialist_count
+      specialist_count: model.specialist_count,
+      reliability_evidence_count: model.reliability_evidence_count
     });
   } catch (error) {
     return Object.freeze({ status: 'failed', root: paths.root, error: clean(error?.message || error, 2000) });
