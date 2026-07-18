@@ -42,9 +42,26 @@ npm run archie -- inspect <id@version>
 npm run archie -- benchmark <id@version> --suite <suite.json>
 npm run archie -- remove <id@version>
 npm run archie -- list
+npm run archie -- serve
 ```
 
-The operator experience is intentionally small. It is not an Ollama clone and it does not make Ollama the canonical artifact format.
+## Local chat server
+
+`archie serve` starts a minimal HTTP server at `http://127.0.0.1:7474`. Open that URL in any browser to get a clean chat interface backed by your installed models. Nothing leaves the machine.
+
+```bash
+archie serve                    # default port 7474
+archie serve --port 8080        # custom port
+archie serve --runner /usr/local/bin/llama-cli
+```
+
+The server exposes three routes:
+
+- `GET /` — clean single-page chat UI; pick a model from the dropdown and type
+- `GET /api/models` — JSON list of installed models
+- `POST /api/chat` — `{ model, messages }` → `{ content, model }` using the installed runner
+
+No Ollama installation required. The runner still needs `llama-cli` (or the path in `ARCHIE_RUNNER`) to execute inference.
 
 ## Signed manifest and nested envelope
 

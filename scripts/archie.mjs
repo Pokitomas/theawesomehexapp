@@ -26,6 +26,7 @@ import { runArchieSelfHostingSample } from './archie-self-hosting-sample.mjs';
 import { runArchieFirstRun } from './archie-first-run.mjs';
 import { runDistillCommand } from './archie-distill.mjs';
 import { runWorkspaceCommand } from './archie-workspace.mjs';
+import { runServeCommand } from './archie-serve.mjs';
 import {
   benchmarkModel,
   inspectModel,
@@ -70,6 +71,7 @@ Usage:
     --evaluation-reserve 20 --allocation <allocation.json>
   archie research materialize --campaign <campaign> [--output <directory>]
   archie research status --campaign <campaign>
+  archie serve [--port <n>] [--runner <path>]
   archie workspace <init|list|inspect|command|serve|demo> [flags]
   archie pull <manifest> --trust-key <publisher-public.pem> [--device-key <x25519-private.pem>]
   archie run <id@version> --prompt <text> [--runner <path>]
@@ -79,6 +81,12 @@ Usage:
   archie list
   archie setup [--json] [--no-color]
   archie distill <init|doctor|teach|attest-teacher|import-teacher> [flags]
+
+Local chat server:
+  serve starts a local chat server at 127.0.0.1:7474 (override with --port).
+  Open http://127.0.0.1:7474 in a browser to talk to any installed model.
+  --port <n>                Port to listen on. Defaults to 7474.
+  --runner <path>           Path to llama-cli. Defaults to ARCHIE_RUNNER or 'llama-cli'.
 
 Native workspace:
   init creates a public, private, or locally sealed provider-neutral workspace.
@@ -156,6 +164,13 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (command === 'distill') {
     printJSON(await runDistillCommand({ positionals, flags }));
+    return;
+  }
+
+  if (command === 'serve') {
+    const port = integer(flags, '--port', 7474);
+    const runner = last(flags, '--runner', process.env.ARCHIE_RUNNER || 'llama-cli');
+    await runServeCommand({ port, host: '127.0.0.1', home, runner_path: runner });
     return;
   }
 
