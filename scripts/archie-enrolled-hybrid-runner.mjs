@@ -99,7 +99,7 @@ export async function defaultRunnerAdvertisement(root) {
       publish: false,
       credential_transfer: false,
       artifact_upload: 'explicit_only',
-      local_root_scope: 'bounded'
+      local_root_scope: 'exact_directory'
     }
   });
 }
