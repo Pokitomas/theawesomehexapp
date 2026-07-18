@@ -10,7 +10,9 @@
     "archied-hosted": "scripts/archie-hybrid-hosted.mjs",
     "archie-hybrid-runner": "scripts/archie-hybrid-runner.mjs",
     "archie-enrolled-hybrid-runner": "scripts/archie-enrolled-hybrid-runner.mjs",
-    "archie-compat-import": "scripts/archie-compat-import.mjs"
+    "archie-compat-import": "scripts/archie-compat-import.mjs",
+    "archie-lite": "scripts/archie-lite.mjs",
+    "archie_lite": "scripts/archie-lite.mjs"
   },
   "files": [
     "scripts/*.mjs",
@@ -26,6 +28,7 @@
     "compose.hosted.yaml",
     ".env.archied.example",
     "ARCHIE_RUNTIME.md",
+    "ARCHIE_LITE.md",
     "ARCHIE_DISTILL.md",
     "ARCHIE_ARCHITECTURE_EXPERIMENTS.md",
     "ARCHIE_WORKSPACES.md",
@@ -48,6 +51,7 @@
     "test:maker": "node --test scripts/tests/maker-core.test.mjs scripts/tests/maker-actions-sprawl.test.mjs scripts/tests/maker-archie-*.test.mjs",
     "test:archie": "node --test scripts/tests/maker-archie-*.test.mjs scripts/tests/archie-generation-one-run.test.mjs scripts/tests/archie-workspace-substrate.test.mjs scripts/tests/archied-service.test.mjs scripts/tests/archie-standalone-journey.test.mjs scripts/tests/archied-hosted.test.mjs scripts/tests/archied-hosted-authority.test.mjs scripts/tests/archie-hybrid-runner.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs scripts/tests/archie-compat-import.test.mjs scripts/tests/archie-iphone-quantization-research.test.mjs scripts/tests/archie-intelligence-campaign.test.mjs scripts/tests/archie-student-quantize.test.mjs scripts/tests/archie-quant-architecture-campaign.test.mjs scripts/tests/archie-candidate-completion.test.mjs scripts/tests/archie-baseline-freeze.test.mjs",
     "test:archie:runtime": "node --test scripts/tests/maker-archie-runtime.test.mjs",
+    "test:archie:lite": "node --test scripts/tests/maker-archie-lite.test.mjs",
     "test:archie:learning": "node --test scripts/tests/maker-archie-corpus.test.mjs scripts/tests/maker-archie-brain.test.mjs scripts/tests/maker-archie-budget.test.mjs scripts/tests/maker-archie-planner.test.mjs scripts/tests/maker-archie-cognition.test.mjs scripts/tests/maker-archie-derivation.test.mjs",
     "test:archie:persistent": "node --test scripts/tests/maker-archie-persistent-core.test.mjs scripts/tests/maker-archie-product-ecology.test.mjs scripts/tests/maker-archie-trainer.test.mjs",
     "test:archie:portable": "node --test scripts/tests/maker-archie-corpus-pack.test.mjs scripts/tests/maker-archie-compute.test.mjs scripts/tests/maker-archie-sync.test.mjs scripts/tests/overlay-vault.test.mjs",
@@ -80,6 +84,9 @@
     "maker": "node scripts/maker-archie-launch.mjs",
     "maker:model:check": "node scripts/check-open-model-runtime.mjs",
     "archie": "node scripts/archie.mjs",
+    "archie:lite": "node scripts/archie-lite.mjs",
+    "archie-lite": "node scripts/archie-lite.mjs",
+    "archie_lite": "node scripts/archie-lite.mjs",
     "archie:first-run": "node scripts/archie-first-run.mjs",
     "archie:dev": "node scripts/archied.mjs --dev",
     "archie:local": "node scripts/archied.mjs",
