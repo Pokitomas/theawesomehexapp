@@ -50,6 +50,7 @@
     "test:archie:install": "node --test scripts/tests/maker-archie-install.test.mjs",
     "test:archie:distill": "node scripts/run-python.mjs foundry/archie-distill/test_train_contract.py && node --test scripts/tests/archie-distill-pipeline.test.mjs scripts/tests/archie-student-quantize.test.mjs",
     "test:archie:workspace": "node --test scripts/tests/archie-workspace-substrate.test.mjs",
+    "test:archie:studio": "node --test scripts/tests/archie-studio-product.test.mjs",
     "test:frontier-expo": "node --test scripts/tests/frontier-world-expo.test.mjs",
     "test:frontier-surface": "node --test scripts/tests/frontier-surface-assembly.test.mjs",
     "test:xp-surfaces": "node --test scripts/tests/xp-program-surfaces.test.mjs",
