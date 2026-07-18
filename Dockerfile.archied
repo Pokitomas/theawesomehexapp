@@ -1,0 +1,27 @@
+FROM node:20-bookworm-slim
+
+ENV NODE_ENV=production \
+    ARCHIED_HOST=0.0.0.0 \
+    ARCHIED_PORT=8787 \
+    ARCHIE_HOME=/var/lib/archie
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts \
+    && npm cache clean --force
+
+COPY scripts ./scripts
+COPY ARCHIE_STANDALONE_MIGRATION.md ARCHIE_HOSTED.md ./
+
+RUN mkdir -p /var/lib/archie \
+    && chown -R node:node /var/lib/archie /app
+
+USER node
+VOLUME ["/var/lib/archie"]
+EXPOSE 8787
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+
+CMD ["node", "scripts/archied-hosted.mjs"]
