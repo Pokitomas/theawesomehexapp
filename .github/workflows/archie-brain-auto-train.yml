@@ -1,0 +1,79 @@
+name: Archie brain auto-train
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/maker-archie-brain.mjs'
+      - 'scripts/maker-archie-corpus.mjs'
+      - 'scripts/maker-archie-cognition.mjs'
+      - 'scripts/maker-archie-planner.mjs'
+      - 'scripts/maker-archie-derivation.mjs'
+      - 'scripts/tests/maker-archie-brain.test.mjs'
+      - 'package.json'
+      - '.github/workflows/archie-brain-auto-train.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  brain-auto-train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run brain tests
+        run: node --test scripts/tests/maker-archie-brain.test.mjs
+      - name: Verify staleness detection and trainIfStale contract
+        run: |
+          node --input-type=module <<'NODE'
+          import path from 'node:path';
+          import os from 'node:os';
+          import fs from 'node:fs/promises';
+          import { createArchieLinuxCorpus } from './scripts/maker-archie-corpus.mjs';
+          import { createArchiePersonalBrain } from './scripts/maker-archie-brain.mjs';
+
+          const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-brain-train-'));
+          try {
+            const corpus = createArchieLinuxCorpus({ root: path.join(root, 'corpus') });
+            await corpus.ingest({
+              input: { text: 'Run all tests and verify repository integrity.' },
+              output: { plan: { steps: ['npm test', 'npm run verify:repository'] } },
+              tool_trace: [{ tool: 'node', action: 'test', ok: true }],
+              outcome: 'completed'
+            });
+            const brain = createArchiePersonalBrain({
+              corpus,
+              model_path: path.join(root, 'models', 'archie-skills.json'),
+              training: { dimensions: 1024, threshold: 0.10, minimum_margin: 0.02 }
+            });
+
+            const before = await brain.checkStaleness({ min_new_examples: 1 });
+            if (!before.stale) { console.error('Expected stale before first train'); process.exit(1); }
+
+            const result = await brain.trainIfStale({ min_new_examples: 1 });
+            if (!result.trained) { console.error('Expected training to run'); process.exit(1); }
+            if (!result.model_digest) { console.error('Expected model_digest in result'); process.exit(1); }
+
+            const after = await brain.checkStaleness({ min_new_examples: 5 });
+            if (after.stale) { console.error('Expected fresh after training'); process.exit(1); }
+
+            console.log('brain auto-train contract: ok', JSON.stringify({
+              model_digest: result.model_digest,
+              corpusCount: after.corpusCount,
+              modelCount: after.modelCount
+            }));
+          } finally {
+            await fs.rm(root, { recursive: true, force: true });
+          }
+          NODE

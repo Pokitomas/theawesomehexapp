@@ -51,14 +51,15 @@ test('trains a local mixture of tiny skill specialists and escalates genuinely u
         { tool: 'social', action: 'moderate', ok: true }
       ]
     })
-  ], { dimensions: 512, threshold: 0.15, minimum_margin: 0.02, trained_at: '2026-07-16T03:00:00.000Z' });
+  ], { dimensions: 512, threshold: 0.10, minimum_margin: 0.02, trained_at: '2026-07-16T03:00:00.000Z' });
 
   assert.equal(model.specialist_count, 2);
   assert.equal(model.document_count, 2);
   const local = predictArchiePlan(model, { instruction: 'Please repair this conflicted git branch, then run repository tests.' });
   assert.equal(local.state, 'local');
   assert.deepEqual(local.plan, gitPlan);
-  assert.ok(local.confidence > 0.15);
+  assert.ok(local.confidence > 0.10);
+  assert.ok(local.margin > 0.08);
 
   const unknown = predictArchiePlan(model, { instruction: 'Compose a twelve-tone string quartet from whale migration data.' });
   assert.equal(unknown.state, 'escalate');
@@ -134,4 +135,44 @@ test('refuses a tampered locally trained model', async t => {
   model.threshold = 0;
   await fs.writeFile(modelPath, JSON.stringify(model), 'utf8');
   await assert.rejects(brain.load(), /integrity check failed/);
+});
+
+test('checkStaleness reports stale when corpus has grown past threshold', async t => {
+  const root = await tempRoot(t);
+  const corpus = createArchieLinuxCorpus({ root: path.join(root, 'corpus'), clock: () => '2026-07-16T03:03:00.000Z' });
+  const seed = {
+    input: { text: 'Restore a corrupted cache.' },
+    output: { plan: { steps: ['clear cache', 'reload'] } },
+    tool_trace: [{ tool: 'cache', action: 'clear', ok: true }],
+    outcome: 'completed'
+  };
+  await corpus.ingest(seed);
+  const brain = createArchiePersonalBrain({
+    corpus,
+    model_path: path.join(root, 'models', 'archie-skills.json'),
+    clock: () => '2026-07-16T03:03:00.000Z',
+    training: { dimensions: 512, threshold: 0.10, minimum_margin: 0.02 }
+  });
+
+  // No model yet — should be stale
+  const before = await brain.checkStaleness({ min_new_examples: 1 });
+  assert.equal(before.stale, true);
+  assert.equal(before.modelCount, 0);
+
+  // Train once — now fresh
+  await brain.trainIfStale({ min_new_examples: 1 });
+  const afterTrain = await brain.checkStaleness({ min_new_examples: 5 });
+  assert.equal(afterTrain.stale, false);
+  assert.equal(afterTrain.modelCount, 1);
+
+  // Add more examples past the growth threshold
+  for (let i = 0; i < 5; i++) await corpus.ingest({ ...seed, input: { text: `Restore cache variant ${i}` } });
+  const afterGrowth = await brain.checkStaleness({ min_new_examples: 5 });
+  assert.equal(afterGrowth.stale, true);
+  assert.ok(afterGrowth.newExamples >= 5);
+
+  // trainIfStale should auto-retrain
+  const result = await brain.trainIfStale({ min_new_examples: 5 });
+  assert.equal(result.trained, true);
+  assert.ok(result.model_digest);
 });

@@ -372,6 +372,39 @@ export class ArchiePersonalBrain {
       plan_digest: digest({ teacher_result: teacherResult, proposal_record: stored.record_id })
     });
   }
+
+  async _peekModel() {
+    if (this._cachedModel) return this._cachedModel;
+    try {
+      const stat = await fs.stat(this.modelPath);
+      const model = JSON.parse(await fs.readFile(this.modelPath, 'utf8'));
+      if (model?.schema === MODEL_SCHEMA && model.model_digest === digest({ ...model, model_digest: undefined })) {
+        this._cachedModel = model;
+        this._cachedModelMtime = stat.mtimeMs;
+        return model;
+      }
+    } catch { /* no readable model on disk */ }
+    return null;
+  }
+
+  async checkStaleness({ growth_ratio = 1.5, min_new_examples = 10 } = {}) {
+    const model = await this._peekModel();
+    const corpusCount = typeof this.corpus.stats === 'function'
+      ? (await this.corpus.stats()).examples
+      : (await this.corpus.examples({ limit: 250000 })).length;
+    const modelCount = model?.document_count ?? 0;
+    const schemaStale = (model?.schema ?? null) !== MODEL_SCHEMA;
+    const newExamples = Math.max(0, corpusCount - modelCount);
+    const stale = schemaStale || !model || newExamples >= min_new_examples || (modelCount > 0 && corpusCount / modelCount >= growth_ratio);
+    return Object.freeze({ stale, corpusCount, modelCount, newExamples, schemaStale });
+  }
+
+  async trainIfStale(options = {}) {
+    const status = await this.checkStaleness(options);
+    if (!status.stale) return Object.freeze({ trained: false, ...status });
+    const model = await this.train();
+    return Object.freeze({ trained: true, model_digest: model.model_digest, ...status });
+  }
 }
 
 export function createArchiePersonalBrain(options) {
