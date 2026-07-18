@@ -48,19 +48,29 @@ function principalHeader(request) {
   return Array.isArray(value) ? value[0] : value || null;
 }
 
-function serviceDescriptor(baseUrl) {
+function serviceDescriptor(baseUrl, { anonymousPublicRead }) {
   return {
     schema: 'archie-workspace-service/v1',
     base_url: baseUrl,
-    provider: 'provider-neutral-local-adapter',
-    anonymous_public_read: true,
-    mutation_identity: 'x-archie-principal on loopback or an injected authenticator',
+    provider: 'provider-neutral-workspace-adapter',
+    anonymous_public_read: anonymousPublicRead,
+    mutation_identity: anonymousPublicRead
+      ? 'x-archie-principal on loopback or an injected authenticator'
+      : 'injected private authenticator',
     canonical_objects: ['workspace', 'objective', 'task', 'agent', 'grant', 'lease', 'run', 'event', 'artifact', 'evidence', 'review', 'requested_change', 'approval', 'promotion', 'rollback'],
-    claim_boundary: 'The bundled service is a local provider adapter, not an internet authentication system. Anonymous reads are allowed only for public workspaces; non-loopback mutations require an injected authenticator.'
+    claim_boundary: anonymousPublicRead
+      ? 'Anonymous reads are allowed only for public workspaces; non-loopback mutations require an injected authenticator.'
+      : 'All workspace routes require the enclosing private service policy. Read-only external access must use an explicit signed share.'
   };
 }
 
-export function createWorkspaceRequestHandler({ engine, authenticate = null, baseUrl = 'http://127.0.0.1/' }) {
+export function createWorkspaceRequestHandler({
+  engine,
+  authenticate = null,
+  baseUrl = 'http://127.0.0.1/',
+  corsOrigin = '*',
+  anonymousPublicRead = corsOrigin === '*'
+}) {
   if (!engine) throw new WorkspaceError('Workspace engine is required.');
 
   async function resolvePrincipal(request, { mutation = false } = {}) {
@@ -73,9 +83,9 @@ export function createWorkspaceRequestHandler({ engine, authenticate = null, bas
   }
 
   return async function handle(request, response) {
-    response.setHeader('access-control-allow-origin', '*');
+    if (corsOrigin) response.setHeader('access-control-allow-origin', corsOrigin);
     response.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    response.setHeader('access-control-allow-headers', 'content-type, x-archie-principal');
+    response.setHeader('access-control-allow-headers', 'authorization, content-type, x-archie-principal');
     if (request.method === 'OPTIONS') {
       response.writeHead(204);
       response.end();
@@ -87,7 +97,7 @@ export function createWorkspaceRequestHandler({ engine, authenticate = null, bas
       const parts = requestUrl.pathname.split('/').filter(Boolean);
 
       if (request.method === 'GET' && (requestUrl.pathname === '/health' || requestUrl.pathname === '/.well-known/archie-workspace-service.json')) {
-        jsonResponse(response, 200, serviceDescriptor(baseUrl));
+        jsonResponse(response, 200, serviceDescriptor(baseUrl, { anonymousPublicRead }));
         return;
       }
 
@@ -121,49 +131,24 @@ export function createWorkspaceRequestHandler({ engine, authenticate = null, bas
         return;
       }
 
-      if (request.method === 'POST' && parts[3] === 'commands' && parts.length === 4) {
-        if (!principalId) throw new WorkspaceAuthorityError('Mutation requires a principal identity.');
-        const body = await readJsonBody(request);
-        const result = await engine.execute(workspaceId, principalId, body.command, body.payload || {});
-        jsonResponse(response, 200, {
-          schema: 'archie-workspace-command-result/v1',
-          command: body.command,
-          event: result.event,
-          head_digest: result.state.head_digest,
-          event_count: result.state.event_count
-        });
-        return;
-      }
-
       if (request.method === 'GET' && parts[3] === 'artifacts' && parts[4] && parts.length === 5) {
         const result = await engine.readArtifact(workspaceId, parts[4], { principalId });
         response.writeHead(200, {
           'content-type': result.artifact.media_type,
           'content-length': result.bytes.length,
-          'cache-control': 'no-store',
-          'content-digest': `sha-256=:${Buffer.from(result.artifact.sha256, 'hex').toString('base64')}:`,
-          'x-archie-artifact-id': result.artifact.artifact_id,
-          'x-content-type-options': 'nosniff',
-          'access-control-allow-origin': '*'
+          'cache-control': 'private, no-store',
+          'x-archie-artifact-sha256': result.artifact.sha256,
+          'content-disposition': `inline; filename="${result.artifact.name.replaceAll('"', '')}"`
         });
         response.end(result.bytes);
         return;
       }
 
-      if (request.method === 'GET' && parts[3] === 'results' && parts[4] === 'latest') {
-        const state = await engine.inspect(workspaceId, { principalId });
-        const publication = Object.values(state.publications).at(-1);
-        if (!publication) throw new WorkspaceNotFoundError('No published result exists.');
-        const promotion = state.promotions[publication.promotion_id];
-        jsonResponse(response, 200, {
-          schema: 'archie-stable-result/v1',
-          workspace_id: workspaceId,
-          publication,
-          promotion,
-          artifact: state.artifacts[promotion.artifact_id],
-          rollback_receipts: Object.values(state.rollbacks).filter(item => item.publication_id === publication.publication_id),
-          claim_boundary: state.claim_boundary
-        });
+      if (request.method === 'POST' && parts[3] === 'commands' && parts.length === 4) {
+        if (!principalId) throw new WorkspaceAuthorityError('Workspace mutation requires a local or authenticated principal.');
+        const body = await readJsonBody(request);
+        const result = await engine.execute(workspaceId, principalId, body.command, body.payload || {});
+        jsonResponse(response, 200, { event: result.event, state: result.state });
         return;
       }
 
@@ -173,7 +158,7 @@ export function createWorkspaceRequestHandler({ engine, authenticate = null, bas
         ? error
         : new WorkspaceError(error?.message || 'Internal workspace service error.', { code: 'internal_error', status: 500 });
       jsonResponse(response, workspaceError.status, {
-        schema: 'archie-workspace-error/v1',
+        schema: 'archie-workspace-service-error/v1',
         error: workspaceError.code,
         message: workspaceError.message
       });
@@ -181,37 +166,22 @@ export function createWorkspaceRequestHandler({ engine, authenticate = null, bas
   };
 }
 
-export async function startWorkspaceService({
-  root,
-  host = '127.0.0.1',
-  port = 8787,
-  provider = null,
-  engine = null,
-  authenticate = null
-} = {}) {
-  const selectedProvider = provider || new SafeFileWorkspaceProvider(root);
-  const selectedEngine = engine || createWorkspaceEngine({ provider: selectedProvider });
-  const server = http.createServer();
-
+export async function startWorkspaceService({ root, host = '127.0.0.1', port = 0, authenticate = null } = {}) {
+  const provider = new SafeFileWorkspaceProvider(root);
+  const engine = createWorkspaceEngine({ provider });
+  const server = http.createServer(createWorkspaceRequestHandler({ engine, authenticate }));
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, host, resolve);
   });
-
   const address = server.address();
-  const actualHost = typeof address === 'object' && address?.address ? address.address : host;
-  const actualPort = typeof address === 'object' && address?.port ? address.port : port;
-  const displayHost = actualHost === '::' ? '127.0.0.1' : actualHost;
-  const baseUrl = `http://${displayHost}:${actualPort}/`;
-  server.on('request', createWorkspaceRequestHandler({ engine: selectedEngine, authenticate, baseUrl }));
-
+  const url = `http://${host}:${typeof address === 'object' ? address.port : port}/`;
   return {
     schema: 'archie-workspace-service-runtime/v1',
+    engine,
+    provider,
     server,
-    engine: selectedEngine,
-    provider: selectedProvider,
-    url: baseUrl,
-    descriptor: serviceDescriptor(baseUrl),
+    url,
     close: () => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   };
 }
