@@ -294,6 +294,7 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
   }
   const lease = claim.lease;
+  const assignment = claim.assignment;
 
   if (stopAfter === 'claimed') {
     return Object.freeze({ schema: 'archie-hybrid-runner-cycle/v1', runner_id: state.runner_id, lease_id: lease.lease_id, status: 'interrupted_after_claim' });
@@ -304,7 +305,7 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
     if (injectFailure) throw new WorkspaceError('Injected local runner failure for terminal-receipt proof.');
 
-    const executed = await executeAssignment({ root: boundedRoot, assignment: lease.assignment, leaseId: lease.lease_id });
+    const executed = await executeAssignment({ root: boundedRoot, assignment, leaseId: lease.lease_id });
     await sendEvent({
       serviceUrl,
       state,
@@ -316,7 +317,7 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
 
     const uploaded = [];
-    for (const artifact of lease.assignment.artifact_admission) {
+    for (const artifact of assignment.artifact_admission) {
       const target = pathInside(boundedRoot, artifact.path);
       const bytes = await fs.readFile(target.absolute);
       if (bytes.length > artifact.max_bytes || sha256(bytes) !== artifact.sha256) throw new WorkspaceError(`Runner artifact failed admission: ${artifact.artifact_id}.`);
