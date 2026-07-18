@@ -1,0 +1,44 @@
+{
+  "schema": "archie-studio-sample-catalog/v1",
+  "product_contract": "product/archie-studio-product.json",
+  "rule": "Samples prove that the general product can create unrelated independent applications. No sample may define Archie navigation, runtime policy, training policy, or core terminology.",
+  "samples": [
+    {
+      "id": "sideways-self-hosting",
+      "title": "Deterministic self-hosting reference",
+      "domain": "repository application generation",
+      "status": "existing deterministic fixture",
+      "purpose": "prove Sideways objective derivation, Maker authority, verification, and trajectory plumbing"
+    },
+    {
+      "id": "lbtb-po-processor",
+      "title": "LBTB purchase-order processor",
+      "domain": "small-business operations",
+      "status": "sample input and generated-app target",
+      "owner_context": "the user's father's real workflow",
+      "purpose": "prove that the same general creation path can build an independent Gmail-connected business application",
+      "must_not": [
+        "appear in Archie global navigation",
+        "define the default Archie prompt",
+        "be required for native runtime operation",
+        "be treated as the Archie product",
+        "leak Gmail, school, student, or purchase-order terminology into core product contracts"
+      ]
+    },
+    {
+      "id": "personal-field-notes",
+      "title": "Personal field-notes app",
+      "domain": "consumer personal organization",
+      "status": "required unrelated sample",
+      "purpose": "prove consumer app generation unrelated to business operations"
+    },
+    {
+      "id": "visual-data-story",
+      "title": "Visual data-story app",
+      "domain": "creative data presentation",
+      "status": "required unrelated sample",
+      "purpose": "prove creative and data application generation"
+    }
+  ],
+  "claim_boundary": "Catalog entries are required demonstrations, not claims that Archie has already generated, verified, installed, or distilled each application."
+}
