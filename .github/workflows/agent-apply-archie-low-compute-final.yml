@@ -1,9 +1,8 @@
 name: Apply Archie low-compute final
 
 on:
-  push:
-    branches:
-      - agent/archie-low-compute-final
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -17,6 +16,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
+          ref: agent/archie-low-compute-final
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
@@ -52,5 +52,3 @@ jobs:
             ARCHIE_LITE.md INSTALL.md package.json
           git commit -m "Ship outcome-weighted CPU Archie"
           git push origin HEAD:agent/archie-low-compute-final
-
-# Existing-workflow trigger commit.
