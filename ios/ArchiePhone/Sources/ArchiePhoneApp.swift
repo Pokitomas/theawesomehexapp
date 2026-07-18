@@ -260,7 +260,7 @@ final class RuntimeCoordinator: ObservableObject {
                 }
             }
         })
-        observers.append(center.addObserver(forName: ProcessInfo.powerStateDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled }
         })
         observers.append(center.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
