@@ -1,110 +1,81 @@
-# Archie hosted founder access
+# Archie hosted authority
 
-Hosted Archie runs the same `archied` workspace, evidence, artifact, approval, rollback, and portable-export contracts as local Archie. The hosted layer adds private founder access, an outbound-only local runner protocol, and a hardened container boundary; it does not create a second product or a second canonical database.
+Hosted Archie runs the same `archied` workspace, evidence, artifact, approval, rollback, Maker journey, and portable-export contracts as local Archie. The hosted layer changes private transport and operations; it does not create a second product, domain model, or canonical database.
 
-## Start
+## Private hosted parity
 
-Create two distinct private tokens of at least 24 characters, then run:
-
-```bash
-export ARCHIED_FOUNDER_TOKEN='replace-with-a-long-private-founder-value'
-export ARCHIED_RUNNER_TOKEN='replace-with-a-different-private-runner-value'
-docker compose up --build
-```
-
-Open `http://localhost:8787` and enter the founder token. Durable hosted workspaces and hybrid queue events live in the `archie-data` volume.
-
-PowerShell:
-
-```powershell
-$env:ARCHIED_FOUNDER_TOKEN = 'replace-with-a-long-private-founder-value'
-$env:ARCHIED_RUNNER_TOKEN = 'replace-with-a-different-private-runner-value'
-docker compose up --build
-```
-
-## Private URL
-
-For a private reverse proxy or managed container host, set the exact external origin:
+Generate two long raw tokens, store them in a password manager, and place only their SHA-256 digests plus two independent 32-byte keys in `.env.archied` using `.env.archied.example`.
 
 ```bash
-export ARCHIED_PUBLIC_ORIGIN='https://archie.example.internal'
-export ARCHIED_COOKIE_SECURE='true'
-docker compose up --build
+cp .env.archied.example .env.archied
+# replace every placeholder locally
+docker compose -f compose.hosted.yaml up --build
 ```
 
-Terminate TLS at the host or reverse proxy. Keep the container port private. Direct host binding defaults to `127.0.0.1`; set `ARCHIED_BIND=0.0.0.0` only when a firewall or trusted private network already protects the port.
+The reference stack binds to `127.0.0.1:8787`. It does not buy or create an external service. For remote access, place an HTTPS reverse proxy or private platform ingress in front and set `ARCHIED_PUBLIC_URL` to the stable external base URL. Hosted startup fails closed on plain HTTP unless `ARCHIED_ALLOW_INSECURE_HOSTED=1` is explicitly set for an isolated test.
 
-No paid host, domain, certificate, or external account is created by this repository.
+The same image also contains the outbound hybrid runner gateway used by `compose.yaml`; that path adds bounded local execution but does not replace these hosted workspace and authority contracts.
 
-## Authentication boundary
+## Roles
 
-- The founder and runner tokens are distinct process configuration values.
-- A successful browser login exchanges the founder token for a signed, HTTP-only, SameSite=Strict session cookie.
-- Hybrid founder APIs use the founder bearer token; polling, heartbeat, completion, and failure APIs use only the runner bearer token.
-- Tokens and sessions never enter workspace events, artifacts, exports, queue events, diagnostics, or receipts.
-- The public `/health` route reveals only service version, mode, migration level, and readiness.
-- Every product, workspace, status, evidence, export, rollback, and hybrid queue route requires its exact authority.
-- The hosted gateway strips caller-supplied principal and forwarding headers before injecting the bounded local owner identity into loopback `archied`.
-- Cross-site browser mutations are rejected and failed browser login attempts are bounded per source address.
+- `owner_local` / founder can run the explicitly approved product journey, manage shares, write encrypted provider configuration, create full backups, inspect owned workspaces, export, approve, and roll back.
+- `developer_local` / developer authenticates independently and sees only public workspaces or workspaces that explicitly grant that principal access. Developer authority cannot silently inherit founder ownership.
 
-## Outbound-only local runner
+Browser login exchanges the supplied token for an independently signed HTTP-only, SameSite=Strict session. API clients may use the raw token as a bearer credential. Only token digests are configured or compared; raw tokens never enter workspace events, artifacts, Maker receipts, backups, exports, status, or the container image.
 
-A local computer can contribute its real filesystem and compute without exposing an inbound port:
+## Stable workspace URLs
 
-```bash
-export ARCHIED_HYBRID_URL='https://archie.example.internal'
-export ARCHIED_RUNNER_TOKEN='the-same-distinct-runner-token'
-export ARCHIED_RUNNER_ID='my-local-runner'
-npm run archie:runner
-```
-
-The runner opens no listener. It polls outward, leases one compatible job, executes the bounded local Maker journey under its own `ARCHIE_HOME`, heartbeats an expiring lease, and returns an integrity-checked portable workspace. Hosted Archie verifies every event and artifact digest before import.
-
-Each lease carries a monotonically increasing fencing token. If a runner disappears, the lease expires and the job may be reclaimed. Any late heartbeat, failure, or completion from the stale lease is rejected. Founder cancellation is terminal.
-
-Founder queue API:
+Every workspace has a provider-neutral product URL:
 
 ```text
-GET  /v1/hybrid/descriptor
-GET  /v1/hybrid/status
-POST /v1/hybrid/jobs
-GET  /v1/hybrid/jobs/{job_id}
-POST /v1/hybrid/jobs/{job_id}/cancel
+/w/{workspace_id}
 ```
 
-Runner API:
+The authenticated URL opens the same responsive Archie client and exact native state. GitHub is not needed to inspect progress, evidence, approval, rollback, or exports.
+
+## Expiring read-only shares
+
+A workspace owner may issue a one-time-disclosed share URL:
+
+```http
+POST /v1/hosted/shares
+Content-Type: application/json
+
+{"workspace_id":"workspace_...","expires_in_ms":3600000,"label":"Review-only evidence share"}
+```
+
+Archie creates an exact share principal and a `read` capability grant. The durable registry stores only the token digest. Share resolution rechecks native workspace authority, expiry, and revocation. It cannot execute commands, export, create another share, change secrets, create backups, spend, contact, publish, or deploy.
+
+List and revoke shares through:
 
 ```text
-POST /v1/hybrid/lease
-POST /v1/hybrid/jobs/{job_id}/heartbeat
-POST /v1/hybrid/jobs/{job_id}/complete
-POST /v1/hybrid/jobs/{job_id}/fail
+GET  /v1/hosted/workspaces/{workspace_id}/shares
+POST /v1/hosted/workspaces/{workspace_id}/shares/{share_id}/revoke
 ```
 
-The first admitted hybrid job kind is the same explicitly approved standalone product journey already used locally. Arbitrary remote shell execution, hosted inbound callbacks, hidden file reads, spending, contact, deployment, and destructive authority are not part of this protocol.
+## Encrypted configuration
 
-## Operator status and backup
+Only the founder can write hosted provider/configuration secrets:
 
-After browser authentication:
+```http
+PUT /v1/hosted/secrets/provider_api
+Content-Type: application/json
 
-```text
-/.well-known/archied.json
-/v1/hosted/status
+{"value":"secret material"}
 ```
 
-The hosted status endpoint shows exact workspace heads, event counts, evidence, approvals, rollback counts, inspection URLs, and portable-export URLs. The founder-only hybrid status endpoint adds the digest-chained queue head, lease state, attempts, completion receipts, and runner identity. A portable `.archie.json` export remains the canonical workspace backup and clean-machine restore path.
+Values are encrypted independently with AES-256-GCM, random nonces, authentication tags, and secret-name-bound additional authenticated data. Status reports counts and, for the founder, names and timestamps; it never exposes values or ciphertext. The external encryption key must be backed up separately.
+
+## Backups and operational status
+
+`POST /v1/hosted/backups` creates a digest-verified full service backup under the persistent Archie volume. It contains every verified native workspace event, admitted artifact byte, and the encrypted secret envelope. It intentionally excludes raw access tokens plus session and encryption keys.
+
+`GET /v1/hosted/status` reports service version, migration level, workspaces visible to the authenticated principal, share-registry identity, encrypted-secret metadata, backup count, and latest backup digest without disclosing host filesystem paths.
 
 ## Container boundary
 
-The reference image:
+The reference stack uses one unprivileged Node process, a read-only root filesystem, bounded temporary storage, dropped Linux capabilities, `no-new-privileges`, a persistent Archie data volume, and loopback-only publication by default. It contains no GitHub credential, Git remote identity, provider account, or vendor-specific deployment contract.
 
-- runs as the unprivileged `node` user;
-- writes only to `/data` and a bounded temporary filesystem;
-- drops Linux capabilities and enables `no-new-privileges`;
-- uses a read-only root filesystem under Compose;
-- has no GitHub, Git remote, source-host token, Actions, Pages, or repository identity dependency in its runtime contracts;
-- exposes one hosted service and one product surface.
+## Hard boundary
 
-## Truth boundary
-
-This package proves that the same Archie-native product can run locally or behind private hosted founder access, delegate one bounded journey to an outbound-only local runner, reject stale writers, and import an exact portable result. It does not claim that a public deployment currently exists, that arbitrary local work is remotely authorized, that a trained Archie candidate has passed evaluation, that MLX/GGUF is admitted, that physical-device performance has been proven, or that customer value improved. Those claims remain governed by #539, #540, #538, and the real LBTB benchmark.
+A green hosted-parity receipt proves private founder/developer authentication, explicit native grants, stable URLs, read-only shares, encrypted configuration, backup integrity, container packaging, and restart durability. It does not prove that an external deployment exists, that third-party TLS is configured, that a trained Archie candidate is admitted, that a native device backend works, or that customer outcomes improved.
