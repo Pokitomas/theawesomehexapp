@@ -55,16 +55,16 @@ const fullVersionWorkflowRow = {
 };
 
 const cudaTrainingWorkflowRow = {
-  id: 'workflow.archie-cuda-training', f: 'workflow', op: 'Authorize and execute evidence-bound Archie CUDA QLoRA training or emit a pre-queue blocker',
+  id: 'workflow.archie-cuda-training', f: 'workflow', op: 'Authorize and execute verifier-anchored causal-divergence CUDA QLoRA training or emit a pre-queue blocker',
   actor: 'Repository owner pushing a bound request to main or manually dispatching; pull requests execute contract checks only',
   principal: 'Read-only GitHub Actions token for checkout and a bounded issues:write token for terminal receipts; real training runs only on an explicitly labeled self-hosted CUDA runner',
-  auth: 'contents:read and issues:write; repository-owner actor, ARCHIE_CUDA_RUNNER_READY=1, configured runner label, exact Python, compiler config, student checkpoint, and output root are mandatory before queue',
-  object: 'Authorization or blocker artifact, issue receipt, local compiled workspace, QLoRA adapter/checkpoints, runner evidence, logs, and non-admitted training receipts',
+  auth: 'contents:read and issues:write; repository-owner actor, ARCHIE_CUDA_RUNNER_READY=1, configured runner label, exact Python, compiler config, admitted trajectory batch, student checkpoint, and output root are mandatory before queue',
+  object: 'Authorization or blocker artifact, issue receipt, local compiled workspace, causal pair receipt, QLoRA adapter/checkpoints, runner evidence, logs, and non-admitted training receipts',
   owner: 'Repository owner controls request and variables; self-hosted runner operator controls GPU and local model/data inputs; admission remains independently governed',
-  deny: 'pull request cannot enter training lane|actor is not repository owner|required variable is missing|readiness flag is not one|runner label is unavailable|CUDA or VRAM preflight fails|pinned dependency or local input is missing|compiler or trainer fails|receipt is missing artifacts or attempts promotion',
-  replay: 'Request ID, issue number, exact code SHA, Actions run and attempt, runner identity, GPU identity, config and trainer digests, compiled plan, data identities, sample order, checkpoint identity, output bytes, and both receipt digests.',
+  deny: 'pull request cannot enter training lane|actor is not repository owner|required variable is missing|readiness flag is not one|runner label is unavailable|CUDA or VRAM preflight fails|pinned dependency or local input is missing|trajectory batch or pair compilation fails|compiler or trainer fails|receipt is missing artifacts or attempts promotion',
+  replay: 'Request ID, issue number, exact code SHA, Actions run and attempt, runner identity, GPU identity, profile/config/trajectory/trainer/compiler digests, pair receipt, compiled plan, sample order, checkpoint identity, output bytes, and both training receipt digests.',
   pub: 'Workflow status, bounded issue comments, blocker metadata, and artifact names are public.',
-  priv: 'Local model weights, reviewed source datasets, compiler config contents, runner filesystem paths beyond bounded receipts, registration tokens, and GitHub token remain private.', st: 'e',
+  priv: 'Local model weights, reviewed trajectory batches, compiled preference rows, compiler config contents, runner filesystem paths beyond bounded receipts, registration tokens, and GitHub token remain private.', st: 'e',
   s: [
     'workflow-permission:.github/workflows/archie-cuda-training.yml:contents:read',
     'workflow-permission:.github/workflows/archie-cuda-training.yml:issues:write'
@@ -75,11 +75,14 @@ const cudaTrainingWorkflowRow = {
     'contents: read',
     'issues: write',
     'ARCHIE_CUDA_RUNNER_READY',
+    'ARCHIE_TRAJECTORY_BATCH_PATH',
+    'foundry/archie-distill/compile_causal_pairs.py',
+    'foundry/archie-distill/train_causal_divergence.py',
     'No training job was queued. Missing configuration is a blocker',
     'runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}"]',
     "'promotion': 'not-admitted'"
   ]],
-  allow: [['.github/workflows/archie-cuda-training.yml', 'A real CUDA QLoRA run produced uploaded artifacts']],
+  allow: [['.github/workflows/archie-cuda-training.yml', 'A real causal-divergence CUDA QLoRA run produced uploaded artifacts']],
   denyW: [['.github/workflows/archie-cuda-training.yml', 'No GPU job, gradient update, checkpoint, or training receipt was produced.']]
 };
 
