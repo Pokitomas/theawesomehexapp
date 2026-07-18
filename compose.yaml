@@ -1,0 +1,33 @@
+services:
+  archie:
+    build:
+      context: .
+      dockerfile: Dockerfile.archie
+    restart: unless-stopped
+    environment:
+      ARCHIE_HOME: /data
+      ARCHIED_HOST: 0.0.0.0
+      ARCHIED_PORT: 8787
+      ARCHIED_FOUNDER_TOKEN: ${ARCHIED_FOUNDER_TOKEN:?set ARCHIED_FOUNDER_TOKEN to a private value of at least 24 characters}
+      ARCHIED_PUBLIC_ORIGIN: ${ARCHIED_PUBLIC_ORIGIN:-http://localhost:8787}
+      ARCHIED_COOKIE_SECURE: ${ARCHIED_COOKIE_SECURE:-false}
+    ports:
+      - "${ARCHIED_BIND:-127.0.0.1}:${ARCHIED_PORT:-8787}:8787"
+    volumes:
+      - archie-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  archie-data:
