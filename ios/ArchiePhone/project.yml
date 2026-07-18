@@ -34,6 +34,7 @@ targets:
   ArchiePhoneTests:
     type: bundle.unit-test
     platform: iOS
+    hostApplication: ArchiePhone
     sources:
       - path: Tests
     dependencies:
