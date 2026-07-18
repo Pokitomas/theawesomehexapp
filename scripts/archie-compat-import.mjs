@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import crypto from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -23,8 +24,7 @@ const DEFAULT_MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 const SKIPPED_DIRECTORY_NAMES = new Set([
   'node_modules', '.archie', '.cache', 'coverage', 'dist', 'build', '.next', '.turbo', '__pycache__'
 ]);
-const SENSITIVE_NAME = /(^|\/)(?:\.env(?:\..*)?|\.npmrc|\.pypirc|\.netrc|credentials?(?:\..*)?|secrets?(?:\..*)?|tokens?(?:\..*)?|cookies?(?:\..*)?|id_rsa(?:\.pub)?|id_ed25519(?:\.pub)?|.*\.(?:pem|p12|pfx|key))$/i;
-const GIT_INTERNAL = /^\.git\/(?:objects|logs|hooks|index|COMMIT_EDITMSG|FETCH_HEAD|ORIG_HEAD)(?:\/|$)/;
+const SENSITIVE_NAME = /(^|\/)(?:\.env(?:\..*)?|\.npmrc|\.pypirc|\.netrc|(?:credential|credentials|secret|secrets|token|tokens|cookie|cookies)(?:[._-].*)?|id_rsa(?:\.pub)?|id_ed25519(?:\.pub)?|.*\.(?:pem|p12|pfx|key))$/i;
 
 function clean(value, limit = 20_000) {
   return String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
@@ -38,6 +38,22 @@ function relativePath(root, filename) {
   const relative = path.relative(root, filename).split(path.sep).join('/');
   if (!relative || relative.startsWith('../') || path.isAbsolute(relative)) throw new WorkspaceError('Compatibility source escaped its root.');
   return relative;
+}
+
+function safeArchivePath(value) {
+  const candidate = String(value || '');
+  if (!candidate || candidate.startsWith('/') || candidate.includes('\\')) return null;
+  const segments = candidate.split('/');
+  if (segments.some(segment => !segment || segment === '.' || segment === '..')) return null;
+  return segments.join('/');
+}
+
+function safeGitRef(value) {
+  const candidate = clean(value, 500);
+  if (!/^refs\/[A-Za-z0-9._/-]+$/.test(candidate) || candidate.includes('\\')) return null;
+  const segments = candidate.split('/');
+  if (segments.some(segment => !segment || segment === '.' || segment === '..')) return null;
+  return candidate;
 }
 
 function archiveIdentity(value) {
@@ -81,27 +97,69 @@ function remoteKind(remoteUrl) {
   return value ? 'other' : 'none';
 }
 
+function gitProjection({ layout = 'directory', headRef = null, headSha = null, remotes = [], projectionStatus = 'projected' } = {}) {
+  return Object.freeze({
+    schema: 'archie-compatibility-git/v1',
+    present: true,
+    layout,
+    projection_status: projectionStatus,
+    head_ref: headRef,
+    head_sha: headSha,
+    remotes,
+    canonical_runtime_authority: false,
+    role: 'optional provenance adapter only'
+  });
+}
+
 async function readGitMetadata(root) {
-  const gitRoot = path.join(root, '.git');
-  let headSource = '';
-  try { headSource = clean(await fs.readFile(path.join(gitRoot, 'HEAD'), 'utf8'), 500); }
+  const gitEntry = path.join(root, '.git');
+  let entryStats;
+  try { entryStats = await fs.lstat(gitEntry); }
   catch (error) {
     if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return null;
     throw error;
   }
+  if (entryStats.isFile()) {
+    const pointer = clean(await fs.readFile(gitEntry, 'utf8'), 2_000);
+    return gitProjection({
+      layout: 'gitdir_pointer',
+      projectionStatus: /^gitdir:\s+/i.test(pointer) ? 'external_gitdir_not_followed' : 'invalid_gitdir_pointer'
+    });
+  }
+  if (!entryStats.isDirectory()) return gitProjection({ layout: 'unsupported', projectionStatus: 'unsupported_git_entry' });
+
+  const gitRoot = path.resolve(gitEntry);
+  let headSource = '';
+  try { headSource = clean(await fs.readFile(path.join(gitRoot, 'HEAD'), 'utf8'), 500); }
+  catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return gitProjection({ projectionStatus: 'head_missing' });
+    throw error;
+  }
   let headRef = null;
   let headSha = null;
+  let projectionStatus = 'projected';
   if (/^ref:\s+/.test(headSource)) {
-    headRef = headSource.replace(/^ref:\s+/, '');
-    try { headSha = clean(await fs.readFile(path.join(gitRoot, ...headRef.split('/')), 'utf8'), 100).toLowerCase(); }
-    catch (error) {
-      if (error?.code !== 'ENOENT') throw error;
-      try {
-        const packed = await fs.readFile(path.join(gitRoot, 'packed-refs'), 'utf8');
-        const match = packed.split(/\r?\n/).map(line => line.trim().split(/\s+/)).find(parts => parts[1] === headRef);
-        headSha = clean(match?.[0], 100).toLowerCase();
-      } catch (packedError) {
-        if (packedError?.code !== 'ENOENT') throw packedError;
+    const requestedRef = headSource.replace(/^ref:\s+/, '');
+    headRef = safeGitRef(requestedRef);
+    if (!headRef) {
+      projectionStatus = 'unsafe_head_ref_omitted';
+    } else {
+      const refPath = path.resolve(gitRoot, ...headRef.split('/'));
+      if (!refPath.startsWith(`${gitRoot}${path.sep}`)) {
+        headRef = null;
+        projectionStatus = 'unsafe_head_ref_omitted';
+      } else {
+        try { headSha = clean(await fs.readFile(refPath, 'utf8'), 100).toLowerCase(); }
+        catch (error) {
+          if (error?.code !== 'ENOENT') throw error;
+          try {
+            const packed = await fs.readFile(path.join(gitRoot, 'packed-refs'), 'utf8');
+            const match = packed.split(/\r?\n/).map(line => line.trim().split(/\s+/)).find(parts => parts[1] === headRef);
+            headSha = clean(match?.[0], 100).toLowerCase();
+          } catch (packedError) {
+            if (packedError?.code !== 'ENOENT') throw packedError;
+          }
+        }
       }
     }
   } else {
@@ -121,15 +179,7 @@ async function readGitMetadata(root) {
       raw_url_preserved: false
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
-  return Object.freeze({
-    schema: 'archie-compatibility-git/v1',
-    present: true,
-    head_ref: headRef,
-    head_sha: headSha,
-    remotes,
-    canonical_runtime_authority: false,
-    role: 'optional provenance adapter only'
-  });
+  return gitProjection({ headRef, headSha, remotes, projectionStatus });
 }
 
 export function verifyCompatibilityArchive(value) {
@@ -139,7 +189,8 @@ export function verifyCompatibilityArchive(value) {
   if (value.archive_digest !== archiveDigest(value)) throw new WorkspaceError('Compatibility archive digest mismatch.');
   const seen = new Set();
   for (const file of value.files) {
-    if (!file.path || file.path.startsWith('/') || file.path.includes('..') || file.path.includes('\\')) throw new WorkspaceError('Compatibility archive contains an unsafe path.');
+    const safePath = safeArchivePath(file.path);
+    if (!safePath || safePath !== file.path) throw new WorkspaceError('Compatibility archive contains an unsafe path.');
     if (seen.has(file.path)) throw new WorkspaceError('Compatibility archive contains duplicate paths.');
     seen.add(file.path);
     const bytes = Buffer.from(String(file.content_base64 || ''), 'base64');
@@ -182,7 +233,11 @@ export async function scanCompatibilitySource({
         continue;
       }
       if (entry.isDirectory()) {
-        if (SKIPPED_DIRECTORY_NAMES.has(entry.name) || GIT_INTERNAL.test(`${relative}/`)) {
+        if (relative === '.git') {
+          skipped.push({ path: '.git/', reason: 'git_metadata_projected_separately' });
+          continue;
+        }
+        if (SKIPPED_DIRECTORY_NAMES.has(entry.name)) {
           skipped.push({ path: `${relative}/`, reason: 'generated_or_internal_directory' });
           continue;
         }
@@ -193,35 +248,59 @@ export async function scanCompatibilitySource({
         skipped.push({ path: relative, reason: 'non_regular_file' });
         continue;
       }
+      if (relative === '.git') {
+        skipped.push({ path: relative, reason: 'git_metadata_projected_separately' });
+        continue;
+      }
+      if (relative === '.gitmodules') {
+        skipped.push({ path: relative, reason: 'git_remote_metadata_denied' });
+        continue;
+      }
       if (SENSITIVE_NAME.test(relative)) {
         skipped.push({ path: relative, reason: 'sensitive_name' });
         continue;
       }
-      if (relative === '.git/config' || relative === '.git/HEAD' || relative === '.git/packed-refs' || relative.startsWith('.git/refs/')) {
-        skipped.push({ path: relative, reason: 'git_metadata_projected_separately' });
-        continue;
+
+      let handle;
+      try {
+        handle = await fs.open(absolute, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0));
+      } catch (error) {
+        if (error?.code === 'ELOOP') {
+          skipped.push({ path: relative, reason: 'symlink_denied' });
+          continue;
+        }
+        throw error;
       }
-      const stats = await fs.stat(absolute);
-      if (stats.size > limits.max_file_bytes) {
-        skipped.push({ path: relative, reason: 'file_size_limit', size_bytes: stats.size });
-        continue;
+      try {
+        const stats = await handle.stat();
+        if (!stats.isFile()) {
+          skipped.push({ path: relative, reason: 'non_regular_file' });
+          continue;
+        }
+        if (stats.size > limits.max_file_bytes) {
+          skipped.push({ path: relative, reason: 'file_size_limit', size_bytes: stats.size });
+          continue;
+        }
+        if (files.length >= limits.max_files) {
+          skipped.push({ path: relative, reason: 'file_count_limit', size_bytes: stats.size });
+          continue;
+        }
+        if (totalBytes + stats.size > limits.max_total_bytes) {
+          skipped.push({ path: relative, reason: 'total_size_limit', size_bytes: stats.size });
+          continue;
+        }
+        const bytes = await handle.readFile();
+        if (bytes.length !== stats.size) throw new WorkspaceError(`Compatibility source changed during scan: ${relative}`);
+        totalBytes += bytes.length;
+        files.push({
+          path: relative,
+          sha256: sha256(bytes),
+          size_bytes: bytes.length,
+          content_base64: bytes.toString('base64')
+        });
+      } finally {
+        await handle.close();
       }
-      if (files.length >= limits.max_files) {
-        skipped.push({ path: relative, reason: 'file_count_limit', size_bytes: stats.size });
-        continue;
-      }
-      if (totalBytes + stats.size > limits.max_total_bytes) {
-        skipped.push({ path: relative, reason: 'total_size_limit', size_bytes: stats.size });
-        continue;
-      }
-      const bytes = await fs.readFile(absolute);
-      totalBytes += bytes.length;
-      files.push({
-        path: relative,
-        sha256: sha256(bytes),
-        size_bytes: bytes.length,
-        content_base64: bytes.toString('base64')
-      });
     }
   }
 
@@ -242,29 +321,42 @@ export async function scanCompatibilitySource({
     files,
     skipped: skipped.sort((left, right) => left.path.localeCompare(right.path)),
     git,
-    claim_boundary: 'This archive is a bounded local compatibility snapshot. Secret-like files, symlinks, generated trees, Git object storage, raw remote URLs, and absolute local paths are excluded. Git and source-host metadata are optional provenance, never canonical runtime authority.'
+    claim_boundary: 'This archive is a bounded local compatibility snapshot. Secret-like files, symlinks, generated trees, the complete .git tree, .gitmodules remote metadata, raw configured Git remote URLs, and absolute local paths are excluded. Git and source-host metadata are optional provenance, never canonical runtime authority.'
   };
   const archive = Object.freeze({ ...body, archive_digest: archiveDigest(body) });
   verifyCompatibilityArchive(archive);
   return archive;
 }
 
+async function requireCleanRestoreRoot(root) {
+  try {
+    const stats = await fs.lstat(root);
+    if (!stats.isDirectory()) throw new WorkspaceError('Compatibility restore target must be a directory.');
+    if ((await fs.readdir(root)).length) throw new WorkspaceError('Compatibility restore target must be empty.');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    await fs.mkdir(root, { recursive: true, mode: 0o700 });
+  }
+}
+
 export async function restoreCompatibilityArchive({ archive, targetRoot } = {}) {
   const verified = verifyCompatibilityArchive(structuredClone(archive));
-  const root = path.resolve(targetRoot || '');
-  await fs.mkdir(root, { recursive: true, mode: 0o700 });
+  if (!clean(targetRoot, 8_000)) throw new WorkspaceError('Compatibility restore requires an explicit target root.');
+  const root = path.resolve(targetRoot);
+  await requireCleanRestoreRoot(root);
   for (const file of verified.files) {
     const target = path.resolve(root, ...file.path.split('/'));
     if (target !== root && !target.startsWith(`${root}${path.sep}`)) throw new WorkspaceError('Compatibility restore escaped its target root.');
     await fs.mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
-    await fs.writeFile(target, Buffer.from(file.content_base64, 'base64'), { mode: 0o600 });
+    await fs.writeFile(target, Buffer.from(file.content_base64, 'base64'), { mode: 0o600, flag: 'wx' });
   }
   return Object.freeze({
     schema: 'archie-compatibility-restore/v1',
     archive_digest: verified.archive_digest,
     restored_files: verified.files.length,
     restored_bytes: verified.files.reduce((sum, file) => sum + file.size_bytes, 0),
-    target_path_disclosed: false
+    target_path_disclosed: false,
+    clean_root_required: true
   });
 }
 
@@ -278,6 +370,7 @@ export async function importCompatibilitySource({
   archiveOptions = {}
 } = {}) {
   if (!engine) throw new WorkspaceError('Compatibility import requires a workspace engine.');
+  if (!clean(dataRoot, 8_000)) throw new WorkspaceError('Compatibility import requires an explicit Archie data root.');
   if (!['public', 'private', 'locally_sealed'].includes(visibility)) throw new WorkspaceError('Compatibility visibility is invalid.');
   const archive = await scanCompatibilitySource({ sourceRoot, label, ...archiveOptions });
   const workspaceId = identifier('workspace_compat');
@@ -286,8 +379,8 @@ export async function importCompatibilitySource({
   await engine.execute(workspaceId, 'owner_local', 'objective.define', {
     objective_id: 'objective_compatibility',
     statement: objective,
-    protected_reality: 'No secret-like files, symlinks, absolute local paths, raw remote URLs, Git object stores, network calls, source-host authority, deployment, spending, contact, or destructive writes.',
-    proof_of_done: 'A verified bounded archive, exact source digest, explicit skipped-file record, provider-neutral Archie workspace events, evidence, and portable export.'
+    protected_reality: 'No secret-like files, symlinks, absolute local paths, raw configured Git remote URLs, Git object stores, network calls, source-host authority, deployment, spending, contact, destructive writes, or restore overwrites.',
+    proof_of_done: 'A verified bounded archive, exact source digest, explicit skipped-file record, provider-neutral Archie workspace events, evidence, portable export, and fail-closed clean-root restoration.'
   });
   for (const agent of [
     { agent_id: 'agent_compatibility', label: 'Local compatibility adapter', kind: 'service', provider: 'local-directory' },
@@ -331,6 +424,7 @@ export async function importCompatibilitySource({
     git: archive.git ? {
       present: true,
       head_sha: archive.git.head_sha,
+      projection_status: archive.git.projection_status,
       remote_kinds: [...new Set(archive.git.remotes.map(remote => remote.kind))].sort(),
       source_host_canonical: false
     } : { present: false, source_host_canonical: false },
@@ -352,12 +446,13 @@ export async function importCompatibilitySource({
   });
   await engine.execute(workspaceId, 'reviewer_compatibility', 'evidence.record', {
     evidence_id: 'evidence_compatibility_import', run_id: 'run_compatibility_import', result: 'pass',
-    checks: ['archive-digest', 'file-digests', 'safe-relative-paths', 'secret-name-skip', 'symlink-skip', 'absolute-path-redaction', 'git-remote-redaction', 'source-host-demotion'],
+    checks: ['archive-digest', 'file-digests', 'safe-relative-paths', 'secret-name-skip', 'symlink-skip', 'clean-root-restore', 'absolute-path-redaction', 'git-tree-exclusion', 'git-head-ref-containment', 'git-remote-redaction', 'source-host-demotion'],
     summary: 'Compatibility archive and migration boundaries verified. Product value and source-host parity remain unclaimed.'
   });
 
   const bundle = await exportWorkspaceBundle({ engine, workspaceId, principalId: 'owner_local' });
-  const exportPath = await writeWorkspaceBundle(path.join(path.resolve(dataRoot), 'exports', `${workspaceId}.archie.json`), bundle);
+  const selectedDataRoot = path.resolve(dataRoot);
+  const exportPath = await writeWorkspaceBundle(path.join(selectedDataRoot, 'exports', `${workspaceId}.archie.json`), bundle);
   return Object.freeze({
     schema: ARCHIE_COMPAT_IMPORT_SCHEMA,
     workspace_id: workspaceId,
