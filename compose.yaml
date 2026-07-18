@@ -3,15 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.archie
+    init: true
     restart: unless-stopped
+    env_file:
+      - .env.archied
     environment:
       ARCHIE_HOME: /data
       ARCHIED_HOST: 0.0.0.0
       ARCHIED_PORT: 8787
-      ARCHIED_FOUNDER_TOKEN: ${ARCHIED_FOUNDER_TOKEN:?set ARCHIED_FOUNDER_TOKEN to a private value of at least 24 characters}
-      ARCHIED_RUNNER_TOKEN: ${ARCHIED_RUNNER_TOKEN:?set ARCHIED_RUNNER_TOKEN to a distinct private value of at least 24 characters}
-      ARCHIED_PUBLIC_ORIGIN: ${ARCHIED_PUBLIC_ORIGIN:-http://localhost:8787}
-      ARCHIED_COOKIE_SECURE: ${ARCHIED_COOKIE_SECURE:-false}
     ports:
       - "${ARCHIED_BIND:-127.0.0.1}:${ARCHIED_PORT:-8787}:8787"
     volumes:
