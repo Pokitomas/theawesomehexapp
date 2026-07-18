@@ -180,6 +180,13 @@ export async function main(env = process.env) {
   }
 }
 
+export {
+  ARCHIE_HYBRID_RUNNER_STATE_SCHEMA,
+  ARCHIE_HYBRID_RUNNER_VERSION,
+  defaultRunnerAdvertisement,
+  runHybridRunnerOnce
+} from './archie-enrolled-hybrid-runner.mjs';
+
 const invoked = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invoked) {
   main().catch(error => {

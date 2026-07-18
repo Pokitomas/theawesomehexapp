@@ -14,12 +14,13 @@ import {
   requireRole,
   tokenSha256
 } from './archie-hosted-security.mjs';
+import { createHybridService } from './archie-hybrid-protocol.mjs';
 import { WorkspaceAuthorityError, WorkspaceError } from './archie-workspace-core.mjs';
 import { startArchied } from './archied.mjs';
 
 export const ARCHIED_HOSTED_SCHEMA = 'archied-hosted-runtime/v1';
-export const ARCHIED_HOSTED_VERSION = '0.2.0';
-export const ARCHIED_HOSTED_MIGRATION_LEVEL = 2;
+export const ARCHIED_HOSTED_VERSION = '0.3.0';
+export const ARCHIED_HOSTED_MIGRATION_LEVEL = 3;
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_FAILED_LOGINS = 10;
@@ -212,6 +213,10 @@ export async function startHostedArchied(options = {}) {
   const dataRoot = internal.data_root;
   const shareRegistry = new HostedShareRegistry(dataRoot);
   const secretStore = new EncryptedSecretStore(path.join(dataRoot, 'hosted', 'secrets.enc.json'), config.secret_key);
+  const enrolledHybrid = createHybridService({
+    engine: internal.engine,
+    root: path.join(dataRoot, 'hosted', 'enrolled-hybrid')
+  });
   const failures = new Map();
   const server = http.createServer();
 
@@ -238,6 +243,7 @@ export async function startHostedArchied(options = {}) {
     hosted_status_endpoint: new URL('v1/hosted/status', publicUrlValue).href,
     backup_endpoint: new URL('v1/hosted/backups', publicUrlValue).href,
     authentication: { ...security.descriptor, developer_enabled: !config.legacy_founder_only },
+    enrolled_hybrid_runner: enrolledHybrid.descriptor,
     storage: {
       events: internal.descriptor.storage.events,
       artifacts: internal.descriptor.storage.artifacts,
@@ -249,7 +255,7 @@ export async function startHostedArchied(options = {}) {
     local_runner_inbound_access_required: false,
     explicit_read_only_shares: true,
     encrypted_secret_store: 'aes-256-gcm-envelope/v1',
-    claim_boundary: 'Hosted Archie provides private founder/developer access over the same Archie-native workspace, authority, evidence, export, rollback, and portable ownership contracts. It does not claim an external deployment exists until an operator runs this image, and it does not upgrade model, device, or customer-value claims.'
+    claim_boundary: 'Hosted Archie provides private founder/developer access and expiring outbound-runner enrollment over the same Archie-native workspace, authority, evidence, export, rollback, and portable ownership contracts. It does not claim an external deployment exists until an operator runs this image, and it does not upgrade model, device, or customer-value claims.'
   });
 
   function loginState(ip, now = Date.now()) {
@@ -404,6 +410,10 @@ export async function startHostedArchied(options = {}) {
         return;
       }
 
+      if (pathname.startsWith('/v1/hybrid/runner/')) {
+        if (await enrolledHybrid.handleRunner(request, response, pathname, parts)) return;
+      }
+
       if (method === 'GET' && parts[0] === 'share' && parts[1] && parts.length === 2) {
         const share = await shareRegistry.authenticate(parts[1]);
         if (!share) throw new WorkspaceAuthorityError('Share link is invalid, expired, or revoked.');
@@ -433,6 +443,11 @@ export async function startHostedArchied(options = {}) {
 
       denyCrossSiteMutation(request);
 
+      if (pathname.startsWith('/v1/hybrid/founder/')) {
+        requireRole(identity, ['founder']);
+        if (await enrolledHybrid.handleFounder(request, response, pathname)) return;
+      }
+
       if (method === 'GET' && pathname === '/.well-known/archied.json') {
         jsonResponse(response, 200, descriptor);
         return;
@@ -453,6 +468,7 @@ export async function startHostedArchied(options = {}) {
           shares: await shareRegistry.status(),
           secrets: await secretStore.status({ includeNames: identity.role === 'founder' }),
           backups: await hostedBackupStatus(dataRoot),
+          enrolled_hybrid: await enrolledHybrid.status(),
           claim_boundary: 'Hosted status reports exact Archie-native state visible to the authenticated principal. It does not claim an external deployment or model/device admission.'
         });
         return;
@@ -589,6 +605,7 @@ export async function startHostedArchied(options = {}) {
     schema: ARCHIED_HOSTED_SCHEMA,
     server,
     internal,
+    enrolled_hybrid: enrolledHybrid,
     descriptor,
     url: localUrl,
     public_url: publicUrlValue,
