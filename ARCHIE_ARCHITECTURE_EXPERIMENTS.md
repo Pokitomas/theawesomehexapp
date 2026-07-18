@@ -55,6 +55,25 @@ Actual selection belongs only to three separate canonical systems:
 2. independently attested physical-iPhone admission;
 3. clean-environment reproduction.
 
+## Canonical candidate completion
+
+A diagnostic architecture row is not complete merely because its metrics look strong. Build an `archie-candidate-completion-manifest/v1` that references six unique JSON files with exact byte counts and SHA-256 digests:
+
+1. the `archie-quant-architecture-report/v2` containing the completed architecture candidate;
+2. an `archie-reproduction-receipt/v1`;
+3. an `archie-metrics-receipt/v1`;
+4. an `archie-intelligence-result/v1`;
+5. an `archie-iphone-result/v1`;
+6. the reviewed `archie-iphone-measurement-authorities/v1` manifest.
+
+Then run:
+
+```text
+npm run archie:research:architectures:verify -- --manifest ./candidate-completion.json
+```
+
+The verifier parses every referenced file, verifies every external file digest and every internal report/receipt digest, and requires one exact candidate ID plus the same model artifact and runtime identities across all evidence. The canonical iPhone result must bind the independently recomputed metrics receipt and carry a valid Ed25519 signature from an active authority in the reviewed manifest. Only then does the decision set `complete: true` and `selected_candidate_id` to the architecture candidate ID.
+
 ## Truth boundary
 
 The campaign is executable research orchestration. It does not validate submitted metrics, provide Mamba or RWKV weights, implement their mobile kernels, prove quality, admit an iPhone model, or select an architecture. Promotion remains human-only after the canonical intelligence, device, and reproduction evidence is real.
