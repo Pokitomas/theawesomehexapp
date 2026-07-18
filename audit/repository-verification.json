@@ -1,5 +1,5 @@
 {
-  "version": 14,
+  "version": 15,
   "suites": [
     { "id": "git-diff-check", "command": ["git", "diff", "--check"] },
     { "id": "native-changed-check", "command": ["node", "scripts/native-changed-check.mjs"] },
@@ -11,6 +11,7 @@
     { "id": "native-maker", "command": ["npm", "run", "test:native-maker"] },
     { "id": "maker-orchestrator", "command": ["npm", "run", "test:maker"] },
     { "id": "iphone-and-intelligence-admission", "command": ["node", "--test", "scripts/tests/maker-archie-device-evidence.test.mjs", "scripts/tests/archie-iphone-quantization-research.test.mjs", "scripts/tests/archie-intelligence-campaign.test.mjs"] },
+    { "id": "architecture-quantization-campaign", "command": ["npm", "run", "test:archie:architecture"] },
     { "id": "discovery-connected-import", "command": ["npm", "run", "test:ingestion"] },
     { "id": "social-memory", "command": ["npm", "run", "test:social"] },
     { "id": "authority-manifest", "command": ["npm", "run", "test:authority"] },
