@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const MODEL_SCHEMA = 'archie-skill-mixture/v2';
 const PLAN_SCHEMA = 'archie-compact-plan/v1';
-const TRAINING_SPEC = 'duplicate-collapsed-holdout-reliability/v1';
+const TRAINING_SPEC = 'duplicate-collapsed-holdout-reliability-rerank/v2';
 const clean = (value, limit = 200000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
 function canonical(value) {
@@ -230,27 +230,55 @@ function reliabilityFor(evidence, {
 function scoreModel(model, task) {
   const text = typeof task === 'string' ? task : `${clean(task.instruction || task.request || task.goal)}\n${stableJSONStringify(task.context || null)}`;
   const vector = weightedVector(text, model.dimensions, model.idf || []);
-  const ranked = model.specialists.map(specialist => ({ specialist, score: cosine(vector, arrayVector(specialist.centroid)) }))
-    .sort((left, right) => right.score - left.score || left.specialist.specialist_id.localeCompare(right.specialist.specialist_id));
   const negativeRanked = (model.negative_centroids || []).map(negative => ({ negative, score: cosine(vector, arrayVector(negative.centroid)) }))
     .sort((left, right) => right.score - left.score || left.negative.negative_id.localeCompare(right.negative.negative_id));
-  const best = ranked[0];
-  const second = ranked[1];
-  const rawConfidence = Math.max(0, Math.min(1, best?.score || 0));
   const negativeScore = Math.max(0, Math.min(1, negativeRanked[0]?.score || 0));
-  const similarityConfidence = Math.max(0, rawConfidence - negativeScore * Number(model.negative_penalty || 0));
-  const margin = Math.max(0, similarityConfidence - (second?.score || 0));
-  const suppressed = negativeScore >= Number(model.negative_suppression_threshold || 1) && negativeScore >= rawConfidence;
-  const reliability = best?.specialist?.reliability || reliabilityFor({}, {
+  const negativePenalty = Number(model.negative_penalty || 0);
+  const defaultReliability = () => reliabilityFor({}, {
     floor: model.reliability_floor,
     activationMin: model.reliability_activation_min,
     priorAlpha: model.reliability_prior_alpha,
     priorBeta: model.reliability_prior_beta
   });
-  const calibratedConfidence = similarityConfidence * Number(reliability.posterior_mean ?? 1);
-  const routingConfidence = reliability.gate_active ? calibratedConfidence : similarityConfidence;
+  const ranked = model.specialists.map(specialist => {
+    const similarityScore = Math.max(0, Math.min(1, cosine(vector, arrayVector(specialist.centroid))));
+    const similarityConfidence = Math.max(0, similarityScore - negativeScore * negativePenalty);
+    const reliability = specialist.reliability || defaultReliability();
+    const reliabilityFactor = reliability.gate_active ? Number(reliability.posterior_mean ?? 1) : 1;
+    const calibratedConfidence = similarityConfidence * reliabilityFactor;
+    const reliabilitySuppressed = reliability.gate_active && !reliability.gate_passed;
+    const routingConfidence = reliabilitySuppressed ? 0 : calibratedConfidence;
+    return {
+      specialist,
+      score: routingConfidence,
+      similarity_score: similarityScore,
+      similarity_confidence: similarityConfidence,
+      calibrated_confidence: calibratedConfidence,
+      reliability_factor: reliabilityFactor,
+      reliability_suppressed: reliabilitySuppressed,
+      reliability
+    };
+  }).sort((left, right) =>
+    right.score - left.score
+    || right.calibrated_confidence - left.calibrated_confidence
+    || right.similarity_score - left.similarity_score
+    || left.specialist.specialist_id.localeCompare(right.specialist.specialist_id)
+  );
+  const similarityRanked = [...ranked].sort((left, right) =>
+    right.similarity_score - left.similarity_score
+    || left.specialist.specialist_id.localeCompare(right.specialist.specialist_id)
+  );
+  const best = ranked[0];
+  const second = ranked[1];
+  const rawConfidence = best?.similarity_score || 0;
+  const similarityConfidence = best?.similarity_confidence || 0;
+  const calibratedConfidence = best?.calibrated_confidence || 0;
+  const routingConfidence = best?.score || 0;
+  const margin = Math.max(0, routingConfidence - (second?.score || 0));
+  const suppressed = negativeScore >= Number(model.negative_suppression_threshold || 1) && negativeScore >= rawConfidence;
   return {
     ranked,
+    similarityRanked,
     negativeRanked,
     best,
     rawConfidence,
@@ -260,7 +288,8 @@ function scoreModel(model, task) {
     routingConfidence,
     margin,
     suppressed,
-    reliability
+    reliability: best?.reliability || defaultReliability(),
+    reliabilitySuppressed: best?.reliability_suppressed || false
   };
 }
 
@@ -567,6 +596,7 @@ export function predictArchiePlan(model, task = {}) {
   if (model?.schema !== MODEL_SCHEMA || !Array.isArray(model.specialists) || !model.specialists.length) throw new Error('A trained Archie skill mixture is required.');
   const scored = scoreModel(model, task);
   const local = !scored.suppressed
+    && !scored.reliabilitySuppressed
     && scored.routingConfidence >= Number(model.threshold || 0)
     && scored.margin >= Number(model.minimum_margin || 0)
     && scored.reliability.gate_passed;
@@ -575,18 +605,28 @@ export function predictArchiePlan(model, task = {}) {
     state: local ? 'local' : 'escalate',
     specialist_id: local ? scored.best.specialist.specialist_id : null,
     candidate_specialist_id: scored.best?.specialist?.specialist_id || null,
+    highest_similarity_specialist_id: scored.similarityRanked[0]?.specialist?.specialist_id || null,
     confidence: Number(scored.routingConfidence.toFixed(6)),
     similarity_confidence: Number(scored.similarityConfidence.toFixed(6)),
     calibrated_confidence: Number(scored.calibratedConfidence.toFixed(6)),
     raw_confidence: Number(scored.rawConfidence.toFixed(6)),
     negative_score: Number(scored.negativeScore.toFixed(6)),
     negative_suppressed: scored.suppressed,
+    reliability_suppressed: scored.reliabilitySuppressed,
     margin: Number(scored.margin.toFixed(6)),
     reliability: scored.reliability,
     plan: local ? scored.best.specialist.target : null,
     tool_trace: local ? scored.best.specialist.tool_trace : [],
     model_digest: model.model_digest,
-    alternatives: scored.ranked.slice(0, 3).map(item => ({ specialist_id: item.specialist.specialist_id, score: Number(item.score.toFixed(6)) })),
+    alternatives: scored.ranked.slice(0, 3).map(item => ({
+      specialist_id: item.specialist.specialist_id,
+      score: Number(item.score.toFixed(6)),
+      similarity_score: Number(item.similarity_score.toFixed(6)),
+      similarity_confidence: Number(item.similarity_confidence.toFixed(6)),
+      calibrated_confidence: Number(item.calibrated_confidence.toFixed(6)),
+      reliability_factor: Number(item.reliability_factor.toFixed(6)),
+      reliability_suppressed: item.reliability_suppressed
+    })),
     negative_alternatives: scored.negativeRanked.slice(0, 3).map(item => ({ negative_id: item.negative.negative_id, score: Number(item.score.toFixed(6)) }))
   };
   return Object.freeze({ ...body, plan_digest: digest(body) });
@@ -629,6 +669,46 @@ async function collectReliabilityEvidence(corpus, specialists, limit) {
     }
   }
   return reliabilityEvidenceFromRecords([...records.values()]);
+}
+
+export async function recordLocalReuseOutcome({ corpus, specialist_id, task, plan = null, state, model_digest = null, plan_digest = null, run_id = '', receipt = null } = {}) {
+  if (!corpus || typeof corpus.ingest !== 'function') throw new Error('An Archie corpus with ingest() is required.');
+  const specialistId = clean(specialist_id, 100);
+  if (!/^skill_[a-f0-9]{20}$/.test(specialistId)) throw new Error('A valid Archie specialist_id is required.');
+  const terminalState = clean(state, 100).toLowerCase();
+  if (!['completed', 'failed', 'cancelled'].includes(terminalState)) throw new Error('Archie local reuse outcome must be completed, failed, or cancelled.');
+  const instruction = typeof task === 'string' ? clean(task, 500000) : clean(task?.instruction || task?.request || task?.goal, 500000);
+  if (!instruction) throw new Error('Archie local reuse outcome requires the original instruction.');
+  const success = terminalState === 'completed';
+  return corpus.ingest({
+    kind: 'archie_local_reuse',
+    subject: clean(typeof task === 'object' ? task?.subject || 'default' : 'default', 300),
+    input: {
+      text: instruction,
+      context: {
+        specialist_id: specialistId,
+        task_context: typeof task === 'object' ? task?.context || null : null,
+        model_digest: clean(model_digest, 200) || null,
+        plan_digest: clean(plan_digest, 200) || null
+      }
+    },
+    output: {
+      text: `specialist ${specialistId} local reuse ${success ? 'completed' : terminalState}`,
+      plan
+    },
+    tool_trace: [],
+    outcome: success ? 'reuse-completed' : `reuse-${terminalState}`,
+    source: {
+      system: 'archie-personal-brain',
+      run_id: clean(run_id || receipt?.session_id || receipt?.platform_run_id || '', 300),
+      route_digest: clean(plan_digest || receipt?.archie_decision?.plan_digest || '', 200)
+    },
+    tags: [
+      'local-reuse',
+      success ? 'reliability-success' : 'reliability-failure',
+      'exclude-positive-distillation'
+    ]
+  });
 }
 
 export class ArchiePersonalBrain {
@@ -674,43 +754,8 @@ export class ArchiePersonalBrain {
     }
   }
 
-  async recordPlanOutcome({ specialist_id, task, plan = null, state, model_digest = null, plan_digest = null, run_id = '', receipt = null } = {}) {
-    const specialistId = clean(specialist_id, 100);
-    if (!/^skill_[a-f0-9]{20}$/.test(specialistId)) throw new Error('A valid Archie specialist_id is required.');
-    const terminalState = clean(state, 100).toLowerCase();
-    if (!['completed', 'failed', 'cancelled'].includes(terminalState)) throw new Error('Archie local reuse outcome must be completed, failed, or cancelled.');
-    const instruction = typeof task === 'string' ? clean(task, 500000) : clean(task?.instruction || task?.request || task?.goal, 500000);
-    if (!instruction) throw new Error('Archie local reuse outcome requires the original instruction.');
-    const success = terminalState === 'completed';
-    return this.corpus.ingest({
-      kind: 'archie_local_reuse',
-      subject: clean(typeof task === 'object' ? task?.subject || 'default' : 'default', 300),
-      input: {
-        text: instruction,
-        context: {
-          specialist_id: specialistId,
-          task_context: typeof task === 'object' ? task?.context || null : null,
-          model_digest: clean(model_digest, 200) || null,
-          plan_digest: clean(plan_digest, 200) || null
-        }
-      },
-      output: {
-        text: `specialist ${specialistId} local reuse ${success ? 'completed' : terminalState}`,
-        plan
-      },
-      tool_trace: [],
-      outcome: success ? 'reuse-completed' : `reuse-${terminalState}`,
-      source: {
-        system: 'archie-personal-brain',
-        run_id: clean(run_id || receipt?.session_id || receipt?.platform_run_id || '', 300),
-        route_digest: clean(plan_digest || receipt?.archie_decision?.plan_digest || '', 200)
-      },
-      tags: [
-        'local-reuse',
-        success ? 'reliability-success' : 'reliability-failure',
-        'exclude-positive-distillation'
-      ]
-    });
+  async recordPlanOutcome(options = {}) {
+    return recordLocalReuseOutcome({ corpus: this.corpus, ...options });
   }
 
   async plan(task, { allow_teacher = true } = {}) {
@@ -726,12 +771,14 @@ export class ArchiePersonalBrain {
         state: 'escalate',
         specialist_id: null,
         candidate_specialist_id: null,
+        highest_similarity_specialist_id: null,
         confidence: 0,
         similarity_confidence: 0,
         calibrated_confidence: 0,
         raw_confidence: 0,
         negative_score: 0,
         negative_suppressed: false,
+        reliability_suppressed: false,
         margin: 0,
         reliability: reliabilityFor({}, {
           floor: this.training.reliability_floor,
@@ -772,12 +819,14 @@ export class ArchiePersonalBrain {
       state: 'teacher',
       specialist_id: null,
       candidate_specialist_id: local.candidate_specialist_id ?? null,
+      highest_similarity_specialist_id: local.highest_similarity_specialist_id ?? local.candidate_specialist_id ?? null,
       confidence: local.confidence ?? 0,
       similarity_confidence: local.similarity_confidence ?? local.confidence ?? 0,
       calibrated_confidence: local.calibrated_confidence ?? local.confidence ?? 0,
       raw_confidence: local.raw_confidence ?? local.confidence ?? 0,
       negative_score: local.negative_score ?? 0,
       negative_suppressed: local.negative_suppressed ?? false,
+      reliability_suppressed: local.reliability_suppressed ?? false,
       margin: local.margin ?? 0,
       reliability: local.reliability || null,
       plan: teacherResult?.plan || null,
