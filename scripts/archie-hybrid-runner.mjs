@@ -168,8 +168,8 @@ export async function runHybridOnce(configInput = {}) {
 export async function runHybridRunnerOnce(options = {}) {
   const result = await runEnrolledHybridRunnerOnce(options);
   if (result?.status === 'failed' && options.injectFailure !== true) {
-    const error = new Error(result.error?.message || 'Enrolled hybrid runner failed unexpectedly.');
-    error.code = result.error?.code || 'enrolled_runner_failed';
+    const error = new Error(result.message || 'Enrolled hybrid runner failed unexpectedly.');
+    error.code = 'enrolled_runner_failed';
     error.result = result;
     throw error;
   }
