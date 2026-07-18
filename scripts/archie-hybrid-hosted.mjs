@@ -142,7 +142,8 @@ export async function startHybridHostedArchied(options = {}) {
       lease_fencing: true,
       expiring_heartbeats: true,
       portable_workspace_return: true,
-      hosted_import_digest_verified: true
+      hosted_import_digest_verified: true,
+      admission_serialized_with_terminal_commit: true
     },
     canonical_workspace_state: hosted.descriptor.canonical_state,
     source_host_required: false,
@@ -175,6 +176,35 @@ export async function startHybridHostedArchied(options = {}) {
     }
     const imported = await importWorkspaceBundle({ provider: hosted.internal.provider, bundle });
     return Object.freeze({ workspace_id: imported.workspace_id, bundle_digest: imported.bundle_digest, imported: true, already_present: false });
+  }
+
+  async function admitAndComplete(jobId, lease, resultEnvelope) {
+    return queue.mutate(async () => {
+      queue.assertLease(jobId, lease);
+      const importReceipt = await importResultBundle(resultEnvelope);
+      const bundle = verifyWorkspaceBundle(resultEnvelope?.bundle);
+      const normalized = {
+        schema: 'archie-hybrid-result/v1',
+        workspace_id: bundle.workspace_id,
+        bundle_digest: bundle.bundle_digest,
+        head_digest: bundle.head_digest,
+        event_count: bundle.event_count,
+        artifact_count: bundle.artifacts.length,
+        completed_by_runner: String(lease.runner_id || '').trim().slice(0, 160),
+        claim_boundary: String(resultEnvelope?.claim_boundary || 'The hybrid runner completed a bounded local Archie journey and returned an integrity-checked portable workspace. No model, device, deployment, or customer-value claim is implied.').replace(/\u0000/g, '').trim().slice(0, 2_000)
+      };
+      await queue.append('job.completed', {
+        job_id: jobId,
+        lease_id: lease.lease_id,
+        runner_id: lease.runner_id,
+        fencing_token: lease.fencing_token,
+        result: normalized
+      });
+      return Object.freeze({
+        job: structuredClone(queue.state.jobs[jobId]),
+        import: importReceipt
+      });
+    });
   }
 
   function proxy(request, response) {
@@ -267,11 +297,8 @@ export async function startHybridHostedArchied(options = {}) {
       if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'jobs' && parts[3] && parts[4] === 'complete' && parts.length === 5 && method === 'POST') {
         requireRole(request, 'runner');
         const body = await readJson(request);
-        queue.assertLease(parts[3], body);
-        const importReceipt = await importResultBundle(body.result);
-        const { bundle: _bundle, ...result } = body.result || {};
-        const job = await queue.complete(parts[3], body, result);
-        jsonResponse(response, 200, { schema: 'archie-hybrid-completion/v1', job, import: importReceipt });
+        const completed = await admitAndComplete(parts[3], body, body.result);
+        jsonResponse(response, 200, { schema: 'archie-hybrid-completion/v1', ...completed });
         return;
       }
 
