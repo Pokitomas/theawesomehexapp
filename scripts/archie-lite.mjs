@@ -48,7 +48,7 @@ Options:
   --help                        Show this message.
 
 Archie lite reads GGUF metadata, estimates KV-cache bytes per token, caps context to
-current machine RAM, and forces llama.cpp CPU execution with zero GPU layers. It does
+current machine RAM, and forces llama.cpp CPU execution with device, model, KV, operation, projector, and automatic-fit offload disabled. It does
 not claim model quality, training, neural improvement, or production admission.`;
 }
 
