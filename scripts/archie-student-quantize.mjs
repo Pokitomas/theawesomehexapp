@@ -15,6 +15,7 @@ export const GGUF_QUANTIZATION_DESIGNS = Object.freeze({
 });
 const DEFAULT_QUANTIZATIONS = Object.freeze(['Q4_K_M', 'Q5_K_M', 'Q6_K']);
 const HEX = /^[a-f0-9]{64}$/;
+const NODE_SCRIPT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs']);
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -129,6 +130,20 @@ async function executableDescriptor(filename) {
   return Object.freeze({ path: real, bytes: stat.size, sha256: await sha256(real) });
 }
 
+async function resolveQuantizerCommand(requested) {
+  const toolPath = await resolveExecutable(requested);
+  if (!NODE_SCRIPT_EXTENSIONS.has(path.extname(toolPath).toLowerCase())) {
+    return Object.freeze({ executable: toolPath, argument_prefix: Object.freeze([]), tool: await executableDescriptor(toolPath), launcher: null });
+  }
+  const launcherPath = await resolveExecutable(process.execPath);
+  return Object.freeze({
+    executable: launcherPath,
+    argument_prefix: Object.freeze([toolPath]),
+    tool: await absoluteFileDescriptor(toolPath),
+    launcher: await executableDescriptor(launcherPath)
+  });
+}
+
 async function runCommand(executable, args, { cwd, environment, stdoutPath, stderrPath }) {
   const stdout = await fs.open(stdoutPath, 'wx');
   const stderr = await fs.open(stderrPath, 'wx');
@@ -157,7 +172,7 @@ async function runCommand(executable, args, { cwd, environment, stdoutPath, stde
 export async function runStudentQuantization(options) {
   const modelDir = path.resolve(options.modelDir);
   const converter = path.resolve(options.converter);
-  const quantizer = await resolveExecutable(options.quantizer);
+  const quantizerCommand = await resolveQuantizerCommand(options.quantizer);
   const python = await resolveExecutable(options.python || 'python3');
   const outputDir = await ensureFreshOutput(options.outputDir);
   const quantizations = normalizeQuantizations(options.quantizations);
@@ -174,7 +189,8 @@ export async function runStudentQuantization(options) {
   const tools = Object.freeze({
     python: await executableDescriptor(python),
     converter: await absoluteFileDescriptor(converter),
-    quantizer: await executableDescriptor(quantizer)
+    quantizer: quantizerCommand.tool,
+    quantizer_launcher: quantizerCommand.launcher
   });
   const environment = Object.freeze({
     ...process.env,
@@ -206,7 +222,7 @@ export async function runStudentQuantization(options) {
   const artifacts = [];
   for (const quantization of quantizations) {
     const filename = path.join(outputDir, `${source.model_id.replace(/[^A-Za-z0-9._-]+/g, '-')}-${quantization.toLowerCase()}.gguf`);
-    commands.push(await runCommand(quantizer, [f16Path, filename, quantization], {
+    commands.push(await runCommand(quantizerCommand.executable, [...quantizerCommand.argument_prefix, f16Path, filename, quantization], {
       cwd: outputDir,
       environment,
       stdoutPath: path.join(logsDir, `${quantization.toLowerCase()}.stdout.log`),
