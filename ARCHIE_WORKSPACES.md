@@ -102,3 +102,18 @@ npm run verify:repository
 ```
 
 Green substrate tests prove event integrity, local persistence, authority enforcement, review and promotion gates, anonymous public reads, and artifact retrieval. They do not prove model intelligence or production internet authentication.
+
+## Read-only external repository completion
+
+Archie can prepare and repair a repository without granting any write route to its source remote:
+
+```bash
+npm run archie:repository:complete -- \
+  --source https://github.com/example/project.git \
+  --output ../project-archie-completion \
+  --objective "Finish the project end to end and make its verification green"
+```
+
+The command clones into a new isolated directory, renames the source remote to `upstream-readonly`, replaces its push URL with a disabled scheme, binds an exact source commit and ranked repository evidence, runs only non-deployment verification commands, gives one writer up to a bounded number of repair passes, and emits `completion.patch`, logs, evidence, and an `archie-external-repository-completion/v1` receipt outside the clone. It never pushes, opens a pull request, merges, deploys, publishes, or changes repository settings.
+
+Use `--prepare-only` to produce the exact evidence and baseline diagnosis without invoking a writer. Use repeated `--verify` arguments when the repository has no safely discoverable test command. Publishing the resulting patch to a separate repository or branch is an explicit later action and is not implied by completion.
