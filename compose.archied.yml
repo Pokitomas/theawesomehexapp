@@ -1,0 +1,35 @@
+services:
+  archie:
+    build:
+      context: .
+      dockerfile: Dockerfile.archied
+    image: archie-local/archied:0.2.0
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env.archied
+    environment:
+      ARCHIED_MODE: hosted
+      ARCHIED_HOST: 0.0.0.0
+      ARCHIED_PORT: 8787
+      ARCHIE_HOME: /var/lib/archie
+    ports:
+      - "${ARCHIED_BIND_ADDRESS:-127.0.0.1}:${ARCHIED_PUBLISHED_PORT:-8787}:8787"
+    volumes:
+      - archie-data:/var/lib/archie
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  archie-data:
