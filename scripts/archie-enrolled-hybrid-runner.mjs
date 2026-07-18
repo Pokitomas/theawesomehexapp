@@ -345,10 +345,9 @@ export async function runHybridRunnerOnce({
       runnerToken: state.runner_token,
       fenceToken: state.fence_token,
       body: {
-        maker_receipt_digest: executed.makerReceipt.receipt_digest,
-        uploaded_artifacts: uploaded,
-        local_event_head: state.event_head,
-        local_event_sequence: state.event_sequence
+        schema: 'archie-hybrid-terminal-receipt/v1',
+        summary: `Completed bounded local work with ${uploaded.length} admitted artifact${uploaded.length === 1 ? '' : 's'}.`,
+        maker_receipt: executed.makerReceipt
       }
     });
     await fs.rm(stateFile, { force: true });
@@ -357,7 +356,7 @@ export async function runHybridRunnerOnce({
       runner_id: state.runner_id,
       lease_id: lease.lease_id,
       status: 'completed',
-      terminal_receipt_digest: terminal.terminal_receipt_digest
+      terminal_receipt_digest: terminal.receipt_digest
     });
   } catch (error) {
     const failure = await requestJson(new URL(`/v1/hybrid/runner/leases/${lease.lease_id}/fail`, serviceUrl), {
@@ -365,10 +364,13 @@ export async function runHybridRunnerOnce({
       runnerToken: state.runner_token,
       fenceToken: state.fence_token,
       body: {
-        code: clean(error?.code || 'local_runner_failed', 100),
-        message: clean(error?.message || 'Local runner failed.', 2_000),
-        local_event_head: state.event_head,
-        local_event_sequence: state.event_sequence
+        schema: 'archie-hybrid-failure-receipt/v1',
+        summary: 'Bounded local runner execution failed.',
+        failure: {
+          phase: clean(state.phase || 'execution', 80),
+          error_class: clean(error?.name || error?.code || 'Error', 160),
+          message: clean(error?.message || 'Hybrid runner failed.', 4_000)
+        }
       }
     }).catch(() => null);
     await fs.rm(stateFile, { force: true });
@@ -377,7 +379,7 @@ export async function runHybridRunnerOnce({
       runner_id: state.runner_id,
       lease_id: lease.lease_id,
       status: 'failed',
-      failure_receipt_digest: failure?.failure_receipt_digest || null,
+      failure_receipt_digest: failure?.receipt_digest || null,
       message: clean(error?.message || 'Local runner failed.', 2_000)
     });
   }
