@@ -42,8 +42,8 @@ const REQUIRED_PACKAGE_SCRIPTS = Object.freeze([
 const REQUIRED_TRUTH_MARKERS = Object.freeze([
   ['foundry/archie-distill/train.py', 'Refusing slow full-precision CPU training'],
   ['foundry/archie-distill/train.py', '"promotion": "not-admitted"'],
-  ['scripts/archie-student-admission.mjs', 'not_admitted'],
-  ['scripts/archie-repository-completion.mjs', 'GitHub is optional']
+  ['scripts/archie-student-admission.mjs', 'rejected-incomplete-student-evidence'],
+  ['ARCHIE_COMPATIBILITY.md', 'Git metadata is an optional provenance and future import/export adapter only']
 ]);
 
 function sha256File(file) {
@@ -66,8 +66,14 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function stable(value) {
+  if (Array.isArray(value)) return value.map(stable);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])]));
+  return value;
+}
+
 function stableDigest(value) {
-  return crypto.createHash('sha256').update(JSON.stringify(value, Object.keys(value).sort())).digest('hex');
+  return crypto.createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
 }
 
 function main() {
