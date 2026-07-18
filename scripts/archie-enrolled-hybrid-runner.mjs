@@ -284,6 +284,13 @@ export async function runHybridRunnerOnce({
     state.event_sequence = claim.lease.event_sequence;
     state.event_head = claim.lease.event_head;
     state.phase = 'claimed';
+    await sendEvent({
+      serviceUrl,
+      state,
+      leaseId: claim.lease.lease_id,
+      kind: 'claimed',
+      summary: 'Local runner claimed the fenced lease.'
+    });
     await writePrivateJson(stateFile, state);
   }
   const lease = claim.lease;
