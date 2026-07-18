@@ -50,15 +50,48 @@ const curriculum = [
   ['handoff-01', 'Produce a concise engineering handoff with exact SHA, files, tests, blockers, and rollback.', { domain: 'handoff' }]
 ].map(([task_id, instruction, context]) => ({ task_id, instruction, context }));
 
+function teacherModelPath(profile, root) {
+  return path.join(root, 'models', 'teacher', profile.teacher.filename);
+}
+
+function workspaceNextSteps(profile, root) {
+  const teacher = teacherModelPath(profile, root);
+  return [
+    `Place the exact teacher model at: ${teacher}`,
+    `Use ${profile.teacher.repository}@${profile.teacher.revision} and verify SHA-256 ${profile.teacher.sha256}.`,
+    `Keep at least ${profile.footprint?.recommended_free_bytes ?? 'the profile-recommended amount of'} bytes free for the complete experiment.`,
+    `Run: archie distill doctor --workspace ${root} --runner <path-to-llama-cli>`,
+    `After doctor reports ready_to_teach=true, run: archie distill teach --workspace ${root} --runner <path-to-llama-cli>`
+  ];
+}
+
 export async function initializeWorkspace({ profilePath, workspace }) {
   const profile = await loadProfile(profilePath);
   const root = path.resolve(workspace || defaultWorkspace(profile));
-  await fs.mkdir(root, { recursive: true });
+  await fs.mkdir(path.join(root, 'models', 'teacher'), { recursive: true });
+  await fs.mkdir(path.join(root, 'models', 'student'), { recursive: true });
   const profileOut = path.join(root, 'profile.json');
   await fs.writeFile(profileOut, `${JSON.stringify(profile, null, 2)}\n`);
   const tasks = curriculum.map(row => stableJSONStringify(row)).join('\n') + '\n';
   await fs.writeFile(path.join(root, 'curriculum.jsonl'), tasks);
-  const receipt = { schema: 'archie-distill-workspace/v1', profile_id: profile.id, profile_sha256: sha256(stableJSONStringify(profile)), curriculum_sha256: sha256(tasks), task_count: curriculum.length, workspace: root, claim_boundary: profile.claim_boundary };
+  const receipt = {
+    schema: 'archie-distill-workspace/v1',
+    profile_id: profile.id,
+    profile_sha256: sha256(stableJSONStringify(profile)),
+    curriculum_sha256: sha256(tasks),
+    task_count: curriculum.length,
+    workspace: root,
+    teacher: {
+      path: teacherModelPath(profile, root),
+      repository: profile.teacher.repository,
+      revision: profile.teacher.revision,
+      expected_sha256: profile.teacher.sha256,
+      download_bytes: profile.teacher.download_bytes ?? null
+    },
+    recommended_free_bytes: profile.footprint?.recommended_free_bytes ?? null,
+    next_steps: workspaceNextSteps(profile, root),
+    claim_boundary: profile.claim_boundary
+  };
   await fs.writeFile(path.join(root, 'workspace-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
   return receipt;
 }
@@ -66,16 +99,50 @@ export async function initializeWorkspace({ profilePath, workspace }) {
 export async function doctor({ profilePath, workspace, runner = '' }) {
   const profile = await loadProfile(profilePath);
   const root = path.resolve(workspace || defaultWorkspace(profile));
-  const teacher = path.join(root, 'models', 'teacher', profile.teacher.filename);
+  const teacher = teacherModelPath(profile, root);
   const teacherExists = await exists(teacher);
   const observed = teacherExists ? await hashFile(teacher) : null;
+  const teacherVerified = observed === profile.teacher.sha256;
   const runnerPath = runner ? path.resolve(runner) : '';
+  const runnerPresent = runnerPath ? await exists(runnerPath) : false;
+  const studentPresent = await exists(path.join(root, 'models', 'student', 'config.json'));
+  const readyToTeach = teacherVerified && runnerPresent;
+  const blockers = [];
+  const nextSteps = [];
+
+  if (!teacherExists) {
+    blockers.push({ code: 'teacher_missing', message: `Teacher model is missing at ${teacher}.` });
+    nextSteps.push(`Obtain ${profile.teacher.repository}@${profile.teacher.revision}.`);
+    nextSteps.push(`Place ${profile.teacher.filename} at: ${teacher}`);
+    nextSteps.push(`Expected SHA-256: ${profile.teacher.sha256}`);
+  } else if (!teacherVerified) {
+    blockers.push({ code: 'teacher_digest_mismatch', message: `Teacher model SHA-256 does not match the pinned profile at ${teacher}.` });
+    nextSteps.push(`Replace the teacher model at: ${teacher}`);
+    nextSteps.push(`Expected SHA-256: ${profile.teacher.sha256}`);
+    nextSteps.push(`Observed SHA-256: ${observed}`);
+  }
+
+  if (!runnerPath) {
+    blockers.push({ code: 'runner_not_provided', message: 'No llama-cli runner path was provided.' });
+    nextSteps.push('Install or build llama.cpp, then pass --runner <path-to-llama-cli>.');
+  } else if (!runnerPresent) {
+    blockers.push({ code: 'runner_missing', message: `Runner was not found at ${runnerPath}.` });
+    nextSteps.push(`Correct the runner path and rerun doctor: archie distill doctor --workspace ${root} --runner <path-to-llama-cli>`);
+  }
+
+  if (readyToTeach) nextSteps.push(`Run: archie distill teach --workspace ${root} --runner ${runnerPath}`);
+
   return {
-    schema: 'archie-distill-doctor/v1', profile_id: profile.id, workspace: root,
-    teacher: { path: teacher, present: teacherExists, expected_sha256: profile.teacher.sha256, observed_sha256: observed, verified: observed === profile.teacher.sha256 },
-    student_present: await exists(path.join(root, 'models', 'student', 'config.json')),
-    runner: { path: runnerPath || null, present: runnerPath ? await exists(runnerPath) : false },
-    ready_to_teach: observed === profile.teacher.sha256 && Boolean(runnerPath && await exists(runnerPath)),
+    schema: 'archie-distill-doctor/v1',
+    profile_id: profile.id,
+    workspace: root,
+    status: readyToTeach ? 'ready' : 'blocked',
+    teacher: { path: teacher, present: teacherExists, expected_sha256: profile.teacher.sha256, observed_sha256: observed, verified: teacherVerified },
+    student_present: studentPresent,
+    runner: { path: runnerPath || null, present: runnerPresent },
+    ready_to_teach: readyToTeach,
+    blockers,
+    next_steps: nextSteps,
     claim_boundary: profile.claim_boundary
   };
 }
@@ -90,19 +157,28 @@ function cleanOutput(stdout) {
 async function readJSONL(file) { return (await fs.readFile(file, 'utf8')).split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)); }
 async function appendJSONL(file, row) { await fs.appendFile(file, `${stableJSONStringify(row)}\n`); }
 
-export async function teach({ profilePath, workspace, runner, tasksPath, maxTasks = Infinity, execute = execFileAsync, onProgress = () => {} }) {
+export async function teach({ profilePath, workspace, runner, tasksPath, maxTasks = Infinity, execute = execFileAsync, onProgress = () => {}, now = Date.now }) {
   const profile = await loadProfile(profilePath);
   const root = path.resolve(workspace || defaultWorkspace(profile));
   const diagnosis = await doctor({ profilePath, workspace: root, runner });
-  if (!diagnosis.ready_to_teach) throw new Error('Teacher model and explicit runner must both be present and verified.');
+  if (!diagnosis.ready_to_teach) {
+    const details = diagnosis.blockers.map(blocker => blocker.message).join(' ');
+    throw new Error(`Teacher model and explicit runner must both be present and verified. ${details}`.trim());
+  }
   const tasks = await readJSONL(tasksPath || path.join(root, 'curriculum.jsonl'));
+  const selectedTasks = tasks.slice(0, maxTasks);
   const final = path.join(root, 'teacher-candidates.jsonl');
   const partial = `${final}.partial`;
   const existingRows = await exists(partial) ? await readJSONL(partial) : [];
   const completed = new Map(existingRows.map(row => [row.task_id, row]));
-  for (const [index, task] of tasks.slice(0, maxTasks).entries()) {
-    if (completed.has(task.task_id)) continue;
-    onProgress({ status: 'starting', index: index + 1, total: tasks.length, task_id: task.task_id });
+  const pendingTasks = selectedTasks.filter(task => !completed.has(task.task_id));
+  const runStartedAt = now();
+  let completedThisRun = 0;
+
+  for (const task of pendingTasks) {
+    const taskStartedAt = now();
+    const index = selectedTasks.findIndex(row => row.task_id === task.task_id) + 1;
+    onProgress({ status: 'starting', index, total: selectedTasks.length, run_index: completedThisRun + 1, run_total: pendingTasks.length, task_id: task.task_id });
     const systemPrompt = 'You are generating a candidate teaching trace for Archie. Be precise, preserve stated authority, refuse unsupported mutation or claims, and give a verifiable bounded answer.';
     const prompt = `${stableJSONStringify({ instruction: task.instruction, context: task.context ?? null })}\n\n/no_think`;
     const args = ['-m', diagnosis.teacher.path, '--system-prompt', systemPrompt, '-p', prompt, '-n', String(profile.teacher_generation.max_tokens), '-c', String(profile.teacher_generation.context_size), '-ngl', String(profile.teacher_generation.gpu_layers), '--temp', String(profile.teacher_generation.temperature), '--seed', String(profile.training.seed), '--no-display-prompt', '--conversation', '--single-turn', '--no-warmup', '--color', 'off', '--simple-io', '--log-disable', '--no-perf'];
@@ -111,7 +187,25 @@ export async function teach({ profilePath, workspace, runner, tasksPath, maxTask
     const response = cleanOutput(result.stdout);
     const row = { schema: 'archie-teacher-candidate/v1', candidate_id: `${task.task_id}-${sha256(response).slice(0, 16)}`, task_id: task.task_id, instruction: task.instruction, context: task.context ?? null, response, response_sha256: sha256(response), command_digest, teacher: { repository: profile.teacher.repository, revision: profile.teacher.revision, file_sha256: diagnosis.teacher.observed_sha256 } };
     await appendJSONL(partial, row); completed.set(task.task_id, row);
-    onProgress({ status: 'completed', index: index + 1, total: tasks.length, task_id: task.task_id, candidate_id: row.candidate_id });
+    completedThisRun += 1;
+    const finishedAt = now();
+    const elapsedMs = Math.max(0, finishedAt - runStartedAt);
+    const taskElapsedMs = Math.max(0, finishedAt - taskStartedAt);
+    const remaining = pendingTasks.length - completedThisRun;
+    const etaMs = completedThisRun > 0 ? Math.round((elapsedMs / completedThisRun) * remaining) : null;
+    onProgress({
+      status: 'completed',
+      index,
+      total: selectedTasks.length,
+      run_index: completedThisRun,
+      run_total: pendingTasks.length,
+      task_id: task.task_id,
+      candidate_id: row.candidate_id,
+      task_elapsed_ms: taskElapsedMs,
+      elapsed_ms: elapsedMs,
+      remaining,
+      eta_ms: etaMs
+    });
   }
   const rows = await readJSONL(partial);
   if (rows.length === tasks.length) await fs.rename(partial, final);
