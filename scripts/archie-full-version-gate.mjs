@@ -14,6 +14,9 @@ const REQUIRED_FILES = Object.freeze([
   'ARCHIE_COMPATIBILITY.md',
   'Dockerfile.archie',
   'compose.yaml',
+  '.github/training/archie-cuda-request.json',
+  '.github/workflows/archie-cuda-training.yml',
+  'docs/archie-cuda-training-actions.md',
   'scripts/archied.mjs',
   'scripts/archie-hybrid-hosted.mjs',
   'scripts/archie-hybrid-runner.mjs',
@@ -42,6 +45,9 @@ const REQUIRED_PACKAGE_SCRIPTS = Object.freeze([
 const REQUIRED_TRUTH_MARKERS = Object.freeze([
   ['foundry/archie-distill/train.py', 'Refusing slow full-precision CPU training'],
   ['foundry/archie-distill/train.py', '"promotion": "not-admitted"'],
+  ['.github/workflows/archie-cuda-training.yml', 'ARCHIE_CUDA_RUNNER_READY'],
+  ['.github/workflows/archie-cuda-training.yml', 'runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}"]'],
+  ['.github/workflows/archie-cuda-training.yml', 'No training job was queued. Missing configuration is a blocker'],
   ['scripts/archie-student-admission.mjs', 'rejected-incomplete-student-evidence'],
   ['ARCHIE_COMPATIBILITY.md', 'Git metadata is an optional provenance and future import/export adapter only']
 ]);
@@ -97,12 +103,14 @@ function main() {
       outbound_hybrid_runner: true,
       compatibility_import: true,
       portable_workspace_export: true,
-      distillation_contracts: true
+      distillation_contracts: true,
+      cuda_training_actions_surface: true
     },
     required_files: Object.fromEntries(REQUIRED_FILES.map(file => [file, { sha256: sha256File(path.join(root, file)) }])),
     required_package_scripts: Object.fromEntries(REQUIRED_PACKAGE_SCRIPTS.map(name => [name, scripts[name]])),
     truth_boundaries: {
       cuda_training_required: true,
+      cuda_actions_requires_explicit_runner_readiness: true,
       cpu_training_fallback_allowed: false,
       model_promotion_without_independent_admission_allowed: false,
       physical_device_claim_allowed_without_external_receipt: false,
