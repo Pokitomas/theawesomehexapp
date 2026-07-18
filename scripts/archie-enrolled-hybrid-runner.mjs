@@ -84,23 +84,20 @@ export async function defaultRunnerAdvertisement(root) {
     schema: 'archie-hybrid-runner-advertisement/v1',
     protocol_version: ARCHIE_HYBRID_RUNNER_VERSION,
     runner_version: ARCHIE_HYBRID_RUNNER_VERSION,
-    platform: process.platform,
-    architecture: process.arch,
-    cpu_count: os.cpus().length,
-    memory_bytes: os.totalmem(),
-    disk_free_bytes: await diskFreeBytes(root),
     capabilities: REQUIRED_CAPABILITIES,
-    privacy: {
+    resources: Object.freeze({
+      platform: process.platform,
+      architecture: process.arch,
+      cpu_count: os.cpus().length,
+      memory_bytes: os.totalmem(),
+      disk_free_bytes: await diskFreeBytes(root)
+    }),
+    privacy: Object.freeze({
       inbound_access: false,
-      arbitrary_network_tasks: false,
-      contact: false,
-      spend: false,
-      deploy: false,
-      publish: false,
-      credential_transfer: false,
+      filesystem_scope: 'bounded_root',
       artifact_upload: 'explicit_only',
-      local_root_scope: 'exact_directory'
-    }
+      credentials: 'local_only'
+    })
   });
 }
 
