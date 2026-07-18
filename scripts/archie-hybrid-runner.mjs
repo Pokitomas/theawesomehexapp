@@ -4,6 +4,12 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
+import {
+  ARCHIE_HYBRID_RUNNER_STATE_SCHEMA,
+  ARCHIE_HYBRID_RUNNER_VERSION,
+  defaultRunnerAdvertisement,
+  runHybridRunnerOnce as runEnrolledHybridRunnerOnce
+} from './archie-enrolled-hybrid-runner.mjs';
 import { executeStandaloneJourney } from './archie-standalone-journey.mjs';
 import { exportWorkspaceBundle } from './archie-workspace-portable.mjs';
 import { createWorkspaceEngine } from './archie-workspace-core.mjs';
@@ -159,6 +165,17 @@ export async function runHybridOnce(configInput = {}) {
   }
 }
 
+export async function runHybridRunnerOnce(options = {}) {
+  const result = await runEnrolledHybridRunnerOnce(options);
+  if (result?.status === 'failed' && options.injectFailure !== true) {
+    const error = new Error(result.message || 'Enrolled hybrid runner failed unexpectedly.');
+    error.code = 'enrolled_runner_failed';
+    error.result = result;
+    throw error;
+  }
+  return result;
+}
+
 export async function main(env = process.env) {
   const config = resolveHybridRunnerConfig({ env });
   process.stdout.write(`${JSON.stringify({
@@ -179,6 +196,12 @@ export async function main(env = process.env) {
     await sleep(config.poll_interval_ms);
   }
 }
+
+export {
+  ARCHIE_HYBRID_RUNNER_STATE_SCHEMA,
+  ARCHIE_HYBRID_RUNNER_VERSION,
+  defaultRunnerAdvertisement
+};
 
 const invoked = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (invoked) {
