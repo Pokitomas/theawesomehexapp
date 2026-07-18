@@ -20,6 +20,7 @@
     "ios/ArchiePhone/**",
     "Dockerfile.archie",
     "compose.yaml",
+    ".env.archied.example",
     "ARCHIE_RUNTIME.md",
     "ARCHIE_DISTILL.md",
     "ARCHIE_ARCHITECTURE_EXPERIMENTS.md",
