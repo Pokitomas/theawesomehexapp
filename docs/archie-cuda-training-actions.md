@@ -40,7 +40,7 @@ For an authorized request, the CUDA job:
 7. verifies `archie-neural-causal-divergence-training-receipt/v1`, the exact method, pair bytes, GPU identity, adapter artifacts, and `promotion: not-admitted`;
 8. emits `archie-cuda-actions-causal-training-receipt/v1`;
 9. uploads the adapter/checkpoints, logs, runner evidence, and receipts for 14 days;
-10. comments the terminal run state on GitHub #584.
+10. comments the terminal run state on GitHub #583.
 
 The source trajectory batch, compiled workspace, and compiled preference rows remain on the controlled runner. They are not uploaded as Actions artifacts.
 
