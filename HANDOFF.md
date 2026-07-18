@@ -1,78 +1,129 @@
 # Engineering handoff
 
-## Final repository state
+## Active work
 
-The independent-program product direction is merged to `main` through PR #511.
+Continue PR #535 on branch `agent/iphone-first-quantization-research`.
 
-- Merge SHA: `4b2386606a8e43e7914fd0e837cec5f496cc9e49`
-- Exact feature head merged: `33338a96f4cb6035e09e92de598a72caae192ec7`
-- GitHub authority: #506
-- Linear authority: POK-101
-- Product contract: `product/xp-program-surfaces.json`
+- PR: `https://github.com/Pokitomas/theawesomehexapp/pull/535`
+- Base: `main` at `0bc98d8fd5ac5d1876713063af512954a8da188a`
+- Exact implementation head before this handoff commit: `1d585bd3f960bc20fae58ddef013bd0f36fb5533`
+- State: open, draft, mergeable
+- Authority: execute normal architecture, implementation, tests, CI repair, issue/PR updates, and merge when evidence is green. Stop only for missing credentials, irreversible spending, legal acceptance, destructive external actions, or a genuinely unresolved product choice.
 
-The repository product direction is **independent, opaque applications**, not a shared AI dashboard or cognition pipeline.
+## Decision already made
 
-## What exists
+Use Unsloth only as an external Qwen training/merge/export accelerator. Do not vendor it, make it Archie’s runtime, or treat it as the brain.
 
-- `/` and `/desktop/` — Archie Program Manager. It launches separate programs and performs no hidden model work.
-- `/archie/` — Archie Knowledge Utility with Explorer, request editor, properties inspector, portable objective packets, local recovery, and explicit runtime boundaries.
-- `/maker/` — Maker project workbench with repository identity, protected reality, proof, authority selection, public execution state, and authenticated runtime-receipt inspection.
-- `/founder/` — Founder human-invention room, preserved as an independent application.
-- `/foundry/` — Foundry Research Control with campaign configuration, contradictory candidate specimens, evidence console, and human promotion gates.
-- `/world-expo/` — Expo, preserved as an independent public experiment gallery.
+Keep Mamba and RWKV-8 as Generation One architecture experiments. The uploaded material included source/designs but no Archie-trained checkpoints and no admitted iPhone runtime. Do not replace the current Qwen student merely because architecture source exists.
 
-Each program has its own route, interface grammar, control model, phone layout, and claim boundary.
+Keep ArchiveBox, Crawl4AI, and Whisper outside the neural core as possible future archive, web-ingestion, and speech faculties. Kid Pix, PixelWater, hm, and voice-ai are not neural-core inputs.
 
-## Hard product rules
+## Implemented on PR #535
 
-Do not reintroduce:
+### Existing Qwen quantization lane
 
-- glass, frosted, translucent, or transparent primary surfaces;
-- bento cards, feature tiles, or large decorative image navigation;
-- an intention → planning → reasoning icon pipeline;
-- one dashboard that treats Archie, Maker, Founder, Foundry, and Expo as stages;
-- a generic AI SaaS shell;
-- stacked rounded cards as the mobile fallback;
-- streaks, levels, followers, leaderboards, fake progress, routine confetti, or engagement ranking.
+- `scripts/archie-student-quantize.mjs`
+- `scripts/tests/archie-student-quantize.test.mjs`
+- `npm run archie:student:quantize`
+- receipt schema `archie-student-quantization-receipt/v1`
+- canonical candidates: `Q4_K_M`, `Q5_K_M`, `Q6_K`; `Q8_0` diagnostic only
+- complete checkpoint, tool, log, intermediate, output, and source-training receipt binding
+- candidates remain unadmitted
 
-Use title bars, menus, buttons, lists, files, fields, tabs, dialogs, inspectors, logs, status bars, and opaque application surfaces.
+The quantizer launcher is now cross-platform: JavaScript fixture/tools launch through the exact Node executable with `shell: false`, and both the script and launcher are hashed. This fixed the prior Windows `spawn UNKNOWN` failure.
 
-## Evidence and contracts
+### Uploaded-source binding
 
-`scripts/tests/xp-program-surfaces.test.mjs` rejects shared visual signatures, glass/translucency, pipeline vocabulary, remote UI dependencies, missing reduced-motion and forced-color support, and missing phone layouts.
+`product/archie-architecture-source-catalog.json` records exact inspected identities without vendoring the uploads:
 
-`scripts/deployment-receipt.cjs` identifies the public root as `desktop-program-manager`, verifies the exact deployed commit, and independently verifies Founder at `/founder/` and Archie at `/archie/`.
+- Unsloth archive SHA-256 `0a35ae612d3bca1d2fdb3b6709c6efcb6dc06bbc437153ea6e068370ac22c393`
+- Mamba archive SHA-256 `5da2347d1dd8d975c4cd406461c41276229813fa2076e9779bd1961e44095bf1`
+- RWKV-8 note SHA-256 `14ded853a5e5630751d2df1b98eb94dba3a167727f0fe70d8a217e486ccf139b`
 
-`.github/workflows/pages.yml` builds, tests, assembles, and deploys the independent programs.
+The catalog also classifies the faculty and excluded archives. Catalog membership proves source identity only—not quality, safety, compatibility, training, or admission.
 
-Primary verification commands:
+### Architecture × quantization campaign
 
-```bash
-npm ci --ignore-scripts --include=dev
-node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/founder-superiority.test.mjs
-npm run test:xp-surfaces
-npm run test:portfolio
-npm run test:founder
-npm run test:foundry:human
-npm run test:frontier-expo
-node scripts/tests/maker-console.test.mjs
-node --test scripts/tests/maker-ios-install.test.mjs scripts/tests/archie-phone-product.test.mjs
-```
+- `scripts/archie-quant-architecture-campaign.mjs`
+- `scripts/tests/archie-quant-architecture-campaign.test.mjs`
+- `ARCHIE_ARCHITECTURE_EXPERIMENTS.md`
+- `npm run archie:research:architectures`
+- `npm run archie:research:architectures:evaluate -- --results <results.json>`
+- `npm run test:archie:architecture`
+
+The immutable 12-cell matrix contains:
+
+1. Qwen3/GGUF controls: Q4_K_M, Q5_K_M, Q6_K, Q8_0.
+2. Mamba-2: weight-only INT8 and INT4.
+3. Mamba-3 MIMO: weight-only INT8 and INT4.
+4. RWKV-8: matrix-state INT8, low-rank-state INT8, quantized-state INT6, sparse quantized-state INT6.
+
+Only Qwen/GGUF cells currently expose a materialization command. Mamba and RWKV cells are explicitly `blocked-research-proposal`; no runtime, exporter, checkpoint, or kernel is invented.
+
+The evaluator:
+
+- continues after declared expected blockers;
+- preserves exact failure-code and log-digest receipts;
+- blocks selection on any unexpected failure;
+- requires identical training budget, hidden split, grader, workload set, and A15 device floor;
+- requires independent, reproduced, physical-A15 evidence for comparability;
+- returns a Pareto frontier only;
+- never auto-selects or promotes a model.
+
+### iPhone and intelligence gates already on this PR
+
+The branch also contains the native SwiftUI iPhone runtime, canonical A15/4 GB target, nonce-bound device-evidence path, independent measurement-authority registry, and six-arm intelligence campaign. Do not weaken those gates to make an architecture experiment pass.
+
+## Validation state at handoff
+
+At exact head `1d585bd3f960bc20fae58ddef013bd0f36fb5533`:
+
+- `npm run test:archie:architecture` passed 7/7 before publication.
+- Exact repository tree workflow passed.
+- Windows install workflow passed after the launcher repair.
+- Archie Generation One evidence workflow passed.
+- Native iPhone workflow was still in progress when this handoff was written.
+- Other reported workflows on the exact head were green or intentionally skipped.
+
+Always re-read current workflow state before merge because this handoff commit creates a newer head.
+
+## Missing empirical inputs
+
+No actual architecture comparison can complete until the relevant inputs exist.
+
+For Qwen/GGUF:
+
+- merged Archie/Qwen Hugging Face checkpoint;
+- exact `convert_hf_to_gguf.py`;
+- exact `llama-quantize` executable;
+- bound training receipt.
+
+For Mamba/RWKV:
+
+- an explicit parameter-matched architecture specification;
+- trained checkpoint under the same token/curriculum budget;
+- quantized export path;
+- mobile runtime and kernels;
+- hidden-split evaluation;
+- second clean reproduction;
+- physical A15/4 GB evidence through the canonical harness.
+
+Expected absence of those inputs is not a reason to abort the rest of the campaign. Record the expected failure and continue. Unknown NaNs, digest drift, comparison mismatches, runtime crashes, invalid evidence, or safety regressions are not expected blockers; investigate and stop selection.
+
+## Next engineer execution order
+
+1. Inspect current PR #535 head and all current workflow runs.
+2. Repair any failure caused by the architecture lane; do not dismiss it as expected unless its exact failure code is declared for that candidate.
+3. Run `npm run test:archie:architecture`, `npm run test:archie:distill`, and `npm run verify:repository` on the exact final tree.
+4. Generate and inspect `npm run archie:research:architectures`; verify 12 unique cells and source-catalog binding.
+5. Keep PR truth-boundary text synchronized with actual evidence.
+6. Merge only when required CI is green and no unresolved review blocker remains.
+7. After merge, record exact feature head, merge SHA, workflow evidence, and remaining empirical blockers. Do not claim a model was produced or selected.
+
+## Prior merged product baseline
+
+PR #511 was previously merged to `main` as `4b2386606a8e43e7914fd0e837cec5f496cc9e49`. Preserve its independent opaque-program product architecture. Do not turn Archie, Maker, Founder, Foundry, and Expo into one generic AI dashboard while working on the neural backend.
 
 ## Truth boundary
 
-The public applications are runnable interaction surfaces. Their existence does not prove model execution, training, repository mutation, deployment, frontier capability, or general intelligence.
-
-Archie remains an evidence-gated learned planning/model system with persistent Core and Generation One infrastructure. External effects remain Maker-authorized. Capability promotion remains evidence-bound.
-
-## Remaining operational check
-
-The code merge is complete. The next operator only needs to inspect the `main`-branch Pages run for merge SHA `4b2386606a8e43e7914fd0e837cec5f496cc9e49`, confirm the Program Manager root and independent `/founder/` and `/archie/` reachability receipts, then close #506 and POK-101 if live verification is green.
-
-Do not rewrite or reopen the product architecture merely because deployment propagation or one CI witness needs repair. Fix the exact operational failure and preserve the merged product contract.
-
-## Successor authority
-
-The next engineer may refine implementation, sequencing, storage, schemas, dependencies, algorithms, tests, CI, and visual details. They may replace a subsystem when evidence supports a stronger architecture.
-
-Stop only for missing credentials, irreversible external spending, legal acceptance, or a genuinely unresolved product decision. Do not stop merely because a normal code, test, CI, issue, PR, merge, or deployment problem requires another iteration.
+This repository now has executable architecture-experiment and quantization infrastructure. It does not yet have uploaded model weights, a trained Mamba/RWKV candidate, an admitted mobile recurrent runtime, independent physical A15 evidence, or an empirically selected neural architecture.
