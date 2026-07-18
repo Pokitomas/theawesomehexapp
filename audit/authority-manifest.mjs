@@ -147,7 +147,7 @@ const segmentedDistillationWorkflowRow = {
 const compatibilityMigrationWorkflowRow = {
   id: 'workflow.archie-compatibility-migration', f: 'workflow', op: 'Verify exact legacy import and source-host authority inventory',
   actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head across the operating-system and Node matrix',
-  auth: 'contents:read only', object: 'Check result and local ephemeral working-state fixture', owner: 'Repository CI configuration',
+  auth: 'contents:read only', object: 'Compatibility-import and source-host-inventory check results', owner: 'Repository CI configuration',
   deny: 'event or path filter does not match|checkout or dependency setup fails|compatibility migration tests fail',
   replay: 'Exact workflow run, pull-request head SHA, operating-system and Node matrix cell, and test command.',
   pub: 'Public check status and test names.', priv: 'Ephemeral fixtures are discarded; no secrets or source-host mutation authority are consumed.', st: 'e',
@@ -163,7 +163,7 @@ const liteWorkflowRow = {
   auth: 'contents:read only', object: 'Low-compute syntax, metadata parser, RAM planner, CPU enforcement, package aliases, and CLI-help check results', owner: 'Repository CI configuration',
   deny: 'event or path filter does not match|checkout or dependency setup fails|syntax check fails|low-compute contract tests fail|operator help fails',
   replay: 'Exact workflow run, pull-request head SHA, operating-system and Node matrix cell, Node version, test command, and CLI-help command.',
-  pub: 'Public check status and test names.', priv: 'Ephemeral GGUF fixtures and Archie homes are discarded; no model weights, prompts, credentials, accelerator authority, or external service access is consumed.', st: 'e',
+  pub: 'Public check status and test names.', priv: 'Ephemeral GGUF fixtures and Archie homes are discarded; no model weights, prompts, credentials, accelerator authority, or external service access are consumed.', st: 'e',
   s: ['workflow-permission:.github/workflows/archie-lite.yml:contents:read'],
   impl: [['.github/workflows/archie-lite.yml', 'contents: read', 'persist-credentials: false', 'npm run test:archie:lite', 'node scripts/archie-lite.mjs --help']],
   allow: [['scripts/tests/maker-archie-lite.test.mjs', 'installed GGUF planning binds metadata, RAM cap, CPU authority, and a durable receipt']],
