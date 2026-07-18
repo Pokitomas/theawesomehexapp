@@ -41,11 +41,25 @@ const nativeIPhoneWorkflowRow = {
   denyW: [['ios/ArchiePhone/Tests/ModelManifestTests.swift', 'testRejectsWeakRevisionAndWrongABI']]
 };
 
+const fullVersionWorkflowRow = {
+  id: 'workflow.archie-full-version', f: 'workflow', op: 'Verify the complete local, hosted, hybrid, compatibility, distillation, and repository-completion contract set',
+  actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head on a hosted Ubuntu runner',
+  auth: 'contents:read only', object: 'Ephemeral checkout, test outputs, and a bounded full-version gate receipt artifact', owner: 'Repository CI configuration',
+  deny: 'event or path filter does not match|checkout or dependency setup fails|syntax check fails|workspace, distillation, or repository-completion contract fails|gate receipt cannot be emitted',
+  replay: 'Exact workflow run, candidate SHA, pinned actions, Node version, invoked package scripts, and uploaded full-version receipt.',
+  pub: 'Public check status, test names, and bounded full-version receipt artifact.', priv: 'Ephemeral runner files are discarded; no write token, deployment credential, model promotion key, or external account authority is consumed.', st: 'e',
+  s: ['workflow-permission:.github/workflows/archie-full-version.yml:contents:read'],
+  impl: [['.github/workflows/archie-full-version.yml', 'contents: read', 'persist-credentials: false', 'npm run test:archie:workspace', 'npm run test:archie:distill', 'npm run test:archie:repository-completion']],
+  allow: [['scripts/tests/archie-repository-completion.test.mjs', 'runs a writer only in the isolated clone and emits a verified patch']],
+  denyW: [['scripts/tests/archie-repository-completion.test.mjs', 'prepares an exact read-only clone without touching the source']]
+};
+
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
   persistentCoreWorkflowRow,
   nativeIPhoneWorkflowRow,
+  fullVersionWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({
