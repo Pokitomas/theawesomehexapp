@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import {
   ARCHIE_GGUF_METADATA_SCHEMA,
@@ -243,7 +243,7 @@ test('package exposes both requested low-compute command spellings', async () =>
 });
 
 test('Linux installer is syntactically valid and exposes an offline help path', async () => {
-  const script = path.resolve(new URL('../install-archie-lite-linux.sh', import.meta.url).pathname);
+  const script = fileURLToPath(new URL('../install-archie-lite-linux.sh', import.meta.url));
   const syntax = spawnSync('bash', ['-n', script], { encoding: 'utf8' });
   assert.equal(syntax.status, 0, syntax.stderr);
   const help = spawnSync('bash', [script, '--help'], { encoding: 'utf8' });
