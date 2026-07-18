@@ -1,2 +1,7 @@
 # Local dependencies
 node_modules/
+
+# Hosted Archie credentials and durable runtime state
+.env.archied
+.archie/
+*.archie-backup.json
