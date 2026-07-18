@@ -1,5 +1,0 @@
-'neuralEvidence': false
-'gradient_steps': 0
-'promotion': 'not-admitted'
-
-These literal anchors exist only for authority-manifest reference stability. Executable enforcement remains in run_causal_divergence_digital_twin.py and archie-causal-digital-twin.yml.
