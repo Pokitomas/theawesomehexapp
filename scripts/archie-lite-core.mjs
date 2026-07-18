@@ -378,7 +378,17 @@ export function calculateLiteContext({
 }
 
 const GPU_ARGUMENTS = Object.freeze(new Set([
-  '--gpu-layers', '-ngl', '--n-gpu-layers', '--device', '--split-mode', '--tensor-split', '--main-gpu', '--rpc', '--rpc-server'
+  '--gpu-layers', '-ngl', '--n-gpu-layers',
+  '--device', '-dev',
+  '--split-mode', '-sm',
+  '--tensor-split', '-ts',
+  '--main-gpu', '-mg',
+  '--rpc', '--rpc-server',
+  '--kv-offload', '-kvo', '--no-kv-offload',
+  '--op-offload', '--no-op-offload',
+  '--mmproj-offload', '--no-mmproj-offload',
+  '--fit', '-fit', '--fit-target', '-fitt', '--fit-ctx', '-fitc',
+  '--override-tensor', '-ot'
 ]));
 
 export function buildCpuExecutionOptions(manifestArguments = [], env = process.env) {
@@ -388,18 +398,35 @@ export function buildCpuExecutionOptions(manifestArguments = [], env = process.e
     if (GPU_ARGUMENTS.has(name)) throw new Error(`Archie lite rejects manifest GPU override ${name}; CPU authority must be singular.`);
   }
   return Object.freeze({
-    runner_prefix_args: Object.freeze(['--gpu-layers', '0']),
+    runner_prefix_args: Object.freeze([
+      '--device', 'none',
+      '--gpu-layers', '0',
+      '--no-kv-offload',
+      '--no-op-offload',
+      '--no-mmproj-offload',
+      '--fit', 'off'
+    ]),
     env: Object.freeze({
       ...env,
       CUDA_VISIBLE_DEVICES: '',
       HIP_VISIBLE_DEVICES: '',
       ROCR_VISIBLE_DEVICES: '',
       ZE_AFFINITY_MASK: '',
-      GGML_VK_VISIBLE_DEVICES: ''
+      GGML_VK_VISIBLE_DEVICES: '',
+      LLAMA_ARG_DEVICE: 'none',
+      LLAMA_ARG_N_GPU_LAYERS: '0',
+      LLAMA_ARG_KV_OFFLOAD: '0',
+      LLAMA_ARG_MMPROJ_OFFLOAD: '0',
+      LLAMA_ARG_FIT: 'off'
     }),
     enforcement: Object.freeze({
       backend: 'cpu',
+      llama_cpp_device: 'none',
       llama_cpp_gpu_layers: 0,
+      llama_cpp_kv_offload: false,
+      llama_cpp_op_offload: false,
+      llama_cpp_mmproj_offload: false,
+      llama_cpp_fit: false,
       hidden_accelerator_environments: Object.freeze([
         'CUDA_VISIBLE_DEVICES',
         'HIP_VISIBLE_DEVICES',

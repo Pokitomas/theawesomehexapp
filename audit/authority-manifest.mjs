@@ -139,7 +139,7 @@ const liteWorkflowRow = {
   s: ['workflow-permission:.github/workflows/archie-lite.yml:contents:read'],
   impl: [['.github/workflows/archie-lite.yml', 'contents: read', 'persist-credentials: false', 'npm run test:archie:lite', 'node scripts/archie-lite.mjs --help']],
   allow: [['scripts/tests/maker-archie-lite.test.mjs', 'installed GGUF planning binds metadata, RAM cap, CPU authority, and a durable receipt']],
-  denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'RAM planning caps context and fails closed when the minimum cannot fit']]
+  denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'CPU execution disables model, KV, op, projector, and auto-fit offload paths']]
 };
 
 const rows = [

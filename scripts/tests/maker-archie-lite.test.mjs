@@ -204,15 +204,37 @@ test('RAM planning caps context and fails closed when the minimum cannot fit', (
   }), error => error?.code === 'ARCHIE_LITE_RAM_INSUFFICIENT');
 });
 
-test('CPU execution forces zero GPU layers, hides accelerators, and rejects competing manifest overrides', () => {
+test('CPU execution disables model, KV, op, projector, and auto-fit offload paths', () => {
   const options = buildCpuExecutionOptions(['--model', '{artifact}'], { PATH: '/test/bin', CUDA_VISIBLE_DEVICES: '0' });
-  assert.deepEqual(options.runner_prefix_args, ['--gpu-layers', '0']);
+  assert.deepEqual(options.runner_prefix_args, [
+    '--device', 'none',
+    '--gpu-layers', '0',
+    '--no-kv-offload',
+    '--no-op-offload',
+    '--no-mmproj-offload',
+    '--fit', 'off'
+  ]);
   assert.equal(options.env.CUDA_VISIBLE_DEVICES, '');
   assert.equal(options.env.HIP_VISIBLE_DEVICES, '');
+  assert.equal(options.env.LLAMA_ARG_DEVICE, 'none');
+  assert.equal(options.env.LLAMA_ARG_N_GPU_LAYERS, '0');
+  assert.equal(options.env.LLAMA_ARG_KV_OFFLOAD, '0');
+  assert.equal(options.env.LLAMA_ARG_MMPROJ_OFFLOAD, '0');
+  assert.equal(options.env.LLAMA_ARG_FIT, 'off');
   assert.equal(options.enforcement.backend, 'cpu');
+  assert.equal(options.enforcement.llama_cpp_device, 'none');
   assert.equal(options.enforcement.llama_cpp_gpu_layers, 0);
-  assert.throws(() => buildCpuExecutionOptions(['--gpu-layers', '4']), /rejects manifest GPU override/i);
-  assert.throws(() => buildCpuExecutionOptions(['-ngl=4']), /rejects manifest GPU override/i);
+  assert.equal(options.enforcement.llama_cpp_kv_offload, false);
+  assert.equal(options.enforcement.llama_cpp_op_offload, false);
+  assert.equal(options.enforcement.llama_cpp_mmproj_offload, false);
+  assert.equal(options.enforcement.llama_cpp_fit, false);
+  for (const argument of [
+    '--gpu-layers=4', '-ngl=4', '--device=cuda0', '-dev=cuda0',
+    '--kv-offload', '-kvo', '--op-offload', '--mmproj-offload',
+    '--fit=on', '-fit=on', '--override-tensor=x=CUDA0', '-ot=x=CUDA0'
+  ]) {
+    assert.throws(() => buildCpuExecutionOptions([argument]), /rejects manifest GPU override/i);
+  }
 });
 
 test('installed GGUF planning binds metadata, RAM cap, CPU authority, and a durable receipt', async t => {

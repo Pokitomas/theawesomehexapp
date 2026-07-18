@@ -59,7 +59,7 @@ Before inference, Archie lite:
 5. reserves operating-system and runtime headroom;
 6. caps context to the smallest of the requested, manifest, GGUF, and RAM limits;
 7. fails closed when even the configured minimum context cannot fit;
-8. rejects competing GPU arguments, hides accelerator devices, and invokes llama.cpp with `--gpu-layers 0`;
+8. rejects competing accelerator arguments, hides accelerator devices, selects `--device none`, sets `--gpu-layers 0`, passes explicit negative flags for KV-cache, host-operation, and multimodal-projector offload, and turns automatic device fitting off;
 9. writes a digest-bound plan receipt and, after execution, a lite run receipt linked to the normal Archie model-run receipt.
 
 The parser intentionally stops before large tokenizer arrays once the required model dimensions are known. It does not load model tensors or the complete GGUF into Node memory.
