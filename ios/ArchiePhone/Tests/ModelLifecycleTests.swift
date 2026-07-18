@@ -110,7 +110,8 @@ final class ModelLifecycleTests: XCTestCase {
             artifact: first.artifact
         )
         XCTAssertEqual(firstReceipt.operation, "install")
-        XCTAssertEqual(try await manager.activeRevision(), first.manifest.revisionSHA256)
+        let activeAfterFirst = try await manager.activeRevision()
+        XCTAssertEqual(activeAfterFirst, first.manifest.revisionSHA256)
 
         _ = try await manager.install(
             manifestData: second.manifestData,
@@ -118,15 +119,18 @@ final class ModelLifecycleTests: XCTestCase {
             signingPublicKey: second.publicKey,
             artifact: second.artifact
         )
-        XCTAssertEqual(try await manager.activeRevision(), second.manifest.revisionSHA256)
+        let activeAfterSecond = try await manager.activeRevision()
+        XCTAssertEqual(activeAfterSecond, second.manifest.revisionSHA256)
 
         let rollback = try await manager.rollback()
         XCTAssertEqual(rollback.operation, "rollback")
-        XCTAssertEqual(try await manager.activeRevision(), first.manifest.revisionSHA256)
+        let activeAfterRollback = try await manager.activeRevision()
+        XCTAssertEqual(activeAfterRollback, first.manifest.revisionSHA256)
 
         let removal = try await manager.removeRevision(second.manifest.revisionSHA256)
         XCTAssertEqual(removal?.operation, "remove")
-        XCTAssertEqual(try await manager.installedRevisions(), [first.manifest.revisionSHA256])
+        let installed = try await manager.installedRevisions()
+        XCTAssertEqual(installed, [first.manifest.revisionSHA256])
 
         let diagnosticData = try await manager.diagnosticExport()
         let diagnostic = try JSONDecoder().decode(ModelLifecycleDiagnostic.self, from: diagnosticData)
@@ -151,7 +155,8 @@ final class ModelLifecycleTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? ModelLifecycleFailure, .invalidDetachedSignature)
         }
-        XCTAssertEqual(try await manager.installedRevisions(), [])
+        let installed = try await manager.installedRevisions()
+        XCTAssertEqual(installed, [])
     }
 
     func testResumesRangeDownloadAndActivatesOnlyAfterFullDigestVerification() async throws {
@@ -167,7 +172,7 @@ final class ModelLifecycleTests: XCTestCase {
         let partialDirectory = root.appendingPathComponent("downloads", isDirectory: true)
         try FileManager.default.createDirectory(at: partialDirectory, withIntermediateDirectories: true)
         let partial = partialDirectory.appendingPathComponent("\(item.manifest.revisionSHA256).partial")
-        try payload.prefix(1024).write(to: partial)
+        try Data(payload.prefix(1024)).write(to: partial)
 
         let receipt = try await manager.resumeDownload(
             from: URL(string: "https://archie.test/model")!,
@@ -176,7 +181,8 @@ final class ModelLifecycleTests: XCTestCase {
             signingPublicKey: item.publicKey
         )
         XCTAssertEqual(receipt.source, "resumable-download")
-        XCTAssertEqual(try await manager.activeRevision(), item.manifest.revisionSHA256)
+        let active = try await manager.activeRevision()
+        XCTAssertEqual(active, item.manifest.revisionSHA256)
         XCTAssertFalse(FileManager.default.fileExists(atPath: partial.path))
     }
 
@@ -206,6 +212,7 @@ final class ModelLifecycleTests: XCTestCase {
 
         let recovery = try await manager.recoverActiveModel()
         XCTAssertEqual(recovery.operation, "recover")
-        XCTAssertEqual(try await manager.activeRevision(), first.manifest.revisionSHA256)
+        let active = try await manager.activeRevision()
+        XCTAssertEqual(active, first.manifest.revisionSHA256)
     }
 }
