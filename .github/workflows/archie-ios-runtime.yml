@@ -41,4 +41,28 @@ jobs:
           PY
       - name: Build and test native runtime
         working-directory: ios/ArchiePhone
-        run: xcodebuild test -project ArchiePhone.xcodeproj -scheme ArchiePhone -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" CODE_SIGNING_ALLOWED=NO
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project ArchiePhone.xcodeproj \
+            -scheme ArchiePhone \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
+            -resultBundlePath ArchiePhoneTests.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee xcodebuild.log
+      - name: Surface concise native failures
+        if: failure()
+        working-directory: ios/ArchiePhone
+        run: |
+          grep -nE '(^| )error:|Testing failed|BUILD FAILED|TEST FAILED|The following build commands failed' xcodebuild.log | tail -n 240 || true
+      - name: Preserve native build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-native-iphone-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ios/ArchiePhone/xcodebuild.log
+            ios/ArchiePhone/ArchiePhoneTests.xcresult
+            ios/ArchiePhone/ArchiePhone.xcodeproj/project.pbxproj
+          if-no-files-found: warn
+          retention-days: 14
