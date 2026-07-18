@@ -11,18 +11,41 @@ import {
 
 export const ARCHIE_WORKSPACE_BUNDLE_SCHEMA = 'archie-portable-workspace-bundle/v1';
 
+function bundleIdentity(value) {
+  return {
+    schema: value.schema,
+    workspace_id: value.workspace_id,
+    event_count: value.event_count,
+    head_digest: value.head_digest,
+    artifacts: [...(value.artifacts || [])]
+      .map(entry => ({
+        artifact_id: entry.artifact_id,
+        sha256: entry.sha256,
+        size_bytes: entry.size_bytes,
+        media_type: entry.media_type,
+        name: entry.name
+      }))
+      .sort((left, right) => String(left.artifact_id).localeCompare(String(right.artifact_id))),
+    claim_boundary: value.claim_boundary
+  };
+}
+
+function bundleDigest(value) {
+  return sha256(stableJSONStringify(bundleIdentity(value)));
+}
+
 function assertBundle(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new WorkspaceError('Portable workspace bundle must be an object.');
   if (value.schema !== ARCHIE_WORKSPACE_BUNDLE_SCHEMA) throw new WorkspaceError('Unsupported portable workspace bundle schema.');
-  const unsigned = { ...value };
-  delete unsigned.bundle_digest;
-  if (value.bundle_digest !== sha256(stableJSONStringify(unsigned))) throw new WorkspaceError('Portable workspace bundle digest mismatch.');
+  if (value.bundle_digest !== bundleDigest(value)) throw new WorkspaceError('Portable workspace bundle digest mismatch.');
   if (!Array.isArray(value.events) || !Array.isArray(value.artifacts)) throw new WorkspaceError('Portable workspace bundle requires events and artifacts.');
   const verified = verifyWorkspaceEventStream(value.events, value.workspace_id);
+  if (verified.count !== value.event_count) throw new WorkspaceError('Portable workspace bundle event count mismatch.');
   if (verified.head_digest !== value.head_digest) throw new WorkspaceError('Portable workspace bundle head digest mismatch.');
   for (const entry of value.artifacts) {
     const bytes = Buffer.from(String(entry.content_base64 || ''), 'base64');
     if (!entry.sha256 || sha256(bytes) !== entry.sha256) throw new WorkspaceError(`Portable artifact digest mismatch: ${entry.artifact_id || 'unknown'}.`);
+    if (bytes.length !== entry.size_bytes) throw new WorkspaceError(`Portable artifact size mismatch: ${entry.artifact_id || 'unknown'}.`);
   }
   return value;
 }
@@ -55,7 +78,7 @@ export async function exportWorkspaceBundle({ engine, workspaceId, principalId, 
     artifacts,
     claim_boundary: 'This bundle preserves exact Archie-native events and admitted artifact bytes. Its default identity is stable for one immutable event head. Import verifies every digest before mutation and does not grant external authority.'
   };
-  return Object.freeze({ ...body, bundle_digest: sha256(stableJSONStringify(body)) });
+  return Object.freeze({ ...body, bundle_digest: bundleDigest(body) });
 }
 
 export function verifyWorkspaceBundle(bundle) {
