@@ -1,0 +1,132 @@
+{
+  "schema": "archie-studio-product/v1",
+  "product": {
+    "name": "Archie",
+    "category": "phone-first frontier application creation environment",
+    "primary_request": "What should Archie make?",
+    "default_user": "a person who wants a working independent application without learning model, runtime, repository, or deployment internals",
+    "product_is_not": [
+      "a purchase-order processor",
+      "a Gmail utility",
+      "a school workflow",
+      "a generic AI dashboard",
+      "a chatbot that only emits mockups",
+      "a model-provider setup console"
+    ]
+  },
+  "architecture": {
+    "sideways": "deterministic objectives, state, authority, protected reality, and proof-of-done",
+    "archie": "learned planning, interpretation, composition, adaptation, and trajectory learning",
+    "maker": "the only permissioned effect executor",
+    "workspace": "event-sourced objective, task, run, artifact, review, evidence, promotion, and rollback record",
+    "generated_app": "an independent runnable and exportable artifact",
+    "distillation": "offline compilation and evaluation of successful and failed trajectories"
+  },
+  "consumer_flow": [
+    "describe an app in ordinary language or attach an existing project",
+    "derive objective, constraints, integrations, human gates, and proof-of-done",
+    "build through Maker",
+    "open a runnable phone-first preview",
+    "refine conversationally or through direct preview actions",
+    "verify the modified artifact",
+    "run, install, export, duplicate, or remove the independent app",
+    "optionally teach Archie from the complete trajectory"
+  ],
+  "surfaces": [
+    {
+      "id": "create",
+      "label": "Create",
+      "job": "accept one ordinary-language outcome plus optional files, screenshots, data, or an existing project",
+      "primary_action": "Make app"
+    },
+    {
+      "id": "workspace",
+      "label": "Workspace",
+      "job": "show the live runnable app and accept refinements while exposing only unavoidable human gates",
+      "primary_action": "Apply change"
+    },
+    {
+      "id": "apps",
+      "label": "Apps",
+      "job": "reopen, run, edit, duplicate, export, and remove independent generated applications",
+      "primary_action": "Open app"
+    },
+    {
+      "id": "teach",
+      "label": "Teach",
+      "job": "review a complete trajectory, compile a distillation pack, and evaluate a candidate without implying promotion",
+      "primary_action": "Prepare lesson"
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence",
+      "job": "inspect exact requests, actions, files, tests, failures, artifacts, receipts, and digests",
+      "primary_action": "Export evidence",
+      "default_visibility": "advanced"
+    }
+  ],
+  "runtime": {
+    "selection": "automatically prefer an admitted native Archie checkpoint",
+    "fallback": "truthfully use deterministic or receipt-bound teacher-assisted creation when native capability is unavailable",
+    "local_run_requires_openai_key": false,
+    "teacher_runtime_coupling": "teacher assistance may help create an app but may not become an undeclared runtime dependency of the generated app"
+  },
+  "distillation": {
+    "trigger_label": "Teach Archie from this build",
+    "required_inputs": [
+      "original request",
+      "objective and authority",
+      "accepted and rejected plans",
+      "user corrections",
+      "tool actions",
+      "verification evidence",
+      "failures",
+      "final artifact"
+    ],
+    "required_outputs": [
+      "digest-bound trajectory",
+      "distillation pack",
+      "candidate identity",
+      "independent evaluation state"
+    ],
+    "promotion_requires": [
+      "hidden evaluation",
+      "reproduction",
+      "runtime evidence",
+      "human promotion authority"
+    ]
+  },
+  "samples": {
+    "role": "bounded demonstrations of general creation capability; samples may never define the core product",
+    "required_generality": "include unrelated business, consumer, creative, or data applications",
+    "lbtb_po_processor": "one generated real-world business sample equivalent in product status to the Sideways self-hosting sample"
+  },
+  "default_hidden_controls": [
+    "model picker",
+    "provider picker",
+    "runtime command",
+    "runtime identifier",
+    "schema viewer",
+    "benchmark controls",
+    "repository controls",
+    "OAuth client-file import",
+    "evidence ledger"
+  ],
+  "forbidden": [
+    "sample-specific language in global product navigation",
+    "fake confidence scores",
+    "fake deployment claims",
+    "fake training or learned-skill claims",
+    "generated apps trapped as cards inside Archie",
+    "manual provider setup before the first request",
+    "screenshots presented as executable applications",
+    "cosmetic distillation without a compiled and evaluated candidate"
+  ],
+  "mobile": {
+    "priority": "primary",
+    "minimum_target_css_px": 44,
+    "default_layout": "one task, one preview, one primary action, progressive detail drawers",
+    "desktop_relationship": "a larger workspace for the same product, not a separate product"
+  },
+  "claim_boundary": "This contract defines the product and required evidence flow. It does not claim that an admitted model can already generate arbitrary applications, that a generated application has been deployed, or that any distillation candidate has passed promotion gates."
+}
