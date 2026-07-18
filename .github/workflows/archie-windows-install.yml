@@ -11,16 +11,23 @@ on:
       - 'scripts/archie-distill-core.mjs'
       - 'scripts/archie-distill.mjs'
       - 'scripts/run-python.mjs'
+      - 'scripts/archied.mjs'
+      - 'scripts/archie-standalone-*.mjs'
       - 'scripts/archie-workspace-core.mjs'
+      - 'scripts/archie-workspace-file-provider.mjs'
+      - 'scripts/archie-workspace-portable.mjs'
       - 'scripts/archie-workspace-service.mjs'
       - 'scripts/archie-workspace.mjs'
       - 'scripts/tests/archie-distill-pipeline.test.mjs'
       - 'scripts/tests/archie-workspace-substrate.test.mjs'
+      - 'scripts/tests/archie-standalone-journey.test.mjs'
+      - 'scripts/tests/archied-service.test.mjs'
       - 'scripts/tests/maker-archie-install.test.mjs'
       - 'foundry/archie-distill/**'
       - 'maker/evaluations/archie-distill-qwen3-quality.json'
       - 'maker/contracts/archie-*.schema.json'
       - 'ARCHIE_WORKSPACES.md'
+      - 'ARCHIE_STANDALONE_MIGRATION.md'
       - '.github/workflows/archie-windows-install.yml'
   push:
     branches: [main]
@@ -54,7 +61,12 @@ jobs:
           $output | Tee-Object -FilePath archie-distillation-windows.log
           if ($code -ne 0) { exit $code }
       - name: Verify native workspace contracts
-        run: npm.cmd run test:archie:workspace
+        shell: pwsh
+        run: |
+          $output = & npm.cmd run test:archie:workspace 2>&1
+          $code = $LASTEXITCODE
+          $output | Tee-Object -FilePath archie-workspace-windows.log
+          if ($code -ne 0) { exit $code }
       - name: Pack, globally install, and launch like a user
         shell: pwsh
         run: |
@@ -85,6 +97,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: archie-windows-${{ github.event.pull_request.head.sha || github.sha }}
-          path: archie-distillation-windows.log
+          path: |
+            archie-distillation-windows.log
+            archie-workspace-windows.log
           if-no-files-found: warn
           retention-days: 14
