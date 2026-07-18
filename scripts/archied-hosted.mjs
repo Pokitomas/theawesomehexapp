@@ -170,20 +170,22 @@ export function resolveHostedConfig({
   const selectedHome = path.resolve(home || env.ARCHIE_HOME || path.join(os.homedir(), '.archie'));
   const selectedHost = host || env.ARCHIED_HOST || '0.0.0.0';
   const selectedPort = integer(port ?? env.ARCHIED_PORT ?? '8787', 'ARCHIED_PORT');
-  const selectedPublicUrl = absoluteHttpUrl(
-    publicUrl || publicOrigin || env.ARCHIED_PUBLIC_URL || env.ARCHIED_PUBLIC_ORIGIN,
-    'ARCHIED_PUBLIC_URL'
-  );
   const legacyFounderToken = String(token || '');
+  if (legacyFounderToken && legacyFounderToken.length < 24) {
+    throw new WorkspaceError('ARCHIED_FOUNDER_TOKEN must contain at least 24 characters.');
+  }
+  const configuredPublicUrl = publicUrl || publicOrigin || env.ARCHIED_PUBLIC_URL || env.ARCHIED_PUBLIC_ORIGIN || null;
+  const selectedPublicUrl = configuredPublicUrl ? absoluteHttpUrl(configuredPublicUrl, 'ARCHIED_PUBLIC_URL') : null;
+  if (!selectedPublicUrl && !legacyFounderToken) throw new WorkspaceError('ARCHIED_PUBLIC_URL must be an absolute URL.');
   const insecureAllowed = allowInsecure === true || env.ARCHIED_ALLOW_INSECURE_HOSTED === '1' || Boolean(legacyFounderToken);
-  if (new URL(selectedPublicUrl).protocol !== 'https:' && !insecureAllowed) {
+  if (selectedPublicUrl && new URL(selectedPublicUrl).protocol !== 'https:' && !insecureAllowed) {
     throw new WorkspaceError('Hosted Archie requires an HTTPS ARCHIED_PUBLIC_URL unless ARCHIED_ALLOW_INSECURE_HOSTED=1 is set for an isolated test environment.');
   }
   const founderHash = founderTokenSha256 || env.ARCHIED_FOUNDER_TOKEN_SHA256 || (legacyFounderToken ? tokenSha256(legacyFounderToken) : null);
   const developerHash = developerTokenSha256 || env.ARCHIED_DEVELOPER_TOKEN_SHA256 || (legacyFounderToken ? crypto.randomBytes(32).toString('hex') : null);
   const selectedSessionKey = sessionKey || env.ARCHIED_SESSION_KEY || (legacyFounderToken ? deriveHostedKey('session', legacyFounderToken) : null);
   const selectedSecretKey = secretKey || env.ARCHIED_SECRET_KEY || (legacyFounderToken ? deriveHostedKey('secret', legacyFounderToken) : null);
-  const secureCookies = boolean(env.ARCHIED_COOKIE_SECURE, new URL(selectedPublicUrl).protocol === 'https:');
+  const secureCookies = boolean(env.ARCHIED_COOKIE_SECURE, selectedPublicUrl ? new URL(selectedPublicUrl).protocol === 'https:' : false);
   return Object.freeze({
     home: selectedHome,
     host: selectedHost,
@@ -221,19 +223,20 @@ export async function startHostedArchied(options = {}) {
   const address = server.address();
   const actualPort = typeof address === 'object' && address?.port ? address.port : config.port;
   const localUrl = `http://127.0.0.1:${actualPort}/`;
-  const publicOriginValue = new URL(config.public_url).origin;
+  const publicUrlValue = config.public_url || localUrl;
+  const publicOriginValue = new URL(publicUrlValue).origin;
   const descriptor = Object.freeze({
     schema: ARCHIED_HOSTED_SCHEMA,
     service_version: ARCHIED_HOSTED_VERSION,
     domain_contract: internal.descriptor.domain_contract,
     migration_level: ARCHIED_HOSTED_MIGRATION_LEVEL,
     mode: 'hosted',
-    base_url: config.public_url,
+    base_url: publicUrlValue,
     canonical_state: internal.descriptor.canonical_state,
-    product_surface: config.public_url,
-    workspace_url_template: new URL('w/{workspace_id}', config.public_url).href,
-    hosted_status_endpoint: new URL('v1/hosted/status', config.public_url).href,
-    backup_endpoint: new URL('v1/hosted/backups', config.public_url).href,
+    product_surface: publicUrlValue,
+    workspace_url_template: new URL('w/{workspace_id}', publicUrlValue).href,
+    hosted_status_endpoint: new URL('v1/hosted/status', publicUrlValue).href,
+    backup_endpoint: new URL('v1/hosted/backups', publicUrlValue).href,
     authentication: { ...security.descriptor, developer_enabled: !config.legacy_founder_only },
     storage: {
       events: internal.descriptor.storage.events,
@@ -299,8 +302,8 @@ export async function startHostedArchied(options = {}) {
           evidence_count: Object.keys(state.evidence).length,
           approval_count: Object.keys(state.approvals).length,
           rollback_count: Object.keys(state.rollbacks).length,
-          workspace_url: new URL(`w/${workspaceId}`, config.public_url).href,
-          export_url: new URL(`v1/standalone/workspaces/${workspaceId}/export`, config.public_url).href
+          workspace_url: new URL(`w/${workspaceId}`, publicUrlValue).href,
+          export_url: new URL(`v1/standalone/workspaces/${workspaceId}/export`, publicUrlValue).href
         });
       } catch (error) {
         if (!(error instanceof WorkspaceAuthorityError)) throw error;
@@ -309,8 +312,8 @@ export async function startHostedArchied(options = {}) {
     return results.sort((left, right) => left.workspace_id.localeCompare(right.workspace_id));
   }
 
-  function proxy(request, response, identity) {
-    const target = new URL(request.url || '/', internal.url);
+  function proxy(request, response, identity, targetPath = null) {
+    const target = new URL(targetPath || request.url || '/', internal.url);
     const headers = removeHopHeaders(request.headers);
     headers.host = target.host;
     headers['x-archie-principal'] = identity.principal_id;
@@ -495,7 +498,7 @@ export async function startHostedArchied(options = {}) {
           ...issued.record,
           token_disclosed_once: true,
           capabilities: ['read'],
-          share_url: new URL(`share/${issued.token}`, config.public_url).href
+          share_url: new URL(`share/${issued.token}`, publicUrlValue).href
         });
         return;
       }
@@ -549,6 +552,12 @@ export async function startHostedArchied(options = {}) {
         return;
       }
 
+      if (method === 'GET' && parts[0] === 'w' && parts[1] && parts.length === 2) {
+        await internal.engine.inspect(parts[1], { principalId: identity.principal_id });
+        proxy(request, response, identity, '/');
+        return;
+      }
+
       proxy(request, response, identity);
     } catch (error) {
       if (response.headersSent) {
@@ -582,7 +591,7 @@ export async function startHostedArchied(options = {}) {
     internal,
     descriptor,
     url: localUrl,
-    public_url: config.public_url,
+    public_url: publicUrlValue,
     data_root: dataRoot,
     close
   });
