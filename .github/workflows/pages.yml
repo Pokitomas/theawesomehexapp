@@ -69,7 +69,7 @@ jobs:
           rm -rf dist
           node scripts/publish-human-surfaces.mjs dist
           mkdir -p dist/maker dist/archie dist/world-expo dist/design dist/evidence dist/product
-          cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/iphone-research.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
+          cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
           cp archie/index.html archie/archie.css archie/archie.js archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
           cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
           cp design/frontier-world-expo.json dist/design/
@@ -92,7 +92,6 @@ jobs:
           test -f dist/desktop/index.html
           test -f dist/archie/index.html
           test -f dist/maker/index.html
-          test -f dist/maker/iphone-research.js
           test -f dist/world-expo/index.html
           test -f dist/product/xp-program-surfaces.json
           test -f dist/evidence/founder-superiority-status.json
