@@ -228,7 +228,7 @@ test('current hosted Archie controls one enrolled outbound-only runner through e
   assert.equal(await fs.readFile(path.join(runnerRoot, 'output', 'result.json'), 'utf8'), completeContent);
 
   const workspace = (await runtime.internal.engine.readState('workspace_hybrid')).state;
-  assert.equal(workspace.tasks.task_complete.status, 'completed');
+  assert.equal(workspace.tasks.task_complete.status, 'review');
   const completedRun = Object.values(workspace.runs).find(run => run.task_id === 'task_complete');
   assert.ok(completedRun);
   assert.equal(completedRun.status, 'completed');
