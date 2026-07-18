@@ -1,5 +1,5 @@
-# One-shot PR repair; this workflow deletes itself before publishing the verified head.
-name: Verify and publish Archie lite strict CPU repair
+# One-shot finalizer; this workflow deletes itself before publishing the verified head.
+name: Finalize Archie lite strict CPU repair
 
 on:
   pull_request:
@@ -8,7 +8,6 @@ on:
     paths:
       - '.github/archie-lite-strict-cpu.patch'
       - '.github/workflows/archie-lite-strict-cpu-pr-repair.yml'
-      - '.github/workflows/archie-lite-strict-cpu-repair.yml'
 
 permissions:
   contents: write
@@ -18,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  repair:
+  finalize:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/archie-lite-strict-cpu'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -32,65 +31,34 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply exact repair and commit final implementation only
+      - name: Commit final implementation only
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          def replace(path, old, new):
-              file = Path(path)
-              text = file.read_text()
-              if old not in text:
-                  raise SystemExit(f"expected patch marker missing in {path}: {old[:100]!r}")
-              file.write_text(text.replace(old, new, 1))
-              print(f"patched {path}")
+          core = Path('scripts/archie-lite-core.mjs')
+          text = core.read_text()
+          marker = "      LLAMA_ARG_OP_OFFLOAD: '0',\n"
+          if marker not in text:
+              raise SystemExit('expected undocumented op-offload environment marker is missing')
+          core.write_text(text.replace(marker, '', 1))
 
-          replace(
-              'scripts/archie-lite-core.mjs',
-              """const GPU_ARGUMENTS = Object.freeze(new Set([\n  '--gpu-layers', '-ngl', '--n-gpu-layers', '--device', '--split-mode', '--tensor-split', '--main-gpu', '--rpc', '--rpc-server'\n]));""",
-              """const GPU_ARGUMENTS = Object.freeze(new Set([\n  '--gpu-layers', '-ngl', '--n-gpu-layers',\n  '--device', '-dev', '--split-mode', '-sm', '--tensor-split', '-ts', '--main-gpu', '-mg',\n  '--rpc', '--rpc-server',\n  '--kv-offload', '-kvo', '-nkvo', '--no-kv-offload',\n  '--op-offload', '--no-op-offload',\n  '--mmproj-offload', '--no-mmproj-offload',\n  '--fit', '-fit', '--fit-target', '-fitt', '--fit-ctx', '-fitc',\n  '--override-tensor', '-ot'\n]));"""
-          )
-
-          replace(
-              'scripts/archie-lite-core.mjs',
-              """    runner_prefix_args: Object.freeze(['--gpu-layers', '0']),\n    env: Object.freeze({\n      ...env,\n      CUDA_VISIBLE_DEVICES: '',\n      HIP_VISIBLE_DEVICES: '',\n      ROCR_VISIBLE_DEVICES: '',\n      ZE_AFFINITY_MASK: '',\n      GGML_VK_VISIBLE_DEVICES: ''\n    }),\n    enforcement: Object.freeze({\n      backend: 'cpu',\n      llama_cpp_gpu_layers: 0,\n      hidden_accelerator_environments: Object.freeze([\n        'CUDA_VISIBLE_DEVICES',\n        'HIP_VISIBLE_DEVICES',\n        'ROCR_VISIBLE_DEVICES',\n        'ZE_AFFINITY_MASK',\n        'GGML_VK_VISIBLE_DEVICES'\n      ])\n    })""",
-              """    runner_prefix_args: Object.freeze([\n      '--device', 'none',\n      '--gpu-layers', '0',\n      '--no-kv-offload',\n      '--no-op-offload',\n      '--no-mmproj-offload',\n      '--fit', 'off'\n    ]),\n    env: Object.freeze({\n      ...env,\n      CUDA_VISIBLE_DEVICES: '',\n      HIP_VISIBLE_DEVICES: '',\n      ROCR_VISIBLE_DEVICES: '',\n      ZE_AFFINITY_MASK: '',\n      GGML_VK_VISIBLE_DEVICES: '',\n      LLAMA_ARG_DEVICE: 'none',\n      LLAMA_ARG_N_GPU_LAYERS: '0',\n      LLAMA_ARG_KV_OFFLOAD: '0',\n      LLAMA_ARG_MMPROJ_OFFLOAD: '0',\n      LLAMA_ARG_FIT: 'off'\n    }),\n    enforcement: Object.freeze({\n      backend: 'cpu',\n      llama_cpp_device: 'none',\n      llama_cpp_gpu_layers: 0,\n      llama_cpp_kv_offload: false,\n      llama_cpp_op_offload: false,\n      llama_cpp_mmproj_offload: false,\n      llama_cpp_fit: false,\n      hidden_accelerator_environments: Object.freeze([\n        'CUDA_VISIBLE_DEVICES',\n        'HIP_VISIBLE_DEVICES',\n        'ROCR_VISIBLE_DEVICES',\n        'ZE_AFFINITY_MASK',\n        'GGML_VK_VISIBLE_DEVICES'\n      ])\n    })"""
-          )
-
-          replace(
-              'scripts/tests/maker-archie-lite.test.mjs',
-              """test('CPU execution forces zero GPU layers, hides accelerators, and rejects competing manifest overrides', () => {\n  const options = buildCpuExecutionOptions(['--model', '{artifact}'], { PATH: '/test/bin', CUDA_VISIBLE_DEVICES: '0' });\n  assert.deepEqual(options.runner_prefix_args, ['--gpu-layers', '0']);\n  assert.equal(options.env.CUDA_VISIBLE_DEVICES, '');\n  assert.equal(options.env.HIP_VISIBLE_DEVICES, '');\n  assert.equal(options.enforcement.backend, 'cpu');\n  assert.equal(options.enforcement.llama_cpp_gpu_layers, 0);\n  assert.throws(() => buildCpuExecutionOptions(['--gpu-layers', '4']), /rejects manifest GPU override/i);\n  assert.throws(() => buildCpuExecutionOptions(['-ngl=4']), /rejects manifest GPU override/i);\n});""",
-              """test('CPU execution disables model, KV, op, projector, and auto-fit offload paths', () => {\n  const options = buildCpuExecutionOptions(['--model', '{artifact}'], { PATH: '/test/bin', CUDA_VISIBLE_DEVICES: '0' });\n  assert.deepEqual(options.runner_prefix_args, [\n    '--device', 'none',\n    '--gpu-layers', '0',\n    '--no-kv-offload',\n    '--no-op-offload',\n    '--no-mmproj-offload',\n    '--fit', 'off'\n  ]);\n  assert.equal(options.env.CUDA_VISIBLE_DEVICES, '');\n  assert.equal(options.env.HIP_VISIBLE_DEVICES, '');\n  assert.equal(options.env.LLAMA_ARG_DEVICE, 'none');\n  assert.equal(options.env.LLAMA_ARG_N_GPU_LAYERS, '0');\n  assert.equal(options.env.LLAMA_ARG_KV_OFFLOAD, '0');\n  assert.equal(options.env.LLAMA_ARG_MMPROJ_OFFLOAD, '0');\n  assert.equal(options.env.LLAMA_ARG_FIT, 'off');\n  assert.equal(options.enforcement.backend, 'cpu');\n  assert.equal(options.enforcement.llama_cpp_device, 'none');\n  assert.equal(options.enforcement.llama_cpp_gpu_layers, 0);\n  assert.equal(options.enforcement.llama_cpp_kv_offload, false);\n  assert.equal(options.enforcement.llama_cpp_op_offload, false);\n  assert.equal(options.enforcement.llama_cpp_mmproj_offload, false);\n  assert.equal(options.enforcement.llama_cpp_fit, false);\n  for (const argument of [\n    '--gpu-layers=4', '-ngl=4', '--device=cuda0', '-dev=cuda0',\n    '--kv-offload', '-kvo', '--op-offload', '--mmproj-offload',\n    '--fit=on', '-fit=on', '--override-tensor=x=CUDA0', '-ot=x=CUDA0'\n  ]) {\n    assert.throws(() => buildCpuExecutionOptions([argument]), /rejects manifest GPU override/i);\n  }\n});"""
-          )
-
-          replace(
-              'ARCHIE_LITE.md',
-              """8. rejects competing GPU arguments, hides accelerator devices, and invokes llama.cpp with `--gpu-layers 0`;""",
-              """8. rejects competing accelerator arguments, hides accelerator devices, selects `--device none`, sets `--gpu-layers 0`, disables KV-cache, host-operation, and multimodal-projector offload, and turns automatic device fitting off;"""
-          )
-
-          replace(
-              'scripts/archie-lite.mjs',
-              """current machine RAM, and forces llama.cpp CPU execution with zero GPU layers. It does""",
-              """current machine RAM, and forces llama.cpp CPU execution with device, model, KV, operation, projector, and automatic-fit offload disabled. It does"""
-          )
-
-          replace(
-              'audit/authority-manifest.mjs',
-              """  denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'RAM planning caps context and fails closed when the minimum cannot fit']]""",
-              """  denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'CPU execution disables model, KV, op, projector, and auto-fit offload paths']]"""
-          )
+          test = Path('scripts/tests/maker-archie-lite.test.mjs')
+          text = test.read_text()
+          marker = "  assert.equal(options.env.LLAMA_ARG_OP_OFFLOAD, '0');\n"
+          if marker not in text:
+              raise SystemExit('expected op-offload environment assertion is missing')
+          test.write_text(text.replace(marker, '', 1))
           PY
 
           rm .github/archie-lite-strict-cpu.patch
-          rm .github/workflows/archie-lite-strict-cpu-repair.yml
           rm .github/workflows/archie-lite-strict-cpu-pr-repair.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add ARCHIE_LITE.md audit/authority-manifest.mjs scripts/archie-lite-core.mjs scripts/archie-lite.mjs scripts/tests/maker-archie-lite.test.mjs .github/archie-lite-strict-cpu.patch .github/workflows/archie-lite-strict-cpu-repair.yml .github/workflows/archie-lite-strict-cpu-pr-repair.yml
+          git add scripts/archie-lite-core.mjs scripts/tests/maker-archie-lite.test.mjs .github/archie-lite-strict-cpu.patch .github/workflows/archie-lite-strict-cpu-pr-repair.yml
           git diff --cached --check
-          git commit -m "Enforce strict CPU-only Archie lite execution"
+          git commit -m "Finalize strict CPU-only Archie lite execution"
       - name: Install exact dependency tree
         run: npm ci --ignore-scripts
       - name: Verify focused contracts
