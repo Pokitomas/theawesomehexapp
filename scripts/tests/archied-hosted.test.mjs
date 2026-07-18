@@ -140,10 +140,11 @@ test('container contract runs one non-root service with durable data and mandato
   assert.match(dockerfile, /FROM node:24-bookworm-slim/);
   assert.match(dockerfile, /USER node/);
   assert.match(dockerfile, /HEALTHCHECK/);
-  assert.match(dockerfile, /archied-hosted\.mjs/);
+  assert.match(dockerfile, /archie-hybrid-hosted\.mjs/);
   assert.doesNotMatch(dockerfile, /curl|wget|git clone/i);
 
   assert.match(compose, /ARCHIED_FOUNDER_TOKEN: \$\{ARCHIED_FOUNDER_TOKEN:\?/);
+  assert.match(compose, /ARCHIED_RUNNER_TOKEN: \$\{ARCHIED_RUNNER_TOKEN:\?/);
   assert.match(compose, /archie-data:\/data/);
   assert.match(compose, /read_only: true/);
   assert.match(compose, /no-new-privileges:true/);
