@@ -10,6 +10,44 @@ archie-lite run <id@version> --prompt "Explain the current objective."
 archie_lite <id@version> --prompt-file ./prompt.txt
 ```
 
+## One-command Linux runtime install
+
+On glibc-based x86_64 or arm64 Linux with Node.js 20+, npm, curl, tar, and `sha256sum`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/scripts/install-archie-lite-linux.sh | bash
+```
+
+The installer:
+
+1. resolves the pinned official llama.cpp CPU release `b10067` for the machine architecture;
+2. obtains the exact asset URL and SHA-256 digest from GitHub's release API;
+3. verifies the archive before extraction and rejects unsafe archive paths;
+4. installs the complete runner and its shared libraries under `~/.local/lib/archie/llama.cpp/`;
+5. installs a managed `~/.local/bin/llama-cli` wrapper;
+6. resolves Archie's current `main` commit and installs that exact commit under `~/.local` rather than an unbound moving archive;
+7. verifies both `llama-cli --version` and `archie-lite --help`;
+8. writes an `archie-lite-linux-install-receipt/v1` under `~/.local/share/archie/install-receipts/`.
+
+Override the prefix or pinned llama.cpp release explicitly:
+
+```bash
+ARCHIE_LITE_PREFIX="$HOME/apps/archie" \
+ARCHIE_LLAMA_CPP_RELEASE=b10067 \
+  bash scripts/install-archie-lite-linux.sh
+```
+
+The installer does **not** download a model. Model bytes still enter Archie only through a signed manifest and a trusted publisher key:
+
+```bash
+archie pull /path/to/model-manifest.json \
+  --trust-key /path/to/publisher-public.pem
+archie-lite plan <id@version>
+archie-lite run <id@version> --prompt "Explain the current objective."
+```
+
+Use `bash scripts/install-archie-lite-linux.sh --help` for prerequisites and replacement controls. The official Ubuntu CPU assets require glibc; musl systems must provide a compatible `llama-cli` separately.
+
 ## What the plan proves
 
 Before inference, Archie lite:
@@ -51,6 +89,12 @@ Run `archie-lite --help` for generation and runner flags.
 
 ## Receipts
 
+Linux installer receipts are stored under:
+
+```text
+~/.local/share/archie/install-receipts/
+```
+
 Plans are stored under:
 
 ```text
@@ -68,4 +112,4 @@ The lite receipt binds the model and artifact digests, plan receipt, selected co
 
 ## Truth boundary
 
-A successful Archie lite plan proves metadata inspection, conservative RAM budgeting, and CPU-only runner configuration. A successful run proves only that the bound local process completed under that plan. Neither result proves model quality, speed, neural training, capability improvement, hidden-evaluation success, admission, or production promotion.
+A successful installer receipt proves that the exact Archie commit and digest-verified CPU runner were installed. It does not prove model presence or capability. A successful Archie lite plan proves metadata inspection, conservative RAM budgeting, and CPU-only runner configuration. A successful run proves only that the bound local process completed under that plan. None of these results proves model quality, speed, neural training, capability improvement, hidden-evaluation success, admission, or production promotion.
