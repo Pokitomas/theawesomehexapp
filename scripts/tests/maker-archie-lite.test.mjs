@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import {
   ARCHIE_GGUF_METADATA_SCHEMA,
@@ -239,4 +240,30 @@ test('package exposes both requested low-compute command spellings', async () =>
   assert.equal(packageJson.bin['archie-lite'], 'scripts/archie-lite.mjs');
   assert.equal(packageJson.bin.archie_lite, 'scripts/archie-lite.mjs');
   assert.equal(packageJson.scripts['test:archie:lite'], 'node --test scripts/tests/maker-archie-lite.test.mjs');
+});
+
+test('Linux installer is syntactically valid and exposes an offline help path', async () => {
+  const script = fileURLToPath(new URL('../install-archie-lite-linux.sh', import.meta.url));
+  const syntax = spawnSync('bash', ['-n', script], { encoding: 'utf8' });
+  assert.equal(syntax.status, 0, syntax.stderr);
+  const help = spawnSync('bash', [script, '--help'], { encoding: 'utf8' });
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /downloads no model weights/i);
+  assert.match(help.stdout, /ARCHIE_LLAMA_CPP_RELEASE/);
+});
+
+test('Linux installer verifies official CPU assets and pins the exact Archie commit', async () => {
+  const script = await fs.readFile(new URL('../install-archie-lite-linux.sh', import.meta.url), 'utf8');
+  assert.match(script, /^set -euo pipefail$/m);
+  assert.match(script, /ARCHIE_LLAMA_CPP_RELEASE:-b10067/);
+  assert.match(script, /api\.github\.com\/repos\/ggml-org\/llama\.cpp\/releases\/tags/);
+  assert.match(script, /llama-\$\{release\}-bin-ubuntu-\$\{asset_arch\}\.tar\.gz/);
+  assert.match(script, /\^sha256:\[a-f0-9\]\{64\}\$/);
+  assert.match(script, /sha256sum --check --status/);
+  assert.match(script, /archive contains an unsafe path/);
+  assert.match(script, /api\.github\.com\/repos\/Pokitomas\/theawesomehexapp\/commits\/main/);
+  assert.match(script, /archive\/\$\{archie_sha\}\.tar\.gz/);
+  assert.match(script, /npm install --global --prefix/);
+  assert.match(script, /model_downloaded: false/);
+  assert.doesNotMatch(script, /huggingface|hf\.co|-hf\b/i);
 });

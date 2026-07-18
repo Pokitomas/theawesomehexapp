@@ -67,8 +67,30 @@ The first launch reports the exact local runtime, installed artifacts, runner av
 To remove it:
 
 ```bash
-npm uninstall --global sideways
+npm uninstall --global archie
 ```
+
+### Ordinary Linux computer: Archie Lite
+
+On glibc-based x86_64 or arm64 Linux, the installer adds Archie and an official CPU-only llama.cpp runner under `~/.local`, without sudo and without downloading model weights:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/scripts/install-archie-lite-linux.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+It resolves GitHub release metadata, verifies the llama.cpp asset SHA-256, rejects unsafe archive paths, installs an exact Archie commit, verifies both commands, and writes an installation receipt.
+
+A model is still admitted separately through a signed Archie manifest:
+
+```bash
+archie pull /path/to/model-manifest.json \
+  --trust-key /path/to/publisher-public.pem
+archie-lite plan <model-id@version>
+archie-lite run <model-id@version> --prompt "Explain the current objective."
+```
+
+See [ARCHIE_LITE.md](./ARCHIE_LITE.md) for RAM budgeting, CPU enforcement, installer controls, and truth boundaries.
 
 ### Developer checkout
 
@@ -89,9 +111,11 @@ archie inspect <model-id@version>
 archie run <model-id@version> --prompt "..."
 archie benchmark <model-id@version> --suite <suite.json>
 archie remove <model-id@version>
+archie-lite plan <model-id@version>
+archie-lite run <model-id@version> --prompt "..."
 ```
 
-Only pull artifacts whose signing key and provenance you trust. Use `inspect` before `run`.
+Only pull artifacts whose signing key and provenance you trust. Use `inspect` and `archie-lite plan` before `run`.
 
 ## Maker command
 
@@ -118,6 +142,7 @@ Passing infrastructure tests proves runtime and product contracts. It does not b
 
 - **Archie phone:** installable objective, authority, continuity, and handoff surface.
 - **Archie runtime:** local artifact, planning, research, evaluation, and distillation system.
+- **Archie Lite:** digest-verified CPU runner installation plus RAM-capped local GGUF inference.
 - **Maker:** permissioned execution layer.
 - **Sideways:** independent browser-installed archive and public reader.
 - **General intelligence claim:** still blocked until an admitted model and complete launch profile pass independent held-out evidence.

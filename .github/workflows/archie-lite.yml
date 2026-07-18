@@ -5,8 +5,10 @@ on:
     paths:
       - 'scripts/archie-lite-core.mjs'
       - 'scripts/archie-lite.mjs'
+      - 'scripts/install-archie-lite-linux.sh'
       - 'scripts/tests/maker-archie-lite.test.mjs'
       - 'ARCHIE_LITE.md'
+      - 'INSTALL.md'
       - 'package.json'
       - '.github/workflows/archie-lite.yml'
   push:
@@ -14,8 +16,10 @@ on:
     paths:
       - 'scripts/archie-lite-core.mjs'
       - 'scripts/archie-lite.mjs'
+      - 'scripts/install-archie-lite-linux.sh'
       - 'scripts/tests/maker-archie-lite.test.mjs'
       - 'ARCHIE_LITE.md'
+      - 'INSTALL.md'
       - 'package.json'
       - '.github/workflows/archie-lite.yml'
   workflow_dispatch:
@@ -42,8 +46,13 @@ jobs:
           cache: npm
       - name: Install exact dependency tree
         run: npm ci --ignore-scripts
-      - name: Check low-compute modules
-        run: node --check scripts/archie-lite-core.mjs && node --check scripts/archie-lite.mjs && node --check scripts/tests/maker-archie-lite.test.mjs
+      - name: Check low-compute modules and installer
+        shell: bash
+        run: |
+          node --check scripts/archie-lite-core.mjs
+          node --check scripts/archie-lite.mjs
+          node --check scripts/tests/maker-archie-lite.test.mjs
+          bash -n scripts/install-archie-lite-linux.sh
       - name: Run low-compute contract tests
         run: npm run test:archie:lite
       - name: Verify operator help
