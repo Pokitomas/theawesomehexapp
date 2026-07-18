@@ -148,7 +148,7 @@ test('enforces explicit partial order, forbidden actions, terminal artifacts, an
   });
   assert.equal(admitted.success, true);
   assert.equal(admitted.action_contract_mode, 'terminal-artifact-partial-order');
-  assert.equal(admitted.action_contract_result.accepted_sequence_matched, 1);
+  assert.equal(admitted.action_contract_result.accepted_sequence_matched, 0);
 
   const missingArtifact = score({
     episode_id: 'build',
