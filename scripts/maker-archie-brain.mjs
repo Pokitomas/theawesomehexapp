@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const MODEL_SCHEMA = 'archie-skill-mixture/v2';
+const MODEL_SCHEMA = 'archie-skill-mixture/v3';
 const PLAN_SCHEMA = 'archie-compact-plan/v1';
 const clean = (value, limit = 200000) => String(value ?? '').replace(/\u0000/g, '').trim().slice(0, limit);
 
@@ -53,7 +53,12 @@ function featureTokens(value) {
 }
 
 function hashIndex(token, dimensions) {
-  return crypto.createHash('sha256').update(token).digest().readUInt32BE(0) % dimensions;
+  let hash = 2166136261;
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash % dimensions;
 }
 
 function rawVector(value, dimensions) {
@@ -73,7 +78,9 @@ function normalizeVector(vector) {
 
 function weightedVector(value, dimensions, idf) {
   const raw = rawVector(value, dimensions);
-  return normalizeVector(new Map([...raw.entries()].map(([index, count]) => [index, count * Number(idf[index] || 1)])));
+  const weighted = new Map();
+  for (const [index, count] of raw) weighted.set(index, count * (idf[index] || 1));
+  return normalizeVector(weighted);
 }
 
 function vectorArray(vector) {
@@ -204,13 +211,26 @@ export function trainArchieSkillMixture(examples, {
   return Object.freeze({ ...body, model_digest: digest(body) });
 }
 
+const MODEL_VECTORS = new WeakMap();
+
+function getModelVectors(model) {
+  if (!MODEL_VECTORS.has(model)) {
+    MODEL_VECTORS.set(model, {
+      specialists: model.specialists.map(specialist => arrayVector(specialist.centroid)),
+      negatives: (model.negative_centroids || []).map(negative => arrayVector(negative.centroid))
+    });
+  }
+  return MODEL_VECTORS.get(model);
+}
+
 export function predictArchiePlan(model, task = {}) {
   if (model?.schema !== MODEL_SCHEMA || !Array.isArray(model.specialists) || !model.specialists.length) throw new Error('A trained Archie skill mixture is required.');
   const text = typeof task === 'string' ? task : `${clean(task.instruction || task.request || task.goal)}\n${stableJSONStringify(task.context || null)}`;
   const vector = weightedVector(text, model.dimensions, model.idf || []);
-  const ranked = model.specialists.map(specialist => ({ specialist, score: cosine(vector, arrayVector(specialist.centroid)) }))
+  const vectors = getModelVectors(model);
+  const ranked = model.specialists.map((specialist, i) => ({ specialist, score: cosine(vector, vectors.specialists[i]) }))
     .sort((left, right) => right.score - left.score || left.specialist.specialist_id.localeCompare(right.specialist.specialist_id));
-  const negativeRanked = (model.negative_centroids || []).map(negative => ({ negative, score: cosine(vector, arrayVector(negative.centroid)) }))
+  const negativeRanked = (model.negative_centroids || []).map((negative, i) => ({ negative, score: cosine(vector, vectors.negatives[i]) }))
     .sort((left, right) => right.score - left.score || left.negative.negative_id.localeCompare(right.negative.negative_id));
   const best = ranked[0];
   const second = ranked[1];
@@ -255,20 +275,31 @@ export class ArchiePersonalBrain {
     this.teacher = teacher;
     this.clock = clock;
     this.training = training;
+    this._cachedModel = null;
+    this._cachedModelMtime = null;
   }
 
   async train() {
     const examples = await this.corpus.examples({ limit: this.training.limit || 250000 });
     const model = trainArchieSkillMixture(examples, { ...this.training, trained_at: new Date(this.clock()).toISOString() });
     await writeAtomic(this.modelPath, model);
+    try {
+      const stat = await fs.stat(this.modelPath);
+      this._cachedModel = model;
+      this._cachedModelMtime = stat.mtimeMs;
+    } catch { /* ignore stat failure; next load() will read from disk */ }
     return model;
   }
 
   async load() {
     try {
+      const stat = await fs.stat(this.modelPath);
+      if (this._cachedModel && this._cachedModelMtime === stat.mtimeMs) return this._cachedModel;
       const model = JSON.parse(await fs.readFile(this.modelPath, 'utf8'));
       if (model?.schema !== MODEL_SCHEMA) return this.train();
       if (model.model_digest !== digest({ ...model, model_digest: undefined })) throw new Error('Archie model integrity check failed.');
+      this._cachedModel = model;
+      this._cachedModelMtime = stat.mtimeMs;
       return model;
     } catch (error) {
       if (error?.code === 'ENOENT') return this.train();
