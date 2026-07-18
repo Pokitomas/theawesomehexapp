@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://archie.local/contracts/archie-intelligence-result.schema.json",
+  "title": "Archie independent intelligence result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "candidate_id", "architecture_report_digest", "model_artifact_sha256", "runtime_sha256", "hidden_split_sha256", "grader_sha256", "protocol_digest", "passed", "decision", "baseline_gains", "result_digest"],
+  "properties": {
+    "schema": { "const": "archie-intelligence-result/v1" },
+    "candidate_id": { "$ref": "#/$defs/id" },
+    "architecture_report_digest": { "$ref": "#/$defs/sha256" },
+    "model_artifact_sha256": { "$ref": "#/$defs/sha256" },
+    "runtime_sha256": { "$ref": "#/$defs/sha256" },
+    "hidden_split_sha256": { "$ref": "#/$defs/sha256" },
+    "grader_sha256": { "$ref": "#/$defs/sha256" },
+    "protocol_digest": { "$ref": "#/$defs/sha256" },
+    "passed": { "type": "boolean" },
+    "decision": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "baseline_gains": { "type": "object", "additionalProperties": { "type": "number" } },
+    "result_digest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@+\\-]{0,199}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

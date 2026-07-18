@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://archie.local/contracts/archie-candidate-completion-manifest.schema.json",
+  "title": "Archie candidate completion manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "candidate_id", "architecture_report", "reproduction_receipt", "metrics_receipt", "intelligence_result", "iphone_result", "authority_manifest", "claim_boundary", "manifest_digest"],
+  "properties": {
+    "schema": { "const": "archie-candidate-completion-manifest/v1" },
+    "candidate_id": { "$ref": "#/$defs/id" },
+    "architecture_report": { "$ref": "#/$defs/file" },
+    "reproduction_receipt": { "$ref": "#/$defs/file" },
+    "metrics_receipt": { "$ref": "#/$defs/file" },
+    "intelligence_result": { "$ref": "#/$defs/file" },
+    "iphone_result": { "$ref": "#/$defs/file" },
+    "authority_manifest": { "$ref": "#/$defs/file" },
+    "claim_boundary": { "type": "string", "minLength": 1, "maxLength": 10000 },
+    "manifest_digest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@+\\-]{0,199}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
