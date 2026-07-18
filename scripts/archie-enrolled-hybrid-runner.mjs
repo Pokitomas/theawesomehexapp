@@ -70,6 +70,15 @@ async function readState(filename) {
   }
 }
 
+async function resetLeaseState(filename, state, phase) {
+  state.lease_id = null;
+  state.fence_token = null;
+  state.event_sequence = 0;
+  state.event_head = null;
+  state.phase = phase;
+  await writePrivateJson(filename, state);
+}
+
 async function diskFreeBytes(root) {
   try {
     const stats = await fs.statfs(root);
@@ -350,7 +359,7 @@ export async function runHybridRunnerOnce({
         maker_receipt: executed.makerReceipt
       }
     });
-    await fs.rm(stateFile, { force: true });
+    await resetLeaseState(stateFile, state, 'completed');
     return Object.freeze({
       schema: 'archie-hybrid-runner-cycle/v1',
       runner_id: state.runner_id,
@@ -373,7 +382,8 @@ export async function runHybridRunnerOnce({
         }
       }
     }).catch(() => null);
-    await fs.rm(stateFile, { force: true });
+    if (failure) await resetLeaseState(stateFile, state, 'failed');
+    else await writePrivateJson(stateFile, state);
     return Object.freeze({
       schema: 'archie-hybrid-runner-cycle/v1',
       runner_id: state.runner_id,
