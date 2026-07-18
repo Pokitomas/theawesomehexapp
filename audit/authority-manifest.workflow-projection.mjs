@@ -122,6 +122,33 @@ export default [
     denyW: [['scripts/tests/authority-manifest.test.mjs', 'removing one mapped surface is detected as drift']]
   },
   {
+    id: 'workflow.archie-segmented-distillation', f: 'workflow', op: 'Shard verified causal pairs across heterogeneous machines, prove changed LoRA tensors and held-out gain, fuse exact deltas, and prepare bounded quantization evidence',
+    actor: 'GitHub pull-request actor for dependency-light contracts; repository owner manually dispatches the heterogeneous execution lane',
+    principal: 'Read-only GitHub Actions token coordinating explicitly labeled self-hosted CPU, CUDA, fusion, and optional quantization runners',
+    auth: 'contents:read only; repository-owner actor, readiness flag, exact local Python/config/trajectory/model inputs, and an explicit JSON CUDA runner-label set are mandatory before dispatch',
+    object: 'Digest-bound token shards, per-shard adapters, changed-tensor and frozen-base held-out receipts, fused adapter, optional merged checkpoint and GGUF candidates, and non-admitted recursion evidence',
+    owner: 'Repository owner controls dispatch and runner labels; each runner operator controls local compute and pinned input bytes; admission remains independently governed',
+    deny: 'pull request cannot enter execution lane|actor is not repository owner|required variable or local input is missing|tokenizer or causal receipt fails|CUDA unavailable|no LoRA tensor changes|held-out regression occurs|fusion inputs disagree|quantization lacks case-level evaluation|round limit is reached',
+    replay: 'Request ID, round, exact code SHA, tokenizer and pair digests, shard assignments, runner labels, CUDA receipts, initial and trained tensor digests, frozen-base and adapter case outcomes, fusion weights and reconstruction error, merged checkpoint and quantization receipts, and recursive failure-set digest.',
+    pub: 'Workflow status, artifact names, bounded schemas, and non-admission state are public.',
+    priv: 'Local model weights, admitted trajectory bytes, preference rows, runner filesystem paths, and registration credentials remain private.', st: 'e',
+    s: ['workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read'],
+    impl: [[
+      '.github/workflows/archie-segmented-distillation.yml',
+      'contents: read',
+      'persist-credentials: false',
+      'ARCHIE_SEGMENTED_DISTILL_READY',
+      'ARCHIE_CUDA_RUNNER_LABELS',
+      'foundry/archie-distill/segment_causal_pairs.py',
+      'foundry/archie-distill/verify_segment_adapter.py',
+      'foundry/archie-distill/fuse_segment_adapters.py',
+      'foundry/archie-distill/evaluate_fused_adapter.py',
+      "'promotion': 'not-admitted'"
+    ]],
+    allow: [['foundry/archie-distill/test_segmented_tokenized_distillation.py', 'test_token_balancing_is_deterministic_and_lineage_atomic']],
+    denyW: [['foundry/archie-distill/test_segmented_tokenized_distillation.py', 'test_verifier_requires_changed_tensors_and_frozen_base_comparison']]
+  },
+  {
     id: 'workflow.read-only-ci', f: 'workflow', op: 'Run repository verification workflows with read-only contents access',
     actor: 'GitHub push or pull-request actor', principal: 'Read-only GitHub Actions token', auth: 'contents:read only',
     object: 'Check results and proof artifacts', owner: 'Repository CI configuration', deny: 'event or path filter does not match|checkout or test fails',
