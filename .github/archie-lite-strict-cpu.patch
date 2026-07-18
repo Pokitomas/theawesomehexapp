@@ -1,0 +1,143 @@
+diff --git a/ARCHIE_LITE.md b/ARCHIE_LITE.md
+index 07beedec..5bbc3f4a 100644
+--- a/ARCHIE_LITE.md
++++ b/ARCHIE_LITE.md
+@@ -19,7 +19,7 @@ Before inference, Archie lite:
+ 5. reserves operating-system and runtime headroom;
+ 6. caps context to the smallest of the requested, manifest, GGUF, and RAM limits;
+ 7. fails closed when even the configured minimum context cannot fit;
+-8. rejects competing GPU arguments, hides accelerator devices, and invokes llama.cpp with `--gpu-layers 0`;
++8. rejects competing accelerator arguments, hides accelerator devices, selects `--device none`, sets `--gpu-layers 0`, disables KV-cache, host-operation, and multimodal-projector offload, and turns automatic device fitting off;
+ 9. writes a digest-bound plan receipt and, after execution, a lite run receipt linked to the normal Archie model-run receipt.
+ 
+ The parser intentionally stops before large tokenizer arrays once the required model dimensions are known. It does not load model tensors or the complete GGUF into Node memory.
+diff --git a/audit/authority-manifest.mjs b/audit/authority-manifest.mjs
+index bc39cf2b..b9d35f33 100644
+--- a/audit/authority-manifest.mjs
++++ b/audit/authority-manifest.mjs
+@@ -111,7 +111,7 @@ const liteWorkflowRow = {
+   s: ['workflow-permission:.github/workflows/archie-lite.yml:contents:read'],
+   impl: [['.github/workflows/archie-lite.yml', 'contents: read', 'persist-credentials: false', 'npm run test:archie:lite', 'node scripts/archie-lite.mjs --help']],
+   allow: [['scripts/tests/maker-archie-lite.test.mjs', 'installed GGUF planning binds metadata, RAM cap, CPU authority, and a durable receipt']],
+-  denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'RAM planning caps context and fails closed when the minimum cannot fit']]
++  denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'CPU execution disables model, KV, op, projector, and auto-fit offload paths']]
+ };
+ 
+ const rows = [
+diff --git a/scripts/archie-lite-core.mjs b/scripts/archie-lite-core.mjs
+index 94b12524..e87b4fa0 100644
+--- a/scripts/archie-lite-core.mjs
++++ b/scripts/archie-lite-core.mjs
+@@ -379,8 +379,16 @@ export function calculateLiteContext({
+ }
+ 
+ const GPU_ARGUMENTS = Object.freeze(new Set([
+-  '--gpu-layers', '-ngl', '--n-gpu-layers', '--device', '--split-mode', '--tensor-split', '--main-gpu', '--rpc', '--rpc-server'
++  '--gpu-layers', '-ngl', '--n-gpu-layers',
++  '--device', '-dev', '--split-mode', '-sm', '--tensor-split', '-ts', '--main-gpu', '-mg',
++  '--rpc', '--rpc-server',
++  '--kv-offload', '-kvo', '-nkvo', '--no-kv-offload',
++  '--op-offload', '--no-op-offload',
++  '--mmproj-offload', '--no-mmproj-offload',
++  '--fit', '-fit', '--fit-target', '-fitt', '--fit-ctx', '-fitc',
++  '--override-tensor', '-ot'
+ ]));
+ 
+ export function buildCpuExecutionOptions(manifestArguments = [], env = process.env) {
+@@ -390,18 +398,39 @@ export function buildCpuExecutionOptions(manifestArguments = [], env = process.e
+     if (GPU_ARGUMENTS.has(name)) throw new Error(`Archie lite rejects manifest GPU override ${name}; CPU authority must be singular.`);
+   }
+   return Object.freeze({
+-    runner_prefix_args: Object.freeze(['--gpu-layers', '0']),
++    runner_prefix_args: Object.freeze([
++      '--device', 'none',
++      '--gpu-layers', '0',
++      '--no-kv-offload',
++      '--no-op-offload',
++      '--no-mmproj-offload',
++      '--fit', 'off'
++    ]),
+     env: Object.freeze({
+       ...env,
+       CUDA_VISIBLE_DEVICES: '',
+       HIP_VISIBLE_DEVICES: '',
+       ROCR_VISIBLE_DEVICES: '',
+       ZE_AFFINITY_MASK: '',
+-      GGML_VK_VISIBLE_DEVICES: ''
++      GGML_VK_VISIBLE_DEVICES: '',
++      LLAMA_ARG_DEVICE: 'none',
++      LLAMA_ARG_N_GPU_LAYERS: '0',
++      LLAMA_ARG_KV_OFFLOAD: '0',
++      LLAMA_ARG_MMPROJ_OFFLOAD: '0',
++      LLAMA_ARG_FIT: 'off'
+     }),
+     enforcement: Object.freeze({
+       backend: 'cpu',
++      llama_cpp_device: 'none',
+       llama_cpp_gpu_layers: 0,
++      llama_cpp_kv_offload: false,
++      llama_cpp_op_offload: false,
++      llama_cpp_mmproj_offload: false,
++      llama_cpp_fit: false,
+       hidden_accelerator_environments: Object.freeze([
+         'CUDA_VISIBLE_DEVICES',
+         'HIP_VISIBLE_DEVICES',
+diff --git a/scripts/archie-lite.mjs b/scripts/archie-lite.mjs
+index 19a8eb62..23c2fb89 100755
+--- a/scripts/archie-lite.mjs
++++ b/scripts/archie-lite.mjs
+@@ -47,7 +47,7 @@ Options:
+   --help                        Show this message.
+ 
+ Archie lite reads GGUF metadata, estimates KV-cache bytes per token, caps context to
+-current machine RAM, and forces llama.cpp CPU execution with zero GPU layers. It does
++current machine RAM, and forces llama.cpp CPU execution with device, model, KV, operation, projector, and automatic-fit offload disabled. It does
+ not claim model quality, training, neural improvement, or production admission.`;
+ }
+ 
+diff --git a/scripts/tests/maker-archie-lite.test.mjs b/scripts/tests/maker-archie-lite.test.mjs
+index c251c2e7..26cb68ec 100644
+--- a/scripts/tests/maker-archie-lite.test.mjs
++++ b/scripts/tests/maker-archie-lite.test.mjs
+@@ -202,16 +202,42 @@ test('RAM planning caps context and fails closed when the minimum cannot fit', ()
+   }), error => error?.code === 'ARCHIE_LITE_RAM_INSUFFICIENT');
+ });
+ 
+-test('CPU execution forces zero GPU layers, hides accelerators, and rejects competing manifest overrides', () => {
++test('CPU execution disables model, KV, op, projector, and auto-fit offload paths', () => {
+   const options = buildCpuExecutionOptions(['--model', '{artifact}'], { PATH: '/test/bin', CUDA_VISIBLE_DEVICES: '0' });
+-  assert.deepEqual(options.runner_prefix_args, ['--gpu-layers', '0']);
++  assert.deepEqual(options.runner_prefix_args, [
++    '--device', 'none',
++    '--gpu-layers', '0',
++    '--no-kv-offload',
++    '--no-op-offload',
++    '--no-mmproj-offload',
++    '--fit', 'off'
++  ]);
+   assert.equal(options.env.CUDA_VISIBLE_DEVICES, '');
+   assert.equal(options.env.HIP_VISIBLE_DEVICES, '');
++  assert.equal(options.env.LLAMA_ARG_DEVICE, 'none');
++  assert.equal(options.env.LLAMA_ARG_N_GPU_LAYERS, '0');
++  assert.equal(options.env.LLAMA_ARG_KV_OFFLOAD, '0');
++  assert.equal(options.env.LLAMA_ARG_MMPROJ_OFFLOAD, '0');
++  assert.equal(options.env.LLAMA_ARG_FIT, 'off');
+   assert.equal(options.enforcement.backend, 'cpu');
++  assert.equal(options.enforcement.llama_cpp_device, 'none');
+   assert.equal(options.enforcement.llama_cpp_gpu_layers, 0);
+-  assert.throws(() => buildCpuExecutionOptions(['--gpu-layers', '4']), /rejects manifest GPU override/i);
+-  assert.throws(() => buildCpuExecutionOptions(['-ngl=4']), /rejects manifest GPU override/i);
++  assert.equal(options.enforcement.llama_cpp_kv_offload, false);
++  assert.equal(options.enforcement.llama_cpp_op_offload, false);
++  assert.equal(options.enforcement.llama_cpp_mmproj_offload, false);
++  assert.equal(options.enforcement.llama_cpp_fit, false);
++  for (const argument of [
++    '--gpu-layers=4', '-ngl=4', '--device=cuda0', '-dev=cuda0',
++    '--kv-offload', '-kvo', '--op-offload', '--mmproj-offload',
++    '--fit=on', '-fit=on', '--override-tensor=x=CUDA0', '-ot=x=CUDA0'
++  ]) {
++    assert.throws(() => buildCpuExecutionOptions([argument]), /rejects manifest GPU override/i);
++  }
+ });
+ 
+ test('installed GGUF planning binds metadata, RAM cap, CPU authority, and a durable receipt', async t => {
