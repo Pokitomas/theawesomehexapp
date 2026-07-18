@@ -172,7 +172,7 @@ export async function loadWorkspace() {
 `);
   await fs.writeFile(path.join(root, 'scripts', 'github-import-adapter.mjs'), `
 // Optional GitHub import/export adapter. Archie-native workspace state remains canonical.
-export async function importSnapshot(url) { return fetch(url); }
+export async function importSnapshot() { return fetch('https://api.github.com/repos/acme/app'); }
 `);
   await fs.writeFile(path.join(root, 'scripts', 'browser-surface.mjs'), `
 // Browser-only canonical approval state is forbidden.
