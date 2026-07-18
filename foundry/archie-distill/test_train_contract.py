@@ -107,7 +107,7 @@ class NeuralTrainerContractTest(unittest.TestCase):
 
 
 def load_tests(loader, standard_tests, pattern):
-    """Attach the repository-new neural-objective suites to the canonical gate."""
+    """Attach repository-new neural-objective and CUDA bridge suites to the canonical gate."""
     suite = unittest.TestSuite()
     suite.addTests(standard_tests)
     for filename in (
@@ -115,6 +115,7 @@ def load_tests(loader, standard_tests, pattern):
         "test_compile_causal_pairs.py",
         "test_causal_divergence_gradient.py",
         "test_causal_divergence_loss_math.py",
+        "test_cuda_causal_workflow_contract.py",
     ):
         path = ROOT / filename
         spec = importlib.util.spec_from_file_location(f"archie_{path.stem}", path)
