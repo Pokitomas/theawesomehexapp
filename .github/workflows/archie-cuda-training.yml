@@ -1,13 +1,20 @@
-name: Run Archie CUDA QLoRA training
+name: Run Archie causal-divergence CUDA QLoRA training
 
 on:
   pull_request:
     paths:
       - 'foundry/archie-distill/train.py'
+      - 'foundry/archie-distill/train_causal_divergence.py'
+      - 'foundry/archie-distill/compile_causal_pairs.py'
       - 'foundry/archie-distill/test_train_contract.py'
+      - 'foundry/archie-distill/test_causal_divergence_contract.py'
+      - 'foundry/archie-distill/test_compile_causal_pairs.py'
+      - 'foundry/archie-distill/test_causal_divergence_gradient.py'
+      - 'foundry/archie-distill/test_causal_divergence_loss_math.py'
+      - 'foundry/archie-distill/test_cuda_causal_workflow_contract.py'
       - 'scripts/archie-training-compile.mjs'
       - 'scripts/archie-full-version-gate.mjs'
-      - 'maker/evaluations/archie-distill-qwen3-quality.json'
+      - 'maker/evaluations/archie-causal-divergence-qwen3-quality.json'
       - '.github/training/archie-cuda-request.json'
       - '.github/workflows/archie-cuda-training.yml'
       - '.github/workflows/archie-full-version.yml'
@@ -55,11 +62,14 @@ jobs:
         run: |
           set -euo pipefail
           node --check scripts/archie-training-compile.mjs
-          python -m py_compile foundry/archie-distill/train.py
+          python -m py_compile foundry/archie-distill/train.py foundry/archie-distill/compile_causal_pairs.py foundry/archie-distill/train_causal_divergence.py
           node scripts/run-python.mjs foundry/archie-distill/test_train_contract.py
-          grep -Fq 'Refusing slow full-precision CPU training' foundry/archie-distill/train.py
+          node scripts/run-python.mjs foundry/archie-distill/test_cuda_causal_workflow_contract.py
+          grep -Fq 'Refusing CPU fallback' foundry/archie-distill/train_causal_divergence.py
+          grep -Fq 'verifier-anchored-causal-divergence-qlora/v1' foundry/archie-distill/train_causal_divergence.py
           grep -Fq 'runs-on: [self-hosted, linux, x64,' .github/workflows/archie-cuda-training.yml
           grep -Fq 'ARCHIE_CUDA_RUNNER_READY' .github/workflows/archie-cuda-training.yml
+          grep -Fq 'ARCHIE_TRAJECTORY_BATCH_PATH' .github/workflows/archie-cuda-training.yml
           node scripts/archie-full-version-gate.mjs > archie-full-version-gate.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -90,6 +100,7 @@ jobs:
           ARCHIE_CUDA_RUNNER_LABEL: ${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}
           ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
           ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+          ARCHIE_TRAJECTORY_BATCH_PATH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
           ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
           ARCHIE_TRAINING_OUTPUT_ROOT: ${{ vars.ARCHIE_TRAINING_OUTPUT_ROOT }}
         run: |
@@ -97,13 +108,15 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const request = JSON.parse(fs.readFileSync('.github/training/archie-cuda-request.json', 'utf8'));
-          if (request.schema !== 'archie-cuda-training-request/v1') throw new Error('Unsupported request schema.');
+          if (request.schema !== 'archie-cuda-training-request/v2') throw new Error('Unsupported request schema.');
+          if (request.method !== 'verifier-anchored-causal-divergence-qlora/v1') throw new Error('Unsupported neural method.');
           const issueNumber = Number(request.issue_number);
           if (!Number.isInteger(issueNumber) || issueNumber <= 0) throw new Error('A positive issue_number is required.');
           const required = [
             'ARCHIE_CUDA_RUNNER_LABEL',
             'ARCHIE_TRAINING_PYTHON',
             'ARCHIE_TRAINING_CONFIG_PATH',
+            'ARCHIE_TRAJECTORY_BATCH_PATH',
             'ARCHIE_STUDENT_MODEL_DIR',
             'ARCHIE_TRAINING_OUTPUT_ROOT'
           ];
@@ -114,7 +127,8 @@ jobs:
           if (!requestId) missing.push('request_id');
           const allowed = missing.length === 0;
           const receipt = {
-            schema: 'archie-cuda-training-authorization/v1',
+            schema: 'archie-cuda-training-authorization/v2',
+            method: request.method,
             request_id: requestId || null,
             issue_number: issueNumber,
             repository: process.env.GITHUB_REPOSITORY,
@@ -153,7 +167,8 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const receipt = {
-            schema: 'archie-cuda-training-blocker/v1',
+            schema: 'archie-cuda-training-blocker/v2',
+            method: 'verifier-anchored-causal-divergence-qlora/v1',
             request_id: process.env.REQUEST_ID || null,
             issue_number: Number(process.env.ISSUE_NUMBER),
             repository: process.env.GITHUB_REPOSITORY,
@@ -187,7 +202,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: Number(process.env.ISSUE_NUMBER),
               body: [
-                '<!-- archie-cuda-training:v1 -->',
+                '<!-- archie-cuda-training:v2 -->',
                 '## CUDA training blocked before queue',
                 '',
                 `**request:** ${process.env.REQUEST_ID || '(missing)'}`,
@@ -207,10 +222,11 @@ jobs:
     env:
       ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
       ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      ARCHIE_TRAJECTORY_BATCH_PATH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
       ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
       ARCHIE_TRAINING_OUTPUT_ROOT: ${{ vars.ARCHIE_TRAINING_OUTPUT_ROOT }}
       ARCHIE_CUDA_RUNNER_LABEL: ${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}
-      ARCHIE_PROFILE_PATH: maker/evaluations/archie-distill-qwen3-quality.json
+      ARCHIE_PROFILE_PATH: maker/evaluations/archie-causal-divergence-qwen3-quality.json
       ARCHIE_REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -224,23 +240,26 @@ jobs:
       - name: Install locked repository dependencies
         run: npm ci --ignore-scripts
       - id: preflight
-        name: Prove CUDA runner and exact local inputs
+        name: Prove CUDA runner and exact causal inputs
         run: |
           set -euo pipefail
           test -x "$ARCHIE_TRAINING_PYTHON"
           test -f "$ARCHIE_TRAINING_CONFIG_PATH"
+          test -f "$ARCHIE_TRAJECTORY_BATCH_PATH"
           test -d "$ARCHIE_STUDENT_MODEL_DIR"
           test -f "$ARCHIE_PROFILE_PATH"
           command -v nvidia-smi >/dev/null
-          run_root="${ARCHIE_TRAINING_OUTPUT_ROOT%/}/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_root="${ARCHIE_TRAINING_OUTPUT_ROOT%/}/causal-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "$run_root"
           mkdir -p "$run_root"
           workspace="$run_root/workspace"
+          pair_output="$run_root/causal-pairs"
           output="$run_root/output"
           log="$run_root/training.log"
           evidence="$run_root/runner-evidence.json"
           RUNNER_EVIDENCE="$evidence" "$ARCHIE_TRAINING_PYTHON" - <<'PY'
           import hashlib, importlib.metadata, json, os, pathlib, platform, subprocess
+          method = 'verifier-anchored-causal-divergence-qlora/v1'
           try:
               import torch
           except Exception as exc:
@@ -248,7 +267,23 @@ jobs:
           if not torch.cuda.is_available():
               raise SystemExit('Configured Actions runner has no usable CUDA device; refusing CPU fallback.')
           profile_path = pathlib.Path(os.environ['ARCHIE_PROFILE_PATH']).resolve()
+          config_path = pathlib.Path(os.environ['ARCHIE_TRAINING_CONFIG_PATH']).resolve()
+          batch_path = pathlib.Path(os.environ['ARCHIE_TRAJECTORY_BATCH_PATH']).resolve()
+          model_dir = pathlib.Path(os.environ['ARCHIE_STUDENT_MODEL_DIR']).resolve()
           profile = json.loads(profile_path.read_text(encoding='utf-8'))
+          training = profile.get('training') or {}
+          if training.get('method') != method:
+              raise SystemExit('Configured profile does not select the causal-divergence method.')
+          values = {
+              'seed': int(training['seed']),
+              'holdout_rate': float(training.get('holdout_rate', 0.2)),
+              'max_seq_length': int(training.get('max_seq_length', 1536)),
+              'gradient_accumulation_steps': int(training.get('gradient_accumulation_steps', 8)),
+              'batch_size': int(training.get('batch_size', 1)),
+              'beta': float(training.get('beta', 0.1)),
+              'causal_margin': float(training.get('causal_margin', 0.2)),
+              'sft_weight': float(training.get('sft_weight', 0.35)),
+          }
           minimum_vram = int(profile.get('footprint', {}).get('recommended_gpu_vram_bytes', 0))
           index = torch.cuda.current_device()
           props = torch.cuda.get_device_properties(index)
@@ -257,12 +292,15 @@ jobs:
           def version(name):
               try: return importlib.metadata.version(name)
               except importlib.metadata.PackageNotFoundError: return None
-          required = ['torch', 'transformers', 'datasets', 'peft', 'trl', 'bitsandbytes', 'accelerate']
+          required = ['torch', 'transformers', 'datasets', 'peft', 'bitsandbytes', 'accelerate']
           versions = {name: version(name) for name in required}
           missing = [name for name, value in versions.items() if value is None]
-          if missing: raise SystemExit(f"Pinned CUDA QLoRA dependencies are missing: {', '.join(missing)}")
+          if missing:
+              raise SystemExit(f"Pinned CUDA QLoRA dependencies are missing: {', '.join(missing)}")
+          def file_sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
           evidence = {
-              'schema': 'archie-cuda-runner-evidence/v1',
+              'schema': 'archie-cuda-causal-runner-evidence/v1',
+              'method': method,
               'request_id': os.environ['ARCHIE_REQUEST_ID'],
               'repository': os.environ['GITHUB_REPOSITORY'],
               'code_revision': os.environ['GITHUB_SHA'],
@@ -271,48 +309,89 @@ jobs:
               'runner': {'name': os.environ.get('RUNNER_NAME'), 'os': os.environ.get('RUNNER_OS'), 'arch': os.environ.get('RUNNER_ARCH'), 'label': os.environ.get('ARCHIE_CUDA_RUNNER_LABEL')},
               'runtime': {'python': platform.python_version(), 'platform': platform.platform(), 'packages': versions, 'torch_cuda': torch.version.cuda, 'cudnn': torch.backends.cudnn.version()},
               'gpu': {'index': index, 'name': torch.cuda.get_device_name(index), 'capability': list(torch.cuda.get_device_capability(index)), 'total_memory_bytes': props.total_memory, 'profile_recommended_memory_bytes': minimum_vram, 'nvidia_smi': subprocess.run(['nvidia-smi', '--query-gpu=name,uuid,driver_version,memory.total', '--format=csv,noheader'], check=True, capture_output=True, text=True).stdout.strip().splitlines()},
-              'inputs': {'profile_sha256': hashlib.sha256(profile_path.read_bytes()).hexdigest(), 'training_config_path': os.environ['ARCHIE_TRAINING_CONFIG_PATH'], 'training_config_sha256': hashlib.sha256(pathlib.Path(os.environ['ARCHIE_TRAINING_CONFIG_PATH']).read_bytes()).hexdigest(), 'student_model_dir': os.environ['ARCHIE_STUDENT_MODEL_DIR'], 'trainer_sha256': hashlib.sha256(pathlib.Path('foundry/archie-distill/train.py').read_bytes()).hexdigest()},
-              'claim_boundary': 'CUDA and local inputs passed preflight. No gradient update or checkpoint is claimed until the neural training receipt is verified.'
+              'inputs': {
+                  'profile_path': str(profile_path), 'profile_sha256': file_sha(profile_path),
+                  'training_config_path': str(config_path), 'training_config_sha256': file_sha(config_path),
+                  'trajectory_batch_path': str(batch_path), 'trajectory_batch_sha256': file_sha(batch_path),
+                  'student_model_dir': str(model_dir),
+                  'trainer_sha256': file_sha(pathlib.Path('foundry/archie-distill/train_causal_divergence.py')),
+                  'pair_compiler_sha256': file_sha(pathlib.Path('foundry/archie-distill/compile_causal_pairs.py')),
+              },
+              'optimization_request': values,
+              'claim_boundary': 'CUDA and exact causal inputs passed preflight. No gradient update, adapter, or capability claim exists until the neural receipt is verified.'
           }
           pathlib.Path(os.environ['RUNNER_EVIDENCE']).write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
+              for key, value in values.items():
+                  stream.write(f'{key}={value}\n')
           PY
-          printf 'workspace=%s\noutput=%s\nlog=%s\nevidence=%s\n' "$workspace" "$output" "$log" "$evidence" >> "$GITHUB_OUTPUT"
+          printf 'workspace=%s\npair_output=%s\noutput=%s\nlog=%s\nevidence=%s\n' "$workspace" "$pair_output" "$output" "$log" "$evidence" >> "$GITHUB_OUTPUT"
       - name: Compile exact digest-bound training workspace
         run: npm run archie:student:compile -- --config "$ARCHIE_TRAINING_CONFIG_PATH" --output "${{ steps.preflight.outputs.workspace }}"
-      - name: Execute real CUDA NF4 QLoRA training
+      - name: Compile verifier-bound causal preference pairs
         run: |
           set -euo pipefail
-          "$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/train.py \
+          "$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/compile_causal_pairs.py \
+            --batch "$ARCHIE_TRAJECTORY_BATCH_PATH" \
+            --output "${{ steps.preflight.outputs.pair_output }}" \
+            --seed "${{ steps.preflight.outputs.seed }}" \
+            --holdout-rate "${{ steps.preflight.outputs.holdout_rate }}"
+      - name: Execute real causal-divergence CUDA NF4 QLoRA training
+        run: |
+          set -euo pipefail
+          "$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/train_causal_divergence.py \
             --profile "$ARCHIE_PROFILE_PATH" \
             --workspace "${{ steps.preflight.outputs.workspace }}" \
+            --preference-data "${{ steps.preflight.outputs.pair_output }}/causal-preference.train.jsonl" \
+            --preference-eval-data "${{ steps.preflight.outputs.pair_output }}/causal-preference.development.jsonl" \
+            --preference-receipt "${{ steps.preflight.outputs.pair_output }}/causal-preference-receipt.json" \
             --model-dir "$ARCHIE_STUDENT_MODEL_DIR" \
             --output "${{ steps.preflight.outputs.output }}" \
+            --max-seq-length "${{ steps.preflight.outputs.max_seq_length }}" \
+            --gradient-accumulation-steps "${{ steps.preflight.outputs.gradient_accumulation_steps }}" \
+            --batch-size "${{ steps.preflight.outputs.batch_size }}" \
+            --beta "${{ steps.preflight.outputs.beta }}" \
+            --causal-margin "${{ steps.preflight.outputs.causal_margin }}" \
+            --sft-weight "${{ steps.preflight.outputs.sft_weight }}" \
             2>&1 | tee "${{ steps.preflight.outputs.log }}"
-      - name: Verify non-promoted byte-bound training receipt
+      - name: Verify non-promoted byte-bound causal training receipt
         run: |
           set -euo pipefail
-          RECEIPT="${{ steps.preflight.outputs.output }}/training-receipt.json" RUNNER_EVIDENCE="${{ steps.preflight.outputs.evidence }}" "$ARCHIE_TRAINING_PYTHON" - <<'PY'
+          RECEIPT="${{ steps.preflight.outputs.output }}/training-receipt.json" \
+          PAIR_RECEIPT="${{ steps.preflight.outputs.pair_output }}/causal-preference-receipt.json" \
+          PAIR_TRAIN="${{ steps.preflight.outputs.pair_output }}/causal-preference.train.jsonl" \
+          RUNNER_EVIDENCE="${{ steps.preflight.outputs.evidence }}" \
+          "$ARCHIE_TRAINING_PYTHON" - <<'PY'
           import hashlib, json, os, pathlib
+          method = 'verifier-anchored-causal-divergence-qlora/v1'
           receipt_path = pathlib.Path(os.environ['RECEIPT'])
+          pair_receipt_path = pathlib.Path(os.environ['PAIR_RECEIPT'])
+          pair_train_path = pathlib.Path(os.environ['PAIR_TRAIN'])
           evidence_path = pathlib.Path(os.environ['RUNNER_EVIDENCE'])
           receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+          pair_receipt = json.loads(pair_receipt_path.read_text(encoding='utf-8'))
           evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
-          if receipt.get('schema') != 'archie-neural-training-receipt/v2': raise SystemExit('Unexpected training receipt schema.')
+          if receipt.get('schema') != 'archie-neural-causal-divergence-training-receipt/v1': raise SystemExit('Unexpected causal training receipt schema.')
+          if receipt.get('method') != method: raise SystemExit('Training receipt method mismatch.')
           if receipt.get('promotion') != 'not-admitted': raise SystemExit('Training receipt attempted to bypass admission.')
           if not receipt.get('receipt_digest') or not receipt.get('artifacts'): raise SystemExit('Training receipt is missing digest-bound artifacts.')
           if receipt.get('runtime', {}).get('gpu', {}).get('name') != evidence.get('gpu', {}).get('name'): raise SystemExit('GPU identity mismatch.')
+          if receipt.get('preference_dataset', {}).get('receipt', {}).get('receipt_digest') != pair_receipt.get('receipt_digest'): raise SystemExit('Preference receipt digest mismatch.')
+          if receipt.get('preference_dataset', {}).get('train', {}).get('sha256') != hashlib.sha256(pair_train_path.read_bytes()).hexdigest(): raise SystemExit('Preference train bytes mismatch.')
           action_receipt = {
-              'schema': 'archie-cuda-actions-training-receipt/v1',
+              'schema': 'archie-cuda-actions-causal-training-receipt/v1',
+              'method': method,
               'request_id': os.environ['ARCHIE_REQUEST_ID'],
               'repository': os.environ['GITHUB_REPOSITORY'],
               'code_revision': os.environ['GITHUB_SHA'],
               'run_id': os.environ['GITHUB_RUN_ID'],
               'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
               'runner_evidence_sha256': hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
+              'preference_receipt_sha256': hashlib.sha256(pair_receipt_path.read_bytes()).hexdigest(),
               'neural_training_receipt_sha256': hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
               'neural_training_receipt_digest': receipt['receipt_digest'],
               'promotion': 'not-admitted',
-              'claim_boundary': 'Real CUDA QLoRA training completed in Actions. Hidden evaluation, authority, reproduction, device evidence, and admission remain blocked.'
+              'claim_boundary': 'Real causal-divergence CUDA QLoRA training completed in Actions. Hidden evaluation, authority, reproduction, device evidence, and admission remain blocked.'
           }
           receipt_path.with_name('actions-training-receipt.json').write_text(json.dumps(action_receipt, indent=2, sort_keys=True) + '\n', encoding='utf-8')
           PY
@@ -320,7 +399,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-cuda-training-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: archie-cuda-causal-training-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ steps.preflight.outputs.output }}
             ${{ steps.preflight.outputs.log }}
@@ -342,7 +421,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: Number(process.env.ISSUE_NUMBER),
               body: [
-                '<!-- archie-cuda-training:v1 -->',
+                '<!-- archie-cuda-training:v2 -->',
                 `## CUDA training ${process.env.JOB_STATUS}`,
                 '',
                 `**request:** ${process.env.REQUEST_ID}`,
@@ -350,7 +429,7 @@ jobs:
                 `**run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
                 '',
                 process.env.JOB_STATUS === 'success'
-                  ? 'A real CUDA QLoRA run produced uploaded artifacts and a `promotion: not-admitted` receipt.'
+                  ? 'A real causal-divergence CUDA QLoRA run produced uploaded artifacts and a `promotion: not-admitted` receipt.'
                   : 'The CUDA lane failed or was cancelled. Do not claim a trained checkpoint without both verified receipts.'
               ].join('\n')
             });
