@@ -1,7 +1,7 @@
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { has, integer, last, parseArguments, printJSON, requiredFlag } from './archie-cli-core.mjs';
+import { has, integer, last, requiredFlag } from './archie-cli-core.mjs';
 import { attestTeacher, defaultWorkspace, doctor, importTeacher, initializeWorkspace, loadProfile, teach } from './archie-distill-core.mjs';
 
 const defaultProfile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'maker', 'evaluations', 'archie-distill-qwen3-quality.json');
@@ -9,6 +9,22 @@ function splitDecision(value, decision) {
   const index = value.indexOf('::');
   if (index < 1) throw new Error(`${decision} requires candidate-id::reason.`);
   return { candidate_id: value.slice(0, index), reason: value.slice(index + 2), decision };
+}
+
+function taskSeconds(milliseconds) {
+  return `${(Math.max(0, Number(milliseconds) || 0) / 1000).toFixed(1)}s`;
+}
+
+function etaSeconds(milliseconds) {
+  return `${Math.max(0, Math.round((Number(milliseconds) || 0) / 1000))}s`;
+}
+
+export function formatTeachProgress(event) {
+  const prefix = `[archie] teacher ${event.index}/${event.total} ${event.task_id}: ${event.status}`;
+  if (event.status !== 'completed') return prefix;
+  const duration = Number.isFinite(event.task_elapsed_ms) ? ` (${taskSeconds(event.task_elapsed_ms)})` : '';
+  const eta = Number.isFinite(event.eta_ms) && event.eta_ms > 0 ? `, ~${etaSeconds(event.eta_ms)} remaining` : '';
+  return `${prefix}${duration}${eta}`;
 }
 
 export async function runDistillCommand({ positionals, flags }) {
@@ -24,7 +40,7 @@ export async function runDistillCommand({ positionals, flags }) {
     runner: requiredFlag(flags, '--runner'),
     tasksPath: last(flags, '--tasks'),
     maxTasks: integer(flags, '--max-tasks', Number.MAX_SAFE_INTEGER),
-    onProgress: event => process.stderr.write(`[archie] teacher ${event.index}/${event.total} ${event.task_id}: ${event.status}\n`)
+    onProgress: event => process.stderr.write(`${formatTeachProgress(event)}\n`)
   });
   if (command === 'attest-teacher') {
     const decisions = [
