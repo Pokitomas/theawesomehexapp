@@ -416,7 +416,6 @@ export function buildCpuExecutionOptions(manifestArguments = [], env = process.e
       LLAMA_ARG_DEVICE: 'none',
       LLAMA_ARG_N_GPU_LAYERS: '0',
       LLAMA_ARG_KV_OFFLOAD: '0',
-      LLAMA_ARG_OP_OFFLOAD: '0',
       LLAMA_ARG_MMPROJ_OFFLOAD: '0',
       LLAMA_ARG_FIT: 'off'
     }),
