@@ -88,7 +88,8 @@ test('legacy directory import preserves exact bytes in content-derived Archie-na
 
   const state = (await engine.readState(first.workspace_id)).state;
   assert.equal(state.workspace.owner_id, 'owner_local');
-  assert.equal(state.tasks.task_legacy_import.status, 'completed');
+  assert.equal(state.runs.run_legacy_import.status, 'completed');
+  assert.equal(state.tasks.task_legacy_import.status, 'review');
   assert.equal(state.evidence.evidence_legacy_import.result, 'pass');
   assert.equal(Object.keys(state.artifacts).length, 4);
   assert.equal(JSON.stringify(state).includes(root), false, 'canonical records must not expose the source absolute path');
