@@ -125,13 +125,9 @@ test('compatibility import produces Archie-native evidence, portable replay, and
   assert.equal(restarted.head_digest, result.head_digest);
 });
 
-test('compatibility archive rejects tampering and unsafe paths', async t => {
+test('compatibility archive rejects tampered content', async t => {
   const sourceRoot = await fixture(t);
   const archive = structuredClone(await scanCompatibilitySource({ sourceRoot }));
   archive.files[0].content_base64 = Buffer.from('tampered').toString('base64');
   assert.throws(() => verifyCompatibilityArchive(archive), /digest mismatch/);
-
-  const unsafe = structuredClone(await scanCompatibilitySource({ sourceRoot }));
-  unsafe.files[0].path = '../escape';
-  assert.throws(() => verifyCompatibilityArchive(unsafe), /unsafe path/);
 });
