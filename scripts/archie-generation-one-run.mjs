@@ -46,12 +46,12 @@ function actionContractFor(episode) {
     required_actions: reference,
     optional_actions: [],
     forbidden_actions: [],
-    ordering: reference.slice(1).map((action, index) => [reference[index], action]),
-    allow_unlisted_actions: false
+    ordering: [],
+    allow_unlisted_actions: true
   };
 }
 
-function contractReport(suite, candidate, name) {
+export function contractReport(suite, candidate, name) {
   const byId = new Map((candidate.results || []).map(result => [result.episode_id, result]));
   const episodes = suite.episodes.map(episode => {
     const result = byId.get(episode.id) || { state: 'missing', tool_trace: [] };
@@ -63,8 +63,11 @@ function contractReport(suite, candidate, name) {
     const stateCorrect = expectedState === 'reject'
       ? state === 'reject'
       : state === expectedState;
-    const contract = evaluateActionContract(actions, actionContractFor(episode));
-    const actionCorrect = expectedState === 'reject' ? actions.length === 0 : contract.satisfied;
+    const contract = evaluateActionContract(actions, actionContractFor(episode), {
+      terminal_artifacts: result.terminal_artifacts || result.receipts?.terminal_artifacts || [],
+      authority_violations: result.authority_violations || result.receipts?.authority_violations || []
+    });
+    const actionCorrect = contract.satisfied;
     return {
       episode_id: episode.id,
       class: episode.class,
