@@ -6,124 +6,112 @@ Continue PR #535 on branch `agent/iphone-first-quantization-research`.
 
 - PR: `https://github.com/Pokitomas/theawesomehexapp/pull/535`
 - Base: `main` at `0bc98d8fd5ac5d1876713063af512954a8da188a`
-- Exact implementation head before this handoff commit: `1d585bd3f960bc20fae58ddef013bd0f36fb5533`
 - State: open, draft, mergeable
-- Authority: execute normal architecture, implementation, tests, CI repair, issue/PR updates, and merge when evidence is green. Stop only for missing credentials, irreversible spending, legal acceptance, destructive external actions, or a genuinely unresolved product choice.
+- Authority: execute normal architecture, implementation, tests, CI repair, and issue/PR updates. **Merge remains a human decision for this task.** Stop for missing credentials, irreversible spending, legal acceptance, destructive external actions, or a genuinely unresolved product choice.
 
-## Decision already made
+Always resolve the current branch head before reporting exact-head evidence because multiple co-agents have contributed to this branch.
 
-Use Unsloth only as an external Qwen training/merge/export accelerator. Do not vendor it, make it Archie’s runtime, or treat it as the brain.
+## Product decision
 
-Keep Mamba and RWKV-8 as Generation One architecture experiments. The uploaded material included source/designs but no Archie-trained checkpoints and no admitted iPhone runtime. Do not replace the current Qwen student merely because architecture source exists.
+Maker remains a general repository executor and engineering workbench. Do not inject iPhone research policy into unrelated Maker requests.
 
-Keep ArchiveBox, Crawl4AI, and Whisper outside the neural core as possible future archive, web-ingestion, and speech faculties. Kid Pix, PixelWater, hm, and voice-ai are not neural-core inputs.
+The A15 / 4 GB requirement belongs to Archie’s runtime, admission, and product experience. A user should ask Archie, receive local or teacher-assisted reasoning, authorize Maker only when execution is required, verify the result, and control what Archie remembers.
 
 ## Implemented on PR #535
 
-### Existing Qwen quantization lane
+### Truthful iPhone admission
 
-- `scripts/archie-student-quantize.mjs`
-- `scripts/tests/archie-student-quantize.test.mjs`
-- `npm run archie:student:quantize`
-- receipt schema `archie-student-quantization-receipt/v1`
-- canonical candidates: `Q4_K_M`, `Q5_K_M`, `Q6_K`; `Q8_0` diagnostic only
-- complete checkpoint, tool, log, intermediate, output, and source-training receipt binding
-- candidates remain unadmitted
+- immutable canonical A15 / 4 GB target, thresholds, workloads, conditions, and required events;
+- exact binding of model revision/artifact, runtime executable/build/dependencies/compiler receipt, benchmark corpus, hidden split, grader, workload set, campaign, and candidate binding file;
+- fresh nonce-bound execution only through `archie:device:evidence`;
+- exact iOS version and build identity;
+- independent Ed25519 measurement-authority requirement;
+- intentionally empty authority registry, so no candidate can currently be selected;
+- adversarial tests for weakened plans, self-attestation, mutation, replay, and incomplete device identity.
 
-The quantizer launcher is now cross-platform: JavaScript fixture/tools launch through the exact Node executable with `shell: false`, and both the script and launcher are hashed. This fixed the prior Windows `spawn UNKNOWN` failure.
+### Intelligence proof contract
 
-### Uploaded-source binding
+The immutable six-arm campaign compares:
 
-`product/archie-architecture-source-catalog.json` records exact inspected identities without vendoring the uploads:
+1. no-memory Maker;
+2. retrieval-only Archie;
+3. current Archie;
+4. raw student;
+5. distilled student;
+6. teacher-only.
 
-- Unsloth archive SHA-256 `0a35ae612d3bca1d2fdb3b6709c6efcb6dc06bbc437153ea6e068370ac22c393`
-- Mamba archive SHA-256 `5da2347d1dd8d975c4cd406461c41276229813fa2076e9779bd1961e44095bf1`
-- RWKV-8 note SHA-256 `14ded853a5e5630751d2df1b98eb94dba3a167727f0fe70d8a217e486ccf139b`
+Terminal correctness and alternate valid solutions are primary. Teacher-trace imitation is secondary diagnostics. Promotion also requires unseen-domain derivation, recovery, calibration, structured output, authority safety, contamination control, statistical support, and clean reproduction.
 
-The catalog also classifies the faculty and excluded archives. Catalog membership proves source identity only—not quality, safety, compatibility, training, or admission.
+### Native iPhone runtime
 
-### Architecture × quantization campaign
+`ios/ArchiePhone` contains the first native SwiftUI target:
 
-- `scripts/archie-quant-architecture-campaign.mjs`
-- `scripts/tests/archie-quant-architecture-campaign.test.mjs`
-- `ARCHIE_ARCHITECTURE_EXPERIMENTS.md`
-- `npm run archie:research:architectures`
-- `npm run archie:research:architectures:evaluate -- --results <results.json>`
-- `npm run test:archie:architecture`
+- digest-verified, versioned model activation with an atomic active pointer;
+- iOS file protection;
+- Core ML local generation for an explicitly compatible admitted model;
+- cancellation, memory-warning unload, thermal pause, and Low Power Mode limits;
+- MLX and GGUF fail closed until their exact Xcode-built runtimes are admitted;
+- macOS/Xcode CI generation, build, and unit tests.
 
-The immutable 12-cell matrix contains:
+This is runtime infrastructure, not proof that a model is intelligent or iPhone-ready.
 
-1. Qwen3/GGUF controls: Q4_K_M, Q5_K_M, Q6_K, Q8_0.
-2. Mamba-2: weight-only INT8 and INT4.
-3. Mamba-3 MIMO: weight-only INT8 and INT4.
-4. RWKV-8: matrix-state INT8, low-rank-state INT8, quantized-state INT6, sparse quantized-state INT6.
+### Cross-platform distillation and GGUF quantization
 
-Only Qwen/GGUF cells currently expose a materialization command. Mamba and RWKV cells are explicitly `blocked-research-proposal`; no runtime, exporter, checkpoint, or kernel is invented.
+- Python contracts run through a platform-aware interpreter launcher;
+- JavaScript quantizer tools run through the exact Node executable with `shell: false`;
+- both quantizer script and launcher are hashed in receipts;
+- Windows clean install, training contracts, quantization, workspace, package/install, and first-launch journeys have passed on prior exact heads.
 
-The evaluator:
+### Architecture × quantization research
 
-- continues after declared expected blockers;
-- preserves exact failure-code and log-digest receipts;
-- blocks selection on any unexpected failure;
-- requires identical training budget, hidden split, grader, workload set, and A15 device floor;
-- requires independent, reproduced, physical-A15 evidence for comparability;
-- returns a Pareto frontier only;
-- never auto-selects or promotes a model.
+The immutable 12-cell diagnostic matrix contains:
 
-### iPhone and intelligence gates already on this PR
+- Qwen3/GGUF Q4_K_M, Q5_K_M, Q6_K, and Q8_0 controls;
+- Mamba-2 and Mamba-3 INT4/INT8 proposals;
+- RWKV-8 matrix-state, low-rank-state, quantized-state, and sparse quantized-state proposals.
 
-The branch also contains the native SwiftUI iPhone runtime, canonical A15/4 GB target, nonce-bound device-evidence path, independent measurement-authority registry, and six-arm intelligence campaign. Do not weaken those gates to make an architecture experiment pass.
+The repository source catalog is immutable. Mamba/RWKV rows remain blocked research proposals; no checkpoint, exporter, mobile kernel, or runtime is invented.
 
-## Validation state at handoff
+The architecture evaluator is **diagnostic only**:
 
-At exact head `1d585bd3f960bc20fae58ddef013bd0f36fb5533`:
+- preserves expected failure-code and log-digest receipts;
+- rejects unknown failures and comparison-binding drift;
+- rejects self-attested `independent`, `reproduced`, and `physical_a15` booleans;
+- may show a diagnostic Pareto frontier;
+- always leaves selection ineligible;
+- delegates real selection to the canonical intelligence campaign, independently attested iPhone admission, and clean reproduction.
 
-- `npm run test:archie:architecture` passed 7/7 before publication.
-- Exact repository tree workflow passed.
-- Windows install workflow passed after the launcher repair.
-- Archie Generation One evidence workflow passed.
-- Native iPhone workflow was still in progress when this handoff was written.
-- Other reported workflows on the exact head were green or intentionally skipped.
+## Linear execution
 
-Always re-read current workflow state before merge because this handoff commit creates a newer head.
+- POK-114: truthful iPhone admission and native runtime
+- POK-115: physical A15 lab and independent measurement authority
+- POK-116: first serious distilled Archie candidate and six-arm evaluation
+- POK-117: complete native backend and model lifecycle
+- POK-118: inspectable and reversible on-device learning
+- POK-119: phone-native ask, think, act, verify, remember experience
 
-## Missing empirical inputs
+## Remaining empirical blockers
 
-No actual architecture comparison can complete until the relevant inputs exist.
+No model can be promoted until all of the following exist:
 
-For Qwen/GGUF:
+- a reviewed positive/negative training corpus and trained candidate;
+- untouched hidden-split results against all six arms;
+- statistically supported gains without authority or safety regression;
+- independently controlled measurement authority;
+- physical A15 / 4 GB evidence for the exact model/runtime/build;
+- second clean-environment reproduction;
+- native lifecycle evidence for activation, interruption, memory pressure, thermal behavior, offline first launch, corruption, update interruption, rollback, and removal.
 
-- merged Archie/Qwen Hugging Face checkpoint;
-- exact `convert_hf_to_gguf.py`;
-- exact `llama-quantize` executable;
-- bound training receipt.
+## Required completion sequence
 
-For Mamba/RWKV:
-
-- an explicit parameter-matched architecture specification;
-- trained checkpoint under the same token/curriculum budget;
-- quantized export path;
-- mobile runtime and kernels;
-- hidden-split evaluation;
-- second clean reproduction;
-- physical A15/4 GB evidence through the canonical harness.
-
-Expected absence of those inputs is not a reason to abort the rest of the campaign. Record the expected failure and continue. Unknown NaNs, digest drift, comparison mismatches, runtime crashes, invalid evidence, or safety regressions are not expected blockers; investigate and stop selection.
-
-## Next engineer execution order
-
-1. Inspect current PR #535 head and all current workflow runs.
-2. Repair any failure caused by the architecture lane; do not dismiss it as expected unless its exact failure code is declared for that candidate.
-3. Run `npm run test:archie:architecture`, `npm run test:archie:distill`, and `npm run verify:repository` on the exact final tree.
-4. Generate and inspect `npm run archie:research:architectures`; verify 12 unique cells and source-catalog binding.
-5. Keep PR truth-boundary text synchronized with actual evidence.
-6. Merge only when required CI is green and no unresolved review blocker remains.
-7. After merge, record exact feature head, merge SHA, workflow evidence, and remaining empirical blockers. Do not claim a model was produced or selected.
-
-## Prior merged product baseline
-
-PR #511 was previously merged to `main` as `4b2386606a8e43e7914fd0e837cec5f496cc9e49`. Preserve its independent opaque-program product architecture. Do not turn Archie, Maker, Founder, Foundry, and Expo into one generic AI dashboard while working on the neural backend.
+1. Resolve the current PR head and inspect every workflow on that exact head.
+2. Repair any repository, Windows, Xcode, or architecture-campaign failure.
+3. Confirm `test:archie:architecture`, `test:archie:distill`, and exact repository verification are green.
+4. Keep PR and Linear truth boundaries synchronized with the actual head.
+5. Mark ready for review only when current exact-head CI is green and no unresolved blocker remains.
+6. Do not merge without human approval.
+7. Do not describe any model as selected, intelligent, distilled successfully, or iPhone-ready until the empirical gates above pass.
 
 ## Truth boundary
 
-This repository now has executable architecture-experiment and quantization infrastructure. It does not yet have uploaded model weights, a trained Mamba/RWKV candidate, an admitted mobile recurrent runtime, independent physical A15 evidence, or an empirically selected neural architecture.
+The repository now has legitimate training, architecture-search, intelligence-evaluation, physical-device-admission, and native-runtime infrastructure. It still has no empirically winning distilled candidate, independently signed physical A15 matrix, or promoted iPhone model.
