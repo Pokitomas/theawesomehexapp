@@ -58,7 +58,18 @@ export async function initializeWorkspace({ profilePath, workspace }) {
   await fs.writeFile(profileOut, `${JSON.stringify(profile, null, 2)}\n`);
   const tasks = curriculum.map(row => stableJSONStringify(row)).join('\n') + '\n';
   await fs.writeFile(path.join(root, 'curriculum.jsonl'), tasks);
-  const receipt = { schema: 'archie-distill-workspace/v1', profile_id: profile.id, profile_sha256: sha256(stableJSONStringify(profile)), curriculum_sha256: sha256(tasks), task_count: curriculum.length, workspace: root, claim_boundary: profile.claim_boundary };
+  const teacherPath = path.join(root, 'models', 'teacher', profile.teacher.filename);
+  const freeNote = profile.footprint?.recommended_free_bytes ? `~${Math.round(profile.footprint.recommended_free_bytes / 1e9)} GB free disk space` : 'significant free disk space';
+  const next_steps = [
+    `1. Place the teacher model at: ${teacherPath}`,
+    `   SHA-256: ${profile.teacher.sha256}`,
+    `   Source: ${profile.teacher.repository}`,
+    `   Note: the model file is not part of this repository and requires ${freeNote}`,
+    `2. Install llama.cpp and note the path to the llama-cli binary`,
+    `3. Check readiness: archie distill doctor --workspace ${root} --runner <llama-cli-path>`,
+    `4. Run the teacher: archie distill teach --workspace ${root} --runner <llama-cli-path>`,
+  ];
+  const receipt = { schema: 'archie-distill-workspace/v1', profile_id: profile.id, profile_sha256: sha256(stableJSONStringify(profile)), curriculum_sha256: sha256(tasks), task_count: curriculum.length, workspace: root, claim_boundary: profile.claim_boundary, next_steps };
   await fs.writeFile(path.join(root, 'workspace-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
   return receipt;
 }
@@ -70,12 +81,43 @@ export async function doctor({ profilePath, workspace, runner = '' }) {
   const teacherExists = await exists(teacher);
   const observed = teacherExists ? await hashFile(teacher) : null;
   const runnerPath = runner ? path.resolve(runner) : '';
+  const runnerPresent = runnerPath ? await exists(runnerPath) : false;
+  const studentPresent = await exists(path.join(root, 'models', 'student', 'config.json'));
+  const teacherVerified = observed === profile.teacher.sha256;
+  const readyToTeach = teacherVerified && Boolean(runnerPath && runnerPresent);
+  const blockers = [];
+  const next_steps = [];
+  if (!teacherExists) {
+    blockers.push(`teacher model missing — expected at: ${teacher}`);
+    next_steps.push(`Download the teacher model from ${profile.teacher.repository}`);
+    next_steps.push(`Place the file at: ${teacher}`);
+    next_steps.push(`Expected SHA-256: ${profile.teacher.sha256}`);
+  } else if (!teacherVerified) {
+    blockers.push('teacher model SHA-256 mismatch — file may be incomplete or the wrong version');
+    next_steps.push(`Replace the teacher model at: ${teacher}`);
+    next_steps.push(`Expected SHA-256: ${profile.teacher.sha256}`);
+    next_steps.push(`Observed SHA-256: ${observed}`);
+  }
+  if (!runnerPresent) {
+    if (!runnerPath) {
+      blockers.push('no runner path provided — pass --runner <path-to-llama-cli>');
+      next_steps.push('Build llama.cpp (https://github.com/ggerganov/llama.cpp) then rerun with --runner <path-to-llama-cli>');
+    } else {
+      blockers.push(`runner not found at: ${runnerPath}`);
+      next_steps.push('Verify the --runner path is correct and the llama-cli binary is executable.');
+    }
+  }
+  if (readyToTeach) {
+    next_steps.push(`All checks passed — run: archie distill teach --workspace ${root} --runner ${runnerPath}`);
+  }
   return {
     schema: 'archie-distill-doctor/v1', profile_id: profile.id, workspace: root,
-    teacher: { path: teacher, present: teacherExists, expected_sha256: profile.teacher.sha256, observed_sha256: observed, verified: observed === profile.teacher.sha256 },
-    student_present: await exists(path.join(root, 'models', 'student', 'config.json')),
-    runner: { path: runnerPath || null, present: runnerPath ? await exists(runnerPath) : false },
-    ready_to_teach: observed === profile.teacher.sha256 && Boolean(runnerPath && await exists(runnerPath)),
+    teacher: { path: teacher, present: teacherExists, expected_sha256: profile.teacher.sha256, observed_sha256: observed, verified: teacherVerified },
+    student_present: studentPresent,
+    runner: { path: runnerPath || null, present: runnerPresent },
+    ready_to_teach: readyToTeach,
+    blockers,
+    next_steps,
     claim_boundary: profile.claim_boundary
   };
 }

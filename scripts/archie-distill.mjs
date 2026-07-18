@@ -18,14 +18,34 @@ export async function runDistillCommand({ positionals, flags }) {
   const workspace = path.resolve(last(flags, '--workspace', defaultWorkspace(profile)));
   if (command === 'init') return initializeWorkspace({ profilePath, workspace });
   if (command === 'doctor') return doctor({ profilePath, workspace, runner: last(flags, '--runner') });
-  if (command === 'teach') return teach({
-    profilePath,
-    workspace,
-    runner: requiredFlag(flags, '--runner'),
-    tasksPath: last(flags, '--tasks'),
-    maxTasks: integer(flags, '--max-tasks', Number.MAX_SAFE_INTEGER),
-    onProgress: event => process.stderr.write(`[archie] teacher ${event.index}/${event.total} ${event.task_id}: ${event.status}\n`)
-  });
+  if (command === 'teach') {
+    const distillStartMs = Date.now();
+    const taskStartMs = new Map();
+    return teach({
+      profilePath,
+      workspace,
+      runner: requiredFlag(flags, '--runner'),
+      tasksPath: last(flags, '--tasks'),
+      maxTasks: integer(flags, '--max-tasks', Number.MAX_SAFE_INTEGER),
+      onProgress: event => {
+        const nowMs = Date.now();
+        if (event.status === 'starting') {
+          taskStartMs.set(event.task_id, nowMs);
+          process.stderr.write(`[archie] teacher ${event.index}/${event.total} ${event.task_id}: starting\n`);
+        } else if (event.status === 'completed') {
+          const startedMs = taskStartMs.get(event.task_id);
+          const taskDuration = startedMs != null ? ` (${((nowMs - startedMs) / 1000).toFixed(1)}s)` : '';
+          const totalElapsedS = (nowMs - distillStartMs) / 1000;
+          const tasksLeft = event.total - event.index;
+          const avgS = event.index > 0 ? totalElapsedS / event.index : 0;
+          const etaStr = tasksLeft > 0 && avgS > 0 ? `, ~${Math.round(avgS * tasksLeft)}s remaining` : '';
+          process.stderr.write(`[archie] teacher ${event.index}/${event.total} ${event.task_id}: completed${taskDuration}${etaStr}\n`);
+        } else {
+          process.stderr.write(`[archie] teacher ${event.index}/${event.total} ${event.task_id}: ${event.status}\n`);
+        }
+      }
+    });
+  }
   if (command === 'attest-teacher') {
     const decisions = [
       ...(flags.get('--accept') || []).map(value => splitDecision(value, 'accepted')),
