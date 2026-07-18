@@ -76,10 +76,10 @@ jobs:
           node --check scripts/archie-student-quantize.mjs
           node --check scripts/archie-student-admission.mjs
           node --check scripts/archie-repository-completion.mjs
-      - name: Verify workspace, hosted, hybrid, and compatibility contracts
-        run: npm run test:archie:workspace
       - name: Verify distillation contracts without claiming trained promotion
         run: npm run test:archie:distill
+      - name: Verify workspace, hosted, hybrid, and compatibility contracts
+        run: npm run test:archie:workspace
       - name: Verify recursive repository completion harness
         run: npm run test:archie:repository-completion
       - name: Emit full-version gate receipt
