@@ -29,6 +29,8 @@ async function fixture(t) {
   await fs.writeFile(path.join(root, 'src', 'app.js'), "export const answer = 42;\n");
   await fs.writeFile(path.join(root, 'assets.bin'), Buffer.from([0, 1, 2, 3, 255]));
   await fs.writeFile(path.join(root, '.env'), 'SUPER_SECRET=must-not-leak\n');
+  await fs.writeFile(path.join(root, 'secret-prod.json'), '{"token":"must-not-leak-either"}\n');
+  await fs.writeFile(path.join(root, '.gitmodules'), '[submodule "private"]\n\turl = https://user:embedded_secret@example.invalid/private.git\n');
   await fs.writeFile(path.join(root, 'node_modules', 'ignored', 'index.js'), 'ignored');
   await fs.writeFile(path.join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n');
   await fs.writeFile(path.join(root, '.git', 'refs', 'heads', 'main'), 'a'.repeat(40) + '\n');
@@ -49,8 +51,12 @@ test('compatibility scan creates a bounded portable archive and demotes GitHub t
   assert.equal(archive.source.source_host_canonical, false);
   assert.deepEqual(archive.files.map(file => file.path), ['assets.bin', 'README.md', 'src/app.js']);
   assert.ok(archive.skipped.some(entry => entry.path === '.env' && entry.reason === 'sensitive_name'));
+  assert.ok(archive.skipped.some(entry => entry.path === 'secret-prod.json' && entry.reason === 'sensitive_name'));
+  assert.ok(archive.skipped.some(entry => entry.path === '.gitmodules' && entry.reason === 'git_remote_metadata_denied'));
+  assert.ok(archive.skipped.some(entry => entry.path === '.git/' && entry.reason === 'git_metadata_projected_separately'));
   assert.ok(archive.skipped.some(entry => entry.path === 'node_modules/' && entry.reason === 'generated_or_internal_directory'));
   assert.equal(archive.git.head_sha, 'a'.repeat(40));
+  assert.equal(archive.git.projection_status, 'projected');
   assert.equal(archive.git.remotes[0].kind, 'github');
   assert.match(archive.git.remotes[0].endpoint_digest, /^sha256:[a-f0-9]{64}$/);
   assert.equal(archive.git.remotes[0].raw_url_preserved, false);
@@ -59,6 +65,8 @@ test('compatibility scan creates a bounded portable archive and demotes GitHub t
   const serialized = JSON.stringify(archive);
   assert.equal(serialized.includes(sourceRoot), false);
   assert.equal(serialized.includes('must-not-leak'), false);
+  assert.equal(serialized.includes('must-not-leak-either'), false);
+  assert.equal(serialized.includes('embedded_secret'), false);
   assert.equal(serialized.includes('ghp_must_not_leak'), false);
   assert.equal(serialized.includes('github.com/example/legacy'), false);
 
@@ -66,10 +74,57 @@ test('compatibility scan creates a bounded portable archive and demotes GitHub t
   const receipt = await restoreCompatibilityArchive({ archive, targetRoot: restoreRoot });
   assert.equal(receipt.archive_digest, archive.archive_digest);
   assert.equal(receipt.restored_files, 3);
+  assert.equal(receipt.clean_root_required, true);
   assert.equal(await fs.readFile(path.join(restoreRoot, 'README.md'), 'utf8'), '# Existing program\n\nKeep this behavior.\n');
   assert.equal(await fs.readFile(path.join(restoreRoot, 'src', 'app.js'), 'utf8'), "export const answer = 42;\n");
   assert.deepEqual(await fs.readFile(path.join(restoreRoot, 'assets.bin')), Buffer.from([0, 1, 2, 3, 255]));
   await assert.rejects(fs.stat(path.join(restoreRoot, '.env')), error => error.code === 'ENOENT');
+});
+
+test('compatibility restore refuses to overwrite a nonempty target', async t => {
+  const sourceRoot = await fixture(t);
+  const archive = await scanCompatibilitySource({ sourceRoot });
+  const targetRoot = await tempRoot(t, 'archie-compat-nondestructive-');
+  const sentinel = path.join(targetRoot, 'README.md');
+  await fs.writeFile(sentinel, 'existing user content\n');
+  await assert.rejects(
+    restoreCompatibilityArchive({ archive, targetRoot }),
+    /target must be empty/
+  );
+  assert.equal(await fs.readFile(sentinel, 'utf8'), 'existing user content\n');
+  assert.deepEqual(await fs.readdir(targetRoot), ['README.md']);
+});
+
+test('compatibility Git projection rejects a HEAD ref that escapes the Git metadata root', async t => {
+  const sourceRoot = await tempRoot(t, 'archie-compat-hostile-git-');
+  await fs.mkdir(path.join(sourceRoot, '.git'), { recursive: true });
+  const outside = path.join(sourceRoot, 'outside-head');
+  await fs.writeFile(outside, 'b'.repeat(40) + '\n');
+  await fs.writeFile(path.join(sourceRoot, '.git', 'HEAD'), 'ref: ../../outside-head\n');
+  await fs.writeFile(path.join(sourceRoot, 'app.js'), 'export default true;\n');
+
+  const archive = await scanCompatibilitySource({ sourceRoot });
+  assert.equal(archive.git.present, true);
+  assert.equal(archive.git.head_ref, null);
+  assert.equal(archive.git.head_sha, null);
+  assert.equal(archive.git.projection_status, 'unsafe_head_ref_omitted');
+  assert.deepEqual(archive.files.map(file => file.path), ['app.js', 'outside-head']);
+});
+
+test('compatibility Git pointer files are recognized but never followed outside the source root', async t => {
+  const sourceRoot = await tempRoot(t, 'archie-compat-worktree-pointer-');
+  const externalGit = await tempRoot(t, 'archie-compat-external-git-');
+  await fs.writeFile(path.join(externalGit, 'HEAD'), 'c'.repeat(40) + '\n');
+  await fs.writeFile(path.join(sourceRoot, '.git'), `gitdir: ${externalGit}\n`);
+  await fs.writeFile(path.join(sourceRoot, 'app.js'), 'export default true;\n');
+
+  const archive = await scanCompatibilitySource({ sourceRoot });
+  assert.equal(archive.source.kind, 'local_git_directory');
+  assert.equal(archive.git.layout, 'gitdir_pointer');
+  assert.equal(archive.git.projection_status, 'external_gitdir_not_followed');
+  assert.equal(archive.git.head_sha, null);
+  assert.deepEqual(archive.files.map(file => file.path), ['app.js']);
+  assert.equal(JSON.stringify(archive).includes(externalGit), false);
 });
 
 test('compatibility import produces Archie-native evidence, portable replay, and clean-root restoration', async t => {
