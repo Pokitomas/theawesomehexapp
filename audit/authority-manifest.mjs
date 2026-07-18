@@ -86,6 +86,19 @@ const cudaTrainingWorkflowRow = {
   denyW: [['.github/workflows/archie-cuda-training.yml', 'No GPU job, gradient update, checkpoint, or training receipt was produced.']]
 };
 
+const compatibilityMigrationWorkflowRow = {
+  id: 'workflow.archie-compatibility-migration', f: 'workflow', op: 'Verify exact legacy import and source-host authority inventory',
+  actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head across the operating-system and Node matrix',
+  auth: 'contents:read only', object: 'Compatibility-import and source-host-inventory check results', owner: 'Repository CI configuration',
+  deny: 'event or path filter does not match|checkout or dependency setup fails|compatibility migration tests fail',
+  replay: 'Exact workflow run, pull-request head SHA, operating-system and Node matrix cell, and test command.',
+  pub: 'Public check status and test names.', priv: 'Ephemeral fixtures are discarded; no secrets or source-host mutation authority are consumed.', st: 'e',
+  s: ['workflow-permission:.github/workflows/archie-compatibility-migration.yml:contents:read'],
+  impl: [['.github/workflows/archie-compatibility-migration.yml', 'contents: read', 'persist-credentials: false', 'node --test scripts/tests/archie-compatibility-migration.test.mjs']],
+  allow: [['scripts/tests/archie-compatibility-migration.test.mjs', 'source-host inventory separates canonical runtime blockers from adapters, CI, tests, and documentation']],
+  denyW: [['scripts/tests/archie-compatibility-migration.test.mjs', 'source-host inventory reports deletion readiness only after blockers are absent']]
+};
+
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
@@ -93,6 +106,7 @@ const rows = [
   nativeIPhoneWorkflowRow,
   fullVersionWorkflowRow,
   cudaTrainingWorkflowRow,
+  compatibilityMigrationWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({

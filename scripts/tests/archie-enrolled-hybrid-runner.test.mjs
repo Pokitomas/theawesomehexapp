@@ -228,13 +228,17 @@ test('current hosted Archie controls one enrolled outbound-only runner through e
   assert.equal(await fs.readFile(path.join(runnerRoot, 'output', 'result.json'), 'utf8'), completeContent);
 
   const workspace = (await runtime.internal.engine.readState('workspace_hybrid')).state;
-  assert.equal(workspace.tasks.task_complete.status, 'completed');
+  assert.equal(workspace.tasks.task_complete.status, 'review');
   const completedRun = Object.values(workspace.runs).find(run => run.task_id === 'task_complete');
   assert.ok(completedRun);
   assert.equal(completedRun.status, 'completed');
   assert.match(completedRun.agent_id, /^runner_[a-f0-9]{24}$/);
-  assert.ok(completedRun.events.length >= 4);
-  assert.ok(completedRun.events.every(event => /^hybrid:/.test(event.kind)));
+  assert.ok(completedRun.event_count >= 4);
+  assert.match(completedRun.run_event_head, /^[a-f0-9]{64}$/);
+  const workspaceEvents = await runtime.internal.engine.events('workspace_hybrid', { principalId: 'owner_local' });
+  const completedRunEvents = workspaceEvents.filter(event => event.type === 'run.event_appended' && event.payload.run_id === completedRun.run_id);
+  assert.equal(completedRunEvents.length, completedRun.event_count);
+  assert.ok(completedRunEvents.every(event => /^hybrid:/.test(event.payload.run_event.kind)));
   const completeArtifactEntry = Object.entries(workspace.artifacts).find(([, artifact]) => artifact.name === 'result.json');
   const terminalArtifactEntry = Object.entries(workspace.artifacts).find(([, artifact]) => artifact.name === 'hybrid-terminal-receipt.json');
   assert.ok(completeArtifactEntry);

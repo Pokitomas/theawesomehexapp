@@ -70,6 +70,15 @@ async function readState(filename) {
   }
 }
 
+async function resetLeaseState(filename, state, phase) {
+  state.lease_id = null;
+  state.fence_token = null;
+  state.event_sequence = 0;
+  state.event_head = null;
+  state.phase = phase;
+  await writePrivateJson(filename, state);
+}
+
 async function diskFreeBytes(root) {
   try {
     const stats = await fs.statfs(root);
@@ -84,23 +93,20 @@ export async function defaultRunnerAdvertisement(root) {
     schema: 'archie-hybrid-runner-advertisement/v1',
     protocol_version: ARCHIE_HYBRID_RUNNER_VERSION,
     runner_version: ARCHIE_HYBRID_RUNNER_VERSION,
-    platform: process.platform,
-    architecture: process.arch,
-    cpu_count: os.cpus().length,
-    memory_bytes: os.totalmem(),
-    disk_free_bytes: await diskFreeBytes(root),
     capabilities: REQUIRED_CAPABILITIES,
-    privacy: {
+    resources: Object.freeze({
+      platform: process.platform,
+      architecture: process.arch,
+      cpu_count: os.cpus().length,
+      memory_bytes: os.totalmem(),
+      disk_free_bytes: await diskFreeBytes(root)
+    }),
+    privacy: Object.freeze({
       inbound_access: false,
-      arbitrary_network_tasks: false,
-      contact: false,
-      spend: false,
-      deploy: false,
-      publish: false,
-      credential_transfer: false,
+      filesystem_scope: 'bounded_root',
       artifact_upload: 'explicit_only',
-      local_root_scope: 'exact_directory'
-    }
+      credentials: 'local_only'
+    })
   });
 }
 
@@ -162,7 +168,7 @@ async function sendEvent({ serviceUrl, state, leaseId, kind, summary, payload = 
     fenceToken: state.fence_token,
     body: event
   });
-  state.event_sequence = result.event_sequence;
+  state.event_sequence = result.sequence;
   state.event_head = result.event_head;
   return result;
 }
@@ -287,9 +293,17 @@ export async function runHybridRunnerOnce({
     state.event_sequence = claim.lease.event_sequence;
     state.event_head = claim.lease.event_head;
     state.phase = 'claimed';
+    await sendEvent({
+      serviceUrl,
+      state,
+      leaseId: claim.lease.lease_id,
+      kind: 'claimed',
+      summary: 'Local runner claimed the fenced lease.'
+    });
     await writePrivateJson(stateFile, state);
   }
   const lease = claim.lease;
+  const assignment = claim.assignment;
 
   if (stopAfter === 'claimed') {
     return Object.freeze({ schema: 'archie-hybrid-runner-cycle/v1', runner_id: state.runner_id, lease_id: lease.lease_id, status: 'interrupted_after_claim' });
@@ -300,7 +314,7 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
     if (injectFailure) throw new WorkspaceError('Injected local runner failure for terminal-receipt proof.');
 
-    const executed = await executeAssignment({ root: boundedRoot, assignment: lease.assignment, leaseId: lease.lease_id });
+    const executed = await executeAssignment({ root: boundedRoot, assignment, leaseId: lease.lease_id });
     await sendEvent({
       serviceUrl,
       state,
@@ -312,7 +326,7 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
 
     const uploaded = [];
-    for (const artifact of lease.assignment.artifact_admission) {
+    for (const artifact of assignment.artifact_admission) {
       const target = pathInside(boundedRoot, artifact.path);
       const bytes = await fs.readFile(target.absolute);
       if (bytes.length > artifact.max_bytes || sha256(bytes) !== artifact.sha256) throw new WorkspaceError(`Runner artifact failed admission: ${artifact.artifact_id}.`);
@@ -340,19 +354,18 @@ export async function runHybridRunnerOnce({
       runnerToken: state.runner_token,
       fenceToken: state.fence_token,
       body: {
-        maker_receipt_digest: executed.makerReceipt.receipt_digest,
-        uploaded_artifacts: uploaded,
-        local_event_head: state.event_head,
-        local_event_sequence: state.event_sequence
+        schema: 'archie-hybrid-terminal-receipt/v1',
+        summary: `Completed bounded local work with ${uploaded.length} admitted artifact${uploaded.length === 1 ? '' : 's'}.`,
+        maker_receipt: executed.makerReceipt
       }
     });
-    await fs.rm(stateFile, { force: true });
+    await resetLeaseState(stateFile, state, 'completed');
     return Object.freeze({
       schema: 'archie-hybrid-runner-cycle/v1',
       runner_id: state.runner_id,
       lease_id: lease.lease_id,
       status: 'completed',
-      terminal_receipt_digest: terminal.terminal_receipt_digest
+      terminal_receipt_digest: terminal.receipt_digest
     });
   } catch (error) {
     const failure = await requestJson(new URL(`/v1/hybrid/runner/leases/${lease.lease_id}/fail`, serviceUrl), {
@@ -360,19 +373,23 @@ export async function runHybridRunnerOnce({
       runnerToken: state.runner_token,
       fenceToken: state.fence_token,
       body: {
-        code: clean(error?.code || 'local_runner_failed', 100),
-        message: clean(error?.message || 'Local runner failed.', 2_000),
-        local_event_head: state.event_head,
-        local_event_sequence: state.event_sequence
+        schema: 'archie-hybrid-failure-receipt/v1',
+        summary: 'Bounded local runner execution failed.',
+        failure: {
+          phase: clean(state.phase || 'execution', 80),
+          error_class: clean(error?.name || error?.code || 'Error', 160),
+          message: clean(error?.message || 'Hybrid runner failed.', 4_000)
+        }
       }
     }).catch(() => null);
-    await fs.rm(stateFile, { force: true });
+    if (failure) await resetLeaseState(stateFile, state, 'failed');
+    else await writePrivateJson(stateFile, state);
     return Object.freeze({
       schema: 'archie-hybrid-runner-cycle/v1',
       runner_id: state.runner_id,
       lease_id: lease.lease_id,
       status: 'failed',
-      failure_receipt_digest: failure?.failure_receipt_digest || null,
+      failure_receipt_digest: failure?.receipt_digest || null,
       message: clean(error?.message || 'Local runner failed.', 2_000)
     });
   }
