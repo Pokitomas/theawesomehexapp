@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f7f7f4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Maker">
-  <meta name="description" content="Turn one plain-language request into an authorized repository task, with advanced controls hidden until needed.">
+  <meta name="description" content="Author an iPhone-first repository task.">
   <title>Maker — Build</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
@@ -17,150 +17,71 @@
   <header class="site-header">
     <a class="brand" href="../desktop/">Archie</a>
     <nav class="primary-nav" aria-label="Archie views">
-      <a href="../desktop/">Home</a>
-      <a href="../archie/">Answer</a>
-      <a aria-current="page" href="./">Build</a>
-      <a href="../founder/">Explore</a>
-      <a href="../foundry/">Research</a>
-      <a href="../world-expo/">Results</a>
+      <a href="../desktop/">Home</a><a href="../archie/">Answer</a><a aria-current="page" href="./">Build</a><a href="../founder/">Explore</a><a href="../foundry/">Research</a><a href="../world-expo/">Results</a>
     </nav>
-    <span class="runtime-pill">Task author only</span>
+    <span class="runtime-pill">iPhone primary</span>
   </header>
 
   <main class="page surface-page" aria-labelledby="maker-title">
     <section class="surface-intro">
-      <div>
-        <p class="eyebrow">MAKER.EXE / PROJECT WORKBENCH</p>
-        <h1 id="maker-title">Build software.</h1>
-        <p>Describe the finished result first. Repository identity, backend choice, protected reality, and proof stay out of the way until they become necessary.</p>
-      </div>
-      <aside class="task-context">
-        <span>Shared task</span>
-        <strong id="current-task">No shared task yet.</strong>
-      </aside>
+      <div><p class="eyebrow">Maker</p><h1 id="maker-title">Build software.</h1></div>
+      <aside class="task-context"><span>Shared task</span><strong id="current-task">No shared task yet.</strong></aside>
     </section>
 
     <section id="command-panel" class="workspace-card" aria-labelledby="command-heading">
       <div class="section-head">
-        <div>
-          <p class="eyebrow">Build request</p>
-          <h2 id="command-heading">What should exist when the work is done?</h2>
-        </div>
-        <a class="repo-link quiet-action" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">Open repository</a>
+        <div><p class="eyebrow">Build</p><h2 id="command-heading">What should exist?</h2></div>
+        <a class="repo-link quiet-action" href="https://github.com/Pokitomas/theawesomehexapp" target="_blank" rel="noreferrer">Repository</a>
       </div>
-
       <div class="field-stack">
-        <label for="maker-request">End state
-          <textarea id="maker-request" class="primary-textarea" maxlength="8000" placeholder="Build the actual thing. Include the behavior that matters, not implementation theater."></textarea>
-        </label>
+        <label for="maker-request">Request<textarea id="maker-request" class="primary-textarea" maxlength="8000" placeholder="Describe the finished behavior."></textarea></label>
         <div class="mode-grid" role="group" aria-label="Build mode">
-          <button type="button" data-mode="build" aria-pressed="true">Build</button>
-          <button type="button" data-mode="fix" aria-pressed="false">Fix</button>
-          <button type="button" data-mode="explore" aria-pressed="false">Explore code</button>
-          <button type="button" data-mode="audit" aria-pressed="false">Audit</button>
+          <button type="button" data-mode="build" aria-pressed="true">Build</button><button type="button" data-mode="fix" aria-pressed="false">Fix</button><button type="button" data-mode="explore" aria-pressed="false">Explore code</button><button type="button" data-mode="audit" aria-pressed="false">Audit</button>
         </div>
-        <div class="actions">
-          <a id="send-command" class="primary-action disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a>
-          <button id="copy-receipt" class="secondary-action" type="button">Copy task packet</button>
-          <button id="reset-maker" class="quiet-action" type="button">Clear</button>
-        </div>
-        <p id="command-status" class="status-line" role="status" aria-live="polite">Draft is stored only in this Maker namespace.</p>
+        <div class="actions"><a id="send-command" class="primary-action disabled" aria-disabled="true" target="_blank" rel="noreferrer">OPEN AUTHORIZED TASK</a><button id="copy-receipt" class="secondary-action" type="button">Copy packet</button><button id="reset-maker" class="quiet-action" type="button">Clear</button></div>
+        <p id="command-status" class="status-line" role="status" aria-live="polite">Saved locally.</p>
       </div>
     </section>
 
     <details class="workspace-card advanced">
       <summary>Repository, proof, and execution controls</summary>
       <div class="field-stack">
-        <div class="field-grid">
-          <label for="maker-repository">Repository
-            <input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository">
-          </label>
-          <label for="maker-base">Base revision
-            <input id="maker-base" autocomplete="off" spellcheck="false" placeholder="main or exact commit SHA">
-          </label>
-        </div>
-        <label for="maker-backend">Execution backend
-          <select id="maker-backend">
-            <option value="auto">Automatic</option>
-            <option value="native">Admitted native checkpoint only</option>
-            <option value="github-models">GitHub Models</option>
-            <option value="configured">Configured provider</option>
-          </select>
-        </label>
-        <label for="maker-protect">Do not break
-          <textarea id="maker-protect" maxlength="4000" placeholder="Paths, data, authority, behavior, and external boundaries that cannot be broken."></textarea>
-        </label>
-        <label for="maker-proof">How do we prove it?
-          <textarea id="maker-proof" maxlength="4000" placeholder="Tests, browser journeys, security witnesses, exact-head checks, and receipts."></textarea>
-        </label>
+        <div class="field-grid"><label for="maker-repository">Repository<input id="maker-repository" autocomplete="off" spellcheck="false" placeholder="owner/repository"></label><label for="maker-base">Base<input id="maker-base" autocomplete="off" spellcheck="false" placeholder="main or commit"></label></div>
+        <label for="maker-backend">Backend<select id="maker-backend"><option value="auto">Automatic</option><option value="native">Admitted native checkpoint only</option><option value="github-models">GitHub Models</option><option value="configured">Configured provider</option></select></label>
+        <label for="maker-protect">Do not break<textarea id="maker-protect" maxlength="4000"></textarea></label>
+        <label for="maker-proof">Proof<textarea id="maker-proof" maxlength="4000"></textarea></label>
         <div class="truth-strip" aria-label="Execution truth">
-          <span>Browser: <strong>Task author only</strong></span>
-          <span>Backend: <strong id="backend-state">auto · unresolved until worker starts</strong></span>
-          <span>Native model: <strong id="native-model-state">Admission required</strong></span>
-          <span>Tools: <strong id="tool-state">read · search · write · replace · delete · run · verify · rollback</strong></span>
-          <span>Lease: <strong id="lease-state">required before first write</strong></span>
-          <span>Human gates: <strong id="human-gates">merge · deploy · production data · training spend</strong></span>
+          <span>Browser: <strong>Task author only</strong></span><span>Backend: <strong id="backend-state">auto · unresolved until worker starts</strong></span><span>Native model: <strong id="native-model-state">Admission required</strong></span><span>Tools: <strong id="tool-state">read · search · write · replace · delete · run · verify · rollback</strong></span><span>Lease: <strong id="lease-state">required before first write</strong></span><span>Human gates: <strong id="human-gates">merge · deploy · production data · training spend</strong></span>
         </div>
-        <details>
-          <summary>Machine receipt</summary>
-          <pre id="receipt-preview"></pre>
-        </details>
+        <details><summary>Machine receipt</summary><pre id="receipt-preview"></pre></details>
       </div>
     </details>
 
     <details class="workspace-card advanced" id="state-heading">
       <summary>Live public repository state</summary>
       <div class="actions"><button id="refresh-state" class="secondary-action" type="button">Refresh</button></div>
-      <div class="promise-grid">
-        <article><span>Base head</span><strong id="repo-head">reading…</strong></article>
-        <article><span>Open issues</span><strong id="open-issues">—</strong></article>
-        <article><span>Open PRs</span><strong id="open-prs">—</strong></article>
-        <article><span>Running</span><strong id="running-workflows">—</strong></article>
-      </div>
-      <div class="field-grid">
-        <section><h3>Open work</h3><div id="active-work" class="operation-list"></div></section>
-        <section><h3>Recent runs</h3><div id="workflow-runs" class="operation-list"></div></section>
-      </div>
+      <div class="promise-grid"><article><span>Base head</span><strong id="repo-head">reading…</strong></article><article><span>Open issues</span><strong id="open-issues">—</strong></article><article><span>Open PRs</span><strong id="open-prs">—</strong></article><article><span>Running</span><strong id="running-workflows">—</strong></article></div>
+      <div class="field-grid"><section><h3>Open work</h3><div id="active-work" class="operation-list"></div></section><section><h3>Recent runs</h3><div id="workflow-runs" class="operation-list"></div></section></div>
       <p id="state-status" class="status-line" role="status" aria-live="polite">Reading public repository state…</p>
     </details>
 
     <details class="workspace-card advanced" id="archie-runtime">
       <summary>Observed Archie runtime receipt</summary>
-      <p class="plain-note">This phone is a cockpit, not the engine. Nothing below becomes true until a separately authenticated, digest-valid runtime receipt is supplied.</p>
+      <p class="plain-note">No runtime claim without a signed receipt.</p>
       <div class="promise-grid">
-        <article><span>Sparse specialist</span><strong id="archie-sparse">Unobserved</strong></article>
-        <article><span>CPU planner</span><strong id="archie-planner">Unobserved</strong></article>
-        <article><span>Confidence</span><strong id="archie-confidence">Unobserved</strong></article>
-        <article><span>Selected route</span><strong id="archie-route">Unobserved</strong></article>
-        <article><span>Budget</span><strong id="archie-budget">Unobserved</strong></article>
-        <article><span>Teacher</span><strong id="archie-teacher">Unobserved</strong></article>
-        <article><span>Learning</span><strong id="archie-learning">Unobserved</strong></article>
-        <article><span>Corpus</span><strong id="archie-corpus">Unobserved</strong></article>
-        <article><span>Sync</span><strong id="archie-sync">Unobserved</strong></article>
-        <article><span>Compute</span><strong id="archie-compute">Unobserved</strong></article>
-        <article><span>Usage</span><strong id="archie-usage">Unobserved</strong></article>
-        <article><span>Storage</span><strong id="archie-storage">Unobserved</strong></article>
+        <article><span>Sparse</span><strong id="archie-sparse">Unobserved</strong></article><article><span>Planner</span><strong id="archie-planner">Unobserved</strong></article><article><span>Confidence</span><strong id="archie-confidence">Unobserved</strong></article><article><span>Route</span><strong id="archie-route">Unobserved</strong></article><article><span>Budget</span><strong id="archie-budget">Unobserved</strong></article><article><span>Teacher</span><strong id="archie-teacher">Unobserved</strong></article><article><span>Learning</span><strong id="archie-learning">Unobserved</strong></article><article><span>Corpus</span><strong id="archie-corpus">Unobserved</strong></article><article><span>Sync</span><strong id="archie-sync">Unobserved</strong></article><article><span>Compute</span><strong id="archie-compute">Unobserved</strong></article><article><span>Usage</span><strong id="archie-usage">Unobserved</strong></article><article><span>Storage</span><strong id="archie-storage">Unobserved</strong></article>
       </div>
-      <div><strong>Blockers</strong><ul id="archie-blockers"><li>No authenticated runtime receipt loaded.</li></ul></div>
-      <p>Source: <strong id="archie-source">None</strong></p>
-      <label for="archie-receipt-input">Paste digest-valid runtime receipt
-        <textarea id="archie-receipt-input" autocomplete="off" spellcheck="false" placeholder="archie-operator-runtime-receipt/v1 JSON"></textarea>
-      </label>
-      <div class="actions">
-        <button id="archie-apply" class="secondary-action" type="button">Verify + apply</button>
-        <button id="archie-export-pack" class="secondary-action" type="button">Export pack command</button>
-        <button id="archie-import-pack" class="secondary-action" type="button">Import pack command</button>
-        <button id="archie-sync-command" class="secondary-action" type="button">Encrypted sync command</button>
-        <button id="archie-clear" class="quiet-action" type="button">Clear receipt</button>
-      </div>
-      <p id="archie-status" class="status-line" role="status" aria-live="polite">No authenticated runtime receipt loaded. Browser execution claims: none.</p>
-      <pre id="archie-command-preview">No command exported.</pre>
+      <div><strong>Blockers</strong><ul id="archie-blockers"><li>No authenticated runtime receipt loaded.</li></ul></div><p>Source: <strong id="archie-source">None</strong></p>
+      <label for="archie-receipt-input">Receipt<textarea id="archie-receipt-input" autocomplete="off" spellcheck="false" placeholder="archie-operator-runtime-receipt/v1 JSON"></textarea></label>
+      <div class="actions"><button id="archie-apply" class="secondary-action" type="button">Verify + apply</button><button id="archie-export-pack" class="secondary-action" type="button">Export pack</button><button id="archie-import-pack" class="secondary-action" type="button">Import pack</button><button id="archie-sync-command" class="secondary-action" type="button">Encrypted sync</button><button id="archie-clear" class="quiet-action" type="button">Clear</button></div>
+      <p id="archie-status" class="status-line" role="status" aria-live="polite">No authenticated runtime receipt loaded. Browser execution claims: none.</p><pre id="archie-command-preview">No command exported.</pre>
     </details>
   </main>
 
-  <footer class="site-footer"><span>Describe the result first. Reveal machinery second.</span><a href="../desktop/">Home</a></footer>
-  <noscript><p class="noscript-note">JavaScript is off. Maker remains readable, but task packets and public-state refresh are unavailable.</p></noscript>
+  <footer class="site-footer"><a href="../desktop/">Home</a></footer>
+  <noscript><p class="noscript-note">JavaScript is required to create task packets.</p></noscript>
   <script type="module" src="../desktop/desktop.js"></script>
   <script type="module" src="./maker.js"></script>
+  <script type="module" src="./iphone-research.js"></script>
 </body>
 </html>
