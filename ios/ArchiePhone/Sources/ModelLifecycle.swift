@@ -130,6 +130,7 @@ actor ModelLifecycleManager {
         self.fileManager = fileManager
         self.session = session
         self.clock = clock
+
         if let overrideRoot {
             root = overrideRoot
         } else {
@@ -141,12 +142,14 @@ actor ModelLifecycleManager {
             )
             root = base.appendingPathComponent("ArchieModels", isDirectory: true)
         }
+
         versions = root.appendingPathComponent("versions", isDirectory: true)
         downloads = root.appendingPathComponent("downloads", isDirectory: true)
         receipts = root.appendingPathComponent("receipts", isDirectory: true)
         activePointer = root.appendingPathComponent("active.json")
         previousPointer = root.appendingPathComponent("previous.json")
         encoder.outputFormatting = [.sortedKeys]
+
         try fileManager.createDirectory(at: versions, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: downloads, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: receipts, withIntermediateDirectories: true)
@@ -169,6 +172,7 @@ actor ModelLifecycleManager {
             signingPublicKey: signingPublicKey
         )
         try verifyArtifact(at: source, manifest: manifest)
+
         let (requiredBytes, overflow) = manifest.artifactBytes.multipliedReportingOverflow(by: 2)
         guard !overflow else { throw RuntimeFailure.invalidManifest("artifact size overflow") }
         try preflight(requiredBytes: requiredBytes)
@@ -177,7 +181,11 @@ actor ModelLifecycleManager {
         if fileManager.fileExists(atPath: destination.path),
            let installed = try? verifiedPackage(at: destination),
            installed.manifest == manifest {
-            return try activate(manifest.revisionSHA256, operation: "activate-existing", source: sourceDescription)
+            return try activate(
+                manifest.revisionSHA256,
+                operation: "activate-existing",
+                source: sourceDescription
+            )
         }
 
         let staging = versions.appendingPathComponent("staging-\(UUID().uuidString)", isDirectory: true)
@@ -192,13 +200,19 @@ actor ModelLifecycleManager {
             [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
             ofItemAtPath: staging.path
         )
-        _ = try verifiedPackage(at: staging)
+
+        _ = try verifiedPackage(at: staging, expectedRevision: manifest.revisionSHA256)
 
         if fileManager.fileExists(atPath: destination.path) {
             try fileManager.removeItem(at: destination)
         }
         try fileManager.moveItem(at: staging, to: destination)
-        return try activate(manifest.revisionSHA256, operation: "install", source: sourceDescription)
+
+        return try activate(
+            manifest.revisionSHA256,
+            operation: "install",
+            source: sourceDescription
+        )
     }
 
     func resumeDownload(
@@ -210,6 +224,7 @@ actor ModelLifecycleManager {
         guard remoteURL.user == nil, remoteURL.password == nil else {
             throw ModelLifecycleFailure.credentialBearingURL
         }
+
         let manifest = try admittedManifest(
             manifestData: manifestData,
             detachedSignature: detachedSignature,
@@ -220,6 +235,7 @@ actor ModelLifecycleManager {
         guard partialBytes <= manifest.artifactBytes else {
             throw ModelLifecycleFailure.partialArtifactTooLarge
         }
+
         let remaining = manifest.artifactBytes - partialBytes
         let (requiredBytes, overflow) = remaining.addingReportingOverflow(manifest.artifactBytes)
         guard !overflow else { throw RuntimeFailure.invalidManifest("download size overflow") }
@@ -232,22 +248,30 @@ actor ModelLifecycleManager {
             if partialBytes > 0 {
                 request.setValue("bytes=\(partialBytes)-", forHTTPHeaderField: "Range")
             }
+
             let (temporary, response) = try await session.download(for: request)
             guard let http = response as? HTTPURLResponse else {
                 throw ModelLifecycleFailure.invalidHTTPStatus(-1)
             }
-            if partialBytes > 0 && http.statusCode == 206 {
+
+            switch http.statusCode {
+            case 206:
                 guard let range = http.value(forHTTPHeaderField: "Content-Range"),
-                      range.lowercased().hasPrefix("bytes \(partialBytes)-") else {
+                      Self.validContentRange(
+                        range,
+                        expectedStart: partialBytes,
+                        expectedTotal: manifest.artifactBytes
+                      ) else {
                     throw ModelLifecycleFailure.invalidContentRange
                 }
-                try appendFile(at: temporary, to: partial)
-            } else if http.statusCode == 200 || (partialBytes == 0 && http.statusCode == 206) {
-                if fileManager.fileExists(atPath: partial.path) {
-                    try fileManager.removeItem(at: partial)
+                if partialBytes == 0 {
+                    try replaceFile(at: partial, with: temporary)
+                } else {
+                    try appendFile(at: temporary, to: partial)
                 }
-                try fileManager.copyItem(at: temporary, to: partial)
-            } else {
+            case 200:
+                try replaceFile(at: partial, with: temporary)
+            default:
                 throw ModelLifecycleFailure.invalidHTTPStatus(http.statusCode)
             }
         }
@@ -265,19 +289,28 @@ actor ModelLifecycleManager {
     }
 
     func activate(_ revisionSHA256: String) throws -> ModelLifecycleReceipt {
-        try activate(revisionSHA256, operation: "activate", source: "installed-revision")
+        try activate(
+            revisionSHA256,
+            operation: "activate",
+            source: "installed-revision"
+        )
     }
 
     func rollback() throws -> ModelLifecycleReceipt {
         guard let previous = try readPointer(previousPointer) else {
             throw ModelLifecycleFailure.rollbackUnavailable
         }
-        return try activate(previous.revisionSHA256, operation: "rollback", source: "previous-pointer")
+        return try activate(
+            previous.revisionSHA256,
+            operation: "rollback",
+            source: "previous-pointer"
+        )
     }
 
     func recoverActiveModel() throws -> ModelLifecycleReceipt {
-        if let active = try readPointer(activePointer),
-           let package = try? verifiedPackage(at: revisionDirectory(active.revisionSHA256)) {
+        let active = try readPointer(activePointer)?.revisionSHA256
+        if let active,
+           let package = try? verifiedPackage(at: revisionDirectory(active)) {
             return try receipt(
                 operation: "verify-active",
                 manifest: package.manifest,
@@ -287,14 +320,25 @@ actor ModelLifecycleManager {
             )
         }
 
+        let previous = try readPointer(previousPointer)?.revisionSHA256
         var candidates: [String] = []
-        if let previous = try readPointer(previousPointer)?.revisionSHA256 {
-            candidates.append(previous)
+        if let previous { candidates.append(previous) }
+        candidates.append(contentsOf: try installedRevisions().reversed())
+
+        var seen = Set<String>()
+        for candidate in candidates where seen.insert(candidate).inserted {
+            guard (try? verifiedPackage(at: revisionDirectory(candidate))) != nil else { continue }
+            try? fileManager.removeItem(at: activePointer)
+            if previous == candidate {
+                try? fileManager.removeItem(at: previousPointer)
+            }
+            return try activate(
+                candidate,
+                operation: "recover",
+                source: "verified-fallback"
+            )
         }
-        candidates.append(contentsOf: (try installedRevisions()).reversed())
-        for candidate in candidates where (try? verifiedPackage(at: revisionDirectory(candidate))) != nil {
-            return try activate(candidate, operation: "recover", source: "verified-fallback")
-        }
+
         try? fileManager.removeItem(at: activePointer)
         throw ModelLifecycleFailure.noRecoverableRevision
     }
@@ -304,6 +348,7 @@ actor ModelLifecycleManager {
         guard fileManager.fileExists(atPath: directory.path) else {
             throw ModelLifecycleFailure.revisionNotInstalled(revisionSHA256)
         }
+
         let package = try verifiedPackage(at: directory)
         let activeRevision = try readPointer(activePointer)?.revisionSHA256
         let previousRevision = try readPointer(previousPointer)?.revisionSHA256
@@ -316,17 +361,24 @@ actor ModelLifecycleManager {
         )
 
         try fileManager.removeItem(at: directory)
+
         if previousRevision == revisionSHA256 {
             try? fileManager.removeItem(at: previousPointer)
         }
+
         if activeRevision == revisionSHA256 {
             try? fileManager.removeItem(at: activePointer)
             if let previousRevision,
                previousRevision != revisionSHA256,
-               fileManager.fileExists(atPath: revisionDirectory(previousRevision).path) {
-                _ = try activate(previousRevision, operation: "remove-and-fallback", source: "previous-pointer")
+               (try? verifiedPackage(at: revisionDirectory(previousRevision))) != nil {
+                _ = try activate(
+                    previousRevision,
+                    operation: "remove-and-fallback",
+                    source: "previous-pointer"
+                )
             }
         }
+
         return removalReceipt
     }
 
@@ -340,7 +392,14 @@ actor ModelLifecycleManager {
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         )
-        .filter { $0.lastPathComponent.count == 64 && ModelManifest.isSHA256($0.lastPathComponent) }
+        .filter { url in
+            guard url.lastPathComponent.count == 64,
+                  ModelManifest.isSHA256(url.lastPathComponent),
+                  let values = try? url.resourceValues(forKeys: [.isDirectoryKey]) else {
+                return false
+            }
+            return values.isDirectory == true
+        }
         .map(\.lastPathComponent)
         .sorted()
     }
@@ -372,10 +431,15 @@ actor ModelLifecycleManager {
                 )
             }
         }
-        let partials = try fileManager.contentsOfDirectory(at: downloads, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "partial" }
-            .map(\.lastPathComponent)
-            .sorted()
+
+        let partials = try fileManager.contentsOfDirectory(
+            at: downloads,
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.pathExtension == "partial" }
+        .map(\.lastPathComponent)
+        .sorted()
+
         let body = DiagnosticBody(
             schema: "archie-phone-model-diagnostic/v1",
             runtimeABI: "archie-phone-runtime/v1",
@@ -401,13 +465,25 @@ actor ModelLifecycleManager {
         return try encoder.encode(diagnostic)
     }
 
-    private func activate(_ revisionSHA256: String, operation: String, source: String) throws -> ModelLifecycleReceipt {
+    private func activate(
+        _ revisionSHA256: String,
+        operation: String,
+        source: String
+    ) throws -> ModelLifecycleReceipt {
         let package = try verifiedPackage(at: revisionDirectory(revisionSHA256))
         let current = try readPointer(activePointer)?.revisionSHA256
+
         if let current, current != revisionSHA256 {
-            try writePointer(RevisionPointer(revisionSHA256: current), to: previousPointer)
+            try writePointer(
+                RevisionPointer(revisionSHA256: current),
+                to: previousPointer
+            )
         }
-        try writePointer(RevisionPointer(revisionSHA256: revisionSHA256), to: activePointer)
+        try writePointer(
+            RevisionPointer(revisionSHA256: revisionSHA256),
+            to: activePointer
+        )
+
         return try receipt(
             operation: operation,
             manifest: package.manifest,
@@ -432,12 +508,16 @@ actor ModelLifecycleManager {
         } catch {
             throw ModelLifecycleFailure.invalidDetachedSignature
         }
+
         let manifest = try decoder.decode(ModelManifest.self, from: manifestData)
         try manifest.validate()
         return manifest
     }
 
-    private func verifiedPackage(at directory: URL) throws -> (
+    private func verifiedPackage(
+        at directory: URL,
+        expectedRevision: String? = nil
+    ) throws -> (
         manifest: ModelManifest,
         manifestData: Data,
         artifact: URL
@@ -446,6 +526,7 @@ actor ModelLifecycleManager {
         let signatureURL = directory.appendingPathComponent("manifest.sig")
         let publicKeyURL = directory.appendingPathComponent("manifest.pub")
         let artifact = directory.appendingPathComponent("model")
+
         let manifestData = try Data(contentsOf: manifestURL)
         let signature = try Data(contentsOf: signatureURL)
         let publicKey = try Data(contentsOf: publicKeyURL)
@@ -454,44 +535,63 @@ actor ModelLifecycleManager {
             detachedSignature: signature,
             signingPublicKey: publicKey
         )
-        guard manifest.revisionSHA256 == directory.lastPathComponent else {
+
+        let requiredRevision = expectedRevision ?? directory.lastPathComponent
+        guard manifest.revisionSHA256 == requiredRevision else {
             throw RuntimeFailure.invalidManifest("revision directory")
         }
+
         do {
             try verifyArtifact(at: artifact, manifest: manifest)
         } catch {
             throw ModelLifecycleFailure.corruptedRevision(manifest.revisionSHA256)
         }
+
         return (manifest, manifestData, artifact)
     }
 
     private func verifyArtifact(at url: URL, manifest: ModelManifest) throws {
         let size = try fileSize(at: url, missing: -1)
-        guard size == manifest.artifactBytes else { throw RuntimeFailure.artifactSizeMismatch }
+        guard size == manifest.artifactBytes else {
+            throw RuntimeFailure.artifactSizeMismatch
+        }
         let observed = try Self.sha256File(url)
-        guard observed == manifest.artifactSHA256 else { throw RuntimeFailure.artifactDigestMismatch }
+        guard observed == manifest.artifactSHA256 else {
+            throw RuntimeFailure.artifactDigestMismatch
+        }
     }
 
     private func preflight(requiredBytes: Int64) throws {
         guard let available = availableCapacity() else { return }
         guard available >= requiredBytes else {
-            throw ModelLifecycleFailure.insufficientStorage(requiredBytes: requiredBytes, availableBytes: available)
+            throw ModelLifecycleFailure.insufficientStorage(
+                requiredBytes: requiredBytes,
+                availableBytes: available
+            )
         }
     }
 
     private func availableCapacity() -> Int64? {
-        let values = try? root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        let values = try? root.resourceValues(
+            forKeys: [.volumeAvailableCapacityForImportantUsageKey]
+        )
         return values?.volumeAvailableCapacityForImportantUsage
     }
 
     private func readPointer(_ url: URL) throws -> RevisionPointer? {
         guard fileManager.fileExists(atPath: url.path) else { return nil }
-        return try decoder.decode(RevisionPointer.self, from: Data(contentsOf: url))
+        return try decoder.decode(
+            RevisionPointer.self,
+            from: Data(contentsOf: url)
+        )
     }
 
     private func writePointer(_ pointer: RevisionPointer, to url: URL) throws {
         let data = try encoder.encode(pointer)
-        try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try data.write(
+            to: url,
+            options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+        )
     }
 
     private func receipt(
@@ -502,7 +602,8 @@ actor ModelLifecycleManager {
         manifestData suppliedManifestData: Data? = nil
     ) throws -> ModelLifecycleReceipt {
         let manifestData = try suppliedManifestData ?? Data(
-            contentsOf: revisionDirectory(manifest.revisionSHA256).appendingPathComponent("manifest.json")
+            contentsOf: revisionDirectory(manifest.revisionSHA256)
+                .appendingPathComponent("manifest.json")
         )
         let occurredAt = ISO8601DateFormatter().string(from: clock())
         let body = ReceiptBody(
@@ -535,9 +636,13 @@ actor ModelLifecycleManager {
             occurredAt: body.occurredAt,
             receiptDigest: Self.sha256(bodyData)
         )
+
         let safeTime = occurredAt.replacingOccurrences(of: ":", with: "-")
         let filename = "\(safeTime)-\(operation)-\(manifest.revisionSHA256.prefix(12)).json"
-        try encoder.encode(value).write(to: receipts.appendingPathComponent(filename), options: .atomic)
+        try encoder.encode(value).write(
+            to: receipts.appendingPathComponent(filename),
+            options: .atomic
+        )
         return value
     }
 
@@ -551,20 +656,32 @@ actor ModelLifecycleManager {
 
     private func fileSize(at url: URL, missing: Int64) throws -> Int64 {
         guard fileManager.fileExists(atPath: url.path) else { return missing }
-        let values = try url.resourceValues(forKeys: [.fileSizeKey])
-        return Int64(values.fileSize ?? Int(missing))
+        let attributes = try fileManager.attributesOfItem(atPath: url.path)
+        if let value = attributes[.size] as? NSNumber {
+            return value.int64Value
+        }
+        return missing
+    }
+
+    private func replaceFile(at destination: URL, with source: URL) throws {
+        if fileManager.fileExists(atPath: destination.path) {
+            try fileManager.removeItem(at: destination)
+        }
+        try fileManager.copyItem(at: source, to: destination)
     }
 
     private func appendFile(at source: URL, to destination: URL) throws {
         if !fileManager.fileExists(atPath: destination.path) {
-            fileManager.createFile(atPath: destination.path, contents: nil)
+            _ = fileManager.createFile(atPath: destination.path, contents: nil)
         }
+
         let input = try FileHandle(forReadingFrom: source)
         let output = try FileHandle(forWritingTo: destination)
         defer {
             try? input.close()
             try? output.close()
         }
+
         try output.seekToEnd()
         while let chunk = try input.read(upToCount: 1024 * 1024), !chunk.isEmpty {
             try output.write(contentsOf: chunk)
@@ -572,17 +689,48 @@ actor ModelLifecycleManager {
         try output.synchronize()
     }
 
+    private static func validContentRange(
+        _ value: String,
+        expectedStart: Int64,
+        expectedTotal: Int64
+    ) -> Bool {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized.hasPrefix("bytes ") else { return false }
+        let payload = normalized.dropFirst("bytes ".count)
+        let parts = payload.split(separator: "/", maxSplits: 1)
+        guard parts.count == 2,
+              let total = Int64(parts[1]),
+              total == expectedTotal else {
+            return false
+        }
+        let bounds = parts[0].split(separator: "-", maxSplits: 1)
+        guard bounds.count == 2,
+              let start = Int64(bounds[0]),
+              let end = Int64(bounds[1]),
+              start == expectedStart,
+              end >= start,
+              end < total else {
+            return false
+        }
+        return true
+    }
+
     private static func sha256(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 
     private static func sha256File(_ url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
+
         var hasher = SHA256()
         while let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty {
             hasher.update(data: chunk)
         }
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        return hasher.finalize()
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 }
