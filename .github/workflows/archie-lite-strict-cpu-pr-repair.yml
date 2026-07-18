@@ -1,3 +1,4 @@
+# One-shot PR repair; this workflow deletes itself before publishing the verified head.
 name: Verify and publish Archie lite strict CPU repair
 
 on:
