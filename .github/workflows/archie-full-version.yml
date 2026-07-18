@@ -1,0 +1,84 @@
+name: Archie full-version gate
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'scripts/archie-full-version-gate.mjs'
+      - 'scripts/archied.mjs'
+      - 'scripts/archie-hybrid-*.mjs'
+      - 'scripts/archie-compat-*.mjs'
+      - 'scripts/archie-training-compile.mjs'
+      - 'scripts/archie-student-*.mjs'
+      - 'scripts/archie-repository-completion.mjs'
+      - 'scripts/tests/archie-*.test.mjs'
+      - 'foundry/archie-distill/**'
+      - 'maker/evaluations/archie-distill-qwen3-quality.json'
+      - 'maker/contracts/archie-*.schema.json'
+      - 'ARCHIE_*.md'
+      - 'Dockerfile.archie'
+      - 'compose.yaml'
+      - '.github/workflows/archie-full-version.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'scripts/archie-full-version-gate.mjs'
+      - 'scripts/archied.mjs'
+      - 'scripts/archie-hybrid-*.mjs'
+      - 'scripts/archie-compat-*.mjs'
+      - 'scripts/archie-training-compile.mjs'
+      - 'scripts/archie-student-*.mjs'
+      - 'scripts/archie-repository-completion.mjs'
+      - 'scripts/tests/archie-*.test.mjs'
+      - 'foundry/archie-distill/**'
+      - 'maker/evaluations/archie-distill-qwen3-quality.json'
+      - 'maker/contracts/archie-*.schema.json'
+      - 'ARCHIE_*.md'
+      - 'Dockerfile.archie'
+      - 'compose.yaml'
+      - '.github/workflows/archie-full-version.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Syntax check full-version surfaces
+        run: |
+          node --check scripts/archie-full-version-gate.mjs
+          node --check scripts/archied.mjs
+          node --check scripts/archie-hybrid-hosted.mjs
+          node --check scripts/archie-hybrid-runner.mjs
+          node --check scripts/archie-compat-import.mjs
+          node --check scripts/archie-training-compile.mjs
+          node --check scripts/archie-student-quantize.mjs
+          node --check scripts/archie-student-admission.mjs
+          node --check scripts/archie-repository-completion.mjs
+      - name: Verify workspace, hosted, hybrid, and compatibility contracts
+        run: npm run test:archie:workspace
+      - name: Verify distillation contracts without claiming trained promotion
+        run: npm run test:archie:distill
+      - name: Verify recursive repository completion harness
+        run: npm run test:archie:repository-completion
+      - name: Emit full-version gate receipt
+        run: node scripts/archie-full-version-gate.mjs > archie-full-version-gate.json
+      - name: Upload full-version gate receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-full-version-gate
+          path: archie-full-version-gate.json
+          if-no-files-found: error
+          retention-days: 14
