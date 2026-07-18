@@ -14,6 +14,7 @@ on:
       - 'scripts/archied.mjs'
       - 'scripts/archied-hosted.mjs'
       - 'scripts/archie-hybrid-*.mjs'
+      - 'scripts/archie-compat-*.mjs'
       - 'scripts/archie-standalone-*.mjs'
       - 'scripts/archie-workspace-core.mjs'
       - 'scripts/archie-workspace-file-provider.mjs'
@@ -26,6 +27,7 @@ on:
       - 'scripts/tests/archied-service.test.mjs'
       - 'scripts/tests/archied-hosted.test.mjs'
       - 'scripts/tests/archie-hybrid-runner.test.mjs'
+      - 'scripts/tests/archie-compat-import.test.mjs'
       - 'scripts/tests/maker-archie-install.test.mjs'
       - 'foundry/archie-distill/**'
       - 'maker/evaluations/archie-distill-qwen3-quality.json'
@@ -33,6 +35,7 @@ on:
       - 'ARCHIE_WORKSPACES.md'
       - 'ARCHIE_STANDALONE_MIGRATION.md'
       - 'ARCHIE_HOSTED.md'
+      - 'ARCHIE_COMPATIBILITY.md'
       - '.github/workflows/archie-windows-install.yml'
   push:
     branches: [main]
@@ -65,7 +68,7 @@ jobs:
           $code = $LASTEXITCODE
           $output | Tee-Object -FilePath archie-distillation-windows.log
           if ($code -ne 0) { exit $code }
-      - name: Verify native, hosted, and hybrid workspace contracts
+      - name: Verify native, hosted, hybrid, and compatibility workspace contracts
         shell: pwsh
         run: |
           $output = & npm.cmd run test:archie:workspace 2>&1
