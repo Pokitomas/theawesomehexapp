@@ -21,7 +21,7 @@ class CudaCausalWorkflowContractTest(unittest.TestCase):
     def test_request_binds_merged_method_and_issue(self):
         self.assertEqual(self.request["schema"], "archie-cuda-training-request/v2")
         self.assertEqual(self.request["method"], METHOD)
-        self.assertEqual(self.request["issue_number"], 584)
+        self.assertEqual(self.request["issue_number"], 583)
         self.assertEqual(self.request["baseline_commit"], "8bb6fac2809afcc55f91f900bc6bf16f84dfb788")
         self.assertEqual(self.request["promotion"], "not-admitted")
 
