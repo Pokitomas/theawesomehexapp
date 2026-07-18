@@ -6,10 +6,12 @@ import ast
 import importlib.util
 import json
 import pathlib
+import sys
 import tempfile
 import unittest
 
 MODULE_PATH = pathlib.Path(__file__).with_name("train.py")
+ROOT = MODULE_PATH.parent
 
 
 def load_module():
@@ -102,6 +104,26 @@ class NeuralTrainerContractTest(unittest.TestCase):
             "artifact_manifest(adapter_dir)",
         ):
             self.assertIn(marker, self.source)
+
+
+def load_tests(loader, standard_tests, pattern):
+    """Attach the repository-new neural-objective suites to the canonical gate."""
+    suite = unittest.TestSuite()
+    suite.addTests(standard_tests)
+    for filename in (
+        "test_causal_divergence_contract.py",
+        "test_compile_causal_pairs.py",
+        "test_causal_divergence_gradient.py",
+        "test_causal_divergence_loss_math.py",
+    ):
+        path = ROOT / filename
+        spec = importlib.util.spec_from_file_location(f"archie_{path.stem}", path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        suite.addTests(loader.loadTestsFromModule(module))
+    return suite
 
 
 if __name__ == "__main__":
