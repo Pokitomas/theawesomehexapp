@@ -66,14 +66,64 @@ test('rejects undeclared extra actions unless the contract explicitly permits th
   assert.equal(extensible.satisfied, true);
 });
 
-test('falls back to exact declared reference actions when no explicit contract is supplied', () => {
+test('requires terminal artifacts and rejects authority violations', () => {
+  const contract = {
+    required_actions: ['filesystem:write_contract', 'json:validate_schema'],
+    required_terminal_artifacts: ['validated-contract'],
+    allow_unlisted_actions: true
+  };
+  const admitted = evaluateActionContract(
+    ['filesystem:write_contract', 'logging:record_receipt', 'json:validate_schema'],
+    contract,
+    { terminal_artifacts: [{ id: 'validated-contract' }], authority_violations: [] }
+  );
+  assert.equal(admitted.satisfied, true);
+  assert.deepEqual(admitted.terminal_artifacts_missing, []);
+
+  const missing = evaluateActionContract(
+    ['filesystem:write_contract', 'json:validate_schema'],
+    contract,
+    { terminal_artifacts: [] }
+  );
+  assert.equal(missing.satisfied, false);
+  assert.deepEqual(missing.terminal_artifacts_missing, ['validated-contract']);
+
+  const violated = evaluateActionContract(
+    ['filesystem:write_contract', 'json:validate_schema'],
+    contract,
+    { terminal_artifacts: ['validated-contract'], authority_violations: ['source-write'] }
+  );
+  assert.equal(violated.satisfied, false);
+  assert.deepEqual(violated.authority_violations, ['source-write']);
+});
+
+test('accepts any declared valid sequence while preserving explicit causal constraints', () => {
+  const contract = {
+    required_actions: ['filesystem:write_contract', 'json:validate_schema'],
+    accepted_sequences: [
+      ['filesystem:write_contract', 'json:validate_schema'],
+      ['filesystem:inspect', 'filesystem:write_contract', 'json:validate_schema']
+    ],
+    order_constraints: [{ before: 'filesystem:write_contract', after: 'json:validate_schema' }],
+    allow_additional_actions: true
+  };
   const evaluation = evaluateActionContract(
-    ['social:read_report', 'social:moderate'],
+    ['filesystem:inspect', 'filesystem:write_contract', 'json:validate_schema'],
+    contract
+  );
+  assert.equal(evaluation.satisfied, true);
+  assert.equal(evaluation.accepted_sequence_matched, 0);
+});
+
+test('falls back to declared reference requirements without inventing an order', () => {
+  const evaluation = evaluateActionContract(
+    ['social:moderate', 'social:read_report'],
     {},
     { reference_actions: ['social:read_report', 'social:moderate'] }
   );
   assert.equal(evaluation.satisfied, true);
   assert.deepEqual(evaluation.contract.required_actions, ['social:read_report', 'social:moderate']);
+  assert.deepEqual(evaluation.contract.ordering, []);
   assert.equal(evaluation.contract.allow_unlisted_actions, false);
 });
 
