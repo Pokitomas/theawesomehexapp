@@ -85,16 +85,29 @@ export function mountIPhoneResearchProfile(doc = document) {
     }
   };
   const schedule = () => queueMicrotask(apply);
-  for (const event of ['input', 'change', 'click']) doc.addEventListener(event, schedule);
-  copy?.addEventListener('click', () => queueMicrotask(async () => {
+  const copyPacket = async event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
     const receipt = send.href ? receiptFromMakerIssueHref(patchMakerIssueHref(send.href)) : null;
-    if (receipt && navigator.clipboard?.writeText) await navigator.clipboard.writeText(`${JSON.stringify(receipt, null, 2)}\n`).catch(() => {});
-  }));
+    if (!receipt || !navigator.clipboard?.writeText) {
+      if (status) status.textContent = 'Clipboard unavailable. Open Machine receipt and select it.';
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${JSON.stringify(receipt, null, 2)}\n`);
+      if (status) status.textContent = 'iPhone-first packet copied.';
+    } catch {
+      if (status) status.textContent = 'Clipboard unavailable. Open Machine receipt and select it.';
+    }
+  };
+  for (const event of ['input', 'change', 'click']) doc.addEventListener(event, schedule);
+  copy?.addEventListener('click', copyPacket, { capture: true });
   const observer = new MutationObserver(schedule);
   observer.observe(send, { attributes: true, attributeFilter: ['href'] });
   schedule();
   return () => {
     for (const event of ['input', 'change', 'click']) doc.removeEventListener(event, schedule);
+    copy?.removeEventListener('click', copyPacket, { capture: true });
     observer.disconnect();
   };
 }
