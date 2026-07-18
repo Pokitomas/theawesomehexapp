@@ -159,7 +159,7 @@ async function sendEvent({ serviceUrl, state, leaseId, kind, summary, payload = 
     fenceToken: state.fence_token,
     body: event
   });
-  state.event_sequence = result.event_sequence;
+  state.event_sequence = result.sequence;
   state.event_head = result.event_head;
   return result;
 }
