@@ -36,7 +36,7 @@ fi
 [[ $# -eq 0 ]] || fail "unexpected arguments; use --help"
 [[ "$(uname -s)" == 'Linux' ]] || fail 'this installer supports Linux only'
 
-for command in curl tar sha256sum node npm mktemp install find; do
+for command in curl tar sha256sum node npm mktemp install find grep sed; do
   need "$command"
 done
 
