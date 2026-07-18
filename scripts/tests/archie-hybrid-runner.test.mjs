@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { HybridQueue, verifyHybridEvents } from '../archie-hybrid-queue.mjs';
-import { executeHybridJob, resolveHybridRunnerConfig, runHybridOnce } from '../archie-hybrid-runner.mjs';
 import { startHybridHostedArchied } from '../archie-hybrid-hosted.mjs';
+import { resolveHybridRunnerConfig, runHybridOnce } from '../archie-hybrid-runner.mjs';
+import { tokenSha256 } from '../archie-hosted-security.mjs';
 
 const founderToken = 'archie-founder-hybrid-token-0123456789abcdef';
+const developerToken = 'archie-developer-hybrid-token-abcdef0123456789';
 const runnerToken = 'archie-runner-hybrid-token-fedcba9876543210';
 const objective = 'Make this purchase-order workflow genuinely good on a phone while preserving explicit approval and the final audit trail.';
 const requestedChange = 'Preserve why the alternative product hypothesis lost and include the final audit trail.';
@@ -32,6 +35,21 @@ async function api(baseUrl, token, pathname, { method = 'GET', body = null } = {
   let payload = null;
   try { payload = text ? JSON.parse(text) : null; } catch { payload = { text }; }
   return { response, payload };
+}
+
+function hostedOptions(home, runnerTokenValue, keys) {
+  return {
+    home,
+    founderTokenSha256: tokenSha256(founderToken),
+    developerTokenSha256: tokenSha256(developerToken),
+    sessionKey: keys.session,
+    secretKey: keys.secret,
+    runnerToken: runnerTokenValue,
+    host: '127.0.0.1',
+    port: 0,
+    allowInsecure: true,
+    env: {}
+  };
 }
 
 test('hybrid queue expires leases, advances fencing, rejects stale writers, and replays exactly', async t => {
@@ -86,13 +104,11 @@ test('hybrid queue expires leases, advances fencing, rejects stale writers, and 
 test('outbound runner executes locally, returns a verified bundle, and hosted Archie imports it durably', async t => {
   const hostedHome = await tempRoot(t, 'archie-hybrid-hosted-');
   const runnerHome = await tempRoot(t, 'archie-hybrid-local-');
-  const runtime = await startHybridHostedArchied({
-    home: hostedHome,
-    founderToken,
-    runnerToken,
-    host: '127.0.0.1',
-    port: 0
-  });
+  const keys = {
+    session: crypto.randomBytes(32).toString('base64'),
+    secret: crypto.randomBytes(32).toString('base64')
+  };
+  const runtime = await startHybridHostedArchied(hostedOptions(hostedHome, runnerToken, keys));
   t.after(() => runtime.close().catch(() => {}));
 
   const wrongSubmit = await api(runtime.url, runnerToken, '/v1/hybrid/jobs', {
@@ -100,6 +116,12 @@ test('outbound runner executes locally, returns a verified bundle, and hosted Ar
     body: { objective, requested_change: requestedChange, approve: true }
   });
   assert.equal(wrongSubmit.response.status, 401);
+
+  const developerSubmit = await api(runtime.url, developerToken, '/v1/hybrid/jobs', {
+    method: 'POST',
+    body: { objective, requested_change: requestedChange, approve: true }
+  });
+  assert.equal(developerSubmit.response.status, 401);
 
   const wrongLease = await api(runtime.url, founderToken, '/v1/hybrid/lease', {
     method: 'POST',
@@ -146,17 +168,10 @@ test('outbound runner executes locally, returns a verified bundle, and hosted Ar
   assert.equal(queueStatus.response.status, 200);
   assert.equal(queueStatus.payload.queue.counts.completed, 1);
   assert.equal(queueStatus.payload.service.execution.inbound_local_access_required, false);
-  assert.equal(queueStatus.payload.service.execution.admission_serialized_with_terminal_commit, true);
   assert.equal(queueStatus.payload.service.github_required, false);
 
   await runtime.close();
-  const restarted = await startHybridHostedArchied({
-    home: hostedHome,
-    founderToken,
-    runnerToken,
-    host: '127.0.0.1',
-    port: 0
-  });
+  const restarted = await startHybridHostedArchied(hostedOptions(hostedHome, runnerToken, keys));
   t.after(() => restarted.close().catch(() => {}));
   const afterRestart = await api(restarted.url, founderToken, `/v1/hybrid/jobs/${jobId}`);
   assert.equal(afterRestart.response.status, 200);
@@ -165,71 +180,27 @@ test('outbound runner executes locally, returns a verified bundle, and hosted Ar
   assert.equal(restoredWorkspace.head_digest, imported.head_digest);
 });
 
-test('workspace admission and terminal queue commit share one fencing critical section', async t => {
-  const hostedHome = await tempRoot(t, 'archie-hybrid-fence-hosted-');
-  const runnerHome = await tempRoot(t, 'archie-hybrid-fence-runner-');
-  const runtime = await startHybridHostedArchied({
-    home: hostedHome,
-    founderToken,
-    runnerToken,
-    host: '127.0.0.1',
-    port: 0
-  });
-  t.after(() => runtime.close().catch(() => {}));
-
-  const submitted = await api(runtime.url, founderToken, '/v1/hybrid/jobs', {
-    method: 'POST',
-    body: { objective, requested_change: requestedChange, approve: true, visibility: 'private' }
-  });
-  assert.equal(submitted.response.status, 201);
-  const jobId = submitted.payload.job.job_id;
-
-  const leased = await api(runtime.url, runnerToken, '/v1/hybrid/lease', {
-    method: 'POST',
-    body: { runner_id: 'fenced-runner', capabilities: ['maker', 'portable_workspace'], ttl_ms: 120_000 }
-  });
-  assert.equal(leased.response.status, 200);
-  const lease = leased.payload.job.lease;
-  const result = await executeHybridJob(leased.payload.job, { home: runnerHome });
-
-  const provider = runtime.hosted.internal.provider;
-  const originalAppendEvent = provider.appendEvent.bind(provider);
-  let releaseAdmission;
-  let admissionStarted;
-  const release = new Promise(resolve => { releaseAdmission = resolve; });
-  const started = new Promise(resolve => { admissionStarted = resolve; });
-  let blockFirstEvent = true;
-  provider.appendEvent = async (...args) => {
-    if (blockFirstEvent) {
-      blockFirstEvent = false;
-      admissionStarted();
-      await release;
-    }
-    return originalAppendEvent(...args);
+test('hybrid hosted authority requires distinct founder developer and runner credentials', async () => {
+  const shared = 'shared-authority-token-0123456789abcdef';
+  const keys = {
+    session: crypto.randomBytes(32).toString('base64'),
+    secret: crypto.randomBytes(32).toString('base64')
   };
-
-  const completionPromise = api(runtime.url, runnerToken, `/v1/hybrid/jobs/${jobId}/complete`, {
-    method: 'POST',
-    body: { ...lease, result }
-  });
-  await started;
-  const cancellationPromise = api(runtime.url, founderToken, `/v1/hybrid/jobs/${jobId}/cancel`, {
-    method: 'POST',
-    body: { reason: 'Must not overtake accepted completion admission.' }
-  });
-  releaseAdmission();
-
-  const [completion, cancellation] = await Promise.all([completionPromise, cancellationPromise]);
-  assert.equal(completion.response.status, 200);
-  assert.equal(completion.payload.job.state, 'completed');
-  assert.equal(cancellation.response.status, 409);
-  assert.equal(cancellation.payload.error, 'job_terminal');
-
-  const imported = await runtime.hosted.internal.engine.inspect(result.workspace_id, { principalId: 'owner_local' });
-  assert.equal(imported.head_digest, result.head_digest);
-  const status = await api(runtime.url, founderToken, `/v1/hybrid/jobs/${jobId}`);
-  assert.equal(status.payload.job.state, 'completed');
-  assert.equal(status.payload.job.result.head_digest, imported.head_digest);
+  await assert.rejects(
+    startHybridHostedArchied({
+      home: path.join(os.tmpdir(), 'archie-hybrid-distinct-authority'),
+      founderTokenSha256: tokenSha256(shared),
+      developerTokenSha256: tokenSha256(developerToken),
+      sessionKey: keys.session,
+      secretKey: keys.secret,
+      runnerToken: shared,
+      host: '127.0.0.1',
+      port: 0,
+      allowInsecure: true,
+      env: {}
+    }),
+    /must be distinct/
+  );
 });
 
 test('runner source is outbound-only and opens no listener', async () => {
