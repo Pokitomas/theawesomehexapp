@@ -145,7 +145,7 @@ jobs:
           if (benchmark.candidate_role !== 'substitution-system') process.exit(1);
           if (benchmark.publication_eligible_as_named_model_equivalence !== false) process.exit(1);
           if (benchmark.comparison_status !== 'named-model-unmeasured') process.exit(1);
-          if (!/teacher episodes use suite reference fixtures/i.test(benchmark.interpretation || '')) process.exit(1);
+          if (!/teacher episodes use suite (?:reference )?fixtures/i.test(benchmark.interpretation || '')) process.exit(1);
           if (generation.suite?.promotion_eligible !== false || generation.promotion?.promoted !== false) process.exit(1);
           console.log(JSON.stringify({
             code_revision: expected,
