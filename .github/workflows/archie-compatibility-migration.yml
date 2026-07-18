@@ -38,7 +38,27 @@ jobs:
       - name: Install exact dependency tree
         run: npm ci --ignore-scripts
       - name: Verify compatibility import and authority inventory
-        run: node --test scripts/tests/archie-compatibility-migration.test.mjs
+        id: compatibility
+        shell: bash
+        run: |
+          set +e
+          node --test scripts/tests/archie-compatibility-migration.test.mjs > compatibility-migration-test.log 2>&1
+          status=$?
+          cat compatibility-migration-test.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload compatibility migration test log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: compatibility-migration-${{ matrix.os }}-node-${{ matrix.node }}
+          path: compatibility-migration-test.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce compatibility migration result
+        if: steps.compatibility.outputs.status != '0'
+        shell: bash
+        run: exit 1
       - name: Prove the importer and inventory CLIs are packaged source files
         shell: bash
         run: |
