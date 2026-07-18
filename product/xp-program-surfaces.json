@@ -12,7 +12,7 @@
   },
   "views": [
     { "id": "archie", "route": "/archie/", "human_label": "Answer", "job": "shape one request and reveal boundaries on demand" },
-    { "id": "maker", "route": "/maker/", "human_label": "Build", "job": "authorize repository work and proof" },
+    { "id": "maker", "route": "/maker/", "human_label": "Build", "job": "author an iPhone-primary repository task and proof" },
     { "id": "founder", "route": "/founder/", "human_label": "Explore", "job": "open genuinely different directions before commitment" },
     { "id": "foundry", "route": "/foundry/", "human_label": "Research", "job": "preserve a full campaign while showing only distinct readable approaches" },
     { "id": "expo", "route": "/world-expo/", "human_label": "Results", "job": "show artifacts, evidence, failures, and portable exits" }
@@ -28,11 +28,14 @@
       "raw-schema-as-default-interface",
       "twenty-four-near-duplicate-candidate-cards",
       "generic-ai-saas-dashboard",
-      "fake-runtime-state"
+      "fake-runtime-state",
+      "desktop-primary-model-selection"
     ]
   },
   "mobile": {
     "model": "one readable task with optional detail drawers",
+    "primary_device": "iphone-a15-4gb-floor",
+    "desktop_role": "fallback-and-development-only",
     "task_switching": "shared top navigation",
     "minimum_phone_target_css_px": 44
   },
@@ -46,5 +49,5 @@
     "forced_colors": true,
     "essential_text_in_images": false
   },
-  "claim_boundary": "The shared workflow organizes intent and produces local packets. It does not claim model execution, training, repository mutation, deployment, or independent capability admission."
+  "claim_boundary": "The shared workflow organizes intent and produces local packets. iPhone model readiness still requires exact physical-device evidence; this contract does not claim model execution, training, repository mutation, deployment, or independent capability admission."
 }
