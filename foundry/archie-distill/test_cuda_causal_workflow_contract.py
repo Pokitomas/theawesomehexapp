@@ -41,14 +41,14 @@ class CudaCausalWorkflowContractTest(unittest.TestCase):
             METHOD,
         ):
             self.assertIn(marker, self.workflow)
-        self.assertNotIn('"$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/train.py \\\n', self.workflow)
+        self.assertNotIn('foundry/archie-distill/train.py \\\n', self.workflow)
 
     def test_workflow_remains_fail_closed(self):
         for marker in (
             "ARCHIE_CUDA_RUNNER_READY !== '1'",
             "repository-owner actor",
             "refusing CPU fallback",
-            "promotion') != 'not-admitted'",
+            "receipt.get('promotion') != 'not-admitted'",
             "runs-on: [self-hosted, linux, x64,",
         ):
             self.assertIn(marker, self.workflow)
@@ -57,6 +57,7 @@ class CudaCausalWorkflowContractTest(unittest.TestCase):
         self.assertIn("ephemeral Linux GPU host", self.docs)
         self.assertIn("cannot be converted into a CUDA trainer by software", self.docs)
         self.assertIn("POK-48 and POK-66", self.docs)
+        self.assertIn("separate retrieval/graph/external-memory research lane", self.docs)
 
 
 if __name__ == "__main__":
