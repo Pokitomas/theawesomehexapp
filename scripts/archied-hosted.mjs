@@ -5,19 +5,29 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { createHostedBackup, hostedBackupStatus } from './archie-hosted-backup.mjs';
+import {
+  EncryptedSecretStore,
+  HostedShareRegistry,
+  createHostedSecurity,
+  deriveHostedKey,
+  requireRole,
+  tokenSha256
+} from './archie-hosted-security.mjs';
+import { WorkspaceAuthorityError, WorkspaceError } from './archie-workspace-core.mjs';
 import { startArchied } from './archied.mjs';
 
 export const ARCHIED_HOSTED_SCHEMA = 'archied-hosted-runtime/v1';
-export const ARCHIED_HOSTED_AUTH_SCHEMA = 'archied-founder-session/v1';
-const COOKIE_NAME = 'archie_founder_session';
-const SESSION_TTL_SECONDS = 12 * 60 * 60;
-const MAX_LOGIN_BODY = 16 * 1024;
+export const ARCHIED_HOSTED_VERSION = '0.2.0';
+export const ARCHIED_HOSTED_MIGRATION_LEVEL = 2;
+
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_FAILED_LOGINS = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 function integer(value, label, { min = 0, max = 65_535 } = {}) {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < min || parsed > max) throw new Error(`${label} must be an integer from ${min} to ${max}.`);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) throw new WorkspaceError(`${label} must be an integer from ${min} to ${max}.`);
   return parsed;
 }
 
@@ -27,56 +37,18 @@ function boolean(value, fallback = false) {
   const normalized = String(value).trim().toLowerCase();
   if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
   if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  throw new Error(`Expected a boolean value, received ${value}.`);
+  throw new WorkspaceError(`Expected a boolean value, received ${value}.`);
 }
 
-function secureEqual(left, right) {
-  const a = crypto.createHash('sha256').update(String(left ?? '')).digest();
-  const b = crypto.createHash('sha256').update(String(right ?? '')).digest();
-  return crypto.timingSafeEqual(a, b);
-}
-
-function sessionKey(token) {
-  return crypto.createHash('sha256').update('archie-hosted-session/v1\0').update(token).digest();
-}
-
-function signSession(token, now = Date.now()) {
-  const payload = {
-    schema: ARCHIED_HOSTED_AUTH_SCHEMA,
-    role: 'founder',
-    issued_at_ms: now,
-    expires_at_ms: now + SESSION_TTL_SECONDS * 1000
-  };
-  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const signature = crypto.createHmac('sha256', sessionKey(token)).update(encoded).digest('base64url');
-  return `${encoded}.${signature}`;
-}
-
-function verifySession(value, token, now = Date.now()) {
-  const [encoded, signature, extra] = String(value || '').split('.');
-  if (!encoded || !signature || extra) return null;
-  const expected = crypto.createHmac('sha256', sessionKey(token)).update(encoded).digest('base64url');
-  if (!secureEqual(signature, expected)) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
-    if (payload.schema !== ARCHIED_HOSTED_AUTH_SCHEMA || payload.role !== 'founder') return null;
-    if (!Number.isFinite(payload.expires_at_ms) || payload.expires_at_ms <= now) return null;
-    return payload;
-  } catch {
-    return null;
+function absoluteHttpUrl(value, label) {
+  let url;
+  try { url = new URL(String(value || '')); }
+  catch { throw new WorkspaceError(`${label} must be an absolute URL.`); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new WorkspaceError(`${label} must be a credential-free absolute HTTP(S) URL.`);
   }
-}
-
-function parseCookies(header) {
-  const result = {};
-  for (const segment of String(header || '').split(';')) {
-    const index = segment.indexOf('=');
-    if (index <= 0) continue;
-    const name = segment.slice(0, index).trim();
-    const value = segment.slice(index + 1).trim();
-    if (name) result[name] = value;
-  }
-  return result;
+  url.pathname = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  return url.href;
 }
 
 function securityHeaders() {
@@ -117,25 +89,36 @@ function redirect(response, location, headers = {}) {
   response.end();
 }
 
-function loginPage({ error = '', returnTo = '/' } = {}) {
-  const safeError = String(error).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  const safeReturn = String(returnTo).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  return `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Archie founder access</title>
-<style>:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#171714;background:#f3efe5}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#f7f3e9,#e8dfcf)}main{width:min(430px,100%);background:#fffdf8;border:2px solid #171714;box-shadow:8px 8px 0 #171714;padding:24px}h1{margin:0 0 8px;font-size:36px;letter-spacing:-.055em}p{line-height:1.45;color:#59544a}.label{display:block;font-weight:800;margin:20px 0 7px}input{width:100%;min-height:52px;border:2px solid #171714;padding:11px 12px;background:#fff;font:inherit}button{width:100%;min-height:52px;margin-top:12px;border:2px solid #171714;background:#ef4e23;color:#fff;font:900 16px inherit;box-shadow:4px 4px 0 #171714;cursor:pointer}.error{border:1px solid #9d2513;background:#ffe6df;color:#7a1a0c;padding:10px;margin:14px 0}.meta{font:700 11px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.08em;color:#6c665c}</style></head>
-<body><main><div class="meta">Private founder / developer workspace</div><h1>Enter Archie.</h1><p>The hosted view exposes the same workspaces, evidence, approvals, exports, and rollback state as local Archie. The access token never enters workspace receipts.</p>${safeError ? `<div class="error">${safeError}</div>` : ''}<form method="post" action="/login"><input type="hidden" name="return_to" value="${safeReturn}"><label class="label" for="token">Founder access token</label><input id="token" name="token" type="password" required autocomplete="current-password" autofocus><button type="submit">Open Archie</button></form></main></body></html>`;
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
 }
 
-async function readBody(request, limit = MAX_LOGIN_BODY) {
+function loginPage({ error = '', returnTo = '/' } = {}) {
+  return `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Private Archie access</title>
+<style>:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#171714;background:#f3efe5}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#f7f3e9,#e8dfcf)}main{width:min(430px,100%);background:#fffdf8;border:2px solid #171714;box-shadow:8px 8px 0 #171714;padding:24px}h1{margin:0 0 8px;font-size:36px;letter-spacing:-.055em}p{line-height:1.45;color:#59544a}.label{display:block;font-weight:800;margin:20px 0 7px}input{width:100%;min-height:52px;border:2px solid #171714;padding:11px 12px;background:#fff;font:inherit}button{width:100%;min-height:52px;margin-top:12px;border:2px solid #171714;background:#171714;color:#fff;font:900 16px inherit;box-shadow:4px 4px 0 #b7aa93;cursor:pointer}.error{border:1px solid #9d2513;background:#ffe6df;color:#7a1a0c;padding:10px;margin:14px 0}.meta{font:700 11px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.08em;color:#6c665c}</style></head>
+<body><main><div class="meta">Private founder / developer workspace</div><h1>Enter Archie.</h1><p>The hosted product uses the same native workspaces, evidence, approvals, exports, and rollback history as local Archie. Your token is never written into workspace receipts.</p>${error ? `<div class="error">${escapeHtml(error)}</div>` : ''}<form method="post" action="/login"><input type="hidden" name="return_to" value="${escapeHtml(returnTo)}"><label class="label" for="token">Private access token</label><input id="token" name="token" type="password" required autocomplete="current-password" autofocus><button type="submit">Open Archie</button></form></main></body></html>`;
+}
+
+async function readBody(request, limit = MAX_BODY_BYTES) {
   const chunks = [];
-  let length = 0;
+  let size = 0;
   for await (const chunk of request) {
-    length += chunk.length;
-    if (length > limit) throw Object.assign(new Error('Request body is too large.'), { status: 413 });
+    size += chunk.length;
+    if (size > limit) throw new WorkspaceError('Request body exceeds 2 MiB.', { code: 'body_too_large', status: 413 });
     chunks.push(chunk);
   }
   return Buffer.concat(chunks).toString('utf8');
+}
+
+async function readJsonBody(request) {
+  const raw = await readBody(request);
+  if (!raw) return {};
+  try { return JSON.parse(raw); }
+  catch { throw new WorkspaceError('Request body must be valid JSON.'); }
 }
 
 function safeReturnPath(value) {
@@ -148,7 +131,7 @@ function requestAddress(request) {
   return String(request.socket?.remoteAddress || 'unknown').replace(/^::ffff:/, '');
 }
 
-function removeHopByHopHeaders(headers) {
+function removeHopHeaders(headers) {
   const result = { ...headers };
   for (const name of [
     'authorization', 'cookie', 'host', 'connection', 'keep-alive', 'proxy-authenticate',
@@ -164,31 +147,71 @@ function copyProxyHeaders(headers) {
   for (const [name, value] of Object.entries(headers)) {
     const lower = name.toLowerCase();
     if (['set-cookie', 'server', 'connection', 'keep-alive', 'transfer-encoding'].includes(lower)) continue;
+    if (lower.startsWith('access-control-')) continue;
     result[name] = value;
   }
   return result;
 }
 
-export function resolveHostedConfig({ env = process.env, home = null, token = null, host = null, port = null, publicOrigin = null } = {}) {
-  const selectedToken = String(token || env.ARCHIED_FOUNDER_TOKEN || '');
-  if (selectedToken.length < 24) throw new Error('ARCHIED_FOUNDER_TOKEN must contain at least 24 characters.');
+export function resolveHostedConfig({
+  env = process.env,
+  home = null,
+  host = null,
+  port = null,
+  publicUrl = null,
+  publicOrigin = null,
+  founderTokenSha256 = null,
+  developerTokenSha256 = null,
+  sessionKey = null,
+  secretKey = null,
+  allowInsecure = null,
+  token = null
+} = {}) {
   const selectedHome = path.resolve(home || env.ARCHIE_HOME || path.join(os.homedir(), '.archie'));
   const selectedHost = host || env.ARCHIED_HOST || '0.0.0.0';
   const selectedPort = integer(port ?? env.ARCHIED_PORT ?? '8787', 'ARCHIED_PORT');
-  const selectedOrigin = String(publicOrigin || env.ARCHIED_PUBLIC_ORIGIN || '').trim().replace(/\/$/, '') || null;
-  if (selectedOrigin) {
-    const parsed = new URL(selectedOrigin);
-    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
-      throw new Error('ARCHIED_PUBLIC_ORIGIN must be a bare http(s) origin.');
-    }
+  const legacyFounderToken = String(token || '');
+  if (legacyFounderToken && legacyFounderToken.length < 24) {
+    throw new WorkspaceError('ARCHIED_FOUNDER_TOKEN must contain at least 24 characters.');
   }
-  const secureCookie = boolean(env.ARCHIED_COOKIE_SECURE, selectedOrigin?.startsWith('https://') || false);
-  return Object.freeze({ home: selectedHome, token: selectedToken, host: selectedHost, port: selectedPort, public_origin: selectedOrigin, secure_cookie: secureCookie });
+  const configuredPublicUrl = publicUrl || publicOrigin || env.ARCHIED_PUBLIC_URL || env.ARCHIED_PUBLIC_ORIGIN || null;
+  const selectedPublicUrl = configuredPublicUrl ? absoluteHttpUrl(configuredPublicUrl, 'ARCHIED_PUBLIC_URL') : null;
+  if (!selectedPublicUrl && !legacyFounderToken) throw new WorkspaceError('ARCHIED_PUBLIC_URL must be an absolute URL.');
+  const insecureAllowed = allowInsecure === true || env.ARCHIED_ALLOW_INSECURE_HOSTED === '1' || Boolean(legacyFounderToken);
+  if (selectedPublicUrl && new URL(selectedPublicUrl).protocol !== 'https:' && !insecureAllowed) {
+    throw new WorkspaceError('Hosted Archie requires an HTTPS ARCHIED_PUBLIC_URL unless ARCHIED_ALLOW_INSECURE_HOSTED=1 is set for an isolated test environment.');
+  }
+  const founderHash = founderTokenSha256 || env.ARCHIED_FOUNDER_TOKEN_SHA256 || (legacyFounderToken ? tokenSha256(legacyFounderToken) : null);
+  const developerHash = developerTokenSha256 || env.ARCHIED_DEVELOPER_TOKEN_SHA256 || (legacyFounderToken ? crypto.randomBytes(32).toString('hex') : null);
+  const selectedSessionKey = sessionKey || env.ARCHIED_SESSION_KEY || (legacyFounderToken ? deriveHostedKey('session', legacyFounderToken) : null);
+  const selectedSecretKey = secretKey || env.ARCHIED_SECRET_KEY || (legacyFounderToken ? deriveHostedKey('secret', legacyFounderToken) : null);
+  const secureCookies = boolean(env.ARCHIED_COOKIE_SECURE, selectedPublicUrl ? new URL(selectedPublicUrl).protocol === 'https:' : false);
+  return Object.freeze({
+    home: selectedHome,
+    host: selectedHost,
+    port: selectedPort,
+    public_url: selectedPublicUrl,
+    founder_token_sha256: founderHash,
+    developer_token_sha256: developerHash,
+    session_key: selectedSessionKey,
+    secret_key: selectedSecretKey,
+    secure_cookies: secureCookies,
+    legacy_founder_only: Boolean(legacyFounderToken && !developerTokenSha256 && !env.ARCHIED_DEVELOPER_TOKEN_SHA256)
+  });
 }
 
 export async function startHostedArchied(options = {}) {
   const config = resolveHostedConfig(options);
-  const internal = await startArchied({ home: config.home, host: '127.0.0.1', port: 0, mode: 'hosted' });
+  const security = createHostedSecurity({
+    founderTokenSha256: config.founder_token_sha256,
+    developerTokenSha256: config.developer_token_sha256,
+    sessionKey: config.session_key,
+    secureCookies: config.secure_cookies
+  });
+  const internal = await startArchied({ home: config.home, host: '127.0.0.1', port: 0, mode: 'local' });
+  const dataRoot = internal.data_root;
+  const shareRegistry = new HostedShareRegistry(dataRoot);
+  const secretStore = new EncryptedSecretStore(path.join(dataRoot, 'hosted', 'secrets.enc.json'), config.secret_key);
   const failures = new Map();
   const server = http.createServer();
 
@@ -199,43 +222,35 @@ export async function startHostedArchied(options = {}) {
 
   const address = server.address();
   const actualPort = typeof address === 'object' && address?.port ? address.port : config.port;
-  const publicOrigin = config.public_origin || `http://127.0.0.1:${actualPort}`;
-  const parsedPublicOrigin = new URL(publicOrigin);
-
+  const localUrl = `http://127.0.0.1:${actualPort}/`;
+  const publicUrlValue = config.public_url || localUrl;
+  const publicOriginValue = new URL(publicUrlValue).origin;
   const descriptor = Object.freeze({
     schema: ARCHIED_HOSTED_SCHEMA,
-    service_version: internal.descriptor.service_version,
+    service_version: ARCHIED_HOSTED_VERSION,
     domain_contract: internal.descriptor.domain_contract,
-    migration_level: internal.descriptor.migration_level,
+    migration_level: ARCHIED_HOSTED_MIGRATION_LEVEL,
     mode: 'hosted',
-    base_url: `${publicOrigin}/`,
-    authentication: {
-      schema: ARCHIED_HOSTED_AUTH_SCHEMA,
-      method: 'founder-token-to-http-only-session',
-      session_ttl_seconds: SESSION_TTL_SECONDS,
-      cookie_secure: config.secure_cookie
-    },
+    base_url: publicUrlValue,
     canonical_state: internal.descriptor.canonical_state,
+    product_surface: publicUrlValue,
+    workspace_url_template: new URL('w/{workspace_id}', publicUrlValue).href,
+    hosted_status_endpoint: new URL('v1/hosted/status', publicUrlValue).href,
+    backup_endpoint: new URL('v1/hosted/backups', publicUrlValue).href,
+    authentication: { ...security.descriptor, developer_enabled: !config.legacy_founder_only },
     storage: {
       events: internal.descriptor.storage.events,
       artifacts: internal.descriptor.storage.artifacts,
       durable_volume: 'ARCHIE_HOME/standalone'
     },
-    operator: {
-      status_url: `${publicOrigin}/v1/hosted/status`,
-      workspace_url_template: `${publicOrigin}/#workspace={workspace_id}`,
-      portable_export_template: `${publicOrigin}/v1/standalone/workspaces/{workspace_id}/export`
-    },
     source_host_required: false,
     github_required: false,
+    vendor_specific_dependency: false,
     local_runner_inbound_access_required: false,
-    claim_boundary: 'Hosted Archie provides private founder/developer inspection over the same Archie-native workspace, authority, evidence, export, and rollback contracts. It does not claim an external deployment exists until an operator actually runs this image, and it does not upgrade model or device capability claims.'
+    explicit_read_only_shares: true,
+    encrypted_secret_store: 'aes-256-gcm-envelope/v1',
+    claim_boundary: 'Hosted Archie provides private founder/developer access over the same Archie-native workspace, authority, evidence, export, rollback, and portable ownership contracts. It does not claim an external deployment exists until an operator runs this image, and it does not upgrade model, device, or customer-value claims.'
   });
-
-  function sessionFrom(request) {
-    const value = parseCookies(request.headers.cookie)[COOKIE_NAME];
-    return verifySession(value, config.token);
-  }
 
   function loginState(ip, now = Date.now()) {
     const current = failures.get(ip);
@@ -257,51 +272,51 @@ export async function startHostedArchied(options = {}) {
     return state;
   }
 
-  function cookieHeader(value, { clear = false } = {}) {
-    const parts = [`${COOKIE_NAME}=${value}`, 'Path=/', 'HttpOnly', 'SameSite=Strict'];
-    if (config.secure_cookie) parts.push('Secure');
-    if (clear) parts.push('Max-Age=0');
-    else parts.push(`Max-Age=${SESSION_TTL_SECONDS}`);
-    return parts.join('; ');
-  }
-
-  async function hostedStatus() {
-    const ids = await internal.provider.listWorkspaceIds();
-    const workspaces = [];
-    for (const workspaceId of ids) {
-      const state = await internal.engine.inspect(workspaceId, { principalId: 'owner_local' });
-      workspaces.push({
-        workspace_id: workspaceId,
-        title: state.workspace?.title || workspaceId,
-        visibility: state.workspace?.visibility || 'private',
-        event_count: state.event_count,
-        head_digest: state.head_digest,
-        task_count: Object.keys(state.tasks || {}).length,
-        run_count: Object.keys(state.runs || {}).length,
-        evidence_count: Object.keys(state.evidence || {}).length,
-        approval_count: Object.keys(state.approvals || {}).length,
-        rollback_count: Object.keys(state.rollbacks || {}).length,
-        export_url: `${publicOrigin}/v1/standalone/workspaces/${workspaceId}/export`,
-        inspect_url: `${publicOrigin}/v1/workspaces/${workspaceId}`
-      });
+  function denyCrossSiteMutation(request) {
+    const method = request.method || 'GET';
+    if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return;
+    const fetchSite = String(request.headers['sec-fetch-site'] || '');
+    const origin = String(request.headers.origin || '');
+    if (fetchSite === 'cross-site' || (origin && origin !== publicOriginValue)) {
+      throw new WorkspaceAuthorityError('Cross-site mutations are not allowed.');
     }
-    return {
-      schema: 'archied-hosted-status/v1',
-      service: descriptor,
-      workspace_count: workspaces.length,
-      portable_backup_ready: true,
-      workspaces
-    };
   }
 
-  function proxy(request, response) {
-    const target = new URL(request.url || '/', internal.url);
-    const headers = removeHopByHopHeaders(request.headers);
-    headers.host = target.host;
-    headers['x-archie-principal'] = 'owner_local';
-    headers['x-forwarded-proto'] = parsedPublicOrigin.protocol.slice(0, -1);
-    headers['x-forwarded-host'] = parsedPublicOrigin.host;
+  async function ownedWorkspace(identity, workspaceId) {
+    const state = await internal.engine.inspect(workspaceId, { principalId: identity.principal_id });
+    if (state.workspace.owner_id !== identity.principal_id) throw new WorkspaceAuthorityError('Only the workspace owner may manage hosted shares.');
+    return state;
+  }
 
+  async function visibleWorkspaces(identity) {
+    const results = [];
+    for (const workspaceId of await internal.provider.listWorkspaceIds()) {
+      try {
+        const state = await internal.engine.inspect(workspaceId, { principalId: identity.principal_id });
+        results.push({
+          workspace_id: workspaceId,
+          title: state.workspace.title,
+          visibility: state.workspace.visibility,
+          event_count: state.event_count,
+          head_digest: state.head_digest,
+          evidence_count: Object.keys(state.evidence).length,
+          approval_count: Object.keys(state.approvals).length,
+          rollback_count: Object.keys(state.rollbacks).length,
+          workspace_url: new URL(`w/${workspaceId}`, publicUrlValue).href,
+          export_url: new URL(`v1/standalone/workspaces/${workspaceId}/export`, publicUrlValue).href
+        });
+      } catch (error) {
+        if (!(error instanceof WorkspaceAuthorityError)) throw error;
+      }
+    }
+    return results.sort((left, right) => left.workspace_id.localeCompare(right.workspace_id));
+  }
+
+  function proxy(request, response, identity, targetPath = null) {
+    const target = new URL(targetPath || request.url || '/', internal.url);
+    const headers = removeHopHeaders(request.headers);
+    headers.host = target.host;
+    headers['x-archie-principal'] = identity.principal_id;
     const upstream = http.request(target, { method: request.method, headers }, upstreamResponse => {
       response.writeHead(upstreamResponse.statusCode || 502, {
         ...copyProxyHeaders(upstreamResponse.headers),
@@ -319,8 +334,9 @@ export async function startHostedArchied(options = {}) {
 
   server.on('request', async (request, response) => {
     try {
-      const requestUrl = new URL(request.url || '/', publicOrigin);
+      const requestUrl = new URL(request.url || '/', localUrl);
       const pathname = requestUrl.pathname;
+      const parts = pathname.split('/').filter(Boolean);
       const method = request.method || 'GET';
 
       if (method === 'GET' && pathname === '/health') {
@@ -328,14 +344,15 @@ export async function startHostedArchied(options = {}) {
           schema: 'archied-health/v1',
           status: 'ok',
           mode: 'hosted',
-          service_version: descriptor.service_version,
-          migration_level: descriptor.migration_level
+          service_version: ARCHIED_HOSTED_VERSION,
+          migration_level: ARCHIED_HOSTED_MIGRATION_LEVEL
         });
         return;
       }
 
       if (method === 'GET' && pathname === '/login') {
-        if (sessionFrom(request)) {
+        const current = security.authenticate(request);
+        if (current) {
           redirect(response, safeReturnPath(requestUrl.searchParams.get('return_to')));
           return;
         }
@@ -347,76 +364,213 @@ export async function startHostedArchied(options = {}) {
         const ip = requestAddress(request);
         const state = loginState(ip);
         if (state.count >= MAX_FAILED_LOGINS) {
-          jsonResponse(response, 429, { schema: 'archied-hosted-error/v1', error: 'login_rate_limited', message: 'Too many failed login attempts. Try again later.' }, { 'retry-after': String(Math.max(1, Math.ceil((state.reset_at_ms - Date.now()) / 1000))) });
+          jsonResponse(response, 429, {
+            schema: 'archied-hosted-error/v1',
+            error: 'login_rate_limited',
+            message: 'Too many failed login attempts. Try again later.'
+          }, { 'retry-after': String(Math.max(1, Math.ceil((state.reset_at_ms - Date.now()) / 1000))) });
           return;
         }
-        const raw = await readBody(request);
-        let candidate = '';
+        const raw = await readBody(request, 16 * 1024);
+        let suppliedToken = '';
         let returnTo = '/';
         if (String(request.headers['content-type'] || '').includes('application/json')) {
-          const body = JSON.parse(raw || '{}');
-          candidate = String(body.token || '');
-          returnTo = safeReturnPath(body.return_to);
+          try {
+            const body = JSON.parse(raw || '{}');
+            suppliedToken = String(body.token || '');
+            returnTo = safeReturnPath(body.return_to);
+          } catch {
+            throw new WorkspaceError('Login body must be valid JSON.');
+          }
         } else {
           const body = new URLSearchParams(raw);
-          candidate = String(body.get('token') || '');
+          suppliedToken = String(body.get('token') || '');
           returnTo = safeReturnPath(body.get('return_to'));
         }
-        if (!secureEqual(candidate, config.token)) {
+        const identity = security.identityForToken(suppliedToken);
+        if (!identity) {
           failedLogin(ip);
           htmlResponse(response, 401, loginPage({ error: 'Access token was not accepted.', returnTo }));
           return;
         }
         failures.delete(ip);
-        redirect(response, returnTo, { 'set-cookie': cookieHeader(signSession(config.token)) });
+        redirect(response, returnTo, { 'set-cookie': security.sessionCookie(identity) });
         return;
       }
 
       if (method === 'POST' && pathname === '/logout') {
-        redirect(response, '/login', { 'set-cookie': cookieHeader('', { clear: true }) });
+        denyCrossSiteMutation(request);
+        redirect(response, '/login', { 'set-cookie': security.clearCookie() });
         return;
       }
 
-      const session = sessionFrom(request);
-      if (!session) {
+      if (method === 'GET' && parts[0] === 'share' && parts[1] && parts.length === 2) {
+        const share = await shareRegistry.authenticate(parts[1]);
+        if (!share) throw new WorkspaceAuthorityError('Share link is invalid, expired, or revoked.');
+        const workspace = await internal.engine.inspect(share.workspace_id, { principalId: share.principal_id });
+        jsonResponse(response, 200, {
+          schema: 'archie-hosted-read-share/v1',
+          share: { share_id: share.share_id, workspace_id: share.workspace_id, capabilities: ['read'], expires_at: share.expires_at },
+          workspace
+        });
+        return;
+      }
+
+      const identity = security.authenticate(request);
+      if (!identity) {
         const acceptsHtml = String(request.headers.accept || '').includes('text/html');
         if (method === 'GET' && acceptsHtml) {
           redirect(response, `/login?return_to=${encodeURIComponent(safeReturnPath(`${pathname}${requestUrl.search}`))}`);
         } else {
-          jsonResponse(response, 401, { schema: 'archied-hosted-error/v1', error: 'authentication_required', message: 'Founder authentication is required.' });
+          jsonResponse(response, 401, {
+            schema: 'archied-hosted-error/v1',
+            error: 'authentication_required',
+            message: 'Private founder/developer authentication is required.'
+          }, { 'www-authenticate': 'Bearer realm="Archie"' });
         }
         return;
       }
 
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-        const fetchSite = String(request.headers['sec-fetch-site'] || '');
-        const origin = String(request.headers.origin || '');
-        if (fetchSite === 'cross-site' || (origin && origin !== publicOrigin)) {
-          jsonResponse(response, 403, { schema: 'archied-hosted-error/v1', error: 'cross_site_mutation_denied', message: 'Cross-site mutations are not allowed.' });
-          return;
-        }
-      }
+      denyCrossSiteMutation(request);
 
       if (method === 'GET' && pathname === '/.well-known/archied.json') {
         jsonResponse(response, 200, descriptor);
         return;
       }
 
-      if (method === 'GET' && pathname === '/v1/hosted/status') {
-        jsonResponse(response, 200, await hostedStatus());
+      if (method === 'GET' && pathname === '/auth/whoami') {
+        jsonResponse(response, 200, { schema: 'archie-hosted-identity/v1', ...identity });
         return;
       }
 
-      proxy(request, response);
+      if (method === 'GET' && pathname === '/v1/hosted/status') {
+        const workspaces = await visibleWorkspaces(identity);
+        jsonResponse(response, 200, {
+          schema: 'archie-hosted-status/v1',
+          service: descriptor,
+          principal: identity,
+          workspaces: { count: workspaces.length, items: workspaces },
+          shares: await shareRegistry.status(),
+          secrets: await secretStore.status({ includeNames: identity.role === 'founder' }),
+          backups: await hostedBackupStatus(dataRoot),
+          claim_boundary: 'Hosted status reports exact Archie-native state visible to the authenticated principal. It does not claim an external deployment or model/device admission.'
+        });
+        return;
+      }
+
+      if (method === 'POST' && pathname === '/v1/hosted/shares') {
+        const body = await readJsonBody(request);
+        await ownedWorkspace(identity, body.workspace_id);
+        const duration = body.expires_in_ms === undefined ? 24 * 60 * 60 * 1000 : Number(body.expires_in_ms);
+        if (!Number.isInteger(duration) || duration < 60_000 || duration > 30 * 24 * 60 * 60 * 1000) {
+          throw new WorkspaceError('Share expiry must be from one minute through 30 days.');
+        }
+        const nonce = crypto.randomBytes(12).toString('hex');
+        const principalId = `share_${nonce}`;
+        const grantId = `grant_${nonce}`;
+        await internal.engine.execute(body.workspace_id, identity.principal_id, 'agent.register', {
+          agent_id: principalId,
+          label: String(body.label || 'Explicit read-only share').slice(0, 160),
+          kind: 'service',
+          provider: 'archie-hosted-share'
+        });
+        await internal.engine.execute(body.workspace_id, identity.principal_id, 'grant.issue', {
+          grant_id: grantId,
+          principal_id: principalId,
+          capabilities: ['read'],
+          expires_at: new Date(Date.now() + duration).toISOString()
+        });
+        let issued;
+        try {
+          issued = await shareRegistry.issue({
+            workspaceId: body.workspace_id,
+            principalId,
+            grantId,
+            createdBy: identity.principal_id,
+            expiresInMs: duration
+          });
+        } catch (error) {
+          await internal.engine.execute(body.workspace_id, identity.principal_id, 'grant.revoke', { grant_id: grantId }).catch(() => {});
+          throw error;
+        }
+        jsonResponse(response, 201, {
+          schema: 'archie-hosted-share-issued/v1',
+          ...issued.record,
+          token_disclosed_once: true,
+          capabilities: ['read'],
+          share_url: new URL(`share/${issued.token}`, publicUrlValue).href
+        });
+        return;
+      }
+
+      if (
+        method === 'GET' && parts[0] === 'v1' && parts[1] === 'hosted' && parts[2] === 'workspaces'
+        && parts[3] && parts[4] === 'shares' && parts.length === 5
+      ) {
+        await ownedWorkspace(identity, parts[3]);
+        jsonResponse(response, 200, { schema: 'archie-hosted-share-list/v1', workspace_id: parts[3], shares: await shareRegistry.list(parts[3]) });
+        return;
+      }
+
+      if (
+        method === 'POST' && parts[0] === 'v1' && parts[1] === 'hosted' && parts[2] === 'workspaces'
+        && parts[3] && parts[4] === 'shares' && parts[5] && parts[6] === 'revoke' && parts.length === 7
+      ) {
+        await ownedWorkspace(identity, parts[3]);
+        const record = (await shareRegistry.list(parts[3])).find(item => item.share_id === parts[5]);
+        if (!record) throw new WorkspaceError('Hosted share was not found.', { code: 'not_found', status: 404 });
+        await internal.engine.execute(parts[3], identity.principal_id, 'grant.revoke', { grant_id: record.grant_id });
+        const revoked = await shareRegistry.revoke(parts[5]);
+        jsonResponse(response, 200, { schema: 'archie-hosted-share-revocation/v1', ...revoked });
+        return;
+      }
+
+      if (method === 'PUT' && parts[0] === 'v1' && parts[1] === 'hosted' && parts[2] === 'secrets' && parts[3] && parts.length === 4) {
+        requireRole(identity, ['founder']);
+        const body = await readJsonBody(request);
+        jsonResponse(response, 200, { schema: 'archie-hosted-secret-write/v1', secret: await secretStore.set(parts[3], body.value) });
+        return;
+      }
+
+      if (method === 'POST' && pathname === '/v1/hosted/backups') {
+        requireRole(identity, ['founder']);
+        const { backup } = await createHostedBackup({
+          provider: internal.provider,
+          secretStore,
+          dataRoot,
+          serviceVersion: ARCHIED_HOSTED_VERSION,
+          migrationLevel: ARCHIED_HOSTED_MIGRATION_LEVEL
+        });
+        jsonResponse(response, 201, {
+          schema: 'archie-hosted-backup-receipt/v1',
+          created_at: backup.created_at,
+          backup_digest: backup.backup_digest,
+          workspace_count: backup.workspace_count,
+          artifact_count: backup.artifact_count,
+          migration_level: backup.migration_level
+        });
+        return;
+      }
+
+      if (method === 'GET' && parts[0] === 'w' && parts[1] && parts.length === 2) {
+        await internal.engine.inspect(parts[1], { principalId: identity.principal_id });
+        proxy(request, response, identity, '/');
+        return;
+      }
+
+      proxy(request, response, identity);
     } catch (error) {
       if (response.headersSent) {
         response.destroy(error);
         return;
       }
-      jsonResponse(response, error?.status || 500, {
+      const hostedError = error instanceof WorkspaceError
+        ? error
+        : new WorkspaceError(error?.message || 'Hosted Archie failed.', { code: 'hosted_error', status: 500 });
+      jsonResponse(response, hostedError.status, {
         schema: 'archied-hosted-error/v1',
-        error: error?.status === 413 ? 'body_too_large' : 'hosted_error',
-        message: error?.message || 'Hosted Archie failed.'
+        error: hostedError.code,
+        message: hostedError.message
       });
     }
   });
@@ -436,8 +590,9 @@ export async function startHostedArchied(options = {}) {
     server,
     internal,
     descriptor,
-    url: `${publicOrigin}/`,
-    public_origin: publicOrigin,
+    url: localUrl,
+    public_url: publicUrlValue,
+    data_root: dataRoot,
     close
   });
 }

@@ -3,7 +3,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { startHostedArchied } from '../archied-hosted.mjs';
+import {
+  ARCHIED_HOSTED_MIGRATION_LEVEL,
+  ARCHIED_HOSTED_VERSION,
+  startHostedArchied
+} from '../archied-hosted.mjs';
 import { verifyWorkspaceBundle } from '../archie-workspace-portable.mjs';
 
 const token = 'archie-founder-test-token-0123456789abcdef';
@@ -37,8 +41,8 @@ test('hosted Archie protects the same product and preserves workspace state acro
     schema: 'archied-health/v1',
     status: 'ok',
     mode: 'hosted',
-    service_version: '0.1.0',
-    migration_level: 1
+    service_version: ARCHIED_HOSTED_VERSION,
+    migration_level: ARCHIED_HOSTED_MIGRATION_LEVEL
   });
 
   const anonymous = await fetch(first.url, { headers: { accept: 'text/html' }, redirect: 'manual' });
@@ -58,7 +62,7 @@ test('hosted Archie protects the same product and preserves workspace state acro
   assert.equal(authenticated.response.headers.get('location'), '/');
   assert.match(authenticated.response.headers.get('set-cookie'), /HttpOnly/);
   assert.match(authenticated.response.headers.get('set-cookie'), /SameSite=Strict/);
-  assert.ok(authenticated.cookie.startsWith('archie_founder_session='));
+  assert.ok(authenticated.cookie.startsWith('archie_hosted_session='));
 
   const product = await fetch(first.url, { headers: { accept: 'text/html', cookie: authenticated.cookie } });
   assert.equal(product.status, 200);
@@ -75,6 +79,7 @@ test('hosted Archie protects the same product and preserves workspace state acro
   assert.equal(descriptor.mode, 'hosted');
   assert.equal(descriptor.github_required, false);
   assert.equal(descriptor.local_runner_inbound_access_required, false);
+  assert.equal(descriptor.authentication.developer_enabled, false);
   assert.equal(JSON.stringify(descriptor).includes(token), false);
   assert.equal(JSON.stringify(descriptor).includes(home), false);
 
@@ -89,19 +94,24 @@ test('hosted Archie protects the same product and preserves workspace state acro
   assert.match(journey.bundle_digest, /^[a-f0-9]{64}$/);
   assert.equal('bundle_path' in journey, false);
 
+  const stablePage = await fetch(new URL(`/w/${journey.workspace_id}`, first.url), {
+    headers: { accept: 'text/html', cookie: authenticated.cookie }
+  });
+  assert.equal(stablePage.status, 200);
+  assert.match(await stablePage.text(), /State what should be true/);
+
   const statusResponse = await fetch(new URL('/v1/hosted/status', first.url), {
     headers: { cookie: authenticated.cookie }
   });
   assert.equal(statusResponse.status, 200);
   const status = await statusResponse.json();
-  assert.equal(status.schema, 'archied-hosted-status/v1');
-  assert.equal(status.workspace_count, 1);
-  assert.equal(status.portable_backup_ready, true);
-  assert.equal(status.workspaces[0].workspace_id, journey.workspace_id);
-  assert.equal(status.workspaces[0].rollback_count, 1);
-  assert.match(status.workspaces[0].export_url, /\/export$/);
+  assert.equal(status.schema, 'archie-hosted-status/v1');
+  assert.equal(status.workspaces.count, 1);
+  assert.equal(status.workspaces.items[0].workspace_id, journey.workspace_id);
+  assert.equal(status.workspaces.items[0].rollback_count, 1);
+  assert.match(status.workspaces.items[0].export_url, /\/export$/);
 
-  const exportResponse = await fetch(status.workspaces[0].export_url, {
+  const exportResponse = await fetch(new URL(`/v1/standalone/workspaces/${journey.workspace_id}/export`, first.url), {
     headers: { cookie: authenticated.cookie }
   });
   assert.equal(exportResponse.status, 200);
@@ -120,9 +130,9 @@ test('hosted Archie protects the same product and preserves workspace state acro
   });
   assert.equal(afterRestart.status, 200);
   const restoredStatus = await afterRestart.json();
-  assert.equal(restoredStatus.workspace_count, 1);
-  assert.equal(restoredStatus.workspaces[0].workspace_id, journey.workspace_id);
-  assert.equal(restoredStatus.workspaces[0].head_digest, journey.head_digest);
+  assert.equal(restoredStatus.workspaces.count, 1);
+  assert.equal(restoredStatus.workspaces.items[0].workspace_id, journey.workspace_id);
+  assert.equal(restoredStatus.workspaces.items[0].head_digest, journey.head_digest);
 });
 
 test('hosted Archie fails closed without a strong founder token', async () => {
