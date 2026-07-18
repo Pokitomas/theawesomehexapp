@@ -27,10 +27,12 @@ function assertBundle(value) {
   return value;
 }
 
-export async function exportWorkspaceBundle({ engine, workspaceId, principalId, exportedAt = new Date().toISOString() }) {
+export async function exportWorkspaceBundle({ engine, workspaceId, principalId, exportedAt = null }) {
   if (!engine) throw new WorkspaceError('Workspace engine is required for export.');
   const state = await engine.inspect(workspaceId, { principalId });
   const events = await engine.events(workspaceId, { principalId });
+  if (!events.length) throw new WorkspaceError('Portable export requires a nonempty workspace event stream.');
+  const snapshotAt = new Date(exportedAt || events.at(-1).occurred_at).toISOString();
   const artifacts = [];
   for (const artifactId of Object.keys(state.artifacts).sort()) {
     const result = await engine.readArtifact(workspaceId, artifactId, { principalId });
@@ -46,12 +48,12 @@ export async function exportWorkspaceBundle({ engine, workspaceId, principalId, 
   const body = {
     schema: ARCHIE_WORKSPACE_BUNDLE_SCHEMA,
     workspace_id: workspaceId,
-    exported_at: new Date(exportedAt).toISOString(),
+    exported_at: snapshotAt,
     event_count: events.length,
     head_digest: state.head_digest,
     events,
     artifacts,
-    claim_boundary: 'This bundle preserves exact Archie-native events and admitted artifact bytes. Import verifies every digest before mutation and does not grant external authority.'
+    claim_boundary: 'This bundle preserves exact Archie-native events and admitted artifact bytes. Its default identity is stable for one immutable event head. Import verifies every digest before mutation and does not grant external authority.'
   };
   return Object.freeze({ ...body, bundle_digest: sha256(stableJSONStringify(body)) });
 }
