@@ -47,7 +47,7 @@ test('compatibility scan creates a bounded portable archive and demotes GitHub t
   assert.equal(archive.source.kind, 'local_git_directory');
   assert.equal(archive.source.absolute_path_preserved, false);
   assert.equal(archive.source.source_host_canonical, false);
-  assert.deepEqual(archive.files.map(file => file.path), ['README.md', 'assets.bin', 'src/app.js']);
+  assert.deepEqual(archive.files.map(file => file.path), ['assets.bin', 'README.md', 'src/app.js']);
   assert.ok(archive.skipped.some(entry => entry.path === '.env' && entry.reason === 'sensitive_name'));
   assert.ok(archive.skipped.some(entry => entry.path === 'node_modules/' && entry.reason === 'generated_or_internal_directory'));
   assert.equal(archive.git.head_sha, 'a'.repeat(40));
