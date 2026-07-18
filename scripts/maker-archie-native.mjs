@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { createArchieLinuxCorpus } from './maker-archie-corpus.mjs';
-import { createArchiePersonalBrain } from './maker-archie-brain.mjs';
+import { createArchiePersonalBrain, recordLocalReuseOutcome } from './maker-archie-brain.mjs';
 import { createOpenAIArchieTeacher, isOpenAIArchieTeacherConfigured } from './maker-archie-openai-teacher.mjs';
 import { archieMakerValueDigest, normalizeMakerExecutionPlan } from './maker-archie-runtime-contract.mjs';
 import { collectRepositoryEvidence } from './maker-archie-repository-evidence.mjs';
@@ -213,9 +213,11 @@ export async function recallNativeMakerPlan({ repoRoot, request, baseBranch = 'm
       raw_confidence: result.raw_confidence ?? result.confidence ?? 0,
       negative_score: result.negative_score ?? 0,
       negative_suppressed: result.negative_suppressed ?? false,
+      reliability_suppressed: result.reliability_suppressed ?? false,
       margin: result.margin ?? 0,
       reliability: result.reliability ?? null,
       specialist_id: result.specialist_id ?? null,
+      highest_similarity_specialist_id: result.highest_similarity_specialist_id ?? null,
       source_example_ids: sourceExampleIds,
       execution_eligible: executionEligible,
       execution_basis: executionBasis,
@@ -275,7 +277,8 @@ export async function rememberNativeMakerRun({ repoRoot, receipt, env = process.
     const corpusReceipt = await corpus.recordMakerRun(normalized, { input: { request: normalized.task.request } });
     const local = localDecision(receipt);
     const reuseReceipt = local?.specialist_id
-      ? await brain.recordPlanOutcome({
+      ? await recordLocalReuseOutcome({
+          corpus,
           specialist_id: local.specialist_id,
           task: {
             subject: repoKey(repoRoot),

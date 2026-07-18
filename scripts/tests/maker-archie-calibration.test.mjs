@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
   createArchiePersonalBrain,
   predictArchiePlan,
+  recordLocalReuseOutcome,
   trainArchieSkillMixture
 } from '../maker-archie-brain.mjs';
 
@@ -75,6 +76,94 @@ test('selects a deterministic held-out operating point', () => {
   assert.ok(first.operating_point.evaluated_documents >= 8);
 });
 
+test('new specialists remain on pure similarity until reliability evidence activates', () => {
+  const model = trainArchieSkillMixture([
+    example({ id: 'git-1', instruction: 'Repair a conflicted git branch.', target: { steps: ['repair'] } })
+  ], {
+    dimensions: 1024,
+    threshold: 0,
+    minimum_margin: 0,
+    calibrate_operating_point: false,
+    trained_at: '2026-07-18T08:01:30.000Z'
+  });
+
+  const prediction = predictArchiePlan(model, { instruction: 'Repair a conflicted git branch.' });
+  assert.equal(prediction.state, 'local');
+  assert.equal(prediction.reliability.gate_active, false);
+  assert.equal(prediction.confidence, prediction.similarity_confidence);
+  assert.equal(prediction.alternatives[0].reliability_factor, 1);
+});
+
+test('reranks away from a failed high-similarity specialist toward a reliable alternative', () => {
+  const examples = [
+    example({
+      id: 'repair-1',
+      instruction: 'Repair a conflicted git branch and run repository tests.',
+      target: { kind: 'repair' },
+      tool: 'git',
+      action: 'repair'
+    }),
+    example({
+      id: 'inspect-1',
+      instruction: 'Inspect a conflicted git branch and run repository tests.',
+      target: { kind: 'inspect' },
+      tool: 'git',
+      action: 'inspect'
+    })
+  ];
+  const options = {
+    dimensions: 1024,
+    threshold: 0,
+    minimum_margin: 0,
+    reliability_floor: 0.6,
+    calibrate_operating_point: false,
+    trained_at: '2026-07-18T08:01:45.000Z'
+  };
+  const initial = trainArchieSkillMixture(examples, options);
+  const initialPrediction = predictArchiePlan(initial, { instruction: examples[0].instruction });
+  const highSimilarityId = initialPrediction.specialist_id;
+  const alternativeId = initial.specialists.find(item => item.specialist_id !== highSimilarityId).specialist_id;
+
+  const retrained = trainArchieSkillMixture(examples, {
+    ...options,
+    reliability_evidence: {
+      [highSimilarityId]: { successes: 0, failures: 1 },
+      [alternativeId]: { successes: 20, failures: 0 }
+    }
+  });
+  const prediction = predictArchiePlan(retrained, { instruction: examples[0].instruction });
+
+  assert.equal(prediction.state, 'local');
+  assert.equal(prediction.highest_similarity_specialist_id, highSimilarityId);
+  assert.equal(prediction.specialist_id, alternativeId);
+  assert.equal(prediction.alternatives[0].specialist_id, alternativeId);
+  assert.equal(prediction.alternatives.find(item => item.specialist_id === highSimilarityId).reliability_suppressed, true);
+  assert.ok(prediction.confidence > 0);
+});
+
+test('exports a co-located local reuse outcome recorder', async () => {
+  const records = [];
+  const corpus = {
+    async ingest(record) {
+      records.push(record);
+      return { status: 'stored', record_id: 'reuse-record-1', example_id: null };
+    }
+  };
+  const result = await recordLocalReuseOutcome({
+    corpus,
+    specialist_id: 'skill_0123456789abcdefabcd',
+    task: 'Repair a conflicted git branch.',
+    plan: { steps: ['repair'] },
+    state: 'completed',
+    run_id: 'native-run-1'
+  });
+
+  assert.equal(result.record_id, 'reuse-record-1');
+  assert.equal(records[0].kind, 'archie_local_reuse');
+  assert.equal(records[0].outcome, 'reuse-completed');
+  assert.equal(records[0].input.context.specialist_id, 'skill_0123456789abcdefabcd');
+});
+
 test('uses recorded specialist outcomes as an activated reliability gate', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'archie-reliability-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -129,4 +218,5 @@ test('uses recorded specialist outcomes as an activated reliability gate', async
   assert.equal(prediction.state, 'escalate');
   assert.equal(prediction.candidate_specialist_id, specialistId);
   assert.equal(prediction.reliability.failures, 1);
+  assert.equal(prediction.reliability_suppressed, true);
 });
