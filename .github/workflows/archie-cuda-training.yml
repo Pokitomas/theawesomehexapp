@@ -1,0 +1,356 @@
+name: Run Archie CUDA QLoRA training
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/train.py'
+      - 'foundry/archie-distill/test_train_contract.py'
+      - 'scripts/archie-training-compile.mjs'
+      - 'scripts/archie-full-version-gate.mjs'
+      - 'maker/evaluations/archie-distill-qwen3-quality.json'
+      - '.github/training/archie-cuda-request.json'
+      - '.github/workflows/archie-cuda-training.yml'
+      - '.github/workflows/archie-full-version.yml'
+      - 'docs/archie-cuda-training-actions.md'
+      - 'docs/archie-full-version-gate.md'
+  push:
+    branches: [main]
+    paths:
+      - '.github/training/archie-cuda-request.json'
+      - '.github/workflows/archie-cuda-training.yml'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Optional audit label for this training attempt
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: archie-cuda-training-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Install locked repository dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify CUDA training contracts without training
+        run: |
+          set -euo pipefail
+          node --check scripts/archie-training-compile.mjs
+          python -m py_compile foundry/archie-distill/train.py
+          node scripts/run-python.mjs foundry/archie-distill/test_train_contract.py
+          grep -Fq 'Refusing slow full-precision CPU training' foundry/archie-distill/train.py
+          grep -Fq 'runs-on: [self-hosted, linux, x64,' .github/workflows/archie-cuda-training.yml
+          grep -Fq 'ARCHIE_CUDA_RUNNER_READY' .github/workflows/archie-cuda-training.yml
+          node scripts/archie-full-version-gate.mjs > archie-full-version-gate.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-cuda-contract-${{ github.event.pull_request.head.sha }}
+          path: archie-full-version-gate.json
+          if-no-files-found: error
+          retention-days: 7
+
+  authorize:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      allowed: ${{ steps.authorize.outputs.allowed }}
+      issue_number: ${{ steps.authorize.outputs.issue_number }}
+      request_id: ${{ steps.authorize.outputs.request_id }}
+      missing: ${{ steps.authorize.outputs.missing }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - id: authorize
+        name: Authorize owner request and configured GPU lane
+        env:
+          REQUEST_ID_INPUT: ${{ inputs.request_id }}
+          ARCHIE_CUDA_RUNNER_READY: ${{ vars.ARCHIE_CUDA_RUNNER_READY }}
+          ARCHIE_CUDA_RUNNER_LABEL: ${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}
+          ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+          ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+          ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+          ARCHIE_TRAINING_OUTPUT_ROOT: ${{ vars.ARCHIE_TRAINING_OUTPUT_ROOT }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const request = JSON.parse(fs.readFileSync('.github/training/archie-cuda-request.json', 'utf8'));
+          if (request.schema !== 'archie-cuda-training-request/v1') throw new Error('Unsupported request schema.');
+          const issueNumber = Number(request.issue_number);
+          if (!Number.isInteger(issueNumber) || issueNumber <= 0) throw new Error('A positive issue_number is required.');
+          const required = [
+            'ARCHIE_CUDA_RUNNER_LABEL',
+            'ARCHIE_TRAINING_PYTHON',
+            'ARCHIE_TRAINING_CONFIG_PATH',
+            'ARCHIE_STUDENT_MODEL_DIR',
+            'ARCHIE_TRAINING_OUTPUT_ROOT'
+          ];
+          const missing = required.filter(name => !String(process.env[name] || '').trim());
+          if (process.env.ARCHIE_CUDA_RUNNER_READY !== '1') missing.push('ARCHIE_CUDA_RUNNER_READY=1');
+          if (String(process.env.GITHUB_ACTOR || '').toLowerCase() !== String(process.env.GITHUB_REPOSITORY_OWNER || '').toLowerCase()) missing.push('repository-owner actor');
+          const requestId = String(process.env.REQUEST_ID_INPUT || request.request_id || '').trim();
+          if (!requestId) missing.push('request_id');
+          const allowed = missing.length === 0;
+          const receipt = {
+            schema: 'archie-cuda-training-authorization/v1',
+            request_id: requestId || null,
+            issue_number: issueNumber,
+            repository: process.env.GITHUB_REPOSITORY,
+            code_revision: process.env.GITHUB_SHA,
+            actor: process.env.GITHUB_ACTOR,
+            runner_ready_flag: process.env.ARCHIE_CUDA_RUNNER_READY === '1',
+            allowed,
+            missing,
+            claim_boundary: allowed
+              ? 'The request may queue on the configured self-hosted CUDA runner. CUDA and local inputs remain unproven until runner preflight.'
+              : 'No training job was queued. Missing configuration is a blocker, not a successful training receipt.'
+          };
+          fs.writeFileSync('archie-cuda-authorization.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `allowed=${allowed}\nissue_number=${issueNumber}\nrequest_id=${requestId}\nmissing=${missing.join(', ')}\n`);
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-cuda-authorization-${{ github.run_id }}-${{ github.run_attempt }}
+          path: archie-cuda-authorization.json
+          if-no-files-found: error
+          retention-days: 14
+
+  blocker:
+    needs: authorize
+    if: needs.authorize.outputs.allowed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Emit exact infrastructure blocker
+        env:
+          REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue_number }}
+          MISSING: ${{ needs.authorize.outputs.missing }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receipt = {
+            schema: 'archie-cuda-training-blocker/v1',
+            request_id: process.env.REQUEST_ID || null,
+            issue_number: Number(process.env.ISSUE_NUMBER),
+            repository: process.env.GITHUB_REPOSITORY,
+            code_revision: process.env.GITHUB_SHA,
+            run_id: process.env.GITHUB_RUN_ID,
+            run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            missing: String(process.env.MISSING || '').split(', ').filter(Boolean),
+            training_started: false,
+            checkpoint_created: false,
+            promotion: 'not-admitted',
+            claim_boundary: 'Actions refused to queue real training because the required self-hosted CUDA runner or pinned local inputs were not explicitly configured.'
+          };
+          fs.writeFileSync('archie-cuda-training-blocker.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-cuda-training-blocker-${{ github.run_id }}-${{ github.run_attempt }}
+          path: archie-cuda-training-blocker.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report blocker on bound issue
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue_number }}
+          REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+          MISSING: ${{ needs.authorize.outputs.missing }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              body: [
+                '<!-- archie-cuda-training:v1 -->',
+                '## CUDA training blocked before queue',
+                '',
+                `**request:** ${process.env.REQUEST_ID || '(missing)'}`,
+                `**revision:** ${context.sha}`,
+                `**run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                `**missing:** ${process.env.MISSING || '(unknown)'}`,
+                '',
+                'No GPU job, gradient update, checkpoint, or training receipt was produced.'
+              ].join('\n')
+            });
+
+  train:
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}"]
+    timeout-minutes: 720
+    env:
+      ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      ARCHIE_TRAINING_OUTPUT_ROOT: ${{ vars.ARCHIE_TRAINING_OUTPUT_ROOT }}
+      ARCHIE_CUDA_RUNNER_LABEL: ${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}
+      ARCHIE_PROFILE_PATH: maker/evaluations/archie-distill-qwen3-quality.json
+      ARCHIE_REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked repository dependencies
+        run: npm ci --ignore-scripts
+      - id: preflight
+        name: Prove CUDA runner and exact local inputs
+        run: |
+          set -euo pipefail
+          test -x "$ARCHIE_TRAINING_PYTHON"
+          test -f "$ARCHIE_TRAINING_CONFIG_PATH"
+          test -d "$ARCHIE_STUDENT_MODEL_DIR"
+          test -f "$ARCHIE_PROFILE_PATH"
+          command -v nvidia-smi >/dev/null
+          run_root="${ARCHIE_TRAINING_OUTPUT_ROOT%/}/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$run_root"
+          mkdir -p "$run_root"
+          workspace="$run_root/workspace"
+          output="$run_root/output"
+          log="$run_root/training.log"
+          evidence="$run_root/runner-evidence.json"
+          RUNNER_EVIDENCE="$evidence" "$ARCHIE_TRAINING_PYTHON" - <<'PY'
+          import hashlib, importlib.metadata, json, os, pathlib, platform, subprocess
+          try:
+              import torch
+          except Exception as exc:
+              raise SystemExit('Pinned training Python cannot import torch.') from exc
+          if not torch.cuda.is_available():
+              raise SystemExit('Configured Actions runner has no usable CUDA device; refusing CPU fallback.')
+          profile_path = pathlib.Path(os.environ['ARCHIE_PROFILE_PATH']).resolve()
+          profile = json.loads(profile_path.read_text(encoding='utf-8'))
+          minimum_vram = int(profile.get('footprint', {}).get('recommended_gpu_vram_bytes', 0))
+          index = torch.cuda.current_device()
+          props = torch.cuda.get_device_properties(index)
+          if minimum_vram and props.total_memory < minimum_vram:
+              raise SystemExit(f'GPU VRAM {props.total_memory} is below profile recommendation {minimum_vram}.')
+          def version(name):
+              try: return importlib.metadata.version(name)
+              except importlib.metadata.PackageNotFoundError: return None
+          required = ['torch', 'transformers', 'datasets', 'peft', 'trl', 'bitsandbytes', 'accelerate']
+          versions = {name: version(name) for name in required}
+          missing = [name for name, value in versions.items() if value is None]
+          if missing: raise SystemExit(f"Pinned CUDA QLoRA dependencies are missing: {', '.join(missing)}")
+          evidence = {
+              'schema': 'archie-cuda-runner-evidence/v1',
+              'request_id': os.environ['ARCHIE_REQUEST_ID'],
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'code_revision': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'runner': {'name': os.environ.get('RUNNER_NAME'), 'os': os.environ.get('RUNNER_OS'), 'arch': os.environ.get('RUNNER_ARCH'), 'label': os.environ.get('ARCHIE_CUDA_RUNNER_LABEL')},
+              'runtime': {'python': platform.python_version(), 'platform': platform.platform(), 'packages': versions, 'torch_cuda': torch.version.cuda, 'cudnn': torch.backends.cudnn.version()},
+              'gpu': {'index': index, 'name': torch.cuda.get_device_name(index), 'capability': list(torch.cuda.get_device_capability(index)), 'total_memory_bytes': props.total_memory, 'profile_recommended_memory_bytes': minimum_vram, 'nvidia_smi': subprocess.run(['nvidia-smi', '--query-gpu=name,uuid,driver_version,memory.total', '--format=csv,noheader'], check=True, capture_output=True, text=True).stdout.strip().splitlines()},
+              'inputs': {'profile_sha256': hashlib.sha256(profile_path.read_bytes()).hexdigest(), 'training_config_path': os.environ['ARCHIE_TRAINING_CONFIG_PATH'], 'training_config_sha256': hashlib.sha256(pathlib.Path(os.environ['ARCHIE_TRAINING_CONFIG_PATH']).read_bytes()).hexdigest(), 'student_model_dir': os.environ['ARCHIE_STUDENT_MODEL_DIR'], 'trainer_sha256': hashlib.sha256(pathlib.Path('foundry/archie-distill/train.py').read_bytes()).hexdigest()},
+              'claim_boundary': 'CUDA and local inputs passed preflight. No gradient update or checkpoint is claimed until the neural training receipt is verified.'
+          }
+          pathlib.Path(os.environ['RUNNER_EVIDENCE']).write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          printf 'workspace=%s\noutput=%s\nlog=%s\nevidence=%s\n' "$workspace" "$output" "$log" "$evidence" >> "$GITHUB_OUTPUT"
+      - name: Compile exact digest-bound training workspace
+        run: npm run archie:student:compile -- --config "$ARCHIE_TRAINING_CONFIG_PATH" --output "${{ steps.preflight.outputs.workspace }}"
+      - name: Execute real CUDA NF4 QLoRA training
+        run: |
+          set -euo pipefail
+          "$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/train.py \
+            --profile "$ARCHIE_PROFILE_PATH" \
+            --workspace "${{ steps.preflight.outputs.workspace }}" \
+            --model-dir "$ARCHIE_STUDENT_MODEL_DIR" \
+            --output "${{ steps.preflight.outputs.output }}" \
+            2>&1 | tee "${{ steps.preflight.outputs.log }}"
+      - name: Verify non-promoted byte-bound training receipt
+        run: |
+          set -euo pipefail
+          RECEIPT="${{ steps.preflight.outputs.output }}/training-receipt.json" RUNNER_EVIDENCE="${{ steps.preflight.outputs.evidence }}" "$ARCHIE_TRAINING_PYTHON" - <<'PY'
+          import hashlib, json, os, pathlib
+          receipt_path = pathlib.Path(os.environ['RECEIPT'])
+          evidence_path = pathlib.Path(os.environ['RUNNER_EVIDENCE'])
+          receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+          evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
+          if receipt.get('schema') != 'archie-neural-training-receipt/v2': raise SystemExit('Unexpected training receipt schema.')
+          if receipt.get('promotion') != 'not-admitted': raise SystemExit('Training receipt attempted to bypass admission.')
+          if not receipt.get('receipt_digest') or not receipt.get('artifacts'): raise SystemExit('Training receipt is missing digest-bound artifacts.')
+          if receipt.get('runtime', {}).get('gpu', {}).get('name') != evidence.get('gpu', {}).get('name'): raise SystemExit('GPU identity mismatch.')
+          action_receipt = {
+              'schema': 'archie-cuda-actions-training-receipt/v1',
+              'request_id': os.environ['ARCHIE_REQUEST_ID'],
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'code_revision': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'runner_evidence_sha256': hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
+              'neural_training_receipt_sha256': hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+              'neural_training_receipt_digest': receipt['receipt_digest'],
+              'promotion': 'not-admitted',
+              'claim_boundary': 'Real CUDA QLoRA training completed in Actions. Hidden evaluation, authority, reproduction, device evidence, and admission remain blocked.'
+          }
+          receipt_path.with_name('actions-training-receipt.json').write_text(json.dumps(action_receipt, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+      - name: Upload training artifacts and receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-cuda-training-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.preflight.outputs.output }}
+            ${{ steps.preflight.outputs.log }}
+            ${{ steps.preflight.outputs.evidence }}
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+      - name: Report terminal state on bound issue
+        if: always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue_number }}
+          REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              body: [
+                '<!-- archie-cuda-training:v1 -->',
+                `## CUDA training ${process.env.JOB_STATUS}`,
+                '',
+                `**request:** ${process.env.REQUEST_ID}`,
+                `**revision:** ${context.sha}`,
+                `**run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                '',
+                process.env.JOB_STATUS === 'success'
+                  ? 'A real CUDA QLoRA run produced uploaded artifacts and a `promotion: not-admitted` receipt.'
+                  : 'The CUDA lane failed or was cancelled. Do not claim a trained checkpoint without both verified receipts.'
+              ].join('\n')
+            });

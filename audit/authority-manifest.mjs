@@ -54,12 +54,42 @@ const fullVersionWorkflowRow = {
   denyW: [['scripts/tests/archie-repository-completion.test.mjs', 'prepares an exact read-only clone without touching the source']]
 };
 
+const cudaTrainingWorkflowRow = {
+  id: 'workflow.archie-cuda-training', f: 'workflow', op: 'Authorize and execute evidence-bound Archie CUDA QLoRA training or emit a pre-queue blocker',
+  actor: 'Repository owner pushing a bound request to main or manually dispatching; pull requests execute contract checks only',
+  principal: 'Read-only GitHub Actions token for checkout and a bounded issues:write token for terminal receipts; real training runs only on an explicitly labeled self-hosted CUDA runner',
+  auth: 'contents:read and issues:write; repository-owner actor, ARCHIE_CUDA_RUNNER_READY=1, configured runner label, exact Python, compiler config, student checkpoint, and output root are mandatory before queue',
+  object: 'Authorization or blocker artifact, issue receipt, local compiled workspace, QLoRA adapter/checkpoints, runner evidence, logs, and non-admitted training receipts',
+  owner: 'Repository owner controls request and variables; self-hosted runner operator controls GPU and local model/data inputs; admission remains independently governed',
+  deny: 'pull request cannot enter training lane|actor is not repository owner|required variable is missing|readiness flag is not one|runner label is unavailable|CUDA or VRAM preflight fails|pinned dependency or local input is missing|compiler or trainer fails|receipt is missing artifacts or attempts promotion',
+  replay: 'Request ID, issue number, exact code SHA, Actions run and attempt, runner identity, GPU identity, config and trainer digests, compiled plan, data identities, sample order, checkpoint identity, output bytes, and both receipt digests.',
+  pub: 'Workflow status, bounded issue comments, blocker metadata, and artifact names are public.',
+  priv: 'Local model weights, reviewed source datasets, compiler config contents, runner filesystem paths beyond bounded receipts, registration tokens, and GitHub token remain private.', st: 'e',
+  s: [
+    'workflow-permission:.github/workflows/archie-cuda-training.yml:contents:read',
+    'workflow-permission:.github/workflows/archie-cuda-training.yml:issues:write'
+  ],
+  impl: [[
+    '.github/workflows/archie-cuda-training.yml',
+    'permissions:',
+    'contents: read',
+    'issues: write',
+    'ARCHIE_CUDA_RUNNER_READY',
+    'No training job was queued. Missing configuration is a blocker',
+    'runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_CUDA_RUNNER_LABEL }}"]',
+    "'promotion': 'not-admitted'"
+  ]],
+  allow: [['.github/workflows/archie-cuda-training.yml', 'A real CUDA QLoRA run produced uploaded artifacts']],
+  denyW: [['.github/workflows/archie-cuda-training.yml', 'No GPU job, gradient update, checkpoint, or training receipt was produced.']]
+};
+
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
   persistentCoreWorkflowRow,
   nativeIPhoneWorkflowRow,
   fullVersionWorkflowRow,
+  cudaTrainingWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({

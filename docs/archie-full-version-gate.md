@@ -4,7 +4,7 @@ This gate is the repository-level receipt for the current Archie product surface
 
 ## What it proves
 
-The gate requires the repository to keep the executable local, hosted, hybrid, compatibility, portable-workspace, and distillation contract surfaces present at the same time.
+The gate requires the repository to keep the executable local, hosted, hybrid, compatibility, portable-workspace, distillation-contract, and fail-closed CUDA Actions surfaces present at the same time.
 
 The GitHub Actions workflow runs:
 
@@ -20,6 +20,8 @@ The generated `archie-full-version-gate.json` receipt records exact file identit
 ## Training boundary
 
 `foundry/archie-distill/train.py` remains the only real QLoRA training entrypoint. It is CUDA-only, offline, pinned to a local checkpoint, and refuses slow CPU fallback. A GitHub-hosted CPU runner may test the distillation contracts, but it must not emit a trained-candidate promotion receipt.
+
+`.github/workflows/archie-cuda-training.yml` provides a truthful Actions bridge to an explicitly configured self-hosted CUDA runner. Its standard-runner authorization job refuses to queue training until the repository owner, runner label, pinned Python, compiler config, local student checkpoint, output root, and readiness flag are all present. Missing configuration produces a blocker receipt rather than a fake checkpoint or an indefinitely queued GPU claim.
 
 ## Promotion boundary
 

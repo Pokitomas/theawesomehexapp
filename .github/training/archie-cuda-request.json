@@ -1,0 +1,8 @@
+{
+  "schema": "archie-cuda-training-request/v1",
+  "request_id": "issue-576-baseline-8c9fcf0",
+  "issue_number": 576,
+  "baseline_commit": "8c9fcf0bf480d7fa842544ecc5884f24cd13cb51",
+  "intent": "Attempt real CUDA NF4 QLoRA training through GitHub Actions or emit an exact pre-queue blocker.",
+  "promotion": "not-admitted"
+}
