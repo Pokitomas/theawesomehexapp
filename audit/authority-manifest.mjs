@@ -108,12 +108,12 @@ const causalDigitalTwinWorkflowRow = {
     'ARCHIE_DIGITAL_TWIN_RUNNER_READY',
     'runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_DIGITAL_TWIN_RUNNER_LABEL }}"]',
     'foundry/archie-distill/run_causal_divergence_digital_twin.py',
-    "'neuralEvidence': false",
-    "'gradient_steps': 0",
-    "'promotion': 'not-admitted'"
+    'neuralEvidence: false',
+    'gradient_steps: 0',
+    "promotion: 'not-admitted'"
   ]],
-  allow: [['foundry/archie-distill/test_causal_divergence_digital_twin.py', 'emits non-neural digest-bound receipt']],
-  denyW: [['foundry/archie-distill/test_causal_divergence_digital_twin.py', 'source cannot emit CUDA training receipt']]
+  allow: [['foundry/archie-distill/test_causal_divergence_digital_twin.py', 'test_emits_non_neural_digest_bound_receipt']],
+  denyW: [['foundry/archie-distill/test_causal_divergence_digital_twin.py', 'test_source_cannot_emit_cuda_training_receipt']]
 };
 
 const compatibilityMigrationWorkflowRow = {
