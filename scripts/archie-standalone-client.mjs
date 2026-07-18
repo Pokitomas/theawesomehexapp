@@ -41,7 +41,7 @@ export function renderStandaloneClient() {
     .row span { display: block; color: #746c5f; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 800; margin-bottom: 4px; }
     .row strong, .row code { overflow-wrap: anywhere; font-size: 13px; }
     .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
-    .actions button, .actions a { border: 1px solid #bdb29e; background: #f8f4ea; color: #171714; border-radius: 12px; padding: 10px; text-align: center; text-decoration: none; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .actions button { border: 1px solid #bdb29e; background: #f8f4ea; color: #171714; border-radius: 12px; padding: 10px; text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; }
     details { margin-top: 14px; border-top: 1px solid #d8cfbd; padding-top: 12px; }
     summary { cursor: pointer; font-size: 12px; font-weight: 800; }
     pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.45; background: #181815; color: #f5f0e5; padding: 12px; border-radius: 12px; max-height: 280px; overflow: auto; }
@@ -102,9 +102,22 @@ export function renderStandaloneClient() {
         '<div class="row"><span>Rollback</span><strong>' + escapeHtml(result.rollback_id) + '</strong></div>' +
         '<div class="row"><span>Portable bundle</span><code>' + escapeHtml(result.bundle_digest) + '</code></div>' +
         '</div>' +
-        '<div class="actions"><a href="/v1/workspaces/' + encodeURIComponent(result.workspace_id) + '" target="_blank">Inspect state</a><button id="export" type="button">Download export</button></div>' +
-        '<details><summary>Exact terminal receipt</summary><pre>' + escapeHtml(JSON.stringify(result, null, 2)) + '</pre></details>';
+        '<div class="actions"><button id="inspect" type="button">Inspect exact state</button><button id="export" type="button">Download export</button></div>' +
+        '<details><summary>Exact terminal receipt</summary><pre>' + escapeHtml(JSON.stringify(result, null, 2)) + '</pre></details>' +
+        '<details id="state-details"><summary>Workspace state and evidence</summary><pre id="raw-state">Select “Inspect exact state.”</pre></details>';
+      document.querySelector('#inspect').addEventListener('click', inspectState);
       document.querySelector('#export').addEventListener('click', exportBundle);
+    }
+
+    async function inspectState() {
+      if (!latest) return;
+      const response = await fetch('/v1/workspaces/' + encodeURIComponent(latest.workspace_id), {
+        headers: { 'x-archie-principal': 'owner_local' }
+      });
+      const value = await response.json();
+      if (!response.ok) throw new Error(value.message || 'Inspection failed.');
+      document.querySelector('#raw-state').textContent = JSON.stringify(value, null, 2);
+      document.querySelector('#state-details').open = true;
     }
 
     async function exportBundle() {
