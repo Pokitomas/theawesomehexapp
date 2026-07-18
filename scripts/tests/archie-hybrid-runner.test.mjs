@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { HybridQueue, verifyHybridEvents } from '../archie-hybrid-queue.mjs';
-import { resolveHybridRunnerConfig, runHybridOnce } from '../archie-hybrid-runner.mjs';
+import { executeHybridJob, resolveHybridRunnerConfig, runHybridOnce } from '../archie-hybrid-runner.mjs';
 import { startHybridHostedArchied } from '../archie-hybrid-hosted.mjs';
 
 const founderToken = 'archie-founder-hybrid-token-0123456789abcdef';
@@ -146,6 +146,7 @@ test('outbound runner executes locally, returns a verified bundle, and hosted Ar
   assert.equal(queueStatus.response.status, 200);
   assert.equal(queueStatus.payload.queue.counts.completed, 1);
   assert.equal(queueStatus.payload.service.execution.inbound_local_access_required, false);
+  assert.equal(queueStatus.payload.service.execution.admission_serialized_with_terminal_commit, true);
   assert.equal(queueStatus.payload.service.github_required, false);
 
   await runtime.close();
@@ -162,6 +163,73 @@ test('outbound runner executes locally, returns a verified bundle, and hosted Ar
   assert.equal(afterRestart.payload.job.state, 'completed');
   const restoredWorkspace = await restarted.hosted.internal.engine.inspect(result.workspace_id, { principalId: 'owner_local' });
   assert.equal(restoredWorkspace.head_digest, imported.head_digest);
+});
+
+test('workspace admission and terminal queue commit share one fencing critical section', async t => {
+  const hostedHome = await tempRoot(t, 'archie-hybrid-fence-hosted-');
+  const runnerHome = await tempRoot(t, 'archie-hybrid-fence-runner-');
+  const runtime = await startHybridHostedArchied({
+    home: hostedHome,
+    founderToken,
+    runnerToken,
+    host: '127.0.0.1',
+    port: 0
+  });
+  t.after(() => runtime.close().catch(() => {}));
+
+  const submitted = await api(runtime.url, founderToken, '/v1/hybrid/jobs', {
+    method: 'POST',
+    body: { objective, requested_change: requestedChange, approve: true, visibility: 'private' }
+  });
+  assert.equal(submitted.response.status, 201);
+  const jobId = submitted.payload.job.job_id;
+
+  const leased = await api(runtime.url, runnerToken, '/v1/hybrid/lease', {
+    method: 'POST',
+    body: { runner_id: 'fenced-runner', capabilities: ['maker', 'portable_workspace'], ttl_ms: 120_000 }
+  });
+  assert.equal(leased.response.status, 200);
+  const lease = leased.payload.job.lease;
+  const result = await executeHybridJob(leased.payload.job, { home: runnerHome });
+
+  const provider = runtime.hosted.internal.provider;
+  const originalAppendEvent = provider.appendEvent.bind(provider);
+  let releaseAdmission;
+  let admissionStarted;
+  const release = new Promise(resolve => { releaseAdmission = resolve; });
+  const started = new Promise(resolve => { admissionStarted = resolve; });
+  let blockFirstEvent = true;
+  provider.appendEvent = async (...args) => {
+    if (blockFirstEvent) {
+      blockFirstEvent = false;
+      admissionStarted();
+      await release;
+    }
+    return originalAppendEvent(...args);
+  };
+
+  const completionPromise = api(runtime.url, runnerToken, `/v1/hybrid/jobs/${jobId}/complete`, {
+    method: 'POST',
+    body: { ...lease, result }
+  });
+  await started;
+  const cancellationPromise = api(runtime.url, founderToken, `/v1/hybrid/jobs/${jobId}/cancel`, {
+    method: 'POST',
+    body: { reason: 'Must not overtake accepted completion admission.' }
+  });
+  releaseAdmission();
+
+  const [completion, cancellation] = await Promise.all([completionPromise, cancellationPromise]);
+  assert.equal(completion.response.status, 200);
+  assert.equal(completion.payload.job.state, 'completed');
+  assert.equal(cancellation.response.status, 409);
+  assert.equal(cancellation.payload.error, 'job_terminal');
+
+  const imported = await runtime.hosted.internal.engine.inspect(result.workspace_id, { principalId: 'owner_local' });
+  assert.equal(imported.head_digest, result.head_digest);
+  const status = await api(runtime.url, founderToken, `/v1/hybrid/jobs/${jobId}`);
+  assert.equal(status.payload.job.state, 'completed');
+  assert.equal(status.payload.job.result.head_digest, imported.head_digest);
 });
 
 test('runner source is outbound-only and opens no listener', async () => {
