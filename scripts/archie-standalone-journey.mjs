@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { MakerEngine, digest } from './maker-engine.mjs';
+import { WorkspaceError } from './archie-workspace-core.mjs';
 import { exportWorkspaceBundle, writeWorkspaceBundle } from './archie-workspace-portable.mjs';
 
 export const ARCHIE_STANDALONE_JOURNEY_SCHEMA = 'archie-standalone-journey/v1';
@@ -115,11 +116,11 @@ function productDocuments({ objective, requestedChange, phase }) {
 }
 
 async function runMakerPass({ dataRoot, sandboxRoot, workspaceId, objective, requestedChange, phase }) {
-  const verifierPath = await ensureVerifier(path.join(dataRoot, 'tools', 'verify-standalone-product.mjs'));
+  await ensureVerifier(path.join(sandboxRoot, 'verify-product.mjs'));
   const statePath = path.join(dataRoot, 'maker', `${workspaceId}-${phase}.json`);
   const baseSha = digest({ workspaceId, objective }).slice(0, 40);
   const branch = `workspace/${workspaceId}-${phase}`;
-  const command = { program: 'node', args: [verifierPath, sandboxRoot, phase] };
+  const command = { program: 'node', args: ['verify-product.mjs', '.', phase] };
   const maker = await MakerEngine.create({
     root: sandboxRoot,
     state_path: statePath,
@@ -128,7 +129,7 @@ async function runMakerPass({ dataRoot, sandboxRoot, workspaceId, objective, req
       base_sha: baseSha,
       branch,
       request: `Materialize the ${phase} bounded product hypothesis for ${workspaceId}.`,
-      protect: 'Write only product/**. No network, contact, spending, deployment, repository metadata, or secret access.',
+      protect: 'Write only product/**. No network, contact, spending, deployment, repository metadata, secret access, or local path disclosure in receipts.',
       proof: 'Exact file digests, allowlisted verification, append-only Maker events, and a terminal receipt.'
     },
     lease: {
@@ -147,7 +148,7 @@ async function runMakerPass({ dataRoot, sandboxRoot, workspaceId, objective, req
   }
   await maker.checkpoint(`${phase}-product-files-written`);
   const verification = await maker.verify([command]);
-  if (!verification.ok) throw new Error(`Maker ${phase} verification failed.`);
+  if (!verification.ok) throw new WorkspaceError(`Maker ${phase} verification failed.`);
   const receipt = await maker.receipt();
   return Object.freeze({
     phase,
@@ -175,12 +176,13 @@ export async function executeStandaloneJourney({
   approve = false,
   visibility = 'private'
 } = {}) {
-  if (!engine) throw new Error('Standalone journey requires a workspace engine.');
+  if (!engine) throw new WorkspaceError('Standalone journey requires a workspace engine.');
   const statement = clean(objective, 8_000);
-  if (!statement) throw new Error('Standalone journey requires an objective.');
+  if (!statement) throw new WorkspaceError('Standalone journey requires an objective.');
   const revision = clean(requestedChange, 4_000);
-  if (!revision) throw new Error('Standalone journey requires an explicit requested change.');
-  if (approve !== true) throw new Error('Standalone journey requires explicit approval after evidence.');
+  if (!revision) throw new WorkspaceError('Standalone journey requires an explicit requested change.');
+  if (approve !== true) throw new WorkspaceError('Standalone journey requires explicit approval after evidence.');
+  if (!['public', 'private', 'locally_sealed'].includes(visibility)) throw new WorkspaceError('Standalone journey visibility is invalid.');
 
   const workspaceId = identifier('workspace');
   const selectedDataRoot = path.resolve(dataRoot);
@@ -191,7 +193,7 @@ export async function executeStandaloneJourney({
   await engine.execute(workspaceId, 'owner_local', 'objective.define', {
     objective_id: 'objective_product',
     statement,
-    protected_reality: 'No network, spending, contact, deployment, destructive writes, hidden source-host authority, or fabricated customer evidence.',
+    protected_reality: 'No network, spending, contact, deployment, destructive writes, hidden source-host authority, local path disclosure, or fabricated customer evidence.',
     proof_of_done: 'A real bounded Maker run, requested change, repaired artifact, independent evidence, explicit approval, rollback receipt, and portable export.'
   });
   for (const agent of [
@@ -303,6 +305,7 @@ export async function executeStandaloneJourney({
     event_count: final.state.event_count,
     bundle_digest: bundle.bundle_digest,
     bundle_path: bundlePath,
+    bundle_uri: `archie-export://${workspaceId}/${bundle.bundle_digest}`,
     claim_boundary: 'The journey proves local mechanics, authority, revision, evidence, approval, rollback, and portability. It does not prove customer value, trained-model intelligence, hosted deployment, or device admission.'
   });
 }
