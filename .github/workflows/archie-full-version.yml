@@ -18,7 +18,11 @@ on:
       - 'ARCHIE_*.md'
       - 'Dockerfile.archie'
       - 'compose.yaml'
+      - '.github/training/archie-cuda-request.json'
+      - '.github/workflows/archie-cuda-training.yml'
       - '.github/workflows/archie-full-version.yml'
+      - 'docs/archie-cuda-training-actions.md'
+      - 'docs/archie-full-version-gate.md'
   push:
     branches: [main]
     paths:
@@ -37,7 +41,11 @@ on:
       - 'ARCHIE_*.md'
       - 'Dockerfile.archie'
       - 'compose.yaml'
+      - '.github/training/archie-cuda-request.json'
+      - '.github/workflows/archie-cuda-training.yml'
       - '.github/workflows/archie-full-version.yml'
+      - 'docs/archie-cuda-training-actions.md'
+      - 'docs/archie-full-version-gate.md'
   workflow_dispatch:
 
 permissions:
