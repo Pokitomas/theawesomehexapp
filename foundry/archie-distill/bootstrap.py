@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Fail-closed bootstrap for the pinned Archie distillation workspace."""
-import argparse, hashlib, json, pathlib, platform, sys
+import argparse, hashlib, json, pathlib, platform, shutil, sys
+
+MIN_PYTHON = (3, 10)
 
 def digest(path):
     h = hashlib.sha256()
@@ -10,6 +12,14 @@ def digest(path):
     return h.hexdigest()
 
 def main():
+    # Python version pre-flight
+    if sys.version_info < MIN_PYTHON:
+        raise SystemExit(
+            f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ is required "
+            f"(found {platform.python_version()}). "
+            "Install a supported Python version and re-run bootstrap."
+        )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", required=True)
     parser.add_argument("--workspace", required=True)
@@ -20,6 +30,20 @@ def main():
     root.mkdir(parents=True, exist_ok=True)
     (root / "models" / "teacher").mkdir(parents=True, exist_ok=True)
     (root / "models" / "student").mkdir(parents=True, exist_ok=True)
+
+    # Disk space pre-flight
+    footprint = profile.get("footprint", {})
+    recommended_free = footprint.get("recommended_free_bytes", 0)
+    if recommended_free > 0:
+        free_bytes = shutil.disk_usage(root).free
+        if free_bytes < recommended_free:
+            raise SystemExit(
+                f"Insufficient disk space: {free_bytes:,} bytes free at {root}. "
+                f"The profile recommends at least {recommended_free:,} bytes "
+                f"(~{recommended_free // 10**9} GB). "
+                "Free up disk space and re-run bootstrap."
+            )
+
     result = {
         "schema": "archie-distill-bootstrap/v1",
         "workspace": str(root),
@@ -29,6 +53,7 @@ def main():
         "downloads_accepted": bool(args.accept_downloads),
         "teacher_ready": False,
         "student_ready": False,
+        "disk_free_bytes": shutil.disk_usage(root).free,
         "claim_boundary": profile["claim_boundary"]
     }
     teacher = root / "models" / "teacher" / profile["teacher"]["filename"]

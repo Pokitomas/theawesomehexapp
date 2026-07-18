@@ -17,14 +17,14 @@ test('quality profile pins exact inputs and an honest claim boundary', async () 
   assert.ok(profile.footprint.recommended_free_bytes >= 69_000_000_000);
 });
 
-test('workspace initialization creates a digest-bound sixteen-task curriculum', async () => {
+test('workspace initialization creates a digest-bound thirty-two-task curriculum', async () => {
   const workspace = await temp();
   const receipt = await initializeWorkspace({ profilePath, workspace });
-  assert.equal(receipt.task_count, 16);
+  assert.equal(receipt.task_count, 32);
   assert.match(receipt.profile_sha256, /^[a-f0-9]{64}$/);
   const rows = (await fs.readFile(path.join(workspace, 'curriculum.jsonl'), 'utf8')).trim().split('\n').map(JSON.parse);
   assert.equal(rows[0].task_id, 'evidence-plan-01');
-  assert.equal(new Set(rows.map(row => row.task_id)).size, 16);
+  assert.equal(new Set(rows.map(row => row.task_id)).size, 32);
 });
 
 test('teacher run checkpoints clean output', async () => {

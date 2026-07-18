@@ -172,6 +172,58 @@ def supported_kwargs(callable_object: Any, values: dict[str, Any]) -> dict[str, 
     return {key: value for key, value in values.items() if key in parameters}
 
 
+def check_disk_space(path: pathlib.Path, required_bytes: int) -> None:
+    """Fail closed if the output filesystem has insufficient free space."""
+    import shutil
+    path.mkdir(parents=True, exist_ok=True)
+    free_bytes = shutil.disk_usage(path).free
+    if free_bytes < required_bytes:
+        raise SystemExit(
+            f"Insufficient disk space: {free_bytes:,} bytes free at {path}, "
+            f"need at least {required_bytes:,} bytes."
+        )
+
+
+def estimate_adapter_bytes(lora_rank: int, lora_alpha: int) -> int:
+    """Conservative estimate of adapter output size for disk pre-flight."""
+    _ = lora_alpha  # included in signature for receipt completeness
+    return max(512 * 1024 * 1024, lora_rank * 32 * 1024 * 1024)
+
+
+class ReceiptProgressCallback:
+    """Collects per-step training metrics for inclusion in the receipt."""
+
+    def __init__(self) -> None:
+        self.steps: list[dict[str, Any]] = []
+        self.epoch_summaries: list[dict[str, Any]] = []
+        self._epoch_steps: list[dict[str, Any]] = []
+        self._start_time = time.monotonic()
+
+    def on_log(self, _args: Any, state: Any, _control: Any, logs: dict[str, Any] | None = None, **_kwargs: Any) -> None:
+        if logs is None:
+            return
+        elapsed = time.monotonic() - self._start_time
+        record = {"step": getattr(state, "global_step", None), "elapsed_s": round(elapsed, 2), **{k: v for k, v in logs.items() if isinstance(v, (int, float))}}
+        self.steps.append(record)
+        self._epoch_steps.append(record)
+
+    def on_epoch_end(self, _args: Any, state: Any, _control: Any, **_kwargs: Any) -> None:
+        if not self._epoch_steps:
+            return
+        losses = [s["loss"] for s in self._epoch_steps if "loss" in s]
+        self.epoch_summaries.append({
+            "epoch": getattr(state, "epoch", None),
+            "steps": len(self._epoch_steps),
+            "mean_loss": round(sum(losses) / len(losses), 6) if losses else None,
+            "final_loss": losses[-1] if losses else None,
+            "elapsed_s": round(time.monotonic() - self._start_time, 2),
+        })
+        self._epoch_steps = []
+
+    def summary(self) -> dict[str, Any]:
+        return {"steps": self.steps, "epoch_summaries": self.epoch_summaries}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", required=True)
@@ -182,6 +234,7 @@ def main() -> None:
     parser.add_argument("--gradient-accumulation-steps", type=int, default=8)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--pretrain-weight", type=float, default=0.25)
+    parser.add_argument("--resume-from-checkpoint", help="Resume training from an existing checkpoint directory")
     args = parser.parse_args()
 
     profile_path = pathlib.Path(args.profile).resolve()
@@ -246,6 +299,10 @@ def main() -> None:
         raise SystemExit(f"Student checkpoint is missing: {model_dir}")
     if output.exists():
         raise SystemExit(f"Refusing to overwrite existing output: {output}")
+
+    # Disk pre-flight: require enough space for adapter + checkpoints before writing anything
+    required_disk = estimate_adapter_bytes(int(cfg["lora_rank"]), int(cfg["lora_alpha"])) * max(2, int(cfg.get("save_total_limit", 2)) + 1)
+    check_disk_space(output.parent, required_disk)
     output.mkdir(parents=True)
 
     checkpoint_identity = directory_identity(model_dir)
@@ -294,6 +351,9 @@ def main() -> None:
     random.shuffle(neural_rows)
     if not neural_rows:
         raise SystemExit("Dataset mixing produced zero training rows.")
+    lane_counts: dict[str, int] = {}
+    for row in neural_rows:
+        lane_counts[row["lane"]] = lane_counts.get(row["lane"], 0) + 1
     training_order = [
         {"index": index, "lane": row["lane"], "text_sha256": hashlib.sha256(row["text"].encode("utf-8")).hexdigest()}
         for index, row in enumerate(neural_rows)
@@ -314,10 +374,14 @@ def main() -> None:
 
     train_dataset = Dataset.from_list(neural_rows)
     eval_dataset = Dataset.from_list(eval_rows) if eval_rows else None
+    progress_callback = ReceiptProgressCallback()
     training_argument_values = {
         "output_dir": str(output / "checkpoints"),
         "num_train_epochs": float(cfg["epochs"]),
         "learning_rate": float(cfg["learning_rate"]),
+        "weight_decay": float(cfg.get("weight_decay", 0.01)),
+        "warmup_ratio": float(cfg.get("warmup_ratio", 0.06)),
+        "lr_scheduler_type": str(cfg.get("lr_scheduler_type", "cosine")),
         "per_device_train_batch_size": args.batch_size,
         "per_device_eval_batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
@@ -327,6 +391,8 @@ def main() -> None:
         "dataloader_num_workers": 0,
         "logging_steps": 1,
         "save_strategy": "epoch",
+        "save_total_limit": int(cfg.get("save_total_limit", 2)),
+        "load_best_model_at_end": bool(cfg.get("load_best_model_at_end", False)),
         "eval_strategy": "epoch" if eval_dataset is not None else "no",
         "evaluation_strategy": "epoch" if eval_dataset is not None else "no",
         "seed": seed,
@@ -343,6 +409,7 @@ def main() -> None:
         "r": int(cfg["lora_rank"]),
         "lora_alpha": int(cfg["lora_alpha"]),
         "lora_dropout": float(cfg.get("lora_dropout", 0.0)),
+        "use_rslora": bool(cfg.get("use_rslora", False)),
         "bias": "none",
         "task_type": "CAUSAL_LM",
         "target_modules": cfg.get("target_modules", "all-linear"),
@@ -351,13 +418,14 @@ def main() -> None:
         "model": model,
         "train_dataset": train_dataset,
         "eval_dataset": eval_dataset,
-        "peft_config": LoraConfig(**lora_values),
+        "peft_config": LoraConfig(**supported_kwargs(LoraConfig.__init__, lora_values)),
         "args": training_args,
         "dataset_text_field": "text",
         "max_seq_length": args.max_seq_length,
         "packing": bool(cfg.get("packing", True)),
         "tokenizer": tokenizer,
         "processing_class": tokenizer,
+        "callbacks": [progress_callback],
     }
     trainer = SFTTrainer(**supported_kwargs(SFTTrainer.__init__, trainer_values))
     trainable_parameters = [name for name, parameter in trainer.model.named_parameters() if parameter.requires_grad]
@@ -367,7 +435,10 @@ def main() -> None:
     if non_adapter_parameters:
         raise SystemExit(f"QLoRA attempted to train non-adapter parameters: {non_adapter_parameters[:8]}")
 
-    result = trainer.train()
+    resume_checkpoint = args.resume_from_checkpoint or None
+    if resume_checkpoint and not pathlib.Path(resume_checkpoint).exists():
+        raise SystemExit(f"Resume checkpoint directory not found: {resume_checkpoint}")
+    result = trainer.train(resume_from_checkpoint=resume_checkpoint)
     adapter_dir = output / "adapter"
     trainer.model.save_pretrained(adapter_dir)
     tokenizer.save_pretrained(adapter_dir)
@@ -392,6 +463,7 @@ def main() -> None:
             "negative_correction_rows": len(negative_rows),
             "development_rows": len(development_rows),
             "effective_train_rows": len(neural_rows),
+            "lane_breakdown": lane_counts,
             "training_order_digest": training_order_digest,
         },
         "runtime": {
@@ -411,6 +483,9 @@ def main() -> None:
             "method": "cuda-nf4-double-quant-qlora-multilane-sft",
             "quantization": quantization_values,
             "optimizer": "paged_adamw_8bit",
+            "lr_scheduler_type": str(cfg.get("lr_scheduler_type", "cosine")),
+            "warmup_ratio": float(cfg.get("warmup_ratio", 0.06)),
+            "weight_decay": float(cfg.get("weight_decay", 0.01)),
             "seed": seed,
             "epochs": float(cfg["epochs"]),
             "learning_rate": float(cfg["learning_rate"]),
@@ -422,6 +497,8 @@ def main() -> None:
             "gradient_checkpointing": True,
             "packing": bool(cfg.get("packing", True)),
             "pretrain_weight": args.pretrain_weight,
+            "save_total_limit": int(cfg.get("save_total_limit", 2)),
+            "resumed_from_checkpoint": resume_checkpoint,
             "determinism": {
                 "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
                 "deterministic_algorithms": True,
@@ -432,6 +509,7 @@ def main() -> None:
         },
         "train_metrics": result.metrics,
         "development_metrics": evaluation,
+        "training_progress": progress_callback.summary(),
         "artifacts": artifact_manifest(adapter_dir),
         "promotion": "not-admitted",
         "claim_boundary": "Real local CUDA NF4 QLoRA gradient training completed. Capability, safety, authority, and production promotion remain unproven until independent hidden evaluation and admission.",

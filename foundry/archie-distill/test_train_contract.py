@@ -103,6 +103,67 @@ class NeuralTrainerContractTest(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
+    def test_cosine_scheduler_and_warmup_are_configured(self):
+        for marker in (
+            '"warmup_ratio"',
+            '"weight_decay"',
+            '"lr_scheduler_type"',
+            "cfg.get(\"warmup_ratio\"",
+            "cfg.get(\"weight_decay\"",
+            "cfg.get(\"lr_scheduler_type\"",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_rslora_flag_is_passed_to_lora_config(self):
+        self.assertIn('"use_rslora"', self.source)
+        self.assertIn('cfg.get("use_rslora"', self.source)
+
+    def test_save_total_limit_and_resume_are_supported(self):
+        for marker in (
+            '"save_total_limit"',
+            "cfg.get(\"save_total_limit\"",
+            "--resume-from-checkpoint",
+            "resume_from_checkpoint=resume_checkpoint",
+            "resumed_from_checkpoint",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_disk_preflight_check_is_present(self):
+        for marker in (
+            "check_disk_space(",
+            "estimate_adapter_bytes(",
+            "Insufficient disk space",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_lane_breakdown_and_progress_callback_are_in_receipt(self):
+        for marker in (
+            "lane_counts",
+            "lane_breakdown",
+            "ReceiptProgressCallback",
+            "training_progress",
+            "progress_callback.summary()",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_correction_target_always_includes_required_behavior_key(self):
+        target = json.loads(self.module.correction_target({}))
+        self.assertIn("required_behavior", target)
+        self.assertEqual(target["decision"], "reject-and-replan")
+
+    def test_disk_check_raises_on_insufficient_space(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory)
+            # Request an absurdly large amount — should always fail.
+            with self.assertRaises(SystemExit) as context:
+                self.module.check_disk_space(path, 10 ** 18)
+            self.assertIn("Insufficient disk space", str(context.exception))
+
+    def test_estimate_adapter_bytes_is_at_least_minimum_floor(self):
+        for rank in (8, 16, 32, 64):
+            size = self.module.estimate_adapter_bytes(rank, rank * 2)
+            self.assertGreaterEqual(size, 512 * 1024 * 1024)
+
 
 if __name__ == "__main__":
     unittest.main()

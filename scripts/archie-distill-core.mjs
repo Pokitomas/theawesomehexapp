@@ -47,7 +47,23 @@ const curriculum = [
   ['privacy-01', 'Keep training admission separate from retrieval admission for user-connected and public sources.', { domain: 'privacy' }],
   ['training-01', 'Explain what a sixteen-example QLoRA smoke run can and cannot establish.', { domain: 'training' }],
   ['verification-01', 'Define exact-head verification receipts for source, tests, artifacts, and benchmark outputs.', { domain: 'verification' }],
-  ['handoff-01', 'Produce a concise engineering handoff with exact SHA, files, tests, blockers, and rollback.', { domain: 'handoff' }]
+  ['handoff-01', 'Produce a concise engineering handoff with exact SHA, files, tests, blockers, and rollback.', { domain: 'handoff' }],
+  ['calibration-01', 'Identify when a model response should be withheld due to high uncertainty and what evidence is needed before proceeding.', { domain: 'calibration' }],
+  ['scope-01', 'Given an ambiguous user request spanning multiple objectives, derive the minimal bounded scope that can be completed and verified without overstepping.', { domain: 'planning' }],
+  ['escalation-01', 'A task exceeds your local authority. Describe the exact escalation record, what evidence you must preserve, and what you must not do while waiting.', { domain: 'authority' }],
+  ['corpus-01', 'A new training source is proposed. Explain the admission criteria, leakage risks, and receipts required before any row enters a training pack.', { domain: 'learning' }],
+  ['multi-step-01', 'Decompose a ten-step product build into sequential tool calls with an explicit failure boundary for each step and a recovery protocol if step four fails.', { domain: 'planning' }],
+  ['frontier-01', 'Explain the difference between a Pareto-dominant product profile, a dominated profile, and a profile that is incomparable; give an example of each.', { domain: 'product' }],
+  ['distill-boundary-01', 'A newly distilled adapter has strong benchmark metrics. State clearly what it does and does not prove, and what further evidence is required for promotion.', { domain: 'training' }],
+  ['audit-01', 'Construct a minimal audit trail for a multi-agent task that would allow an independent reviewer to verify every consequential action and its authority grant.', { domain: 'verification' }],
+  ['supply-chain-01', 'Describe the checks required before adding a new npm package dependency to a safety-critical tool, including license, known-vulnerability, and provenance verification.', { domain: 'security' }],
+  ['partial-completion-01', 'A three-stage pipeline completes two stages successfully but fails at stage three with an ambiguous error. Produce a bounded status report without claiming either success or total failure.', { domain: 'diagnosis' }],
+  ['workspace-isolation-01', 'Two concurrent Maker sessions request overlapping file paths. Explain the lease protocol, how conflicts are detected, and what happens to the second session.', { domain: 'operations' }],
+  ['inference-cost-01', 'Compare the total per-token cost model for a cloud API teacher versus a local GGUF student at three quantization levels; state which costs are known and which require measurement.', { domain: 'evaluation' }],
+  ['test-coverage-01', 'A code change touches a critical path that has no existing test. Produce a minimal test plan covering the happy path, one failure boundary, and one authority violation.', { domain: 'verification' }],
+  ['moderation-01', 'An automated system flags user content for review. Describe the authority and evidence requirements before any automated action is taken, and what requires human review.', { domain: 'authority' }],
+  ['latency-budget-01', 'A real-time interaction requires a p95 latency under 200 ms. The current measured p95 is 340 ms. Propose a bounded investigation plan without claiming a fix exists.', { domain: 'product' }],
+  ['license-conflict-01', 'A training corpus contains rows from a GPL-2.0 source and rows from an Apache-2.0 source. State the license compatibility concern and what evidence is required before using the corpus.', { domain: 'privacy' }],
 ].map(([task_id, instruction, context]) => ({ task_id, instruction, context }));
 
 export async function initializeWorkspace({ profilePath, workspace }) {
