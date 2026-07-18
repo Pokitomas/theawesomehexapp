@@ -86,6 +86,36 @@ const cudaTrainingWorkflowRow = {
   denyW: [['.github/workflows/archie-cuda-training.yml', 'No GPU job, gradient update, checkpoint, or training receipt was produced.']]
 };
 
+const causalDigitalTwinWorkflowRow = {
+  id: 'workflow.archie-causal-digital-twin', f: 'workflow', op: 'Validate the exact causal-training bundle on a controlled non-CUDA Linux host without emitting neural evidence',
+  actor: 'GitHub push or pull-request actor for dependency-light contracts; repository owner manually dispatches the exact-host lane',
+  principal: 'Read-only GitHub Actions token plus bounded issues:write terminal reporting; exact validation runs only on an explicitly labeled self-hosted Linux x64 runner',
+  auth: 'contents:read and issues:write; repository-owner actor, ARCHIE_DIGITAL_TWIN_RUNNER_READY=1, configured runner label, exact Python, compiler config, admitted trajectory batch, student checkpoint, and output root are mandatory before exact-host queue',
+  object: 'Contract results, authorization or blocker artifact, compiled workspace, causal pair receipt, digital-twin log, and non-neural digest-bound digital-twin receipt',
+  owner: 'Repository owner controls dispatch and variables; self-hosted runner operator controls the local checkpoint and admitted trajectory bytes; CUDA training authority remains separate',
+  deny: 'pull request cannot enter exact-host lane|actor is not repository owner|required variable is missing|readiness flag is not one|runner label is unavailable|host exposes CUDA|pinned dependency or local input is missing|trajectory pair compilation fails|trainer does not stop at canonical CPU refusal|digital-twin receipt claims gradients, adapter, CUDA receipt, or promotion',
+  replay: 'Bound request ID, issue number, exact code SHA, Actions run and attempt, runner label, Python and package versions, profile/config/trajectory/model identities, compiled plan and pair bytes, tokenization order, trainer refusal output digest, and digital-twin receipt digest.',
+  pub: 'Workflow status, bounded issue comments, blocker metadata, and artifact names are public.',
+  priv: 'Local model weights, reviewed trajectory batches, compiled preference rows, compiler config contents, runner filesystem paths beyond bounded receipts, registration tokens, and GitHub token remain private.', st: 'e',
+  s: [
+    'workflow-permission:.github/workflows/archie-causal-digital-twin.yml:contents:read',
+    'workflow-permission:.github/workflows/archie-causal-digital-twin.yml:issues:write'
+  ],
+  impl: [[
+    '.github/workflows/archie-causal-digital-twin.yml',
+    'contents: read',
+    'issues: write',
+    'ARCHIE_DIGITAL_TWIN_RUNNER_READY',
+    'runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_DIGITAL_TWIN_RUNNER_LABEL }}"]',
+    'foundry/archie-distill/run_causal_divergence_digital_twin.py',
+    'neuralEvidence: false',
+    'gradient_steps: 0',
+    "promotion: 'not-admitted'"
+  ]],
+  allow: [['foundry/archie-distill/test_causal_divergence_digital_twin.py', 'test_emits_non_neural_digest_bound_receipt']],
+  denyW: [['foundry/archie-distill/test_causal_divergence_digital_twin.py', 'test_source_cannot_emit_cuda_training_receipt']]
+};
+
 const compatibilityMigrationWorkflowRow = {
   id: 'workflow.archie-compatibility-migration', f: 'workflow', op: 'Verify exact legacy import and source-host authority inventory',
   actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head across the operating-system and Node matrix',
@@ -119,6 +149,7 @@ const rows = [
   nativeIPhoneWorkflowRow,
   fullVersionWorkflowRow,
   cudaTrainingWorkflowRow,
+  causalDigitalTwinWorkflowRow,
   compatibilityMigrationWorkflowRow,
   liteWorkflowRow,
   ...socialCoreRows,

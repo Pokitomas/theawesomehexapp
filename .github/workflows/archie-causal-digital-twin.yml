@@ -1,0 +1,326 @@
+name: Verify Archie causal training Linux digital twin
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/run_causal_divergence_digital_twin.py'
+      - 'foundry/archie-distill/test_causal_divergence_digital_twin.py'
+      - '.github/training/archie-digital-twin-request.json'
+      - '.github/workflows/archie-causal-digital-twin.yml'
+      - 'docs/archie-causal-digital-twin.md'
+  push:
+    branches: [main]
+    paths:
+      - 'foundry/archie-distill/run_causal_divergence_digital_twin.py'
+      - 'foundry/archie-distill/test_causal_divergence_digital_twin.py'
+      - '.github/training/archie-digital-twin-request.json'
+      - '.github/workflows/archie-causal-digital-twin.yml'
+      - 'docs/archie-causal-digital-twin.md'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Optional unique audit label overriding the bound request file
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: archie-causal-digital-twin-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
+        with:
+          python-version: '3.12'
+      - name: Verify dependency-light digital-twin contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-distill/run_causal_divergence_digital_twin.py \
+            foundry/archie-distill/test_causal_divergence_digital_twin.py
+          python foundry/archie-distill/test_causal_divergence_digital_twin.py
+          grep -Fq '"executionMode": "linux-digital-twin"' foundry/archie-distill/run_causal_divergence_digital_twin.py
+          grep -Fq '"neuralEvidence": False' foundry/archie-distill/run_causal_divergence_digital_twin.py
+          grep -Fq '"gradient_steps": 0' foundry/archie-distill/run_causal_divergence_digital_twin.py
+          ! grep -Fq 'archie-neural-causal-divergence-training-receipt/v1' foundry/archie-distill/run_causal_divergence_digital_twin.py
+
+  authorize:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      allowed: ${{ steps.authorize.outputs.allowed }}
+      issue_number: ${{ steps.authorize.outputs.issue_number }}
+      request_id: ${{ steps.authorize.outputs.request_id }}
+      missing: ${{ steps.authorize.outputs.missing }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - id: authorize
+        name: Authorize exact non-neural Linux bundle validation
+        env:
+          REQUEST_ID_INPUT: ${{ inputs.request_id }}
+          ARCHIE_DIGITAL_TWIN_RUNNER_READY: ${{ vars.ARCHIE_DIGITAL_TWIN_RUNNER_READY }}
+          ARCHIE_DIGITAL_TWIN_RUNNER_LABEL: ${{ vars.ARCHIE_DIGITAL_TWIN_RUNNER_LABEL }}
+          ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+          ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+          ARCHIE_TRAJECTORY_BATCH_PATH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
+          ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+          ARCHIE_TRAINING_OUTPUT_ROOT: ${{ vars.ARCHIE_TRAINING_OUTPUT_ROOT }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const request = JSON.parse(fs.readFileSync('.github/training/archie-digital-twin-request.json', 'utf8'));
+          if (request.schema !== 'archie-causal-digital-twin-request/v1') throw new Error('Unsupported digital-twin request schema.');
+          if (request.method !== 'verifier-anchored-causal-divergence-qlora/v1') throw new Error('Unsupported neural method.');
+          if (request.executionMode !== 'linux-digital-twin' || request.neuralEvidence !== false) throw new Error('Request attempts to cross the non-neural boundary.');
+          const issueNumber = Number(request.issue_number);
+          if (!Number.isInteger(issueNumber) || issueNumber <= 0) throw new Error('A positive issue_number is required.');
+          const required = [
+            'ARCHIE_DIGITAL_TWIN_RUNNER_LABEL',
+            'ARCHIE_TRAINING_PYTHON',
+            'ARCHIE_TRAINING_CONFIG_PATH',
+            'ARCHIE_TRAJECTORY_BATCH_PATH',
+            'ARCHIE_STUDENT_MODEL_DIR',
+            'ARCHIE_TRAINING_OUTPUT_ROOT'
+          ];
+          const missing = required.filter(name => !String(process.env[name] || '').trim());
+          if (process.env.ARCHIE_DIGITAL_TWIN_RUNNER_READY !== '1') missing.push('ARCHIE_DIGITAL_TWIN_RUNNER_READY=1');
+          if (String(process.env.GITHUB_ACTOR || '').toLowerCase() !== String(process.env.GITHUB_REPOSITORY_OWNER || '').toLowerCase()) missing.push('repository-owner actor');
+          const requestId = String(process.env.REQUEST_ID_INPUT || request.request_id || '').trim();
+          if (!requestId) missing.push('request_id');
+          const allowed = missing.length === 0;
+          const receipt = {
+            schema: 'archie-causal-digital-twin-authorization/v1',
+            method: request.method,
+            executionMode: request.executionMode,
+            neuralEvidence: false,
+            request_id: requestId || null,
+            issue_number: issueNumber,
+            repository: process.env.GITHUB_REPOSITORY,
+            code_revision: process.env.GITHUB_SHA,
+            actor: process.env.GITHUB_ACTOR,
+            allowed,
+            missing,
+            claim_boundary: allowed
+              ? 'The exact bundle may run on the configured Linux digital-twin host. Neural evidence remains impossible in this lane.'
+              : 'No digital-twin host job was queued. Missing configuration is an infrastructure blocker, not neural evidence.'
+          };
+          fs.writeFileSync('archie-causal-digital-twin-authorization.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `allowed=${allowed}\nissue_number=${issueNumber}\nrequest_id=${requestId}\nmissing=${missing.join(', ')}\n`);
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-digital-twin-authorization-${{ github.run_id }}-${{ github.run_attempt }}
+          path: archie-causal-digital-twin-authorization.json
+          if-no-files-found: error
+          retention-days: 14
+
+  blocker:
+    needs: authorize
+    if: needs.authorize.outputs.allowed != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Emit exact digital-twin infrastructure blocker
+        env:
+          REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue_number }}
+          MISSING: ${{ needs.authorize.outputs.missing }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receipt = {
+            schema: 'archie-causal-digital-twin-blocker/v1',
+            method: 'verifier-anchored-causal-divergence-qlora/v1',
+            executionMode: 'linux-digital-twin',
+            neuralEvidence: false,
+            request_id: process.env.REQUEST_ID || null,
+            issue_number: Number(process.env.ISSUE_NUMBER),
+            repository: process.env.GITHUB_REPOSITORY,
+            code_revision: process.env.GITHUB_SHA,
+            run_id: process.env.GITHUB_RUN_ID,
+            run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            missing: String(process.env.MISSING || '').split(', ').filter(Boolean),
+            gradient_steps: 0,
+            adapter_created: false,
+            promotion: 'not-admitted',
+            claim_boundary: 'Actions refused to queue the exact Linux digital twin because its controlled host or pinned local inputs were not configured.'
+          };
+          fs.writeFileSync('archie-causal-digital-twin-blocker.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-digital-twin-blocker-${{ github.run_id }}-${{ github.run_attempt }}
+          path: archie-causal-digital-twin-blocker.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report blocker on bound issue
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        env:
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue_number }}
+          REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+          MISSING: ${{ needs.authorize.outputs.missing }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              body: [
+                '<!-- archie-causal-digital-twin:v1 -->',
+                '## Linux digital twin blocked before queue',
+                '',
+                `**request:** ${process.env.REQUEST_ID || '(missing)'}`,
+                `**revision:** ${context.sha}`,
+                `**run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                `**missing:** ${process.env.MISSING || '(unknown)'}`,
+                '',
+                'No exact-host validation, CUDA gradient, adapter, checkpoint, or neural receipt was produced.'
+              ].join('\n')
+            });
+
+  digital_twin:
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_DIGITAL_TWIN_RUNNER_LABEL }}"]
+    timeout-minutes: 180
+    env:
+      ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      ARCHIE_TRAJECTORY_BATCH_PATH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
+      ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      ARCHIE_TRAINING_OUTPUT_ROOT: ${{ vars.ARCHIE_TRAINING_OUTPUT_ROOT }}
+      ARCHIE_PROFILE_PATH: maker/evaluations/archie-causal-divergence-qwen3-quality.json
+      ARCHIE_REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked repository dependencies
+        run: npm ci --ignore-scripts
+      - id: paths
+        name: Prove exact non-CUDA host and allocate unique output root
+        run: |
+          set -euo pipefail
+          test -x "$ARCHIE_TRAINING_PYTHON"
+          test -f "$ARCHIE_TRAINING_CONFIG_PATH"
+          test -f "$ARCHIE_TRAJECTORY_BATCH_PATH"
+          test -d "$ARCHIE_STUDENT_MODEL_DIR"
+          test -f "$ARCHIE_PROFILE_PATH"
+          run_root="${ARCHIE_TRAINING_OUTPUT_ROOT%/}/digital-twin-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$run_root"
+          mkdir -p "$run_root"
+          workspace="$run_root/workspace"
+          pair_output="$run_root/causal-pairs"
+          output="$run_root/output"
+          log="$run_root/digital-twin.log"
+          "$ARCHIE_TRAINING_PYTHON" - <<'PY'
+          import importlib.metadata, torch
+          required = ['torch', 'transformers', 'datasets', 'peft', 'bitsandbytes', 'accelerate']
+          missing = []
+          for name in required:
+              try: importlib.metadata.version(name)
+              except importlib.metadata.PackageNotFoundError: missing.append(name)
+          if missing: raise SystemExit(f"Pinned digital-twin packages are missing: {', '.join(missing)}")
+          if torch.cuda.is_available(): raise SystemExit('Digital-twin host exposes CUDA; refusing to risk neural execution in the non-neural lane.')
+          PY
+          printf 'workspace=%s\npair_output=%s\noutput=%s\nlog=%s\n' "$workspace" "$pair_output" "$output" "$log" >> "$GITHUB_OUTPUT"
+      - name: Compile exact digest-bound training workspace
+        run: npm run archie:student:compile -- --config "$ARCHIE_TRAINING_CONFIG_PATH" --output "${{ steps.paths.outputs.workspace }}"
+      - name: Compile exact verifier-bound causal preference pairs
+        run: |
+          set -euo pipefail
+          "$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/compile_causal_pairs.py \
+            --batch "$ARCHIE_TRAJECTORY_BATCH_PATH" \
+            --output "${{ steps.paths.outputs.pair_output }}" \
+            --seed 3407 \
+            --holdout-rate 0.2
+      - name: Execute exact non-neural Linux digital twin
+        run: |
+          set -euo pipefail
+          "$ARCHIE_TRAINING_PYTHON" foundry/archie-distill/run_causal_divergence_digital_twin.py \
+            --profile "$ARCHIE_PROFILE_PATH" \
+            --workspace "${{ steps.paths.outputs.workspace }}" \
+            --preference-data "${{ steps.paths.outputs.pair_output }}/causal-preference.train.jsonl" \
+            --preference-eval-data "${{ steps.paths.outputs.pair_output }}/causal-preference.development.jsonl" \
+            --preference-receipt "${{ steps.paths.outputs.pair_output }}/causal-preference-receipt.json" \
+            --model-dir "$ARCHIE_STUDENT_MODEL_DIR" \
+            --output "${{ steps.paths.outputs.output }}" \
+            2>&1 | tee "${{ steps.paths.outputs.log }}"
+      - name: Verify digital-twin receipt cannot claim neural evidence
+        run: |
+          set -euo pipefail
+          RECEIPT="${{ steps.paths.outputs.output }}/digital-twin-receipt.json" "$ARCHIE_TRAINING_PYTHON" - <<'PY'
+          import hashlib, json, os, pathlib
+          path = pathlib.Path(os.environ['RECEIPT'])
+          value = json.loads(path.read_text(encoding='utf-8'))
+          if value.get('schema') != 'archie-neural-linux-digital-twin-receipt/v1': raise SystemExit('Unexpected digital-twin receipt schema.')
+          if value.get('executionMode') != 'linux-digital-twin': raise SystemExit('Execution mode mismatch.')
+          if value.get('neuralEvidence') is not False: raise SystemExit('Digital twin attempted to claim neural evidence.')
+          if value.get('gradient_steps') != 0 or value.get('optimizer_steps') != 0: raise SystemExit('Digital twin attempted to claim optimization steps.')
+          if value.get('adapter_artifacts') != []: raise SystemExit('Digital twin attempted to claim an adapter.')
+          if value.get('neural_training_receipt_emitted') is not False: raise SystemExit('Digital twin attempted to claim a CUDA receipt.')
+          if value.get('promotion') != 'not-admitted': raise SystemExit('Digital twin attempted promotion.')
+          body = dict(value); claimed = body.pop('receipt_digest', None)
+          observed = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest()
+          if claimed != observed: raise SystemExit('Digital-twin receipt digest mismatch.')
+          PY
+      - name: Upload exact digital-twin evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-digital-twin-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.paths.outputs.output }}
+            ${{ steps.paths.outputs.log }}
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+      - name: Report terminal state on bound issue
+        if: always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        env:
+          ISSUE_NUMBER: ${{ needs.authorize.outputs.issue_number }}
+          REQUEST_ID: ${{ needs.authorize.outputs.request_id }}
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              body: [
+                '<!-- archie-causal-digital-twin:v1 -->',
+                '## Linux digital twin terminal state',
+                '',
+                `**request:** ${process.env.REQUEST_ID}`,
+                `**revision:** ${context.sha}`,
+                `**run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                `**job:** ${process.env.JOB_STATUS}`,
+                '',
+                process.env.JOB_STATUS === 'success'
+                  ? 'The exact staged bundle passed non-neural validation and the real trainer refused CPU fallback. `neuralEvidence: false`; no gradients, adapter, checkpoint, evaluation gain, or admission.'
+                  : 'The exact-host digital twin failed. Inspect the retained log/artifact; no CUDA gradient or neural receipt may be inferred.'
+              ].join('\n')
+            });
