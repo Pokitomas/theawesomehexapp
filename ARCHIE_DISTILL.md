@@ -26,3 +26,23 @@ The trainer is deliberately offline and never falls back to full-precision CPU t
 The receipt binds the profile, training plan, complete checkpoint identity, tokenizer identity, each dataset file, deterministic sample order, seed, GPU identity, CUDA/cuDNN and Python package versions, quantization and LoRA configuration, and every output adapter byte. Deterministic reproduction is claimed only for the same pinned checkpoint, data order, GPU class, CUDA stack, and library versions.
 
 QLoRA training uses the Hugging Face-format student checkpoint. Q4_K_M GGUF is the local teacher or post-training inference format; it is not treated as a trainable QLoRA base artifact. After independent admission, a merged student may be quantized to GGUF for llama.cpp inference.
+
+## Receipt-bound post-training quantization
+
+A locally merged Hugging Face checkpoint—whether merged with the pinned PEFT stack, Unsloth, or another independently recorded tool—can be converted into canonical GGUF candidates without making that tool part of Archie’s runtime:
+
+```text
+npm run archie:student:quantize -- \
+  --model-dir ./merged-student \
+  --model-id archie-student \
+  --model-revision-sha256 <merged-checkpoint-sha256> \
+  --source-training-receipt-sha256 <training-receipt-sha256> \
+  --converter /exact/llama.cpp/convert_hf_to_gguf.py \
+  --quantizer /exact/llama.cpp/llama-quantize \
+  --python /exact/python3 \
+  --output-dir ./quantized-candidates
+```
+
+The default candidate set is `Q4_K_M`, `Q5_K_M`, and `Q6_K`, matching the canonical GGUF rows in the iPhone research matrix. Pass repeated `--quantization` arguments to request an exact supported subset; `Q8_0` is also supported as a diagnostic baseline.
+
+The command is offline-only, refuses incomplete Hugging Face checkpoints and nonempty output directories, invokes the converter and quantizer without a shell, hashes the complete source checkpoint plus exact Python/converter/quantizer files, preserves stdout/stderr logs, and emits `archie-student-quantization-receipt/v1` binding every output byte. The outputs are candidates only. They still require the hidden-split intelligence campaign, runtime-specific evaluation, independent admission, and physical-device evidence before promotion or any iPhone-ready claim.

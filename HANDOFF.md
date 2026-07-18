@@ -1,78 +1,117 @@
 # Engineering handoff
 
-## Final repository state
+## Active work
 
-The independent-program product direction is merged to `main` through PR #511.
+Continue PR #535 on branch `agent/iphone-first-quantization-research`.
 
-- Merge SHA: `4b2386606a8e43e7914fd0e837cec5f496cc9e49`
-- Exact feature head merged: `33338a96f4cb6035e09e92de598a72caae192ec7`
-- GitHub authority: #506
-- Linear authority: POK-101
-- Product contract: `product/xp-program-surfaces.json`
+- PR: `https://github.com/Pokitomas/theawesomehexapp/pull/535`
+- Base: `main` at `0bc98d8fd5ac5d1876713063af512954a8da188a`
+- State: open, draft, mergeable
+- Authority: execute normal architecture, implementation, tests, CI repair, and issue/PR updates. **Merge remains a human decision for this task.** Stop for missing credentials, irreversible spending, legal acceptance, destructive external actions, or a genuinely unresolved product choice.
 
-The repository product direction is **independent, opaque applications**, not a shared AI dashboard or cognition pipeline.
+Always resolve the current branch head before reporting exact-head evidence because multiple co-agents have contributed to this branch.
 
-## What exists
+## Product decision
 
-- `/` and `/desktop/` — Archie Program Manager. It launches separate programs and performs no hidden model work.
-- `/archie/` — Archie Knowledge Utility with Explorer, request editor, properties inspector, portable objective packets, local recovery, and explicit runtime boundaries.
-- `/maker/` — Maker project workbench with repository identity, protected reality, proof, authority selection, public execution state, and authenticated runtime-receipt inspection.
-- `/founder/` — Founder human-invention room, preserved as an independent application.
-- `/foundry/` — Foundry Research Control with campaign configuration, contradictory candidate specimens, evidence console, and human promotion gates.
-- `/world-expo/` — Expo, preserved as an independent public experiment gallery.
+Maker remains a general repository executor and engineering workbench. Do not inject iPhone research policy into unrelated Maker requests.
 
-Each program has its own route, interface grammar, control model, phone layout, and claim boundary.
+The A15 / 4 GB requirement belongs to Archie’s runtime, admission, and product experience. A user should ask Archie, receive local or teacher-assisted reasoning, authorize Maker only when execution is required, verify the result, and control what Archie remembers.
 
-## Hard product rules
+## Implemented on PR #535
 
-Do not reintroduce:
+### Truthful iPhone admission
 
-- glass, frosted, translucent, or transparent primary surfaces;
-- bento cards, feature tiles, or large decorative image navigation;
-- an intention → planning → reasoning icon pipeline;
-- one dashboard that treats Archie, Maker, Founder, Foundry, and Expo as stages;
-- a generic AI SaaS shell;
-- stacked rounded cards as the mobile fallback;
-- streaks, levels, followers, leaderboards, fake progress, routine confetti, or engagement ranking.
+- immutable canonical A15 / 4 GB target, thresholds, workloads, conditions, and required events;
+- exact binding of model revision/artifact, runtime executable/build/dependencies/compiler receipt, benchmark corpus, hidden split, grader, workload set, campaign, and candidate binding file;
+- fresh nonce-bound execution only through `archie:device:evidence`;
+- exact iOS version and build identity;
+- independent Ed25519 measurement-authority requirement;
+- intentionally empty authority registry, so no candidate can currently be selected;
+- adversarial tests for weakened plans, self-attestation, mutation, replay, and incomplete device identity.
 
-Use title bars, menus, buttons, lists, files, fields, tabs, dialogs, inspectors, logs, status bars, and opaque application surfaces.
+### Intelligence proof contract
 
-## Evidence and contracts
+The immutable six-arm campaign compares:
 
-`scripts/tests/xp-program-surfaces.test.mjs` rejects shared visual signatures, glass/translucency, pipeline vocabulary, remote UI dependencies, missing reduced-motion and forced-color support, and missing phone layouts.
+1. no-memory Maker;
+2. retrieval-only Archie;
+3. current Archie;
+4. raw student;
+5. distilled student;
+6. teacher-only.
 
-`scripts/deployment-receipt.cjs` identifies the public root as `desktop-program-manager`, verifies the exact deployed commit, and independently verifies Founder at `/founder/` and Archie at `/archie/`.
+Terminal correctness and alternate valid solutions are primary. Teacher-trace imitation is secondary diagnostics. Promotion also requires unseen-domain derivation, recovery, calibration, structured output, authority safety, contamination control, statistical support, and clean reproduction.
 
-`.github/workflows/pages.yml` builds, tests, assembles, and deploys the independent programs.
+### Native iPhone runtime
 
-Primary verification commands:
+`ios/ArchiePhone` contains the first native SwiftUI target:
 
-```bash
-npm ci --ignore-scripts --include=dev
-node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/founder-superiority.test.mjs
-npm run test:xp-surfaces
-npm run test:portfolio
-npm run test:founder
-npm run test:foundry:human
-npm run test:frontier-expo
-node scripts/tests/maker-console.test.mjs
-node --test scripts/tests/maker-ios-install.test.mjs scripts/tests/archie-phone-product.test.mjs
-```
+- digest-verified, versioned model activation with an atomic active pointer;
+- iOS file protection;
+- Core ML local generation for an explicitly compatible admitted model;
+- cancellation, memory-warning unload, thermal pause, and Low Power Mode limits;
+- MLX and GGUF fail closed until their exact Xcode-built runtimes are admitted;
+- macOS/Xcode CI generation, build, and unit tests.
+
+This is runtime infrastructure, not proof that a model is intelligent or iPhone-ready.
+
+### Cross-platform distillation and GGUF quantization
+
+- Python contracts run through a platform-aware interpreter launcher;
+- JavaScript quantizer tools run through the exact Node executable with `shell: false`;
+- both quantizer script and launcher are hashed in receipts;
+- Windows clean install, training contracts, quantization, workspace, package/install, and first-launch journeys have passed on prior exact heads.
+
+### Architecture × quantization research
+
+The immutable 12-cell diagnostic matrix contains:
+
+- Qwen3/GGUF Q4_K_M, Q5_K_M, Q6_K, and Q8_0 controls;
+- Mamba-2 and Mamba-3 INT4/INT8 proposals;
+- RWKV-8 matrix-state, low-rank-state, quantized-state, and sparse quantized-state proposals.
+
+The repository source catalog is immutable. Mamba/RWKV rows remain blocked research proposals; no checkpoint, exporter, mobile kernel, or runtime is invented.
+
+The architecture evaluator is **diagnostic only**:
+
+- preserves expected failure-code and log-digest receipts;
+- rejects unknown failures and comparison-binding drift;
+- rejects self-attested `independent`, `reproduced`, and `physical_a15` booleans;
+- may show a diagnostic Pareto frontier;
+- always leaves selection ineligible;
+- delegates real selection to the canonical intelligence campaign, independently attested iPhone admission, and clean reproduction.
+
+## Linear execution
+
+- POK-114: truthful iPhone admission and native runtime
+- POK-115: physical A15 lab and independent measurement authority
+- POK-116: first serious distilled Archie candidate and six-arm evaluation
+- POK-117: complete native backend and model lifecycle
+- POK-118: inspectable and reversible on-device learning
+- POK-119: phone-native ask, think, act, verify, remember experience
+
+## Remaining empirical blockers
+
+No model can be promoted until all of the following exist:
+
+- a reviewed positive/negative training corpus and trained candidate;
+- untouched hidden-split results against all six arms;
+- statistically supported gains without authority or safety regression;
+- independently controlled measurement authority;
+- physical A15 / 4 GB evidence for the exact model/runtime/build;
+- second clean-environment reproduction;
+- native lifecycle evidence for activation, interruption, memory pressure, thermal behavior, offline first launch, corruption, update interruption, rollback, and removal.
+
+## Required completion sequence
+
+1. Resolve the current PR head and inspect every workflow on that exact head.
+2. Repair any repository, Windows, Xcode, or architecture-campaign failure.
+3. Confirm `test:archie:architecture`, `test:archie:distill`, and exact repository verification are green.
+4. Keep PR and Linear truth boundaries synchronized with the actual head.
+5. Mark ready for review only when current exact-head CI is green and no unresolved blocker remains.
+6. Do not merge without human approval.
+7. Do not describe any model as selected, intelligent, distilled successfully, or iPhone-ready until the empirical gates above pass.
 
 ## Truth boundary
 
-The public applications are runnable interaction surfaces. Their existence does not prove model execution, training, repository mutation, deployment, frontier capability, or general intelligence.
-
-Archie remains an evidence-gated learned planning/model system with persistent Core and Generation One infrastructure. External effects remain Maker-authorized. Capability promotion remains evidence-bound.
-
-## Remaining operational check
-
-The code merge is complete. The next operator only needs to inspect the `main`-branch Pages run for merge SHA `4b2386606a8e43e7914fd0e837cec5f496cc9e49`, confirm the Program Manager root and independent `/founder/` and `/archie/` reachability receipts, then close #506 and POK-101 if live verification is green.
-
-Do not rewrite or reopen the product architecture merely because deployment propagation or one CI witness needs repair. Fix the exact operational failure and preserve the merged product contract.
-
-## Successor authority
-
-The next engineer may refine implementation, sequencing, storage, schemas, dependencies, algorithms, tests, CI, and visual details. They may replace a subsystem when evidence supports a stronger architecture.
-
-Stop only for missing credentials, irreversible external spending, legal acceptance, or a genuinely unresolved product decision. Do not stop merely because a normal code, test, CI, issue, PR, merge, or deployment problem requires another iteration.
+The repository now has legitimate training, architecture-search, intelligence-evaluation, physical-device-admission, and native-runtime infrastructure. It still has no empirically winning distilled candidate, independently signed physical A15 matrix, or promoted iPhone model.

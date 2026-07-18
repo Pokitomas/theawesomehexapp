@@ -28,10 +28,24 @@ const persistentCoreWorkflowRow = {
   denyW: [['scripts/tests/maker-archie-persistent-core.test.mjs', 'external effects fail closed without explicit runtime authority']]
 };
 
+const nativeIPhoneWorkflowRow = {
+  id: 'workflow.archie-native-iphone', f: 'workflow', op: 'Generate, compile, and test the fail-closed native Archie iPhone runtime',
+  actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head on a hosted macOS runner',
+  auth: 'contents:read only', object: 'Generated Xcode project, simulator build, unit-test result bundle, and diagnostic artifact', owner: 'Repository CI configuration',
+  deny: 'event or path filter does not match|checkout or XcodeGen setup fails|project generation fails|no iPhone simulator is available|native build or tests fail',
+  replay: 'Exact workflow run, pull-request head SHA, hosted runner image, generated project, xcodebuild command, log, and result bundle.',
+  pub: 'Public check status, concise compiler failures, and bounded diagnostic artifacts.', priv: 'No signing identity, model artifact, production data, or deployment credential is consumed.', st: 'e',
+  s: ['workflow-permission:.github/workflows/archie-ios-runtime.yml:contents:read'],
+  impl: [['.github/workflows/archie-ios-runtime.yml', 'contents: read', 'persist-credentials: false', 'xcodegen generate', 'xcodebuild test', 'CODE_SIGNING_ALLOWED=NO']],
+  allow: [['ios/ArchiePhone/Tests/ModelManifestTests.swift', 'testAcceptsExactDigestBoundManifest']],
+  denyW: [['ios/ArchiePhone/Tests/ModelManifestTests.swift', 'testRejectsWeakRevisionAndWrongABI']]
+};
+
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
   persistentCoreWorkflowRow,
+  nativeIPhoneWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({

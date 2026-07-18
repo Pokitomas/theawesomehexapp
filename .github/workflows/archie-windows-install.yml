@@ -10,6 +10,7 @@ on:
       - 'scripts/archie-runtime-core.mjs'
       - 'scripts/archie-distill-core.mjs'
       - 'scripts/archie-distill.mjs'
+      - 'scripts/run-python.mjs'
       - 'scripts/archie-workspace-core.mjs'
       - 'scripts/archie-workspace-service.mjs'
       - 'scripts/archie-workspace.mjs'
@@ -46,7 +47,12 @@ jobs:
       - name: Verify install and first-launch contracts
         run: npm.cmd run test:archie:install
       - name: Verify distillation contracts
-        run: npm.cmd run test:archie:distill
+        shell: pwsh
+        run: |
+          $output = & npm.cmd run test:archie:distill 2>&1
+          $code = $LASTEXITCODE
+          $output | Tee-Object -FilePath archie-distillation-windows.log
+          if ($code -ne 0) { exit $code }
       - name: Verify native workspace contracts
         run: npm.cmd run test:archie:workspace
       - name: Pack, globally install, and launch like a user
@@ -74,3 +80,11 @@ jobs:
           $public = (& $archie workspace inspect $demo.workspace_id --root $workspaceRoot | ConvertFrom-Json)
           if ($public.workspace.visibility -ne 'public') { throw 'Anonymous public workspace inspection failed.' }
           & $archie list --home $archieHome
+      - name: Preserve Windows diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-windows-${{ github.event.pull_request.head.sha || github.sha }}
+          path: archie-distillation-windows.log
+          if-no-files-found: warn
+          retention-days: 14
