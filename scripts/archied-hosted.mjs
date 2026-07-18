@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { createHybridService } from './archie-hybrid-protocol.mjs';
+import { WorkspaceError } from './archie-workspace-core.mjs';
 import { startArchied } from './archied.mjs';
 
 export const ARCHIED_HOSTED_SCHEMA = 'archied-hosted-runtime/v1';
@@ -21,437 +23,438 @@ function integer(value, label, { min = 0, max = 65_535 } = {}) {
   return parsed;
 }
 
-function boolean(value, fallback = false) {
-  if (value === undefined || value === null || value === '') return fallback;
-  if (typeof value === 'boolean') return value;
-  const normalized = String(value).trim().toLowerCase();
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
-  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
-  throw new Error(`Expected a boolean value, received ${value}.`);
+function flagValue(argv, name, fallback = null) {
+  const index = argv.lastIndexOf(name);
+  if (index === -1) return fallback;
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) throw new Error(`${name} requires a value.`);
+  return value;
 }
 
-function secureEqual(left, right) {
-  const a = crypto.createHash('sha256').update(String(left ?? '')).digest();
-  const b = crypto.createHash('sha256').update(String(right ?? '')).digest();
-  return crypto.timingSafeEqual(a, b);
+function normalizePublicUrl(value) {
+  if (!value) return null;
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('ARCHIE_PUBLIC_URL must use http or https.');
+  url.pathname = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  url.search = '';
+  url.hash = '';
+  return url.href;
 }
 
-function sessionKey(token) {
-  return crypto.createHash('sha256').update('archie-hosted-session/v1\0').update(token).digest();
+export function resolveHostedConfig({ argv = [], env = process.env } = {}) {
+  const home = path.resolve(flagValue(argv, '--home', env.ARCHIE_HOME || path.join(os.homedir(), '.archie')));
+  const host = flagValue(argv, '--host', env.ARCHIE_HOST || '0.0.0.0');
+  const port = integer(flagValue(argv, '--port', env.ARCHIE_PORT || '8787'), '--port');
+  const publicUrl = normalizePublicUrl(flagValue(argv, '--public-url', env.ARCHIE_PUBLIC_URL || null));
+  const founderToken = flagValue(argv, '--founder-token', env.ARCHIE_FOUNDER_TOKEN || null);
+  const secureCookies = publicUrl?.startsWith('https://') || env.ARCHIE_SECURE_COOKIES === '1';
+  if (!founderToken || founderToken.length < 24) throw new Error('ARCHIE_FOUNDER_TOKEN must contain at least 24 characters.');
+  return Object.freeze({ home, host, port, publicUrl, founderToken, secureCookies });
 }
 
-function signSession(token, now = Date.now()) {
-  const payload = {
-    schema: ARCHIED_HOSTED_AUTH_SCHEMA,
-    role: 'founder',
-    issued_at_ms: now,
-    expires_at_ms: now + SESSION_TTL_SECONDS * 1000
-  };
-  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const signature = crypto.createHmac('sha256', sessionKey(token)).update(encoded).digest('base64url');
-  return `${encoded}.${signature}`;
-}
-
-function verifySession(value, token, now = Date.now()) {
-  const [encoded, signature, extra] = String(value || '').split('.');
-  if (!encoded || !signature || extra) return null;
-  const expected = crypto.createHmac('sha256', sessionKey(token)).update(encoded).digest('base64url');
-  if (!secureEqual(signature, expected)) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
-    if (payload.schema !== ARCHIED_HOSTED_AUTH_SCHEMA || payload.role !== 'founder') return null;
-    if (!Number.isFinite(payload.expires_at_ms) || payload.expires_at_ms <= now) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-function parseCookies(header) {
+function parseCookies(header = '') {
   const result = {};
-  for (const segment of String(header || '').split(';')) {
-    const index = segment.indexOf('=');
-    if (index <= 0) continue;
-    const name = segment.slice(0, index).trim();
-    const value = segment.slice(index + 1).trim();
-    if (name) result[name] = value;
+  for (const part of String(header).split(';')) {
+    const index = part.indexOf('=');
+    if (index < 0) continue;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key) result[key] = decodeURIComponent(value);
   }
   return result;
 }
 
-function securityHeaders() {
-  return {
-    'cache-control': 'no-store',
-    'referrer-policy': 'no-referrer',
-    'x-content-type-options': 'nosniff',
-    'x-frame-options': 'DENY',
-    'cross-origin-opener-policy': 'same-origin',
-    'cross-origin-resource-policy': 'same-origin'
-  };
+function constantTimeEqual(left, right) {
+  const a = Buffer.from(String(left));
+  const b = Buffer.from(String(right));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
-function jsonResponse(response, status, value, headers = {}) {
+function json(response, status, value, headers = {}) {
   const body = `${JSON.stringify(value, null, 2)}\n`;
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(body),
-    ...securityHeaders(),
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
     ...headers
   });
   response.end(body);
 }
 
-function htmlResponse(response, status, body, headers = {}) {
+function html(response, status, body, headers = {}) {
   response.writeHead(status, {
     'content-type': 'text/html; charset=utf-8',
     'content-length': Buffer.byteLength(body),
-    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
-    ...securityHeaders(),
+    'cache-control': 'no-store',
+    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    'referrer-policy': 'no-referrer',
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
     ...headers
   });
   response.end(body);
-}
-
-function redirect(response, location, headers = {}) {
-  response.writeHead(303, { location, ...securityHeaders(), ...headers });
-  response.end();
-}
-
-function loginPage({ error = '', returnTo = '/' } = {}) {
-  const safeError = String(error).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  const safeReturn = String(returnTo).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  return `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Archie founder access</title>
-<style>:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#171714;background:#f3efe5}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#f7f3e9,#e8dfcf)}main{width:min(430px,100%);background:#fffdf8;border:2px solid #171714;box-shadow:8px 8px 0 #171714;padding:24px}h1{margin:0 0 8px;font-size:36px;letter-spacing:-.055em}p{line-height:1.45;color:#59544a}.label{display:block;font-weight:800;margin:20px 0 7px}input{width:100%;min-height:52px;border:2px solid #171714;padding:11px 12px;background:#fff;font:inherit}button{width:100%;min-height:52px;margin-top:12px;border:2px solid #171714;background:#ef4e23;color:#fff;font:900 16px inherit;box-shadow:4px 4px 0 #171714;cursor:pointer}.error{border:1px solid #9d2513;background:#ffe6df;color:#7a1a0c;padding:10px;margin:14px 0}.meta{font:700 11px ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.08em;color:#6c665c}</style></head>
-<body><main><div class="meta">Private founder / developer workspace</div><h1>Enter Archie.</h1><p>The hosted view exposes the same workspaces, evidence, approvals, exports, and rollback state as local Archie. The access token never enters workspace receipts.</p>${safeError ? `<div class="error">${safeError}</div>` : ''}<form method="post" action="/login"><input type="hidden" name="return_to" value="${safeReturn}"><label class="label" for="token">Founder access token</label><input id="token" name="token" type="password" required autocomplete="current-password" autofocus><button type="submit">Open Archie</button></form></main></body></html>`;
 }
 
 async function readBody(request, limit = MAX_LOGIN_BODY) {
   const chunks = [];
-  let length = 0;
+  let size = 0;
   for await (const chunk of request) {
-    length += chunk.length;
-    if (length > limit) throw Object.assign(new Error('Request body is too large.'), { status: 413 });
+    size += chunk.length;
+    if (size > limit) throw new Error('request body too large');
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks);
 }
 
-function safeReturnPath(value) {
-  const candidate = String(value || '/');
-  if (!candidate.startsWith('/') || candidate.startsWith('//') || candidate.includes('\\')) return '/';
-  return candidate.slice(0, 2048);
+function loginPage(error = '') {
+  const encoded = JSON.stringify(error);
+  return `<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Archie founder access</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#f4efe3;color:#171714}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px;background:linear-gradient(160deg,#f8f5ec,#e7decb)}main{width:min(440px,100%);background:#fffdf8;border:1px solid #cfc5b2;border-radius:24px;padding:24px;box-shadow:0 20px 50px #332b1d1a}h1{margin:0 0 8px;font-size:38px;letter-spacing:-.05em}p{color:#5d564b;line-height:1.5}label{display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin:22px 0 7px}input{width:100%;padding:14px;border:1px solid #b9ae9a;border-radius:14px;font:inherit;background:#fff}button{width:100%;margin-top:12px;padding:14px;border:0;border-radius:14px;background:#171714;color:#fff;font:inherit;font-weight:850;cursor:pointer}.error{min-height:20px;color:#9d3026;font-size:13px;margin-top:12px}
+</style>
+<main><h1>Private Archie</h1><p>Founder and developer inspection of the same Archie-native workspaces, evidence, backups, and outbound runner state.</p><form id="f"><label for="token">Founder token</label><input id="token" type="password" autocomplete="current-password" required><button>Enter Archie</button><div class="error" id="e"></div></form></main>
+<script>const initial=${encoded};document.querySelector('#e').textContent=initial;document.querySelector('#f').addEventListener('submit',async e=>{e.preventDefault();const response=await fetch('/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:document.querySelector('#token').value})});const value=await response.json().catch(()=>({}));if(!response.ok){document.querySelector('#e').textContent=value.message||'Authentication failed.';return}location.href='/';});</script>`;
 }
 
-function requestAddress(request) {
-  return String(request.socket?.remoteAddress || 'unknown').replace(/^::ffff:/, '');
-}
-
-function removeHopByHopHeaders(headers) {
-  const result = { ...headers };
-  for (const name of [
-    'authorization', 'cookie', 'host', 'connection', 'keep-alive', 'proxy-authenticate',
-    'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'forwarded',
-    'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-port', 'x-forwarded-proto',
-    'x-archie-principal'
-  ]) delete result[name];
-  return result;
-}
-
-function copyProxyHeaders(headers) {
-  const result = {};
-  for (const [name, value] of Object.entries(headers)) {
-    const lower = name.toLowerCase();
-    if (['set-cookie', 'server', 'connection', 'keep-alive', 'transfer-encoding'].includes(lower)) continue;
-    result[name] = value;
+class SessionStore {
+  constructor({ founderToken, ttlSeconds = SESSION_TTL_SECONDS, clock = () => Date.now() }) {
+    this.founderToken = founderToken;
+    this.ttlSeconds = ttlSeconds;
+    this.clock = clock;
+    this.sessions = new Map();
+    this.failures = new Map();
   }
-  return result;
-}
 
-export function resolveHostedConfig({ env = process.env, home = null, token = null, host = null, port = null, publicOrigin = null } = {}) {
-  const selectedToken = String(token || env.ARCHIED_FOUNDER_TOKEN || '');
-  if (selectedToken.length < 24) throw new Error('ARCHIED_FOUNDER_TOKEN must contain at least 24 characters.');
-  const selectedHome = path.resolve(home || env.ARCHIE_HOME || path.join(os.homedir(), '.archie'));
-  const selectedHost = host || env.ARCHIED_HOST || '0.0.0.0';
-  const selectedPort = integer(port ?? env.ARCHIED_PORT ?? '8787', 'ARCHIED_PORT');
-  const selectedOrigin = String(publicOrigin || env.ARCHIED_PUBLIC_ORIGIN || '').trim().replace(/\/$/, '') || null;
-  if (selectedOrigin) {
-    const parsed = new URL(selectedOrigin);
-    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
-      throw new Error('ARCHIED_PUBLIC_ORIGIN must be a bare http(s) origin.');
+  cleanup() {
+    const now = this.clock();
+    for (const [key, session] of this.sessions) if (session.expires_at_ms <= now) this.sessions.delete(key);
+    for (const [key, failure] of this.failures) if (failure.window_started_at_ms + LOGIN_WINDOW_MS <= now) this.failures.delete(key);
+  }
+
+  verifyFounderToken(value, clientKey = 'unknown') {
+    this.cleanup();
+    const existing = this.failures.get(clientKey);
+    if (existing && existing.count >= MAX_FAILED_LOGINS) return false;
+    const ok = constantTimeEqual(value, this.founderToken);
+    if (ok) {
+      this.failures.delete(clientKey);
+      return true;
     }
+    const current = existing && existing.window_started_at_ms + LOGIN_WINDOW_MS > this.clock()
+      ? existing
+      : { count: 0, window_started_at_ms: this.clock() };
+    current.count += 1;
+    this.failures.set(clientKey, current);
+    return false;
   }
-  const secureCookie = boolean(env.ARCHIED_COOKIE_SECURE, selectedOrigin?.startsWith('https://') || false);
-  return Object.freeze({ home: selectedHome, token: selectedToken, host: selectedHost, port: selectedPort, public_origin: selectedOrigin, secure_cookie: secureCookie });
+
+  create() {
+    this.cleanup();
+    const sessionId = crypto.randomBytes(32).toString('base64url');
+    const csrf = crypto.randomBytes(24).toString('base64url');
+    const createdAtMs = this.clock();
+    const session = {
+      schema: ARCHIED_HOSTED_AUTH_SCHEMA,
+      principal_id: 'owner_local',
+      session_id: sessionId,
+      csrf_token: csrf,
+      created_at: new Date(createdAtMs).toISOString(),
+      expires_at: new Date(createdAtMs + this.ttlSeconds * 1000).toISOString(),
+      expires_at_ms: createdAtMs + this.ttlSeconds * 1000
+    };
+    this.sessions.set(sessionId, session);
+    return { ...session };
+  }
+
+  get(request) {
+    this.cleanup();
+    const sessionId = parseCookies(request.headers.cookie)[COOKIE_NAME];
+    if (!sessionId) return null;
+    const session = this.sessions.get(sessionId);
+    return session ? { ...session } : null;
+  }
+
+  revoke(request) {
+    const sessionId = parseCookies(request.headers.cookie)[COOKIE_NAME];
+    if (sessionId) this.sessions.delete(sessionId);
+  }
+}
+
+function sessionCookie(session, secure) {
+  return `${COOKIE_NAME}=${encodeURIComponent(session.session_id)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}${secure ? '; Secure' : ''}`;
+}
+
+function clearCookie(secure) {
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? '; Secure' : ''}`;
+}
+
+async function proxyToInternal(request, response, targetUrl, principalId) {
+  const target = new URL(request.url || '/', targetUrl);
+  const headers = { ...request.headers, host: target.host, 'x-archie-principal': principalId };
+  delete headers.cookie;
+  delete headers['content-length'];
+  const body = ['GET', 'HEAD'].includes(request.method || 'GET') ? undefined : await readBody(request, 52 * 1024 * 1024);
+  const upstream = await fetch(target, { method: request.method, headers, body, redirect: 'manual' });
+  const outgoing = {};
+  upstream.headers.forEach((value, key) => {
+    if (!['connection', 'keep-alive', 'transfer-encoding', 'set-cookie'].includes(key.toLowerCase())) outgoing[key] = value;
+  });
+  response.writeHead(upstream.status, outgoing);
+  if (request.method === 'HEAD') {
+    response.end();
+    return;
+  }
+  response.end(Buffer.from(await upstream.arrayBuffer()));
+}
+
+async function archiveBackup(runtime, session) {
+  const workspaceIds = typeof runtime.internal.provider.listWorkspaceIds === 'function'
+    ? await runtime.internal.provider.listWorkspaceIds()
+    : [];
+  const workspaces = [];
+  for (const workspaceId of workspaceIds) {
+    try {
+      const state = await runtime.internal.engine.inspect(workspaceId, { principalId: session.principal_id });
+      const events = await runtime.internal.engine.events(workspaceId, { principalId: session.principal_id });
+      workspaces.push({
+        workspace_id: workspaceId,
+        visibility: state.workspace.visibility,
+        event_count: events.length,
+        head_digest: state.head_digest
+      });
+    } catch {}
+  }
+  const createdAt = new Date().toISOString();
+  const receipt = {
+    schema: 'archied-hosted-backup-receipt/v1',
+    created_at: createdAt,
+    service_version: runtime.descriptor.service_version,
+    migration_level: runtime.descriptor.migration_level,
+    canonical_state: runtime.descriptor.canonical_state,
+    workspace_count: workspaces.length,
+    workspaces,
+    restore_contract: 'Use each workspace portable export; this hosted backup receipt never claims to contain artifact bytes.'
+  };
+  receipt.receipt_digest = crypto.createHash('sha256').update(JSON.stringify(receipt)).digest('hex');
+  runtime.backups.unshift(receipt);
+  if (runtime.backups.length > 20) runtime.backups.length = 20;
+  return receipt;
+}
+
+function hostedError(response, error) {
+  const status = error instanceof WorkspaceError ? error.status : Number(error?.status) || 500;
+  json(response, status, {
+    schema: 'archied-hosted-error/v1',
+    error: error?.code || (status === 500 ? 'internal_error' : 'request_failed'),
+    message: error?.message || 'Hosted Archie request failed.'
+  });
 }
 
 export async function startHostedArchied(options = {}) {
-  const config = resolveHostedConfig(options);
-  const internal = await startArchied({ home: config.home, host: '127.0.0.1', port: 0, mode: 'hosted' });
-  const failures = new Map();
+  const config = options.config || resolveHostedConfig({ argv: options.argv || [], env: options.env || process.env });
+  const internal = options.internal || await startArchied({
+    home: config.home,
+    host: '127.0.0.1',
+    port: 0,
+    mode: 'hosted'
+  });
+  const hybrid = options.hybrid || createHybridService({
+    engine: internal.engine,
+    root: path.join(config.home, 'standalone', 'hybrid')
+  });
+  const sessions = options.sessions || new SessionStore({ founderToken: config.founderToken });
+  const backups = [];
   const server = http.createServer();
 
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(config.port, config.host, resolve);
   });
-
   const address = server.address();
   const actualPort = typeof address === 'object' && address?.port ? address.port : config.port;
-  const publicOrigin = config.public_origin || `http://127.0.0.1:${actualPort}`;
-  const parsedPublicOrigin = new URL(publicOrigin);
+  const publicUrl = config.publicUrl || `http://127.0.0.1:${actualPort}/`;
 
   const descriptor = Object.freeze({
     schema: ARCHIED_HOSTED_SCHEMA,
     service_version: internal.descriptor.service_version,
-    domain_contract: internal.descriptor.domain_contract,
     migration_level: internal.descriptor.migration_level,
     mode: 'hosted',
-    base_url: `${publicOrigin}/`,
-    authentication: {
-      schema: ARCHIED_HOSTED_AUTH_SCHEMA,
-      method: 'founder-token-to-http-only-session',
-      session_ttl_seconds: SESSION_TTL_SECONDS,
-      cookie_secure: config.secure_cookie
-    },
+    public_url: publicUrl,
+    stable_workspace_url_template: new URL('w/{workspace_id}', publicUrl).href,
+    private_founder_authentication: true,
+    session_ttl_seconds: SESSION_TTL_SECONDS,
     canonical_state: internal.descriptor.canonical_state,
-    storage: {
-      events: internal.descriptor.storage.events,
-      artifacts: internal.descriptor.storage.artifacts,
-      durable_volume: 'ARCHIE_HOME/standalone'
-    },
-    operator: {
-      status_url: `${publicOrigin}/v1/hosted/status`,
-      workspace_url_template: `${publicOrigin}/#workspace={workspace_id}`,
-      portable_export_template: `${publicOrigin}/v1/standalone/workspaces/{workspace_id}/export`
-    },
+    storage: internal.descriptor.storage,
+    backup_contract: 'archied-hosted-backup-receipt/v1 plus portable workspace exports',
+    rollback_visibility: true,
+    hybrid_runner: hybrid.descriptor,
     source_host_required: false,
     github_required: false,
-    local_runner_inbound_access_required: false,
-    claim_boundary: 'Hosted Archie provides private founder/developer inspection over the same Archie-native workspace, authority, evidence, export, and rollback contracts. It does not claim an external deployment exists until an operator actually runs this image, and it does not upgrade model or device capability claims.'
+    vendor_specific_runtime_dependency: false,
+    external_tls_terminated_by_operator: config.secureCookies,
+    claim_boundary: 'Hosted mode provides authenticated founder/developer inspection of the same Archie-native workspaces and outbound-only fenced runners. It does not claim paid deployment, external TLS configuration, trained-model admission, customer superiority, or physical-device evidence.'
   });
 
-  function sessionFrom(request) {
-    const value = parseCookies(request.headers.cookie)[COOKIE_NAME];
-    return verifySession(value, config.token);
-  }
-
-  function loginState(ip, now = Date.now()) {
-    const current = failures.get(ip);
-    if (!current || current.reset_at_ms <= now) {
-      const next = { count: 0, reset_at_ms: now + LOGIN_WINDOW_MS };
-      failures.set(ip, next);
-      return next;
+  const runtime = {
+    schema: ARCHIED_HOSTED_SCHEMA,
+    server,
+    internal,
+    hybrid,
+    sessions,
+    backups,
+    descriptor,
+    url: `http://127.0.0.1:${actualPort}/`,
+    public_url: publicUrl,
+    close: async () => {
+      await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      await internal.close();
     }
-    return current;
-  }
+  };
 
-  function failedLogin(ip) {
-    const state = loginState(ip);
-    state.count += 1;
-    if (failures.size > 1000) {
-      const now = Date.now();
-      for (const [key, value] of failures) if (value.reset_at_ms <= now) failures.delete(key);
-    }
-    return state;
-  }
-
-  function cookieHeader(value, { clear = false } = {}) {
-    const parts = [`${COOKIE_NAME}=${value}`, 'Path=/', 'HttpOnly', 'SameSite=Strict'];
-    if (config.secure_cookie) parts.push('Secure');
-    if (clear) parts.push('Max-Age=0');
-    else parts.push(`Max-Age=${SESSION_TTL_SECONDS}`);
-    return parts.join('; ');
-  }
-
-  async function hostedStatus() {
-    const ids = await internal.provider.listWorkspaceIds();
-    const workspaces = [];
-    for (const workspaceId of ids) {
-      const state = await internal.engine.inspect(workspaceId, { principalId: 'owner_local' });
-      workspaces.push({
-        workspace_id: workspaceId,
-        title: state.workspace?.title || workspaceId,
-        visibility: state.workspace?.visibility || 'private',
-        event_count: state.event_count,
-        head_digest: state.head_digest,
-        task_count: Object.keys(state.tasks || {}).length,
-        run_count: Object.keys(state.runs || {}).length,
-        evidence_count: Object.keys(state.evidence || {}).length,
-        approval_count: Object.keys(state.approvals || {}).length,
-        rollback_count: Object.keys(state.rollbacks || {}).length,
-        export_url: `${publicOrigin}/v1/standalone/workspaces/${workspaceId}/export`,
-        inspect_url: `${publicOrigin}/v1/workspaces/${workspaceId}`
-      });
-    }
+  async function hostedStatus(session) {
+    const workspaceIds = typeof internal.provider.listWorkspaceIds === 'function'
+      ? await internal.provider.listWorkspaceIds()
+      : [];
+    const latest = backups[0] || null;
     return {
       schema: 'archied-hosted-status/v1',
-      service: descriptor,
-      workspace_count: workspaces.length,
-      portable_backup_ready: true,
-      workspaces
+      inspected_by: session.principal_id,
+      service_version: descriptor.service_version,
+      migration_level: descriptor.migration_level,
+      canonical_state: descriptor.canonical_state,
+      workspace_count: workspaceIds.length,
+      stable_workspace_url_template: descriptor.stable_workspace_url_template,
+      latest_backup: latest,
+      hybrid_runner: await hybrid.status(),
+      rollback_visibility: true,
+      github_required: false
     };
-  }
-
-  function proxy(request, response) {
-    const target = new URL(request.url || '/', internal.url);
-    const headers = removeHopByHopHeaders(request.headers);
-    headers.host = target.host;
-    headers['x-archie-principal'] = 'owner_local';
-    headers['x-forwarded-proto'] = parsedPublicOrigin.protocol.slice(0, -1);
-    headers['x-forwarded-host'] = parsedPublicOrigin.host;
-
-    const upstream = http.request(target, { method: request.method, headers }, upstreamResponse => {
-      response.writeHead(upstreamResponse.statusCode || 502, {
-        ...copyProxyHeaders(upstreamResponse.headers),
-        ...securityHeaders(),
-        'x-archie-hosted': '1'
-      });
-      upstreamResponse.pipe(response);
-    });
-    upstream.once('error', error => {
-      if (!response.headersSent) jsonResponse(response, 502, { schema: 'archied-hosted-error/v1', error: 'upstream_unavailable', message: error.message });
-      else response.destroy(error);
-    });
-    request.pipe(upstream);
   }
 
   server.on('request', async (request, response) => {
     try {
-      const requestUrl = new URL(request.url || '/', publicOrigin);
+      const requestUrl = new URL(request.url || '/', runtime.url);
       const pathname = requestUrl.pathname;
-      const method = request.method || 'GET';
+      const parts = pathname.split('/').filter(Boolean);
 
-      if (method === 'GET' && pathname === '/health') {
-        jsonResponse(response, 200, {
-          schema: 'archied-health/v1',
+      if (request.method === 'GET' && pathname === '/health') {
+        json(response, 200, {
+          schema: 'archied-hosted-health/v1',
           status: 'ok',
-          mode: 'hosted',
           service_version: descriptor.service_version,
-          migration_level: descriptor.migration_level
+          migration_level: descriptor.migration_level,
+          hybrid_protocol_version: descriptor.hybrid_runner.protocol_version
         });
         return;
       }
 
-      if (method === 'GET' && pathname === '/login') {
-        if (sessionFrom(request)) {
-          redirect(response, safeReturnPath(requestUrl.searchParams.get('return_to')));
-          return;
-        }
-        htmlResponse(response, 200, loginPage({ returnTo: safeReturnPath(requestUrl.searchParams.get('return_to')) }));
+      if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'runner') {
+        if (await hybrid.handleRunner(request, response, pathname, parts)) return;
+        json(response, 404, { schema: 'archied-hosted-error/v1', error: 'not_found', message: 'Hybrid runner route was not found.' });
         return;
       }
 
-      if (method === 'POST' && pathname === '/login') {
-        const ip = requestAddress(request);
-        const state = loginState(ip);
-        if (state.count >= MAX_FAILED_LOGINS) {
-          jsonResponse(response, 429, { schema: 'archied-hosted-error/v1', error: 'login_rate_limited', message: 'Too many failed login attempts. Try again later.' }, { 'retry-after': String(Math.max(1, Math.ceil((state.reset_at_ms - Date.now()) / 1000))) });
-          return;
-        }
-        const raw = await readBody(request);
-        let candidate = '';
-        let returnTo = '/';
-        if (String(request.headers['content-type'] || '').includes('application/json')) {
-          const body = JSON.parse(raw || '{}');
-          candidate = String(body.token || '');
-          returnTo = safeReturnPath(body.return_to);
-        } else {
-          const body = new URLSearchParams(raw);
-          candidate = String(body.get('token') || '');
-          returnTo = safeReturnPath(body.get('return_to'));
-        }
-        if (!secureEqual(candidate, config.token)) {
-          failedLogin(ip);
-          htmlResponse(response, 401, loginPage({ error: 'Access token was not accepted.', returnTo }));
-          return;
-        }
-        failures.delete(ip);
-        redirect(response, returnTo, { 'set-cookie': cookieHeader(signSession(config.token)) });
+      if (request.method === 'GET' && pathname === '/auth/login') {
+        html(response, 200, loginPage());
         return;
       }
 
-      if (method === 'POST' && pathname === '/logout') {
-        redirect(response, '/login', { 'set-cookie': cookieHeader('', { clear: true }) });
+      if (request.method === 'POST' && pathname === '/auth/login') {
+        let payload = {};
+        try { payload = JSON.parse((await readBody(request)).toString('utf8') || '{}'); }
+        catch { json(response, 400, { schema: 'archied-hosted-error/v1', error: 'invalid_json', message: 'Login body must be JSON.' }); return; }
+        const clientKey = request.socket.remoteAddress || 'unknown';
+        if (!sessions.verifyFounderToken(payload.token, clientKey)) {
+          json(response, 401, { schema: 'archied-hosted-error/v1', error: 'unauthorized', message: 'Founder token rejected.' });
+          return;
+        }
+        const session = sessions.create();
+        json(response, 200, {
+          schema: ARCHIED_HOSTED_AUTH_SCHEMA,
+          authenticated: true,
+          principal_id: session.principal_id,
+          csrf_token: session.csrf_token,
+          expires_at: session.expires_at
+        }, { 'set-cookie': sessionCookie(session, config.secureCookies) });
         return;
       }
 
-      const session = sessionFrom(request);
+      if (request.method === 'POST' && pathname === '/auth/logout') {
+        sessions.revoke(request);
+        json(response, 200, { schema: ARCHIED_HOSTED_AUTH_SCHEMA, authenticated: false }, { 'set-cookie': clearCookie(config.secureCookies) });
+        return;
+      }
+
+      const session = sessions.get(request);
       if (!session) {
-        const acceptsHtml = String(request.headers.accept || '').includes('text/html');
-        if (method === 'GET' && acceptsHtml) {
-          redirect(response, `/login?return_to=${encodeURIComponent(safeReturnPath(`${pathname}${requestUrl.search}`))}`);
-        } else {
-          jsonResponse(response, 401, { schema: 'archied-hosted-error/v1', error: 'authentication_required', message: 'Founder authentication is required.' });
-        }
+        if (request.method === 'GET' && !pathname.startsWith('/v1/')) {
+          response.writeHead(303, { location: '/auth/login', 'cache-control': 'no-store' });
+          response.end();
+        } else json(response, 401, { schema: 'archied-hosted-error/v1', error: 'unauthorized', message: 'Founder authentication required.' });
         return;
       }
 
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-        const fetchSite = String(request.headers['sec-fetch-site'] || '');
-        const origin = String(request.headers.origin || '');
-        if (fetchSite === 'cross-site' || (origin && origin !== publicOrigin)) {
-          jsonResponse(response, 403, { schema: 'archied-hosted-error/v1', error: 'cross_site_mutation_denied', message: 'Cross-site mutations are not allowed.' });
-          return;
-        }
-      }
-
-      if (method === 'GET' && pathname === '/.well-known/archied.json') {
-        jsonResponse(response, 200, descriptor);
+      const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(request.method || 'GET');
+      if (mutating && !constantTimeEqual(request.headers['x-archie-csrf'] || '', session.csrf_token)) {
+        json(response, 403, { schema: 'archied-hosted-error/v1', error: 'csrf_rejected', message: 'A valid Archie CSRF token is required.' });
         return;
       }
 
-      if (method === 'GET' && pathname === '/v1/hosted/status') {
-        jsonResponse(response, 200, await hostedStatus());
+      if (parts[0] === 'v1' && parts[1] === 'hybrid' && parts[2] === 'founder') {
+        if (await hybrid.handleFounder(request, response, pathname, parts)) return;
+        json(response, 404, { schema: 'archied-hosted-error/v1', error: 'not_found', message: 'Hybrid founder route was not found.' });
         return;
       }
 
-      proxy(request, response);
+      if (request.method === 'GET' && pathname === '/v1/hosted/status') {
+        json(response, 200, await hostedStatus(session));
+        return;
+      }
+
+      if (request.method === 'POST' && pathname === '/v1/hosted/backups') {
+        json(response, 201, await archiveBackup(runtime, session));
+        return;
+      }
+
+      if (request.method === 'GET' && pathname === '/v1/hosted/backups') {
+        json(response, 200, { schema: 'archied-hosted-backup-index/v1', backups });
+        return;
+      }
+
+      const workspacePage = pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,127})$/);
+      if (workspacePage) {
+        request.url = '/';
+        await proxyToInternal(request, response, internal.url, session.principal_id);
+        return;
+      }
+
+      await proxyToInternal(request, response, internal.url, session.principal_id);
     } catch (error) {
-      if (response.headersSent) {
-        response.destroy(error);
-        return;
-      }
-      jsonResponse(response, error?.status || 500, {
-        schema: 'archied-hosted-error/v1',
-        error: error?.status === 413 ? 'body_too_large' : 'hosted_error',
-        message: error?.message || 'Hosted Archie failed.'
-      });
+      if (response.headersSent) response.destroy(error);
+      else hostedError(response, error);
     }
   });
 
-  let closing = null;
-  async function close() {
-    if (closing) return closing;
-    closing = Promise.all([
-      new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve())),
-      internal.close()
-    ]).then(() => undefined);
-    return closing;
-  }
-
-  return Object.freeze({
-    schema: ARCHIED_HOSTED_SCHEMA,
-    server,
-    internal,
-    descriptor,
-    url: `${publicOrigin}/`,
-    public_origin: publicOrigin,
-    close
-  });
+  return Object.freeze(runtime);
 }
 
-export async function main(env = process.env) {
-  const runtime = await startHostedArchied({ env });
+export async function main(argv = process.argv.slice(2), env = process.env) {
+  if (argv.includes('--help') || argv.includes('-h')) {
+    process.stdout.write(`archied-hosted\n\nUsage:\n  archied-hosted --founder-token <token> [--home <path>] [--host 0.0.0.0] [--port 8787] [--public-url https://archie.example/]\n\nThe hosted service wraps the exact local archied engine, requires private founder authentication, exposes expiring outbound runner enrollment and fenced work APIs, and does not require GitHub. Terminate TLS outside the container before exposing it beyond a private network.\n`);
+    return null;
+  }
+  const runtime = await startHostedArchied({ config: resolveHostedConfig({ argv, env }) });
   process.stdout.write(`${JSON.stringify({ ...runtime.descriptor, pid: process.pid }, null, 2)}\n`);
-  const shutdown = async () => {
-    await runtime.close().catch(() => {});
-    process.exit(0);
-  };
-  process.once('SIGINT', shutdown);
-  process.once('SIGTERM', shutdown);
+  const stop = async () => { await runtime.close().catch(() => {}); process.exit(0); };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
   await new Promise(() => {});
+  return runtime;
 }
 
 const invoked = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
