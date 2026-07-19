@@ -18,8 +18,7 @@ jobs:
       github.event.comment.author_association == 'OWNER') ||
       (github.event_name == 'create' &&
       github.ref_type == 'branch' &&
-      startsWith(github.ref, 'archie-release-') &&
-      github.actor == github.repository_owner)
+      startsWith(github.ref, 'archie-release-'))
     runs-on: ubuntu-24.04
     steps:
       - name: Dispatch admitted Archie Pages workflow
