@@ -186,7 +186,7 @@ jobs:
       startsWith(github.event.pull_request.head.ref, 'archie-release-pr-') &&
       github.event.pull_request.author_association == 'OWNER'))
     environment:
-      name: github-pages
+      name: ${{ github.event_name == 'pull_request' && 'archie-pages-release' || 'github-pages' }}
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: [remote-gate, build]
