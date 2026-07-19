@@ -1,0 +1,319 @@
+name: Run Archie information-budgeted RSLoRA
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/information_budgeted_rslora.py'
+      - 'foundry/archie-distill/fuse_information_budgeted_adapters.py'
+      - 'foundry/archie-distill/test_information_budgeted_rslora.py'
+      - 'maker/evaluations/archie-information-budgeted-rslora.json'
+      - '.github/workflows/archie-information-budgeted-rslora.yml'
+      - 'docs/archie-information-budgeted-rslora.md'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Audit label for the bounded information-budgeted round
+        required: true
+        type: string
+      round:
+        description: Zero-based recursive round
+        required: true
+        default: '0'
+        type: string
+      shards:
+        description: Number of rank-32 RSLoRA specialists
+        required: true
+        default: '2'
+        type: string
+      max_fused_rank:
+        description: Maximum fused rank; 64 preserves two rank-32 specialists exactly
+        required: true
+        default: '64'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-information-budgeted-rslora-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Verify information-budgeted contracts without CUDA
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-distill/information_budgeted_rslora.py \
+            foundry/archie-distill/fuse_information_budgeted_adapters.py \
+            foundry/archie-distill/test_information_budgeted_rslora.py
+          python foundry/archie-distill/test_information_budgeted_rslora.py
+          grep -Fq 'alpha/sqrt(rank)' foundry/archie-distill/information_budgeted_rslora.py
+          grep -Fq 'source_scaling_absorbed_into_delta_factors' foundry/archie-distill/fuse_information_budgeted_adapters.py
+          grep -Fq 'fused_config["use_rslora"] = False' foundry/archie-distill/fuse_information_budgeted_adapters.py
+          grep -Fq 'Refusing CPU fallback' foundry/archie-distill/information_budgeted_rslora.py
+
+  authorize:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      allowed: ${{ steps.plan.outputs.allowed }}
+      missing: ${{ steps.plan.outputs.missing }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      round: ${{ steps.plan.outputs.round }}
+      shards: ${{ steps.plan.outputs.shards }}
+      max_fused_rank: ${{ steps.plan.outputs.max_fused_rank }}
+      evaluation_label: ${{ steps.plan.outputs.evaluation_label }}
+    steps:
+      - id: plan
+        env:
+          ROUND_INPUT: ${{ inputs.round }}
+          SHARDS_INPUT: ${{ inputs.shards }}
+          MAX_FUSED_RANK_INPUT: ${{ inputs.max_fused_rank }}
+          ARCHIE_SEGMENTED_DISTILL_READY: ${{ vars.ARCHIE_SEGMENTED_DISTILL_READY }}
+          ARCHIE_SEGMENT_RUNNER_LABEL: ${{ vars.ARCHIE_SEGMENT_RUNNER_LABEL }}
+          ARCHIE_CUDA_RUNNER_LABELS: ${{ vars.ARCHIE_CUDA_RUNNER_LABELS }}
+          ARCHIE_FUSION_RUNNER_LABEL: ${{ vars.ARCHIE_FUSION_RUNNER_LABEL }}
+          ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+          ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+          ARCHIE_TRAJECTORY_BATCH_PATH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
+          ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const required = [
+            'ARCHIE_SEGMENT_RUNNER_LABEL', 'ARCHIE_CUDA_RUNNER_LABELS',
+            'ARCHIE_FUSION_RUNNER_LABEL', 'ARCHIE_TRAINING_PYTHON',
+            'ARCHIE_TRAINING_CONFIG_PATH', 'ARCHIE_TRAJECTORY_BATCH_PATH',
+            'ARCHIE_STUDENT_MODEL_DIR'
+          ];
+          const missing = required.filter(name => !String(process.env[name] || '').trim());
+          if (process.env.ARCHIE_SEGMENTED_DISTILL_READY !== '1') missing.push('ARCHIE_SEGMENTED_DISTILL_READY=1');
+          if (String(process.env.GITHUB_ACTOR || '').toLowerCase() !== String(process.env.GITHUB_REPOSITORY_OWNER || '').toLowerCase()) missing.push('repository-owner actor');
+          const round = Number(process.env.ROUND_INPUT);
+          const shards = Number(process.env.SHARDS_INPUT);
+          const maxFusedRank = Number(process.env.MAX_FUSED_RANK_INPUT);
+          if (!Number.isInteger(round) || round < 0) missing.push('round>=0');
+          if (!Number.isInteger(shards) || shards < 1 || shards > 4) missing.push('1<=shards<=4');
+          if (!Number.isInteger(maxFusedRank) || maxFusedRank < 1 || maxFusedRank > 128) missing.push('1<=max_fused_rank<=128');
+          let labels = [];
+          try { labels = JSON.parse(String(process.env.ARCHIE_CUDA_RUNNER_LABELS || '[]')); }
+          catch { missing.push('ARCHIE_CUDA_RUNNER_LABELS valid JSON'); }
+          if (!Array.isArray(labels) || !labels.length || labels.some(label => typeof label !== 'string' || !label.trim())) {
+            missing.push('ARCHIE_CUDA_RUNNER_LABELS nonempty string array'); labels = [];
+          }
+          const include = Number.isInteger(shards) && shards > 0 && labels.length
+            ? Array.from({ length: shards }, (_, shard) => ({ shard, runner_label: labels[shard % labels.length] })) : [];
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `allowed=${missing.length === 0}\nmissing=${missing.join(', ')}\nmatrix=${JSON.stringify({ include })}\nround=${round}\nshards=${shards}\nmax_fused_rank=${maxFusedRank}\nevaluation_label=${labels[0] || ''}\n`);
+          NODE
+
+  blocker:
+    needs: authorize
+    if: github.event_name == 'workflow_dispatch' && needs.authorize.outputs.allowed != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          printf '%s\n' 'Archie information-budgeted RSLoRA refused: ${{ needs.authorize.outputs.missing }}' >&2
+          exit 1
+
+  segment:
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_SEGMENT_RUNNER_LABEL }}"]
+    timeout-minutes: 120
+    outputs:
+      artifact_name: ${{ steps.paths.outputs.artifact_name }}
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      BATCH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - id: paths
+        run: |
+          set -euo pipefail
+          test -x "$PY"; test -f "$BATCH"; test -d "$MODEL"
+          root="$(mktemp -d "${RUNNER_TEMP}/archie-ib-rslora.XXXXXXXX")"
+          "$PY" foundry/archie-distill/compile_causal_pairs.py \
+            --batch "$BATCH" --output "$root/pairs" --seed 3407 --holdout-rate 0.2
+          "$PY" foundry/archie-distill/information_budgeted_rslora.py segment \
+            --train "$root/pairs/causal-preference.train.jsonl" \
+            --development "$root/pairs/causal-preference.development.jsonl" \
+            --pair-receipt "$root/pairs/causal-preference-receipt.json" \
+            --model-dir "$MODEL" --output "$root/segments" \
+            --shards '${{ needs.authorize.outputs.shards }}' \
+            --round '${{ needs.authorize.outputs.round }}' \
+            --seed 3407 --request-id '${{ inputs.request_id }}' --code-revision "$GITHUB_SHA" \
+            --max-seq-length 896 --prompt-replay-tokens 384 --prompt-head-tokens 32 \
+            --shared-prefix-replay-tokens 96 --max-divergence-tokens 384
+          artifact_name="archie-ib-input-${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'root=%s\nartifact_name=%s\n' "$root" "$artifact_name" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.paths.outputs.artifact_name }}
+          path: ${{ steps.paths.outputs.root }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  train:
+    needs: [authorize, segment]
+    if: needs.authorize.outputs.allowed == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.authorize.outputs.matrix) }}
+    runs-on: [self-hosted, linux, x64, "${{ matrix.runner_label }}"]
+    timeout-minutes: 720
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      CONFIG: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.segment.outputs.artifact_name }}
+          path: ${{ runner.temp }}/archie-ib-input
+      - id: train_paths
+        run: |
+          set -euo pipefail
+          printf -v shard '%03d' '${{ matrix.shard }}'
+          shard_dir="${RUNNER_TEMP}/archie-ib-input/segments/shard-${shard}"
+          root="$(mktemp -d "${RUNNER_TEMP}/archie-ib-train-${shard}.XXXXXXXX")"
+          npm run archie:student:compile -- --config "$CONFIG" --output "$root/workspace"
+          "$PY" foundry/archie-distill/information_budgeted_rslora.py cache-reference \
+            --preference-data "$shard_dir/causal-preference.train.jsonl" \
+            --model-dir "$MODEL" --output "$root/reference-cache" \
+            --max-seq-length 896 --prompt-replay-tokens 384 --prompt-head-tokens 32 \
+            --shared-prefix-replay-tokens 96 --max-divergence-tokens 384
+          "$PY" foundry/archie-distill/information_budgeted_rslora.py train \
+            --profile "$PROFILE" --workspace "$root/workspace" \
+            --preference-data "$shard_dir/causal-preference.train.jsonl" \
+            --preference-receipt "$shard_dir/causal-preference-receipt.json" \
+            --reference-cache "$root/reference-cache" --model-dir "$MODEL" --output "$root/output" \
+            --max-seq-length 896 --prompt-replay-tokens 384 --prompt-head-tokens 32 \
+            --shared-prefix-replay-tokens 96 --max-divergence-tokens 384 \
+            --gradient-accumulation-steps 8 --batch-size 1 --beta 0.1 --causal-margin 0.2 --sft-weight 0.35
+          "$PY" foundry/archie-distill/information_budgeted_rslora.py verify \
+            --profile "$PROFILE" --model-dir "$MODEL" --adapter-dir "$root/output/adapter" \
+            --evaluation-data "$shard_dir/causal-preference.development.jsonl" \
+            --training-receipt "$root/output/training-receipt.json" \
+            --shard-receipt "$shard_dir/shard-receipt.json" --output "$root/verification" --max-seq-length 1536
+          bundle="$root/bundle/shard-${shard}"; mkdir -p "$bundle"
+          cp -a "$root/output/adapter" "$bundle/adapter"
+          cp "$root/output/training-receipt.json" "$bundle/training-receipt.json"
+          cp "$root/reference-cache/reference-cache-receipt.json" "$bundle/reference-cache-receipt.json"
+          cp "$root/verification/segment-verification-receipt.json" "$bundle/segment-verification-receipt.json"
+          cp "$shard_dir/shard-receipt.json" "$bundle/shard-receipt.json"
+          printf 'bundle=%s\nartifact_name=archie-ib-adapter-%s-%s-%s\n' "$root/bundle" "$shard" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.train_paths.outputs.artifact_name }}
+          path: ${{ steps.train_paths.outputs.bundle }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  fuse:
+    needs: [authorize, train]
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_FUSION_RUNNER_LABEL }}"]
+    timeout-minutes: 240
+    outputs:
+      artifact_name: ${{ steps.fuse_paths.outputs.artifact_name }}
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: archie-ib-adapter-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archie-ib-adapters
+          merge-multiple: false
+      - id: fuse_paths
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d "${RUNNER_TEMP}/archie-ib-fusion.XXXXXXXX")"
+          INPUT_ROOT="${RUNNER_TEMP}/archie-ib-adapters" REQUEST_PATH="$root/request.json" "$PY" - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ['INPUT_ROOT']).resolve()
+          request = pathlib.Path(os.environ['REQUEST_PATH']).resolve()
+          adapters = []
+          for receipt in sorted(root.rglob('segment-verification-receipt.json')):
+              adapters.append({'adapter_dir': os.path.relpath(receipt.parent / 'adapter', request.parent), 'verification_receipt': os.path.relpath(receipt, request.parent)})
+          if not adapters: raise SystemExit('No verified adapters found.')
+          request.write_text(json.dumps({'schema': 'archie-segment-adapter-fusion-request/v1', 'seed': 3407, 'adapters': adapters}, indent=2, sort_keys=True) + '\n')
+          PY
+          "$PY" foundry/archie-distill/fuse_information_budgeted_adapters.py \
+            --request "$root/request.json" --output "$root/output" --max-rank '${{ needs.authorize.outputs.max_fused_rank }}'
+          artifact_name="archie-ib-fused-${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf 'root=%s\nartifact_name=%s\n' "$root" "$artifact_name" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.fuse_paths.outputs.artifact_name }}
+          path: ${{ steps.fuse_paths.outputs.root }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  evaluate_fused:
+    needs: [authorize, segment, fuse]
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: [self-hosted, linux, x64, "${{ needs.authorize.outputs.evaluation_label }}"]
+    timeout-minutes: 240
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.segment.outputs.artifact_name }}
+          path: ${{ runner.temp }}/archie-ib-input
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.fuse.outputs.artifact_name }}
+          path: ${{ runner.temp }}/archie-ib-fused
+      - run: |
+          set -euo pipefail
+          segments="${RUNNER_TEMP}/archie-ib-input/segments"
+          fused="${RUNNER_TEMP}/archie-ib-fused/output"
+          output="$(mktemp -d "${RUNNER_TEMP}/archie-ib-eval.XXXXXXXX")"
+          "$PY" foundry/archie-distill/information_budgeted_rslora.py evaluate-fused \
+            --profile "$PROFILE" --model-dir "$MODEL" --adapter-dir "$fused/adapter" \
+            --fusion-receipt "$fused/fusion-receipt.json" \
+            --segmentation-receipt "$segments/segmentation-receipt.json" \
+            --evaluation-data "$segments/shard-000/causal-preference.development.jsonl" \
+            --output "$output" --max-seq-length 1536
