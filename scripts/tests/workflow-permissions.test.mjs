@@ -4,6 +4,7 @@ import test from 'node:test';
 import './maker-pr-collision-gate.test.mjs';
 
 const pagesPath = new URL('../../.github/workflows/pages.yml', import.meta.url);
+const pagesReleaseCommandPath = new URL('../../.github/workflows/archie-pages-release-command.yml', import.meta.url);
 const lassoPath = new URL('../../.github/workflows/weave-lasso.yml', import.meta.url);
 const makerWorkerPath = new URL('../../.github/workflows/maker-native-worker.yml', import.meta.url);
 const makerCollisionPath = new URL('../../.github/workflows/maker-pr-collision-gate.yml', import.meta.url);
@@ -54,10 +55,10 @@ test('PR-reachable Pages jobs stay read-only and never persist checkout credenti
   }
 });
 
-test('Pages, OIDC, and issue mutation authority exist only in the push-only deploy job', async () => {
+test('Pages mutation authority exists only in the push-or-explicit-dispatch deploy job', async () => {
   const source = await workflowSource(pagesPath);
   const deploy = job(source, 'deploy');
-  assert.match(deploy, /if: github\.event_name == 'push'/);
+  assert.match(deploy, /if: \(github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'\)/);
   assert.match(deploy, /^      pages: write$/m);
   assert.match(deploy, /^      id-token: write$/m);
   assert.match(deploy, /^      issues: write$/m);
@@ -65,6 +66,19 @@ test('Pages, OIDC, and issue mutation authority exist only in the push-only depl
 
   const beforeDeploy = source.slice(0, source.indexOf('\n  deploy:'));
   assert.doesNotMatch(beforeDeploy, /^\s+(?:pages|id-token|issues): write$/m);
+});
+
+test('Archie Pages dispatch is owner-only, exact-command, and targets trusted main', async () => {
+  const source = await workflowSource(pagesReleaseCommandPath);
+  assert.match(source, /^on:\n  issue_comment:\n    types: \[created\]/m);
+  assert.match(source, /^permissions:\n  actions: write\n  contents: read$/m);
+  assert.match(source, /github\.event\.issue\.pull_request/);
+  assert.match(source, /github\.event\.comment\.body == '\/deploy-archie'/);
+  assert.match(source, /github\.event\.comment\.author_association == 'OWNER'/);
+  assert.match(source, /github\.rest\.actions\.createWorkflowDispatch/);
+  assert.match(source, /workflow_id: 'pages\.yml'/);
+  assert.match(source, /ref: 'main'/);
+  assert.doesNotMatch(source, /actions\/checkout|contents: write|pages: write|id-token: write|issues: write/);
 });
 
 test('secret-bearing lasso execution uses only trusted default-branch code', async () => {
