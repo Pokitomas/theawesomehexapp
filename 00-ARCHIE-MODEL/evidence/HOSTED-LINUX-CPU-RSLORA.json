@@ -90,11 +90,60 @@
         "retention_expires": "2026-08-18T02:45:26Z",
         "compaction_note": "Step checkpoints and tokenizer copies were removed after receipt emission; final adapter, progress log, run log, and receipt remain. The final adapter digests match the receipt."
       }
+    },
+    {
+      "lane": "target-1.7b-fast",
+      "model": "Qwen/Qwen3-1.7B",
+      "requested_revision": "8d4744f9e13072f4920c326350fa81eedb74eae9",
+      "resolved_revision": "8d4744f9e13072f4920c326350fa81eedb74eae9",
+      "device": "cpu",
+      "dtype": "bfloat16",
+      "rslora": {
+        "active": true,
+        "rank": 4,
+        "alpha": 8,
+        "scaling_law": "alpha/sqrt(rank)",
+        "target_modules": ["q_proj", "v_proj"],
+        "trainable_parameters": 802816,
+        "nonzero_adapter_tensors": 112,
+        "nonzero_lora_b_tensors": 56
+      },
+      "optimizer_steps": 1,
+      "duration_seconds": 30.723212922000002,
+      "peak_rss_bytes": 4939075584,
+      "held_out": {
+        "pairs": 1,
+        "base_pair_accuracy": 0.0,
+        "adapter_pair_accuracy": 0.0,
+        "pair_accuracy_delta": 0.0,
+        "base_mean_pair_margin": -9.34475326538086,
+        "adapter_mean_pair_margin": -9.057294845581055,
+        "mean_pair_margin_delta": 0.2874584197998047,
+        "non_regression": true
+      },
+      "adapter": {
+        "model_bytes": 3225968,
+        "model_sha256": "0523fdad350180e1aa5c365eaf8f852e3aa85febe012ef92e172ba11aa8b5a63",
+        "config_sha256": "29027dc86e8eee1de48d08a5b4f3b07b717bd43c98ba61715ffb5a31ddfb4e0a"
+      },
+      "receipt_digest": "6893194b2343281bed96bfbb995bbb179fbae035e1e58b48d3f96f61224ccda8",
+      "actions": {
+        "run_id": 29670819461,
+        "artifact_id": 8437235231,
+        "artifact_name": "archie-qwen17b-fast-29670819461",
+        "artifact_sha256": "7be0fbf09d6059534edbf06fa41e8284817c4097c4139bd318bdd507b0ba0452",
+        "retention_expires": "2026-08-18T02:51:49Z"
+      }
     }
   ],
   "exact_qwen3_1_7b_cpu_lane": {
-    "status": "running",
-    "claim_boundary": "No exact-target result is recorded until its receipt and adapter artifact return."
+    "status": "observed-bounded",
+    "optimizer_steps": 1,
+    "changed_adapter_tensors_observed": true,
+    "held_out_non_regression": true,
+    "mean_pair_margin_delta": 0.2874584197998047,
+    "canonical_cuda_evidence": false,
+    "claim_boundary": "This is a one-pair BF16 CPU rehearsal on the exact pinned 1.7B checkpoint, not the canonical CUDA/NF4 specialist run or a broad quality result."
   },
-  "claim_boundary": "These runs prove real hosted-CPU RSLoRA optimizer updates and bounded held-out movement on Qwen3-0.6B using the rehearsal corpus. They do not prove Qwen3-1.7B improvement, CUDA/NF4 parity, fused-candidate gain, quantization retention, broad Archie capability, independent reproduction, or admission."
+  "claim_boundary": "These runs prove real hosted-CPU RSLoRA optimizer updates and bounded held-out movement on the rehearsal corpus, including one exact-checkpoint Qwen3-1.7B step. They do not prove CUDA/NF4 parity, the canonical rank-32 specialist configuration, fused-candidate gain, quantization retention, broad Archie capability, independent reproduction, or admission."
 }
