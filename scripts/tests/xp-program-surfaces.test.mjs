@@ -5,9 +5,8 @@ const read = path => fs.readFileSync(path, 'utf8');
 const contract = JSON.parse(read('product/xp-program-surfaces.json'));
 const sharedCss = read('desktop/desktop.css');
 const sharedJs = read('desktop/desktop.js');
-const surfaces = [
+const sharedSurfaces = [
   ['desktop', 'desktop/index.html', './desktop.css'],
-  ['archie', 'archie/index.html', '../desktop/desktop.css'],
   ['maker', 'maker/index.html', '../desktop/desktop.css'],
   ['founder', 'founder/index.html', '../desktop/desktop.css'],
   ['foundry', 'foundry/index.html', '../desktop/desktop.css'],
@@ -31,7 +30,7 @@ assert.match(sharedCss, /@media\s*\(forced-colors:\s*active\)/);
 assert.match(sharedCss, /@media\s*\(max-width:/);
 assert.doesNotMatch(sharedCss, /backdrop-filter|glassmorphism|frosted/i);
 
-for (const [name, htmlPath, stylesheet] of surfaces) {
+for (const [name, htmlPath, stylesheet] of sharedSurfaces) {
   const html = read(htmlPath);
   assert.match(html, /<main\b/, `${name} must have a main landmark`);
   assert.match(html, /class="skip-link"/, `${name} must have a skip link`);
@@ -54,8 +53,26 @@ assert.match(sharedJs, /function inferRoute/);
 assert.match(sharedJs, /choose the smallest workflow/i);
 
 const archie = read('archie/index.html');
-assert.match(archie, /Optional context, proof, and permission/);
-assert.match(archie, /Machine packet and runtime truth/);
+const archieCss = read('archie/archie.css');
+const archieJs = read('archie/archie.js');
+assert.match(archie, /<main\b/);
+assert.match(archie, /aria-label="Ask Archie"/);
+assert.match(archie, /href="\.\/archie\.css"/);
+assert.match(archie, /Tell Archie what you need handled\./);
+assert.match(archie, />Ask Archie</);
+assert.match(archie, /Local deterministic assistance\./);
+assert.doesNotMatch(archie, /model picker|provider picker|specialist|benchmark|schema selector/i);
+assert.match(archieCss, /min-height:44px/);
+assert.match(archieCss, /@media\(prefers-reduced-motion:reduce\)/);
+assert.match(archieCss, /@media\(max-width:/);
+assert.match(archieJs, /archie-personal-operator\/v2/);
+assert.match(archieJs, /neural_evidence:false/);
+assert.match(archieJs, /Archie is new\./);
+assert.match(archieJs, /There are no users, shared projects, or community activity here yet/);
+assert.match(archieJs, /localStorage\.setItem/);
+assert.match(archieJs, /serviceWorker\.register/);
+assert.doesNotMatch(archieJs, /packet|authority inspector|runtime unobserved/i);
+
 const maker = read('maker/index.html');
 assert.match(maker, /Repository, proof, and execution controls/);
 assert.match(maker, /Live public repository state/);
@@ -68,4 +85,4 @@ const foundryJs = read('foundry/foundry.js');
 assert.match(foundryJs, /function distinctDirections/);
 assert.match(foundryJs, /candidates preserved/);
 
-console.log('Archie public workflow contract ok: one shared request, automatic routing, progressive views, readable research directions, and truthful advanced evidence');
+console.log('Archie public workflow contract ok: one shared router plus an honest local personal-operator surface with deterministic receipts and no fake activity');
