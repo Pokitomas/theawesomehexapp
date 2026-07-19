@@ -6,6 +6,7 @@ import test from 'node:test';
 
 const root = path.resolve('archie');
 const read = name => fs.readFile(path.join(root, name), 'utf8');
+const readScripts = async () => (await Promise.all(['archie.js', 'archie-media.js', 'archie-media-surface.js', 'archie-media-variants.js', 'archie-media-image.js', 'archie-model-lab.js', 'archie-runtime.js', 'archie-runtime-base.js', 'archie-surface-bridge.js'].map(read))).join('\n');
 
 test('Archie phone surface is installable and caches its focused local app and admitted router', async () => {
   const [html, manifest, sw] = await Promise.all([read('index.html'), read('manifest.webmanifest'), read('sw.js')]);
@@ -18,8 +19,8 @@ test('Archie phone surface is installable and caches its focused local app and a
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /\.\/archie\.css/);
   assert.match(html, /\.\/archie\.js/);
-  assert.match(sw, /archie-operator-v2/);
-  for (const asset of ['./', './index.html', './archie.css', './archie.js', './router-model.json', './router-admission.json', './manifest.webmanifest', './icon.svg']) {
+  assert.match(sw, /archie-operator-v4/);
+  for (const asset of ['./', './index.html', './archie.css', './archie.js', './archie-media.js', './archie-media-surface.js', './archie-media-variants.js', './archie-media-image.js', './archie-model-lab.js', './archie-runtime.js', './archie-runtime-base.js', './archie-surface-bridge.js', './router-model.json', './router-admission.json', './surface-perceptron-model.json', './surface-perceptron-admission.json', './manifest.webmanifest', './icon.svg']) {
     assert.match(sw, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   assert.doesNotMatch(sw, /desktop\/desktop\.(?:css|js)/);
@@ -46,8 +47,26 @@ test('generated neural router has exact digest and passes its narrow admission g
   assert.ok(Object.values(admission.gates).every(Boolean));
 });
 
+
+test('admitted screenshot router has exact digest and stays inside its coarse-layout boundary', async () => {
+  const [modelText, admissionText] = await Promise.all([read('surface-perceptron-model.json'), read('surface-perceptron-admission.json')]);
+  const model = JSON.parse(modelText);
+  const admission = JSON.parse(admissionText);
+  const digest = crypto.createHash('sha256').update(modelText).digest('hex');
+  assert.equal(digest, '6703c4095dd8c2e65f58f8f4c5e18fbe51f2c93c8f71e3aeab363216a9aee705');
+  assert.equal(admission.model_sha256, digest);
+  assert.equal(model.schema, 'archie-screenshot-perceptron/v1');
+  assert.equal(model.model_id, 'archie-surface-perceptron-int8-v1');
+  assert.deepEqual(model.classes, ['document', 'chat', 'receipt', 'calendar', 'error', 'notes']);
+  assert.equal(admission.promotion, 'admitted');
+  assert.equal(admission.admitted_for, 'six coarse screenshot-layout classes only');
+  assert.ok(admission.boundaries.includes('no OCR'));
+  assert.ok(admission.boundaries.includes('no arbitrary-photo understanding'));
+  assert.equal(admission.evaluation.quantized_accuracy, 1);
+});
+
 test('Archie exposes one useful path and the exact neural-versus-deterministic boundary', async () => {
-  const [html, js] = await Promise.all([read('index.html'), read('archie.js')]);
+  const [html, js] = await Promise.all([read('index.html'), readScripts()]);
   assert.match(html, /Tell Archie what you need handled\./i);
   assert.match(html, />Ask Archie</i);
   assert.match(html, /Verifying local neural router/i);
@@ -64,7 +83,7 @@ test('Archie exposes one useful path and the exact neural-versus-deterministic b
 });
 
 test('completed requests preserve local model evidence and one active objective', async () => {
-  const js = await read('archie.js');
+  const js = await readScripts();
   for (const term of ['request', 'response', 'mode', 'timestamp', 'digest', 'neural_evidence', 'model_id', 'model_sha256', 'neural_margin', 'activeObjective']) {
     assert.match(js, new RegExp(term));
   }
@@ -72,4 +91,42 @@ test('completed requests preserve local model evidence and one active objective'
   assert.match(js, /navigator\.clipboard/);
   assert.match(js, /serviceWorker\.register/);
   assert.doesNotMatch(js, /navigator\.share|execution:'not-performed'|archie-objective-packet/);
+});
+
+test('Archie multimodal showcase executes real browser primitives instead of pre-rendered proof theater', async () => {
+  const [html, css, js] = await Promise.all([read('index.html'), read('archie.css'), readScripts()]);
+  for (const id of ['motionField', 'imageInput', 'voiceButton', 'imageStage', 'pictureGrid', 'lossChart', 'confusionMatrix', 'distillButton', 'quantCanvas', 'recordShowcase']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  for (const primitive of ['SEE', 'HEAR', 'ROUTE', 'COMPOSE', 'COMPRESS', 'SPEAK']) {
+    assert.match(html, new RegExp(`>${primitive}<`));
+  }
+  assert.match(html, /Six views from one picture/);
+  assert.match(html, /Train a student in this tab/);
+  assert.match(html, /Screen recording is downloaded locally as WebM and is never uploaded/);
+  assert.match(css, /#motionField\{position:fixed;inset:0/);
+  assert.match(css, /\[hidden\]\{display:none!important\}/);
+  for (const mechanism of [
+    'createImageBitmap',
+    'analyzeCanvas',
+    'loadSurfaceRouter',
+    'classifySurface',
+    'renderVariant',
+    'getUserMedia',
+    'SpeechRecognition',
+    'speechSynthesis',
+    'getDisplayMedia',
+    'MediaRecorder',
+    'distillStudent',
+    'Float32Array',
+    'Math.log',
+    'renderConfusionMatrix',
+    'quantizeStudent',
+  ]) assert.match(js, new RegExp(mechanism));
+  assert.match(js, /video\/webm/);
+  assert.match(js, /image_signature/);
+  assert.match(js, /SURFACE_MODEL_SHA256='6703c4095dd8c2e65f58f8f4c5e18fbe51f2c93c8f71e3aeab363216a9aee705'/);
+  assert.match(js, /no OCR, object recognition/);
+  assert.match(js, /response_generation:'deterministic'/);
+  assert.doesNotMatch(js, /api\.openai|anthropic|gemini|replicate|fal\.ai/i);
 });
