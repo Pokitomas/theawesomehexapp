@@ -1,0 +1,52 @@
+{
+  "schema": "archie-budgeted-neural-training-plan/v1",
+  "status": "implementation-only-no-neural-artifact",
+  "base_model": {
+    "repository": "Qwen/Qwen3-1.7B",
+    "revision": "8d4744f9e13072f4920c326350fa81eedb74eae9",
+    "state": "external-checkpoint-required"
+  },
+  "training": {
+    "method": "verifier-anchored-causal-divergence-qlora/v1",
+    "objective": "policy-only-causal-margin/v1",
+    "token_budget_method": "lineage-atomic-information-per-token/v1",
+    "token_budget_fraction": 0.7,
+    "max_sequence_tokens": 1024,
+    "max_post_divergence_tokens": 256,
+    "lora": {
+      "rank": 24,
+      "alpha": 48,
+      "rank_stabilized": true,
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ]
+    },
+    "inline_evaluation": false,
+    "external_frozen_base_verifier_required": true,
+    "estimated_forward_token_reduction_fraction": 0.65
+  },
+  "publishable_only_after": [
+    "actual_gradient_steps",
+    "changed_weight_or_adapter_tensors",
+    "exact_base_model_and_dataset_digests",
+    "training_receipt",
+    "held_out_comparison",
+    "fused_model_evaluation",
+    "quantization_retention_results",
+    "independent_admission_decision"
+  ],
+  "artifacts_present": {
+    "trained_checkpoint": false,
+    "changed_lora_adapter": false,
+    "fused_model": false,
+    "quantized_trained_model": false
+  },
+  "promotion": "not-admitted",
+  "claim_boundary": "This file binds an executable training design only. It is not evidence that neural training ran or that any neural artifact exists."
+}
