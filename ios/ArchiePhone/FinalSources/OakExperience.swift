@@ -50,20 +50,32 @@ struct OakPlan: Sendable {
 }
 
 actor OakExperienceStore {
+    private let root: URL
     private let fileURL: URL
     private var snapshot: OakSnapshot
     private let encoder: JSONEncoder
 
-    init(fileManager: FileManager = .default) throws {
-        let base = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let root = base.appendingPathComponent("ArchieExperience", isDirectory: true)
+    init(root overrideRoot: URL? = nil, fileManager: FileManager = .default) throws {
+        if let overrideRoot {
+            root = overrideRoot
+        } else {
+            let base = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            root = base.appendingPathComponent("ArchieExperience", isDirectory: true)
+        }
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
         try? fileManager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: root.path)
         fileURL = root.appendingPathComponent("oak-v1.json")
         encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        if let data = try? Data(contentsOf: fileURL), let decoded = try? JSONDecoder().decode(OakSnapshot.self, from: data) {
-            snapshot = decoded
+
+        if let data = try? Data(contentsOf: fileURL) {
+            do {
+                snapshot = try JSONDecoder().decode(OakSnapshot.self, from: data)
+            } catch {
+                let quarantine = root.appendingPathComponent("oak-v1.corrupt-\(UUID().uuidString).json")
+                try? fileManager.moveItem(at: fileURL, to: quarantine)
+                snapshot = OakSnapshot()
+            }
         } else {
             snapshot = OakSnapshot()
         }
@@ -88,14 +100,15 @@ actor OakExperienceStore {
     }
 
     func record(objective: String, mode: String, result: String, plan: OakPlan, reward: Double) throws {
+        let boundedReward = max(0, min(1, reward))
         let now = Date()
         for key in plan.featureKeys {
             if let index = snapshot.features.firstIndex(where: { $0.id == key }) {
                 snapshot.features[index].observations += 1
-                snapshot.features[index].utility += 0.08 * (reward - snapshot.features[index].utility)
+                snapshot.features[index].utility += 0.08 * (boundedReward - snapshot.features[index].utility)
                 snapshot.features[index].lastSeenAt = now
             } else {
-                snapshot.features.append(ArchieFeature(id: key, label: Self.label(for: key, objective: objective), observations: 1, utility: reward, lastSeenAt: now))
+                snapshot.features.append(ArchieFeature(id: key, label: Self.label(for: key, objective: objective), observations: 1, utility: boundedReward, lastSeenAt: now))
             }
         }
 
@@ -113,19 +126,23 @@ actor OakExperienceStore {
         if let index = snapshot.options.firstIndex(where: { $0.id == optionID }) {
             let attempts = snapshot.options[index].attempts
             snapshot.options[index].attempts += 1
-            snapshot.options[index].meanReward = (snapshot.options[index].meanReward * Double(attempts) + reward) / Double(attempts + 1)
+            snapshot.options[index].meanReward = (snapshot.options[index].meanReward * Double(attempts) + boundedReward) / Double(attempts + 1)
             snapshot.options[index].lastUsedAt = now
         }
         if let index = snapshot.models.firstIndex(where: { $0.optionID == optionID }) {
             snapshot.models[index].observedTransitions += 1
-            snapshot.models[index].expectedReward += 0.12 * (reward - snapshot.models[index].expectedReward)
+            snapshot.models[index].expectedReward += 0.12 * (boundedReward - snapshot.models[index].expectedReward)
             snapshot.models[index].confidence = min(0.98, 1 - exp(-Double(snapshot.models[index].observedTransitions) / 8))
         } else {
-            snapshot.models.append(OptionModel(optionID: optionID, expectedReward: reward, confidence: 0.12, observedTransitions: 1))
+            snapshot.models.append(OptionModel(optionID: optionID, expectedReward: boundedReward, confidence: 0.12, observedTransitions: 1))
         }
 
-        snapshot.events.insert(ExperienceEvent(id: UUID(), objective: objective, mode: mode, result: result, featureKeys: plan.featureKeys, optionID: optionID, reward: reward, createdAt: now), at: 0)
+        snapshot.events.insert(ExperienceEvent(id: UUID(), objective: objective, mode: mode, result: result, featureKeys: plan.featureKeys, optionID: optionID, reward: boundedReward, createdAt: now), at: 0)
         snapshot.events = Array(snapshot.events.prefix(300))
+        snapshot.features = Array(snapshot.features.sorted { $0.lastSeenAt > $1.lastSeenAt }.prefix(500))
+        snapshot.options = Array(snapshot.options.sorted { $0.lastUsedAt > $1.lastUsedAt }.prefix(300))
+        let admittedOptionIDs = Set(snapshot.options.map(\.id))
+        snapshot.models = Array(snapshot.models.filter { admittedOptionIDs.contains($0.optionID) }.prefix(300))
         try persist()
     }
 
