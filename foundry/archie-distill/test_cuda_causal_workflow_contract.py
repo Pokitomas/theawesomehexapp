@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Dependency-free contract for the causal-divergence CUDA execution bridge."""
 from __future__ import annotations
-
 import json
 import pathlib
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 METHOD = "verifier-anchored-causal-divergence-qlora/v1"
+POLICY_ONLY_OBJECTIVE = "policy-only-causal-margin/v1"
 
 
 class CudaCausalWorkflowContractTest(unittest.TestCase):
@@ -25,8 +25,15 @@ class CudaCausalWorkflowContractTest(unittest.TestCase):
         self.assertEqual(self.request["baseline_commit"], "8bb6fac2809afcc55f91f900bc6bf16f84dfb788")
         self.assertEqual(self.request["promotion"], "not-admitted")
 
-    def test_profile_is_exact_and_not_placeholder(self):
-        self.assertEqual(self.profile["training"]["method"], METHOD)
+    def test_profile_is_budgeted_higher_capacity_and_not_placeholder(self):
+        training = self.profile["training"]
+        self.assertEqual(training["method"], METHOD)
+        self.assertEqual(training["objective"], POLICY_ONLY_OBJECTIVE)
+        self.assertTrue(training["use_rslora"])
+        self.assertGreaterEqual(training["lora_rank"], 24)
+        self.assertLess(training["token_budget_fraction"], 1.0)
+        self.assertFalse(training["inline_evaluation"])
+        self.assertFalse(training["gradient_checkpointing"])
         self.assertEqual(self.profile["student"]["revision"], "8d4744f9e13072f4920c326350fa81eedb74eae9")
         self.assertNotIn("replace-with", json.dumps(self.profile))
         self.assertGreaterEqual(self.profile["footprint"]["recommended_gpu_vram_bytes"], 12_000_000_000)
