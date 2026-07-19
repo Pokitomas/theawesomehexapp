@@ -1,124 +1,14 @@
-const $ = id => document.getElementById(id);
-const STORAGE_KEY = 'archie:knowledge-utility:v2';
-const FIELDS = ['objective', 'project', 'base', 'protected', 'proof'];
-let deferredInstall = null;
-
-const canonical = value => Array.isArray(value)
-  ? value.map(canonical)
-  : value && typeof value === 'object'
-    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]))
-    : value;
-const stable = value => JSON.stringify(canonical(value));
-const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-const digest = async value => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
-const escapeHtml = value => value.replace(/[<>&]/g, character => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[character]);
-
-function formState() {
-  return Object.fromEntries(FIELDS.map(id => [id, $(id).value.trim()]));
-}
-function authorities() {
-  return [...document.querySelectorAll('.authority input:checked')].map(input => input.value);
-}
-async function buildPacket() {
-  const current = formState();
-  const payload = {
-    schema: 'archie-objective-packet/v1',
-    created_at: new Date().toISOString(),
-    objective: current.objective,
-    world: { project: current.project || null, base: current.base || null },
-    protected_reality: current.protected || null,
-    proof_of_done: current.proof || null,
-    authority: {
-      granted: authorities(),
-      human_gates: ['merge', 'production-data', 'credentials', 'external-spending'],
-      execution:'not-performed'
-    },
-    continuity: { surface: 'archie-knowledge-utility', storage: 'local-device', runtime: 'unobserved' },
-    claim_boundary: 'This packet records intent and authority. It does not claim execution, model capability, deployment, or completion.'
-  };
-  return { ...payload, packet_digest: await digest(stable(payload)) };
-}
-async function render(message = 'Draft saved locally. No model execution claimed.') {
-  const current = formState();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, authorities: authorities() }));
-  const packet = await buildPacket();
-  $('packet').textContent = JSON.stringify(packet, null, 2);
-  $('packet-card').innerHTML = current.objective
-    ? `<strong>PACKET READY</strong><p>${escapeHtml(current.objective).slice(0, 260)}</p>`
-    : '<strong>NO OBJECTIVE YET</strong><p>Enter a request to create a portable packet.</p>';
-  $('status-message').textContent = message;
-}
-function restore() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    FIELDS.forEach(id => { $(id).value = saved[id] || ''; });
-    if (Array.isArray(saved.authorities)) {
-      document.querySelectorAll('.authority input').forEach(input => { input.checked = saved.authorities.includes(input.value); });
-    }
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-  }
-}
-async function copyPacket() {
-  await navigator.clipboard.writeText(JSON.stringify(await buildPacket(), null, 2));
-  await render('Packet copied to clipboard.');
-}
-async function sharePacket() {
-  const text = JSON.stringify(await buildPacket(), null, 2);
-  if (navigator.share) await navigator.share({ title: 'Archie objective packet', text });
-  else await navigator.clipboard.writeText(text);
-  await render(navigator.share ? 'Share sheet opened.' : 'Share unavailable; packet copied instead.');
-}
-function updateNetwork() {
-  $('network-dot').style.background = navigator.onLine ? '#00aa00' : '#ffcc00';
-  $('runtime-state').textContent = navigator.onLine ? 'ONLINE / RUNTIME UNOBSERVED' : 'OFFLINE / LOCAL ONLY';
-  $('continuity-state').textContent = navigator.onLine ? 'Online; local draft recovered' : 'Offline; local draft recovered';
-}
-
-restore();
-FIELDS.forEach(id => $(id).addEventListener('input', () => render()));
-document.querySelectorAll('.authority input').forEach(input => input.addEventListener('change', () => render()));
-document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => {
-  $('objective').value = button.dataset.prompt;
-  $('objective').focus();
-  render('Starter inserted. Edit it into the actual finished reality.');
-}));
-document.querySelectorAll('[data-focus]').forEach(button => button.addEventListener('click', () => {
-  const target = button.dataset.focus === 'packet' ? $('packet') : $(button.dataset.focus);
-  target?.focus();
-}));
-document.querySelector('[data-open-packet]').addEventListener('click', () => $('packet').focus());
-document.querySelectorAll('[data-command]').forEach(button => button.addEventListener('click', () => {
-  if (button.dataset.command === 'new') {
-    localStorage.removeItem(STORAGE_KEY);
-    FIELDS.forEach(id => { $(id).value = ''; });
-    render('New blank request opened.');
-  } else if (button.dataset.command === 'copy') copyPacket().catch(() => render('Clipboard access failed.'));
-  else if (button.dataset.command === 'help') render('Help: write the result, identify the workspace, protect reality, define proof, then open Maker.');
-  else render(`${button.textContent} inspector is visible in the current window.`);
-}));
-$('copy').addEventListener('click', () => copyPacket().catch(() => render('Clipboard access failed.')));
-$('share').addEventListener('click', () => sharePacket().catch(() => render('Sharing failed. The packet remains visible below.')));
-$('clear').addEventListener('click', () => {
-  localStorage.removeItem(STORAGE_KEY);
-  FIELDS.forEach(id => { $(id).value = ''; });
-  document.querySelectorAll('.authority input').forEach(input => { input.checked = ['read', 'research'].includes(input.value); });
-  render('Local notebook cleared.');
-});
-window.addEventListener('online', updateNetwork);
-window.addEventListener('offline', updateNetwork);
-window.addEventListener('beforeinstallprompt', event => {
-  event.preventDefault();
-  deferredInstall = event;
-  $('install').hidden = false;
-});
-$('install').addEventListener('click', async () => {
-  if (!deferredInstall) return;
-  deferredInstall.prompt();
-  await deferredInstall.userChoice;
-  deferredInstall = null;
-  $('install').hidden = true;
-});
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-updateNetwork();
-render('Ready. Local organizer only; no model execution claimed.');
+const KEY='archie-personal-operator/v2',MAX=30,$=id=>document.getElementById(id),clean=v=>String(v||'').replace(/\r/g,'').trim(),compact=v=>clean(v).replace(/\s+/g,' '),esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return{history:Array.isArray(x.history)?x.history:[],activeObjective:typeof x.activeObjective==='string'?x.activeObjective:''}}catch{return{history:[],activeObjective:''}}}
+const state=load();
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function digest(v){let h=2166136261;for(const c of v){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16).padStart(8,'0')}
+function core(t){return compact(t).replace(/^(please\s+)?archie[, :]*/i,'').replace(/^(turn|make|draft|write|summarize|organize|plan|help me|break down|track)\s+(this|me|a|an|my)?\s*/i,'').replace(/^(messy thought|text|message|checklist|assignment|event|objective|goal)\s*(into|for|that says|:|-)?\s*/i,'').trim()||compact(t)}
+function parts(t){return[...new Set(clean(t).split(/\n|;|,(?=\s)|\band then\b|\bthen\b/i).map(compact).filter(Boolean))].slice(0,8)}
+function mode(t){const s=t.toLowerCase();if(/\b(summarize|summary|tl;dr|tldr)\b/.test(s))return'summary';if(/\b(checklist|check list|to[- ]?do|tasks?)\b/.test(s))return'checklist';if(/\b(draft|write|reply|respond|text|email|message)\b/.test(s))return'message';if(/\b(decide|decision|choose|which should|pros and cons)\b|\sor\s/.test(s))return'decision';if(/\b(assignment|study|exam|homework|class|essay|project due)\b/.test(s))return'study';if(/\b(event|party|dinner|meeting|hangout|birthday|picnic)\b/.test(s))return'event';if(/\b(errand|grocer|shopping|pick up|drop off|appointments?)\b/.test(s))return'errands';if(/\b(track|active objective|active goal|my goal)\b/.test(s))return'objective';if(/\b(next|what do i do|stuck|first step)\b/.test(s))return'next_action';return'plan'}
+function generate(t,m){const s=core(t);if(m==='summary'){const a=clean(s).replace(/\n+/g,' ').split(/(?<=[.!?])\s+/).map(compact).filter(Boolean).slice(0,3);return a.length?a.map((x,i)=>`${i+1}. ${x}`).join('\n'):'Nothing useful was provided to summarize.'}if(m==='checklist'){let a=parts(s);if(a.length<2)a=[`Define the finished outcome for ${s}`,'Gather the minimum information or materials needed','Do the first concrete step','Check the result and close the loop'];return a.map(x=>`☐ ${x.replace(/[.!]+$/,'')}`).join('\n')}if(m==='message'){const b=s.replace(/^that says\s*:?\s*/i,'')||'I wanted to follow up and see where things stand.';const hi=/recruit|job|interview|manager|professional|email/i.test(t)?'Hi —':'Hey —';return`${hi}\n\n${b.charAt(0).toUpperCase()}${b.slice(1).replace(/[.!?]*$/,'.')}\n\nThanks!`}if(m==='decision'){const x=s.match(/(?:between\s+)?(.+?)\s+or\s+(.+?)(?:[.?!]|$)/i);return x?`Call: choose ${compact(x[1])}.\n\nWhy: start with the option that is easier to reverse and more likely to produce new information. Choose ${compact(x[2])} only if it clearly protects a deadline, safety, or a commitment you already made.`:'Call: take the smallest reversible option that creates real information today. Delay only when a specific missing fact is scheduled to arrive.'}if(m==='study')return`Assignment: ${s.replace(/[.!?]+$/,'')}\n\n1. Write the exact deliverable and deadline.\n2. Split it into research, rough draft, revision, and submission.\n3. Do one 25-minute block on the first unfinished part.\n4. Leave the last block for checking the rubric and submitting.`;if(m==='event')return`Event: ${s.replace(/[.!?]+$/,'')}\n\n☐ Confirm the purpose, date, time, and place\n☐ Make the guest list and send one clear invitation\n☐ Decide food, supplies, and a simple budget\n☐ Set one reminder 24 hours before\n☐ Keep one backup plan for weather or cancellations`;if(m==='errands'){const a=parts(s),list=a.length>1?a:[s];return`Errand run\n\n${list.map((x,i)=>`${i+1}. ${x.replace(/[.!]+$/,'')}`).join('\n')}\n\nRoute rule: group stops by area, do anything time-sensitive first, and finish with groceries or temperature-sensitive items.`}if(m==='objective'){state.activeObjective=s.replace(/^(objective|goal)\s*:?\s*/i,'');return`Active objective saved: ${state.activeObjective.replace(/[.!?]+$/,'')}.\n\nNext checkpoint: define one result you can verify today, then record the outcome here.`}if(m==='next_action')return`Next action: spend 10 minutes producing the smallest visible piece of progress on “${s}.”\n\nStop after that step and reassess from what changed.`;return`1. Name the outcome: ${s.replace(/[.!?]+$/,'')}.\n2. Do the smallest action that creates visible progress or a response today.\n3. Set one checkpoint, then stop planning until you have new information.`}
+const names={summary:'Summary',checklist:'Checklist',message:'Message draft',decision:'Decision aid',study:'Study breakdown',event:'Event plan',errands:'Errand plan',objective:'Objective',next_action:'Next action',plan:'Short plan'};
+function show(x){$('modeLabel').textContent=names[x.mode]||'Result';$('answer').textContent=x.response;$('receipt').textContent=`local deterministic receipt ${x.digest} · neural_evidence: false`;$('result').classList.add('open');$('result').scrollIntoView({behavior:'smooth',block:'nearest'})}
+function ask(){const request=clean($('prompt').value);if(!request)return $('prompt').focus();const m=mode(request),response=generate(request,m),x={request,response,mode:m,timestamp:new Date().toISOString(),digest:digest(`${m}\n${request}\n${response}`),neural_evidence:false};state.history.unshift(x);state.history=state.history.slice(0,MAX);save();show(x);render()}
+function render(){const objective=clean(state.activeObjective);$('objective').classList.toggle('open',!!objective);$('objectiveText').textContent=objective;$('count').textContent=`${state.history.length} saved`;$('clearHistory').hidden=!state.history.length;if(!state.history.length){$('items').innerHTML='<div class="empty"><strong>Archie is new.</strong> There are no users, shared projects, or community activity here yet. Your work stays on this device.</div>';return}$('items').innerHTML=state.history.map((x,i)=>`<article class="history-item"><h3>${esc(x.request)}</h3><div class="history-meta">${esc(names[x.mode]||x.mode)} · ${esc(new Date(x.timestamp).toLocaleString())} · ${esc(x.digest)}</div><p class="history-preview">${esc(x.response.length>180?`${x.response.slice(0,177)}…`:x.response)}</p><button class="history-open" type="button" data-history-index="${i}">Open result</button></article>`).join('')}
+document.querySelectorAll('[data-example]').forEach(b=>b.addEventListener('click',()=>{$('prompt').value=b.dataset.example;$('prompt').focus();$('prompt').setSelectionRange($('prompt').value.length,$('prompt').value.length)}));$('ask').addEventListener('click',ask);$('clearPrompt').addEventListener('click',()=>{$('prompt').value='';$('prompt').focus()});$('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('answer').textContent);$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy result',1200)}catch{$('copy').textContent='Copy unavailable'}});$('clearObjective').addEventListener('click',()=>{state.activeObjective='';save();render()});$('clearHistory').addEventListener('click',()=>{state.history=[];save();$('result').classList.remove('open');render()});$('items').addEventListener('click',e=>{const b=e.target.closest('[data-history-index]');if(b&&state.history[Number(b.dataset.historyIndex)])show(state.history[Number(b.dataset.historyIndex)])});$('prompt').addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter')ask()});if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});render();
