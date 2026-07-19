@@ -81,11 +81,11 @@
       "required": true
     },
     "changed_archie_adapter_tensors": {
-      "status": "not-established-at-canonical-configuration",
+      "status": "not-established-in-repository",
       "required": true
     },
     "held_out_quality_gain": {
-      "status": "not-established-at-canonical-evaluation-scope",
+      "status": "not-established-in-repository",
       "required": true
     },
     "compute_quality_pareto_gain": {
