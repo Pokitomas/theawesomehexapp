@@ -1,3 +1,3 @@
-Dispatch the admitted Archie Pages workflow from main commit a80194a6a55f122dc963e02cfaf1a751a9247740.
+Dispatch the admitted multimodal Archie Pages workflow from main commit 75771df0051016233594d76fbbc8485f0ed62a22.
 This marker branch is execution-only and must not be merged.
-Synchronization nonce: direct-reusable-release-v1.
+Synchronization nonce: explicit-deploy-input-v1.
