@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Archie">
-  <meta name="description" content="Archie is a simple private assistant for turning a messy request into one useful result.">
+  <meta name="description" content="Archie is a simple private assistant with a verified local neural task router.">
   <title>Archie</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
@@ -41,7 +41,7 @@
       <button class="example" type="button" data-example="Break down this assignment: ">Assignment</button>
     </div>
 
-    <div class="truth"><strong>Local deterministic assistance.</strong> This public web version uses fixed rules in your browser, not neural inference. It cannot contact people, use accounts, browse, or complete actions outside this page.</div>
+    <div class="truth"><strong id="modelState">Verifying local neural router…</strong> <span id="modelDetail">Archie will fail closed to deterministic routing if the admitted model digest does not match.</span> It cannot contact people, use accounts, browse, or complete actions outside this page.</div>
 
     <section class="result" id="result" aria-live="polite">
       <div class="mode" id="modeLabel">Result</div>
@@ -58,7 +58,7 @@
       <div class="history-head"><h2>History</h2><div class="history-actions"><span id="count">0 saved</span><button class="secondary" id="clearHistory" type="button">Clear history</button></div></div>
       <div class="items" id="items"></div>
     </section>
-    <p class="footnote">Archie preserves completed requests only in this browser. Nothing is uploaded by this page.</p>
+    <p class="footnote">The admitted model routes tasks only. Response text is deterministic. Completed requests stay in this browser and are not uploaded.</p>
   </main>
   <script src="./archie.js" defer></script>
 </body>
