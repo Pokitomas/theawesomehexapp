@@ -1,0 +1,78 @@
+{
+  "schema": "archie-model-status/v1",
+  "model_id": "archie-qwen3-1.7b-information-budgeted-rslora-v1",
+  "promotion": "not-admitted",
+  "canonical_candidate": true,
+  "implementation_state": {
+    "pair_compiler": "implemented",
+    "information_budgeted_segmentation": "implemented",
+    "frozen_reference_cache": "implemented",
+    "stacked_policy_forward": "implemented",
+    "rslora_training": "implemented",
+    "changed_tensor_verification": "implemented",
+    "scale_correct_fusion": "implemented",
+    "full_sequence_specialist_gate": "implemented",
+    "full_sequence_fused_gate": "implemented",
+    "quantization_and_admission_plumbing": "implemented"
+  },
+  "observed_evidence": {
+    "dependency_light_contracts": {
+      "status": "present",
+      "command": "python foundry/archie-distill/test_information_budgeted_rslora.py",
+      "scope": "replay, attention-area reduction, lineage atomicity, cached-reference equivalence, gradient flow, RSLoRA fallback, fusion scaling, and non-promotion contracts"
+    },
+    "canonical_cuda_gradient_run": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "changed_archie_adapter_tensors": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "held_out_quality_gain": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "compute_quality_pareto_gain": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "fused_candidate_gain": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "quantization_retention": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "independent_reproduction": {
+      "status": "not-established-in-repository",
+      "required": true
+    },
+    "whole_intention_product_completion": {
+      "status": "not-established-at-admission-quality",
+      "required": true
+    }
+  },
+  "next_required_evidence_sequence": [
+    "freeze exact base, tokenizer, trajectory batch, profile, and code digests",
+    "run real CUDA specialist training",
+    "prove initial and trained adapter tensors differ",
+    "compare each specialist against the frozen base on the full held-out sequence",
+    "fuse only non-regressive specialists using exact scale-aware delta concatenation",
+    "evaluate the fused adapter against the frozen base",
+    "quantize and prove case-level retention",
+    "reproduce on an independent machine",
+    "run the personally designed whole-intention benchmark suite",
+    "admit or reject without changing the evidence"
+  ],
+  "false_claims_to_reject": [
+    "contract tests are equivalent to training",
+    "CPU segmentation is a neural update",
+    "changed tensors alone prove quality",
+    "fusion alone creates intelligence",
+    "a successful workflow status proves a model improved",
+    "an unadmitted adapter is the released Archie model"
+  ],
+  "source_of_truth": "Receipt-bound artifacts produced by the canonical workflow and benchmark suite, not prose or branch names."
+}
