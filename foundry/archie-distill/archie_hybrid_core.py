@@ -201,14 +201,14 @@ class SelectiveStateSpace(nn.Module):
         proposal = torch.tanh(mixed + proposal_raw)
         read = torch.sigmoid(read_raw)
         rate = -torch.exp(self.A_log.float()).to(device=x.device)
-        decay = torch.exp(rate[None, None] * dt.float()).clamp_(min=1e-5, max=1.0)
+        decay = torch.exp(rate[None, None] * dt.float()).clamp(min=1e-5, max=1.0)
         drive = (1.0 - decay) * proposal.float()
         state = torch.zeros(x.size(0), self.inner, dtype=torch.float32, device=x.device)
         chunks: list[torch.Tensor] = []
         for start in range(0, x.size(1), 64):
             a = decay[:, start:start + 64]
             b = drive[:, start:start + 64]
-            prefix = torch.cumprod(a, dim=1).clamp_min_(1e-20)
+            prefix = torch.cumprod(a, dim=1).clamp_min(1e-20)
             states = prefix * (state[:, None] + torch.cumsum(b / prefix, dim=1))
             state = states[:, -1]
             chunks.append(states)
