@@ -5,72 +5,61 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Archie">
-  <meta name="description" content="Archie is a simple private command center for turning messy situations into the next move.">
+  <meta name="description" content="Archie is a simple private assistant for turning a messy request into one useful result.">
   <title>Archie</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <style>
-    :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f6f7f8;background:#08090b;--panel:#121419;--line:#292d35;--muted:#9ca3af;--signal:#ff5a36;--good:#63d297}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -20%,#222731 0,#08090b 48%)}button,textarea{font:inherit}.shell{width:min(760px,100%);margin:0 auto;padding:env(safe-area-inset-top) 16px calc(80px + env(safe-area-inset-bottom))}.top{display:flex;align-items:center;justify-content:space-between;padding:18px 2px}.brand{font-weight:950;font-size:22px;letter-spacing:-.05em}.state{font-size:12px;color:var(--muted)}.orb{width:112px;height:112px;border-radius:50%;margin:34px auto 26px;background:radial-gradient(circle at 38% 32%,#fff 0 2%,#ffb49f 3%,var(--signal) 16%,#8b1b0c 56%,#140604 72%);box-shadow:0 0 24px rgba(255,90,54,.46),0 0 80px rgba(255,90,54,.18);animation:breathe 3.4s ease-in-out infinite}@keyframes breathe{50%{transform:scale(1.035);box-shadow:0 0 34px rgba(255,90,54,.62),0 0 100px rgba(255,90,54,.24)}}h1{font-size:clamp(34px,9vw,58px);line-height:.96;letter-spacing:-.065em;text-align:center;margin:0 auto 12px;max-width:640px}.sub{text-align:center;color:var(--muted);font-size:17px;line-height:1.45;margin:0 auto 28px;max-width:620px}.honest{display:flex;gap:10px;align-items:flex-start;background:#101217;border:1px solid var(--line);border-radius:16px;padding:13px 14px;margin:0 0 14px;color:#c9cdd4;font-size:13px;line-height:1.4}.dot{width:8px;height:8px;border-radius:50%;background:var(--good);margin-top:5px;flex:none}.composer{background:var(--panel);border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.32)}textarea{display:block;width:100%;min-height:148px;border:0;background:transparent;color:white;padding:20px;font-size:21px;line-height:1.35;outline:none;resize:vertical}textarea::placeholder{color:#717784}.actions{display:flex;gap:10px;padding:12px;border-top:1px solid var(--line)}button{border:0;border-radius:14px;min-height:48px;padding:0 16px;font-weight:850;cursor:pointer}.ghost{background:#20242b;color:#d6dae1}.primary{background:var(--signal);color:white;flex:1}.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}.chip{background:#111319;color:#dfe3e8;border:1px solid var(--line);text-align:left;padding:14px;min-height:68px}.chip b{display:block;margin-bottom:4px}.chip span{color:var(--muted);font-size:12px}.result{display:none;margin-top:18px;background:#f5f1e8;color:#111;border-radius:24px;padding:20px}.result.open{display:block}.result h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;margin:0 0 12px;color:#7a3b2d}.result .answer{font-size:21px;line-height:1.5;white-space:pre-wrap}.result footer{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid #d9d2c8;font-size:12px;color:#6f685f}.history{margin-top:28px}.history-head{display:flex;justify-content:space-between;align-items:center}.history h2{font-size:18px;margin:0}.count{font-size:12px;color:var(--muted)}.items{display:grid;gap:10px;margin-top:12px}.item{background:#101217;border:1px solid var(--line);border-radius:16px;padding:14px}.item b{display:block;margin-bottom:5px}.item p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}.empty{color:#6f7580;font-size:14px;padding:20px 0}.footnote{margin-top:28px;color:#6f7580;font-size:12px;line-height:1.45;text-align:center}@media(max-width:560px){.quick{grid-template-columns:1fr}.orb{margin-top:20px}h1{font-size:42px}.actions{flex-wrap:wrap}.ghost{width:100%}}
-  </style>
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="stylesheet" href="./archie.css">
 </head>
 <body>
   <main class="shell">
-    <header class="top"><div class="brand">Archie</div><div class="state">private on this device</div></header>
-    <div class="orb" aria-hidden="true"></div>
-    <h1>What do you need handled?</h1>
-    <p class="sub">Dump the situation. Archie gives you the next move, a message, or a tiny plan. No dashboard. No fake team. No pretending it already has users.</p>
-    <div class="honest"><span class="dot"></span><span><b>You are early.</b> This public build has no accounts, community, or active-user count. Your notes stay in this browser. The native iPhone build is the one designed to use the verified local model.</span></div>
-    <section class="composer">
-      <textarea id="input" aria-label="Tell Archie what you need handled" placeholder="Example: I need to follow up with a recruiter who went quiet, but I don't want to sound desperate."></textarea>
-      <div class="actions"><button class="ghost" id="clear">Clear</button><button class="primary" id="handle">Handle it</button></div>
+    <header class="top"><div class="brand">Archie</div><div class="privacy">private on this device</div></header>
+    <section class="hero">
+      <div class="orb" aria-hidden="true"></div>
+      <h1>Tell Archie what you need handled.</h1>
+      <p>Give it the messy version. Archie will return one useful result.</p>
     </section>
-    <section class="quick" aria-label="Quick actions">
-      <button class="chip" data-mode="next"><b>Give me the next move</b><span>One concrete action, not a strategy deck.</span></button>
-      <button class="chip" data-mode="message"><b>Write the message</b><span>Natural, direct, and ready to send.</span></button>
-      <button class="chip" data-mode="plan"><b>Turn it into a tiny plan</b><span>Three steps max.</span></button>
-      <button class="chip" data-mode="decide"><b>Make the call</b><span>Choose between the options and say why.</span></button>
+
+    <section class="composer" aria-label="Ask Archie">
+      <label class="sr-only" for="prompt">Tell Archie what you need handled</label>
+      <textarea id="prompt" placeholder="Paste text, explain the situation, or say what you need next."></textarea>
+      <div class="composer-actions">
+        <button class="secondary" id="clearPrompt" type="button">Clear</button>
+        <button class="primary" id="ask" type="button">Ask Archie</button>
+      </div>
     </section>
-    <section class="result" id="result"><h2 id="resultLabel">Archie</h2><div class="answer" id="answer"></div><footer><span id="receipt"></span><button class="ghost" id="copy">Copy</button></footer></section>
-    <section class="history"><div class="history-head"><h2>Handled here</h2><span class="count" id="count">0</span></div><div class="items" id="items"></div></section>
-    <p class="footnote">This web app uses a deterministic local helper so the public link works without keys. It does not claim live neural inference. The native Archie app separately verifies and loads its admitted on-device model.</p>
+
+    <div class="examples" aria-label="Examples">
+      <button class="example" type="button" data-example="Turn this messy thought into a short plan: ">Short plan</button>
+      <button class="example" type="button" data-example="Summarize this text: ">Summarize text</button>
+      <button class="example" type="button" data-example="Draft a message that says: ">Draft message</button>
+      <button class="example" type="button" data-example="Make me a checklist for: ">Checklist</button>
+      <button class="example" type="button" data-example="Help me decide between A and B. Context: ">Decide</button>
+      <button class="example" type="button" data-example="Break down this assignment: ">Assignment</button>
+    </div>
+
+    <div class="truth"><strong>Local deterministic assistance.</strong> This public web version uses fixed rules in your browser, not neural inference. It cannot contact people, use accounts, browse, or complete actions outside this page.</div>
+
+    <section class="result" id="result" aria-live="polite">
+      <div class="mode" id="modeLabel">Result</div>
+      <div class="answer" id="answer"></div>
+      <div class="receipt"><span id="receipt"></span><button class="secondary" id="copy" type="button">Copy result</button></div>
+    </section>
+
+    <section class="objective" id="objective" aria-label="Active objective">
+      <div class="objective-label">Active objective</div>
+      <div class="objective-row"><div class="objective-text" id="objectiveText"></div><button class="secondary" id="clearObjective" type="button">Clear objective</button></div>
+    </section>
+
+    <section class="history">
+      <div class="history-head"><h2>History</h2><div class="history-actions"><span id="count">0 saved</span><button class="secondary" id="clearHistory" type="button">Clear history</button></div></div>
+      <div class="items" id="items"></div>
+    </section>
+    <p class="footnote">Archie preserves completed requests only in this browser. Nothing is uploaded by this page.</p>
   </main>
-  <script>
-    const KEY='archie-simple/v1';
-    const state=JSON.parse(localStorage.getItem(KEY)||'{"history":[]}');
-    const $=id=>document.getElementById(id);
-    let mode='next';
-    const clean=s=>String(s||'').trim();
-    const sentence=s=>{const x=clean(s).replace(/\s+/g,' ');return x.endsWith('.')?x:x+'.'};
-    const title=s=>clean(s).replace(/\s+/g,' ').slice(0,72)||'Untitled situation';
-    function digest(text){let h=2166136261;for(const c of text){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16).padStart(8,'0')}
-    function subjectOf(text){const first=clean(text).split(/[.!?\n]/)[0];return first.length>90?first.slice(0,87)+'…':first}
-    function generate(text,selected){
-      const t=clean(text);const lower=t.toLowerCase();const subject=subjectOf(t);
-      if(selected==='message'){
-        const greeting=lower.includes('recruit')||lower.includes('job')?'Hi —':'Hey —';
-        return `${greeting}\n\nQuick follow-up on ${subject.toLowerCase()}. I’m still interested, and I wanted to see whether there’s an update or anything else you need from me.\n\nThanks!`;
-      }
-      if(selected==='plan'){
-        return `1. Define the one outcome that matters: ${sentence(subject)}\n2. Do the smallest action that creates a response or visible progress today.\n3. Set one checkpoint, then stop planning until you have new information.`;
-      }
-      if(selected==='decide'){
-        const avoid=lower.includes('should i')?'Choose the option that creates information or momentum without locking you in.':'Do the reversible move first.';
-        return `${avoid}\n\nCall: act now in the smallest honest way. Waiting only makes sense when new information is actually scheduled to arrive.`;
-      }
-      if(lower.includes('email')||lower.includes('text')||lower.includes('message')||lower.includes('recruit')){
-        return `Send one short follow-up now. Keep it warm, specific, and easy to answer. Do not explain your anxiety or send multiple messages today.`;
-      }
-      if(lower.includes('app')||lower.includes('build')||lower.includes('idea')){
-        return `Make the smallest version that solves one repeated annoyance for you. One screen, one action, one saved result. Use it yourself before adding users, sharing, accounts, or community features.`;
-      }
-      return `Next move: take the smallest reversible action that produces new information about “${subject}”. Do it now, then reassess from the result instead of thinking longer.`;
-    }
-    function run(selected=mode){const text=clean($('input').value);if(!text){$('input').focus();return}mode=selected;const answer=generate(text,selected);const id=digest(text+selected+Date.now());state.history.unshift({id,title:title(text),answer,mode:selected,at:new Date().toISOString()});state.history=state.history.slice(0,12);localStorage.setItem(KEY,JSON.stringify(state));$('resultLabel').textContent=selected==='message'?'Message':selected==='plan'?'Tiny plan':selected==='decide'?'Call':'Next move';$('answer').textContent=answer;$('receipt').textContent=`local receipt ${id}`;$('result').classList.add('open');render()}
-    function render(){const host=$('items');$('count').textContent=String(state.history.length);if(!state.history.length){host.innerHTML='<div class="empty">Nothing yet. Archie starts empty because there are no fake users or seeded activity.</div>';return}host.innerHTML=state.history.map(x=>`<article class="item"><b>${escapeHTML(x.title)}</b><p>${escapeHTML(x.answer.split('\n')[0])}</p></article>`).join('')}
-    function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-    document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>run(button.dataset.mode));
-    $('handle').onclick=()=>run(mode);$('clear').onclick=()=>{$('input').value='';$('input').focus()};$('copy').onclick=async()=>{await navigator.clipboard.writeText($('answer').textContent);$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy',1200)};$('input').addEventListener('keydown',event=>{if((event.metaKey||event.ctrlKey)&&event.key==='Enter')run(mode)});render();
-  </script>
+  <script src="./archie.js" defer></script>
 </body>
 </html>
