@@ -7,7 +7,7 @@ on:
       - '.github/workflows/agent-patch-linux-cpu-training.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   patch:
@@ -18,8 +18,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: agent/archie-information-budgeted-rslora
-          persist-credentials: true
-      - name: Apply hosted CPU patch and remove temporary authority
+          persist-credentials: false
+      - name: Render hosted CPU workflow patch
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -31,7 +31,6 @@ jobs:
           path.write_text(text[:start] + text[end:], encoding='utf-8')
           PY
           python scripts/apply_archie_linux_cpu_workflow_patch.py
-          rm .github/workflows/agent-patch-linux-cpu-training.yml
           python -m py_compile foundry/archie-distill/linux_cpu_rslora_train.py
           python - <<'PY'
           import json, pathlib
@@ -40,8 +39,9 @@ jobs:
           assert sum(row['split'] == 'train' for row in rows) == 16
           assert sum(row['split'] == 'development' for row in rows) == 4
           PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/workflows/archie-information-budgeted-rslora.yml .github/workflows/agent-patch-linux-cpu-training.yml
-          git commit -m 'Run bounded RSLoRA training on hosted Linux CPUs'
-          git push origin HEAD:agent/archie-information-budgeted-rslora
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-hosted-cpu-workflow-patch
+          path: .github/workflows/archie-information-budgeted-rslora.yml
+          if-no-files-found: error
+          retention-days: 1
