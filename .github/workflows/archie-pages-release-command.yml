@@ -15,6 +15,76 @@ permissions:
   contents: read
 
 jobs:
+  release-witness:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_branch, 'archie-release-pr-')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Record trusted release entry
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const sourceRun = context.payload.workflow_run;
+            const issueNumber = sourceRun.pull_requests?.[0]?.number || 653;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: [
+                'Trusted Archie release entered default-branch execution.',
+                '',
+                `CALLER_RUN_ID=${context.runId}`,
+                `SOURCE_RUN_ID=${sourceRun.id}`,
+                `SOURCE_HEAD_BRANCH=${sourceRun.head_branch}`,
+                `SOURCE_HEAD_SHA=${sourceRun.head_sha}`,
+                `TRUSTED_CALLER_SHA=${context.sha}`,
+                'RELEASE_PHASE=started'
+              ].join('\n')
+            });
+
+  release-outcome:
+    needs: release-after-verified-pr
+    if: >-
+      always() &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_branch, 'archie-release-pr-')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    env:
+      RELEASE_RESULT: ${{ needs.release-after-verified-pr.result }}
+    steps:
+      - name: Record trusted release outcome
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const sourceRun = context.payload.workflow_run;
+            const issueNumber = sourceRun.pull_requests?.[0]?.number || 653;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: [
+                'Trusted Archie release finished.',
+                '',
+                `CALLER_RUN_ID=${context.runId}`,
+                `SOURCE_RUN_ID=${sourceRun.id}`,
+                `TRUSTED_CALLER_SHA=${context.sha}`,
+                `RELEASE_RESULT=${process.env.RELEASE_RESULT || 'unknown'}`,
+                'RELEASE_PHASE=finished'
+              ].join('\n')
+            });
+
   dispatch:
     if: >-
       (github.event_name == 'issue_comment' &&
@@ -43,6 +113,7 @@ jobs:
             core.info(`Dispatched pages.yml on main from trusted ${context.eventName} release trigger.`);
 
   release-after-verified-pr:
+    needs: release-witness
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'pull_request' &&
