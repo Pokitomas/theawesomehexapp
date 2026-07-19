@@ -1,0 +1,905 @@
+{
+  "claim_boundary": "Bounded from-scratch protocol-decoder training on a small designed corpus. Protocol syntax validity is guaranteed by grammar-masked decoding, not by model quality. Exact-match numbers are decoder-local and are NOT the frozen router's route-accuracy figures. No general generation, no autoregressive prose, no application execution, no admission.",
+  "code_revision": "d3a5261876a3bbb71fece9536ed98fe089a9416c",
+  "data": {
+    "development_examples": 27,
+    "hard_margin_examples": 7,
+    "split": "group-disjoint: one surface family per intent held out for development; hard-margin slice never trained",
+    "total_examples": 187,
+    "train_examples": 160,
+    "vocabulary_features": 331
+  },
+  "development_detail": [
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0018",
+      "intent": "message",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Reply to Jordan and confirm Tuesday works.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0019",
+      "intent": "message",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Send a note to the vendor that the order changed.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0020",
+      "intent": "message",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Tell the front desk we need a late checkout.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "VERIFY",
+        "STOP"
+      ],
+      "id": "ex-0039",
+      "intent": "objective",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "VERIFY",
+        "STOP"
+      ],
+      "prompt": "Decide the overarching aim for the migration.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "VERIFY",
+        "STOP"
+      ],
+      "id": "ex-0040",
+      "intent": "objective",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "VERIFY",
+        "STOP"
+      ],
+      "prompt": "Name the outcome the redesign must reach.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "VERIFY",
+        "STOP"
+      ],
+      "id": "ex-0041",
+      "intent": "objective",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "VERIFY",
+        "STOP"
+      ],
+      "prompt": "Set the guiding goal for the quarter ahead.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "id": "ex-0057",
+      "intent": "next_action",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "prompt": "The objective stands, so pick the single next step.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "id": "ex-0058",
+      "intent": "next_action",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "prompt": "Just the one next move I should make now.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "id": "ex-0059",
+      "intent": "next_action",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "prompt": "With the aim decided, point me at the first action.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0078",
+      "intent": "decision",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Weigh the two insurance plans against each other and choose.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0079",
+      "intent": "decision",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Between the beach trip and the city trip, settle it.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0080",
+      "intent": "decision",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Should I take the salary offer or the equity offer?",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0102",
+      "intent": "checklist",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "I want a checklist for the rebrand, explicitly not a roadmap.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0103",
+      "intent": "checklist",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Tick-box items for the relocation, not the phases.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0104",
+      "intent": "checklist",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Give me checkboxes for the audit, not a staged plan.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0126",
+      "intent": "plan",
+      "opcode_f1": 1,
+      "predicted": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "I want the redesign roadmap, explicitly not a checklist.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0127",
+      "intent": "plan",
+      "opcode_f1": 1,
+      "predicted": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Break the launch into ordered phases, not checkboxes.",
+      "valid": true
+    },
+    {
+      "exact": false,
+      "expected": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0128",
+      "intent": "plan",
+      "opcode_f1": 0.6667,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Draw the staged plan for the rebrand, not a task list.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "SCHEDULE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0144",
+      "intent": "event",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "SCHEDULE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Plan the anniversary dinner downtown.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "SCHEDULE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0145",
+      "intent": "event",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "SCHEDULE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Arrange the welcome lunch for the intern.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "SCHEDULE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "ex-0146",
+      "intent": "event",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "SCHEDULE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Put together the fundraiser evening.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "ex-0162",
+      "intent": "errands",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Order the pickups: laundry, parcel, and the cake.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "ex-0163",
+      "intent": "errands",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Plan one trip for the bank, market, and clinic.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "ex-0164",
+      "intent": "errands",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Batch the shopping across the two malls efficiently.",
+      "valid": true
+    },
+    {
+      "exact": false,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "ex-0177",
+      "intent": "compound",
+      "opcode_f1": 0.8889,
+      "predicted": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Plan the housewarming and batch the furniture-store errands.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "ex-0178",
+      "intent": "compound",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Handle the recital and optimize the costume pickups together.",
+      "valid": true
+    },
+    {
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "ex-0179",
+      "intent": "compound",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Arrange the potluck and sequence the grocery stops for it.",
+      "valid": true
+    }
+  ],
+  "evaluation": {
+    "development": {
+      "count": 27,
+      "exact_match": 0.9259,
+      "opcode_f1": 0.9835,
+      "protocol_syntax_valid": 1
+    },
+    "hard_margin": {
+      "count": 7,
+      "exact_match": 0.8571,
+      "opcode_f1": 0.9524,
+      "protocol_syntax_valid": 1
+    },
+    "train": {
+      "count": 160,
+      "exact_match": 1,
+      "opcode_f1": 1,
+      "protocol_syntax_valid": 1
+    }
+  },
+  "executes_report_next_steps": [
+    "train constrained protocol decoder",
+    "promote hard-margin failures into contrastive pairs"
+  ],
+  "gates": {
+    "hardmargin_exact_match": {
+      "measured": 0.8571,
+      "pass": true,
+      "required": 0.75
+    },
+    "heldout_exact_match": {
+      "measured": 0.9259,
+      "pass": true,
+      "required": 0.85
+    },
+    "protocol_syntax_valid": {
+      "measured": 1,
+      "pass": true,
+      "required": 1
+    }
+  },
+  "gates_passed": true,
+  "grammar": {
+    "max_length": 6,
+    "min_length": 2,
+    "opcode_count": 10
+  },
+  "hard_margin_detail": [
+    {
+      "axis": "mixed-intent",
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "hm-2",
+      "intent": "decision",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "COMPARE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Pick between the low-rent apartment and the place near work.",
+      "valid": true
+    },
+    {
+      "axis": "negation-scope",
+      "exact": true,
+      "expected": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "hm-24",
+      "intent": "plan",
+      "opcode_f1": 1,
+      "predicted": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Give me migration phases, explicitly not a task list.",
+      "valid": true
+    },
+    {
+      "axis": "mixed-intent",
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "hm-28",
+      "intent": "compound",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Coordinate the picnic and optimize the supply-store trip.",
+      "valid": true
+    },
+    {
+      "axis": "relation-word",
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "id": "hm-25",
+      "intent": "next_action",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "STOP"
+      ],
+      "prompt": "The goal is already set. Choose today’s first concrete move.",
+      "valid": true
+    },
+    {
+      "axis": "negation-scope",
+      "exact": false,
+      "expected": [
+        "OBSERVE",
+        "DECOMPOSE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "hm-14",
+      "intent": "checklist",
+      "opcode_f1": 0.6667,
+      "predicted": [
+        "RETRIEVE",
+        "DECOMPOSE",
+        "ORDER",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Use checkboxes rather than a roadmap for the move.",
+      "valid": true
+    },
+    {
+      "axis": "mixed-intent",
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "id": "hm-8",
+      "intent": "errands",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "ORDER",
+        "SCHEDULE",
+        "STOP"
+      ],
+      "prompt": "Bread, prescription, parcel return, then frozen food: arrange the trip.",
+      "valid": true
+    },
+    {
+      "axis": "relation-word",
+      "exact": true,
+      "expected": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "id": "hm-4",
+      "intent": "message",
+      "opcode_f1": 1,
+      "predicted": [
+        "OBSERVE",
+        "DRAFT",
+        "STOP"
+      ],
+      "prompt": "Tell Priya I am unavailable Wednesday and offer Friday instead.",
+      "valid": true
+    }
+  ],
+  "intent_protocol": {
+    "checklist": [
+      "OBSERVE",
+      "DECOMPOSE",
+      "DRAFT",
+      "STOP"
+    ],
+    "compound": [
+      "OBSERVE",
+      "DECOMPOSE",
+      "ORDER",
+      "SCHEDULE",
+      "STOP"
+    ],
+    "decision": [
+      "OBSERVE",
+      "COMPARE",
+      "DRAFT",
+      "STOP"
+    ],
+    "errands": [
+      "OBSERVE",
+      "ORDER",
+      "SCHEDULE",
+      "STOP"
+    ],
+    "event": [
+      "OBSERVE",
+      "SCHEDULE",
+      "DRAFT",
+      "STOP"
+    ],
+    "message": [
+      "OBSERVE",
+      "DRAFT",
+      "STOP"
+    ],
+    "next_action": [
+      "OBSERVE",
+      "DECOMPOSE",
+      "STOP"
+    ],
+    "objective": [
+      "OBSERVE",
+      "DRAFT",
+      "VERIFY",
+      "STOP"
+    ],
+    "plan": [
+      "RETRIEVE",
+      "DECOMPOSE",
+      "ORDER",
+      "DRAFT",
+      "STOP"
+    ]
+  },
+  "intents": [
+    "message",
+    "objective",
+    "next_action",
+    "decision",
+    "checklist",
+    "plan",
+    "event",
+    "errands",
+    "compound"
+  ],
+  "method": "archie-sprawl-protocol-decoder/v1",
+  "model": {
+    "external_runtime": false,
+    "hyperparameters": {
+      "embed": 16,
+      "epochs": 600,
+      "hidden": 32,
+      "lr": 0.01,
+      "minCount": 2,
+      "seed": 1234,
+      "weightDecay": 0.001
+    },
+    "parameters": 12890,
+    "pretrained": false,
+    "random_initialization": true,
+    "teacher": null
+  },
+  "opcodes": [
+    "OBSERVE",
+    "RETRIEVE",
+    "ASK",
+    "DECOMPOSE",
+    "ORDER",
+    "COMPARE",
+    "DRAFT",
+    "SCHEDULE",
+    "VERIFY",
+    "STOP"
+  ],
+  "promotion": "not-admitted",
+  "receipt_digest": "1512094c9933fbb9f6f5799e1ef0b593ea904deb31816ed2708e3a6dc5ce3092",
+  "schema": "archie-sprawl-protocol-decoder-receipt/v1",
+  "training": {
+    "epochs": 600,
+    "loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 7.641907376520765
+      },
+      {
+        "epoch": 50,
+        "mean_loss": 0.17391505141901764
+      },
+      {
+        "epoch": 100,
+        "mean_loss": 0.012437671535691393
+      },
+      {
+        "epoch": 150,
+        "mean_loss": 0.011548771566282786
+      },
+      {
+        "epoch": 200,
+        "mean_loss": 0.010267711987434067
+      },
+      {
+        "epoch": 250,
+        "mean_loss": 0.011338091337012596
+      },
+      {
+        "epoch": 300,
+        "mean_loss": 0.011421913160220034
+      },
+      {
+        "epoch": 350,
+        "mean_loss": 0.00482198538137261
+      },
+      {
+        "epoch": 400,
+        "mean_loss": 0.010965552251464445
+      },
+      {
+        "epoch": 450,
+        "mean_loss": 0.011260017530912329
+      },
+      {
+        "epoch": 500,
+        "mean_loss": 0.011192732146300526
+      },
+      {
+        "epoch": 550,
+        "mean_loss": 0.01662321074571018
+      },
+      {
+        "epoch": 600,
+        "mean_loss": 0.0107689524871795
+      }
+    ]
+  }
+}
