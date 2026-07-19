@@ -1,0 +1,128 @@
+name: Execute bounded Archie CPU RSLoRA now
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - '.github/workflows/agent-run-linux-cpu-rslora.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: target-1.7b
+            model: Qwen/Qwen3-1.7B
+            revision: 8d4744f9e13072f4920c326350fa81eedb74eae9
+            dtype: bfloat16
+            max_steps: 1
+            train_limit: 2
+            eval_limit: 2
+            rank: 8
+            alpha: 16
+            learning_rate: '0.0002'
+            max_seq_length: 64
+            prompt_replay_tokens: 24
+            prompt_head_tokens: 8
+            shared_prefix_replay_tokens: 12
+            max_divergence_tokens: 40
+          - lane: lite-0.6b
+            model: Qwen/Qwen3-0.6B
+            revision: main
+            dtype: float32
+            max_steps: 8
+            train_limit: 12
+            eval_limit: 4
+            rank: 16
+            alpha: 32
+            learning_rate: '0.0003'
+            max_seq_length: 128
+            prompt_replay_tokens: 56
+            prompt_head_tokens: 12
+            shared_prefix_replay_tokens: 24
+            max_divergence_tokens: 88
+    env:
+      HF_HOME: ${{ runner.temp }}/huggingface
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TOKENIZERS_PARALLELISM: 'false'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
+        with:
+          python-version: '3.12'
+      - name: Install pinned CPU stack
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.1
+          python -m pip install transformers==4.53.2 peft==0.16.0 accelerate==1.8.1 safetensors==0.5.3
+      - name: Run real optimizer steps
+        continue-on-error: true
+        env:
+          OUTPUT: ${{ runner.temp }}/archie-cpu-${{ matrix.lane }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$OUTPUT"
+          python foundry/archie-distill/linux_cpu_rslora_train.py \
+            --lane '${{ matrix.lane }}' \
+            --model '${{ matrix.model }}' \
+            --revision '${{ matrix.revision }}' \
+            --dtype '${{ matrix.dtype }}' \
+            --corpus foundry/archie-distill/linux_cpu_training_corpus.jsonl \
+            --output "$OUTPUT" \
+            --max-steps '${{ matrix.max_steps }}' \
+            --train-limit '${{ matrix.train_limit }}' \
+            --eval-limit '${{ matrix.eval_limit }}' \
+            --rank '${{ matrix.rank }}' \
+            --alpha '${{ matrix.alpha }}' \
+            --learning-rate '${{ matrix.learning_rate }}' \
+            --max-seq-length '${{ matrix.max_seq_length }}' \
+            --prompt-replay-tokens '${{ matrix.prompt_replay_tokens }}' \
+            --prompt-head-tokens '${{ matrix.prompt_head_tokens }}' \
+            --shared-prefix-replay-tokens '${{ matrix.shared_prefix_replay_tokens }}' \
+            --max-divergence-tokens '${{ matrix.max_divergence_tokens }}' \
+            --time-budget-minutes 270 \
+            --threads 2 \
+            --gradient-checkpointing 2>&1 | tee "$OUTPUT/run.log"
+          code=${PIPESTATUS[0]}
+          if [[ ! -f "$OUTPUT/training-receipt.json" ]]; then
+            CODE="$code" OUTPUT="$OUTPUT" LANE='${{ matrix.lane }}' MODEL='${{ matrix.model }}' python - <<'PY'
+          import hashlib, json, os, pathlib, time
+          output = pathlib.Path(os.environ['OUTPUT'])
+          body = {
+              'schema': 'archie-linux-cpu-rslora-training-receipt/v1',
+              'method': 'github-hosted-linux-cpu-causal-fork-rslora/v1',
+              'lane': os.environ['LANE'],
+              'status': 'process-terminated-without-python-receipt',
+              'exit_code': int(os.environ['CODE']),
+              'model': {'requested': os.environ['MODEL'], 'device': 'cpu'},
+              'real_gradient_updates': False,
+              'promotion': 'not-admitted',
+              'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+          }
+          stable = json.dumps(body, sort_keys=True, separators=(',', ':'))
+          receipt = {**body, 'receipt_digest': hashlib.sha256(stable.encode()).hexdigest()}
+          (output / 'training-receipt.json').write_text(json.dumps(receipt, indent=2, sort_keys=True) + '\n')
+          PY
+          fi
+          exit 0
+      - name: Print receipt
+        if: always()
+        run: cat '${{ runner.temp }}/archie-cpu-${{ matrix.lane }}/training-receipt.json'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: archie-cpu-${{ matrix.lane }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/archie-cpu-${{ matrix.lane }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
