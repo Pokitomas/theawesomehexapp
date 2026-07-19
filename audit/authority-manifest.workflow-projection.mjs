@@ -132,7 +132,10 @@ export default [
     replay: 'Request ID, round, exact code SHA, tokenizer and pair digests, shard assignments, runner labels, CUDA receipts, initial and trained tensor digests, frozen-base and adapter case outcomes, fusion weights and reconstruction error, merged checkpoint and quantization receipts, and recursive failure-set digest.',
     pub: 'Workflow status, artifact names, bounded schemas, and non-admission state are public.',
     priv: 'Local model weights, admitted trajectory bytes, preference rows, runner filesystem paths, and registration credentials remain private.', st: 'e',
-    s: ['workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read'],
+    s: [
+    'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
+    'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
+  ],
     impl: [[
       '.github/workflows/archie-segmented-distillation.yml',
       'contents: read',

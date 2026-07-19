@@ -1,0 +1,46 @@
+{
+  "schema": "archie-distill-profile/v1",
+  "id": "qwen3-information-budgeted-rslora-v1",
+  "authority_inventory": "workflow.archie-segmented-distillation",
+  "claim_boundary": "This profile specifies an information-budgeted RSLoRA experiment. It does not admit capability or production readiness.",
+  "student": {
+    "provider": "local",
+    "repository": "Qwen/Qwen3-1.7B",
+    "model_id": "Qwen3-1.7B",
+    "revision": "8d4744f9e13072f4920c326350fa81eedb74eae9",
+    "license": "Apache-2.0",
+    "download_bytes": 4080000000
+  },
+  "training": {
+    "seed": 3407,
+    "method": "information-budgeted-causal-fork-rslora/v1",
+    "epochs": 2,
+    "learning_rate": 0.0001,
+    "lora_rank": 32,
+    "lora_alpha": 16,
+    "lora_dropout": 0.0,
+    "use_rslora": true,
+    "target_modules": "all-linear",
+    "packing": false,
+    "holdout_rate": 0.2,
+    "max_seq_length": 896,
+    "prompt_replay_tokens": 384,
+    "prompt_head_tokens": 32,
+    "shared_prefix_replay_tokens": 96,
+    "max_divergence_tokens": 384,
+    "gradient_accumulation_steps": 8,
+    "batch_size": 1,
+    "beta": 0.1,
+    "causal_margin": 0.2,
+    "sft_weight": 0.35,
+    "default_shards": 2,
+    "default_max_fused_rank": 64
+  },
+  "footprint": {
+    "student_download_bytes": 4080000000,
+    "toolchain_download_bytes": 2000000000,
+    "recommended_free_bytes": 32000000000,
+    "recommended_system_memory_bytes": 16000000000,
+    "recommended_gpu_vram_bytes": 12000000000
+  }
+}
