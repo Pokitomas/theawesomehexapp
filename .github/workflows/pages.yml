@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      deploy:
+        description: Allow a trusted caller to upload and deploy the admitted Pages artifact.
+        required: true
+        type: boolean
 
 permissions:
   contents: read
@@ -86,7 +91,7 @@ jobs:
           cp benchmarks/founder-vibe-superiority.v1.json dist/evidence/
           node scripts/founder-superiority.mjs status --protocol benchmarks/founder-vibe-superiority.v1.json > dist/evidence/founder-superiority-status.json
       - name: Write exact deployment identity
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') || github.event_name == 'workflow_call'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_call' && inputs.deploy == true) || inputs.deploy == true
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
@@ -132,10 +137,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Configure Pages
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') || github.event_name == 'workflow_call'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_call' && inputs.deploy == true) || inputs.deploy == true
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Upload Pages artifact
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') || github.event_name == 'workflow_call'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_call' && inputs.deploy == true) || inputs.deploy == true
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: dist
@@ -146,7 +151,12 @@ jobs:
       pages: write
       id-token: write
       issues: write
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.remote-gate.outputs.decision == 'proceed' || (github.event_name == 'workflow_call' && needs.remote-gate.outputs.decision == 'proceed')
+    if: >-
+      needs.remote-gate.outputs.decision == 'proceed' &&
+      (github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_call' && inputs.deploy == true) ||
+      inputs.deploy == true)
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
