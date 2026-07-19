@@ -58,7 +58,7 @@ jobs:
       - name: Verify assembled Archie artifact
         run: |
           set -euo pipefail
-          grep -q 'ARCHIE — Show What It Can Do' dist/archie/index.html
+          grep -q 'Mess in.' dist/archie/index.html
           grep -q 'Admitted local neural router verified' dist/archie/archie.js
           grep -q '"admission":"admitted"' dist/archie/router-admission.json
           curl --version >/dev/null
@@ -106,7 +106,7 @@ jobs:
           node scripts/deployment-receipt.cjs verify-all-live > public-surface-reachability-receipts.json
           curl -fsS "${DEPLOYED_URL%/}/archie/router-model.json" | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
           curl -fsS "${DEPLOYED_URL%/}/archie/router-admission.json" | grep -q '"admission":"admitted"'
-          curl -fsS "${DEPLOYED_URL%/}/archie/" | grep -q 'ARCHIE — Show What It Can Do'
+          curl -fsS "${DEPLOYED_URL%/}/archie/" | grep -q 'Mess in.'
       - name: Upsert successful deployment receipt
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
