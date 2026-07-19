@@ -44,7 +44,7 @@ jobs:
           PY
 
   train:
-    if: github.event_name == 'push'
+    if: github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
