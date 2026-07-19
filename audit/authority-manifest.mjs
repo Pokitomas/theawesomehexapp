@@ -142,6 +142,20 @@ const liteWorkflowRow = {
   denyW: [['scripts/tests/maker-archie-lite.test.mjs', 'CPU execution disables model, KV, op, projector, and auto-fit offload paths']]
 };
 
+const architectureFalsificationWorkflowRow = {
+  id: 'workflow.archie-architecture-falsification', f: 'workflow', op: 'Run equal-budget hybrid, Transformer, and selective-SSM falsification arms and emit a non-promoting verdict',
+  actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions tokens executing exact candidate code across independent hosted CPU runners',
+  auth: 'contents:read only', object: 'Shared uint16 corpus artifact, three independently trained model/receipt artifacts, and one architecture-neutral verdict', owner: 'Repository CI configuration',
+  deny: 'event or path filter does not match|contract fails|corpus digest differs|parameter tolerance fails|one arm fails|protocol identities differ|aggregate receipt is incomplete',
+  replay: 'Exact candidate SHA, workflow run, corpus SHA-256, seed, parameter ceiling, realized parameter counts, token budget, optimizer protocol, arm receipts, and aggregate report digest.',
+  pub: 'Public check status, architecture labels, bounded metrics, receipt digests, and non-admitted verdict artifacts.',
+  priv: 'Ephemeral model weights and corpus bytes remain in bounded Actions artifacts; no credentials, deployment authority, or promotion key are consumed.', st: 'e',
+  s: ['workflow-permission:.github/workflows/archie-architecture-falsification.yml:contents:read'],
+  impl: [['.github/workflows/archie-architecture-falsification.yml', 'contents: read', 'persist-credentials: false', 'architecture: [hybrid, transformer, ssm]', 'parameter-budget', 'promotion: not-admitted']],
+  allow: [['foundry/archie-distill/test_falsify_archie_hybrid.py', 'verdict']],
+  denyW: [['foundry/archie-distill/falsify_archie_hybrid.py', 'protocol mismatch']]
+};
+
 const rows = [
   ...remoteRows,
   ...workflowProjectionRows,
@@ -152,6 +166,7 @@ const rows = [
   causalDigitalTwinWorkflowRow,
   compatibilityMigrationWorkflowRow,
   liteWorkflowRow,
+  architectureFalsificationWorkflowRow,
   ...socialCoreRows,
   ...socialGovernanceRows
 ].map(row => ({
