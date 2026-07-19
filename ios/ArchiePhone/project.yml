@@ -15,7 +15,8 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: Sources
+      - path: FinalSources
+      - path: Sources/ModelLifecycle.swift
     resources:
       - path: Config/PrivacyInfo.xcprivacy
     info:
