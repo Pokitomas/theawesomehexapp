@@ -13,6 +13,12 @@ assert spec and spec.loader
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
+weave_spec = importlib.util.spec_from_file_location("token_compute_weave", ROOT / "token_compute_weave.py")
+weave = importlib.util.module_from_spec(weave_spec)
+assert weave_spec and weave_spec.loader
+sys.modules[weave_spec.name] = weave
+weave_spec.loader.exec_module(weave)
+
 
 class TinyTokenizer:
     eos_token_id = 97
@@ -117,6 +123,23 @@ class InformationBudgetedRSLoRATest(unittest.TestCase):
         loss_b.backward()
         self.assertGreater(float(chosen.grad.abs().sum()), 0)
         self.assertGreater(float(rejected.grad.abs().sum()), 0)
+
+    def test_token_compute_maps_into_archie_replay_regions(self):
+        policy = weave.policy_from_token_compute(token_compute=2 * 100 * 512 * 512, training_rows=100)
+        self.assertEqual(policy.max_seq_length, 512)
+        self.assertLessEqual(
+            policy.prompt_replay_tokens + policy.shared_prefix_replay_tokens + policy.max_divergence_tokens,
+            policy.max_seq_length,
+        )
+        self.assertGreater(policy.max_divergence_tokens, policy.prompt_replay_tokens)
+        self.assertEqual(policy.effective_attention_area, 2 * 100 * 512 * 512)
+
+    def test_token_compute_is_clamped_without_claiming_training(self):
+        policy = weave.policy_from_token_compute(token_compute=10**18, training_rows=1, max_seq_cap=1024)
+        self.assertEqual(policy.max_seq_length, 1024)
+        source = (ROOT / "token_compute_weave.py").read_text(encoding="utf-8")
+        self.assertIn('"promotion": "not-admitted"', source)
+        self.assertIn("token-compute-to-causal-fork-policy/v1", source)
 
     def test_source_contains_explicit_rslora_fallback_and_no_promotion(self):
         source = (ROOT / "information_budgeted_rslora.py").read_text(encoding="utf-8")
