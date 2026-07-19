@@ -1,0 +1,9 @@
+{
+  "schema": "archie-release-request/v1",
+  "release": "product-only-field-notes",
+  "product_commit": "0c564ecc6751a884d94ef26e5471a6e85cb72521",
+  "artifact_path": "archie/apps/field-notes/index.html",
+  "artifact_sha256": "f94b5cbac5f4e62e926984ab0d6b8f67764571258426f123f6507a9407925518",
+  "requested_public_route": "https://pokitomas.github.io/theawesomehexapp/archie/",
+  "promotion": "release-requested"
+}
