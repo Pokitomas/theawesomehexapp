@@ -22,6 +22,14 @@ jobs:
       - name: Apply hosted CPU patch and remove temporary authority
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_archie_linux_cpu_workflow_patch.py')
+          text = path.read_text(encoding='utf-8')
+          start = text.index('old_compile =')
+          end = text.index("job = r'''", start)
+          path.write_text(text[:start] + text[end:], encoding='utf-8')
+          PY
           python scripts/apply_archie_linux_cpu_workflow_patch.py
           rm .github/workflows/agent-patch-linux-cpu-training.yml
           python -m py_compile foundry/archie-distill/linux_cpu_rslora_train.py
