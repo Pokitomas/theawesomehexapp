@@ -16,6 +16,7 @@ targets:
     platform: iOS
     sources:
       - path: PresenceSources
+      - path: Sources/ModelLifecycle.swift
     resources:
       - path: Config/PrivacyInfo.xcprivacy
     info:
