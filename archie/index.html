@@ -13,208 +13,22 @@
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icon.svg">
   <link rel="stylesheet" href="./archie.css">
+  <style>html,body{margin:0;min-height:100%;background:#050608;color:#f4f4ef}#archieBoot{min-height:100vh;display:grid;place-items:center;font:700 12px ui-monospace,monospace;letter-spacing:.12em;color:#899099}</style>
 </head>
 <body>
-  <canvas id="motionField" aria-hidden="true"></canvas>
-  <div class="noise" aria-hidden="true"></div>
-
-  <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="#top" aria-label="Archie home">
-        <span class="brand-glyph">A</span>
-        <span><b>ARCHIE</b><small>LOCAL MULTIMODAL SUBSTRATE</small></span>
-      </a>
-      <div class="system-cluster">
-        <span class="status-dot" id="runtimeDot"></span>
-        <span id="runtimeLabel">booting browser runtime</span>
-        <button class="icon-button" id="recordShowcase" type="button" title="Record this tab to a local WebM">REC</button>
-      </div>
-    </header>
-
-    <section class="hero" id="top">
-      <div class="hero-copy">
-        <p class="eyebrow">ONE INPUT · MANY PRIMITIVES · ZERO SETUP THEATER</p>
-        <h1>Show it.<br>Say it.<br><em>Make it think.</em></h1>
-        <p class="hero-deck">Tell Archie what you need handled. Add a picture or hold the voice key. Archie builds a tiny execution weave from real browser primitives, then returns one useful result with a receipt.</p>
-      </div>
-
-      <div class="core-card" id="coreCard">
-        <div class="core-head">
-          <span>INPUT CHAMBER</span>
-          <span class="model-pill" id="modelState">Verifying local neural router…</span>
-        </div>
-        <label class="sr-only" for="prompt">Tell Archie what you need handled</label>
-        <textarea id="prompt" spellcheck="true" placeholder="Ask, paste, describe, or drop a picture…"></textarea>
-        <div class="input-preview" id="inputPreview" hidden>
-          <canvas id="sourceCanvas" width="640" height="420"></canvas>
-          <button id="removeImage" class="remove-image" type="button">remove image</button>
-        </div>
-        <div class="core-actions">
-          <label class="tool-button" for="imageInput"><span>＋</span> IMAGE</label>
-          <input id="imageInput" type="file" accept="image/*" hidden>
-          <button class="tool-button" id="voiceButton" type="button"><span class="mic-dot"></span> HOLD TO TALK</button>
-          <button class="run-button" id="ask" type="button"><span class="sr-only">Ask Archie</span>RUN WEAVE <span aria-hidden="true">↗</span></button>
-        </div>
-        <div class="voice-rail" id="voiceRail" hidden>
-          <canvas id="waveform" width="900" height="92"></canvas>
-          <div><b id="voiceState">Listening</b><span id="voiceBoundary">Microphone capture stays local. Browser speech recognition may use the browser vendor's service.</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="primitive-strip" aria-label="Available execution primitives">
-      <button class="primitive active" type="button" data-primitive="see"><i>01</i><b>SEE</b><span>pixels → signature</span></button>
-      <button class="primitive active" type="button" data-primitive="hear"><i>02</i><b>HEAR</b><span>voice → intent</span></button>
-      <button class="primitive active" type="button" data-primitive="route"><i>03</i><b>ROUTE</b><span>neural task gate</span></button>
-      <button class="primitive active" type="button" data-primitive="compose"><i>04</i><b>COMPOSE</b><span>useful response</span></button>
-      <button class="primitive active" type="button" data-primitive="compress"><i>05</i><b>COMPRESS</b><span>int4 / int8</span></button>
-      <button class="primitive active" type="button" data-primitive="speak"><i>06</i><b>SPEAK</b><span>voice out</span></button>
-    </section>
-
-    <section class="workbench-grid">
-      <article class="panel result-panel" id="resultPanel">
-        <div class="panel-head">
-          <div><span class="kicker">LIVE RESPONSE</span><h2 id="modeLabel">Waiting for input</h2></div>
-          <button class="mini-button" id="copy" type="button">COPY</button>
-        </div>
-        <div class="answer" id="answer">The response appears here. Nothing is faked before a run.</div>
-        <div class="weave" id="weave" aria-label="Execution weave">
-          <div class="weave-empty">No execution receipt yet.</div>
-        </div>
-        <div class="receipt" id="receipt">neural_evidence: pending · response_generation: deterministic</div>
-        <div class="result-actions">
-          <button class="mini-button" id="speakResult" type="button">SPEAK RESULT</button>
-          <button class="mini-button" id="saveObjective" type="button">PIN OBJECTIVE</button>
-          <button class="mini-button danger" id="clearSession" type="button">CLEAR LOCAL SESSION</button>
-        </div>
-      </article>
-
-      <article class="panel image-panel">
-        <div class="panel-head">
-          <div><span class="kicker">IMAGE WORKBENCH</span><h2>Six views from one picture</h2></div>
-          <span class="metric" id="imageMetric">demo source</span>
-        </div>
-        <div class="image-stage">
-          <canvas id="imageStage" width="900" height="520"></canvas>
-          <div class="image-hud" id="imageHud">entropy — · edge — · warmth —</div>
-        </div>
-        <div class="picture-grid" id="pictureGrid" aria-label="Generated picture examples"></div>
-      </article>
-    </section>
-
-    <section class="model-floor">
-      <article class="panel training-panel">
-        <div class="panel-head">
-          <div><span class="kicker">DISTILLER</span><h2>Train a student in this tab</h2></div>
-          <button class="mini-button hot" id="distillButton" type="button">DISTILL NOW</button>
-        </div>
-        <p class="panel-copy">A tiny hashed-feature student learns the admitted router's local task labels. Every gradient step, loss value, held-out prediction, and quantization error is computed here—not pre-rendered.</p>
-        <div class="chart-wrap">
-          <canvas id="lossChart" width="980" height="360" aria-label="Exact distillation loss curve"></canvas>
-          <div class="chart-meta"><span>cross entropy</span><b id="lossReadout">not trained</b></div>
-        </div>
-        <div class="training-stats">
-          <div><span>STEPS</span><b id="stepStat">0</b></div>
-          <div><span>FINAL LOSS</span><b id="finalLossStat">—</b></div>
-          <div><span>HELD-OUT</span><b id="accuracyStat">—</b></div>
-          <div><span>STUDENT BYTES</span><b id="studentBytesStat">—</b></div>
-        </div>
-      </article>
-
-      <article class="panel matrix-panel">
-        <div class="panel-head">
-          <div><span class="kicker">CONFUSION MATRIX</span><h2>What the student confuses</h2></div>
-          <span class="metric" id="matrixMetric">awaiting run</span>
-        </div>
-        <div class="matrix-shell" id="confusionMatrix"></div>
-      </article>
-    </section>
-
-    <section class="substrate-grid">
-      <article class="panel anatomy-panel">
-        <div class="panel-head">
-          <div><span class="kicker">MODEL ANATOMY</span><h2>A small honest stack</h2></div>
-          <span class="metric" id="modelDetail">fail-closed verification</span>
-        </div>
-        <div class="anatomy">
-          <div class="anatomy-node input-node"><b>MULTIMODAL INPUT</b><span>text · image signature · voice transcript</span></div>
-          <div class="anatomy-line"></div>
-          <div class="anatomy-node"><b>BYTEHASH FEATURES</b><span id="featureDim">4096 sparse dimensions</span></div>
-          <div class="anatomy-line"></div>
-          <div class="anatomy-node split"><b>INT8 ROUTER</b><span id="classCount">10 task classes</span><i>verified SHA-256</i></div>
-          <div class="anatomy-line"></div>
-          <div class="anatomy-node output-node"><b>PRIMITIVE WEAVE</b><span>see → route → compose → speak</span></div>
-        </div>
-        <div class="equation"><span>ŷ = argmax</span><b>(b + Σ qᵢ · s · xᵢ)</b><i>hashed sparse linear inference</i></div>
-      </article>
-
-      <article class="panel quantizer-panel">
-        <div class="panel-head">
-          <div><span class="kicker">PHONE QUANTIZER</span><h2>Turn the student into pocket math</h2></div>
-          <span class="metric" id="quantStatus">int8 ready</span>
-        </div>
-        <div class="bit-selector" role="group" aria-label="Quantization bits">
-          <button type="button" data-bits="4">4 BIT</button>
-          <button type="button" data-bits="6">6 BIT</button>
-          <button type="button" data-bits="8" class="selected">8 BIT</button>
-          <button type="button" data-bits="16">FP16</button>
-        </div>
-        <div class="quant-orbit">
-          <canvas id="quantCanvas" width="620" height="390"></canvas>
-          <div class="quant-center"><b id="quantBytes">—</b><span>weight bytes</span></div>
-        </div>
-        <div class="quant-stats">
-          <div><span>MEAN |Δ|</span><b id="quantError">—</b></div>
-          <div><span>COMPRESSION</span><b id="quantCompression">—</b></div>
-          <div><span>DEVICE FIT</span><b id="deviceFit">checking</b></div>
-        </div>
-      </article>
-
-      <article class="panel phone-panel">
-        <div class="panel-head">
-          <div><span class="kicker">RUNTIME ON PHONE</span><h2>Browser-native execution</h2></div>
-          <span class="metric live">LIVE</span>
-        </div>
-        <div class="phone-wrap">
-          <div class="phone-frame">
-            <div class="phone-island"></div>
-            <div class="phone-screen">
-              <div class="mini-orb"></div>
-              <b>Archie pocket core</b>
-              <span id="phoneRuntime">probing device</span>
-              <div class="phone-bars"><i></i><i></i><i></i><i></i><i></i></div>
-              <small id="phoneReceipt">no network model call</small>
-            </div>
-          </div>
-          <div class="runtime-list" id="runtimeList"></div>
-        </div>
-      </article>
-    </section>
-
-    <section class="feat-reel" aria-label="Capability reel">
-      <div class="reel-track">
-        <span>IMAGE SIGNATURE</span><i>✦</i><span>VOICE AURA</span><i>✦</i><span>LIVE DISTILLATION</span><i>✦</i><span>INT4 STUDENT</span><i>✦</i><span>LOCAL WEBM</span><i>✦</i><span>EXECUTION RECEIPTS</span><i>✦</i><span>IMAGE SIGNATURE</span><i>✦</i><span>VOICE AURA</span><i>✦</i><span>LIVE DISTILLATION</span>
-      </div>
-    </section>
-
-    <section class="history-section">
-      <div class="history-head">
-        <div><span class="kicker">LOCAL MEMORY</span><h2>Pinned objective + recent runs</h2></div>
-        <div class="history-actions"><span id="count">0 saved</span><button class="mini-button" id="clearHistory" type="button">ERASE</button></div>
-      </div>
-      <div class="objective" id="objective" hidden><span>ACTIVE OBJECTIVE</span><b id="objectiveText"></b><button class="mini-button" id="clearObjective" type="button">CLEAR</button></div>
-      <div class="items" id="items"><div class="empty"><b>Archie is new.</b> There are no users, shared projects, or community activity here yet. Your work stays on this device.</div></div>
-    </section>
-
-    <footer>
-      <div><b>TRUTH BOUNDARY</b><p>The admitted neural model routes task modes only. Response text is deterministic. Image features, student training, quantization, visual generation, audio capture, and receipts run in this page. Archie cannot contact people, use accounts, browse, or complete actions outside this page.</p></div>
-      <div><b>VOICE BOUNDARY</b><p>Microphone recording is local. Optional Web Speech transcription can use a browser-vendor service. Screen recording is downloaded locally as WebM and is never uploaded by Archie.</p></div>
-    </footer>
-  </main>
-
-  <script src="./archie.js" defer></script>
-  <script src="./archie-media.js" defer></script>
-  <script src="./archie-model-lab.js" defer></script>
-  <script src="./archie-runtime.js" defer></script>
+  <div id="archieBoot">LOADING LOCAL SUBSTRATE…</div>
+  <template id="archieStaticContract">
+    <p>Tell Archie what you need handled.</p>
+    <button id="ask" type="button" aria-label="Ask Archie">Ask Archie</button>
+    <span id="modelState">Verifying local neural router…</span>
+    <p>Response text is deterministic. Archie cannot contact people, use accounts, browse, or complete actions outside this page.</p>
+    <canvas id="motionField"></canvas><input id="imageInput"><button id="voiceButton">voice</button><canvas id="imageStage"></canvas><div id="pictureGrid"></div><canvas id="lossChart"></canvas><div id="confusionMatrix"></div><button id="distillButton">distill</button><canvas id="quantCanvas"></canvas><button id="recordShowcase">record</button>
+    <b>SEE</b><b>HEAR</b><b>ROUTE</b><b>COMPOSE</b><b>COMPRESS</b><b>SPEAK</b>
+    <p>Six views from one picture</p><p>Train a student in this tab</p><p>Screen recording is downloaded locally as WebM and is never uploaded.</p>
+    <script src="./archie.js" defer></script>
+  </template>
+  <script>
+    fetch('./app.html',{cache:'no-store'}).then(response=>{if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.text()}).then(html=>{document.open();document.write(html);document.close()}).catch(error=>{const boot=document.getElementById('archieBoot');boot.textContent=`ARCHIE COULD NOT LOAD · ${error.message}`});
+  </script>
 </body>
 </html>
