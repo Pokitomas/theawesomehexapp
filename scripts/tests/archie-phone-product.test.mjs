@@ -7,24 +7,23 @@ import test from 'node:test';
 const root = path.resolve('archie');
 const read = name => fs.readFile(path.join(root, name), 'utf8');
 
-test('Archie phone surface is installable and caches Product-Only plus its verified app', async () => {
+test('Archie 95 is installable and caches its central runtime', async () => {
   const [html, manifest, sw] = await Promise.all([read('index.html'), read('manifest.webmanifest'), read('sw.js')]);
   const parsed = JSON.parse(manifest);
-  assert.equal(parsed.name, 'Archie — Product Only');
+  assert.equal(parsed.name, 'Archie 95 — Local Operator');
   assert.equal(parsed.display, 'standalone');
   assert.equal(parsed.start_url, './');
   assert.equal(parsed.scope, './');
+  assert.equal(parsed.theme_color, '#008080');
   assert.match(html, /apple-mobile-web-app-capable/);
   assert.match(html, /apple-mobile-web-app-title/);
   assert.match(html, /manifest\.webmanifest/);
-  assert.match(html, /What should Archie make\?/);
-  assert.match(html, /One prompt\. One runnable app\./);
-  assert.match(html, /apps\/field-notes/);
-  assert.match(sw, /archie-product-only-v1/);
-  for (const asset of ['./', './index.html', './manifest.webmanifest', './icon.svg', './apps/field-notes/', './apps/field-notes/index.html', './apps/field-notes/receipt.json']) {
+  assert.match(html, /Archie 95/);
+  assert.match(html, /What needs handling\?/);
+  assert.match(sw, /archie95-local-operator-v1/);
+  for (const asset of ['./', './index.html', './archie.css', './archie.js', './router-model.json', './manifest.webmanifest', './icon.svg']) {
     assert.match(sw, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
-  assert.doesNotMatch(sw, /desktop\/desktop\.(?:css|js)/);
 });
 
 test('generated neural router retains its exact narrow infrastructure admission', async () => {
@@ -48,33 +47,14 @@ test('generated neural router retains its exact narrow infrastructure admission'
   assert.ok(Object.values(admission.gates).every(Boolean));
 });
 
-test('Product-Only opens one independent runnable artifact with an exact receipt', async () => {
-  const [html, artifact, receiptText] = await Promise.all([
-    read('index.html'),
-    read('apps/field-notes/index.html'),
-    read('apps/field-notes/receipt.json')
-  ]);
-  const receipt = JSON.parse(receiptText);
-  assert.match(html, /aria-label="What should Archie make\?"/);
-  assert.match(html, />Make app</);
-  assert.match(html, /id="preview"/);
-  assert.match(html, /download="archie-app\.html"/);
-  assert.doesNotMatch(html, />TRAINING<|>FEATS<|>REEL<|Tell Archie what you need handled|>Ask Archie</i);
-  assert.equal(receipt.result, 'passed');
-  assert.equal(receipt.artifact.independent_runnable, true);
-  assert.equal(receipt.artifact.server_calls, 0);
-  assert.equal(crypto.createHash('sha256').update(artifact).digest('hex'), receipt.artifact.sha256);
-});
-
-test('Field Notes implements requested phone behavior locally without external calls', async () => {
-  const artifact = await read('apps/field-notes/index.html');
-  assert.match(artifact, /localStorage/);
-  assert.match(artifact, /type="file"/);
-  assert.match(artifact, /capture="environment"/);
-  assert.match(artifact, /navigator\.geolocation/);
-  assert.match(artifact, /comma separated/);
-  assert.match(artifact, /type="search"/);
-  assert.match(artifact, /Export JSON/);
-  assert.match(artifact, /min-height:44px/);
-  assert.doesNotMatch(artifact, /\bfetch\s*\(|XMLHttpRequest|WebSocket/);
+test('central phone operator exposes one command, result, objective, and local history', async () => {
+  const [html, runtime, css] = await Promise.all([read('index.html'), read('archie.js'), read('archie.css')]);
+  for (const id of ['prompt','ask','clearPrompt','result','modeLabel','answer','receipt','copy','objective','objectiveText','clearObjective','count','clearHistory','items','modelState','modelDetail']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.match(runtime, /loadNeuralRouter/);
+  assert.match(runtime, /localStorage/);
+  assert.match(css, /min-height:38px/);
+  assert.match(css, /env\(safe-area-inset-bottom\)/);
+  assert.doesNotMatch(html, /What should Archie make\?|Make app/i);
 });
