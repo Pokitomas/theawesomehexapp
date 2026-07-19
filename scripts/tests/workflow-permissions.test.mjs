@@ -90,6 +90,7 @@ test('Archie Pages release keeps direct dispatch bounded and reusable deployment
   const release = job(source, 'release-after-verified-pr');
   assert.match(release, /github\.event\.workflow_run\.event == 'pull_request'/);
   assert.match(release, /github\.event\.workflow_run\.conclusion == 'success'/);
+  // Denial witness: head_repository.full_name == github.repository
   assert.match(release, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
   assert.match(release, /startsWith\(github\.event\.workflow_run\.head_branch, 'archie-release-pr-'\)/);
   assert.match(release, /^      contents: read$/m);
