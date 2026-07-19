@@ -10,64 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  train-lite:
+  smoke:
     runs-on: ubuntu-24.04
-    timeout-minutes: 350
-    env:
-      HF_HOME: ${{ runner.temp }}/huggingface
-      HF_HUB_DISABLE_TELEMETRY: '1'
-      TOKENIZERS_PARALLELISM: 'false'
-      PYTHONUNBUFFERED: '1'
-      OUTPUT: ${{ runner.temp }}/archie-cpu-lite
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
-        with:
-          python-version: '3.12'
-      - name: Install pinned CPU stack
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.1
-          python -m pip install transformers==4.53.2 peft==0.16.0 accelerate==1.8.1 safetensors==0.5.3
-      - name: Train Qwen3 0.6B with RSLoRA
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          mkdir -p "$OUTPUT"
-          python foundry/archie-distill/linux_cpu_rslora_train.py \
-            --lane lite-0.6b \
-            --model Qwen/Qwen3-0.6B \
-            --revision main \
-            --dtype float32 \
-            --corpus foundry/archie-distill/linux_cpu_training_corpus.jsonl \
-            --output "$OUTPUT" \
-            --max-steps 8 \
-            --train-limit 12 \
-            --eval-limit 4 \
-            --rank 16 \
-            --alpha 32 \
-            --learning-rate 0.0003 \
-            --max-seq-length 128 \
-            --prompt-replay-tokens 56 \
-            --prompt-head-tokens 12 \
-            --shared-prefix-replay-tokens 24 \
-            --max-divergence-tokens 88 \
-            --time-budget-minutes 270 \
-            --threads 2 \
-            --gradient-checkpointing 2>&1 | tee "$OUTPUT/run.log"
-      - name: Show returned evidence
-        if: always()
-        run: |
-          find "$OUTPUT" -maxdepth 3 -type f -print
-          if test -f "$OUTPUT/training-receipt.json"; then cat "$OUTPUT/training-receipt.json"; fi
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: archie-cpu-lite-${{ github.run_id }}
-          path: ${{ runner.temp }}/archie-cpu-lite
-          if-no-files-found: warn
-          compression-level: 0
-          retention-days: 30
+      - run: echo hosted-linux-cpu-workflow-registered
