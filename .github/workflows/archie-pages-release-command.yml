@@ -1,0 +1,29 @@
+name: Dispatch Archie Pages release
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/deploy-archie' &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch admitted Archie Pages workflow
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'pages.yml',
+              ref: 'main'
+            });
+            core.info(`Dispatched pages.yml on main from owner command in #${context.issue.number}`);
