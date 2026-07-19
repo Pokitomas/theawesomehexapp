@@ -1,0 +1,162 @@
+name: POK-140 exact source freeze
+
+on:
+  push:
+    branches:
+      - agent/pok-140-source-freeze
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze-source:
+    runs-on: ubuntu-latest
+    env:
+      REPOSITORY_SHA: 4884aacc140d27e465558503c90c0d111bfda7d4
+    steps:
+      - name: Check out exact current main
+        uses: actions/checkout@v4
+        with:
+          ref: 4884aacc140d27e465558503c90c0d111bfda7d4
+          fetch-depth: 1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$REPOSITORY_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Install exact Node dependency tree
+        run: npm ci --ignore-scripts
+
+      - name: Run segmented distillation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-distill/segment_causal_pairs.py \
+            foundry/archie-distill/verify_segment_adapter.py \
+            foundry/archie-distill/fuse_segment_adapters.py \
+            foundry/archie-distill/evaluate_fused_adapter.py \
+            foundry/archie-distill/materialize_fused_adapter.py \
+            foundry/archie-distill/decide_recursive_round.py
+          python foundry/archie-distill/test_segmented_tokenized_distillation.py
+
+      - name: Build byte-stable source archive and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf pok-140-freeze
+          mkdir -p pok-140-freeze
+          git archive --format=tar --prefix=repository/ "$REPOSITORY_SHA" | gzip -n > pok-140-freeze/repository.tar.gz
+          python - <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import platform
+          import subprocess
+
+          root = pathlib.Path('.')
+          out = pathlib.Path('pok-140-freeze')
+          paths = [
+              'package-lock.json',
+              '.github/workflows/archie-segmented-distillation.yml',
+              'foundry/archie-distill/compile_causal_pairs.py',
+              'foundry/archie-distill/train_causal_divergence.py',
+              'foundry/archie-distill/segment_causal_pairs.py',
+              'foundry/archie-distill/verify_segment_adapter.py',
+              'foundry/archie-distill/fuse_segment_adapters.py',
+              'foundry/archie-distill/evaluate_fused_adapter.py',
+              'foundry/archie-distill/materialize_fused_adapter.py',
+              'foundry/archie-distill/decide_recursive_round.py',
+              'foundry/archie-distill/test_segmented_tokenized_distillation.py',
+          ]
+
+          def sha256(path):
+              h = hashlib.sha256()
+              with pathlib.Path(path).open('rb') as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b''):
+                      h.update(block)
+              return h.hexdigest()
+
+          def version(command):
+              return subprocess.check_output(command, text=True, stderr=subprocess.STDOUT).strip()
+
+          manifest = {
+              'schema': 'archie-pok-140-source-freeze/v1',
+              'repository_sha': '4884aacc140d27e465558503c90c0d111bfda7d4',
+              'archive': {
+                  'path': 'repository.tar.gz',
+                  'sha256': sha256(out / 'repository.tar.gz'),
+                  'format': 'tar+gzip-n',
+              },
+              'source_inputs': [
+                  {'path': item, 'sha256': sha256(root / item), 'bytes': (root / item).stat().st_size}
+                  for item in paths
+              ],
+              'environment': {
+                  'os': platform.platform(),
+                  'architecture': platform.machine(),
+                  'python': version(['python', '--version']),
+                  'node': version(['node', '--version']),
+                  'npm': version(['npm', '--version']),
+                  'cuda_target': 'linux-nvidia-required-for-training; not present on github-hosted source-freeze runner',
+              },
+              'workflow_inputs': {'round': 0, 'shards': 4, 'max_fused_rank': 64},
+              'contracts': {
+                  'dependency_install': 'passed',
+                  'python_compile': 'passed',
+                  'segmented_distillation_tests': 'passed',
+              },
+              'external_inputs': {
+                  'training_environment_lock': {'status': 'missing-from-repository'},
+                  'training_config': {'status': 'missing-from-repository', 'variable': 'ARCHIE_TRAINING_CONFIG_PATH'},
+                  'trajectory_batch': {'status': 'missing-from-repository', 'variable': 'ARCHIE_TRAJECTORY_BATCH_PATH'},
+                  'student_model': {'status': 'missing-from-repository', 'variable': 'ARCHIE_STUDENT_MODEL_DIR'},
+              },
+              'complete_bundle_ready': False,
+              'blocker': 'POK-140 cannot close until the exact external environment lock, admitted trajectory batch, training config, and student checkpoint are staged and digest-bound.',
+          }
+          body = json.dumps(manifest, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+          manifest['manifest_digest'] = hashlib.sha256(body).hexdigest()
+          (out / 'bundle-manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          sha256sum pok-140-freeze/repository.tar.gz pok-140-freeze/bundle-manifest.json > pok-140-freeze/SHA256SUMS
+
+      - name: Validate archive on a clean extracted tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pok-140-clean
+          tar -xzf pok-140-freeze/repository.tar.gz -C /tmp/pok-140-clean
+          cd /tmp/pok-140-clean/repository
+          npm ci --ignore-scripts
+          python -m py_compile \
+            foundry/archie-distill/segment_causal_pairs.py \
+            foundry/archie-distill/verify_segment_adapter.py \
+            foundry/archie-distill/fuse_segment_adapters.py \
+            foundry/archie-distill/evaluate_fused_adapter.py \
+            foundry/archie-distill/materialize_fused_adapter.py \
+            foundry/archie-distill/decide_recursive_round.py
+          python foundry/archie-distill/test_segmented_tokenized_distillation.py
+
+      - name: Upload POK-140 source freeze
+        uses: actions/upload-artifact@v4
+        with:
+          name: pok-140-source-freeze-${{ env.REPOSITORY_SHA }}
+          path: pok-140-freeze/
+          if-no-files-found: error
+          retention-days: 14
