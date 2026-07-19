@@ -1,3 +1,4 @@
-Dispatch the admitted multimodal Archie Pages workflow from main commit 75771df0051016233594d76fbbc8485f0ed62a22.
+Deploy the admitted multimodal Archie Pages artifact from current main through the trusted owner release PR gate.
+Main product commit: 94c1325e5ec5fb262feba6315bc7b33de8d213b1.
 This marker branch is execution-only and must not be merged.
-Synchronization nonce: explicit-deploy-input-v1.
+Synchronization nonce: direct-owner-pr-release-v1.
