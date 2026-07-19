@@ -1,12 +1,12 @@
 export default [
   {
     id: 'workflow.pages-authority', f: 'workflow', op: 'Build and deploy Pages, mint OIDC, and mutate deployment receipts',
-    actor: 'GitHub push actor; pull requests may build but cannot reach deploy authority',
-    principal: 'GitHub Actions token and OIDC context in the push-only deploy job',
-    auth: 'contents:read globally; pages:write, id-token:write, and issues:write only in push deploy',
+    actor: 'GitHub push actor or explicit workflow-dispatch actor; pull requests may build but cannot reach deploy authority',
+    principal: 'GitHub Actions token and OIDC context in the push-or-workflow-dispatch deploy job',
+    auth: 'contents:read globally; pages:write, id-token:write, and issues:write only in push or workflow-dispatch deploy',
     object: 'Pages artifact, deployment, OIDC token, and deployment receipt issue', owner: 'GitHub repository and protected Pages environment',
-    deny: 'event is not push|remote gate denies proceed|token permission absent|environment protection denies deploy',
-    replay: 'Exact workflow run and commit; deployment receipt binds the live sentinel to the merged SHA.',
+    deny: 'event is neither push nor workflow_dispatch|remote gate denies proceed|token permission absent|environment protection denies deploy',
+    replay: 'Exact workflow run and commit; deployment receipt binds the live sentinel to the deployed SHA.',
     pub: 'Pages deployment and deployment receipt are public.', priv: 'OIDC token and workflow execution context remain private.', st: 'e',
     s: [
       'workflow-permission:.github/workflows/pages.yml:contents:read',
@@ -14,9 +14,26 @@ export default [
       'workflow-permission:.github/workflows/pages.yml:id-token:write',
       'workflow-permission:.github/workflows/pages.yml:issues:write'
     ],
-    impl: [['.github/workflows/pages.yml', 'permissions:', "if: github.event_name == 'push'", 'pages: write', 'id-token: write', 'issues: write']],
+    impl: [['.github/workflows/pages.yml', 'permissions:', "if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch')", 'pages: write', 'id-token: write', 'issues: write']],
     allow: [['scripts/tests/deployment-receipt.test.mjs', 'deployment']],
-    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'Pages, OIDC, and issue mutation authority exist only in the push-only deploy job']]
+    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'Pages mutation authority exists only in the push-or-explicit-dispatch deploy job']]
+  },
+  {
+    id: 'workflow.archie-pages-release-command', f: 'workflow', op: 'Dispatch the admitted Archie Pages workflow from one exact owner-authored pull-request comment',
+    actor: 'Repository owner posting exactly /deploy-archie on a pull request conversation',
+    principal: 'GitHub Actions token with actions:write and contents:read, executing trusted default-branch workflow code',
+    auth: 'actions:write and contents:read only; issue must be a pull request, comment body must exactly match /deploy-archie, and author association must be OWNER',
+    object: 'One workflow_dispatch event for pages.yml on main', owner: 'Repository owner and GitHub Actions workflow authority',
+    deny: 'comment is not on a pull request|comment body differs|author association is not OWNER|workflow dispatch API denies the request',
+    replay: 'Comment event, pull-request number, actor association, exact command, target workflow, target ref, and resulting workflow run.',
+    pub: 'The owner command and resulting Pages workflow status are public.', priv: 'The GitHub token and dispatch API context remain private.', st: 'e',
+    s: [
+      'workflow-permission:.github/workflows/archie-pages-release-command.yml:actions:write',
+      'workflow-permission:.github/workflows/archie-pages-release-command.yml:contents:read'
+    ],
+    impl: [['.github/workflows/archie-pages-release-command.yml', 'issue_comment:', 'actions: write', 'contents: read', "github.event.comment.body == '/deploy-archie'", "github.event.comment.author_association == 'OWNER'", 'github.rest.actions.createWorkflowDispatch', "workflow_id: 'pages.yml'", "ref: 'main'"]],
+    allow: [['scripts/tests/workflow-permissions.test.mjs', 'Archie Pages dispatch is owner-only, exact-command, and targets trusted main']],
+    denyW: [['scripts/tests/workflow-permissions.test.mjs', 'author_association == \'OWNER\'']]
   },
   {
     id: 'workflow.lasso-authority', f: 'workflow', op: 'Sign and append lasso arrivals from repository events',
@@ -133,9 +150,9 @@ export default [
     pub: 'Workflow status, artifact names, bounded schemas, and non-admission state are public.',
     priv: 'Local model weights, admitted trajectory bytes, preference rows, runner filesystem paths, and registration credentials remain private.', st: 'e',
     s: [
-    'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
-    'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
-  ],
+      'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
+    ],
     impl: [[
       '.github/workflows/archie-segmented-distillation.yml',
       'contents: read',
