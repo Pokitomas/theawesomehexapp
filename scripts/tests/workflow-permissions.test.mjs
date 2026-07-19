@@ -57,11 +57,13 @@ test('PR-reachable Pages jobs stay read-only and never persist checkout credenti
 
 test('Pages mutation authority is limited to push, explicit dispatch, or trusted reusable release', async () => {
   const source = await workflowSource(pagesPath);
-  assert.match(source, /^  workflow_call:$/m);
+  assert.match(source, /^  workflow_call:\n    inputs:\n      deploy:/m);
+  assert.match(source, /deploy:[\s\S]*?required: true[\s\S]*?type: boolean/);
   const deploy = job(source, 'deploy');
   assert.match(deploy, /github\.event_name == 'push'/);
   assert.match(deploy, /github\.event_name == 'workflow_dispatch'/);
-  assert.match(deploy, /github\.event_name == 'workflow_call'/);
+  assert.match(deploy, /inputs\.deploy == true/);
+  assert.doesNotMatch(deploy, /archie-release-pr-|author_association|pull_request\.head\.repo/);
   assert.match(deploy, /^      pages: write$/m);
   assert.match(deploy, /^      id-token: write$/m);
   assert.match(deploy, /^      issues: write$/m);
@@ -77,6 +79,24 @@ test('Archie Pages release keeps direct dispatch bounded and reusable deployment
   assert.match(source, /^  workflow_run:\n    workflows: \[Build and deploy Archie one-task workflow\]\n    types: \[completed\]/m);
   assert.match(source, /^permissions:\n  actions: write\n  contents: read$/m);
 
+  const witness = job(source, 'release-witness', 'release-outcome');
+  assert.match(witness, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(witness, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
+  assert.match(witness, /startsWith\(github\.event\.workflow_run\.head_branch, 'archie-release-pr-'\)/);
+  assert.match(witness, /^      issues: write$/m);
+  assert.match(witness, /CALLER_RUN_ID=\$\{context\.runId\}/);
+  assert.match(witness, /TRUSTED_CALLER_SHA=\$\{context\.sha\}/);
+  assert.match(witness, /RELEASE_PHASE=started/);
+  assert.doesNotMatch(witness, /actions\/checkout/);
+
+  const outcome = job(source, 'release-outcome', 'dispatch');
+  assert.match(outcome, /needs: release-after-verified-pr/);
+  assert.match(outcome, /always\(\)/);
+  assert.match(outcome, /RELEASE_RESULT: \$\{\{ needs\.release-after-verified-pr\.result \}\}/);
+  assert.match(outcome, /RELEASE_PHASE=finished/);
+  assert.match(outcome, /^      issues: write$/m);
+  assert.doesNotMatch(outcome, /actions\/checkout/);
+
   const dispatch = job(source, 'dispatch', 'release-after-verified-pr');
   assert.match(dispatch, /github\.event\.issue\.pull_request/);
   assert.match(dispatch, /github\.event\.comment\.body == '\/deploy-archie'/);
@@ -88,6 +108,7 @@ test('Archie Pages release keeps direct dispatch bounded and reusable deployment
   assert.doesNotMatch(dispatch, /actions\/checkout|contents: write|pages: write|id-token: write|issues: write/);
 
   const release = job(source, 'release-after-verified-pr');
+  assert.match(release, /needs: release-witness/);
   assert.match(release, /github\.event\.workflow_run\.event == 'pull_request'/);
   assert.match(release, /github\.event\.workflow_run\.conclusion == 'success'/);
   // Denial witness: head_repository.full_name == github.repository
@@ -98,6 +119,7 @@ test('Archie Pages release keeps direct dispatch bounded and reusable deployment
   assert.match(release, /^      id-token: write$/m);
   assert.match(release, /^      issues: write$/m);
   assert.match(release, /uses: \.\/\.github\/workflows\/pages\.yml/);
+  assert.match(release, /with:\n      deploy: true/);
   assert.doesNotMatch(release, /actions\/checkout|actions\/github-script|\n\s+run:/);
 });
 
