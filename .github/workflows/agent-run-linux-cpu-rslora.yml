@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  train_lite:
+  train_target:
     runs-on: ubuntu-24.04
     timeout-minutes: 330
     steps:
@@ -25,46 +25,46 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.1
           python -m pip install transformers==4.53.2 peft==0.16.0 accelerate==1.8.1 safetensors==0.5.3
-      - name: Execute real RSLoRA optimizer steps
+      - name: Execute exact target RSLoRA step
         continue-on-error: true
         run: |
-          mkdir -p /tmp/archie-cpu-lite
+          mkdir -p /tmp/archie-cpu-target
           export HF_HOME=/tmp/huggingface
           export HF_HUB_DISABLE_TELEMETRY=1
           export TOKENIZERS_PARALLELISM=false
           export PYTHONUNBUFFERED=1
           set -o pipefail
           python foundry/archie-distill/linux_cpu_rslora_train.py \
-            --lane lite-0.6b \
-            --model Qwen/Qwen3-0.6B \
-            --revision main \
-            --dtype float32 \
+            --lane target-1.7b \
+            --model Qwen/Qwen3-1.7B \
+            --revision 8d4744f9e13072f4920c326350fa81eedb74eae9 \
+            --dtype bfloat16 \
             --corpus foundry/archie-distill/linux_cpu_training_corpus.jsonl \
-            --output /tmp/archie-cpu-lite \
-            --max-steps 8 \
-            --train-limit 12 \
-            --eval-limit 4 \
-            --rank 16 \
-            --alpha 32 \
-            --learning-rate 0.0003 \
-            --max-seq-length 128 \
-            --prompt-replay-tokens 56 \
-            --prompt-head-tokens 12 \
-            --shared-prefix-replay-tokens 24 \
-            --max-divergence-tokens 88 \
+            --output /tmp/archie-cpu-target \
+            --max-steps 1 \
+            --train-limit 2 \
+            --eval-limit 2 \
+            --rank 8 \
+            --alpha 16 \
+            --learning-rate 0.0002 \
+            --max-seq-length 64 \
+            --prompt-replay-tokens 24 \
+            --prompt-head-tokens 8 \
+            --shared-prefix-replay-tokens 12 \
+            --max-divergence-tokens 40 \
             --time-budget-minutes 270 \
             --threads 2 \
-            --gradient-checkpointing 2>&1 | tee /tmp/archie-cpu-lite/run.log
+            --gradient-checkpointing 2>&1 | tee /tmp/archie-cpu-target/run.log
       - name: Print returned receipt
         if: always()
         run: |
-          find /tmp/archie-cpu-lite -maxdepth 3 -type f -print || true
-          cat /tmp/archie-cpu-lite/training-receipt.json || true
+          find /tmp/archie-cpu-target -maxdepth 3 -type f -print || true
+          cat /tmp/archie-cpu-target/training-receipt.json || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: archie-cpu-lite-${{ github.run_id }}
-          path: /tmp/archie-cpu-lite
+          name: archie-cpu-target-${{ github.run_id }}
+          path: /tmp/archie-cpu-target
           if-no-files-found: warn
           compression-level: 0
           retention-days: 30
