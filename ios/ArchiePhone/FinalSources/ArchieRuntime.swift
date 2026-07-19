@@ -2,11 +2,19 @@ import Foundation
 import UIKit
 
 struct RunRecord: Identifiable, Hashable {
-    let id = UUID()
+    let id: UUID
     let objective: String
     let mode: ArchieMode
     var output: String
-    let createdAt = Date()
+    let createdAt: Date
+
+    init(id: UUID = UUID(), objective: String, mode: ArchieMode, output: String, createdAt: Date = Date()) {
+        self.id = id
+        self.objective = objective
+        self.mode = mode
+        self.output = output
+        self.createdAt = createdAt
+    }
 }
 
 enum ArchieMode: String, CaseIterable, Identifiable {
@@ -64,7 +72,12 @@ final class ArchieRuntime: ObservableObject {
             fatalError("Archie local storage failed: \(error)")
         }
         observePhone()
-        Task { oak = await experience.currentSnapshot() }
+        Task { [weak self] in
+            guard let self else { return }
+            let snapshot = await self.experience.currentSnapshot()
+            self.oak = snapshot
+            self.runs = snapshot.events.compactMap(Self.runRecord(from:))
+        }
     }
 
     func run() {
@@ -73,33 +86,34 @@ final class ArchieRuntime: ObservableObject {
         stop()
         output = ""
         let activeMode = mode
-        task = Task {
+        task = Task { [weak self] in
+            guard let self else { return }
             do {
-                try guardPhone()
-                state = .loading
-                let plan = await experience.plan(objective: goal, mode: activeMode.rawValue)
-                guard let (manifest, modelURL) = try await modelStore.activeModel() else { throw RuntimeFailure.noAdmittedModel }
-                backend = try CoreMLAutoregressiveBackend(modelURL: modelURL, manifest: manifest)
-                state = .active
+                try self.guardPhone()
+                self.state = .loading
+                let plan = await self.experience.plan(objective: goal, mode: activeMode.rawValue)
+                guard let (manifest, modelURL) = try await self.modelStore.activeModel() else { throw RuntimeFailure.noAdmittedModel }
+                self.backend = try CoreMLAutoregressiveBackend(modelURL: modelURL, manifest: manifest)
+                self.state = .active
                 let prompt = Self.envelope(goal: goal, mode: activeMode, plan: plan)
-                guard let backend else { throw RuntimeFailure.noAdmittedModel }
-                for try await token in backend.generate(prompt: prompt, maximumNewTokens: lowPowerMode ? 96 : 256) {
-                    try guardPhone()
-                    output += token
+                guard let backend = self.backend else { throw RuntimeFailure.noAdmittedModel }
+                for try await token in backend.generate(prompt: prompt, maximumNewTokens: self.lowPowerMode ? 96 : 256) {
+                    try self.guardPhone()
+                    self.output += token
                 }
-                let final = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                let final = self.output.trimmingCharacters(in: .whitespacesAndNewlines)
                 let reward = Self.proxyReward(result: final)
-                try await experience.record(objective: goal, mode: activeMode.rawValue, result: final, plan: plan, reward: reward)
-                runs.insert(RunRecord(objective: goal, mode: activeMode, output: final), at: 0)
-                runs = Array(runs.prefix(100))
-                oak = await experience.currentSnapshot()
-                objective = ""
-                state = .resting
+                try await self.experience.record(objective: goal, mode: activeMode.rawValue, result: final, plan: plan, reward: reward)
+                self.runs.insert(RunRecord(objective: goal, mode: activeMode, output: final), at: 0)
+                self.runs = Array(self.runs.prefix(100))
+                self.oak = await self.experience.currentSnapshot()
+                self.objective = ""
+                self.state = .resting
             } catch is CancellationError {
-                state = .resting
+                self.state = .resting
             } catch {
-                state = .failed(error.localizedDescription)
-                await unload()
+                self.state = .failed(error.localizedDescription)
+                await self.unload()
             }
         }
     }
@@ -124,6 +138,11 @@ final class ArchieRuntime: ObservableObject {
 
     private func guardPhone() throws {
         if thermalState == .critical { throw RuntimeFailure.thermalCritical }
+    }
+
+    private static func runRecord(from event: ExperienceEvent) -> RunRecord? {
+        guard let mode = ArchieMode(rawValue: event.mode) else { return nil }
+        return RunRecord(id: event.id, objective: event.objective, mode: mode, output: event.result, createdAt: event.createdAt)
     }
 
     private static func envelope(goal: String, mode: ArchieMode, plan: OakPlan) -> String {
@@ -151,7 +170,7 @@ final class ArchieRuntime: ObservableObject {
     private func observePhone() {
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.thermalState = ProcessInfo.processInfo.thermalState
                 if self.thermalState == .critical {
@@ -162,10 +181,12 @@ final class ArchieRuntime: ObservableObject {
             }
         })
         observers.append(center.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled }
+            Task { @MainActor [weak self] in
+                self?.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+            }
         })
         observers.append(center.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.stop()
                 self.state = .paused("Memory released")
