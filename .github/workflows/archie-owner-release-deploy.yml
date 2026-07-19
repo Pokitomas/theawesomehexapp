@@ -1,0 +1,125 @@
+name: Deploy admitted Archie from owner release PR
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'archie-release-pr-') &&
+      github.event.pull_request.author_association == 'OWNER'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked browser tooling
+        run: npm ci --ignore-scripts --include=dev
+      - name: Train and admit local neural router
+        run: |
+          set -euo pipefail
+          python3 archie/model/train_router.py --output-dir archie | tee /tmp/archie-router-training.json
+          grep -q '"admission": "admitted"' /tmp/archie-router-training.json
+          grep -q '"changed_tensors": true' /tmp/archie-router-training.json
+          sha256sum archie/router-model.json | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
+      - name: Verify focused product contracts
+        run: |
+          node --test scripts/tests/deployment-receipt.test.mjs scripts/tests/archie-phone-product.test.mjs
+          npm run test:xp-surfaces
+          npm run test:portfolio
+      - name: Assemble admitted public artifact
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          node scripts/publish-human-surfaces.mjs dist
+          mkdir -p dist/maker dist/archie dist/world-expo dist/design dist/evidence dist/product
+          cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
+          cp archie/index.html archie/archie.css archie/archie.js archie/router-model.json archie/router-admission.json archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
+          cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
+          cp design/frontier-world-expo.json dist/design/
+          cp product/xp-program-surfaces.json dist/product/
+          cp benchmarks/founder-vibe-superiority.v1.json dist/evidence/
+          node scripts/founder-superiority.mjs status --protocol benchmarks/founder-vibe-superiority.v1.json > dist/evidence/founder-superiority-status.json
+      - name: Write exact deployment identity
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: node scripts/deployment-receipt.cjs write-sentinel
+      - name: Verify assembled Archie artifact
+        run: |
+          set -euo pipefail
+          grep -q 'ARCHIE — Show What It Can Do' dist/archie/index.html
+          grep -q 'Admitted local neural router verified' dist/archie/archie.js
+          grep -q '"admission":"admitted"' dist/archie/router-admission.json
+          curl --version >/dev/null
+          python -m http.server 4174 --directory dist >/tmp/archie-release-http.log 2>&1 &
+          server=$!
+          trap 'kill $server || true' EXIT
+          sleep 2
+          curl -fsS http://127.0.0.1:4174/archie/router-model.json | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: needs.build.result == 'success'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      issues: write
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Deploy admitted Archie artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Verify deployed commit identity
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: node scripts/deployment-receipt.cjs verify-live
+      - name: Verify every public surface and admitted router
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/deployment-receipt.cjs verify-all-live > public-surface-reachability-receipts.json
+          curl -fsS "${DEPLOYED_URL%/}/archie/router-model.json" | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
+          curl -fsS "${DEPLOYED_URL%/}/archie/router-admission.json" | grep -q '"admission":"admitted"'
+          curl -fsS "${DEPLOYED_URL%/}/archie/" | grep -q 'ARCHIE — Show What It Can Do'
+      - name: Upsert successful deployment receipt
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { upsertDeploymentReceipt } = require('./scripts/deployment-receipt.cjs');
+            const publicSurfaceSet = JSON.parse(fs.readFileSync('public-surface-reachability-receipts.json', 'utf8'));
+            const result = await upsertDeploymentReceipt({
+              github,
+              context,
+              deployedUrl: process.env.DEPLOYED_URL,
+              surfaceReceipts: publicSurfaceSet.receipts
+            });
+            core.info(`deployment receipt #${result.primary.number}`);
