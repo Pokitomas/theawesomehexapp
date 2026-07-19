@@ -159,6 +159,14 @@ other paths       authority, compatibility, infrastructure, or older experiments
 
 The largest directory is not automatically the current model. [`00-ARCHIE-MODEL/MODEL.json`](./00-ARCHIE-MODEL/MODEL.json) is authoritative.
 
+## Demoted sample-program compatibility ontology
+
+The former Sideways sample remains a regression target with its own internal data boundaries. Its configured network service remains the **canonical public social authority** for shared accounts, publication, following, reactions, communities, moderation, appeals, and mutation receipts. This statement preserves sample-program truth; it does not make that program part of Archie's model identity.
+
+**IndexedDB is the canonical hot store for the private personal archive** inside that sample. User-owned export and restore remain separate from shared social authority.
+
+The **ranking candidate pool is temporary** delivery state. It may combine eligible public projections with private records for one viewer, but it is neither canonical publication authority nor Archie memory or training data.
+
 ## First impossible proof
 
 Give a non-developer one input box, an unfamiliar environment, and a bounded resource envelope. Let them state one vague ambitious intention. Return a polished, secure, tested, installable product that did not previously exist—with no manual Git or ticket workflow, clean-environment reproduction, clickable delivery, exact receipts, and honest uncertainty.
