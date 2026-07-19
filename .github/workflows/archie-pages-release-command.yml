@@ -27,12 +27,7 @@ jobs:
       (github.event_name == 'pull_request_target' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       startsWith(github.event.pull_request.head.ref, 'archie-release-pr-') &&
-      github.event.pull_request.author_association == 'OWNER') ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      startsWith(github.event.workflow_run.head_branch, 'archie-release-pr-'))
+      github.event.pull_request.author_association == 'OWNER')
     runs-on: ubuntu-24.04
     steps:
       - name: Dispatch admitted Archie Pages workflow
@@ -46,3 +41,16 @@ jobs:
               ref: 'main'
             });
             core.info(`Dispatched pages.yml on main from trusted ${context.eventName} release trigger.`);
+
+  release-after-verified-pr:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'archie-release-pr-')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      issues: write
+    uses: ./.github/workflows/pages.yml
