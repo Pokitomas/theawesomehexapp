@@ -4,15 +4,24 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { buildCorpus } from './protocol-corpus.mjs';
-import { trainDecoder, evaluate, parameterCount, modelDigest, sha256 } from './protocol-decoder.mjs';
+import { trainDecoder, evaluate, parameterCount, modelDigest, sha256, PRESETS } from './protocol-decoder.mjs';
+
+const presetName = (() => {
+  const index = process.argv.indexOf('--preset');
+  const name = index === -1 ? 'recovered' : String(process.argv[index + 1] || '');
+  if (!PRESETS[name]) throw new Error(`Unknown preset: ${name}. Known: ${Object.keys(PRESETS).join(', ')}.`);
+  return name;
+})();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outputDirectory = path.join(here, 'runs');
-const outputPath = path.join(outputDirectory, 'protocol-decoder-receipt.json');
+const outputPath = path.join(outputDirectory, presetName === 'recovered'
+  ? 'protocol-decoder-receipt.json'
+  : `protocol-decoder-receipt.${presetName}.json`);
 fs.mkdirSync(outputDirectory, { recursive: true });
 
 const corpus = buildCorpus();
-const decoder = trainDecoder(corpus.train);
+const decoder = trainDecoder(corpus.train, PRESETS[presetName]);
 const train = evaluate(decoder, corpus.train);
 const development = evaluate(decoder, corpus.development);
 const hardDevelopment = evaluate(decoder, corpus.hard);
@@ -40,6 +49,7 @@ const body = {
   code_revision: codeRevision,
   model: {
     method: 'deterministic-bigram-mlp/v1',
+    preset: presetName,
     parameters: parameterCount(decoder),
     vocabulary_features: decoder.vocabulary.length,
     hidden: decoder.config.hidden,

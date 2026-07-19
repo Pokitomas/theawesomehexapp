@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070B12">
+<title>Archie Local Operator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,4 58,19 58,45 32,60 6,45 6,19' fill='none' stroke='%2364F4CE' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%2364F4CE'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ground: #070B12;
+    --surface: #0D1420;
+    --surface-2: #111B2B;
+    --line: #1B2A3E;
+    --mint: #64F4CE;
+    --violet: #8F7BFF;
+    --amber: #F2B95C;
+    --text: #E6F1EC;
+    --muted: #8DA3AC;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #hexfield { position: fixed; inset: 0; z-index: 0; display: block; }
+  .veil {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse 90% 65% at 50% 38%, transparent 0%, rgba(7,11,18,0.55) 62%, rgba(7,11,18,0.92) 100%);
+  }
+  main {
+    position: relative; z-index: 2;
+    min-height: 100svh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(20px, 5vh, 56px) 20px 40px;
+    gap: clamp(18px, 3.4vh, 34px);
+  }
+  .boot { opacity: 0; transform: translateY(14px); animation: rise .8s cubic-bezier(.2,.7,.2,1) forwards; }
+  .boot.d1 { animation-delay: .08s; } .boot.d2 { animation-delay: .22s; }
+  .boot.d3 { animation-delay: .38s; } .boot.d4 { animation-delay: .55s; }
+  .boot.d5 { animation-delay: .72s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  header { text-align: center; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .32em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .eyebrow b { color: var(--mint); font-weight: 500; }
+  h1 {
+    margin-top: 10px;
+    font-family: var(--mono); font-weight: 700;
+    font-size: clamp(44px, 11vw, 92px); line-height: .95; letter-spacing: .04em;
+    background: linear-gradient(100deg, var(--text) 20%, var(--mint) 42%, var(--violet) 60%, var(--text) 82%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: sheen 7s linear infinite;
+  }
+  @keyframes sheen { to { background-position: -220% 0; } }
+  .sub { margin-top: 10px; color: var(--muted); font-size: 14px; text-wrap: balance; }
+  .sub strong { color: var(--text); font-weight: 600; }
+
+  .operator { width: min(680px, 100%); }
+  .prompt-shell {
+    display: flex; gap: 0; border: 1px solid var(--line); border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+    transition: border-color .25s, box-shadow .25s;
+  }
+  .prompt-shell:focus-within {
+    border-color: var(--mint);
+    box-shadow: 0 0 0 1px var(--mint), 0 0 44px rgba(100,244,206,.13);
+  }
+  #prompt {
+    flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+    color: var(--text); font-family: var(--sans); font-size: 16px;
+    padding: 17px 18px;
+  }
+  #prompt::placeholder { color: #5C7280; }
+  #run {
+    border: 0; cursor: pointer; font-family: var(--mono); font-weight: 700;
+    font-size: 13px; letter-spacing: .14em; padding: 0 26px;
+    color: #06231B; background: var(--mint);
+    transition: filter .2s;
+  }
+  #run:hover { filter: brightness(1.12); }
+  #run:focus-visible { outline: 3px solid var(--violet); outline-offset: -3px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
+  .chip {
+    font-size: 12px; color: var(--muted); background: transparent;
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; cursor: pointer;
+    font-family: var(--sans); transition: color .2s, border-color .2s;
+  }
+  .chip:hover { color: var(--mint); border-color: var(--mint); }
+  .chip:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+
+  .protocol { width: min(680px, 100%); min-height: 120px; }
+  .proto-card {
+    border: 1px solid var(--line); border-radius: 16px;
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    padding: 20px 22px;
+  }
+  .proto-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  .proto-head .intent { color: var(--violet); letter-spacing: .12em; }
+  .rail { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .op {
+    font-family: var(--mono); font-weight: 600; font-size: 14px; letter-spacing: .08em;
+    border: 1px solid var(--line); color: var(--muted);
+    border-radius: 10px; padding: 9px 14px;
+    opacity: 0; transform: translateY(8px) scale(.96);
+  }
+  .op.lit {
+    animation: oplight .45s cubic-bezier(.2,.8,.25,1) forwards;
+    border-color: var(--mint); color: var(--mint);
+    background: rgba(100,244,206,.06);
+  }
+  .op.lit.stop { border-color: var(--amber); color: var(--amber); background: rgba(242,185,92,.07); }
+  @keyframes oplight { to { opacity: 1; transform: none; } }
+  .op-arrow { color: #33475C; font-family: var(--mono); opacity: 0; }
+  .op-arrow.lit { animation: rise .3s forwards; }
+  .conf { margin-top: 16px; }
+  .conf-track { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .conf-fill {
+    height: 100%; width: 0; border-radius: 2px;
+    background: linear-gradient(90deg, var(--violet), var(--mint));
+    transition: width .8s cubic-bezier(.2,.7,.2,1);
+  }
+  .conf-label {
+    margin-top: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    color: var(--muted); display: flex; justify-content: space-between;
+  }
+  .conf-label .low { color: var(--amber); }
+
+  .evidence {
+    width: min(680px, 100%);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px;
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    background: var(--line);
+  }
+  .ev {
+    background: var(--surface); padding: 14px 12px 12px; text-align: center;
+  }
+  .ev .v {
+    font-family: var(--mono); font-size: 19px; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .ev .v.mint { color: var(--mint); } .ev .v.violet { color: var(--violet); } .ev .v.amber { color: var(--amber); }
+  .ev .k {
+    margin-top: 5px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--muted);
+  }
+
+  footer {
+    margin-top: auto; text-align: center; max-width: 620px;
+    color: #5C7280; font-size: 12px; line-height: 1.65;
+  }
+  footer .digest { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; word-break: break-all; color: #48607A; }
+  #install {
+    display: none; margin: 0 auto 14px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .14em;
+    color: var(--mint); background: transparent; border: 1px solid var(--mint);
+    border-radius: 999px; padding: 10px 22px;
+    transition: background .2s, color .2s;
+  }
+  #install:hover { background: var(--mint); color: #06231B; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .boot, .op.lit, .op-arrow.lit { animation-duration: .01s !important; animation-delay: 0s !important; }
+    h1 { animation: none; background-position: 40% 0; }
+    .conf-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="hexfield" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<main>
+  <header class="boot d1">
+    <p class="eyebrow">constraint-preserving <b>local intelligence</b></p>
+    <h1>ARCHIE</h1>
+    <p class="sub">Local Operator — a <strong id="param-count">…</strong>-parameter protocol decoder running <strong>entirely in this page</strong>. No server. No calls out.</p>
+  </header>
+
+  <section class="operator boot d2" aria-label="Operator input">
+    <form class="prompt-shell" id="form">
+      <input id="prompt" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Tell it what you need done…" aria-label="Task prompt">
+      <button id="run" type="submit">DECODE</button>
+    </form>
+    <div class="chips" id="chips" role="group" aria-label="Example prompts"></div>
+  </section>
+
+  <section class="protocol boot d3" aria-live="polite" aria-label="Decoded protocol">
+    <div class="proto-card">
+      <div class="proto-head">
+        <span>protocol</span><span class="intent" id="intent">awaiting input</span>
+      </div>
+      <div class="rail" id="rail"><span style="color:#33475C;font-family:var(--mono);font-size:13px">— the opcode sequence renders here —</span></div>
+      <div class="conf">
+        <div class="conf-track"><div class="conf-fill" id="conf-fill"></div></div>
+        <div class="conf-label"><span id="conf-text">confidence</span><span id="conf-note"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="evidence boot d4" aria-label="Model evidence">
+    <div class="ev"><div class="v mint" id="ev-params">…</div><div class="k">parameters</div></div>
+    <div class="ev"><div class="v" id="ev-dev">…</div><div class="k">held-out exact</div></div>
+    <div class="ev"><div class="v violet" id="ev-hard">…</div><div class="k">hard-margin</div></div>
+    <div class="ev"><div class="v amber">100%</div><div class="k">protocol syntax</div></div>
+    <div class="ev"><div class="v" id="ev-int8">int8</div><div class="k">weights</div></div>
+  </section>
+
+  <footer class="boot d5">
+    <button id="install" type="button">⬡ INSTALL ON THIS DEVICE</button>
+    <p>Deterministically trained from scratch in the open repository; weights int8-quantized.
+       Development gates only — <em>promotion: not-admitted</em>. A constrained protocol decoder, not a general generator.</p>
+    <p class="digest" id="digest"></p>
+  </footer>
+</main>
+
+<script>
+// ------------------------- hex field (canvas) -------------------------------
+(() => {
+  const canvas = document.getElementById('hexfield');
+  const context = canvas.getContext('2d');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let width = 0, height = 0, cells = [], pulse = null;
+  const SIZE = 34;
+  function build() {
+    width = canvas.width = innerWidth * devicePixelRatio;
+    height = canvas.height = innerHeight * devicePixelRatio;
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    cells = [];
+    const s = SIZE * devicePixelRatio;
+    const w = Math.sqrt(3) * s, h = 1.5 * s;
+    for (let row = -1; row * h < height + s; row += 1) {
+      for (let col = -1; col * w < width + s; col += 1) {
+        cells.push({ x: col * w + (row % 2 ? w / 2 : 0), y: row * h, phase: Math.random() * Math.PI * 2 });
+      }
+    }
+  }
+  function hex(x, y, s) {
+    context.beginPath();
+    for (let i = 0; i < 6; i += 1) {
+      const a = Math.PI / 3 * i + Math.PI / 6;
+      const px = x + s * Math.cos(a), py = y + s * Math.sin(a);
+      i ? context.lineTo(px, py) : context.moveTo(px, py);
+    }
+    context.closePath();
+  }
+  function frame(t) {
+    context.clearRect(0, 0, width, height);
+    const s = SIZE * devicePixelRatio;
+    const cx = width / 2, cy = height * 0.38;
+    for (const cell of cells) {
+      const dist = Math.hypot(cell.x - cx, cell.y - cy);
+      let glow = 0.5 + 0.5 * Math.sin(t / 2600 + cell.phase);
+      let alpha = Math.max(0, 0.10 - dist / width * 0.12) + glow * 0.02;
+      if (pulse) {
+        const age = t - pulse.start;
+        const ring = age * (width / 1800);
+        const band = Math.abs(dist - ring);
+        if (age < 2400 && band < s * 2.2) alpha += (1 - band / (s * 2.2)) * (1 - age / 2400) * 0.5;
+      }
+      if (alpha <= 0.008) continue;
+      context.strokeStyle = `rgba(100,244,206,${Math.min(alpha, .6)})`;
+      context.lineWidth = devicePixelRatio * 0.8;
+      hex(cell.x, cell.y, s * 0.92);
+      context.stroke();
+    }
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  addEventListener('resize', build);
+  build();
+  requestAnimationFrame(frame);
+  window.__hexPulse = () => { pulse = { start: performance.now() }; if (reduced) requestAnimationFrame(frame); };
+})();
+
+// ------------------------- model runtime ------------------------------------
+(async () => {
+  const $ = id => document.getElementById(id);
+  async function loadModel() {
+    const inline = document.getElementById('model-data');
+    if (inline) return JSON.parse(inline.textContent);
+    const response = await fetch('./model.json');
+    if (!response.ok) throw new Error('model.json missing');
+    return response.json();
+  }
+  function decodeInt8(rows, scales) {
+    return rows.map((encoded, index) => {
+      const raw = atob(encoded);
+      const out = new Float32Array(raw.length);
+      for (let i = 0; i < raw.length; i += 1) {
+        let v = raw.charCodeAt(i); if (v > 127) v -= 256;
+        out[i] = v * scales[index];
+      }
+      return out;
+    });
+  }
+  function tokenize(text) {
+    return text.toLowerCase().normalize('NFKD').replace(/[^a-z0-9\s'-]+/g, ' ').split(/\s+/).filter(Boolean);
+  }
+  function featureStrings(text, charNgrams) {
+    const words = tokenize(text);
+    const features = words.map(w => 'w:' + w);
+    for (let i = 0; i < words.length - 1; i += 1) features.push('b:' + words[i] + '_' + words[i + 1]);
+    if (charNgrams) for (const word of words) {
+      const marked = '^' + word + '$';
+      for (let i = 0; i + 3 <= marked.length; i += 1) features.push('c:' + marked.slice(i, i + 3));
+    }
+    return features;
+  }
+  let MODEL;
+  try { MODEL = await loadModel(); } catch (error) {
+    $('intent').textContent = 'model unavailable';
+    return;
+  }
+  const W1 = decodeInt8(MODEL.weights_int8.W1.rows, MODEL.weights_int8.W1.scales);
+  const W2 = decodeInt8(MODEL.weights_int8.W2.rows, MODEL.weights_int8.W2.scales);
+  const b1 = MODEL.weights_int8.b1, b2 = MODEL.weights_int8.b2;
+  const vocabIndex = new Map(MODEL.vocabulary.map((f, i) => [f, i]));
+  const charNgrams = !!MODEL.config.charNgrams;
+
+  function infer(prompt) {
+    const vector = new Float32Array(MODEL.dims.input);
+    const counts = new Map();
+    for (const f of featureStrings(prompt, charNgrams)) if (vocabIndex.has(f)) counts.set(f, (counts.get(f) || 0) + 1);
+    let norm = 0;
+    for (const [f, c] of counts) { const v = Math.log1p(c); vector[vocabIndex.get(f)] = v; norm += v * v; }
+    norm = Math.sqrt(norm) || 1;
+    for (let i = 0; i < vector.length; i += 1) vector[i] /= norm;
+    const hidden = new Float32Array(MODEL.dims.hidden);
+    for (let u = 0; u < MODEL.dims.hidden; u += 1) {
+      let v = b1[u]; const row = W1[u];
+      for (let i = 0; i < MODEL.dims.input; i += 1) v += row[i] * vector[i];
+      hidden[u] = Math.tanh(v);
+    }
+    const logits = new Float32Array(MODEL.dims.classes);
+    let max = -Infinity;
+    for (let o = 0; o < MODEL.dims.classes; o += 1) {
+      let v = b2[o]; const row = W2[o];
+      for (let u = 0; u < MODEL.dims.hidden; u += 1) v += row[u] * hidden[u];
+      logits[o] = v; if (v > max) max = v;
+    }
+    let sum = 0; const probs = new Float32Array(MODEL.dims.classes);
+    for (let o = 0; o < MODEL.dims.classes; o += 1) { probs[o] = Math.exp(logits[o] - max); sum += probs[o]; }
+    let best = 0;
+    for (let o = 0; o < MODEL.dims.classes; o += 1) { probs[o] /= sum; if (probs[o] > probs[best]) best = o; }
+    const intent = MODEL.intents[best];
+    return { intent, protocol: MODEL.intent_protocol[intent], confidence: probs[best] };
+  }
+
+  // ---- surface the evidence -------------------------------------------------
+  const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n);
+  $('param-count').textContent = fmt(MODEL.parameters);
+  $('ev-params').textContent = fmt(MODEL.parameters);
+  $('ev-dev').textContent = (MODEL.evaluation.int8.development_exact_match * 100).toFixed(1) + '%';
+  $('ev-hard').textContent = (MODEL.evaluation.int8.hard_exact_match * 100).toFixed(1) + '%';
+  $('digest').textContent = 'model ' + MODEL.model_digest.slice(0, 32) + '… · ' + MODEL.promotion;
+
+  // ---- decode interaction ---------------------------------------------------
+  const EXAMPLES = [
+    'Plan the picnic and arrange the grocery run',
+    'Give me migration phases, not a task list',
+    'Choose between the two job offers',
+    'Turn the move into checkboxes',
+    'Write to Sam that Thursday works'
+  ];
+  for (const example of EXAMPLES) {
+    const chip = document.createElement('button');
+    chip.type = 'button'; chip.className = 'chip'; chip.textContent = example;
+    chip.addEventListener('click', () => { $('prompt').value = example; run(); });
+    $('chips').appendChild(chip);
+  }
+  function run() {
+    const prompt = $('prompt').value.trim();
+    if (!prompt) return;
+    const { intent, protocol, confidence } = infer(prompt);
+    window.__hexPulse();
+    $('intent').textContent = intent.replace('_', ' ');
+    const rail = $('rail');
+    rail.innerHTML = '';
+    protocol.forEach((op, index) => {
+      if (index) {
+        const arrow = document.createElement('span');
+        arrow.className = 'op-arrow'; arrow.textContent = '›';
+        setTimeout(() => arrow.classList.add('lit'), 90 + index * 190);
+        rail.appendChild(arrow);
+      }
+      const chip = document.createElement('span');
+      chip.className = 'op' + (op === 'STOP' ? ' stop' : '');
+      chip.textContent = op;
+      setTimeout(() => chip.classList.add('lit'), index * 190);
+      rail.appendChild(chip);
+    });
+    const pct = Math.round(confidence * 100);
+    $('conf-fill').style.width = '0';
+    requestAnimationFrame(() => requestAnimationFrame(() => { $('conf-fill').style.width = pct + '%'; }));
+    $('conf-text').textContent = 'confidence ' + pct + '%';
+    $('conf-note').innerHTML = confidence < 0.5 ? '<span class="low">low margin — verify before acting</span>' : '';
+  }
+  $('form').addEventListener('submit', event => { event.preventDefault(); run(); });
+
+  // ---- PWA install ----------------------------------------------------------
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !document.getElementById('model-data')) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+  let deferredInstall = null;
+  addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredInstall = event;
+    $('install').style.display = 'inline-block';
+  });
+  $('install').addEventListener('click', async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall = null;
+    $('install').style.display = 'none';
+  });
+})();
+</script>
+</body>
+</html>

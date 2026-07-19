@@ -1,0 +1,17 @@
+{
+  "name": "Archie Local Operator",
+  "short_name": "Archie",
+  "description": "Constraint-preserving local protocol decoder. Runs entirely on-device.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#070B12",
+  "theme_color": "#070B12",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23070B12'/%3E%3Cpolygon points='256,64 428,160 428,352 256,448 84,352 84,160' fill='none' stroke='%2364F4CE' stroke-width='28'/%3E%3Ccircle cx='256' cy='256' r='44' fill='%2364F4CE'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,7 +1,17 @@
 import crypto from 'node:crypto';
 import { INTENTS, protocolFor, isValidProtocol } from './protocol-grammar.mjs';
 
-const DEFAULTS = Object.freeze({ minCount: 2, hidden: 32, learningRate: 0.06, weightDecay: 1e-3, epochs: 550, seed: 3407 });
+const DEFAULTS = Object.freeze({ minCount: 2, hidden: 32, learningRate: 0.06, weightDecay: 1e-3, epochs: 550, seed: 3407, charNgrams: false });
+
+// Named scale presets. `recovered` is the admitted small model (#668).
+// `big` is the scaled preset: character trigrams switch on sub-word texture and
+// the hidden layer widens to push capacity near one million parameters, while
+// the same development gates decide whether the extra capacity actually earned
+// anything. Fewer epochs keep the bounded CPU budget honest.
+export const PRESETS = Object.freeze({
+  recovered: Object.freeze({ ...DEFAULTS }),
+  big: Object.freeze({ ...DEFAULTS, minCount: 1, hidden: 320, epochs: 220, learningRate: 0.04, weightDecay: 3e-3, charNgrams: true })
+});
 
 function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -27,27 +37,35 @@ function tokenize(text) {
   return text.toLowerCase().normalize('NFKD').replace(/[^a-z0-9\s'-]+/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-function featureStrings(text) {
+function featureStrings(text, { charNgrams = false } = {}) {
   const words = tokenize(text);
   const features = words.map(word => `w:${word}`);
   for (let index = 0; index < words.length - 1; index += 1) features.push(`b:${words[index]}_${words[index + 1]}`);
+  if (charNgrams) {
+    // Boundary-marked character trigrams give the scaled preset sub-word
+    // texture (typo tolerance, morphology) that word features cannot supply.
+    for (const word of words) {
+      const marked = `^${word}$`;
+      for (let index = 0; index + 3 <= marked.length; index += 1) features.push(`c:${marked.slice(index, index + 3)}`);
+    }
+  }
   return features;
 }
 
-export function buildVocabulary(rows, { minCount = DEFAULTS.minCount } = {}) {
+export function buildVocabulary(rows, { minCount = DEFAULTS.minCount, charNgrams = false } = {}) {
   const counts = new Map();
   for (const row of rows) {
-    for (const feature of featureStrings(row.prompt)) counts.set(feature, (counts.get(feature) || 0) + 1);
+    for (const feature of featureStrings(row.prompt, { charNgrams })) counts.set(feature, (counts.get(feature) || 0) + 1);
   }
   return [...counts].filter(([, count]) => count >= minCount).map(([feature]) => feature).sort();
 }
 
-export function vectorize(text, vocabulary) {
+export function vectorize(text, vocabulary, { charNgrams = false } = {}) {
   const index = new Map(vocabulary.map((value, position) => [value, position]));
   const vector = new Float64Array(vocabulary.length);
   const counts = new Map();
   let norm = 0;
-  for (const feature of featureStrings(text)) {
+  for (const feature of featureStrings(text, { charNgrams })) {
     if (index.has(feature)) counts.set(feature, (counts.get(feature) || 0) + 1);
   }
   for (const [feature, count] of counts) {
@@ -138,7 +156,7 @@ export function trainDecoder(rows, options = {}) {
   const config = { ...DEFAULTS, ...options };
   const vocabulary = buildVocabulary(rows, config);
   const model = initialize(vocabulary.length, config.hidden, INTENTS.length, config.seed);
-  const vectors = rows.map(row => vectorize(row.prompt, vocabulary));
+  const vectors = rows.map(row => vectorize(row.prompt, vocabulary, config));
   const targets = rows.map(row => INTENTS.indexOf(row.intent));
   for (let epoch = 0; epoch < config.epochs; epoch += 1) {
     const rate = config.learningRate * (0.15 + 0.85 * 0.5 * (1 + Math.cos(Math.PI * epoch / config.epochs)));
@@ -151,7 +169,7 @@ export function trainDecoder(rows, options = {}) {
 }
 
 export function predict(decoder, prompt) {
-  const vector = vectorize(prompt, decoder.vocabulary);
+  const vector = vectorize(prompt, decoder.vocabulary, decoder.config);
   const { probabilities } = forward(decoder.model, vector);
   let best = 0;
   for (let index = 1; index < probabilities.length; index += 1) if (probabilities[index] > probabilities[best]) best = index;
