@@ -1,5 +1,6 @@
 name: Execute exact Qwen3 1.7B CPU fast lane
 
+# Launch marker: exact target fast v1
 on:
   pull_request:
     types: [synchronize]
