@@ -21,6 +21,31 @@
       "command": "python foundry/archie-distill/test_information_budgeted_rslora.py",
       "scope": "replay, attention-area reduction, lineage atomicity, cached-reference equivalence, gradient flow, RSLoRA fallback, fusion scaling, and non-promotion contracts"
     },
+    "hosted_linux_cpu_rslora_rehearsal": {
+      "status": "observed-noncanonical",
+      "evidence_path": "00-ARCHIE-MODEL/evidence/HOSTED-LINUX-CPU-RSLORA.json",
+      "model": "Qwen/Qwen3-0.6B",
+      "best_observed_run": {
+        "optimizer_steps": 32,
+        "held_out_pairs": 4,
+        "pair_accuracy": {
+          "base": 0.25,
+          "adapter": 0.5,
+          "delta": 0.25
+        },
+        "mean_pair_margin": {
+          "base": -6.102165699005127,
+          "adapter": 4.339317798614502,
+          "delta": 10.441483497619629
+        },
+        "duration_seconds": 125.18837106700002,
+        "peak_rss_bytes": 5059674112,
+        "receipt_digest": "177f1f98ae0cb079b90b77d861a25b12e5e60ce3178ea22aa79bb889c24b46a9",
+        "adapter_model_sha256": "a4656284823296f872122a09d86e3bbb485fb5d20b6e641ef01a10ec99969a76"
+      },
+      "canonical_evidence": false,
+      "claim_boundary": "This proves real hosted-CPU RSLoRA updates and bounded held-out movement on the 0.6B rehearsal model and corpus. It does not establish canonical Qwen3-1.7B, CUDA/NF4, fusion, quantization, broad capability, or admission evidence."
+    },
     "canonical_cuda_gradient_run": {
       "status": "not-established-in-repository",
       "required": true
@@ -69,10 +94,11 @@
   "false_claims_to_reject": [
     "contract tests are equivalent to training",
     "CPU segmentation is a neural update",
+    "a hosted CPU rehearsal on Qwen3-0.6B proves the canonical Qwen3-1.7B model improved",
     "changed tensors alone prove quality",
     "fusion alone creates intelligence",
     "a successful workflow status proves a model improved",
     "an unadmitted adapter is the released Archie model"
   ],
-  "source_of_truth": "Receipt-bound artifacts produced by the canonical workflow and benchmark suite, not prose or branch names."
+  "source_of_truth": "Receipt-bound artifacts produced by the canonical workflow and benchmark suite, with explicitly bounded rehearsal evidence recorded separately."
 }
