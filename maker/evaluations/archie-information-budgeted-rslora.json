@@ -1,6 +1,7 @@
 {
   "schema": "archie-distill-profile/v1",
   "id": "qwen3-information-budgeted-rslora-v1",
+  "authority_inventory": "workflow.archie-segmented-distillation",
   "claim_boundary": "This profile specifies an information-budgeted RSLoRA experiment. It does not admit capability or production readiness.",
   "student": {
     "provider": "local",
