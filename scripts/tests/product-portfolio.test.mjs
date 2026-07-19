@@ -86,8 +86,10 @@ assert.ok(!marketOutput.includes('sideways\t'));
 
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
 const portfolioDocument = fs.readFileSync(path.join(root, 'PRODUCT_PORTFOLIO.md'), 'utf8');
+const modelPackageReadme = fs.readFileSync(path.join(root, '00-ARCHIE-MODEL', 'README.md'), 'utf8');
+const canonicalDocuments = `${readme}\n${portfolioDocument}\n${modelPackageReadme}`;
 for (const route of Object.keys(expectedRoutes)) {
-  assert.ok(readme.includes(route), `README must route people to ${route}`);
+  assert.ok(canonicalDocuments.includes(route), `canonical repository documents must route people to ${route}`);
   assert.ok(portfolioDocument.includes(route), `portfolio document must explain ${route}`);
 }
 for (const phrase of [
@@ -95,7 +97,9 @@ for (const phrase of [
   'Foundry gives ordinary humans model-research power',
   'former Sideways implementation',
   'anti-convergence research ground'
-]) assert.ok(portfolioDocument.includes(phrase) || readme.includes(phrase), `missing product law: ${phrase}`);
+]) assert.ok(canonicalDocuments.includes(phrase), `missing product law: ${phrase}`);
+assert.match(readme, /begin with \[`00-ARCHIE-MODEL\/`\]/);
+assert.match(modelPackageReadme, /canonical model package/);
 
 for (const relative of [
   'founder/index.html',
@@ -125,4 +129,4 @@ const falseExpoClaim = structuredClone(portfolio);
 falseExpoClaim.surfaces.expo.capability_claim = 'promoted-multimodal-product';
 assert.throws(() => validatePortfolio(falseExpoClaim), /research substrate/);
 
-console.log('product portfolio contract ok: Founder serves humans, Foundry is human-operated research, Sideways is retired, ordinary programs are outputs, and Expo remains evidence-blocked');
+console.log('product portfolio contract ok: the model-first root preserves every human product route through canonical documents, Founder serves humans, Foundry is human-operated research, Sideways is retired, ordinary programs are outputs, and Expo remains evidence-blocked');
