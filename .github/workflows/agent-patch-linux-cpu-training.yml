@@ -30,11 +30,15 @@ jobs:
               'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
               'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
             ],"""
-          new = """    s: [
+          if old not in text:
+              old = """    s: [
               'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
-              'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read',
-              'workflow-permission:.github/workflows/archie-hosted-linux-cpu-training.yml:contents:read'
-            ],"""
+              'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
+            ],""".replace("      'workflow", "  'workflow").replace("    ],", "  ],")
+          new = old.replace(
+              "'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'",
+              "'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read',\n    'workflow-permission:.github/workflows/archie-hosted-linux-cpu-training.yml:contents:read'"
+          )
           if text.count(old) != 1:
               raise SystemExit(f'Expected one Archie distillation authority array, found {text.count(old)}')
           path.write_text(text.replace(old, new), encoding='utf-8')
