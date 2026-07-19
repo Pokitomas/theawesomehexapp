@@ -61,7 +61,6 @@ jobs:
           grep -q 'Mess in.' dist/archie/index.html
           grep -q 'Admitted local neural router verified' dist/archie/archie.js
           grep -q '"admission":"admitted"' dist/archie/router-admission.json
-          curl --version >/dev/null
           python -m http.server 4174 --directory dist >/tmp/archie-release-http.log 2>&1 &
           server=$!
           trap 'kill $server || true' EXIT
@@ -96,17 +95,42 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: node scripts/deployment-receipt.cjs verify-live
-      - name: Verify every public surface and admitted router
+      - name: Verify live routes and admitted router
         env:
           DEPLOYED_URL: ${{ steps.deployment.outputs.page_url }}
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          node scripts/deployment-receipt.cjs verify-all-live > public-surface-reachability-receipts.json
-          curl -fsS "${DEPLOYED_URL%/}/archie/router-model.json" | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
-          curl -fsS "${DEPLOYED_URL%/}/archie/router-admission.json" | grep -q '"admission":"admitted"'
-          curl -fsS "${DEPLOYED_URL%/}/archie/" | grep -q 'Mess in.'
+          node <<'NODE'
+          const fs = require('node:fs');
+          const base = process.env.DEPLOYED_URL.endsWith('/') ? process.env.DEPLOYED_URL : `${process.env.DEPLOYED_URL}/`;
+          const identityUrl = new URL('.well-known/archie-deployment.json', base);
+          identityUrl.searchParams.set('commit', process.env.EXPECTED_COMMIT);
+          const identityResponse = await fetch(identityUrl, { headers: { 'cache-control': 'no-cache' } });
+          if (!identityResponse.ok) throw new Error(`sentinel HTTP ${identityResponse.status}`);
+          const sentinel = await identityResponse.json();
+          if (sentinel.commit !== process.env.EXPECTED_COMMIT) throw new Error(`served commit ${sentinel.commit}`);
+          if (sentinel.repository !== process.env.EXPECTED_REPOSITORY) throw new Error(`served repository ${sentinel.repository}`);
+          const definitions = [
+            ['root', ''], ['desktop', 'desktop/'], ['founder', 'founder/'], ['foundry', 'foundry/'],
+            ['archie', 'archie/'], ['maker', 'maker/'], ['expo', 'world-expo/'], ['example', 'examples/site/']
+          ];
+          const receipts = [];
+          for (const [surface, route] of definitions) {
+            const url = new URL(route, base);
+            url.searchParams.set('commit', process.env.EXPECTED_COMMIT);
+            const response = await fetch(url, { redirect: 'follow', headers: { 'cache-control': 'no-cache' } });
+            if (response.status !== 200) throw new Error(`${surface} HTTP ${response.status}`);
+            if (/\/(?:login|signin)(?:\/|$)/i.test(new URL(response.url).pathname)) throw new Error(`${surface} redirected to login`);
+            const html = await response.text();
+            if (surface === 'archie' && !/Mess in\./i.test(html)) throw new Error('cinematic Archie marker missing');
+            receipts.push({ schema: surface === 'archie' ? 'archie-public-reachability-receipt/v1' : 'archie-public-surface-reachability-receipt/v1', surface, url: new URL(route, base).toString(), anonymous: true, status: 200, login_redirect: false, expected_commit: process.env.EXPECTED_COMMIT, observed_commit: sentinel.commit });
+          }
+          fs.writeFileSync('public-surface-reachability-receipts.json', JSON.stringify({ schema: 'archie-public-surface-set-receipt/v1', expected_commit: process.env.EXPECTED_COMMIT, receipts }, null, 2));
+          NODE
+          curl -fsS "${DEPLOYED_URL%/}/archie/router-model.json?commit=${EXPECTED_COMMIT}" | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
+          curl -fsS "${DEPLOYED_URL%/}/archie/router-admission.json?commit=${EXPECTED_COMMIT}" | grep -q '"admission":"admitted"'
       - name: Upsert successful deployment receipt
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
@@ -116,10 +140,5 @@ jobs:
             const fs = require('node:fs');
             const { upsertDeploymentReceipt } = require('./scripts/deployment-receipt.cjs');
             const publicSurfaceSet = JSON.parse(fs.readFileSync('public-surface-reachability-receipts.json', 'utf8'));
-            const result = await upsertDeploymentReceipt({
-              github,
-              context,
-              deployedUrl: process.env.DEPLOYED_URL,
-              surfaceReceipts: publicSurfaceSet.receipts
-            });
+            const result = await upsertDeploymentReceipt({ github, context, deployedUrl: process.env.DEPLOYED_URL, surfaceReceipts: publicSurfaceSet.receipts });
             core.info(`deployment receipt #${result.primary.number}`);
