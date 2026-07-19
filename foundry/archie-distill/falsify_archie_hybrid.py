@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
+import gc
 import hashlib
 import json
-import math
 import os
 import pathlib
 import random
@@ -21,7 +20,6 @@ import torch.nn.functional as F
 
 from archie_hybrid_core import (
     ArchieHybridLM,
-    ByteTokenizer,
     LocalCausalAttention,
     ModelConfig,
     RMSNorm,
@@ -74,7 +72,10 @@ class UniformLM(nn.Module):
         for block in self.blocks:
             x = block(x)
         logits = self.lm_head(self.norm(x))
-        loss = F.cross_entropy(logits[:, :-1].float().reshape(-1, logits.size(-1)), ids[:, 1:].reshape(-1))
+        loss = F.cross_entropy(
+            logits[:, :-1].float().reshape(-1, logits.size(-1)),
+            ids[:, 1:].reshape(-1),
+        )
         return {"logits": logits, "loss": loss}
 
 
@@ -116,18 +117,28 @@ def make_config(width: int, layers: int, seq_len: int) -> ModelConfig:
 
 
 def instantiate(architecture: str, cfg: ModelConfig) -> nn.Module:
+    return ArchieHybridLM(cfg) if architecture == "hybrid" else UniformLM(cfg, architecture)
+
+
+def model_loss(model: nn.Module, architecture: str, batch: torch.Tensor) -> torch.Tensor:
     if architecture == "hybrid":
-        return ArchieHybridLM(cfg)
-    return UniformLM(cfg, architecture)
+        return model(batch, batch)["loss"]
+    return model(batch)["loss"]
 
 
 def fit_budget(architecture: str, budget: int, layers: int, seq_len: int,
                tolerance: float) -> tuple[ModelConfig, int]:
     candidates: list[tuple[int, ModelConfig, int]] = []
+    upper = int(budget * (1.0 + tolerance))
     for width in range(32, 1025, 16):
         cfg = make_config(width, layers, seq_len)
-        count = parameter_count(instantiate(architecture, cfg))
+        model = instantiate(architecture, cfg)
+        count = parameter_count(model)
         candidates.append((abs(count - budget), cfg, count))
+        del model
+        gc.collect()
+        if count > upper and len(candidates) > 2:
+            break
     candidates.sort(key=lambda item: (item[0], item[2] > budget, item[2]))
     _, cfg, count = candidates[0]
     relative_error = abs(count - budget) / budget
@@ -144,12 +155,13 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def evaluate(model: nn.Module, sampler: Sampler, device: torch.device, batches: int) -> float:
+def evaluate(model: nn.Module, architecture: str, sampler: Sampler,
+             device: torch.device, batches: int) -> float:
     model.eval()
     losses = []
     with torch.no_grad():
         for _ in range(batches):
-            losses.append(float(model(sampler.batch(device))["loss"].detach().cpu()))
+            losses.append(float(model_loss(model, architecture, sampler.batch(device)).detach().cpu()))
     model.train()
     return sum(losses) / len(losses)
 
@@ -160,13 +172,19 @@ def train_arm(args: argparse.Namespace) -> dict[str, Any]:
     output = pathlib.Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
-    cfg, realized = fit_budget(args.architecture, args.parameter_budget, args.layers, args.seq_len, args.parameter_tolerance)
+    cfg, realized = fit_budget(
+        args.architecture, args.parameter_budget, args.layers,
+        args.seq_len, args.parameter_tolerance,
+    )
     set_seed(args.seed)
     model = instantiate(args.architecture, cfg).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.95), weight_decay=args.weight_decay)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=args.learning_rate,
+        betas=(0.9, 0.95), weight_decay=args.weight_decay,
+    )
     train_sampler = Sampler(corpus, args.seq_len, args.batch_size, args.seed)
     eval_sampler = Sampler(corpus, args.seq_len, args.eval_batch_size, args.seed ^ 0x5A5A5A5A)
-    initial_eval = evaluate(model, eval_sampler, device, args.eval_batches)
+    initial_eval = evaluate(model, args.architecture, eval_sampler, device, args.eval_batches)
     history: list[dict[str, float]] = []
     tokens_seen = 0
     started = time.monotonic()
@@ -180,40 +198,61 @@ def train_arm(args: argparse.Namespace) -> dict[str, Any]:
         total = 0.0
         for _ in range(args.grad_accum):
             batch = train_sampler.batch(device)
-            loss = model(batch)["loss"] / args.grad_accum
+            loss = model_loss(model, args.architecture, batch) / args.grad_accum
             loss.backward()
             total += float(loss.detach().cpu())
             tokens_seen += batch[:, :-1].numel()
         grad_norm = float(torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip).detach().cpu())
         optimizer.step()
-        record = {"step": float(step), "loss": total, "grad_norm": grad_norm, "tokens_seen": float(tokens_seen)}
+        record = {
+            "step": float(step), "loss": total,
+            "grad_norm": grad_norm, "tokens_seen": float(tokens_seen),
+        }
         if step % args.eval_every == 0:
-            record["eval_loss"] = evaluate(model, eval_sampler, device, args.eval_batches)
+            record["eval_loss"] = evaluate(
+                model, args.architecture, eval_sampler, device, args.eval_batches,
+            )
         history.append(record)
         if step % args.log_every == 0:
             print(json.dumps(record, sort_keys=True), flush=True)
-    final_eval = evaluate(model, eval_sampler, device, args.eval_batches)
+    elapsed = time.monotonic() - started
+    final_eval = evaluate(model, args.architecture, eval_sampler, device, args.eval_batches)
     model_path = output / "model.pt"
-    torch.save({"schema": "archie-falsification-model/v1", "architecture": args.architecture,
-                "config": asdict(cfg), "model": model.state_dict()}, model_path)
+    torch.save({
+        "schema": "archie-falsification-model/v1",
+        "architecture": args.architecture,
+        "config": asdict(cfg),
+        "model": model.state_dict(),
+    }, model_path)
     receipt = {
         "schema": SCHEMA,
         "architecture": args.architecture,
         "protocol": {
-            "corpus_sha256": metadata["sha256"], "seed": args.seed,
-            "parameter_budget": args.parameter_budget, "parameter_tolerance": args.parameter_tolerance,
-            "realized_parameters": realized, "layers": args.layers, "sequence_length": args.seq_len,
-            "batch_size": args.batch_size, "gradient_accumulation": args.grad_accum,
-            "max_steps": args.max_steps, "learning_rate": args.learning_rate,
-            "weight_decay": args.weight_decay, "eval_batches": args.eval_batches,
+            "corpus_sha256": metadata["sha256"],
+            "seed": args.seed,
+            "parameter_budget": args.parameter_budget,
+            "parameter_tolerance": args.parameter_tolerance,
+            "realized_parameters": realized,
+            "layers": args.layers,
+            "sequence_length": args.seq_len,
+            "batch_size": args.batch_size,
+            "gradient_accumulation": args.grad_accum,
+            "max_steps": args.max_steps,
+            "learning_rate": args.learning_rate,
+            "weight_decay": args.weight_decay,
+            "eval_batches": args.eval_batches,
         },
         "model_config": asdict(cfg),
         "result": {
-            "initial_eval_loss": initial_eval, "final_eval_loss": final_eval,
-            "loss_improvement": initial_eval - final_eval, "tokens_seen": tokens_seen,
-            "steps_completed": len(history), "wall_seconds": time.monotonic() - started,
-            "tokens_per_second": tokens_seen / max(time.monotonic() - started, 1e-9),
-            "stop_reason": stop_reason, "history": history,
+            "initial_eval_loss": initial_eval,
+            "final_eval_loss": final_eval,
+            "loss_improvement": initial_eval - final_eval,
+            "tokens_seen": tokens_seen,
+            "steps_completed": len(history),
+            "wall_seconds": elapsed,
+            "tokens_per_second": tokens_seen / max(elapsed, 1e-9),
+            "stop_reason": stop_reason,
+            "history": history,
         },
         "artifacts": {"model_sha256": sha256_file(model_path)},
         "runtime": {"device": str(device), "torch": torch.__version__, "cuda": torch.version.cuda},
@@ -228,30 +267,35 @@ def train_arm(args: argparse.Namespace) -> dict[str, Any]:
 
 def aggregate(args: argparse.Namespace) -> dict[str, Any]:
     receipts = [json.loads(pathlib.Path(path).read_text(encoding="utf-8")) for path in args.receipt]
-    if {item["architecture"] for item in receipts} != set(ARMS):
+    if len(receipts) != 3 or {item["architecture"] for item in receipts} != set(ARMS):
         raise SystemExit("aggregate requires exactly hybrid, transformer, and ssm receipts")
     protocol_keys = [
-        "corpus_sha256", "seed", "parameter_budget", "parameter_tolerance", "layers",
-        "sequence_length", "batch_size", "gradient_accumulation", "max_steps",
-        "learning_rate", "weight_decay", "eval_batches",
+        "corpus_sha256", "seed", "parameter_budget", "parameter_tolerance",
+        "layers", "sequence_length", "batch_size", "gradient_accumulation",
+        "max_steps", "learning_rate", "weight_decay", "eval_batches",
     ]
     anchor = receipts[0]["protocol"]
     for receipt in receipts[1:]:
         for key in protocol_keys:
             if receipt["protocol"][key] != anchor[key]:
                 raise SystemExit(f"protocol mismatch for {key}")
+    steps = {item["result"]["steps_completed"] for item in receipts}
+    tokens = {item["result"]["tokens_seen"] for item in receipts}
+    stop_reasons = {item["result"]["stop_reason"] for item in receipts}
+    if len(steps) != 1 or len(tokens) != 1:
+        raise SystemExit("arms completed unequal training budgets")
+    if stop_reasons != {"max_steps"}:
+        raise SystemExit("all arms must complete max_steps before a verdict")
     ranked = sorted(receipts, key=lambda item: item["result"]["final_eval_loss"])
     best, second = ranked[0], ranked[1]
     margin = second["result"]["final_eval_loss"] - best["result"]["final_eval_loss"]
-    if margin < args.practical_margin:
-        verdict = "unresolved"
-    else:
-        verdict = f"{best['architecture']}-win"
+    verdict = "unresolved" if margin < args.practical_margin else f"{best['architecture']}-win"
     hybrid = next(item for item in receipts if item["architecture"] == "hybrid")
-    falsified = verdict in {"transformer-win", "ssm-win"}
     report = {
         "schema": "archie-architecture-falsification-report/v1",
         "protocol": {key: anchor[key] for key in protocol_keys},
+        "completed_steps": next(iter(steps)),
+        "completed_tokens": next(iter(tokens)),
         "practical_margin": args.practical_margin,
         "ranking": [{
             "architecture": item["architecture"],
@@ -261,13 +305,12 @@ def aggregate(args: argparse.Namespace) -> dict[str, Any]:
             "receipt_digest": item["receipt_digest"],
         } for item in ranked],
         "verdict": verdict,
-        "hybrid_hypothesis_falsified": falsified,
+        "hybrid_hypothesis_falsified": verdict in {"transformer-win", "ssm-win"},
         "hybrid_final_eval_loss": hybrid["result"]["final_eval_loss"],
         "promotion": "not-admitted",
     }
     report["report_digest"] = hashlib.sha256(stable_json(report).encode()).hexdigest()
-    output = pathlib.Path(args.output)
-    atomic_json(output, report)
+    atomic_json(pathlib.Path(args.output), report)
     print(json.dumps(report, indent=2, sort_keys=True))
     return report
 
@@ -306,10 +349,7 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
-    if args.command == "train":
-        train_arm(args)
-    else:
-        aggregate(args)
+    train_arm(args) if args.command == "train" else aggregate(args)
 
 
 if __name__ == "__main__":
