@@ -17,6 +17,28 @@ struct RunRecord: Identifiable, Hashable {
     }
 }
 
+struct ActiveModelSummary: Equatable, Sendable {
+    let modelID: String
+    let revision: String
+    let backend: String
+    let contextTokens: Int
+    let artifactBytes: Int64
+
+    var shortRevision: String { String(revision.prefix(10)) }
+}
+
+enum ModelReadiness: Equatable, Sendable {
+    case checking
+    case ready(ActiveModelSummary)
+    case missing
+    case invalid(String)
+
+    var isReady: Bool {
+        if case .ready = self { return true }
+        return false
+    }
+}
+
 enum ArchieMode: String, CaseIterable, Identifiable {
     case quiet = "Quiet"
     case companion = "Companion"
@@ -25,6 +47,7 @@ enum ArchieMode: String, CaseIterable, Identifiable {
     case world = "World"
 
     var id: String { rawValue }
+
     var icon: String {
         switch self {
         case .quiet: return "circle.dotted"
@@ -34,6 +57,7 @@ enum ArchieMode: String, CaseIterable, Identifiable {
         case .world: return "point.3.connected.trianglepath.dotted"
         }
     }
+
     var contract: String {
         switch self {
         case .quiet: return "Observe. Surface only a material change or required action."
@@ -49,12 +73,13 @@ enum ArchieMode: String, CaseIterable, Identifiable {
 final class ArchieRuntime: ObservableObject {
     enum State: Equatable { case resting, loading, active, paused(String), failed(String) }
 
-    @Published var mode: ArchieMode = .companion
+    @Published var mode: ArchieMode = .operatorMode
     @Published var objective = ""
     @Published private(set) var output = ""
     @Published private(set) var runs: [RunRecord] = []
     @Published private(set) var oak = OakSnapshot()
     @Published private(set) var state: State = .resting
+    @Published private(set) var modelReadiness: ModelReadiness = .checking
     @Published private(set) var lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
     @Published private(set) var thermalState = ProcessInfo.processInfo.thermalState
 
@@ -74,10 +99,38 @@ final class ArchieRuntime: ObservableObject {
         observePhone()
         Task { [weak self] in
             guard let self else { return }
-            let snapshot = await self.experience.currentSnapshot()
-            self.oak = snapshot
-            self.runs = snapshot.events.compactMap(Self.runRecord(from:))
+            async let snapshot = self.experience.currentSnapshot()
+            await self.refreshModelStatus()
+            let resolved = await snapshot
+            self.oak = resolved
+            self.runs = resolved.events.compactMap(Self.runRecord(from:))
         }
+    }
+
+    func refreshModelStatus() async {
+        modelReadiness = .checking
+        do {
+            guard let (manifest, _) = try await modelStore.activeModel() else {
+                modelReadiness = .missing
+                return
+            }
+            modelReadiness = .ready(
+                ActiveModelSummary(
+                    modelID: manifest.modelID,
+                    revision: manifest.revisionSHA256,
+                    backend: manifest.backend.rawValue,
+                    contextTokens: manifest.maximumContextTokens,
+                    artifactBytes: manifest.artifactBytes
+                )
+            )
+        } catch {
+            modelReadiness = .invalid(error.localizedDescription)
+        }
+    }
+
+    func useStarter(_ starter: ArchieStarter) {
+        mode = .operatorMode
+        objective = starter.creationBrief
     }
 
     func run() {
@@ -92,7 +145,19 @@ final class ArchieRuntime: ObservableObject {
                 try self.guardPhone()
                 self.state = .loading
                 let plan = await self.experience.plan(objective: goal, mode: activeMode.rawValue)
-                guard let (manifest, modelURL) = try await self.modelStore.activeModel() else { throw RuntimeFailure.noAdmittedModel }
+                guard let (manifest, modelURL) = try await self.modelStore.activeModel() else {
+                    self.modelReadiness = .missing
+                    throw RuntimeFailure.noAdmittedModel
+                }
+                self.modelReadiness = .ready(
+                    ActiveModelSummary(
+                        modelID: manifest.modelID,
+                        revision: manifest.revisionSHA256,
+                        backend: manifest.backend.rawValue,
+                        contextTokens: manifest.maximumContextTokens,
+                        artifactBytes: manifest.artifactBytes
+                    )
+                )
                 self.backend = try CoreMLAutoregressiveBackend(modelURL: modelURL, manifest: manifest)
                 self.state = .active
                 let prompt = Self.envelope(goal: goal, mode: activeMode, plan: plan)
@@ -149,11 +214,13 @@ final class ArchieRuntime: ObservableObject {
         """
         [ARCHIE]
         execution=private_local_phone
+        product=phone_first_app_creator
+        audience=young_creators_and_small_operators
         contract=\(mode.contract)
         objective=\(goal)
         learned_context:
         \(plan.context)
-        rule=Continue the real objective. Do not imitate a chat transcript. Prefer durable objects, completed actions, and resumable state. Never claim a tool or sensor was used unless its result is present.
+        rule=Produce a concrete app specification and the next durable implementation object. Prefer a small coherent product over a dashboard of features. Preserve user ownership, offline behavior where reasonable, accessible phone interaction, and exact permission boundaries. Never claim a tool, deployment, executable artifact, sensor, integration, or model improvement unless its evidence is present.
         [CONTINUATION]
         """
     }
