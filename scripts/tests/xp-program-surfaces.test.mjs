@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 
 const read = path => fs.readFileSync(path, 'utf8');
@@ -53,30 +54,38 @@ assert.match(sharedJs, /function inferRoute/);
 assert.match(sharedJs, /choose the smallest workflow/i);
 
 const archie = read('archie/index.html');
-const archieCss = read('archie/archie.css');
-const archieJs = read('archie/archie.js');
+const archieManifest = JSON.parse(read('archie/manifest.webmanifest'));
 const routerAdmission = JSON.parse(read('archie/router-admission.json'));
+const smokeArtifact = read('archie/apps/field-notes/index.html');
+const smokeReceipt = JSON.parse(read('archie/apps/field-notes/receipt.json'));
+
 assert.match(archie, /<main\b/);
-assert.match(archie, /aria-label="Ask Archie"/);
-assert.match(archie, /href="\.\/archie\.css"/);
-assert.match(archie, /Tell Archie what you need handled\./);
-assert.match(archie, />Ask Archie</);
-assert.match(archie, /Verifying local neural router/);
-assert.match(archie, /Response text is deterministic/);
-assert.doesNotMatch(archie, /model picker|provider picker|specialist|benchmark|schema selector/i);
-assert.match(archieCss, /min-height:44px/);
-assert.match(archieCss, /@media\(prefers-reduced-motion:reduce\)/);
-assert.match(archieCss, /@media\(max-width:/);
-assert.match(archieJs, /archie-personal-operator\/v3/);
-assert.match(archieJs, /MODEL_SHA256='202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916'/);
-assert.match(archieJs, /neural_evidence:Boolean\(neural\)/);
-assert.match(archieJs, /response_generation:'deterministic'/);
-assert.match(archieJs, /Neural router unavailable/);
-assert.match(archieJs, /Archie is new\./);
-assert.match(archieJs, /There are no users, shared projects, or community activity here yet/);
-assert.match(archieJs, /localStorage\.setItem/);
-assert.match(archieJs, /serviceWorker\.register/);
-assert.doesNotMatch(archieJs, /packet|authority inspector|runtime unobserved/i);
+assert.match(archie, /<h1>What should Archie make\?<\/h1>/);
+assert.match(archie, /aria-label="What should Archie make\?"/);
+assert.match(archie, /One prompt\. One runnable app\./);
+assert.match(archie, />Make app</);
+assert.match(archie, /id="preview"/);
+assert.match(archie, /download="archie-app\.html"/);
+assert.match(archie, /apps\/field-notes/);
+assert.match(archie, /localStorage\.setItem/);
+assert.match(archie, /serviceWorker\.register/);
+assert.doesNotMatch(archie, />TRAINING<|>FEATS<|>REEL<|Tell Archie what you need handled|>Ask Archie</i);
+assert.doesNotMatch(archie, /https?:\/\/(?:fonts|cdn|unpkg|jsdelivr)\./i);
+assert.equal(archieManifest.name, 'Archie — Product Only');
+assert.equal(archieManifest.display, 'standalone');
+
+assert.equal(smokeReceipt.schema, 'archie-product-only-smoke-receipt/v1');
+assert.equal(smokeReceipt.result, 'passed');
+assert.equal(smokeReceipt.artifact.independent_runnable, true);
+assert.equal(smokeReceipt.artifact.server_calls, 0);
+assert.equal(crypto.createHash('sha256').update(smokeArtifact).digest('hex'), smokeReceipt.artifact.sha256);
+assert.match(smokeArtifact, /localStorage/);
+assert.match(smokeArtifact, /type="file"/);
+assert.match(smokeArtifact, /navigator\.geolocation/);
+assert.match(smokeArtifact, /type="search"/);
+assert.match(smokeArtifact, /Export JSON/);
+assert.doesNotMatch(smokeArtifact, /\bfetch\s*\(|XMLHttpRequest|WebSocket/);
+
 assert.equal(routerAdmission.admission, 'admitted');
 assert.equal(routerAdmission.admitted_for, 'local task-mode routing only');
 assert.equal(routerAdmission.neural_response_generation, false);
@@ -93,4 +102,4 @@ const foundryJs = read('foundry/foundry.js');
 assert.match(foundryJs, /function distinctDirections/);
 assert.match(foundryJs, /candidates preserved/);
 
-console.log('Archie public workflow contract ok: one useful surface with a verified narrow neural router, deterministic response generation, local evidence, and no fake activity');
+console.log('Archie public workflow contract ok: Product-Only prompt creates and opens an independent local app with a digest-bound smoke receipt.');
