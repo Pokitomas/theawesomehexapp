@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Dependency-light tests for Archie causal-divergence neural training."""
 from __future__ import annotations
-
 import importlib.util
 import pathlib
 import sys
@@ -35,6 +34,18 @@ class TinyTokenizer:
 
 
 class CausalDivergenceContractTest(unittest.TestCase):
+    def row(self, pair_id, group_id, chosen="abcXgood-tail", rejected="abcYbad-tail", evidence=2):
+        return {
+            "schema": trainer.PAIR_SCHEMA,
+            "pair_id": pair_id,
+            "group_id": group_id,
+            "instruction": "do task",
+            "compact_context": None,
+            "chosen_target": chosen,
+            "rejected_target": rejected,
+            "evidence_weight": evidence,
+        }
+
     def test_pair_compiler_requires_negative_parent_and_verified_positive_child(self):
         parent = {
             "trajectory_digest": "a" * 64,
@@ -69,33 +80,48 @@ class CausalDivergenceContractTest(unittest.TestCase):
         self.assertEqual(claimed, compiler.digest(body))
 
     def test_tokenization_masks_shared_prefix_for_preference_but_not_sft(self):
-        row = {
-            "schema": trainer.PAIR_SCHEMA,
-            "pair_id": "pair-test",
-            "instruction": "do task",
-            "compact_context": None,
-            "chosen_target": "abcXgood",
-            "rejected_target": "abcYbad",
-            "evidence_weight": 2,
-        }
-        tokenized = trainer.tokenize_pair(TinyTokenizer(), row, 512)
+        tokenized = trainer.tokenize_pair(TinyTokenizer(), self.row("pair-test", "lineage-a"), 512)
         chosen_sft = [item for item in tokenized["chosen_sft_labels"] if item != -100]
         chosen_divergence = [item for item in tokenized["chosen_divergence_labels"] if item != -100]
         self.assertGreater(len(chosen_sft), len(chosen_divergence))
         self.assertEqual(tokenized["divergence_target_token"], 3)
 
+    def test_post_divergence_tail_is_bounded(self):
+        tokenized = trainer.tokenize_pair(
+            TinyTokenizer(),
+            self.row("pair-tail", "lineage-a", chosen="abcX" + "g" * 100, rejected="abcY" + "b" * 100),
+            512,
+            max_post_divergence_tokens=8,
+        )
+        self.assertLessEqual(tokenized["information_tokens"], 18)
+
+    def test_budget_is_deterministic_and_lineage_atomic(self):
+        rows = [
+            self.row("pair-a1", "lineage-a", evidence=4),
+            self.row("pair-a2", "lineage-a", evidence=4),
+            self.row("pair-b1", "lineage-b", chosen="abcX" + "g" * 80, rejected="abcY" + "b" * 80, evidence=1),
+        ]
+        tokenized = [trainer.tokenize_pair(TinyTokenizer(), row, 512) for row in rows]
+        first, receipt_one = trainer.select_budgeted_pairs(tokenized, fraction=0.4, minimum_pairs=1, seed=3407)
+        second, receipt_two = trainer.select_budgeted_pairs(tokenized, fraction=0.4, minimum_pairs=1, seed=3407)
+        self.assertEqual(receipt_one, receipt_two)
+        selected = {item["pair_id"] for item in first}
+        self.assertTrue({"pair-a1", "pair-a2"}.issubset(selected), "a repair lineage must be selected as one atomic unit")
+        self.assertTrue(receipt_one["lineage_atomic"])
+
     def test_common_prefix_is_exact_and_deterministic(self):
         self.assertEqual(trainer.common_prefix_length([1, 2, 3], [1, 2, 4]), 2)
         self.assertEqual(trainer.common_prefix_length([1, 2], [1, 2, 3]), 2)
 
-    def test_training_source_contains_real_reference_anchored_gradient_objective(self):
+    def test_training_source_contains_real_budgeted_gradient_objective(self):
         source = (ROOT / "train_causal_divergence.py").read_text(encoding="utf-8")
         for marker in (
             "functional.logsigmoid",
-            "disable_adapter",
-            "loss, metrics = causal_divergence_loss",
+            "POLICY_ONLY_OBJECTIVE",
+            "select_budgeted_pairs",
+            "use_rslora",
+            "torch.cat",
             "get_peft_model",
-            "prepare_model_for_kbit_training",
             "trainer.train()",
             "load_in_4bit=True",
             '"promotion": "not-admitted"',
@@ -105,8 +131,8 @@ class CausalDivergenceContractTest(unittest.TestCase):
 
     def test_novelty_claim_is_bounded(self):
         source = (ROOT / "train_causal_divergence.py").read_text(encoding="utf-8")
-        self.assertIn("repository-new experimental neural objective", source)
         self.assertIn("not a claim of globally unique prior art", source)
+        self.assertIn("without evaluation", source)
 
 
 if __name__ == "__main__":
