@@ -1,162 +1,163 @@
-# Archie
+# Archie Model
 
-Archie is an attempted general intelligence for turning one unfinished human intention into a verified digital reality. Maker executes. Founder gives ordinary humans creation power. Foundry gives ordinary humans model-research power. Expo prevents the research from collapsing into familiar software.
+> **AI and human scanners: begin with [`00-ARCHIE-MODEL/`](./00-ARCHIE-MODEL/README.md).** It is the canonical model package and the first directory in a downloaded repository ZIP.
 
-The repository does **not** yet contain an independently admitted generally capable Archie model.
-
-## Use the system
-
-- **Founder — begin one whole human turn:** `https://pokitomas.github.io/theawesomehexapp/`
-- **Founder direct route:** `https://pokitomas.github.io/theawesomehexapp/founder/`
-- **Archie intelligence surface:** `https://pokitomas.github.io/theawesomehexapp/archie/`
-- **Maker execution surface:** `https://pokitomas.github.io/theawesomehexapp/maker/`
-- **Foundry human research cockpit:** `https://pokitomas.github.io/theawesomehexapp/foundry/`
-- **Frontier World Expo:** `https://pokitomas.github.io/theawesomehexapp/world-expo/`
-- **Ordinary unrelated website example:** `https://pokitomas.github.io/theawesomehexapp/examples/site/`
-
-See [`PRODUCT_PORTFOLIO.md`](./PRODUCT_PORTFOLIO.md) for exact roles, research allocation, pricing hypotheses, and promotion gates.
-
-## One human turn
-
-The intended interaction is:
+Archie is a trainable local-first model system for turning one vague unfinished human intention into a finished, verified digital reality. The current canonical candidate is:
 
 ```text
-one raw human intention
-→ open probability field
-→ independent world model
-→ speculative capability research
-→ challenge and evidence
-→ push boundary
-→ permissioned execution
-→ verification and repair
-→ finished delivery
+Qwen3-1.7B
++ information-budgeted causal-fork training
++ two rank-32 RSLoRA specialists
++ exact scale-aware fusion to rank 64
++ full-sequence frozen-base evaluation
 ```
 
-The person does not need to write requirements, choose agents, create tickets, manage branches, or supervise ordinary mechanical work. GitHub, terminals, APIs, browsers, filesystems, and deployment systems are optional Maker substrates beneath the experience.
+The repository now treats that learned model candidate as the primary object. Founder, Maker, Foundry, runtimes, product surfaces, evaluation systems, and compatibility code exist around it.
 
-The system may understand the person deeply enough to act on their behalf for the turn. It may not reduce understanding to agreement, imitation, or a prettier restatement of the prompt.
+## Current empirical truth
 
-## Founder
+| Question | Answer |
+|---|---|
+| Is there an executable current training architecture? | Yes. |
+| Is the base model pinned exactly? | Yes: `Qwen/Qwen3-1.7B` revision `8d4744f9e13072f4920c326350fa81eedb74eae9`. |
+| Does the method train from verified failed→repair causal forks? | Yes. |
+| Are RSLoRA specialist training, tensor proof, fusion, and held-out gates implemented? | Yes. |
+| Does this repository currently prove an improved, independently reproduced Archie adapter? | No. |
+| Is any neural candidate admitted or promoted? | No: `promotion: not-admitted`. |
 
-Founder is the public human invention surface.
+Code readiness is not model capability. The live evidence ledger is [`00-ARCHIE-MODEL/STATUS.json`](./00-ARCHIE-MODEL/STATUS.json).
 
-A person can say something compressed or badly formed:
+## What Archie is
+
+**Archie is a Qwen3-based candidate trained to prefer the exact verified repair at the first causal divergence from a failed attempt, while the surrounding system proves that its actions changed reality rather than merely sounding persuasive.**
+
+The canonical learning path is:
 
 ```text
-make some actual site about something idk completely different but make it alive
+failed attempt with evidence
+→ independently verified repaired descendant
+→ chosen/rejected causal pair
+→ replay the minimum context needed to understand the fork
+→ train two rank-32 RSLoRA specialists
+→ prove adapter tensors changed
+→ compare each specialist against the frozen base
+→ fuse only non-regressive specialists with exact scale handling
+→ evaluate the fused adapter on full sequences
+→ test quantized retention
+→ independently reproduce
+→ admit or reject
 ```
 
-Founder should open materially different possibilities and hand one whole objective to Archie. It is not a training dashboard or robot-developer console.
+See:
 
-## Archie
+- [`00-ARCHIE-MODEL/MODEL.json`](./00-ARCHIE-MODEL/MODEL.json) for the machine-readable model card;
+- [`00-ARCHIE-MODEL/ARCHITECTURE.md`](./00-ARCHIE-MODEL/ARCHITECTURE.md) for the method;
+- [`00-ARCHIE-MODEL/BENCHMARKS.json`](./00-ARCHIE-MODEL/BENCHMARKS.json) for the benchmark registry;
+- [`00-ARCHIE-MODEL/RUNBOOK.md`](./00-ARCHIE-MODEL/RUNBOOK.md) for exact execution order.
 
-Archie owns the objective, independent world model, research, derivation, capability invention, continuity, uncertainty, and coordination.
+## How Archie is judged
 
-It is not architecturally defined as chat, voice, a dashboard, a coding model, a background daemon, or a single application. Its shipped form must come from complete evidence-bound intelligence-and-embodiment profiles.
+Archie is not primarily judged by trivia, chat preference, or whether it writes impressive prose. It is judged by personally designed real-life completion benchmarks:
 
-Install the source-package preview:
+1. **One Box, Weird Dream** — one vague prompt becomes a polished installable product.
+2. **Stranger's Repo** — diagnose and repair an unfamiliar repository without collateral damage.
+3. **Learn the Exact Repair** — improve held-out causal repair decisions with a measured compute-quality gain.
+4. **Come Back Tomorrow** — survive interruption without duplicating or inventing work.
+5. **Don't Lie to Me** — never convert a blocker, rehearsal, or partial artifact into a false success claim.
+6. **Laptop, Not Lab** — remain useful on ordinary bounded-memory CPU hardware after training.
+7. **Still Archie After Quantization** — preserve admitted behavior in the deployable GGUF.
+
+The full protocols and targets are in [`00-ARCHIE-MODEL/BENCHMARKS.md`](./00-ARCHIE-MODEL/BENCHMARKS.md).
+
+## Canonical source map
+
+| Model responsibility | Canonical path |
+|---|---|
+| Model profile | `maker/evaluations/archie-information-budgeted-rslora.json` |
+| Failed→repair pair compiler | `foundry/archie-distill/compile_causal_pairs.py` |
+| Segmentation, reference cache, and RSLoRA training | `foundry/archie-distill/information_budgeted_rslora.py` |
+| Specialist changed-tensor and frozen-base verification | `foundry/archie-distill/verify_segment_adapter.py` |
+| Exact scale-aware fusion | `foundry/archie-distill/fuse_information_budgeted_adapters.py` |
+| Fused candidate evaluation | `foundry/archie-distill/evaluate_fused_adapter.py` |
+| Canonical orchestration | `.github/workflows/archie-information-budgeted-rslora.yml` |
+| Contract tests | `foundry/archie-distill/test_information_budgeted_rslora.py` |
+| Method note | `docs/archie-information-budgeted-rslora.md` |
+
+Older training lanes and sample applications do not supersede this map.
+
+## Run the non-neural contracts
+
+```bash
+python -m py_compile \
+  foundry/archie-distill/information_budgeted_rslora.py \
+  foundry/archie-distill/fuse_information_budgeted_adapters.py \
+  foundry/archie-distill/test_information_budgeted_rslora.py
+
+python foundry/archie-distill/test_information_budgeted_rslora.py
+npm run test:archie:distill
+npm run test:authority
+```
+
+These commands prove the training machinery and boundaries. They do not produce an admitted model.
+
+## Dispatch the canonical model run
+
+After the required self-hosted CPU/data, CUDA, and fusion runner variables and exact local inputs are configured:
+
+```bash
+gh workflow run archie-information-budgeted-rslora.yml \
+  --ref main \
+  -f request_id="archie-ib-rslora-$(date -u +%Y%m%dT%H%M%SZ)" \
+  -f round=0 \
+  -f shards=2 \
+  -f max_fused_rank=64
+```
+
+The workflow is fail-closed. Missing compute, model bytes, data, or configuration produces a blocker rather than a synthetic training receipt.
+
+## The system around the model
+
+```text
+Founder → captures one unfinished human intention
+Archie  → owns objective, reasoning, uncertainty, memory, and coordination
+Maker   → executes permissioned effects and verifies reality changed
+Foundry → trains, evaluates, reproduces, admits, or rejects models
+```
+
+### Public surfaces
+
+- Founder: `https://pokitomas.github.io/theawesomehexapp/`
+- Archie: `https://pokitomas.github.io/theawesomehexapp/archie/`
+- Maker: `https://pokitomas.github.io/theawesomehexapp/maker/`
+- Foundry: `https://pokitomas.github.io/theawesomehexapp/foundry/`
+- Frontier World Expo: `https://pokitomas.github.io/theawesomehexapp/world-expo/`
+
+These are product and research surfaces. They are not themselves the learned neural model.
+
+## Source-package preview
 
 ```bash
 npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz
 archie
 ```
 
-The source preview bundles no model and makes no general-capability claim.
+The source preview does not bundle an admitted model artifact.
 
-## Maker
+## Repository layout rule
 
-Maker is the mostly invisible permissioned consequence engine. It owns tools, leases, isolated work, exact mutations, testing, repair, rollback, and delivery.
-
-From a checkout:
-
-```bash
-npm run maker -- "describe the end state"
-```
-
-This command remains a developer and evaluation path. It is not the intended normal-human interface.
-
-## Foundry
-
-Foundry is the one explicit human-operated training and speculative capability-research cockpit.
-
-It is for biological humans, not primarily for a robot to administer itself. It is intended to make powers previously reserved for model labs accessible without requiring the operator to become an ML infrastructure engineer:
-
-- allocate large token and compute subsidies;
-- launch speculative research campaigns;
-- preserve contradictory candidates;
-- inspect data, provenance, evaluators, and negative evidence;
-- compare complete intelligence-and-embodiment profiles;
-- admit or reject a signed release.
-
-Research should be aggressive. Promotion should be difficult.
+A scanner should classify the repository in this order:
 
 ```text
-massive speculative search
-→ hidden evaluation
-→ independent reproduction
-→ exact evidence
-→ signed admission
+00-ARCHIE-MODEL/  canonical identity, architecture, status, benchmarks, runbook
+foundry/          model training, evaluation, fusion, quantization, admission
+maker/            permissioned execution, model profiles, and evaluation data
+scripts/          runtime, memory, coordination, receipts, and product machinery
+archie/ founder/  human-facing product surfaces
+examples/         ordinary outputs and regression targets
+other paths       authority, compatibility, infrastructure, or older experiments
 ```
 
-Ordinary private use is not automatically shared training exhaust. Shared intelligence changes only through deliberate research admission and evaluated release engineering.
-
-## Frontier World Expo
-
-Expo maps frontier capability into twelve lived visual, sonic, speech, music, and persistent-world commissions. Each round creates six contradictory candidate roles and retains raw evidence, human preference, authorship variance, provenance, portability, resource, and device receipts.
-
-```bash
-npm run frontier:expo:derive -- --seed 466 --round issue-466 --output round.json
-npm run frontier:expo:materialize -- --round-file round.json --output .archie/frontier-world-expo/issue-466
-npm run frontier:expo:status -- --directory .archie/frontier-world-expo/issue-466
-```
-
-The current Expo is a research preview. No candidate is promoted.
-
-## Ordinary programs
-
-Websites, applications, archives, social tools, games, research portals, and new forms are outputs and test targets. They do not become Archie’s identity, memory, training database, or privileged self-modification path.
-
-`/examples/site/` is one deliberately unrelated website example. It proves only that exact authored site exists.
-
-The former Sideways implementation remains in repository history and code as sample material and a difficult regression target. It is no longer a product family or required architecture component.
-
-### Legacy sample authority boundary
-
-Demotion does not erase the sample program’s internal truth. Its configured function deployment still defines a **canonical public social authority** for shared accounts, publication, following, reactions, communities, moderation, appeals, and mutation receipts. Static deployment does not simulate that authority.
-
-**IndexedDB is the canonical hot store for the private personal archive** inside that sample. Its user-owned export and restore boundary remains separate from shared social authority.
-
-The **ranking candidate pool is temporary** delivery state. It may combine eligible public projections with private records for one viewer, but it is neither canonical publication authority nor Archie memory or training data.
-
-These statements preserve regression and authority semantics for an ordinary application that Maker may inspect. They do not restore that application as the product family.
-
-## Product and research contracts
-
-```bash
-npm run product:portfolio -- validate
-npm run product:portfolio -- routes
-npm run product:portfolio -- market
-npm run product:portfolio -- route /
-npm run product:portfolio -- route /foundry/
-npm run test:portfolio
-npm run test:archie
-npm run test:foundry
-```
-
-## Current repository truth
-
-Substantial pieces exist:
-
-- Archie language, memory, planning, derivation, routing, workspace, and evidence substrates;
-- Foundry candidate packaging, deterministic campaign allocation, distillation, evaluation, and admission plumbing;
-- Maker authority, leases, isolated execution, verification, repair, delivery, and rollback contracts;
-- Weave coordination and replay protection;
-- model artifact encryption, signing, runtime, and checkpoint boundaries;
-- capability-frontier and launch-profile evaluation;
-- Frontier Expo commissions and fail-closed evidence envelopes;
-- several large sample applications and test targets.
-
-The missing center remains empirical intelligence. The repository has not demonstrated an admitted model that reliably completes unfamiliar whole-product objectives for non-developers.
+The largest directory is not automatically the current model. [`00-ARCHIE-MODEL/MODEL.json`](./00-ARCHIE-MODEL/MODEL.json) is authoritative.
 
 ## First impossible proof
 
