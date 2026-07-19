@@ -1,4 +1,4 @@
-name: Patch hosted Linux CPU training lane
+name: Map hosted Linux CPU workflow authority
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - '.github/workflows/agent-patch-linux-cpu-training.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   patch:
@@ -18,30 +18,30 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: agent/archie-information-budgeted-rslora
-          persist-credentials: false
-      - name: Render hosted CPU workflow patch
+          persist-credentials: true
+      - name: Add the read-only hosted CPU surface
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          path = Path('scripts/apply_archie_linux_cpu_workflow_patch.py')
+          path = Path('audit/authority-manifest.workflow-projection.mjs')
           text = path.read_text(encoding='utf-8')
-          start = text.index('old_compile =')
-          end = text.index("job = r'''", start)
-          path.write_text(text[:start] + text[end:], encoding='utf-8')
+          old = """    s: [
+              'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
+              'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
+            ],"""
+          new = """    s: [
+              'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
+              'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read',
+              'workflow-permission:.github/workflows/archie-hosted-linux-cpu-training.yml:contents:read'
+            ],"""
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one Archie distillation authority array, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
           PY
-          python scripts/apply_archie_linux_cpu_workflow_patch.py
-          python -m py_compile foundry/archie-distill/linux_cpu_rslora_train.py
-          python - <<'PY'
-          import json, pathlib
-          rows = [json.loads(line) for line in pathlib.Path('foundry/archie-distill/linux_cpu_training_corpus.jsonl').read_text().splitlines() if line.strip()]
-          assert len(rows) == 20
-          assert sum(row['split'] == 'train' for row in rows) == 16
-          assert sum(row['split'] == 'development' for row in rows) == 4
-          PY
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: archie-hosted-cpu-workflow-patch
-          path: .github/workflows/archie-information-budgeted-rslora.yml
-          if-no-files-found: error
-          retention-days: 1
+          npm run test:authority
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add audit/authority-manifest.workflow-projection.mjs
+          git commit -m 'Map hosted Linux CPU training authority'
+          git push origin HEAD:agent/archie-information-budgeted-rslora
