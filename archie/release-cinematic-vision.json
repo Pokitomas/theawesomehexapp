@@ -2,8 +2,9 @@
   "schema": "archie-release-request/v1",
   "release": "cinematic-vision",
   "product_commit": "fe64c6bd333cff64d79b74ab6f14bae9a3176820",
-  "release_authority_commit": "75771df0051016233594d76fbbc8485f0ed62a22",
+  "release_authority_commit": "94c1325e5ec5fb262feba6315bc7b33de8d213b1",
   "surface_model_sha256": "6703c4095dd8c2e65f58f8f4c5e18fbe51f2c93c8f71e3aeab363216a9aee705",
   "requested_public_route": "https://pokitomas.github.io/theawesomehexapp/archie/",
-  "promotion": "release-requested"
+  "promotion": "release-requested",
+  "release_attempt": 2
 }
