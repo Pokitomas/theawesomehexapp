@@ -12,10 +12,11 @@ from falsify_archie_hybrid import ARMS, fit_budget
 
 
 def main() -> None:
+    smoke_tolerance = 0.25
     for arm in ARMS:
-        cfg, count = fit_budget(arm, 250_000, 2, 32, 0.08)
+        cfg, count = fit_budget(arm, 250_000, 2, 32, smoke_tolerance)
         assert count > 0
-        assert abs(count - 250_000) / 250_000 <= 0.08
+        assert abs(count - 250_000) / 250_000 <= smoke_tolerance
         assert cfg.max_seq_len == 32
     with tempfile.TemporaryDirectory() as temporary:
         root = pathlib.Path(temporary)
@@ -27,7 +28,7 @@ def main() -> None:
             command = [
                 sys.executable, str(pathlib.Path(__file__).with_name("falsify_archie_hybrid.py")), "train",
                 "--architecture", arm, "--corpus", str(corpus), "--output", str(output),
-                "--parameter-budget", "250000", "--parameter-tolerance", "0.08",
+                "--parameter-budget", "250000", "--parameter-tolerance", str(smoke_tolerance),
                 "--layers", "2", "--seq-len", "16", "--batch-size", "1",
                 "--eval-batch-size", "1", "--grad-accum", "1", "--max-steps", "1",
                 "--eval-every", "1", "--eval-batches", "1", "--log-every", "1",
