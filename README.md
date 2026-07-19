@@ -131,6 +131,7 @@ Foundry → trains, evaluates, reproduces, admits, or rejects models
 - Maker: `https://pokitomas.github.io/theawesomehexapp/maker/`
 - Foundry: `https://pokitomas.github.io/theawesomehexapp/foundry/`
 - Frontier World Expo: `https://pokitomas.github.io/theawesomehexapp/world-expo/`
+- Ordinary unrelated example: `https://pokitomas.github.io/theawesomehexapp/examples/site/`
 
 These are product and research surfaces. They are not themselves the learned neural model.
 
