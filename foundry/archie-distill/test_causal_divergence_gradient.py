@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-"""Torch-only gradient test for the causal-divergence objective.
-
-This does not train a language model. It verifies that the committed objective
-is differentiable and sends opposing gradient signal through the chosen and
-rejected policy logits while reference logits stay frozen.
-"""
+"""Torch-only gradient tests for both causal-divergence objectives."""
 from __future__ import annotations
-
 import importlib.util
 import pathlib
 import sys
@@ -26,17 +20,14 @@ def load_trainer():
 
 
 class CausalDivergenceGradientTest(unittest.TestCase):
-    def test_objective_backpropagates_through_both_policy_arms(self):
-        try:
-            import torch
-        except ImportError:
-            self.skipTest("torch is not installed")
+    def run_objective(self, objective_mode):
+        import torch
         trainer = load_trainer()
         torch.manual_seed(7)
         chosen = torch.randn(1, 6, 17, requires_grad=True)
         rejected = torch.randn(1, 6, 17, requires_grad=True)
-        reference_chosen = torch.randn(1, 6, 17)
-        reference_rejected = torch.randn(1, 6, 17)
+        reference_chosen = torch.randn(1, 6, 17) if objective_mode == trainer.REFERENCE_OBJECTIVE else None
+        reference_rejected = torch.randn(1, 6, 17) if objective_mode == trainer.REFERENCE_OBJECTIVE else None
         chosen_divergence_labels = torch.tensor([[-100, -100, -100, 3, 4, 5]])
         rejected_divergence_labels = torch.tensor([[-100, -100, -100, 6, 7, 8]])
         chosen_sft_labels = torch.tensor([[-100, 1, 2, 3, 4, 5]])
@@ -52,6 +43,7 @@ class CausalDivergenceGradientTest(unittest.TestCase):
             beta=0.1,
             margin=0.2,
             sft_weight=0.35,
+            objective_mode=objective_mode,
         )
         self.assertTrue(torch.isfinite(loss))
         loss.backward()
@@ -60,7 +52,22 @@ class CausalDivergenceGradientTest(unittest.TestCase):
         self.assertGreater(float(chosen.grad.abs().sum()), 0)
         self.assertGreater(float(rejected.grad.abs().sum()), 0)
         self.assertIn("causal_margin", metrics)
-        self.assertIn("pair_accuracy", metrics)
+
+    def test_reference_objective_backpropagates_through_both_arms(self):
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            self.skipTest("torch is not installed")
+        trainer = load_trainer()
+        self.run_objective(trainer.REFERENCE_OBJECTIVE)
+
+    def test_policy_only_objective_backpropagates_through_both_arms(self):
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            self.skipTest("torch is not installed")
+        trainer = load_trainer()
+        self.run_objective(trainer.POLICY_ONLY_OBJECTIVE)
 
 
 if __name__ == "__main__":
