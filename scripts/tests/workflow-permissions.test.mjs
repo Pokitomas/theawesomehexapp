@@ -55,10 +55,13 @@ test('PR-reachable Pages jobs stay read-only and never persist checkout credenti
   }
 });
 
-test('Pages mutation authority exists only in the push-or-explicit-dispatch deploy job', async () => {
+test('Pages mutation authority is limited to push, explicit dispatch, or trusted reusable release', async () => {
   const source = await workflowSource(pagesPath);
+  assert.match(source, /^  workflow_call:$/m);
   const deploy = job(source, 'deploy');
-  assert.match(deploy, /if: \(github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'\)/);
+  assert.match(deploy, /github\.event_name == 'push'/);
+  assert.match(deploy, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(deploy, /github\.event_name == 'workflow_call'/);
   assert.match(deploy, /^      pages: write$/m);
   assert.match(deploy, /^      id-token: write$/m);
   assert.match(deploy, /^      issues: write$/m);
@@ -68,17 +71,33 @@ test('Pages mutation authority exists only in the push-or-explicit-dispatch depl
   assert.doesNotMatch(beforeDeploy, /^\s+(?:pages|id-token|issues): write$/m);
 });
 
-test('Archie Pages dispatch is owner-only, exact-command, and targets trusted main', async () => {
+test('Archie Pages release keeps direct dispatch bounded and reusable deployment trusted', async () => {
   const source = await workflowSource(pagesReleaseCommandPath);
   assert.match(source, /^on:\n  issue_comment:\n    types: \[created\]/m);
+  assert.match(source, /^  workflow_run:\n    workflows: \[Build and deploy Archie one-task workflow\]\n    types: \[completed\]/m);
   assert.match(source, /^permissions:\n  actions: write\n  contents: read$/m);
-  assert.match(source, /github\.event\.issue\.pull_request/);
-  assert.match(source, /github\.event\.comment\.body == '\/deploy-archie'/);
-  assert.match(source, /github\.event\.comment\.author_association == 'OWNER'/);
-  assert.match(source, /github\.rest\.actions\.createWorkflowDispatch/);
-  assert.match(source, /workflow_id: 'pages\.yml'/);
-  assert.match(source, /ref: 'main'/);
-  assert.doesNotMatch(source, /actions\/checkout|contents: write|pages: write|id-token: write|issues: write/);
+
+  const dispatch = job(source, 'dispatch', 'release-after-verified-pr');
+  assert.match(dispatch, /github\.event\.issue\.pull_request/);
+  assert.match(dispatch, /github\.event\.comment\.body == '\/deploy-archie'/);
+  assert.match(dispatch, /github\.event\.comment\.author_association == 'OWNER'/);
+  assert.match(dispatch, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
+  assert.match(dispatch, /github\.rest\.actions\.createWorkflowDispatch/);
+  assert.match(dispatch, /workflow_id: 'pages\.yml'/);
+  assert.match(dispatch, /ref: 'main'/);
+  assert.doesNotMatch(dispatch, /actions\/checkout|contents: write|pages: write|id-token: write|issues: write/);
+
+  const release = job(source, 'release-after-verified-pr');
+  assert.match(release, /github\.event\.workflow_run\.event == 'pull_request'/);
+  assert.match(release, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(release, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/);
+  assert.match(release, /startsWith\(github\.event\.workflow_run\.head_branch, 'archie-release-pr-'\)/);
+  assert.match(release, /^      contents: read$/m);
+  assert.match(release, /^      pages: write$/m);
+  assert.match(release, /^      id-token: write$/m);
+  assert.match(release, /^      issues: write$/m);
+  assert.match(release, /uses: \.\/\.github\/workflows\/pages\.yml/);
+  assert.doesNotMatch(release, /actions\/checkout|actions\/github-script|\n\s+run:/);
 });
 
 test('secret-bearing lasso execution uses only trusted default-branch code', async () => {
