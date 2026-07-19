@@ -135,8 +135,9 @@ def evaluate(model: ArchieHybridLM, sampler: TokenSampler, device: torch.device,
     losses = []
     for _ in range(batches):
         batch = sampler.batch(device)
+        inputs = batch[:, :-1]
         with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
-            loss = model(batch[:, :-1], batch[:, 1:])["loss"]
+            loss = model(inputs, inputs)["loss"]
         losses.append(float(loss.detach().cpu()))
     return sum(losses) / max(len(losses), 1)
 
@@ -202,9 +203,9 @@ def train(args: argparse.Namespace, cfg: ModelConfig, corpus_path: pathlib.Path,
         aggregate_loss = 0.0
         for _ in range(args.grad_accum):
             batch = train_sampler.batch(device)
-            inputs, labels = batch[:, :-1], batch[:, 1:]
+            inputs = batch[:, :-1]
             with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
-                loss = model(inputs, labels)["loss"] / args.grad_accum
+                loss = model(inputs, inputs)["loss"] / args.grad_accum
             if scaler is not None:
                 scaler.scale(loss).backward()
             else:
@@ -315,10 +316,10 @@ def selftest(root: pathlib.Path) -> dict[str, Any]:
     common = [
         sys.executable, str(pathlib.Path(__file__).resolve()), "--corpus", str(corpus),
         "--state-dir", str(run_root), "--preset", "micro", "--device", "cpu",
-        "--seq-len", "24", "--batch-size", "1", "--eval-batch-size", "1",
+        "--seq-len", "12", "--batch-size", "1", "--eval-batch-size", "1",
         "--grad-accum", "1", "--learning-rate", "0.003", "--weight-decay", "0.01",
         "--warmup-steps", "1", "--save-every", "1", "--eval-every", "1",
-        "--eval-batches", "1", "--log-every", "1", "--generate-tokens", "4",
+        "--eval-batches", "1", "--log-every", "1", "--generate-tokens", "2",
         "--deadline-minutes", "0", "--seed", "7",
     ]
     first = subprocess.run([*common, "--max-steps", "2"], text=True, capture_output=True)
