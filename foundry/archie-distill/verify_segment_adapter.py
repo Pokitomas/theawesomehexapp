@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Prove a segmented LoRA adapter changed and compare it with the frozen base.
 
-The verifier reconstructs the deterministic pre-training LoRA initialization,
-compares every saved adapter tensor byte-for-byte, loads the trained state into
-the same NF4 base, and evaluates the global held-out causal pairs with the
-adapter both disabled and enabled. It refuses CPU fallback and never promotes.
+The verifier reconstructs deterministic adapter initialization, checks changed
+LoRA tensors, then evaluates exact held-out pairs with the adapter disabled and
+enabled. It remains the external frozen-base gate for policy-only training and
+never promotes a candidate.
 """
 from __future__ import annotations
 
@@ -110,20 +110,11 @@ def evaluate_policy(model: Any, rows: list[dict[str, Any]], tokenizer: Any, max_
     context = contextlib.nullcontext() if adapter_enabled else model.disable_adapter()
     with context, torch.no_grad():
         for row in rows:
-            tokenized = tokenize_pair(tokenizer, row, max_seq_length)
-            batch = collator([tokenized])
+            batch = collator([tokenize_pair(tokenizer, row, max_seq_length)])
             device = torch.device("cuda", torch.cuda.current_device())
             batch = {key: value.to(device) if hasattr(value, "to") else value for key, value in batch.items()}
-            chosen = model(
-                input_ids=batch["chosen_input_ids"],
-                attention_mask=batch["chosen_attention_mask"],
-                use_cache=False,
-            )
-            rejected = model(
-                input_ids=batch["rejected_input_ids"],
-                attention_mask=batch["rejected_attention_mask"],
-                use_cache=False,
-            )
+            chosen = model(input_ids=batch["chosen_input_ids"], attention_mask=batch["chosen_attention_mask"], use_cache=False)
+            rejected = model(input_ids=batch["rejected_input_ids"], attention_mask=batch["rejected_attention_mask"], use_cache=False)
             chosen_logp = float(sequence_log_prob(chosen.logits, batch["chosen_divergence_labels"])[0].item())
             rejected_logp = float(sequence_log_prob(rejected.logits, batch["rejected_divergence_labels"])[0].item())
             chosen_full_logp = float(sequence_log_prob(chosen.logits, batch["chosen_sft_labels"])[0].item())
@@ -215,16 +206,18 @@ def main() -> None:
     evaluation_rows = read_jsonl(evaluation_path, required=True)
     if not evaluation_rows:
         raise SystemExit("A nonempty global held-out split is required.")
-    expected_eval_sha = shard_receipt.get("development", {}).get("sha256")
-    if expected_eval_sha != sha256(evaluation_path):
+    if shard_receipt.get("development", {}).get("sha256") != sha256(evaluation_path):
         raise SystemExit("Held-out bytes do not match the segmented shard receipt.")
 
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    os.environ["HF_HUB_OFFLINE"] = "1"
-    os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    os.environ["HF_DATASETS_OFFLINE"] = "1"
+    for name, value in {
+        "PYTHONHASHSEED": str(seed),
+        "CUBLAS_WORKSPACE_CONFIG": ":4096:8",
+        "TOKENIZERS_PARALLELISM": "false",
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "HF_DATASETS_OFFLINE": "1",
+    }.items():
+        os.environ[name] = value
     random.seed(seed)
 
     try:
@@ -248,15 +241,14 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(model_dir, local_files_only=True, trust_remote_code=False)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    quantization = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=torch.float16,
-    )
     model = AutoModelForCausalLM.from_pretrained(
         model_dir,
-        quantization_config=quantization,
+        quantization_config=BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.float16,
+        ),
         device_map={"": torch.cuda.current_device()},
         local_files_only=True,
         trust_remote_code=False,
@@ -272,6 +264,7 @@ def main() -> None:
         "bias": "none",
         "task_type": "CAUSAL_LM",
         "target_modules": cfg.get("target_modules", "all-linear"),
+        "use_rslora": bool(cfg.get("use_rslora", False)),
     }
     model = get_peft_model(model, LoraConfig(**lora_values))
     initial_state = {name: tensor.detach().cpu().clone() for name, tensor in get_peft_model_state_dict(model).items()}
@@ -336,7 +329,7 @@ def main() -> None:
         },
         "fusion_eligible": proof["changed_tensor_count"] > 0 and comparison["pair_accuracy_delta"] >= 0 and comparison["non_regression"],
         "promotion": "not-admitted",
-        "claim_boundary": "This receipt proves changed LoRA tensors and a frozen-base versus adapter comparison on the bound global held-out split. It does not prove broad capability gain, GGUF retention, independent reproduction, or admission.",
+        "claim_boundary": "This receipt proves changed LoRA tensors and a frozen-base versus adapter comparison on the bound global held-out split. It does not prove broad capability gain, fused-model quality, GGUF retention, independent reproduction, or admission.",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     receipt = {**receipt_body, "receipt_digest": hashlib.sha256(stable(receipt_body).encode("utf-8")).hexdigest()}
