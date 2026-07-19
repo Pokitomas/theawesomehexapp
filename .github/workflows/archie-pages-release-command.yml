@@ -3,6 +3,7 @@ name: Dispatch Archie Pages release
 on:
   issue_comment:
     types: [created]
+  create:
 
 permissions:
   actions: write
@@ -11,9 +12,14 @@ permissions:
 jobs:
   dispatch:
     if: >-
+      (github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       github.event.comment.body == '/deploy-archie' &&
-      github.event.comment.author_association == 'OWNER'
+      github.event.comment.author_association == 'OWNER') ||
+      (github.event_name == 'create' &&
+      github.ref_type == 'branch' &&
+      startsWith(github.ref, 'archie-release-') &&
+      github.actor == github.repository_owner)
     runs-on: ubuntu-24.04
     steps:
       - name: Dispatch admitted Archie Pages workflow
@@ -26,4 +32,4 @@ jobs:
               workflow_id: 'pages.yml',
               ref: 'main'
             });
-            core.info(`Dispatched pages.yml on main from owner command in #${context.issue.number}`);
+            core.info(`Dispatched pages.yml on main from trusted ${context.eventName} release trigger.`);
