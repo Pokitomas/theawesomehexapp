@@ -136,7 +136,10 @@ jobs:
           manifest['manifest_digest'] = hashlib.sha256(body).hexdigest()
           (out / 'bundle-manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n', encoding='utf-8')
           PY
-          sha256sum pok-140-freeze/repository.tar.gz pok-140-freeze/bundle-manifest.json > pok-140-freeze/SHA256SUMS
+          (
+            cd pok-140-freeze
+            sha256sum repository.tar.gz bundle-manifest.json > SHA256SUMS
+          )
 
       - name: Validate archive on a clean extracted tree
         shell: bash
