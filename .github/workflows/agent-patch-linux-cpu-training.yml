@@ -1,9 +1,8 @@
 name: Patch hosted Linux CPU training lane
 
 on:
-  push:
-    branches:
-      - agent/archie-information-budgeted-rslora
+  pull_request:
+    types: [synchronize]
     paths:
       - '.github/workflows/agent-patch-linux-cpu-training.yml'
 
@@ -12,6 +11,7 @@ permissions:
 
 jobs:
   patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
