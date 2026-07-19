@@ -153,11 +153,11 @@ final class ArchieRuntime: ObservableObject {
         observers.append(center.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                thermalState = ProcessInfo.processInfo.thermalState
-                if thermalState == .critical {
-                    stop()
-                    state = .paused("Cooling down")
-                    await unload()
+                self.thermalState = ProcessInfo.processInfo.thermalState
+                if self.thermalState == .critical {
+                    self.stop()
+                    self.state = .paused("Cooling down")
+                    await self.unload()
                 }
             }
         })
@@ -167,9 +167,9 @@ final class ArchieRuntime: ObservableObject {
         observers.append(center.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                stop()
-                state = .paused("Memory released")
-                await unload()
+                self.stop()
+                self.state = .paused("Memory released")
+                await self.unload()
             }
         })
     }
