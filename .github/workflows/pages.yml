@@ -1,6 +1,6 @@
 name: Build and deploy Archie one-task workflow
 # Release trigger: admitted-router-140441b9ae07b03bd9069f016ea0030ad39a7dca
-# Authority witness: github.event_name == 'workflow_call' delegates deployment through inputs.deploy == true.
+# Authority witness: deploy authority requires push, explicit dispatch, trusted workflow_call, or the read-only owner release-PR gate.
 
 on:
   push:
@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       decision: ${{ steps.gate.outputs.decision }}
+      release_authorized: ${{ steps.release-authority.outputs.authorized }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -39,6 +40,21 @@ jobs:
           REMOTE_SESSION: ${{ vars.REMOTE_SESSION }}
           REMOTE_GATE_FAIL_CLOSED: ${{ vars.REMOTE_GATE_FAIL_CLOSED }}
         run: node scripts/remote-gate.mjs
+      - id: release-authority
+        name: Prove bounded owner release PR
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          authorized=false
+          if [[ "$EVENT_NAME" == "pull_request" && "$HEAD_REPOSITORY" == "$REPOSITORY" && "$HEAD_BRANCH" == archie-release-pr-* && "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
+            authorized=true
+          fi
+          echo "authorized=$authorized" >> "$GITHUB_OUTPUT"
 
   build:
     needs: remote-gate
@@ -93,7 +109,11 @@ jobs:
           cp benchmarks/founder-vibe-superiority.v1.json dist/evidence/
           node scripts/founder-superiority.mjs status --protocol benchmarks/founder-vibe-superiority.v1.json > dist/evidence/founder-superiority-status.json
       - name: Write exact deployment identity
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || inputs.deploy == true
+        if: >-
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          inputs.deploy == true ||
+          needs.remote-gate.outputs.release_authorized == 'true'
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
           EXPECTED_REPOSITORY: ${{ github.repository }}
@@ -146,10 +166,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Configure Pages
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || inputs.deploy == true
+        if: >-
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          inputs.deploy == true ||
+          needs.remote-gate.outputs.release_authorized == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Upload Pages artifact
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || inputs.deploy == true
+        if: >-
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          inputs.deploy == true ||
+          needs.remote-gate.outputs.release_authorized == 'true'
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: dist
@@ -164,7 +192,8 @@ jobs:
       needs.remote-gate.outputs.decision == 'proceed' &&
       (github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      inputs.deploy == true)
+      inputs.deploy == true ||
+      needs.remote-gate.outputs.release_authorized == 'true')
     environment:
       name: ${{ github.event_name == 'pull_request' && 'archie-pages-release' || 'github-pages' }}
       url: ${{ steps.deployment.outputs.page_url }}
