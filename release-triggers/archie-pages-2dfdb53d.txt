@@ -1,4 +1,4 @@
-Deploy the admitted multimodal Archie Pages artifact from current main through the trusted owner release PR gate.
-Main product commit: 94c1325e5ec5fb262feba6315bc7b33de8d213b1.
+Build and admit the current Archie artifact, then hand deployment to the witnessed protected main-ref release caller.
+Main product and release commit: 1a9bdb889d5493cd1f70346d74b83bc5fed85edb.
 This marker branch is execution-only and must not be merged.
-Synchronization nonce: direct-owner-pr-release-v1.
+Synchronization nonce: witnessed-main-release-v1.
