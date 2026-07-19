@@ -105,8 +105,8 @@ jobs:
           grep -q 'What should happen?' dist/index.html
           grep -q 'You are the lab now' dist/foundry/index.html || grep -q 'Foundry Research Control' dist/foundry/index.html
           grep -q 'Tiny Public Things' dist/examples/site/index.html
-          grep -q 'What should Archie make?' dist/archie/index.html
-          grep -q 'One prompt. One runnable app.' dist/archie/index.html
+          grep -q 'Archie 95' dist/archie/index.html
+          grep -q 'What needs handling?' dist/archie/index.html
           grep -q 'Admitted local neural router verified' dist/archie/archie.js
           grep -q '"admission":"admitted"' dist/archie/router-admission.json
           test -f dist/desktop/index.html
