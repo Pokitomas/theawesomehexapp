@@ -12,7 +12,7 @@ Qwen3-1.7B
 + full-sequence frozen-base evaluation
 ```
 
-The repository now treats that learned model candidate as the primary object. Founder, Maker, Foundry, runtimes, product surfaces, evaluation systems, and compatibility code exist around it.
+The repository now treats that learned model candidate as the primary object. Founder, Maker, Foundry, runtimes, product surfaces, evaluation systems, and compatibility code exist around it. **Founder gives ordinary humans creation power. Foundry gives ordinary humans model-research power.**
 
 ## Current empirical truth
 
