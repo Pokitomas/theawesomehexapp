@@ -1,0 +1,100 @@
+{
+  "schema": "archie-hosted-linux-cpu-rslora-evidence/v1",
+  "promotion": "not-admitted",
+  "canonical_model_evidence": false,
+  "corpus": {
+    "path": "foundry/archie-distill/linux_cpu_training_corpus.jsonl",
+    "sha256": "79962220b1fd532ad7939b98b267071c1442725952a29e46e58898c20e254cf8",
+    "scope": "bounded repository-governance rehearsal corpus",
+    "train_rows": 16,
+    "development_rows": 4
+  },
+  "runs": [
+    {
+      "lane": "lite-0.6b",
+      "model": "Qwen/Qwen3-0.6B",
+      "resolved_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+      "device": "cpu",
+      "dtype": "float32",
+      "rslora": {
+        "active": true,
+        "rank": 16,
+        "alpha": 32,
+        "scaling_law": "alpha/sqrt(rank)",
+        "trainable_parameters": 4587520
+      },
+      "optimizer_steps": 8,
+      "duration_seconds": 70.541693716,
+      "peak_rss_bytes": 5028356096,
+      "held_out": {
+        "pairs": 4,
+        "base_pair_accuracy": 0.25,
+        "adapter_pair_accuracy": 0.25,
+        "pair_accuracy_delta": 0.0,
+        "base_mean_pair_margin": -6.102125644683838,
+        "adapter_mean_pair_margin": -1.9555559158325195,
+        "mean_pair_margin_delta": 4.146569728851318,
+        "non_regression": true
+      },
+      "adapter": {
+        "model_bytes": 18380008,
+        "model_sha256": "7cc3ca6d62fbc6ae6e93272c518944731629eea1b52180138c09b01773016618",
+        "config_sha256": "1cf24c457152565a476696ca697e56aa0643de2f236e3ed1edcb33306d102f20"
+      },
+      "receipt_digest": "92ac4a593ac26f36376182e7ec14418c28270f62563abb4f357a6b15f9531c99",
+      "actions": {
+        "run_id": 29670141271,
+        "artifact_id": 8437042222,
+        "artifact_name": "archie-cpu-lite-29670141271",
+        "artifact_sha256": "76720c9891ae3057f61782bfd02c944278a4168900e105bd16793d36364cf38b",
+        "retention_expires": "2026-08-18T02:26:22Z"
+      }
+    },
+    {
+      "lane": "deep-0.6b",
+      "model": "Qwen/Qwen3-0.6B",
+      "resolved_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+      "device": "cpu",
+      "dtype": "float32",
+      "rslora": {
+        "active": true,
+        "rank": 16,
+        "alpha": 32,
+        "scaling_law": "alpha/sqrt(rank)",
+        "trainable_parameters": 4587520
+      },
+      "optimizer_steps": 32,
+      "duration_seconds": 125.18837106700002,
+      "peak_rss_bytes": 5059674112,
+      "held_out": {
+        "pairs": 4,
+        "base_pair_accuracy": 0.25,
+        "adapter_pair_accuracy": 0.5,
+        "pair_accuracy_delta": 0.25,
+        "base_mean_pair_margin": -6.102165699005127,
+        "adapter_mean_pair_margin": 4.339317798614502,
+        "mean_pair_margin_delta": 10.441483497619629,
+        "non_regression": true
+      },
+      "adapter": {
+        "model_bytes": 18380008,
+        "model_sha256": "a4656284823296f872122a09d86e3bbb485fb5d20b6e641ef01a10ec99969a76",
+        "config_sha256": "e97b700f6892bf9a42e245f41b03ed197dc4dd665b7c09dc01a96a350197ce0f"
+      },
+      "receipt_digest": "177f1f98ae0cb079b90b77d861a25b12e5e60ce3178ea22aa79bb889c24b46a9",
+      "actions": {
+        "run_id": 29670610204,
+        "artifact_id": 8437187899,
+        "artifact_name": "archie-cpu-deep-compact-29670610204",
+        "artifact_sha256": "0ce07f632835b470ac967d0ff732e7e997d17e352ae1b0e89af55f84d47bc459",
+        "retention_expires": "2026-08-18T02:45:26Z",
+        "compaction_note": "Step checkpoints and tokenizer copies were removed after receipt emission; final adapter, progress log, run log, and receipt remain. The final adapter digests match the receipt."
+      }
+    }
+  ],
+  "exact_qwen3_1_7b_cpu_lane": {
+    "status": "running",
+    "claim_boundary": "No exact-target result is recorded until its receipt and adapter artifact return."
+  },
+  "claim_boundary": "These runs prove real hosted-CPU RSLoRA optimizer updates and bounded held-out movement on Qwen3-0.6B using the rehearsal corpus. They do not prove Qwen3-1.7B improvement, CUDA/NF4 parity, fused-candidate gain, quantization retention, broad Archie capability, independent reproduction, or admission."
+}
