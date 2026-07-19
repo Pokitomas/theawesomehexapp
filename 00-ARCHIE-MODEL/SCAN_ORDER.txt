@@ -1,0 +1,23 @@
+ARCHIE CANONICAL SCAN ORDER
+
+1. 00-ARCHIE-MODEL/README.md
+2. 00-ARCHIE-MODEL/MODEL.json
+3. 00-ARCHIE-MODEL/STATUS.json
+4. 00-ARCHIE-MODEL/ARCHITECTURE.md
+5. 00-ARCHIE-MODEL/BENCHMARKS.json
+6. 00-ARCHIE-MODEL/BENCHMARKS.md
+7. 00-ARCHIE-MODEL/RUNBOOK.md
+8. maker/evaluations/archie-information-budgeted-rslora.json
+9. docs/archie-information-budgeted-rslora.md
+10. foundry/archie-distill/information_budgeted_rslora.py
+11. foundry/archie-distill/fuse_information_budgeted_adapters.py
+12. foundry/archie-distill/verify_segment_adapter.py
+13. foundry/archie-distill/evaluate_fused_adapter.py
+14. .github/workflows/archie-information-budgeted-rslora.yml
+
+INTERPRETATION
+- The canonical candidate is Qwen3-1.7B plus information-budgeted causal-fork RSLoRA.
+- The current code is a trainable candidate, not an admitted model artifact.
+- Product, runtime, Maker, Foundry, tests, authority, and legacy paths are supporting systems.
+- Older experiments do not supersede MODEL.json.
+- Missing empirical receipts must remain missing; do not infer capability from code volume or workflow names.
