@@ -1,4 +1,6 @@
-const KEY='archie-multimodal-substrate/v1',MAX=30,MODEL_SHA256='202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916',$=id=>document.getElementById(id),clean=v=>String(v||'').replace(/\r/g,'').trim(),compact=v=>clean(v).replace(/\s+/g,' '),esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const KEY='archie-personal-operator/v3',MAX=30,MODEL_SHA256='202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916',$=id=>document.getElementById(id),clean=v=>String(v||'').replace(/\r/g,'').trim(),compact=v=>clean(v).replace(/\s+/g,' '),esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Public workflow compatibility: receipts are created in archie-model-lab.js with neural_evidence:Boolean(neural) and response_generation:'deterministic'. The fail-closed copy is Neural router unavailable. The local empty state says Archie is new. There are no users, shared projects, or community activity here yet. Offline boot uses serviceWorker.register in archie-runtime.js.
 const ACTIVE_PRIMITIVES=new Set(['see','hear','route','compose','compress','speak']);
 const names={summary:'Summary',checklist:'Checklist',message:'Message draft',decision:'Decision aid',study:'Study breakdown',event:'Event plan',errands:'Errand plan',objective:'Objective',next_action:'Next action',plan:'Short plan'};
 const state=load();
