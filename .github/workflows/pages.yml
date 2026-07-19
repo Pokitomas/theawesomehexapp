@@ -1,6 +1,7 @@
 name: Build and deploy Archie one-task workflow
 # Release trigger: admitted-router-140441b9ae07b03bd9069f016ea0030ad39a7dca
-# Authority witness: deploy authority requires push, explicit dispatch, trusted workflow_call, or the read-only owner release-PR gate.
+# Authority witness: github.event_name == 'workflow_call' delegates deployment through inputs.deploy == true.
+# Owner release witness: deploy authority may also come from the read-only same-repository OWNER release-PR gate.
 
 on:
   push:
