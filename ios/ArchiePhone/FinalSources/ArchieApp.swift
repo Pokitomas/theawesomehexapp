@@ -3,81 +3,171 @@ import SwiftUI
 @main
 struct ArchieApp: App {
     @StateObject private var runtime = ArchieRuntime()
+
     var body: some Scene {
         WindowGroup {
-            RootSurface().environmentObject(runtime)
+            ProductRoot().environmentObject(runtime)
         }
     }
 }
 
-struct RootSurface: View {
+struct ProductRoot: View {
     var body: some View {
         TabView {
-            NowSurface().tabItem { Label("Now", systemImage: "circle.fill") }
-            GroveSurface().tabItem { Label("Grove", systemImage: "tree.fill") }
-            RunsSurface().tabItem { Label("Rings", systemImage: "circle.hexagongrid.fill") }
-            MindSurface().tabItem { Label("Mind", systemImage: "iphone.gen3") }
+            CreateSurface()
+                .tabItem { Label("Create", systemImage: "sparkles.rectangle.stack.fill") }
+            AppsSurface()
+                .tabItem { Label("Apps", systemImage: "square.grid.2x2.fill") }
+            TeachSurface()
+                .tabItem { Label("Teach", systemImage: "graduationcap.fill") }
+            MindSurface()
+                .tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
         }
         .tint(.primary)
     }
 }
 
-struct NowSurface: View {
+struct CreateSurface: View {
     @EnvironmentObject private var runtime: ArchieRuntime
+    @FocusState private var promptFocused: Bool
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    presenceHeader
-                    modeRail
-                    continuation
-                    objectiveField
-                    if !runtime.runs.isEmpty {
-                        Button { runtime.continueLast() } label: {
-                            Label("Resume the living thread", systemImage: "arrow.trianglehead.clockwise")
-                        }
-                        .buttonStyle(.bordered)
+                VStack(alignment: .leading, spacing: 22) {
+                    hero
+                    promptComposer
+                    if runtime.state == .active || runtime.state == .loading || !runtime.output.isEmpty {
+                        liveBuild
                     }
+                    recentBuilds
+                    samples
                 }
                 .padding(18)
             }
             .background(Color(uiColor: .systemGroupedBackground))
+            .navigationTitle("Archie")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) { statusBar }
         }
     }
 
-    private var presenceHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("ARCHIE").font(.caption.weight(.black)).tracking(2.4)
-                Text(headerLine).font(.title2.weight(.semibold))
-            }
-            Spacer()
-            Circle()
-                .fill(statusColor)
-                .frame(width: 11, height: 11)
-                .shadow(color: statusColor.opacity(0.5), radius: 8)
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("MAKE SOMETHING REAL")
+                .font(.caption.weight(.black))
+                .tracking(2.2)
+                .foregroundStyle(.secondary)
+            Text("What should Archie make?")
+                .font(.largeTitle.bold())
+                .minimumScaleFactor(0.8)
+            Text("Describe the app in normal language. Archie keeps the technical machinery out of your way.")
+                .font(.body)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var modeRail: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 9) {
-                ForEach(ArchieMode.allCases) { mode in
+    private var promptComposer: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            TextField("A tiny budgeting app that feels calm and works offline…", text: $runtime.objective, axis: .vertical)
+                .focused($promptFocused)
+                .lineLimit(4...10)
+                .font(.title3)
+                .padding(18)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            HStack(spacing: 12) {
+                Button {
+                    runtime.mode = .operatorMode
+                    runtime.run()
+                } label: {
+                    Label(buildButtonTitle, systemImage: "arrow.up.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(runtime.objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || runtime.state == .active || runtime.state == .loading)
+
+                if runtime.state == .active || runtime.state == .loading {
+                    Button("Stop") { runtime.stop() }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                }
+            }
+
+            HStack(spacing: 8) {
+                Label("Local-first", systemImage: "iphone")
+                Text("•")
+                Text("Permission-aware")
+                Text("•")
+                Text("Evidence preserved")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var liveBuild: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Live build", systemImage: "hammer.fill")
+                    .font(.headline)
+                Spacer()
+                if runtime.state == .active || runtime.state == .loading { ProgressView() }
+            }
+
+            if runtime.output.isEmpty {
+                Text("Archie is opening the local mind and preparing the build.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(runtime.output)
+                    .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+                    .textSelection(.enabled)
+            }
+
+            if !runtime.output.isEmpty && runtime.state == .resting {
+                Button {
+                    runtime.objective = "Refine the current app. Keep what works and make the next useful improvement.\n\nCurrent result:\n\(runtime.output)"
+                    promptFocused = true
+                } label: {
+                    Label("Refine this app", systemImage: "wand.and.stars")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(20)
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    private var recentBuilds: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Recent apps").font(.title2.bold())
+                Spacer()
+                Text("\(runtime.runs.count)").foregroundStyle(.secondary)
+            }
+
+            if runtime.runs.isEmpty {
+                ContentUnavailableView("Your apps will live here", systemImage: "square.grid.2x2", description: Text("Start with one clear idea. Archie will preserve the run so you can reopen and refine it."))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else {
+                ForEach(runtime.runs.prefix(3)) { run in
                     Button {
-                        runtime.mode = mode
+                        runtime.mode = .operatorMode
+                        runtime.objective = "Continue building this app from its preserved state:\n\(run.objective)\n\nCurrent result:\n\(run.output)"
+                        promptFocused = true
                     } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Image(systemName: mode.icon)
-                            Text(mode.rawValue).font(.caption.weight(.semibold))
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(run.objective).font(.headline).lineLimit(2)
+                            Text(run.output).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
                         }
-                        .frame(width: 78, height: 58, alignment: .leading)
-                        .padding(10)
-                        .background(runtime.mode == mode ? Color.primary : Color.secondary.opacity(0.1))
-                        .foregroundStyle(runtime.mode == mode ? Color(uiColor: .systemBackground) : .primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
@@ -85,44 +175,25 @@ struct NowSurface: View {
         }
     }
 
-    private var continuation: some View {
+    private var samples: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label(runtime.mode.rawValue, systemImage: runtime.mode.icon)
-                    .font(.headline)
-                Spacer()
-                if runtime.state == .active { ProgressView() }
-            }
-            Text(runtime.output.isEmpty ? emptyText : runtime.output)
-                .font(.body)
-                .frame(maxWidth: .infinity, minHeight: 220, alignment: .topLeading)
-                .textSelection(.enabled)
-        }
-        .padding(20)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private var objectiveField: some View {
-        VStack(spacing: 12) {
-            TextField(promptText, text: $runtime.objective, axis: .vertical)
-                .lineLimit(2...9)
-                .padding(17)
-                .background(Color.secondary.opacity(0.09))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            HStack {
-                Button { runtime.run() } label: {
-                    Label("Move", systemImage: "arrow.up.right.circle.fill")
-                        .frame(maxWidth: .infinity)
+            Text("Start from a spark").font(.title2.bold())
+            ForEach(sampleIdeas, id: \.self) { idea in
+                Button {
+                    runtime.objective = idea
+                    runtime.mode = .operatorMode
+                    promptFocused = true
+                } label: {
+                    HStack {
+                        Text(idea).multilineTextAlignment(.leading)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .padding(15)
+                    .background(Color.secondary.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(runtime.objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                if runtime.state == .active || runtime.state == .loading {
-                    Button("Stop") { runtime.stop() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -132,49 +203,24 @@ struct NowSurface: View {
             Circle().fill(statusColor).frame(width: 7, height: 7)
             Text(statusText).font(.footnote)
             Spacer()
-            Text("\(runtime.oak.features.count) features · \(runtime.oak.options.count) options")
-                .font(.caption2).foregroundStyle(.secondary)
+            Text("\(runtime.runs.count) saved runs")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
         .background(.ultraThinMaterial)
     }
 
-    private var headerLine: String {
-        switch runtime.mode {
-        case .quiet: return "Nothing false. Nothing loud."
-        case .companion: return "Stay with what is alive."
-        case .operatorMode: return "Turn intent into matter."
-        case .focus: return "One thread. Keep it moving."
-        case .world: return "Objects first. Relations next."
-        }
-    }
-
-    private var emptyText: String {
-        switch runtime.mode {
-        case .quiet: return "Archie is resting inside the phone."
-        case .companion: return "Leave a thought, a feeling, or a half-made thing."
-        case .operatorMode: return "Name the outcome. Archie will preserve the path."
-        case .focus: return "Put the one real objective here."
-        case .world: return "Open a subject. Archie will grow its map."
-        }
-    }
-
-    private var promptText: String {
-        switch runtime.mode {
-        case .quiet: return "What should remain in awareness?"
-        case .companion: return "What is happening?"
-        case .operatorMode: return "What must become true?"
-        case .focus: return "What are we carrying through?"
-        case .world: return "What should Archie understand?"
-        }
+    private var buildButtonTitle: String {
+        runtime.runs.isEmpty ? "Make the app" : "Build it"
     }
 
     private var statusText: String {
         switch runtime.state {
-        case .resting: return "Local and still"
-        case .loading: return "Opening the local mind"
-        case .active: return "Growing a continuation"
+        case .resting: return "Ready on this phone"
+        case .loading: return "Opening local intelligence"
+        case .active: return "Building"
         case .paused(let reason): return reason
         case .failed(let reason): return reason
         }
@@ -188,67 +234,79 @@ struct NowSurface: View {
         case .resting: return .secondary
         }
     }
+
+    private let sampleIdeas = [
+        "Make a one-thumb habit tracker that feels rewarding, not guilty.",
+        "Build a private trip planner from screenshots and notes.",
+        "Create a tiny inventory app for clothes I want to sell."
+    ]
 }
 
-struct GroveSurface: View {
+struct AppsSurface: View {
     @EnvironmentObject private var runtime: ArchieRuntime
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Growing features") {
-                    ForEach(runtime.oak.features.sorted { $0.utility > $1.utility }.prefix(30)) { feature in
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(feature.label).font(.headline)
-                            HStack {
-                                Text("seen \(feature.observations) times")
-                                Spacer()
-                                Text("utility \(feature.utility, format: .number.precision(.fractionLength(2)))")
-                            }
-                            .font(.caption).foregroundStyle(.secondary)
+                ForEach(runtime.runs) { run in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(run.objective).font(.headline).lineLimit(2)
+                        Text(run.output).foregroundStyle(.secondary).lineLimit(5)
+                        HStack {
+                            Label("Preserved run", systemImage: "checkmark.seal")
+                            Spacer()
+                            Text(run.createdAt, style: .relative)
                         }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
-                }
-                Section("Reusable ways through") {
-                    ForEach(runtime.oak.options.sorted { $0.meanReward > $1.meanReward }.prefix(30)) { option in
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(option.instruction).lineLimit(4)
-                            Text("\(option.attempts) uses · reward \(option.meanReward, format: .number.precision(.fractionLength(2)))")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
+                    .padding(.vertical, 7)
                 }
             }
             .overlay {
-                if runtime.oak.features.isEmpty {
-                    ContentUnavailableView("The grove is new", systemImage: "tree", description: Text("Features and reusable options appear as Archie works from lived runs."))
+                if runtime.runs.isEmpty {
+                    ContentUnavailableView("No apps yet", systemImage: "square.grid.2x2", description: Text("Anything Archie completes will appear here as a preserved, refinable run."))
                 }
             }
-            .navigationTitle("Grove")
+            .navigationTitle("Apps")
         }
     }
 }
 
-struct RunsSurface: View {
+struct TeachSurface: View {
     @EnvironmentObject private var runtime: ArchieRuntime
 
     var body: some View {
         NavigationStack {
-            List(runtime.runs) { run in
-                VStack(alignment: .leading, spacing: 7) {
-                    Label(run.mode.rawValue, systemImage: run.mode.icon)
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text(run.objective).font(.headline).lineLimit(2)
-                    Text(run.output).lineLimit(4).foregroundStyle(.secondary)
+            List {
+                Section {
+                    Text("Teach is secondary to making. A completed build can become training material only after its trajectory and evidence are preserved.")
                 }
-                .padding(.vertical, 6)
-            }
-            .overlay {
-                if runtime.runs.isEmpty {
-                    ContentUnavailableView("No rings yet", systemImage: "circle.hexagongrid", description: Text("Each completed local continuation leaves a resumable ring."))
+
+                Section("Eligible runs") {
+                    if runtime.runs.isEmpty {
+                        Text("Complete an app first.").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(runtime.runs.prefix(20)) { run in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(run.objective).font(.headline).lineLimit(2)
+                                Label("Trajectory preserved", systemImage: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Label("Candidate not admitted", systemImage: "lock.shield")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 5)
+                        }
+                    }
+                }
+
+                Section("Boundary") {
+                    Text("No build is labeled learned, promoted, or improved until independent training and evaluation gates pass.")
                 }
             }
-            .navigationTitle("Rings")
+            .navigationTitle("Teach Archie")
         }
     }
 }
@@ -259,25 +317,32 @@ struct MindSurface: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Local body") {
+                Section("Local runtime") {
                     LabeledContent("Inference", value: "On device")
-                    LabeledContent("Power adaptation", value: runtime.lowPowerMode ? "Reduced" : "Full")
-                    LabeledContent("Thermal state", value: String(describing: runtime.thermalState))
+                    LabeledContent("Power", value: runtime.lowPowerMode ? "Reduced" : "Full")
+                    LabeledContent("Thermal", value: String(describing: runtime.thermalState))
                 }
                 Section("Experience") {
-                    LabeledContent("Events", value: "\(runtime.oak.events.count)")
+                    LabeledContent("Runs", value: "\(runtime.runs.count)")
                     LabeledContent("Features", value: "\(runtime.oak.features.count)")
-                    LabeledContent("Options", value: "\(runtime.oak.options.count)")
+                    LabeledContent("Reusable options", value: "\(runtime.oak.options.count)")
                     LabeledContent("Outcome models", value: "\(runtime.oak.models.count)")
                 }
-                Section("Boundary") {
-                    Text("The base model generates. The growth-ring layer learns from runs, retrieves reusable options, and plans locally. Archie does not claim sensors, tools, or permissions it has not actually received.")
+                Section("Behavior") {
+                    Picker("Runtime contract", selection: $runtime.mode) {
+                        ForEach(ArchieMode.allCases) { mode in
+                            Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                        }
+                    }
+                }
+                Section("Truth boundary") {
+                    Text("Archie uses the admitted local model when available and preserves local experience. It does not claim tools, sensors, app export, deployment, or training success unless those systems return real evidence.")
                 }
                 Section {
                     Button("Release model memory") { Task { await runtime.unload() } }
                 }
             }
-            .navigationTitle("Mind")
+            .navigationTitle("Advanced")
         }
     }
 }
