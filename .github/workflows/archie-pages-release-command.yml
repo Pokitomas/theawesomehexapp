@@ -4,6 +4,8 @@ on:
   issue_comment:
     types: [created]
   create:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
 
 permissions:
   actions: write
@@ -18,7 +20,11 @@ jobs:
       github.event.comment.author_association == 'OWNER') ||
       (github.event_name == 'create' &&
       github.ref_type == 'branch' &&
-      startsWith(github.ref, 'archie-release-'))
+      startsWith(github.ref, 'archie-release-')) ||
+      (github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'archie-release-pr-') &&
+      github.event.pull_request.author_association == 'OWNER')
     runs-on: ubuntu-24.04
     steps:
       - name: Dispatch admitted Archie Pages workflow
