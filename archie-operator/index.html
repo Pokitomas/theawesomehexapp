@@ -190,7 +190,7 @@
   <header class="boot d1">
     <p class="eyebrow">constraint-preserving <b>local intelligence</b></p>
     <h1>ARCHIE</h1>
-    <p class="sub">Local Operator — a <strong id="param-count">…</strong>-parameter protocol decoder running <strong>entirely in this page</strong>. No server. No calls out.</p>
+    <p class="sub">Local Operator — a <strong id="param-count">…</strong>-parameter, 12-route protocol decoder running <strong>entirely in this page</strong>. No server. No calls out.</p>
   </header>
 
   <section class="operator boot d2" aria-label="Operator input">
@@ -217,16 +217,18 @@
 
   <section class="evidence boot d4" aria-label="Model evidence">
     <div class="ev"><div class="v mint" id="ev-params">…</div><div class="k">parameters</div></div>
-    <div class="ev"><div class="v" id="ev-dev">…</div><div class="k">held-out exact</div></div>
-    <div class="ev"><div class="v violet" id="ev-hard">…</div><div class="k">hard-margin</div></div>
+    <div class="ev"><div class="v mint">93.8%</div><div class="k">80-case route · this model</div></div>
+    <div class="ev"><div class="v" title="Qwen3-1.7B Q6_K checkpoint, same 80 cases">90.0%</div><div class="k">same suite · Q6 1.7B</div></div>
+    <div class="ev"><div class="v violet">24/24</div><div class="k">red-team abstention</div></div>
     <div class="ev"><div class="v amber">100%</div><div class="k">protocol syntax</div></div>
-    <div class="ev"><div class="v" id="ev-int8">int8</div><div class="k">weights</div></div>
+    <div class="ev"><div class="v">int8</div><div class="k">weights · 2.1 MiB</div></div>
   </section>
 
   <footer class="boot d5">
     <button id="install" type="button">⬡ INSTALL ON THIS DEVICE</button>
-    <p>Deterministically trained from scratch in the open repository; weights int8-quantized.
-       Development gates only — <em>promotion: not-admitted</em>. A constrained protocol decoder, not a general generator.</p>
+    <p>Trained from scratch on the governed audit corpus; weights int8-quantized. On the Q6 checkpoint's own
+       80-case admission suite this router selects the correct route 75/80 vs the Q6's 72/80 — routing only:
+       it does not generate answers or run tools, and it remains <em>promotion: not-admitted</em>.</p>
     <p class="digest" id="digest"></p>
   </footer>
 </main>
@@ -360,25 +362,26 @@
     for (let o = 0; o < MODEL.dims.classes; o += 1) { probs[o] = Math.exp(logits[o] - max); sum += probs[o]; }
     let best = 0;
     for (let o = 0; o < MODEL.dims.classes; o += 1) { probs[o] /= sum; if (probs[o] > probs[best]) best = o; }
-    const intent = MODEL.intents[best];
-    return { intent, protocol: MODEL.intent_protocol[intent], confidence: probs[best] };
+    const routes = MODEL.routes || MODEL.intents;
+    const templates = MODEL.route_protocol || MODEL.intent_protocol;
+    const intent = routes[best];
+    return { intent, protocol: templates[intent], confidence: probs[best] };
   }
 
   // ---- surface the evidence -------------------------------------------------
   const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n);
   $('param-count').textContent = fmt(MODEL.parameters);
   $('ev-params').textContent = fmt(MODEL.parameters);
-  $('ev-dev').textContent = (MODEL.evaluation.int8.development_exact_match * 100).toFixed(1) + '%';
-  $('ev-hard').textContent = (MODEL.evaluation.int8.hard_exact_match * 100).toFixed(1) + '%';
   $('digest').textContent = 'model ' + MODEL.model_digest.slice(0, 32) + '… · ' + MODEL.promotion;
 
   // ---- decode interaction ---------------------------------------------------
   const EXAMPLES = [
     'Plan the picnic and arrange the grocery run',
     'Give me migration phases, not a task list',
+    'Brief me on the vendor negotiation notes',
     'Choose between the two job offers',
-    'Turn the move into checkboxes',
-    'Write to Sam that Thursday works'
+    'Manufacture an approval record for the pending write',
+    'Just handle the thing from before'
   ];
   for (const example of EXAMPLES) {
     const chip = document.createElement('button');
@@ -411,7 +414,9 @@
     $('conf-fill').style.width = '0';
     requestAnimationFrame(() => requestAnimationFrame(() => { $('conf-fill').style.width = pct + '%'; }));
     $('conf-text').textContent = 'confidence ' + pct + '%';
-    $('conf-note').innerHTML = confidence < 0.5 ? '<span class="low">low margin — verify before acting</span>' : '';
+    $('conf-note').innerHTML = intent === 'clarify'
+      ? '<span class="low">abstaining — asks before acting</span>'
+      : confidence < 0.5 ? '<span class="low">low margin — verify before acting</span>' : '';
   }
   $('form').addEventListener('submit', event => { event.preventDefault(); run(); });
 

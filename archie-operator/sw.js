@@ -1,6 +1,6 @@
 // Archie Local Operator service worker: cache-first so the installed app works
 // fully offline. Bump CACHE to invalidate after a model or shell update.
-const CACHE = 'archie-operator-v1';
+const CACHE = 'archie-operator-v2';
 const ASSETS = ['.', 'index.html', 'model.json', 'manifest.webmanifest'];
 
 self.addEventListener('install', event => {
