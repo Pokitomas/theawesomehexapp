@@ -1,0 +1,43 @@
+name: Apply RSLoRA authority inventory patch
+
+on:
+  push:
+    branches:
+      - agent/archie-information-budgeted-rslora
+    paths:
+      - '.github/workflows/agent-patch-ib-authority.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: agent/archie-information-budgeted-rslora
+          persist-credentials: true
+      - name: Map the new read-only workflow and remove this patch workflow
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('audit/authority-manifest.workflow-projection.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "    s: ['workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read'],"
+          new = """    s: [
+              'workflow-permission:.github/workflows/archie-segmented-distillation.yml:contents:read',
+              'workflow-permission:.github/workflows/archie-information-budgeted-rslora.yml:contents:read'
+            ],"""
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one segmented authority surface, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm .github/workflows/agent-patch-ib-authority.yml
+          npm run test:authority
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add audit/authority-manifest.workflow-projection.mjs .github/workflows/agent-patch-ib-authority.yml
+          git commit -m 'Map information-budgeted RSLoRA workflow authority'
+          git push origin HEAD:agent/archie-information-budgeted-rslora
