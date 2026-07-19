@@ -196,6 +196,7 @@ def train(args: argparse.Namespace, cfg: ModelConfig, corpus_path: pathlib.Path,
     model.train()
     optimizer.zero_grad(set_to_none=True)
     stop_reason = "max_steps"
+    skipped_steps = 0
     while train_state.step < args.max_steps:
         if time.monotonic() >= deadline - args.deadline_buffer_seconds:
             stop_reason = "deadline"
@@ -215,11 +216,21 @@ def train(args: argparse.Namespace, cfg: ModelConfig, corpus_path: pathlib.Path,
         if scaler is not None:
             scaler.unscale_(optimizer)
         grad_norm = float(torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip).detach().cpu())
-        if scaler is not None:
-            scaler.step(optimizer)
-            scaler.update()
+        # Never let a non-finite gradient (NaN/inf) reach the optimizer: applying it
+        # would irreversibly corrupt every parameter and destroy the whole run. On the
+        # free-tier CPU lane a run is expensive, so skip the update, preserve the last
+        # good weights, and continue. Skips are counted into the receipt for honesty.
+        step_applied = math.isfinite(grad_norm) and math.isfinite(aggregate_loss)
+        if step_applied:
+            if scaler is not None:
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
         else:
-            optimizer.step()
+            skipped_steps += 1
+            if scaler is not None:
+                scaler.update()
         optimizer.zero_grad(set_to_none=True)
         scheduler.step()
         train_state.step += 1
@@ -227,6 +238,7 @@ def train(args: argparse.Namespace, cfg: ModelConfig, corpus_path: pathlib.Path,
             "step": float(train_state.step), "loss": aggregate_loss,
             "learning_rate": float(optimizer.param_groups[0]["lr"]),
             "grad_norm": grad_norm, "tokens_seen": float(train_state.tokens_seen),
+            "step_applied": step_applied,
         }
         history.append(record)
         if train_state.step % args.log_every == 0:
@@ -282,6 +294,7 @@ def train(args: argparse.Namespace, cfg: ModelConfig, corpus_path: pathlib.Path,
             "final_eval_loss": final_eval_loss,
             "best_eval_loss": train_state.best_eval_loss,
             "perplexity": math.exp(min(final_eval_loss, 20.0)),
+            "skipped_nonfinite_steps": skipped_steps,
         },
         "runtime": {
             "seconds": time.monotonic() - start, "python": platform.python_version(),
