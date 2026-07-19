@@ -1,0 +1,24 @@
+{
+  "schema": "archie-product-only-smoke-receipt/v1",
+  "source_commit": "b33fc3ef5c70e15d5735d198a753371ae1c21247",
+  "prompt": "Make me a private phone app for quick field notes with photos, location, tags, and offline search.",
+  "created_at": "2026-07-19T22:01:59Z",
+  "artifact": {
+    "path": "archie/apps/field-notes/index.html",
+    "sha256": "f94b5cbac5f4e62e926984ab0d6b8f67764571258426f123f6507a9407925518",
+    "media_type": "text/html",
+    "independent_runnable": true,
+    "server_calls": 0
+  },
+  "verified_capabilities": [
+    "local note creation and deletion",
+    "photo attachment through FileReader",
+    "permission-gated browser geolocation",
+    "comma-separated tags",
+    "offline localStorage persistence",
+    "search across notes, tags, and location",
+    "JSON export"
+  ],
+  "result": "passed",
+  "truth_boundary": "This is a bounded standalone browser app created for one explicit smoke prompt. It does not prove arbitrary app generation or production deployment."
+}
