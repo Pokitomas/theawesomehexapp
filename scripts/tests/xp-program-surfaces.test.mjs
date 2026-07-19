@@ -54,24 +54,30 @@ assert.match(sharedJs, /function inferRoute/);
 assert.match(sharedJs, /choose the smallest workflow/i);
 
 const archie = read('archie/index.html');
+const archieCss = read('archie/archie.css');
+const archieRuntime = read('archie/archie.js');
 const archieManifest = JSON.parse(read('archie/manifest.webmanifest'));
 const routerAdmission = JSON.parse(read('archie/router-admission.json'));
 const smokeArtifact = read('archie/apps/field-notes/index.html');
 const smokeReceipt = JSON.parse(read('archie/apps/field-notes/receipt.json'));
 
 assert.match(archie, /<main\b/);
-assert.match(archie, /<h1>What should Archie make\?<\/h1>/);
-assert.match(archie, /aria-label="What should Archie make\?"/);
-assert.match(archie, /One prompt\. One runnable app\./);
-assert.match(archie, />Make app</);
-assert.match(archie, /id="preview"/);
-assert.match(archie, /download="archie-app\.html"/);
-assert.match(archie, /apps\/field-notes/);
-assert.match(archie, /localStorage\.setItem/);
-assert.match(archie, /serviceWorker\.register/);
-assert.doesNotMatch(archie, />TRAINING<|>FEATS<|>REEL<|Tell Archie what you need handled|>Ask Archie</i);
+assert.match(archie, /Archie 95/);
+assert.match(archie, /What needs handling\?/);
+assert.match(archie, /id="prompt"/);
+assert.match(archie, /id="ask"/);
+assert.match(archie, /id="result"/);
+assert.match(archie, /id="items"/);
+assert.match(archie, /class="taskbar"/);
+assert.match(archie, /src="\.\/archie\.js"/);
+assert.match(archieCss, /--desktop:#008080/);
+assert.match(archieCss, /border:2px outset/);
+assert.match(archieRuntime, /loadNeuralRouter/);
+assert.match(archieRuntime, /localStorage\.setItem/);
+assert.match(archieRuntime, /serviceWorker\.register/);
+assert.doesNotMatch(archie, /What should Archie make\?|Make app|generated standalone app|>TRAINING<|>FEATS<|>REEL</i);
 assert.doesNotMatch(archie, /https?:\/\/(?:fonts|cdn|unpkg|jsdelivr)\./i);
-assert.equal(archieManifest.name, 'Archie — Product Only');
+assert.equal(archieManifest.name, 'Archie 95 — Local Operator');
 assert.equal(archieManifest.display, 'standalone');
 
 assert.equal(smokeReceipt.schema, 'archie-product-only-smoke-receipt/v1');
@@ -102,4 +108,4 @@ const foundryJs = read('foundry/foundry.js');
 assert.match(foundryJs, /function distinctDirections/);
 assert.match(foundryJs, /candidates preserved/);
 
-console.log('Archie public workflow contract ok: Product-Only prompt creates and opens an independent local app with a digest-bound smoke receipt.');
+console.log('Archie public workflow contract ok: Archie 95 opens as the central local phone operator with an admitted neural router and deterministic responses.');
