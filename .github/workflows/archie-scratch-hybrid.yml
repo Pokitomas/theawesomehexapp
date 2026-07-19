@@ -1,0 +1,158 @@
+name: Train Archie from-scratch hybrid SSM
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/archie_hybrid_core.py'
+      - 'foundry/archie-distill/archie_hybrid_corpus.py'
+      - 'foundry/archie-distill/train_archie_hybrid.py'
+      - 'foundry/archie-distill/test_archie_hybrid_contract.py'
+      - '.github/workflows/archie-scratch-hybrid.yml'
+      - 'docs/archie-scratch-hybrid.md'
+  push:
+    branches:
+      - 'agent/archie-scratch-hybrid-u16'
+    paths:
+      - 'foundry/archie-distill/archie_hybrid_core.py'
+      - 'foundry/archie-distill/archie_hybrid_corpus.py'
+      - 'foundry/archie-distill/train_archie_hybrid.py'
+      - 'foundry/archie-distill/test_archie_hybrid_contract.py'
+      - '.github/workflows/archie-scratch-hybrid.yml'
+      - 'docs/archie-scratch-hybrid.md'
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: Model size (auto selects by accelerator memory)
+        required: false
+        default: auto
+        type: choice
+        options: [auto, tiny, small, base, large, xlarge]
+      max_steps:
+        description: Maximum optimizer steps across resumptions
+        required: false
+        default: '50000'
+        type: string
+      max_corpus_tokens:
+        description: Maximum uint16 corpus tokens
+        required: false
+        default: '100000000'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-scratch-hybrid-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check numpy
+          python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Verify uint16 corpus, gradients, checkpoint, resume, evaluation, and generation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-distill/archie_hybrid_core.py \
+            foundry/archie-distill/archie_hybrid_corpus.py \
+            foundry/archie-distill/train_archie_hybrid.py \
+            foundry/archie-distill/test_archie_hybrid_contract.py
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_hybrid_contract.py
+          python foundry/archie-distill/train_archie_hybrid.py \
+            --tiny-selftest \
+            --state-dir scratch-selftest
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-scratch-selftest-${{ github.sha }}
+          path: scratch-selftest
+          if-no-files-found: error
+          retention-days: 14
+
+  train:
+    needs: contract
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      MODEL_PRESET: ${{ inputs.preset || 'tiny' }}
+      MAX_STEPS: ${{ inputs.max_steps || '50000' }}
+      MAX_CORPUS_TOKENS: ${{ inputs.max_corpus_tokens || '100000000' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Install full scratch-training dependencies
+        run: |
+          python -m pip install --disable-pip-version-check numpy datasets
+          python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Restore latest preemption-safe state
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: pilot_state
+          key: archie-scratch-v1-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            archie-scratch-v1-${{ runner.os }}-${{ github.ref_name }}-
+      - name: Build raw corpus and train every parameter from random initialization
+        run: |
+          set -euo pipefail
+          build_args=()
+          if [[ ! -f pilot_state/corpus.u16 || ! -f pilot_state/corpus.u16.json ]]; then
+            build_args=(
+              --build-corpus
+              --source .
+              --hf-source 'HuggingFaceFW/fineweb-edu|sample-10BT|train|text|100000'
+              --max-corpus-tokens "$MAX_CORPUS_TOKENS"
+            )
+          fi
+          python foundry/archie-distill/train_archie_hybrid.py \
+            "${build_args[@]}" \
+            --corpus pilot_state/corpus.u16 \
+            --state-dir pilot_state \
+            --preset "$MODEL_PRESET" \
+            --device cpu \
+            --seq-len 256 \
+            --batch-size 2 \
+            --eval-batch-size 2 \
+            --grad-accum 4 \
+            --max-steps "$MAX_STEPS" \
+            --learning-rate 0.0003 \
+            --warmup-steps 200 \
+            --save-every 25 \
+            --eval-every 100 \
+            --eval-batches 8 \
+            --deadline-minutes 320 \
+            --deadline-buffer-seconds 300 \
+            --generate-tokens 128
+      - name: Save resumable training state
+        if: always()
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: pilot_state
+          key: archie-scratch-v1-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: archie-scratch-model-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            pilot_state/run/model.pt
+            pilot_state/run/config.json
+            pilot_state/run/tokenizer.json
+            pilot_state/run/training-receipt.json
+            pilot_state/run/sample.txt
+            pilot_state/corpus.u16.json
+          if-no-files-found: warn
+          retention-days: 30
