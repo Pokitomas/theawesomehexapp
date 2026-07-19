@@ -1,9 +1,11 @@
 name: POK-140 exact source freeze
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/pok-140-source-freeze
+      - main
+    paths:
+      - '.github/workflows/pok-140-source-freeze.yml'
   workflow_dispatch:
 
 permissions:
