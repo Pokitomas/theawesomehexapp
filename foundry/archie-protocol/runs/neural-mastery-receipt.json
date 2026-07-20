@@ -53,9 +53,11 @@
     "audit hashed-linear-sgd-v1 rejected (broad regression)",
     "audit order-context-hashed-sgd-v5 rejected (final-register regression)",
     "mastery transformer student rejected (retention regressions)",
-    "np-transformer run A word-level rejected (held-out topic vocabulary -> <unk> -> no cross-topic transfer)"
+    "np-transformer run A word-level rejected (frozen suites well below base router; OOV-topic hypothesis formed here)",
+    "np-transformer run B subword rejected (OOV-topic hypothesis FALSIFIED: blind-429 flat vs run A, 0.548->0.543; strongest candidate by every other metric, kept as the experimental-toggle model)",
+    "np-transformer run C real-dominant-mix+finetune rejected (WORSE than A and B on every metric; route-only finetune through shared trunk caused monotonic, loss-flat catastrophic forgetting even with other heads zero-weighted; corpus-mix effect alone remains untested/confounded, see NEURAL_MASTERY.md)"
   ],
-  "mechanism": "A from-scratch NumPy transformer learns route + authority + context + reference + two ordered outcomes jointly from tokens alone. Word-level vocabulary fails to transfer to held-out challenge topics; subword (char-trigram) tokens are the decisive fix for OOV topic transfer, measured directly against run A.",
+  "mechanism": "A from-scratch NumPy transformer learns route + authority + context + reference + two ordered outcomes jointly from tokens alone. In-distribution mastery (84-94% dev accuracy across all 3 runs) is orthogonal to register transfer (all 3 collapse on real human-authored frozen suites). Two specific causal hypotheses for the transfer gap were tested and falsified in turn: (1) OOV topic vocabulary -- subword tokens did not move blind-429; (2) corpus-mix + post-hoc finetune -- made every metric worse, with the finetune phase producing measurable catastrophic forgetting of a shared trunk despite zero-weighted auxiliary losses. See NEURAL_MASTERY.md for the full mechanism trace and remaining uncertainty.",
   "claim_boundary": "Candidate did not clear every retention gate. The deterministic register projection remains the product. This is the strongest trained student and its exact metrics and negative evidence are preserved.",
-  "receipt_digest": "e825b631b06cd3c2694c7a5560dc950a872af8978958985689dce76bbb6b4fe8"
+  "receipt_digest": "ef8f68a6031308f00f7b151a1d9bcbcf1eacf6aa3a1930129ee7295d71da15dc"
 }

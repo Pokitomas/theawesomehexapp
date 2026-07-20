@@ -481,6 +481,13 @@ def main():
     # teach a false uniform prior, not real supervision.
     real_indices = [i for i, r in enumerate(train) if r.get("category") == "real_language"]
     if a.finetune_epochs > 0 and real_indices:
+        # Checkpoint the pre-finetune weights so the fine-tune phase can be
+        # isolated and evaluated independently later (run C's evaluation
+        # conflated corpus-mix and finetune-phase effects; this is the fix).
+        pre_ft_dir = Path(a.out); pre_ft_dir.mkdir(parents=True, exist_ok=True)
+        pre_ft_path = pre_ft_dir / f"{a.tag}-seed{a.seed}-pre-finetune.npz"
+        np.savez_compressed(pre_ft_path, **model.P)
+        print(json.dumps({"pre_finetune_checkpoint": pre_ft_path.name}), flush=True)
         ft_lr = a.finetune_lr if a.finetune_lr > 0 else a.lr * 0.15
         ft_weights = {"route": 1.0, "auth": 0.0, "ctx": 0.0, "ref": 0.0, "out1": 0.0, "out2": 0.0}
         ft_order = np.array(real_indices)

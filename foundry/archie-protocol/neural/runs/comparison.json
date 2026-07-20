@@ -70,6 +70,20 @@
     "src": "factorized/upstream-evaluation-receipt.json"
   },
   {
+    "run": "np-transformer npt-realdom-d128 seed424243",
+    "s498": 0.550201,
+    "s60": 0.35,
+    "s48": 0.25,
+    "s80": null,
+    "blind429": 0.156177,
+    "blind429_route": 0.456876,
+    "conf_ok": 0.5793,
+    "conf_bad": 0.5992,
+    "params": 873389,
+    "kind": "trained-neural",
+    "src": "neural/runs/npt-realdom-d128-seed424243-receipt.json"
+  },
+  {
     "run": "np-transformer npt-s6-d96 seed424243",
     "s498": 0.62249,
     "s60": 0.5,
