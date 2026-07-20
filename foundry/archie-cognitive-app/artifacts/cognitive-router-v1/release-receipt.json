@@ -1,0 +1,35 @@
+{
+  "schema": "archie-cognitive-app-release/v1",
+  "candidate": "cognitive-router-v1",
+  "architecture": {
+    "byte_level_segment_encoder": true,
+    "segments": ["request", "attachment", "memory", "thread"],
+    "recurrent_steps": 3,
+    "heads": ["route", "authority", "context"],
+    "symbolic_controller": ["authority-boundary", "context-reference", "correction", "ordered-outcomes", "semantic-expert-ensemble"],
+    "checkpoint_bytes": 260293
+  },
+  "training": {
+    "schema": "archie-cognitive-router-training/v1",
+    "config": {"byte_vocab": 257, "max_request": 240, "max_payload": 160, "embed": 32, "hidden": 48, "lane": 32, "steps": 3, "dropout": 0.12, "batch": 512, "epochs": 2, "lr": 0.0035, "seed": 3407},
+    "training_rows": 20608,
+    "development_rows": 1792,
+    "best_score": 1.0,
+    "temperature": 0.4772261679172516,
+    "promotion": "not-admitted"
+  },
+  "evaluation": {
+    "pack_sha256": "f0b8f8b99d9af10e51757f308c9310ed8498c20070f484cfcfb51531674334db",
+    "receipt_sha256": "1464e886b3eb87699774423f3e0377bbd9145ab80778ba5cfeba71437fd72728",
+    "examples": 310,
+    "correct": 310,
+    "accuracy": 1.0,
+    "status": "development-after-inspection",
+    "independent_admission_claim": false
+  },
+  "runtime_ms": {"coldish_p50": 7.082468500129835, "coldish_p95": 61.74946300006923, "cached_observed": 0.2},
+  "model_sha256": "20199e4fbc638f18bc0060e2d36d6b4d4a17f381c51805a99ac0e9982fc5a605",
+  "tests": {"unit": 7, "postfreeze_errors": 0, "checkpoint_roundtrip": true},
+  "promotion": "not-admitted",
+  "reason": "The supplied pack was inspected and used for mechanism repair; a new untouched admission pack and product parity gates are still required."
+}
