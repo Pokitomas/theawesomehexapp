@@ -116,6 +116,26 @@ class SelectKimiSmokeTests(unittest.TestCase):
         self.assertEqual(normalized['context_state'], 'ambiguous')
         self.assertEqual(normalized['transform_type'], 'continue')
 
+    def test_aliases_and_explicit_empty_structural_context_are_preserved(self):
+        row = {
+            'id': 'followup-2',
+            'category': 'memory',
+            'request': 'summarize this current item instead of remembered content',
+            'route': 'summary',
+            'authority': 'allow',
+            'context_state': 'ready',
+            'ordered_outcomes': ['summary'],
+            'attachments': [],
+            'files': [{'filename': 'old.pdf'}],
+            'memory': '',
+            'memories': ['old memory'],
+        }
+        normalized = MOD.normalized_row(row, 'memory-operation-conflict')
+        self.assertEqual(normalized['context'], 'ready')
+        self.assertEqual(normalized['outcomes'], ['summary'])
+        self.assertEqual(normalized['attachments'], [])
+        self.assertEqual(normalized['memory'], '')
+
     def test_unsafe_authority_control_is_not_safe_documentation(self):
         row = {
             'category': 'authority-control',
