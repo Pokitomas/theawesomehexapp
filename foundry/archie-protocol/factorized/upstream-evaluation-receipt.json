@@ -1,0 +1,1669 @@
+{
+  "architecture": {
+    "calibration": [
+      "log probability fusion",
+      "temperature scaling",
+      "ensemble disagreement",
+      "selective accuracy"
+    ],
+    "compositional_clause_execution": true,
+    "explicit_reference_typing": [
+      "none",
+      "attachment",
+      "memory",
+      "thread",
+      "generic_unresolved",
+      "ambiguous"
+    ],
+    "factorized": true,
+    "factorized_authority_fields": [
+      "operation",
+      "target",
+      "actionability",
+      "destructive_or_exfiltrative_capability",
+      "authorization_gap",
+      "documentation_or_defensive_frame"
+    ],
+    "semantic_route_ensemble": [
+      "char_ngram_logistic",
+      "word_ngram_logistic",
+      "compact_svd_semantic",
+      "byte_gru_investigated_killed",
+      "structural_lexicon"
+    ]
+  },
+  "artifact_manifest": [
+    {
+      "bytes": 217649,
+      "path": "blind-challenge-pack.json",
+      "sha256": "3d053ee28c346e712a4e422a73cc8154f492db13947a129581084857a0ad101f"
+    },
+    {
+      "bytes": 865368,
+      "path": "factorized-controller-v1.joblib",
+      "sha256": "efd3f791a00588e0eeb7ca357364c8c98e5331b45c510030623ab10a7e6490e5"
+    },
+    {
+      "bytes": 1153825,
+      "path": "factorized-controller-v1.joblib.b64",
+      "sha256": "13c47854637b91b750dbaf36edb45b53b37b0f70f88f08802099a666f4bcbb87"
+    }
+  ],
+  "blind_challenge_evaluation": {
+    "accuracy": 0.8997668997668997,
+    "calibration": {
+      "bins": [
+        {
+          "accuracy": 1.0,
+          "bin": 3,
+          "count": 7,
+          "mean_confidence": 0.33806262761608613
+        },
+        {
+          "accuracy": 0.8,
+          "bin": 4,
+          "count": 5,
+          "mean_confidence": 0.45468121422848906
+        },
+        {
+          "accuracy": 1.0,
+          "bin": 5,
+          "count": 27,
+          "mean_confidence": 0.5465256128523233
+        },
+        {
+          "accuracy": 0.9803921568627451,
+          "bin": 6,
+          "count": 102,
+          "mean_confidence": 0.6357107598366334
+        },
+        {
+          "accuracy": 0.9402985074626866,
+          "bin": 7,
+          "count": 67,
+          "mean_confidence": 0.7276815287192298
+        },
+        {
+          "accuracy": 1.0,
+          "bin": 8,
+          "count": 27,
+          "mean_confidence": 0.8199999999999998
+        },
+        {
+          "accuracy": 0.8144329896907216,
+          "bin": 9,
+          "count": 194,
+          "mean_confidence": 0.9581443298969072
+        }
+      ],
+      "brier_score": 0.22738831051452665,
+      "expected_calibration_error": 0.23484103510724297,
+      "mean_confidence_correct": 0.7821083260641468,
+      "mean_confidence_incorrect": 0.909753071586793,
+      "negative_log_likelihood": 0.6945759703875866,
+      "selective_accuracy": [
+        {
+          "accuracy": 0.8317757009345794,
+          "coverage": 0.5,
+          "threshold": 0.82
+        },
+        {
+          "accuracy": 0.8666666666666667,
+          "coverage": 0.7,
+          "threshold": 0.6355
+        },
+        {
+          "accuracy": 0.880466472303207,
+          "coverage": 0.8,
+          "threshold": 0.6355
+        },
+        {
+          "accuracy": 0.8911917098445595,
+          "coverage": 0.9,
+          "threshold": 0.6263104084522935
+        },
+        {
+          "accuracy": 0.8997668997668997,
+          "coverage": 1.0,
+          "threshold": 0.31243217077238583
+        }
+      ]
+    },
+    "confusion_matrix": {
+      "labels": [
+        "summary",
+        "checklist",
+        "message",
+        "decision",
+        "study",
+        "event",
+        "errands",
+        "objective",
+        "next_action",
+        "plan",
+        "clarify"
+      ],
+      "matrix": [
+        [
+          23,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          34,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          11,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          8
+        ],
+        [
+          0,
+          0,
+          0,
+          24,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          22,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          17,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          15,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          16,
+          0,
+          0,
+          7
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          20,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          30,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          162
+        ]
+      ]
+    },
+    "correct": 386,
+    "decision_source_breakdown": {
+      "all-clauses-negated": 4,
+      "compositional-clause-controller": 18,
+      "factorized-operation-target-ownership": 22,
+      "reference-typing": 168,
+      "semantic-route-ensemble": 217
+    },
+    "examples": 429,
+    "latency": {
+      "mean_ms_per_example": 1.688890925407738,
+      "total_seconds": 0.7245342069999197
+    },
+    "per_category": {
+      "attachment_missing": {
+        "accuracy": 1.0,
+        "correct": 23,
+        "examples": 23
+      },
+      "attachment_present": {
+        "accuracy": 0.9130434782608695,
+        "correct": 21,
+        "examples": 23
+      },
+      "attachment_unusable": {
+        "accuracy": 1.0,
+        "correct": 23,
+        "examples": 23
+      },
+      "authority_benign": {
+        "accuracy": 0.8095238095238095,
+        "correct": 17,
+        "examples": 21
+      },
+      "authority_unsafe": {
+        "accuracy": 1.0,
+        "correct": 22,
+        "examples": 22
+      },
+      "correction": {
+        "accuracy": 0.9333333333333333,
+        "correct": 14,
+        "examples": 15
+      },
+      "memory_missing": {
+        "accuracy": 0.9565217391304348,
+        "correct": 22,
+        "examples": 23
+      },
+      "memory_present": {
+        "accuracy": 0.9130434782608695,
+        "correct": 21,
+        "examples": 23
+      },
+      "memory_unusable": {
+        "accuracy": 0.9565217391304348,
+        "correct": 22,
+        "examples": 23
+      },
+      "negation": {
+        "accuracy": 0.8666666666666667,
+        "correct": 13,
+        "examples": 15
+      },
+      "ordered_compound": {
+        "accuracy": 0.5333333333333333,
+        "correct": 16,
+        "examples": 30
+      },
+      "semantic_checklist": {
+        "accuracy": 1.0,
+        "correct": 12,
+        "examples": 12
+      },
+      "semantic_decision": {
+        "accuracy": 1.0,
+        "correct": 12,
+        "examples": 12
+      },
+      "semantic_errands": {
+        "accuracy": 1.0,
+        "correct": 13,
+        "examples": 13
+      },
+      "semantic_event": {
+        "accuracy": 0.9090909090909091,
+        "correct": 10,
+        "examples": 11
+      },
+      "semantic_message": {
+        "accuracy": 0.5454545454545454,
+        "correct": 6,
+        "examples": 11
+      },
+      "semantic_next_action": {
+        "accuracy": 1.0,
+        "correct": 13,
+        "examples": 13
+      },
+      "semantic_objective": {
+        "accuracy": 0.46153846153846156,
+        "correct": 6,
+        "examples": 13
+      },
+      "semantic_plan": {
+        "accuracy": 1.0,
+        "correct": 13,
+        "examples": 13
+      },
+      "semantic_study": {
+        "accuracy": 1.0,
+        "correct": 7,
+        "examples": 7
+      },
+      "semantic_summary": {
+        "accuracy": 1.0,
+        "correct": 11,
+        "examples": 11
+      },
+      "thread_missing": {
+        "accuracy": 0.9583333333333334,
+        "correct": 23,
+        "examples": 24
+      },
+      "thread_present": {
+        "accuracy": 0.9583333333333334,
+        "correct": 23,
+        "examples": 24
+      },
+      "thread_unusable": {
+        "accuracy": 0.9583333333333334,
+        "correct": 23,
+        "examples": 24
+      }
+    },
+    "suite": "blind_challenge"
+  },
+  "blind_challenge_freeze": {
+    "disjoint_source_reference_nouns": true,
+    "disjoint_topics": true,
+    "disjoint_verbs": true,
+    "frozen_before_training": true,
+    "sha256": "3d053ee28c346e712a4e422a73cc8154f492db13947a129581084857a0ad101f"
+  },
+  "byte_gru": {
+    "best_dev_route_acc": 0.1015625,
+    "history": [
+      {
+        "dev_route_acc": 0.1015625,
+        "epoch": 1,
+        "loss": 2.524816155433655
+      }
+    ],
+    "kill_reason": "byte-GRU dev route accuracy below semantic ensemble floor",
+    "status": "trained-killed-early"
+  },
+  "comparisons": {
+    "existing_v9_runtime": {
+      "postfreeze_accuracy": 0.9483870967741935,
+      "postfreeze_correct": 294,
+      "postfreeze_examples": 310,
+      "source": "user_supplied_prior_result",
+      "status": "not_rerun_in_this_container"
+    },
+    "failed_v10_cognitive_router": {
+      "postfreeze_accuracy": 0.6741935483870968,
+      "postfreeze_correct": 209,
+      "postfreeze_examples": 310,
+      "source": "user_supplied_prior_result",
+      "status": "not_rerun_in_this_container"
+    },
+    "fused_candidate": {
+      "accuracy": 0.8997668997668997,
+      "calibration": {
+        "bins": [
+          {
+            "accuracy": 1.0,
+            "bin": 3,
+            "count": 7,
+            "mean_confidence": 0.33806262761608613
+          },
+          {
+            "accuracy": 0.8,
+            "bin": 4,
+            "count": 5,
+            "mean_confidence": 0.45468121422848906
+          },
+          {
+            "accuracy": 1.0,
+            "bin": 5,
+            "count": 27,
+            "mean_confidence": 0.5465256128523233
+          },
+          {
+            "accuracy": 0.9803921568627451,
+            "bin": 6,
+            "count": 102,
+            "mean_confidence": 0.6357107598366334
+          },
+          {
+            "accuracy": 0.9402985074626866,
+            "bin": 7,
+            "count": 67,
+            "mean_confidence": 0.7276815287192298
+          },
+          {
+            "accuracy": 1.0,
+            "bin": 8,
+            "count": 27,
+            "mean_confidence": 0.8199999999999998
+          },
+          {
+            "accuracy": 0.8144329896907216,
+            "bin": 9,
+            "count": 194,
+            "mean_confidence": 0.9581443298969072
+          }
+        ],
+        "brier_score": 0.22738831051452665,
+        "expected_calibration_error": 0.23484103510724297,
+        "mean_confidence_correct": 0.7821083260641468,
+        "mean_confidence_incorrect": 0.909753071586793,
+        "negative_log_likelihood": 0.6945759703875866,
+        "selective_accuracy": [
+          {
+            "accuracy": 0.8317757009345794,
+            "coverage": 0.5,
+            "threshold": 0.82
+          },
+          {
+            "accuracy": 0.8666666666666667,
+            "coverage": 0.7,
+            "threshold": 0.6355
+          },
+          {
+            "accuracy": 0.880466472303207,
+            "coverage": 0.8,
+            "threshold": 0.6355
+          },
+          {
+            "accuracy": 0.8911917098445595,
+            "coverage": 0.9,
+            "threshold": 0.6263104084522935
+          },
+          {
+            "accuracy": 0.8997668997668997,
+            "coverage": 1.0,
+            "threshold": 0.31243217077238583
+          }
+        ]
+      },
+      "confusion_matrix": {
+        "labels": [
+          "summary",
+          "checklist",
+          "message",
+          "decision",
+          "study",
+          "event",
+          "errands",
+          "objective",
+          "next_action",
+          "plan",
+          "clarify"
+        ],
+        "matrix": [
+          [
+            23,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5
+          ],
+          [
+            0,
+            34,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            11,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8
+          ],
+          [
+            0,
+            0,
+            0,
+            24,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            22,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            17,
+            2,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            15,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            16,
+            0,
+            0,
+            7
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            30,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            162
+          ]
+        ]
+      },
+      "correct": 386,
+      "decision_source_breakdown": {
+        "all-clauses-negated": 4,
+        "compositional-clause-controller": 18,
+        "factorized-operation-target-ownership": 22,
+        "reference-typing": 168,
+        "semantic-route-ensemble": 217
+      },
+      "examples": 429,
+      "latency": {
+        "mean_ms_per_example": 1.688890925407738,
+        "total_seconds": 0.7245342069999197
+      },
+      "per_category": {
+        "attachment_missing": {
+          "accuracy": 1.0,
+          "correct": 23,
+          "examples": 23
+        },
+        "attachment_present": {
+          "accuracy": 0.9130434782608695,
+          "correct": 21,
+          "examples": 23
+        },
+        "attachment_unusable": {
+          "accuracy": 1.0,
+          "correct": 23,
+          "examples": 23
+        },
+        "authority_benign": {
+          "accuracy": 0.8095238095238095,
+          "correct": 17,
+          "examples": 21
+        },
+        "authority_unsafe": {
+          "accuracy": 1.0,
+          "correct": 22,
+          "examples": 22
+        },
+        "correction": {
+          "accuracy": 0.9333333333333333,
+          "correct": 14,
+          "examples": 15
+        },
+        "memory_missing": {
+          "accuracy": 0.9565217391304348,
+          "correct": 22,
+          "examples": 23
+        },
+        "memory_present": {
+          "accuracy": 0.9130434782608695,
+          "correct": 21,
+          "examples": 23
+        },
+        "memory_unusable": {
+          "accuracy": 0.9565217391304348,
+          "correct": 22,
+          "examples": 23
+        },
+        "negation": {
+          "accuracy": 0.8666666666666667,
+          "correct": 13,
+          "examples": 15
+        },
+        "ordered_compound": {
+          "accuracy": 0.5333333333333333,
+          "correct": 16,
+          "examples": 30
+        },
+        "semantic_checklist": {
+          "accuracy": 1.0,
+          "correct": 12,
+          "examples": 12
+        },
+        "semantic_decision": {
+          "accuracy": 1.0,
+          "correct": 12,
+          "examples": 12
+        },
+        "semantic_errands": {
+          "accuracy": 1.0,
+          "correct": 13,
+          "examples": 13
+        },
+        "semantic_event": {
+          "accuracy": 0.9090909090909091,
+          "correct": 10,
+          "examples": 11
+        },
+        "semantic_message": {
+          "accuracy": 0.5454545454545454,
+          "correct": 6,
+          "examples": 11
+        },
+        "semantic_next_action": {
+          "accuracy": 1.0,
+          "correct": 13,
+          "examples": 13
+        },
+        "semantic_objective": {
+          "accuracy": 0.46153846153846156,
+          "correct": 6,
+          "examples": 13
+        },
+        "semantic_plan": {
+          "accuracy": 1.0,
+          "correct": 13,
+          "examples": 13
+        },
+        "semantic_study": {
+          "accuracy": 1.0,
+          "correct": 7,
+          "examples": 7
+        },
+        "semantic_summary": {
+          "accuracy": 1.0,
+          "correct": 11,
+          "examples": 11
+        },
+        "thread_missing": {
+          "accuracy": 0.9583333333333334,
+          "correct": 23,
+          "examples": 24
+        },
+        "thread_present": {
+          "accuracy": 0.9583333333333334,
+          "correct": 23,
+          "examples": 24
+        },
+        "thread_unusable": {
+          "accuracy": 0.9583333333333334,
+          "correct": 23,
+          "examples": 24
+        }
+      },
+      "suite": "blind_challenge"
+    },
+    "invalid_regex_repaired_310": {
+      "reason": "evaluation-specific route regexes after frozen phrase inspection",
+      "status": "rejected_negative_evidence"
+    },
+    "new_semantic_model_alone": {
+      "accuracy": 0.810126582278481,
+      "correct": 192,
+      "examples": 237,
+      "suite": "semantic_model_alone"
+    },
+    "quantized_candidate": {
+      "status": "not_available"
+    },
+    "structural_controller_alone": {
+      "accuracy": 0.8904428904428905,
+      "calibration": {
+        "bins": [
+          {
+            "accuracy": 0.0,
+            "bin": 2,
+            "count": 6,
+            "mean_confidence": 0.21666666666666667
+          },
+          {
+            "accuracy": 0.0,
+            "bin": 3,
+            "count": 1,
+            "mean_confidence": 0.3333333333333333
+          },
+          {
+            "accuracy": 0.6428571428571429,
+            "bin": 5,
+            "count": 14,
+            "mean_confidence": 0.512741427720582
+          },
+          {
+            "accuracy": 0.875,
+            "bin": 6,
+            "count": 24,
+            "mean_confidence": 0.6271917286068229
+          },
+          {
+            "accuracy": 1.0,
+            "bin": 7,
+            "count": 25,
+            "mean_confidence": 0.7421273893939565
+          },
+          {
+            "accuracy": 1.0,
+            "bin": 8,
+            "count": 7,
+            "mean_confidence": 0.8138231631382318
+          },
+          {
+            "accuracy": 0.9090909090909091,
+            "bin": 9,
+            "count": 352,
+            "mean_confidence": 0.9779545454545455
+          }
+        ],
+        "brier_score": 0.18005421209285144,
+        "expected_calibration_error": 0.09648579249851966,
+        "mean_confidence_correct": 0.9308972422337346,
+        "mean_confidence_incorrect": 0.781947130883301,
+        "negative_log_likelihood": 0.5293003757505446,
+        "selective_accuracy": [
+          {
+            "accuracy": 0.985981308411215,
+            "coverage": 0.5,
+            "threshold": 0.97
+          },
+          {
+            "accuracy": 0.8933333333333333,
+            "coverage": 0.7,
+            "threshold": 0.94
+          },
+          {
+            "accuracy": 0.9067055393586005,
+            "coverage": 0.8,
+            "threshold": 0.94
+          },
+          {
+            "accuracy": 0.917098445595855,
+            "coverage": 0.9,
+            "threshold": 0.6666666666666666
+          },
+          {
+            "accuracy": 0.8904428904428905,
+            "coverage": 1.0,
+            "threshold": 0.2
+          }
+        ]
+      },
+      "confusion_matrix": {
+        "labels": [
+          "summary",
+          "checklist",
+          "message",
+          "decision",
+          "study",
+          "event",
+          "errands",
+          "objective",
+          "next_action",
+          "plan",
+          "clarify"
+        ],
+        "matrix": [
+          [
+            21,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            7
+          ],
+          [
+            0,
+            32,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            11,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            8
+          ],
+          [
+            0,
+            0,
+            0,
+            24,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            22,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            19,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            15,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            16,
+            0,
+            0,
+            7
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            19,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            29,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            162
+          ]
+        ]
+      },
+      "correct": 382,
+      "decision_source_breakdown": {
+        "factorized-operation-target-ownership": 22,
+        "reference-typing": 168,
+        "structural-only": 239
+      },
+      "examples": 429,
+      "latency": {
+        "mean_ms_per_example": 0.030227442890635583,
+        "total_seconds": 0.012967573000082666
+      },
+      "per_category": {
+        "attachment_missing": {
+          "accuracy": 1.0,
+          "correct": 23,
+          "examples": 23
+        },
+        "attachment_present": {
+          "accuracy": 0.9565217391304348,
+          "correct": 22,
+          "examples": 23
+        },
+        "attachment_unusable": {
+          "accuracy": 1.0,
+          "correct": 23,
+          "examples": 23
+        },
+        "authority_benign": {
+          "accuracy": 0.5714285714285714,
+          "correct": 12,
+          "examples": 21
+        },
+        "authority_unsafe": {
+          "accuracy": 1.0,
+          "correct": 22,
+          "examples": 22
+        },
+        "correction": {
+          "accuracy": 0.9333333333333333,
+          "correct": 14,
+          "examples": 15
+        },
+        "memory_missing": {
+          "accuracy": 0.9565217391304348,
+          "correct": 22,
+          "examples": 23
+        },
+        "memory_present": {
+          "accuracy": 0.9130434782608695,
+          "correct": 21,
+          "examples": 23
+        },
+        "memory_unusable": {
+          "accuracy": 0.9565217391304348,
+          "correct": 22,
+          "examples": 23
+        },
+        "negation": {
+          "accuracy": 0.8666666666666667,
+          "correct": 13,
+          "examples": 15
+        },
+        "ordered_compound": {
+          "accuracy": 0.5333333333333333,
+          "correct": 16,
+          "examples": 30
+        },
+        "semantic_checklist": {
+          "accuracy": 1.0,
+          "correct": 12,
+          "examples": 12
+        },
+        "semantic_decision": {
+          "accuracy": 1.0,
+          "correct": 12,
+          "examples": 12
+        },
+        "semantic_errands": {
+          "accuracy": 1.0,
+          "correct": 13,
+          "examples": 13
+        },
+        "semantic_event": {
+          "accuracy": 1.0,
+          "correct": 11,
+          "examples": 11
+        },
+        "semantic_message": {
+          "accuracy": 0.5454545454545454,
+          "correct": 6,
+          "examples": 11
+        },
+        "semantic_next_action": {
+          "accuracy": 0.9230769230769231,
+          "correct": 12,
+          "examples": 13
+        },
+        "semantic_objective": {
+          "accuracy": 0.46153846153846156,
+          "correct": 6,
+          "examples": 13
+        },
+        "semantic_plan": {
+          "accuracy": 1.0,
+          "correct": 13,
+          "examples": 13
+        },
+        "semantic_study": {
+          "accuracy": 1.0,
+          "correct": 7,
+          "examples": 7
+        },
+        "semantic_summary": {
+          "accuracy": 1.0,
+          "correct": 11,
+          "examples": 11
+        },
+        "thread_missing": {
+          "accuracy": 0.9583333333333334,
+          "correct": 23,
+          "examples": 24
+        },
+        "thread_present": {
+          "accuracy": 0.9583333333333334,
+          "correct": 23,
+          "examples": 24
+        },
+        "thread_unusable": {
+          "accuracy": 0.9583333333333334,
+          "correct": 23,
+          "examples": 24
+        }
+      },
+      "suite": "structural_controller_alone"
+    }
+  },
+  "dataset_counts": {
+    "blind_challenge": 429,
+    "development": 550,
+    "train": 1477
+  },
+  "dedupe": {
+    "exact_duplicates": [],
+    "near_duplicate_cutoff": 0.985,
+    "near_duplicates_sample": [],
+    "passed": true,
+    "pre_freeze_drops": {
+      "challenge_exact_or_prior_overlap": 103,
+      "challenge_near_prior": 0,
+      "challenge_near_sample": [],
+      "development_exact_or_train_overlap": 146,
+      "train_exact": 443
+    }
+  },
+  "development_evaluation": {
+    "accuracy": 0.8872727272727273,
+    "calibration": {
+      "bins": [
+        {
+          "accuracy": 0.5555555555555556,
+          "bin": 3,
+          "count": 9,
+          "mean_confidence": 0.3687423270660546
+        },
+        {
+          "accuracy": 0.7272727272727273,
+          "bin": 4,
+          "count": 11,
+          "mean_confidence": 0.43563310049705506
+        },
+        {
+          "accuracy": 0.3333333333333333,
+          "bin": 5,
+          "count": 3,
+          "mean_confidence": 0.5140872579708345
+        },
+        {
+          "accuracy": 0.4722222222222222,
+          "bin": 6,
+          "count": 36,
+          "mean_confidence": 0.6382457965291645
+        },
+        {
+          "accuracy": 0.9109947643979057,
+          "bin": 7,
+          "count": 191,
+          "mean_confidence": 0.7276437957720804
+        },
+        {
+          "accuracy": 0.9805825242718447,
+          "bin": 8,
+          "count": 103,
+          "mean_confidence": 0.82
+        },
+        {
+          "accuracy": 0.9238578680203046,
+          "bin": 9,
+          "count": 197,
+          "mean_confidence": 0.9568020304568527
+        }
+      ],
+      "brier_score": 0.20426091345329866,
+      "expected_calibration_error": 0.126288182558969,
+      "mean_confidence_correct": 0.8201774296700711,
+      "mean_confidence_incorrect": 0.7147279808305999,
+      "negative_log_likelihood": 0.6005093331079192,
+      "selective_accuracy": [
+        {
+          "accuracy": 0.9381818181818182,
+          "coverage": 0.5,
+          "threshold": 0.82
+        },
+        {
+          "accuracy": 0.9246753246753247,
+          "coverage": 0.7,
+          "threshold": 0.7277499999999999
+        },
+        {
+          "accuracy": 0.925,
+          "coverage": 0.8,
+          "threshold": 0.7277499999999999
+        },
+        {
+          "accuracy": 0.9313131313131313,
+          "coverage": 0.9,
+          "threshold": 0.6588121768188387
+        },
+        {
+          "accuracy": 0.8872727272727273,
+          "coverage": 1.0,
+          "threshold": 0.31704871217591174
+        }
+      ]
+    },
+    "confusion_matrix": {
+      "labels": [
+        "summary",
+        "checklist",
+        "message",
+        "decision",
+        "study",
+        "event",
+        "errands",
+        "objective",
+        "next_action",
+        "plan",
+        "clarify"
+      ],
+      "matrix": [
+        [
+          33,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          29,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          25,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          34,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          33,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          3,
+          24,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          24,
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          23,
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          28,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          31,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          4,
+          4,
+          2,
+          0,
+          0,
+          2,
+          2,
+          182
+        ]
+      ]
+    },
+    "correct": 488,
+    "decision_source_breakdown": {
+      "all-clauses-negated": 1,
+      "compositional-clause-controller": 28,
+      "factorized-operation-target-ownership": 10,
+      "reference-typing": 186,
+      "semantic-route-ensemble": 325
+    },
+    "examples": 550,
+    "latency": {
+      "mean_ms_per_example": 1.6098463290909009,
+      "total_seconds": 0.8854154809999955
+    },
+    "per_category": {
+      "attachment_missing": {
+        "accuracy": 0.75,
+        "correct": 24,
+        "examples": 32
+      },
+      "attachment_present": {
+        "accuracy": 0.90625,
+        "correct": 29,
+        "examples": 32
+      },
+      "attachment_unusable": {
+        "accuracy": 0.75,
+        "correct": 24,
+        "examples": 32
+      },
+      "authority_benign": {
+        "accuracy": 0.8,
+        "correct": 4,
+        "examples": 5
+      },
+      "authority_unsafe": {
+        "accuracy": 1.0,
+        "correct": 10,
+        "examples": 10
+      },
+      "correction": {
+        "accuracy": 0.7222222222222222,
+        "correct": 13,
+        "examples": 18
+      },
+      "memory_missing": {
+        "accuracy": 1.0,
+        "correct": 31,
+        "examples": 31
+      },
+      "memory_present": {
+        "accuracy": 0.9032258064516129,
+        "correct": 28,
+        "examples": 31
+      },
+      "memory_unusable": {
+        "accuracy": 1.0,
+        "correct": 31,
+        "examples": 31
+      },
+      "negation": {
+        "accuracy": 1.0,
+        "correct": 18,
+        "examples": 18
+      },
+      "ordered_compound": {
+        "accuracy": 0.6111111111111112,
+        "correct": 22,
+        "examples": 36
+      },
+      "semantic_checklist": {
+        "accuracy": 1.0,
+        "correct": 14,
+        "examples": 14
+      },
+      "semantic_decision": {
+        "accuracy": 1.0,
+        "correct": 19,
+        "examples": 19
+      },
+      "semantic_errands": {
+        "accuracy": 0.7777777777777778,
+        "correct": 14,
+        "examples": 18
+      },
+      "semantic_event": {
+        "accuracy": 0.875,
+        "correct": 14,
+        "examples": 16
+      },
+      "semantic_message": {
+        "accuracy": 1.0,
+        "correct": 17,
+        "examples": 17
+      },
+      "semantic_next_action": {
+        "accuracy": 1.0,
+        "correct": 16,
+        "examples": 16
+      },
+      "semantic_objective": {
+        "accuracy": 0.631578947368421,
+        "correct": 12,
+        "examples": 19
+      },
+      "semantic_plan": {
+        "accuracy": 0.8571428571428571,
+        "correct": 18,
+        "examples": 21
+      },
+      "semantic_study": {
+        "accuracy": 1.0,
+        "correct": 18,
+        "examples": 18
+      },
+      "semantic_summary": {
+        "accuracy": 1.0,
+        "correct": 23,
+        "examples": 23
+      },
+      "thread_missing": {
+        "accuracy": 1.0,
+        "correct": 31,
+        "examples": 31
+      },
+      "thread_present": {
+        "accuracy": 0.8709677419354839,
+        "correct": 27,
+        "examples": 31
+      },
+      "thread_unusable": {
+        "accuracy": 1.0,
+        "correct": 31,
+        "examples": 31
+      }
+    },
+    "suite": "development"
+  },
+  "environment": {
+    "container_limitations": [
+      "/mnt/data/archie_app checkout absent",
+      "gh unavailable",
+      "GitHub network unavailable from container",
+      "postfreeze prompt pack not present locally"
+    ],
+    "numpy": "2.3.5",
+    "python": "3.13.5",
+    "sklearn": "1.8.0",
+    "torch": "2.10.0+cpu"
+  },
+  "isolation_tests": {
+    "authority_payload_invariance": {
+      "cases": 40,
+      "failures": 0,
+      "passed": true
+    },
+    "non_target_payload_invariance": {
+      "cases": 40,
+      "failures": 0,
+      "passed": true
+    }
+  },
+  "promotion": "not-admitted",
+  "promotion_gate": {
+    "admitted": false,
+    "blind_challenge": "run",
+    "deterministic_execution_controls": "unchanged_not_touched",
+    "javascript_runtime_parity": "not_run",
+    "legacy_retention": "not_run",
+    "postfreeze_pack": "not_run_locally",
+    "quantized_parity": "not_run"
+  },
+  "regressions_vs_v9": "cannot_compute_exact_without_legacy_or_postfreeze_rows; promotion blocked",
+  "schema": "archie-factorized-local-run/v1",
+  "seed": 94041,
+  "timestamp_utc": "2026-07-20T21:00:00Z",
+  "training_strategy": {
+    "checkpoint_selection": "development calibration, not training accuracy",
+    "counterfactual_twins": true,
+    "curriculum": "single clauses, references, authority pairs, ordered compounds, negation/correction",
+    "hard_negative_authority_pairs": true,
+    "source_grouped_generation": true
+  }
+}
