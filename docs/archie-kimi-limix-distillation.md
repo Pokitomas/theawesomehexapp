@@ -4,7 +4,9 @@
 
 Use Kimi only as an offline, evidence-producing teacher. Do not add Kimi, an API key, or a hosted dependency to the Archie product runtime.
 
-The supported teacher path is the OpenAI-compatible Kimi API with `kimi-k2.6`, JSON mode, and thinking disabled by default for high-throughput labeling. The distiller emits structured final supervision only:
+The preferred teacher path is the OpenAI-compatible Kimi API with `kimi-k3`. K3 always reasons, so the request uses top-level `reasoning_effort` and never sends the older K2.x `thinking` object. K3 also fixes its sampling parameters, so the distiller omits `temperature` for K3 requests. K2.x and local compatible teachers retain their existing request contracts.
+
+The distiller parses only the final JSON in `message.content`; it does not request, save, or train on hidden reasoning text. It emits structured final supervision only:
 
 - route;
 - authority allow/deny;
@@ -14,7 +16,7 @@ The supported teacher path is the OpenAI-compatible Kimi API with `kimi-k2.6`, J
 - operation and target summaries;
 - failure-family identity.
 
-It does not request or retain hidden chain-of-thought. Free-form rationales are unnecessary for this classifier and are harder to verify.
+Free-form rationales are unnecessary for this classifier and are harder to verify.
 
 ## Why the previous breadth expansion was inefficient
 
@@ -27,20 +29,58 @@ The first supervised atom model already showed that breadth alone can retain the
 5. vague references that require abstention;
 6. unseen summary and decision phrasing.
 
-Generation and verification are separated. A candidate first passes deterministic leakage and near-copy checks, then independent route-label and semantic-fidelity prompts. Acceptance requires consensus on all structured labels, not only the route.
+Generation and verification are separated. A candidate first passes deterministic leakage and near-copy checks, then three independent verifier replicas relabel it and judge semantic fidelity.
 
-## Kimi command
+Verifier calls are batched rather than issued once per candidate. Every record has a unique `candidate_id`, and each verifier must return exactly one verdict for every expected ID with no duplicate or unknown IDs. Any missing, duplicated, or crossed identifier rejects the whole verifier batch. Acceptance still requires label and fidelity consensus per candidate.
+
+## Cost preflight
+
+Do not send all 51,838 compound-head training rows to Kimi. Those are classifier observations, not 51,838 independently valuable teacher seeds. A full four-rewrite pass would create up to 207,352 candidates and is not justified before a bounded experiment proves transfer.
+
+The original per-candidate verifier design would require:
+
+```text
+51,838 sources × 4 candidates × 6 verifier calls = 1,244,112 verifier calls
+6,480 generation calls
+1,250,592 total calls
+```
+
+With batch size eight and three isolated verifier replicas, the current design reduces the upper bound to:
+
+```text
+6,480 generation calls
+19,440 verifier calls
+25,920 total calls
+```
+
+This is still too large for a first run. Use `--estimate-only` before any paid execution:
+
+```bash
+python3 foundry/archie-protocol/kimi-route-distill.py \
+  --data .local/archie-route/route-train.json \
+  --out /tmp/not-written.json \
+  --model kimi-k3 \
+  --samples-per-row 4 \
+  --judges 3 \
+  --batch-size 8 \
+  --estimate-only
+```
+
+## First paid run: cross-record isolation smoke
+
+Start with 96 source rows selected outside the script: 16 from each of the six failure families. Use two rewrites per source, batch size eight, three verifier replicas, and low reasoning effort.
 
 ```bash
 export MOONSHOT_API_KEY=...
 
 python3 foundry/archie-protocol/kimi-route-distill.py \
-  --data .local/archie-route/route-train.json \
-  --out .local/archie-route/route-train.kimi-k2.6.json \
+  --data .local/archie-route/kimi-smoke-96.json \
+  --out .local/archie-route/kimi-smoke-96.output.json \
   --endpoint https://api.moonshot.ai/v1 \
-  --model kimi-k2.6 \
-  --cache .local/archie-route/kimi-cache.jsonl \
-  --samples-per-row 4 \
+  --model kimi-k3 \
+  --reasoning-effort low \
+  --cache .local/archie-route/kimi-k3-cache.jsonl \
+  --samples-per-row 2 \
   --judges 3 \
   --batch-size 8 \
   --freeze .local/archie-route/suite-80.json \
@@ -48,6 +88,10 @@ python3 foundry/archie-protocol/kimi-route-distill.py \
   --freeze .local/archie-audit/files/artifacts/evals/router-real-v2-heldout.jsonl \
   --freeze .local/archie-audit/files/artifacts/evals/router-real-v3-final.jsonl
 ```
+
+That run has 12 generation calls and at most 36 verifier calls: 48 calls total. The current 4,096-token completion cap creates a hard output-token exposure of 196,608 tokens, before actual early stopping. Inspect the receipt for API call counts, accepted rows, category coverage, and any `verifier-isolation-*` rejection before expanding.
+
+The second stage should contain at most 768 targeted sources, 128 per failure family. Retrain immediately after it and expand only the still-failing families. Do not perform a uniform pass over the whole corpus.
 
 The cache makes interrupted runs resumable and avoids paying twice for identical requests. Frozen loaders inspect `text`, `prompt`, `request`, and user-message content.
 
