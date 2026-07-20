@@ -1,0 +1,61 @@
+{
+  "schema": "archie-neural-mastery-receipt/v1",
+  "candidate": {
+    "tag": "npt-sw-d128",
+    "parameters": 873389,
+    "config": {
+      "d": 128,
+      "layers": 2,
+      "heads": 4,
+      "tmax": 84,
+      "epochs": 10,
+      "batch": 64,
+      "lr": 0.0022,
+      "dropout": 0.1,
+      "scale": 5,
+      "seed": 424243,
+      "subword": true,
+      "route_temperature": 0.8999999999999999
+    },
+    "weights_sha256": "0cb5433ec627aaa5199f84ad5c407a72135f6eab31d56caf137b6cc7ff08be19",
+    "receipt_digest": "b76197000b4e680e66834355bc5a9e3447f200530f58d0bd1fd009b9713d977a"
+  },
+  "gates": {
+    "frozen_498": {
+      "floor": 0.9578313253012049,
+      "measured": 0.630522,
+      "pass": false
+    },
+    "frozen_60": {
+      "floor": 0.9333333333333333,
+      "measured": 0.416667,
+      "pass": false
+    },
+    "frozen_48": {
+      "floor": 0.5416666666666666,
+      "measured": 0.395833,
+      "pass": false
+    },
+    "blind_429_full": {
+      "floor": 0.8997,
+      "measured": 0.543124,
+      "pass": false
+    },
+    "calibration_trust": {
+      "measured": true,
+      "floor": true,
+      "pass": true
+    }
+  },
+  "admitted": false,
+  "promotion": "not-admitted",
+  "negative_evidence": [
+    "audit hashed-linear-sgd-v1 rejected (broad regression)",
+    "audit order-context-hashed-sgd-v5 rejected (final-register regression)",
+    "mastery transformer student rejected (retention regressions)",
+    "np-transformer run A word-level rejected (held-out topic vocabulary -> <unk> -> no cross-topic transfer)"
+  ],
+  "mechanism": "A from-scratch NumPy transformer learns route + authority + context + reference + two ordered outcomes jointly from tokens alone. Word-level vocabulary fails to transfer to held-out challenge topics; subword (char-trigram) tokens are the decisive fix for OOV topic transfer, measured directly against run A.",
+  "claim_boundary": "Candidate did not clear every retention gate. The deterministic register projection remains the product. This is the strongest trained student and its exact metrics and negative evidence are preserved.",
+  "receipt_digest": "e825b631b06cd3c2694c7a5560dc950a872af8978958985689dce76bbb6b4fe8"
+}

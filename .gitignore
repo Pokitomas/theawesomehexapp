@@ -5,3 +5,4 @@ node_modules/
 .env.archied
 .archie/
 *.archie-backup.json
+__pycache__/

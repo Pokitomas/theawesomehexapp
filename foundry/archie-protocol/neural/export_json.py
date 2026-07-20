@@ -88,7 +88,7 @@ def main():
     Path(a.out).write_text(json.dumps(body) + "\n")
 
     # Parity: dequantized weights vs float on the frozen pack (route decisions).
-    model = T.Model(len(vmap), cfg["d"], cfg["layers"], cfg["heads"], cfg["tmax"], seed)
+    model = T.Model(len(vmap), cfg["d"], cfg["layers"], cfg["heads"], cfg["tmax"], cfg["seed"])
     for kname in z.files:
         model.P[kname] = z[kname]
     float_pred = T.predict(model, frozen_pack, vmap, cfg["tmax"], cfg["route_temperature"])

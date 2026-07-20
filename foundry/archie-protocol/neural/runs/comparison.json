@@ -1,0 +1,114 @@
+[
+  {
+    "run": "audit hashed-linear-sgd-v1 (rejected)",
+    "s498": 0.5683,
+    "s60": 0.5667,
+    "s48": 0.4792,
+    "s80": 0.7625,
+    "blind429": null,
+    "kind": "trained",
+    "src": "runs/linux-register-distill-20260720.json"
+  },
+  {
+    "run": "audit order-context-hashed-sgd-v5 (rejected)",
+    "s498": 0.8594,
+    "s60": 0.6667,
+    "s48": 0.2708,
+    "s80": 0.7875,
+    "blind429": null,
+    "kind": "trained",
+    "src": "runs/linux-register-distill-20260720.json"
+  },
+  {
+    "run": "base neural router (audit router-v4)",
+    "s498": 0.9578313253012049,
+    "s60": 0.9333333333333333,
+    "s48": 0.5416666666666666,
+    "s80": 0.7375,
+    "blind429": null,
+    "kind": "trained",
+    "src": "mastery/20260720/README.md"
+  },
+  {
+    "run": "deterministic register projection (oracle)",
+    "s498": 1,
+    "s60": 1,
+    "s48": 1,
+    "s80": 0.9375,
+    "blind429": null,
+    "kind": "oracle",
+    "src": "mastery/20260720 — encodes frozen phrases; excluded from trained comparisons"
+  },
+  {
+    "run": "mastery transformer student (not admitted)",
+    "s498": 0.9558232931726908,
+    "s60": 0.9333333333333333,
+    "s48": 0.6458333333333334,
+    "s80": 0.7375,
+    "blind429": null,
+    "kind": "trained",
+    "src": "mastery/20260720/README.md"
+  },
+  {
+    "run": "JS sparse MLP h1024 (branch)",
+    "s498": 0.749,
+    "s60": 0.6333,
+    "s48": 0.3542,
+    "s80": 0.9375,
+    "blind429": null,
+    "kind": "trained",
+    "src": "runs/route-model-receipt.json (route-only; suite-80 head-to-head vs Q6)"
+  },
+  {
+    "run": "sklearn factorized controller (upstream)",
+    "s498": null,
+    "s60": null,
+    "s48": null,
+    "s80": null,
+    "blind429": 0.8997,
+    "kind": "trained+scaffold",
+    "src": "factorized/upstream-evaluation-receipt.json"
+  },
+  {
+    "run": "np-transformer npt-s6-d96 seed424243",
+    "s498": 0.62249,
+    "s60": 0.5,
+    "s48": 0.291667,
+    "s80": null,
+    "blind429": 0.547786,
+    "blind429_route": 0.617716,
+    "conf_ok": 0.9715,
+    "conf_bad": 0.7861,
+    "params": 370029,
+    "kind": "trained-neural",
+    "src": "neural/runs/npt-s6-d96-seed424243-receipt.json"
+  },
+  {
+    "run": "np-transformer npt-sw-d128 seed424243",
+    "s498": 0.630522,
+    "s60": 0.416667,
+    "s48": 0.395833,
+    "s80": null,
+    "blind429": 0.543124,
+    "blind429_route": 0.615385,
+    "conf_ok": 0.9452,
+    "conf_bad": 0.8186,
+    "params": 873389,
+    "kind": "trained-neural",
+    "src": "neural/runs/npt-sw-d128-seed424243-receipt.json"
+  },
+  {
+    "run": "np-transformer smoke seed424243",
+    "s498": 0.054217,
+    "s60": 0.1,
+    "s48": 0.125,
+    "s80": null,
+    "blind429": 0.351981,
+    "blind429_route": 0.410256,
+    "conf_ok": 0.6762,
+    "conf_bad": 0.2939,
+    "params": 167981,
+    "kind": "trained-neural",
+    "src": "neural/runs/smoke-seed424243-receipt.json"
+  }
+]

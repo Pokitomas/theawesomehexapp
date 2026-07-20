@@ -80,26 +80,44 @@
 <script type="module">
 import { createTransformer } from '../transformer-core.mjs';
 import { createRouter } from '../operator-core.mjs';
+import { createRegisterAwareRouter } from '../register-router.mjs';
 
 const $=id=>document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store=(k,v)=>localStorage.setItem('a95-'+k,JSON.stringify(v));
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem('a95-'+k))??d}catch{return d}};
 
-/* ------------------------- model boot: transformer first ------------------ */
-let brain=null, brainKind='none', MODELMETA={};
+/* ----------------------------- model boot ---------------------------------
+   PRODUCTION default: the admitted base MLP wrapped by the deterministic
+   register-aware projection (main's shipped product — order/negation/
+   authority-checked). The from-scratch transformer is a real trained neural
+   candidate, but it did NOT clear the mandatory retention gates against the
+   frozen suites (see foundry/archie-protocol/neural/runs/neural-mastery-
+   receipt.json) — it stays an explicit, opt-in EXPERIMENTAL toggle and is
+   never loaded as the default decision engine. */
+let productionBrain=null, experimentalBrain=null, MODELMETA={}, EXPERIMENTAL_META=null;
+let useExperimental=false;
+
+try {
+  const m=await (await fetch('../model.json')).json();
+  const base=createRouter(m);
+  const registered=createRegisterAwareRouter(prompt=>base(prompt));
+  productionBrain={predict:(req,_ctx)=>{const r=registered(req);return{...r,authority:'allow',context:r.route==='clarify'?'ambiguous':'ready',reference:'none',outcomes:r.route==='clarify'?[]:[r.route],distribution:(r.alternatives||[]).map(a=>({route:a.route,p:a.confidence}))};}};
+  MODELMETA={params:m.parameters,digest:m.model_digest,kind:'register-aware MLP (production, admitted)'};
+} catch { productionBrain=null; }
+
 try {
   const m=await (await fetch('../transformer-model.json')).json();
-  brain=createTransformer(m); brainKind='transformer';
-  MODELMETA={params:m.parameters,digest:m.model_digest,results:m.results,kind:'from-scratch transformer (int8)'};
-} catch {
-  try {
-    const m=await (await fetch('../model.json')).json();
-    const infer=createRouter(m);
-    brain={predict:(req,ctx)=>{const r=infer(req);return{...r,authority:'allow',context:r.route==='clarify'?'ambiguous':'ready',reference:'none',outcomes:r.route==='clarify'?[]:[r.route],distribution:(r.alternatives||[]).map(a=>({route:a.route,p:a.confidence}))};}};
-    brainKind='mlp'; MODELMETA={params:m.parameters,digest:m.model_digest,kind:'sparse MLP fallback (int8)'};
-  } catch { brainKind='none'; }
+  experimentalBrain=createTransformer(m);
+  EXPERIMENTAL_META={params:m.parameters,digest:m.model_digest,results:m.results,kind:'from-scratch transformer (NOT ADMITTED — underperforms production baseline on frozen suites)'};
+} catch { experimentalBrain=null; }
+
+let brain=productionBrain, brainKind=productionBrain?'production':'none';
+function applyEngine(){
+  brain = useExperimental && experimentalBrain ? experimentalBrain : productionBrain;
+  brainKind = useExperimental && experimentalBrain ? 'experimental' : (productionBrain?'production':'none');
 }
+applyEngine();
 
 const PROTO={summary:['OBSERVE','DRAFT','STOP'],checklist:['OBSERVE','DECOMPOSE','DRAFT','STOP'],message:['OBSERVE','DRAFT','STOP'],decision:['OBSERVE','COMPARE','DRAFT','STOP'],study:['RETRIEVE','DECOMPOSE','ORDER','SCHEDULE','STOP'],event:['OBSERVE','DECOMPOSE','ORDER','SCHEDULE','STOP'],errands:['OBSERVE','ORDER','SCHEDULE','STOP'],plan:['RETRIEVE','DECOMPOSE','ORDER','DRAFT','STOP'],next_action:['OBSERVE','DECOMPOSE','STOP'],objective:['OBSERVE','DRAFT','VERIFY','STOP'],compound:['OBSERVE','DECOMPOSE','ORDER','SCHEDULE','STOP'],clarify:['ASK','STOP']};
 
@@ -124,12 +142,18 @@ function appBody(kind){
           <span style="flex:1"></span>
           <button class="btn" style="font-weight:bold" id="gobtn">Go</button>
         </div></fieldset>
+      <fieldset><legend>Engine</legend>
+        <label style="display:flex;gap:7px;align-items:center;font-size:11px">
+          <input type="checkbox" id="expToggle" ${experimentalBrain?'':'disabled'}>
+          🧪 Experimental neural core — from-scratch transformer, <b>NOT ADMITTED</b> (underperforms the production baseline on frozen suites; see Model Evidence)
+        </label>
+        <div id="engineLbl" style="font-size:11px;font-weight:bold;color:${brainKind==='experimental'?'#802000':'#004d00'}">ENGINE: ${brainKind==='production'?'PRODUCTION — register-aware router (admitted)':brainKind==='experimental'?'EXPERIMENTAL — transformer (not-admitted)':'NO MODEL'}</div></fieldset>
       <fieldset><legend>Context channels (the model reads these as tokens)</legend>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <label style="flex:1;min-width:150px;font-size:11px">Memory<input type="text" id="mem" placeholder="e.g. trusted saved instruction…"></label>
           <label style="flex:1;min-width:150px;font-size:11px">Thread<input type="text" id="thr" placeholder="e.g. previous turn contains…"></label>
         </div></fieldset>
-      <div id="verdict"><p style="color:#333">The ${brainKind==='transformer'?'transformer':'router'} is idle. Say something.</p></div>
+      <div id="verdict"><p style="color:#333">The ${brainKind==='experimental'?'experimental transformer':'production router'} is idle. Say something.</p></div>
       <canvas id="dial" class="dial" aria-label="route distribution"></canvas>`;
     case 'pursuits': {
       const ps=load('pursuits',[]);
@@ -149,16 +173,22 @@ function appBody(kind){
         <pre id="rc" style="white-space:pre-wrap;font-size:10px;background:#fff;border:1px solid var(--sh);padding:6px;max-height:220px;overflow:auto">${esc(JSON.stringify({model:MODELMETA,decisions:h.slice(0,3)},null,1))}</pre>`;
     }
     case 'about': {
-      const r=MODELMETA.results||{};
-      const b=r.blind_429||{};
-      return `<table>
+      const er=EXPERIMENTAL_META?.results||{}; const eb=er.blind_429||{};
+      return `<fieldset><legend>Production (default, admitted)</legend><table>
         <tr><th>engine</th><td>${esc(MODELMETA.kind||'none')}</td></tr>
         <tr><th>parameters</th><td>${(MODELMETA.params||0).toLocaleString()}</td></tr>
-        <tr><th>blind 429 (full-factor)</th><td>${b.full_accuracy!=null?(100*b.full_accuracy).toFixed(1)+'%':'—'}</td></tr>
-        <tr><th>confidence trust</th><td>${b.mean_confidence_correct!=null?`correct ${b.mean_confidence_correct} vs wrong ${b.mean_confidence_incorrect}`:'—'}</td></tr>
         <tr><th>digest</th><td style="word-break:break-all;font-family:monospace;font-size:9px">${esc(MODELMETA.digest||'')}</td></tr>
-        <tr><th>promotion</th><td>not-admitted</td></tr></table>
-        <p style="font-size:11px;color:#333">All judgments are learned weights — no keyword scaffolding. Attachment, memory, and thread text enter the same token stream the transformer attends over.</p>`;
+        </table></fieldset>
+      <fieldset><legend>Experimental transformer (not-admitted)</legend>
+        ${EXPERIMENTAL_META?`<table>
+        <tr><th>parameters</th><td>${EXPERIMENTAL_META.params.toLocaleString()}</td></tr>
+        <tr><th>blind 429 (full-factor)</th><td>${eb.full_accuracy!=null?(100*eb.full_accuracy).toFixed(1)+'%':'—'} <span style="color:#802000">(baseline to beat: 90.0%)</span></td></tr>
+        <tr><th>confidence trust</th><td>${eb.mean_confidence_correct!=null?`correct ${eb.mean_confidence_correct} vs wrong ${eb.mean_confidence_incorrect}`:'—'}</td></tr>
+        <tr><th>digest</th><td style="word-break:break-all;font-family:monospace;font-size:9px">${esc(EXPERIMENTAL_META.digest||'')}</td></tr>
+        <tr><th>promotion</th><td><b>not-admitted</b> — failed every retention gate against frozen suites and the base router's own historical scores</td></tr></table>
+        <p style="font-size:11px;color:#802000">Trained on real evidence, verified honestly, and rejected. A from-scratch transformer with six jointly-learned judgment heads (route, authority, context, reference, two ordered outcomes) — genuinely more capable in representation than the production router, but it has not yet matched the simpler production baseline on the exact frozen suites this system is measured against. Kept visible, not hidden, per the project's evidence-preservation rule.</p>`
+        :'<p style="color:#333">Experimental model not loaded.</p>'}</fieldset>
+      <p style="font-size:11px;color:#333">All judgments shown are learned weights or a deterministic order/negation/authority projection over them — no hidden keyword scaffolding claims intelligence it doesn't have.</p>`;
     }
   }
 }
@@ -167,6 +197,13 @@ window.clearHistory=()=>{store('history',[]);reopen('history');};
 
 function wire(kind,el){
   if(kind==='operator'){
+    const expBox=el.querySelector('#expToggle');
+    if(expBox){expBox.checked=useExperimental; expBox.onchange=()=>{
+      useExperimental=expBox.checked; applyEngine();
+      const lbl=el.querySelector('#engineLbl');
+      lbl.textContent='ENGINE: '+(brainKind==='production'?'PRODUCTION — register-aware router (admitted)':brainKind==='experimental'?'EXPERIMENTAL — transformer (not-admitted)':'NO MODEL');
+      lbl.style.color=brainKind==='experimental'?'#802000':'#004d00';
+    };}
     el.querySelector('#attachbtn').onclick=()=>el.querySelector('#attfile').click();
     el.querySelector('#attfile').onchange=async ev=>{
       const f=ev.target.files[0]; if(!f)return;
@@ -181,7 +218,7 @@ function wire(kind,el){
       const proto=PROTO[p.route]||['OBSERVE','STOP'];
       const deny=p.authority==='deny', missing=p.context==='missing';
       el.querySelector('#verdict').innerHTML=`
-        <fieldset><legend>Decision — ${brainKind}</legend>
+        <fieldset><legend>Decision — ${brainKind==='experimental'?'experimental transformer':'production router'}</legend>
           <div class="judges">
             <div class="judge"><span>route</span><b>${esc(p.route)}</b></div>
             <div class="judge${deny?' warn':''}"><span>authority</span><b>${esc(p.authority)}</b></div>
@@ -238,7 +275,7 @@ window.openApp=(kind)=>{
   el.innerHTML=`<div class="tbar"><span class="ttl"><span class="mini">${meta.glyph}</span>${meta.title}</span>
     <button class="tbtn" data-a="min">▁</button><button class="tbtn" data-a="max">□</button><button class="tbtn" data-a="close">×</button></div>
     <div class="wbody">${appBody(kind)}</div>
-    <div class="wstatus"><span>Ready</span><b>${brainKind==='transformer'?'NEURAL CORE OK':brainKind==='mlp'?'FALLBACK ROUTER':'NO MODEL'}</b></div>`;
+    <div class="wstatus"><span>Ready</span><b>${brainKind==='production'?'PRODUCTION OK':brainKind==='experimental'?'EXPERIMENTAL (not-admitted)':'NO MODEL'}</b></div>`;
   document.getElementById('desk').appendChild(el);openWins.set(kind,el);
   makeTaskButton(kind,meta);wire(kind,el);
   el.addEventListener('pointerdown',()=>focusWin(kind));

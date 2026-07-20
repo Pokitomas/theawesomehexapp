@@ -176,7 +176,8 @@ class Model:
         logits = {name: cls @ P[f"H{name}"] + P[f"Hb{name}"] for name in self.HEADS}
         return logits, cache
 
-    def loss_and_grads(self, ids, mask, ys, drop, rng, smooth=0.05):
+    def loss_and_grads(self, ids, mask, ys, drop, rng, smooth=0.05, head_weights=None):
+        weights = head_weights if head_weights is not None else self.HEAD_W
         logits, cache = self.forward(ids, mask, train=True, drop=drop, rng=rng)
         B = ids.shape[0]
         G = {k: np.zeros_like(v) for k, v in self.P.items()}
@@ -186,8 +187,8 @@ class Model:
             z = logits[name]; y = ys[name]
             z = z - z.max(-1, keepdims=True); e = np.exp(z); p = e / e.sum(-1, keepdims=True)
             t = np.full_like(p, smooth / n); t[np.arange(B), y] += 1 - smooth
-            total += float(-(t * np.log(p + 1e-12)).sum() / B) * self.HEAD_W[name]
-            dz = (p - t) / B * self.HEAD_W[name]
+            total += float(-(t * np.log(p + 1e-12)).sum() / B) * weights[name]
+            dz = (p - t) / B * weights[name]
             G[f"H{name}"] += cache["cls"].T @ dz
             G[f"Hb{name}"] += dz.sum(0)
             dcls += dz @ self.P[f"H{name}"].T
@@ -394,6 +395,8 @@ def main():
     ap.add_argument("--scale", type=int, default=6, help="multiplier over the upstream corpus counts")
     ap.add_argument("--real-rows", default="")
     ap.add_argument("--real-repeat", type=int, default=1, help="oversampling factor for real-language rows")
+    ap.add_argument("--finetune-epochs", type=int, default=0, help="extra epochs training ONLY on real-language rows, route head only, after main training")
+    ap.add_argument("--finetune-lr", type=float, default=0.0, help="LR for the finetune phase (default: main lr * 0.15)")
     ap.add_argument("--legacy-dir", default="")
     ap.add_argument("--frozen-pack", default=str(HERE.parent / "factorized" / "blind-challenge-pack.frozen.json"))
     ap.add_argument("--out", default=str(HERE / "runs"))
@@ -471,6 +474,34 @@ def main():
                           "dev_full": dev_eval["full_accuracy"], "dev_route": dev_eval["route_accuracy"],
                           "minutes": round((time.time() - t0) / 60, 1)}), flush=True)
 
+    # Real-language-only fine-tune phase (route head only; curriculum test for
+    # register transfer). auth/context/ref/out1/out2 weights are zeroed here
+    # because real rows carry only heuristic placeholder labels for those
+    # heads (almost uniformly allow/ready/none) -- training them further would
+    # teach a false uniform prior, not real supervision.
+    real_indices = [i for i, r in enumerate(train) if r.get("category") == "real_language"]
+    if a.finetune_epochs > 0 and real_indices:
+        ft_lr = a.finetune_lr if a.finetune_lr > 0 else a.lr * 0.15
+        ft_weights = {"route": 1.0, "auth": 0.0, "ctx": 0.0, "ref": 0.0, "out1": 0.0, "out2": 0.0}
+        ft_order = np.array(real_indices)
+        ft_steps = math.ceil(len(ft_order) / a.batch)
+        print(json.dumps({"finetune_start": True, "real_only_rows": len(ft_order), "lr": ft_lr, "epochs": a.finetune_epochs}), flush=True)
+        for ep in range(a.finetune_epochs):
+            rng.shuffle(ft_order)
+            ep_loss = 0.0
+            for s in range(ft_steps):
+                sel = ft_order[s * a.batch:(s + 1) * a.batch]
+                rows = [train[i] for i in sel]
+                ids, mask = encode_batch(rows, vmap, a.tmax)
+                ys = {name: np.array([ys_all[i][name] for i in sel]) for name in Model.HEADS}
+                loss, G = model.loss_and_grads(ids, mask, ys, a.drop * 0.5, rng, head_weights=ft_weights)
+                model.step(G, ft_lr)
+                ep_loss += loss
+            dev_eval = evaluate_pack(model, dev, vmap, a.tmax, 1.0)
+            print(json.dumps({"finetune_epoch": ep + 1, "mean_loss": round(ep_loss / ft_steps, 4),
+                              "dev_full": dev_eval["full_accuracy"], "dev_route": dev_eval["route_accuracy"],
+                              "minutes": round((time.time() - t0) / 60, 1)}), flush=True)
+
     # Route temperature on dev NLL.
     best_t, best_nll = 1.0, 1e9
     dev_ids, dev_mask = encode_batch(dev, vmap, a.tmax)
@@ -495,7 +526,10 @@ def main():
         "tag": a.tag,
         "config": {"d": a.d, "layers": a.layers, "heads": a.heads, "tmax": a.tmax, "epochs": a.epochs,
                     "batch": a.batch, "lr": a.lr, "dropout": a.drop, "scale": a.scale, "seed": a.seed,
-                    "subword": SUBWORD, "route_temperature": best_t},
+                    "subword": SUBWORD, "route_temperature": best_t,
+                    "real_repeat": a.real_repeat, "finetune_epochs": a.finetune_epochs,
+                    "finetune_lr": (a.finetune_lr if a.finetune_lr > 0 else a.lr * 0.15) if a.finetune_epochs > 0 else None,
+                    "curriculum": "real-language-dominant mix + real-only route-head finetune phase" if a.finetune_epochs > 0 else "single-phase mixed synthetic+real"},
         "data": {"train_rows": len(train), "real_language_rows": real_count, "dev_rows": len(dev),
                  "dropped_frozen_collisions": dropped, "vocab": len(vmap),
                  "vocab_tokens": sorted(vmap, key=vmap.get),
