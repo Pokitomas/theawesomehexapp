@@ -1,0 +1,72 @@
+name: Archie protocol scale
+
+on:
+  workflow_dispatch:
+    inputs:
+      widths:
+        description: Comma-separated hidden widths
+        required: false
+        default: "128,256,512,768,1024"
+      seeds:
+        description: Comma-separated deterministic seeds
+        required: false
+        default: "3407,3419,3433"
+      epochs:
+        description: Epochs per candidate
+        required: false
+        default: "180"
+  pull_request:
+    paths:
+      - "foundry/archie-protocol/train-protocol-sweep.mjs"
+      - "foundry/archie-protocol/protocol-decoder.mjs"
+      - "foundry/archie-protocol/protocol-corpus.mjs"
+      - ".github/workflows/archie-protocol-scale.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Syntax and focused tests
+        run: |
+          node --check foundry/archie-protocol/train-protocol-sweep.mjs
+          node --test foundry/archie-protocol/tests/protocol-decoder.test.mjs
+      - name: Bounded smoke training
+        run: |
+          node foundry/archie-protocol/train-protocol-sweep.mjs \
+            --widths 32,64 \
+            --seeds 3407 \
+            --epochs 2 \
+            --out "$RUNNER_TEMP/protocol-sweep-smoke.json"
+          test -s "$RUNNER_TEMP/protocol-sweep-smoke.json"
+
+  train:
+    if: github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Run multi-seed scaling sweep
+        run: |
+          node foundry/archie-protocol/train-protocol-sweep.mjs \
+            --widths "${{ inputs.widths }}" \
+            --seeds "${{ inputs.seeds }}" \
+            --epochs "${{ inputs.epochs }}" \
+            --out "$RUNNER_TEMP/protocol-decoder-sweep.v7.json"
+      - name: Upload receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-protocol-sweep-v7
+          path: ${{ runner.temp }}/protocol-decoder-sweep.v7.json
+          if-no-files-found: error
