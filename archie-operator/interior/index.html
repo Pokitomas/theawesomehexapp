@@ -77,6 +77,17 @@
     color:var(--void);background:linear-gradient(120deg,var(--cyan),var(--violet));border-radius:11px;padding:12px 22px;transition:filter .2s}
   #speak:hover{filter:brightness(1.12)}
   #speak:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .ico{border:0;background:none;cursor:pointer;font-size:18px;line-height:1;padding:10px;border-radius:10px;color:var(--dim);transition:.2s;filter:grayscale(.3)}
+  .ico:hover{color:var(--ink);background:rgba(150,170,255,.08)}
+  .ico.on{color:var(--void);background:var(--cyan)}
+  .ico.listening{color:var(--void);background:var(--rose);animation:pulseMic 1.1s infinite}
+  @keyframes pulseMic{0%,100%{box-shadow:0 0 0 0 rgba(255,139,171,.5)}50%{box-shadow:0 0 0 8px rgba(255,139,171,0)}}
+  /* processed response */
+  .response{margin-top:16px;max-width:min(52vh,66vw);text-align:left;font-family:var(--sans);font-size:13.5px;line-height:1.55;color:var(--ink);
+    background:rgba(12,16,30,.55);border:1px solid var(--edge);border-radius:12px;padding:12px 14px;pointer-events:auto}
+  .response .rh{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+  .response ul{margin:0;padding-left:16px} .response li{margin:2px 0} .response b{color:var(--cyan)}
+  .response .opt{display:flex;gap:8px;margin:3px 0}.response .opt span{flex:1;background:rgba(150,170,255,.06);border-radius:7px;padding:5px 9px}
   .seeds{display:flex;gap:7px;flex-wrap:wrap}
   .seed{font-family:var(--sans);font-size:12px;color:var(--dim);background:none;border:1px solid var(--edge);border-radius:999px;padding:5px 12px;cursor:pointer;transition:.2s}
   .seed:hover{color:var(--cyan);border-color:var(--cyan)}
@@ -127,7 +138,9 @@
       <span class="hint" id="hint">Speak to it. It decides how to meet you — or declines.</span>
     </div>
     <form class="bar" id="form">
-      <input id="utter" type="text" autocomplete="off" spellcheck="false" placeholder="say anything…" aria-label="Speak to Archie">
+      <button id="mic" type="button" class="ico" title="Speak to Archie (voice)" aria-label="Voice input">🎙</button>
+      <input id="utter" type="text" autocomplete="off" spellcheck="false" placeholder="say anything, or hold the mic…" aria-label="Speak to Archie">
+      <button id="voice" type="button" class="ico" title="Let Archie speak" aria-label="Toggle Archie's voice" aria-pressed="false">🔈</button>
       <button id="speak" type="submit">CONSIDER</button>
     </form>
     <div class="seeds" id="seeds"></div>
@@ -140,6 +153,8 @@
   <p>Archie is a <b>from-scratch neural router</b> — no big model, no cloud, no text generation. It reads what you say and <b>chooses one of twelve dispositions</b>, then forms a fixed protocol of intent. This app doesn't put it to work. It lets you watch it <b>think</b>.</p>
   <p>The dial is its real <b>softmax</b> — twelve impulses competing at once. The glow that survives is its choice. Words in your sentence are tinted by <b>leave-one-out attribution</b>: how much each one actually pulled the decision. When nothing coheres it routes to <code>clarify</code> and <b>refuses</b> — not a failure, a boundary it keeps.</p>
   <p><b>Reverie</b> lets it off the leash: it free-associates from the bigram shape of its own vocabulary and routes its own drifting thoughts. Unprompted. The being, idling.</p>
+  <p><b>Voice.</b> Hold the mic to speak to it; toggle the speaker and it answers aloud (browser speech, on-device). Once it has decided, a small <b>language layer</b> actually works your words — extractive summary, option extraction, clause and time pickup — and even its refusals name what it did recognize. Real language processing; deliberately <b>not a large language model</b>.</p>
+  <p style="font-size:12px;color:var(--faint)"><b>Honest ceiling.</b> Widening the network 256→1024 changes almost nothing: ~94% of the errors on the small held-out set are shared by every width, and five routes there miss identically. The plateau is a <b>fixed train/eval distribution mismatch</b>, not a lack of capacity — a bigger net can't learn a convention the data never showed it.</p>
   <div class="row"><span>parameters</span><b id="a-params">—</b></div>
   <div class="row"><span>routes</span><b id="a-routes">12</b></div>
   <div class="row"><span>weights</span><b>int8, on-device</b></div>
@@ -153,6 +168,55 @@
 import { createMind } from '../mind-core.mjs';
 
 const $ = id => document.getElementById(id);
+
+/* ---- on-device language processing (deterministic, honest — not an LLM) ----
+   Once the mind has chosen a disposition, it actually works the words: extractive
+   summarization, option extraction, clause decomposition, entity/time pickup. */
+const NLP = (() => {
+  const esc = t => String(t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const sentences = t => (String(t).replace(/\s+/g,' ').match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[]).map(s=>s.trim()).filter(Boolean);
+  const clauses = t => String(t).split(/[,;\n]|\band then\b|\bthen\b|\band also\b|\balso\b|\bplus\b|\bafter that\b/i)
+    .map(s=>s.trim().replace(/^(and|also|then)\s+/i,'').replace(/[.]+$/,'')).filter(s=>s.length>1);
+  const times = t => (String(t).match(/\b(?:[01]?\d|2[0-3])(?::[0-5]\d)?\s?(?:am|pm)\b|\b(?:mon|tues|wednes|thurs|fri|satur|sun)day\b|\btomorrow\b|\btonight\b|\bnext week\b|\bfriday\b/gi)||[]);
+  const options = t => {
+    const m = String(t).match(/between (.+?) and (.+?)(?:[.?!]|$)/i) || String(t).match(/(.+?)\s+or\s+(.+?)(?:[.?!]|$)/i);
+    return m ? [m[1].trim(), m[2].trim()] : null;
+  };
+  const keywords = t => {
+    const stop = new Set('the a an and or but to of for in on at with from by about as is are be i me my we our you your it this that these those please just can could would should need want how what should do make give me tell'.split(' '));
+    const freq={}; for(const w of String(t).toLowerCase().match(/[a-z']{3,}/g)||[]) if(!stop.has(w)) freq[w]=(freq[w]||0)+1;
+    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,4).map(x=>x[0]);
+  };
+  function extractiveSummary(t, n=3){
+    const ss=sentences(t); if(ss.length<=n) return ss;
+    const freq={}; for(const w of String(t).toLowerCase().match(/[a-z']{3,}/g)||[]) freq[w]=(freq[w]||0)+1;
+    return ss.map((s,i)=>({s,i,score:(s.toLowerCase().match(/[a-z']{3,}/g)||[]).reduce((a,w)=>a+(freq[w]||0),0)/Math.sqrt(s.length+1)}))
+      .sort((a,b)=>b.score-a.score).slice(0,n).sort((a,b)=>a.i-b.i).map(x=>x.s);
+  }
+  return { esc, sentences, clauses, times, options, keywords, extractiveSummary };
+})();
+
+// Produce a real processed response for the chosen route, plus a spoken line.
+function respond(route, text, recognizedTopic){
+  const { esc, clauses, times, options, extractiveSummary, keywords } = NLP;
+  const items = clauses(text);
+  const list = arr => `<ul>${arr.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+  switch(route){
+    case 'summary': { const b=extractiveSummary(text,3); return { html:`<div class="rh">signal, extracted</div>${list(b.length?b:[text])}`, say:`Here is the signal. ${b[0]||text}` }; }
+    case 'checklist': { const it=items.length?items:[text]; return { html:`<div class="rh">${it.length} things to strike through</div>${list(it)}`, say:`${it.length} items. First: ${it[0]}` }; }
+    case 'errands': { const it=items.length?items:[text]; const t=times(text); return { html:`<div class="rh">ordered stops${t.length?` · times: ${esc(t.join(', '))}`:''}</div>${list(it)}`, say:`A route of ${it.length} stops.` }; }
+    case 'plan': case 'study': { const it=items.length?items:['discover','build','verify']; return { html:`<div class="rh">phases</div>${list(it.map((x,i)=>`Phase ${i+1} — ${x}`))}`, say:`${it.length} phases.` }; }
+    case 'compound': { const it=items.length?items:[text]; return { html:`<div class="rh">two wishes, split</div>${list(it)}`, say:`This is ${it.length} things. I'll serve each.` }; }
+    case 'decision': { const o=options(text); return { html:`<div class="rh">weighing</div>${o?`<div class="opt"><span>${esc(o[0])}</span><span>${esc(o[1])}</span></div><p style="margin-top:6px;color:var(--dim)">Name what matters most and I commit.</p>`:'<p>Give me the two paths and I\'ll weigh them.</p>'}`, say:o?`${o[0]}, or ${o[1]}.`:'Give me the two paths.' }; }
+    case 'message': { const t=times(text); return { html:`<div class="rh">draft</div><p>Hi — ${esc(text)}${t.length?` <b>(${esc(t.join(', '))})</b>`:''}</p>`, say:'I shaped the words.' }; }
+    case 'next_action': { const f=items[0]||text; return { html:`<div class="rh">the one next move</div><p style="font-size:16px"><b>➜ ${esc(f)}</b></p>`, say:`Do this next: ${f}` }; }
+    case 'objective': return { html:`<div class="rh">aim · to verify</div><p><b>${esc(text)}</b></p><p style="color:var(--dim);margin-top:4px">measurable? dated?</p>`, say:'The aim is set. Is it measurable?' };
+    case 'event': { const t=times(text); return { html:`<div class="rh">the gathering</div>${list(items.length?items:[text])}${t.length?`<p style="color:var(--dim);margin-top:6px">when: ${esc(t.join(', '))}</p>`:''}`, say:'I\'ll compose the gathering.' }; }
+    case 'clarify': { const k=keywords(text); return { html:`<div class="rh">i decline — for now</div><p>I caught ${k.length?`<b>${esc(k.join(', '))}</b>`:'almost nothing'}, but no outcome I can act on. Tell me what you want to happen.</p>`, say:k.length?`I hear ${k[0]}, but I won't act on this yet. What outcome do you want?`:'I won\'t act on this. Say what you want to happen.' }; }
+    default: return { html:'', say:'' };
+  }
+}
+
 const ROUTE_HUE = { summary:190, checklist:150, message:210, decision:275, study:95, event:330, errands:40, plan:255, next_action:170, objective:300, compound:230, clarify:50 };
 const ROUTE_LABEL = { next_action:'next move', clarify:'clarify · abstain' };
 const label = r => ROUTE_LABEL[r] || r;
@@ -227,10 +291,13 @@ function consider(text){
   const say = r.abstains
     ? '“I won’t act on this yet. Tell me the outcome you want, and the thing it applies to.”'
     : dispositionLine(r.route);
-  $('verdict').innerHTML = `<div class="route">${label(r.route)}</div><div class="protocol">${proto}</div><div class="say">${say}</div>`;
+  const resp = respond(r.route, text, null);
+  $('verdict').innerHTML = `<div class="route">${label(r.route)}</div><div class="protocol">${proto}</div><div class="say">${say}</div>`
+    + (resp.html ? `<div class="response">${resp.html}</div>` : '');
   // echo with attribution tint
   echoWords = attr.words;
   renderEcho();
+  archieSpeak(resp.say || '');
 }
 function renderEcho(){
   $('echo').innerHTML = echoWords.map(w=>{
@@ -354,6 +421,45 @@ if(reduced){ // still render one frame set on updates
 }
 
 /* ---------------- wiring ---------------- */
+/* ---------------- voice: input (recognition) + output (synthesis) ---------------- */
+let voiceOn=false, archieVoice=null;
+function pickVoice(){
+  if(!('speechSynthesis' in window)) return;
+  const vs=speechSynthesis.getVoices();
+  archieVoice = vs.find(v=>/en-GB/.test(v.lang)&&/male|daniel|arthur/i.test(v.name))
+    || vs.find(v=>/en/.test(v.lang)&&/male|daniel|alex|fred/i.test(v.name))
+    || vs.find(v=>/en/.test(v.lang)) || vs[0] || null;
+}
+if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=pickVoice; pickVoice(); }
+function archieSpeak(text){
+  if(!voiceOn || !text || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text.replace(/["“”]/g,''));
+  if(archieVoice) u.voice=archieVoice;
+  u.rate=0.98; u.pitch=0.9; speechSynthesis.speak(u);
+}
+$('voice').addEventListener('click',()=>{
+  voiceOn=!voiceOn; const b=$('voice'); b.classList.toggle('on',voiceOn); b.setAttribute('aria-pressed',String(voiceOn));
+  b.textContent = voiceOn?'🔊':'🔈';
+  if(voiceOn) archieSpeak('I am listening.'); else speechSynthesis.cancel();
+});
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recog=null, listening=false;
+if(SR){
+  recog=new SR(); recog.lang='en-US'; recog.interimResults=true; recog.continuous=false;
+  recog.onresult=e=>{ let t=''; for(const r of e.results) t+=r[0].transcript; $('utter').value=t;
+    if(e.results[e.results.length-1].isFinal){ stopReverie(); consider(t); } };
+  recog.onend=()=>{ listening=false; $('mic').classList.remove('listening'); };
+  recog.onerror=()=>{ listening=false; $('mic').classList.remove('listening'); };
+}
+$('mic').addEventListener('click',()=>{
+  if(!SR){ $('hint').textContent='Voice input needs Chrome, Edge, or Safari.'; return; }
+  if(listening){ recog.stop(); return; }
+  stopReverie(); listening=true; $('mic').classList.add('listening'); $('utter').value=''; $('utter').placeholder='listening…';
+  try{ recog.start(); }catch{}
+});
+
 $('form').addEventListener('submit',e=>{e.preventDefault();stopReverie();consider($('utter').value);});
 $('m-attend').onclick=()=>{stopReverie();$('utter').focus();};
 $('m-reverie').onclick=()=>{ reverieTimer?stopReverie():startReverie(); };

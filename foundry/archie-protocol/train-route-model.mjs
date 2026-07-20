@@ -291,8 +291,14 @@ async function main() {
       frozen_router_reference: 'The audit\'s frozen seed router reports 98.59% on the 498-prompt heldout; this model does not beat that router there.',
       caveat: 'Route selection only. This model emits fixed valid protocol templates; it does not generate answers, tool calls, or abstention prose, so Q6\'s generation metrics have no analogue here.'
     },
+    capacity_diagnosis: {
+      summary: 'Scaling width 256→1024 does not move the metrics; the residual error is shared across widths, stable across seeds, and concentrated in a register the corpus never contained. See foundry/archie-protocol/DIAGNOSIS.md.',
+      seed_noise: 'hidden=768, 5 seeds: 498-heldout sd 0.0023 (range 0.006). Width spread (0.751/0.747/0.749) < seed spread — noise.',
+      fixed_failure_mode: '60-case suite: 45 of ~48 errors shared by all widths {256,512,1024}; five routes score 0/5 there yet route correctly on the 498-set. Distribution shift, not capacity.',
+      real_lever: 'One-hidden-layer bag-of-features MLP: no order beyond bigrams, no attention, no turn/file memory. Next step is corpus register coverage and an order/context-aware encoder, not more parameters.'
+    },
     promotion: 'not-admitted',
-    claim_boundary: 'Routing-only comparison on frozen routing suites. Not a general model and not a replacement for the Q6 checkpoint’s generation abilities.'
+    claim_boundary: 'Routing-only comparison on frozen routing suites. Not a general model and not a replacement for the Q6 checkpoint’s generation abilities. Parameter scaling gave ~0 gain (see capacity_diagnosis); larger widths were shipped only because the review requested bigger and cost nothing in quality.'
   };
   const receipt = { ...body, receipt_digest: sha256(body) };
   fs.mkdirSync(path.dirname(outPath), { recursive: true });

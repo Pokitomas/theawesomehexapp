@@ -1,0 +1,25 @@
+{
+  "schema": "archie-product-only-smoke-receipt/v1",
+  "source_commit": "07b3c5a8e2a0509d4bda98e88235b5d2d66bbb4f",
+  "prompt": "Make an app that showcases the model's intellect as a willed being — voice, live deliberation, and on-device language processing.",
+  "created_at": "2026-07-20T03:06:37Z",
+  "artifact": {
+    "path": "archie/apps/interior/index.html",
+    "sha256": "74de8005ffb52f510d9b6319dc2e4360a2be50d68daed5a1d77ad00853e40a67",
+    "media_type": "text/html",
+    "independent_runnable": true,
+    "server_calls": 0
+  },
+  "verified_capabilities": [
+    "live softmax over twelve routes rendered as a radial dial",
+    "leave-one-word-out attribution over the real int8 weights",
+    "abstention rendered as refusal, naming recognized keywords",
+    "bigram-Markov reverie routed live (autonomous generation from own vocabulary)",
+    "voice input via Web Speech API SpeechRecognition",
+    "spoken output via SpeechSynthesis (on-device)",
+    "deterministic language processing: extractive summary, option and time extraction, clause decomposition",
+    "offline; no network calls after load"
+  ],
+  "result": "passed",
+  "truth_boundary": "Routing plus deterministic language processing only. Not a large language model, not text generation beyond recombining its own vocabulary, and not admitted."
+}
