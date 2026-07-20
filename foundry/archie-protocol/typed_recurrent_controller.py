@@ -164,7 +164,6 @@ def build_controller_class(reasoner: Any, *, reasoning_steps: int = 4):
                     key in name for key in ("token_embedding", "lm_head", "segment_queries")
                 ):
                     nn.init.xavier_uniform_(parameter)
-            # Context payloads start as weak residuals and earn influence from evidence.
             nn.init.constant_(self.route_gate.bias, -2.0)
 
         def _segment_ids(self, source_ids):
@@ -178,15 +177,41 @@ def build_controller_class(reasoner: Any, *, reasoning_steps: int = 4):
             return output
 
         def _encode_one_segment(self, embedded, source_padding, segment_ids, segment: int):
+            # Compact before recurrent encoding. Other segments cannot affect this
+            # segment through backward recurrence, sequence length, or token position.
             mask = segment_ids.eq(segment) & ~source_padding
-            isolated = embedded * mask.unsqueeze(-1)
-            states, _ = self.segment_encoder(isolated)
+            lengths = mask.sum(dim=1).clamp_min(1)
+            maximum = int(lengths.max().item())
+            compact = embedded.new_zeros(embedded.size(0), maximum, embedded.size(-1))
+            for batch_index in range(embedded.size(0)):
+                count = int(lengths[batch_index].item())
+                compact[batch_index, :count] = embedded[batch_index, mask[batch_index]]
+            packed = nn.utils.rnn.pack_padded_sequence(
+                compact,
+                lengths.cpu(),
+                batch_first=True,
+                enforce_sorted=False,
+            )
+            packed_states, _ = self.segment_encoder(packed)
+            states, _ = nn.utils.rnn.pad_packed_sequence(
+                packed_states,
+                batch_first=True,
+                total_length=maximum,
+            )
             states = self.encoder_norm(states)
+            compact_mask = (
+                torch.arange(maximum, device=embedded.device).unsqueeze(0)
+                < lengths.unsqueeze(1)
+            )
             scores = (states * self.segment_queries[segment]).sum(dim=-1) / math.sqrt(self.config.d_model)
-            scores = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)
+            scores = scores.masked_fill(~compact_mask, torch.finfo(scores.dtype).min)
             weights = torch.softmax(scores, dim=-1)
             pooled = torch.bmm(weights.unsqueeze(1), states).squeeze(1)
-            return states * mask.unsqueeze(-1), pooled
+            expanded = embedded.new_zeros(embedded.shape)
+            for batch_index in range(embedded.size(0)):
+                count = int(lengths[batch_index].item())
+                expanded[batch_index, mask[batch_index]] = states[batch_index, :count]
+            return expanded, pooled
 
         def encode(self, source_ids, source_padding):
             segment_ids = self._segment_ids(source_ids)
