@@ -19,7 +19,7 @@ That is the strongest current product decision: preserve the simple one-input/on
 - 43,706 parameters;
 - symmetric per-tensor int8 export.
 
-The committed selected model is `model.int8.json`. Its exact SHA-256 is:
+The selected `model.int8.json` payload is committed losslessly as base64 chunks under `model.int8.parts/`, with reconstruction metadata in `model.int8.manifest.json`. Its exact reconstructed SHA-256 is:
 
 ```text
 7bd31b5d67c24b5e16d9ef65bb35bf31d918bd5d25a18ef73f0538fc33595f5b
