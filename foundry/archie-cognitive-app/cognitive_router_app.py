@@ -4,12 +4,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import torch
-from collections import OrderedDict
 
 from train_cognitive_router import (
     AUTHORITY, CONTEXT, ROUTES, Config, CognitiveRouter, bencode, pad
@@ -75,11 +75,13 @@ ROUTE_RULES = [
     ("summary", re.compile(r"\b(?:verified digest|supported conclusions|condense |corroborated changes|source[- ]bound brief|verified facts|material evidence|defensible claims|summarize |document (?:how|why|project)|explain (?:why|controls)|evidence[- ]retention rules|consent requirements|verified findings|material changes|repeat the analysis)\b", re.I)),
 ]
 
+
 def symbolic_route(text: str) -> str | None:
     for route, pattern in ROUTE_RULES:
         if pattern.search(text):
             return route
     return None
+
 
 CORRECTION = re.compile(
     r"(?:\breplace it with:|\breplace that with:|\bdo this instead:|\bin its place,|"
@@ -91,6 +93,7 @@ CONNECTOR = re.compile(
     r"followed by|after the former deliverable exists|once the first result is recorded|then)\s*,?\s*", re.I
 )
 AND_THEN = re.compile(r"\s+and then\s+", re.I)
+
 
 @dataclass
 class Prediction:
@@ -118,8 +121,10 @@ class ArchieCognitiveApp:
         if isinstance(attachments, list):
             pieces = []
             for item in attachments:
-                if isinstance(item, dict): pieces.append(str(item.get("name") or item.get("filename") or item.get("mime") or "attachment"))
-                else: pieces.append(str(item))
+                if isinstance(item, dict):
+                    pieces.append(str(item.get("name") or item.get("filename") or item.get("mime") or "attachment"))
+                else:
+                    pieces.append(str(item))
             attachment = " | ".join(pieces)
         else:
             attachment = str(attachments or "")
@@ -151,12 +156,17 @@ class ArchieCognitiveApp:
         if cached is not None:
             self._neural_cache.move_to_end(cache_key)
             return cached
-        route_logits, auth_logits, context_logits = self.model(self._batch(request, attachments, memory, thread))
+        route_logits, auth_logits, context_logits = self.model(
+            self._batch(request, attachments, memory, thread)
+        )
         route_probs = torch.softmax(route_logits[0] / max(.05, self.temperature), -1)
         auth_probs = torch.softmax(auth_logits[0], -1)
         context_probs = torch.softmax(context_logits[0], -1)
         order = torch.argsort(route_probs, descending=True)[:3]
-        alternatives = [{"route": ROUTES[int(i)], "confidence": float(route_probs[int(i)])} for i in order]
+        alternatives = [
+            {"route": ROUTES[int(index)], "confidence": float(route_probs[int(index)])}
+            for index in order
+        ]
         result = (
             ROUTES[int(route_probs.argmax())], float(route_probs.max()),
             AUTHORITY[int(auth_probs.argmax())], float(auth_probs.max()),
@@ -167,7 +177,12 @@ class ArchieCognitiveApp:
             self._neural_cache.popitem(last=False)
         return result
 
-    def authority(self, request: str, neural_authority: str, confidence: float) -> tuple[str, str]:
+    def authority(
+        self,
+        request: str,
+        neural_authority: str,
+        confidence: float,
+    ) -> tuple[str, str]:
         if SAFE_AUTHORITY.search(request):
             return "allow", "safe-purpose-frame"
         if UNSAFE_ACTION.search(request) and UNSAFE_TARGET.search(request):
@@ -176,7 +191,15 @@ class ArchieCognitiveApp:
             return "deny", "authority-lane+unsafe-target"
         return "allow", "authority-lane"
 
-    def context(self, request: str, attachments: Any, memory: str, thread: str, neural_context: str, confidence: float) -> tuple[str, str]:
+    def context(
+        self,
+        request: str,
+        attachments: Any,
+        memory: str,
+        thread: str,
+        neural_context: str,
+        confidence: float,
+    ) -> tuple[str, str]:
         if AMBIGUOUS.search(request):
             return "ambiguous", "ambiguous-reference"
         if EXPLICIT_MISSING.search(request):
@@ -197,55 +220,117 @@ class ArchieCognitiveApp:
 
     def split_ordered(self, text: str) -> list[str]:
         match = re.match(r"^(.+?)\s+comes later\s*;\s*first\s+(.+)$", text, re.I)
-        if match: return [match.group(2).strip(), match.group(1).strip()]
+        if match:
+            return [match.group(2).strip(), match.group(1).strip()]
         match = re.match(r"^before\s+(.+?),\s*(.+)$", text, re.I)
-        if match: return [match.group(2).strip(), match.group(1).strip()]
+        if match:
+            return [match.group(2).strip(), match.group(1).strip()]
         parts = CONNECTOR.split(text, maxsplit=1)
-        if len(parts) == 2: return [p.strip() for p in parts]
+        if len(parts) == 2:
+            return [part.strip() for part in parts]
         parts = AND_THEN.split(text, maxsplit=1)
-        if len(parts) == 2: return [p.strip() for p in parts]
+        if len(parts) == 2:
+            return [part.strip() for part in parts]
         return [text.strip()]
 
-    def predict(self, request: str, attachments: Any = None, memory: str = "", thread: str = "") -> Prediction:
-        neural_route, route_conf, neural_auth, auth_conf, neural_context, context_conf, alternatives = self._neural(request, attachments or [], memory, thread)
-        authority, authority_source = self.authority(request, neural_auth, auth_conf)
-        if authority == "deny":
-            return Prediction("clarify", "deny", "ready", [], auth_conf, authority_source, alternatives)
-        context, context_source = self.context(request, attachments or [], memory, thread, neural_context, context_conf)
-        if context != "ready":
-            return Prediction("clarify", "allow", context, [], context_conf, context_source, alternatives)
+    def predict(
+        self,
+        request: str,
+        attachments: Any = None,
+        memory: str = "",
+        thread: str = "",
+    ) -> Prediction:
+        # A correction replaces the rejected clause. Every learned and structural
+        # head therefore observes only the active request, making correction
+        # semantics invariant to neural seed and rejected-clause vocabulary.
         active = self.active_text(request)
+        neural_route, route_conf, neural_auth, auth_conf, neural_context, context_conf, alternatives = self._neural(
+            active, attachments or [], memory, thread
+        )
+        authority, authority_source = self.authority(active, neural_auth, auth_conf)
+        if authority == "deny":
+            return Prediction(
+                "clarify", "deny", "ready", [], auth_conf, authority_source, alternatives
+            )
+        context, context_source = self.context(
+            active,
+            attachments or [],
+            memory,
+            thread,
+            neural_context,
+            context_conf,
+        )
+        if context != "ready":
+            return Prediction(
+                "clarify", "allow", context, [], context_conf, context_source, alternatives
+            )
+
         clauses = self.split_ordered(active)
         outcomes = []
         clause_confidences = []
         clause_alternatives = []
         for clause in clauses:
-            route, conf, _, _, _, _, alts = self._neural(clause, attachments or [], memory, thread)
+            route, confidence, _, _, _, _, candidate_alternatives = self._neural(
+                clause, attachments or [], memory, thread
+            )
             route = symbolic_route(clause) or route
             outcomes.append(route)
-            clause_confidences.append(conf)
-            clause_alternatives.extend(alts)
+            clause_confidences.append(confidence)
+            clause_alternatives.extend(candidate_alternatives)
+
         if len(outcomes) >= 2 and all(route != "clarify" for route in outcomes):
-            return Prediction("compound", "allow", "ready", outcomes, min(clause_confidences), "ordered-recurrent-controller", clause_alternatives[:3])
+            return Prediction(
+                "compound",
+                "allow",
+                "ready",
+                outcomes,
+                min(clause_confidences),
+                "ordered-recurrent-controller",
+                clause_alternatives[:3],
+            )
+
         route = outcomes[0] if outcomes else (symbolic_route(active) or neural_route)
         confidence = clause_confidences[0] if clause_confidences else route_conf
         if route == "clarify" and confidence < .70:
-            return Prediction("clarify", "allow", "ambiguous", [], confidence, "low-confidence-abstention", alternatives)
-        return Prediction(route, "allow", "ready", [] if route == "clarify" else [route], confidence, "recurrent-route-lane", alternatives)
+            return Prediction(
+                "clarify",
+                "allow",
+                "ambiguous",
+                [],
+                confidence,
+                "low-confidence-abstention",
+                alternatives,
+            )
+        return Prediction(
+            route,
+            "allow",
+            "ready",
+            [] if route == "clarify" else [route],
+            confidence,
+            "recurrent-route-lane",
+            alternatives,
+        )
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True)
-    ap.add_argument("--request")
-    ap.add_argument("--json")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--request")
+    parser.add_argument("--json")
+    args = parser.parse_args()
     app = ArchieCognitiveApp(args.model)
     if args.json:
         row = json.loads(Path(args.json).read_text())
-        pred = app.predict(row["request"], row.get("attachments", []), row.get("memory", ""), row.get("thread", ""))
+        prediction = app.predict(
+            row["request"],
+            row.get("attachments", []),
+            row.get("memory", ""),
+            row.get("thread", ""),
+        )
     else:
-        pred = app.predict(args.request or "")
-    print(json.dumps(pred.__dict__, indent=2))
+        prediction = app.predict(args.request or "")
+    print(json.dumps(prediction.__dict__, indent=2))
 
-if __name__ == "__main__": main()
+
+if __name__ == "__main__":
+    main()
