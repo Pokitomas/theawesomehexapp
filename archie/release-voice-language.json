@@ -1,0 +1,25 @@
+{
+  "schema": "archie-pages-release-request/v1",
+  "source_commit": "26b6f5f26c2daca8f7e173e2537a30069db8a02c",
+  "surface": "archie/",
+  "required_assets": [
+    "archie/index.html",
+    "archie/archie.js",
+    "archie/mind-core.mjs",
+    "archie/router-model.json",
+    "archie/sw.js"
+  ],
+  "required_capabilities": [
+    "browser-speech-input-when-supported",
+    "browser-speech-output-when-supported",
+    "local-readable-text-attachments",
+    "ordered-multiple-outcomes",
+    "negation",
+    "local-thread-context",
+    "abstention",
+    "authority-boundaries"
+  ],
+  "expected_router_sha256": "202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916",
+  "deployment_target": "github-pages",
+  "third_party_artifact_host": false
+}
