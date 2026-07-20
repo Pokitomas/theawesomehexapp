@@ -133,6 +133,7 @@ def provenance_key(row: dict[str, Any]) -> str | None:
 def normalized_row(row: dict[str, Any], family: str) -> dict[str, Any]:
     labels = expected(row)
     prompt = user_text(row)
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
     context_value = row.get("context") if isinstance(row.get("context"), dict) else {}
     return {
         "id": row.get("id") or digest({"prompt": prompt, "family": family})[:16],
@@ -141,6 +142,8 @@ def normalized_row(row: dict[str, Any], family: str) -> dict[str, Any]:
         "route": labels["route"],
         "authority": labels["authority"],
         "context": labels["context"],
+        "context_state": labels["context"],
+        "transform_type": row.get("transform_type") or metadata.get("transform_type") or "direct",
         "outcomes": labels["outcomes"],
         "attachments": row.get("attachments") or row.get("files") or row.get("attached_files") or [],
         "memory": row.get("memory") or row.get("memories") or context_value.get("memory") or "",
