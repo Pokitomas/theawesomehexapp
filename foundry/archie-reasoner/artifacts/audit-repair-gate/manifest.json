@@ -1,0 +1,43 @@
+{
+  "logical_bytes": 38616,
+  "logical_sha256": "28c131b16042ef1357e7d73cd8bfda1616043645620774e62d2f927b0062c8c4",
+  "media_type": "application/json",
+  "parts": [
+    {
+      "bytes": 6000,
+      "path": "part-00.json.fragment",
+      "sha256": "165bd92ab5f781701e229a3bf1eb4a66935ebddfa9420e53600e2d22501572d2"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-01.json.fragment",
+      "sha256": "b5f8cbfda280e39ec28743ae79f37102242b0342d65fe9bad500bd9c518c41aa"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-02.json.fragment",
+      "sha256": "7465a5f579bff842dcf65afb6fcbf4f00c42af31a540c73c1965d3368c81de2d"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-03.json.fragment",
+      "sha256": "2fd07477fd3c3172044073cb1144bef8a3b0301b888167087a472f4aa427f261"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-04.json.fragment",
+      "sha256": "2bd344906b1f6689ed8f64d92917fea7321cb5f881c8877aad951fe361594752"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-05.json.fragment",
+      "sha256": "257673c10fa7366ae9c32c35ca9cb47cfd5bafc2815bc76c09be9049486db79d"
+    },
+    {
+      "bytes": 2616,
+      "path": "part-06.json.fragment",
+      "sha256": "d0e10150c6e2a75a60367fa000e5b2daf688b260c4e46d4d18e4277ec4919f57"
+    }
+  ],
+  "schema": "archie-chunked-json/v1"
+}
