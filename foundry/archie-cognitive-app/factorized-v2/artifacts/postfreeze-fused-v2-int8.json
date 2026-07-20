@@ -1,0 +1,19 @@
+{
+  "schema": "archie-factorized-postfreeze-evaluation/v2-compact",
+  "candidate": "fused-v2-int8-storage",
+  "quantization": "symmetric per-tensor int8 checkpoint, dequantized for CPU inference",
+  "suite_sha256": "f0b8f8b99d9af10e51757f308c9310ed8498c20070f484cfcfb51531674334db",
+  "metrics": {
+    "examples": 310,
+    "correct": 239,
+    "accuracy": 0.7709677419354839,
+    "route_accuracy": 0.8161290322580645,
+    "latency_ms": {"mean": 39.95066548387098, "median": 39.43498199998558, "p95": 58.71350565001497}
+  },
+  "errors_sha256": "b71fe78042b5917ed7c68bda0164d2b45b76dae748e931879d00e3090ec2b101",
+  "source_checkpoint_sha256": "3fa670f43eaaae1e4d738a8ea99cd62c57dbdfea62f933eff6d391704384d0d8",
+  "int8_artifact_sha256": "4876fe8a255375f231a88183f6835dc85fb6d424203cfec8dd14d53b64c659b6",
+  "native_int8_kernel": false,
+  "exact_error_parity_with_float": true,
+  "promotion": "not-admitted"
+}
