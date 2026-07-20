@@ -85,7 +85,7 @@ jobs:
           node scripts/publish-human-surfaces.mjs dist
           mkdir -p dist/maker dist/archie/apps dist/world-expo dist/design dist/evidence dist/product
           cp maker/index.html maker/ios.html maker/maker.css maker/maker.js maker/manifest.webmanifest maker/sw.js maker/icon.svg dist/maker/
-          cp archie/index.html archie/archie.css archie/archie.js archie/router-model.json archie/router-admission.json archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
+          cp archie/index.html archie/archie.css archie/archie.js archie/mind-core.mjs archie/router-model.json archie/router-admission.json archie/manifest.webmanifest archie/sw.js archie/icon.svg dist/archie/
           cp -R archie/apps/. dist/archie/apps/
           cp world-expo/index.html world-expo/expo.css world-expo/expo.js dist/world-expo/
           cp design/frontier-world-expo.json dist/design/
@@ -108,9 +108,11 @@ jobs:
           grep -q 'Archie 95' dist/archie/index.html
           grep -q 'What needs handling?' dist/archie/index.html
           grep -q 'Admitted local neural router verified' dist/archie/archie.js
+          grep -q 'composeLocalResponse' dist/archie/mind-core.mjs
           grep -q '"admission":"admitted"' dist/archie/router-admission.json
           test -f dist/desktop/index.html
           test -f dist/archie/index.html
+          test -f dist/archie/mind-core.mjs
           test -f dist/archie/router-model.json
           test -f dist/archie/router-admission.json
           test -f dist/archie/apps/field-notes/index.html
@@ -126,6 +128,7 @@ jobs:
           trap 'kill $server || true' EXIT
           sleep 2
           curl -fsS http://127.0.0.1:4174/archie/router-model.json | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
+          curl -fsS http://127.0.0.1:4174/archie/mind-core.mjs | grep -q 'composeLocalResponse'
           curl -fsS http://127.0.0.1:4174/archie/apps/field-notes/index.html | sha256sum | grep -q '^f94b5cbac5f4e62e926984ab0d6b8f67764571258426f123f6507a9407925518 '
           FOUNDER_TEST_URL=http://127.0.0.1:4174/founder/ node scripts/tests/founder-room-phone.mjs
       - name: Upload human-power proof
@@ -198,6 +201,7 @@ jobs:
           set -euo pipefail
           curl -fsS "${DEPLOYED_URL%/}/archie/router-model.json" | sha256sum | grep -q '^202a6957bd0bbf0a9b4e92cd74014b2b9689393be539de8f5ab44f567a691916 '
           curl -fsS "${DEPLOYED_URL%/}/archie/router-admission.json" | grep -q '"admission":"admitted"'
+          curl -fsS "${DEPLOYED_URL%/}/archie/mind-core.mjs" | grep -q 'composeLocalResponse'
           curl -fsS "${DEPLOYED_URL%/}/archie/apps/field-notes/index.html" | sha256sum | grep -q '^f94b5cbac5f4e62e926984ab0d6b8f67764571258426f123f6507a9407925518 '
       - name: Upsert successful deployment receipt
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
