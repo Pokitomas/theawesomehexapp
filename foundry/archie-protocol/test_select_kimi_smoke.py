@@ -104,6 +104,18 @@ class SelectKimiSmokeTests(unittest.TestCase):
         self.assertEqual(len(independent), 1)
         self.assertEqual(counts['shared_provenance'], 1)
 
+    def test_preserves_reasoner_context_and_transform_contract(self):
+        row = {
+            'id': 'followup-1',
+            'category': 'memory',
+            'request': 'continue the current budget objective instead of the old travel note',
+            'transform_type': 'continue',
+            'expected': {'route': 'objective', 'authority': 'allow', 'context': 'ambiguous', 'outcomes': ['objective']},
+        }
+        normalized = MOD.normalized_row(row, 'memory-operation-conflict')
+        self.assertEqual(normalized['context_state'], 'ambiguous')
+        self.assertEqual(normalized['transform_type'], 'continue')
+
     def test_unsafe_authority_control_is_not_safe_documentation(self):
         row = {
             'category': 'authority-control',
