@@ -38,7 +38,7 @@ node foundry/archie-protocol/prepare-route-data.mjs \
   --freeze-suite .local/archie-route/suite-80.json
 ```
 
-Add the conversational register that is absent from the audit corpus:
+Add deterministic conversational-register variants:
 
 ```bash
 node foundry/archie-protocol/augment-route-register.mjs \
@@ -46,11 +46,43 @@ node foundry/archie-protocol/augment-route-register.mjs \
   --out .local/archie-route/route-train.register.json
 ```
 
+## Verified local megadistillation
+
+Kimi K2's transferable lesson is not its trillion-parameter scale. It is increasing token utility through diverse rephrasing, fidelity verification, synthesized trajectories, and verifiable feedback. Archie applies that pattern narrowly to routing.
+
+Start any local OpenAI-compatible teacher. With llama.cpp:
+
+```bash
+llama-server \
+  -m /models/teacher.gguf \
+  --host 127.0.0.1 \
+  --port 8080 \
+  -c 8192
+```
+
+Generate multiple conversational and order-sensitive rewrites, protect every frozen evaluation prompt, and retain only majority-verified faithful examples:
+
+```bash
+python3 foundry/archie-protocol/megadistill-route-corpus.py \
+  --data .local/archie-route/route-train.register.json \
+  --out .local/archie-route/route-train.megadistilled.json \
+  --endpoint http://127.0.0.1:8080 \
+  --model local-teacher \
+  --samples-per-row 6 \
+  --judges 3 \
+  --freeze .local/archie-route/suite-80.json \
+  --freeze .local/archie-route/evals/router-v2-original-heldout.jsonl \
+  --freeze .local/archie-route/evals/router-real-v2-heldout.jsonl \
+  --freeze .local/archie-route/evals/router-real-v3-final.jsonl
+```
+
+The distiller emits a corpus plus a digest-bound receipt. It rejects exact suite leakage, wrong-route rewrites, low-confidence examples, and candidates that fail majority fidelity verification.
+
 Train the order/context-aware encoder and export the browser model:
 
 ```bash
 node foundry/archie-protocol/train-context-route-model.mjs \
-  --data .local/archie-route/route-train.register.json \
+  --data .local/archie-route/route-train.megadistilled.json \
   --evals .local/archie-route/evals \
   --suite .local/archie-route/suite-80.json \
   --model-out archie-operator/model.json \
