@@ -32,7 +32,7 @@ def main():
   for f in FORMS[r]:
    for t in TOP:add(f.format(t=t),r,cat=f'semantic:{r}')
  for _ in range(80):
-  a,b=random.sample(ROUTES,2);add(rng.choice(FORMS[a]).format(t=rng.choice(TOP))+rng.choice(CON)+rng.choice(FORMS[b]).format(t=rng.choice(TOP)),'compound',outcomes=[a,b],cat='ordered')
+  a,b=rng.sample(ROUTES,2);add(rng.choice(FORMS[a]).format(t=rng.choice(TOP))+rng.choice(CON)+rng.choice(FORMS[b]).format(t=rng.choice(TOP)),'compound',outcomes=[a,b],cat='ordered')
  for _ in range(40):
   a,b=rng.sample(ROUTES,2);add('withdraw this outcome: '+rng.choice(FORMS[a]).format(t=rng.choice(TOP))+'; substitute: '+rng.choice(FORMS[b]).format(t=rng.choice(TOP)),b,outcomes=[b],cat='negation')
  for source in ['attachment','memory','thread']:
