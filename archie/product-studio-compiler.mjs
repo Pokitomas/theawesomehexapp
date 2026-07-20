@@ -1,0 +1,34 @@
+import { ARCHETYPE_COPY, STYLE_TOKENS } from './product-studio-spec.mjs';
+import { cleanText, hashText, selectDiverseBlueprints } from './product-studio-model.mjs';
+import { densityCss, layoutCss, layoutMarkup, motionCss } from './product-studio-layouts.mjs';
+import { compileStandaloneRuntime } from './product-studio-runtime.mjs';
+
+function escapeHtml(value) {
+  return cleanText(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+}
+
+function titleFromPrompt(prompt, fallback) {
+  const compact = cleanText(prompt).replace(/^(build|make|create|design)\s+(me\s+)?(an?\s+)?/i, '').split(/[.!?]/)[0].trim();
+  return (compact || fallback).slice(0, 68);
+}
+
+export function compileProductHtml(blueprint, prompt) {
+  const copy = ARCHETYPE_COPY[blueprint.archetype] || ARCHETYPE_COPY.utility;
+  const tokens = STYLE_TOKENS[blueprint.style] || STYLE_TOKENS.calm;
+  const title = titleFromPrompt(prompt, copy.title);
+  const identity = cleanText(blueprint.identity || `${blueprint.archetype}:${blueprint.layout}:${blueprint.style}:${blueprint.density}:${blueprint.motion}`);
+  const key = `archie-product/${hashText(`${prompt}:${identity}`).toString(16)}/v1`;
+  const markup = layoutMarkup(blueprint.layout, copy);
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="${tokens.bg}"><title>${escapeHtml(title)}</title><style>
+${densityCss(blueprint.density)}
+:root{color-scheme:${['industrial','cinematic','high-contrast','terminal','glass'].includes(blueprint.style) ? 'dark' : 'light'};font-family:${tokens.font};--bg:${tokens.bg};--panel:${tokens.panel};--ink:${tokens.ink};--muted:${tokens.muted};--accent:${tokens.accent};--line:${tokens.line};--radius:${tokens.radius};--shadow:${tokens.shadow}}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:var(--bg);color:var(--ink)}body[data-style="glass"]{background:radial-gradient(circle at 15% 10%,#425c91,transparent 35rem),radial-gradient(circle at 90% 80%,#5b286c,transparent 40rem),#101728}button,input,textarea{font:inherit}button{cursor:pointer}.shell{width:min(1180px,100%);margin:auto;padding-top:max(var(--space),env(safe-area-inset-top));padding-bottom:max(calc(var(--space)*2),env(safe-area-inset-bottom))}.top{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:calc(var(--space)*1.5);border-bottom:2px solid var(--line);padding-bottom:var(--space)}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:var(--accent);font-weight:850}.top h1{font-family:${tokens.display};font-size:clamp(34px,7vw,76px);line-height:.96;letter-spacing:-.055em;margin:8px 0 0;max-width:850px}.top p{max-width:380px;color:var(--muted);line-height:1.5;margin:0}.capture,.collection,.stats article,.detail{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.capture{display:grid;gap:var(--space);padding:calc(var(--space)*1.15)}label{display:grid;gap:6px;color:var(--muted);font-size:12px;font-weight:750}input,textarea{width:100%;min-height:var(--control);border:1px solid var(--line);border-radius:calc(var(--radius)*.65);background:color-mix(in srgb,var(--panel) 84%,var(--bg));color:var(--ink);padding:10px 12px;outline:none}textarea{min-height:90px;resize:vertical}input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px}.capture button,.top button{min-height:var(--control);border:2px solid var(--accent);border-radius:var(--radius);background:var(--accent);color:${blueprint.style === 'high-contrast' ? '#000' : tokens.panel};font-weight:900;padding:0 16px}.top button{background:transparent;color:var(--ink)}.collection{padding:var(--space);min-width:0}.collection-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:var(--space);text-transform:capitalize}.collection-head input{width:min(260px,55%)}.items{display:grid;gap:var(--space)}.item{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 88%,var(--accent));border-radius:var(--radius);display:grid;grid-template-columns:1fr auto;gap:10px;box-shadow:${blueprint.style === 'brutalist' ? '4px 4px 0 var(--line)' : 'none'}}.item.done{opacity:.56}.item-main{min-width:0;cursor:pointer}.item strong{display:block;font-size:16px}.item p{color:var(--muted);margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}.item small{display:block;color:var(--accent);margin-top:8px}.item-actions{display:flex;gap:6px;align-items:start}.item-actions button{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:calc(var(--radius)*.65);min-width:36px;min-height:34px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space);margin-bottom:var(--space)}.stats article{padding:var(--space)}.stats strong{font-family:${tokens.display};display:block;font-size:clamp(28px,5vw,48px)}.stats span{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}.empty{color:var(--muted);border:1px dashed var(--line);padding:28px;text-align:center}.foot{display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--muted);font-size:11px;margin-top:calc(var(--space)*1.5);padding-top:var(--space);border-top:1px solid var(--line)}
+${layoutCss(blueprint.layout)}
+${motionCss(blueprint.motion)}
+@media(max-width:760px){.top{align-items:flex-start;flex-direction:column}.split,.deck,.master-detail{grid-template-columns:1fr}.board-wrap .items{display:grid;grid-template-columns:1fr}.board-wrap .item{grid-column:1!important}.ledger-wrap .item{grid-template-columns:1fr auto}.canvas .collection{width:100%;transform:none}.stats{grid-template-columns:repeat(3,1fr)}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body data-layout="${escapeHtml(blueprint.layout)}" data-style="${escapeHtml(blueprint.style)}"><main class="shell"><header class="top"><div><div class="eyebrow">${escapeHtml(blueprint.archetype)} · ${escapeHtml(blueprint.layout)} · ${escapeHtml(blueprint.style)}</div><h1>${escapeHtml(title)}</h1></div><div><p>${escapeHtml(prompt)}</p><button id="export" type="button">Export JSON</button></div></header>${markup}<footer class="foot"><span>Standalone local app · no account · no server calls</span><span>${escapeHtml(identity)}</span></footer></main><script>${compileStandaloneRuntime({ key, copy, blueprint, prompt: cleanText(prompt), downloadName: `${hashText(title).toString(16)}-export.json` })}</script></body></html>`;
+}
+
+export function compileDiverseProducts(model, prompt, count = 3) {
+  return selectDiverseBlueprints(model, prompt, count).map(blueprint => ({ blueprint, html: compileProductHtml(blueprint, prompt) }));
+}
