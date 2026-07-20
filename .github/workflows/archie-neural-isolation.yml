@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: archie-neural-self-contained-${{ github.event.pull_request.number || github.ref }}
@@ -16,16 +16,17 @@ concurrency:
 jobs:
   train:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 330
     steps:
-      - name: Check out exact PR head
-        uses: actions/checkout@v4
+      - name: Check out exact candidate head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
+          persist-credentials: false
 
-      - name: Stop after evidence is committed
+      - name: Stop after evidence is already present
         id: already
         shell: bash
         run: |
@@ -38,7 +39,7 @@ jobs:
 
       - name: Set up Python
         if: steps.already.outputs.done != 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
         with:
           python-version: '3.11'
           cache: pip
@@ -51,6 +52,7 @@ jobs:
         if: steps.already.outputs.done != 'true'
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p .tmp/empty-legacy
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -80,6 +82,7 @@ jobs:
         if: steps.already.outputs.done != 'true'
         working-directory: foundry/archie-protocol/neural
         run: |
+          set -euo pipefail
           python np_transformer.py --gradcheck
           python test_np_transformer.py
           python -m py_compile protected_finetune.py
@@ -87,6 +90,7 @@ jobs:
       - name: Train committed authored-dominant checkpoint
         if: steps.already.outputs.done != 'true'
         run: |
+          set -euo pipefail
           python foundry/archie-protocol/neural/np_transformer.py \
             --seed 424243 \
             --d 128 \
@@ -108,6 +112,7 @@ jobs:
       - name: Adapt only route head with replay and proximal protection
         if: steps.already.outputs.done != 'true'
         run: |
+          set -euo pipefail
           python foundry/archie-protocol/neural/protected_finetune.py \
             --source-receipt foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243-receipt.json \
             --source-weights foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243.npz \
@@ -124,10 +129,11 @@ jobs:
             --proximal 0.001 \
             --label-smoothing 0.05
 
-      - name: Write evidence and promotion decision
+      - name: Write evidence and non-promotion decision
         if: steps.already.outputs.done != 'true'
         shell: bash
         run: |
+          set -euo pipefail
           cp .tmp/committed-route-corpus.manifest.json foundry/archie-protocol/neural/runs/committed-route-corpus.manifest.json
           node foundry/archie-protocol/neural/compare-runs.mjs
           python - <<'PY'
@@ -163,6 +169,11 @@ jobs:
               })
 
           protection = receipts['G']['protection']
+          if protection['protected_before_sha256'] != protection['protected_after_sha256']:
+              raise SystemExit('protected parameter digest changed')
+          if protection['bit_exact'] is not True:
+              raise SystemExit('protected adaptation was not bit-exact')
+
           selected_epoch = receipts['G']['config']['selected_epoch']
           best_key = max(('B', 'F', 'G'), key=lambda key: blind(key, 'full_accuracy'))
           promotion = 'not-admitted'
@@ -180,7 +191,8 @@ jobs:
               'runs': rows,
               'best_blind_run': best_key,
               'protected_bit_exact': protection['bit_exact'],
-              'protected_digest': protection['protected_before_sha256'],
+              'protected_before_sha256': protection['protected_before_sha256'],
+              'protected_after_sha256': protection['protected_after_sha256'],
               'selected_epoch': selected_epoch,
               'promotion': promotion,
               'claim_boundary': 'Runs F/G are a new committed-data experiment, not a reconstruction of run C. Legacy admission suites were unavailable, so neither candidate can be promoted regardless of blind-pack performance.'
@@ -235,17 +247,19 @@ jobs:
           print(report)
           PY
 
-      - name: Commit permanent evidence and remove temporary workflow
+      - name: Upload digest-bound experimental evidence
         if: steps.already.outputs.done != 'true'
-        shell: bash
-        env:
-          BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
-        run: |
-          git config user.name "archie-neural-lab"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/archie-neural-isolation.yml
-          git add foundry/archie-protocol/neural/runs \
-                  foundry/archie-protocol/neural/NEURAL_ISOLATION.md \
-                  foundry/archie-protocol/neural/NEURAL_MASTERY.md
-          git commit -m "Complete self-contained neural follow-up [skip ci]"
-          git push origin "HEAD:${BRANCH}"
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-neural-self-contained-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243.npz
+            foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243-receipt.json
+            foundry/archie-protocol/neural/runs/npt-committed-headsafe-d128-seed424243.npz
+            foundry/archie-protocol/neural/runs/npt-committed-headsafe-d128-seed424243-receipt.json
+            foundry/archie-protocol/neural/runs/committed-route-corpus.manifest.json
+            foundry/archie-protocol/neural/runs/self-contained-followup-summary.json
+            foundry/archie-protocol/neural/NEURAL_ISOLATION.md
+            foundry/archie-protocol/neural/NEURAL_MASTERY.md
+          if-no-files-found: error
+          retention-days: 14
