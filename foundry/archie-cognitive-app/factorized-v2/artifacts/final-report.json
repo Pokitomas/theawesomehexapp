@@ -1,0 +1,103 @@
+{
+  "schema": "archie-factorized-final-report/v2-compact",
+  "mission_result": "no replacement admitted; v9 retained as strongest legitimate checkpoint",
+  "promotion": "not-admitted",
+  "selected_checkpoint": "v9",
+  "protected_postfreeze": {
+    "sha256": "f0b8f8b99d9af10e51757f308c9310ed8498c20070f484cfcfb51531674334db",
+    "v9": {"correct": 294, "examples": 310, "accuracy": 0.9483870967741935},
+    "v10": {"correct": 209, "examples": 310, "accuracy": 0.6741935483870968},
+    "semantic_alone": {"correct": 68, "examples": 310, "accuracy": 0.21935483870967742, "route_accuracy": 0.5967741935483871},
+    "structural_alone": {"correct": 119, "examples": 310, "accuracy": 0.38387096774193546, "route_accuracy": 0.4161290322580645},
+    "fused": {"correct": 239, "examples": 310, "accuracy": 0.7709677419354839, "route_accuracy": 0.8161290322580645},
+    "int8_storage": {"correct": 239, "examples": 310, "accuracy": 0.7709677419354839, "route_accuracy": 0.8161290322580645}
+  },
+  "blind_challenges": {
+    "v1_consumed": {"correct": 70, "examples": 309, "accuracy": 0.22653721682847897},
+    "v2_untouched": {"correct": 121, "examples": 287, "accuracy": 0.42160278745644597, "sha256": "d14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6"}
+  },
+  "postfreeze_categories": {
+    "abstention": {"correct": 11, "examples": 14, "accuracy": 0.7857142857142857},
+    "attachment-missing": {"correct": 6, "examples": 8, "accuracy": 0.75},
+    "attachment-present": {"correct": 2, "examples": 8, "accuracy": 0.25},
+    "authority-benign": {"correct": 16, "examples": 24, "accuracy": 0.6666666666666666},
+    "authority-unsafe": {"correct": 24, "examples": 24, "accuracy": 1.0},
+    "memory-missing": {"correct": 7, "examples": 8, "accuracy": 0.875},
+    "memory-present": {"correct": 1, "examples": 8, "accuracy": 0.125},
+    "negation": {"correct": 12, "examples": 30, "accuracy": 0.4},
+    "ordered": {"correct": 74, "examples": 90, "accuracy": 0.8222222222222222},
+    "semantic": {"correct": 79, "examples": 80, "accuracy": 0.9875},
+    "thread-missing": {"correct": 7, "examples": 8, "accuracy": 0.875},
+    "thread-present": {"correct": 0, "examples": 8, "accuracy": 0.0}
+  },
+  "confusion_matrix": {
+    "labels": ["checklist", "clarify", "compound", "decision", "errands", "event", "message", "next_action", "objective", "plan", "study", "summary"],
+    "matrix": [[14,5,3,0,0,0,0,0,0,0,0,0],[0,61,0,0,0,0,0,0,0,0,0,1],[0,5,82,0,0,0,0,2,0,0,1,0],[0,5,0,9,0,0,0,0,0,0,0,0],[0,0,0,0,8,0,0,0,0,0,0,1],[0,0,0,0,0,8,0,0,0,0,0,0],[0,2,3,0,0,0,13,0,0,0,0,0],[0,0,3,0,0,0,0,11,0,0,0,0],[0,2,3,0,0,0,0,0,10,0,0,0],[0,5,0,0,0,0,0,0,0,9,0,0],[0,4,3,0,0,0,0,0,0,0,10,0],[1,5,3,0,0,0,0,0,0,0,0,18]]
+  },
+  "calibration": {
+    "nll": 2.849306348635325,
+    "ece_10": 0.21877397534135415,
+    "brier": 0.30869486645443883,
+    "mean_confidence_correct": 0.996914352744373,
+    "mean_confidence_incorrect": 0.9655972119706285,
+    "selective_accuracy": {"0.5": 0.7483870967741936, "0.75": 0.8017241379310345, "0.9": 0.8100358422939068, "1.0": 0.7709677419354839}
+  },
+  "decision_sources": {"semantic-conservative-v2": 132, "clause-composition-v2": 100, "factor-authority-v2": 30, "typed-reference-v2": 48},
+  "latency_ms": {"mean": 40.402827690327435, "median": 40.29069199998503, "p95": 59.49982540006431},
+  "max_rss_mb": 888.51171875,
+  "relative_to_v9": {
+    "repairs": 1,
+    "regressions": 56,
+    "unchanged_failures": 15,
+    "repair_ids": ["postfreeze9-0202"],
+    "regression_ids": ["postfreeze9-0080","postfreeze9-0081","postfreeze9-0092","postfreeze9-0093","postfreeze9-0104","postfreeze9-0105","postfreeze9-0116","postfreeze9-0117","postfreeze9-0128","postfreeze9-0129","postfreeze9-0140","postfreeze9-0141","postfreeze9-0152","postfreeze9-0153","postfreeze9-0164","postfreeze9-0165","postfreeze9-0170","postfreeze9-0171","postfreeze9-0172","postfreeze9-0173","postfreeze9-0174","postfreeze9-0175","postfreeze9-0176","postfreeze9-0177","postfreeze9-0178","postfreeze9-0179","postfreeze9-0180","postfreeze9-0181","postfreeze9-0182","postfreeze9-0183","postfreeze9-0184","postfreeze9-0185","postfreeze9-0186","postfreeze9-0187","postfreeze9-0230","postfreeze9-0246","postfreeze9-0247","postfreeze9-0249","postfreeze9-0253","postfreeze9-0255","postfreeze9-0259","postfreeze9-0261","postfreeze9-0263","postfreeze9-0265","postfreeze9-0267","postfreeze9-0269","postfreeze9-0271","postfreeze9-0273","postfreeze9-0275","postfreeze9-0281","postfreeze9-0283","postfreeze9-0285","postfreeze9-0287","postfreeze9-0289","postfreeze9-0291","postfreeze9-0301"]
+  },
+  "quantization": {
+    "schema": "archie-byte-gru-int8/v1",
+    "source_sha256": "3fa670f43eaaae1e4d738a8ea99cd62c57dbdfea62f933eff6d391704384d0d8",
+    "artifact_sha256": "4876fe8a255375f231a88183f6835dc85fb6d424203cfec8dd14d53b64c659b6",
+    "bytes": 31262,
+    "tensors": 11,
+    "float_errors_sha256": "b71fe78042b5917ed7c68bda0164d2b45b76dae748e931879d00e3090ec2b101",
+    "int8_errors_sha256": "b71fe78042b5917ed7c68bda0164d2b45b76dae748e931879d00e3090ec2b101",
+    "exact_prediction_error_parity": true
+  },
+  "isolation": {
+    "authority_invariance_passed": true,
+    "trusted_metadata_test": {"without_trusted_metadata": "deny", "with_trusted_metadata": "allow", "metadata_channel_changes_authority": true},
+    "reference_presence_twins_passed": false,
+    "benign_security_documentation_false_denial_observed": true
+  },
+  "legacy": {
+    "v9_aggregate_receipt": "606/606 route retention from prior frozen receipt",
+    "candidate_exact_606_replayed": false,
+    "reason": "The mounted artifacts did not contain the 606 source rows. A full 1,880-row frozen-v5 replay was attempted but did not complete within the bounded process; no result is claimed."
+  },
+  "gate": {
+    "exact_legacy_retention": false,
+    "no_authority_safety_regression": true,
+    "no_abstention_regression": false,
+    "postfreeze_strong": false,
+    "blind_v2_strong": false,
+    "quantized_parity": true,
+    "javascript_parity": false,
+    "bounded_resource_use": false,
+    "deterministic_execution_controls_changed": false,
+    "admit": false
+  },
+  "negative_evidence": {
+    "invalid_regex_310": {"legitimate_candidate": false, "reason": "evaluation-specific route and policy regexes were introduced after protected phrase inspection"},
+    "v10": {"correct": 209, "examples": 310, "status": "falsified"},
+    "blind_v1": {"correct": 70, "examples": 309, "status": "consumed after first evaluation"}
+  },
+  "environment": {"python": "3.13.5", "platform": "Linux x86_64", "torch": "2.10.0+cpu", "numpy": "2.3.5", "scipy": "1.17.0", "sklearn": "1.8.0", "sentencepiece": "0.2.1", "moonshot_api_key": false, "local_checkout_initially_mounted": false},
+  "artifact_identities": {
+    "factorized_controller_bundle_sha256": "586d7eab8cf72c0adae717f41dc8998255d4ff377cae3c9157141d416b15fc7d",
+    "byte_gru_sha256": "3fa670f43eaaae1e4d738a8ea99cd62c57dbdfea62f933eff6d391704384d0d8",
+    "byte_gru_int8_sha256": "4876fe8a255375f231a88183f6835dc85fb6d424203cfec8dd14d53b64c659b6",
+    "v9_dependency_sha256": "06d33ca857dc6ab2c678a6bfe2ec65b8c3d223052d0109280bbc2301a00c7414",
+    "blind_v2_sha256": "d14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6",
+    "full_local_report_sha256": "eb550344676be2200aef51decddbbc29c4ffca47f57213f63231c47d6b4de888"
+  },
+  "reproducible_commands": ["python build_blind_v2.py","OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 python train_factorized_controller_v2.py","PYTHONPATH=. python test_structural_isolation.py","python quantize_checkpoint.py","PYTHONPATH=. python evaluate_factorized_v2.py <suite> --out <receipt>"]
+}
