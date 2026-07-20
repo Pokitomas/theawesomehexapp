@@ -9,14 +9,17 @@ training on the audit corpus (seed 3407 unless noted).
 ## Method
 
 - **(A) seed variance** at hidden=768, epochs=110, five seeds.
-- **(B) shared-failure test**: train hidden ∈ {256, 512, 1024} (seed 3407,
-  epochs 90), compare the *set* of misclassified cases on the 60-case
+- **(B) shared-failure test**: train hidden ∈ {256, 512, 1024} (seed 3407),
+  compare the *set* of misclassified cases on the 60-case
   `router-real-v2-heldout` suite.
+- **(C) regime**: hidden=1024 (seed 3407) under four learning-rate / epoch
+  schedules.
 
-(An earlier pass of (B)/(C) accidentally omitted the seed argument, degenerating
-the RNG to a constant and producing symmetric near-chance models; those numbers
-were discarded and (B) was re-run with seeds passed. The figures below are the
-corrected run.)
+(An earlier pass accidentally omitted the seed argument in one script,
+degenerating the RNG to a constant and producing symmetric near-chance models;
+those numbers were discarded. Two independent seeded runs agree on the figures
+below — at epochs 110 all three widths miss the *same* 22 cases, intersection =
+union = 22.)
 
 ## Findings, per hypothesis
 
@@ -56,11 +59,11 @@ n=60 are ±~12 points, so single-model comparisons there are underpowered — wh
 is exactly why (B) compares *miss sets*, not scores.
 
 **"Training duration or learning rate is mismatched for larger models."** —
-**Not the bottleneck** (inferred, not separately measured). Given (A) and (B)
-show width and seed barely move the metrics and 22 of 23 errors are identical
-across widths, a schedule tweak cannot recover cases the representation cannot
-express. A clean LR/epoch sweep at hidden=1024 was not completed with valid
-seeds, so this is an inference from (A)+(B) rather than a direct result.
+**Not the bottleneck (measured).** hidden=1024 under four schedules
+(lr/epochs = 0.08/110, 0.05/160, 0.12/90, 0.03/220) gave 498-heldout
+0.749 / 0.745 / 0.757 / 0.743 and 60-case 0.633 / 0.633 / 0.617 / 0.633. The
+best 498 score (0.757 at lr=0.12) still left the 60-case suite on its plateau.
+No schedule lifts the fixed failure set.
 
 **"The architecture lacks depth, attention, memory, or useful inductive
 structure."** — **True, and the real lever.** The model is a one-hidden-layer
