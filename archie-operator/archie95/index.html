@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#008080">
+<title>Archie 95 — Operator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23008080'/%3E%3Crect x='10' y='12' width='44' height='32' fill='%23c0c0c0' stroke='%23000'/%3E%3Crect x='12' y='14' width='40' height='7' fill='%23000080'/%3E%3Ctext x='32' y='38' font-family='monospace' font-size='16' fill='%23000080' text-anchor='middle' font-weight='bold'%3EA%3C/text%3E%3C/svg%3E">
+<style>
+  :root{--face:#c0c0c0;--sh:#808080;--dk:#404040;--hi:#fff;--title:#000080;--title2:#1084d0;--teal:#008080}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{font-family:Tahoma,"MS Sans Serif",Geneva,system-ui,sans-serif;font-size:12px;background:var(--teal);user-select:none}
+  button{font:inherit;cursor:pointer}
+  .btn{background:var(--face);padding:4px 14px;border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);box-shadow:inset 1px 1px 0 #dfdfdf,inset -1px -1px 0 var(--sh)}
+  .btn:active{border-color:var(--dk) var(--hi) var(--hi) var(--dk)}
+  .btn:focus-visible{outline:1px dotted #000;outline-offset:-5px}
+  textarea,input[type=text]{font:inherit;background:#fff;border:2px solid;border-color:var(--dk) var(--hi) var(--hi) var(--dk);padding:4px 6px;width:100%;user-select:text}
+  textarea{resize:none}
+  fieldset{border:1px solid var(--sh);box-shadow:1px 1px 0 var(--hi) inset;padding:8px;display:flex;flex-direction:column;gap:6px}
+  legend{padding:0 4px;font-size:11px}
+  #desk{position:fixed;inset:0 0 30px 0;overflow:hidden}
+  #icons{position:absolute;top:8px;left:8px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,84px);gap:2px 6px;height:calc(100% - 12px)}
+  .dicon{width:78px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:1px solid transparent;padding:5px 2px;color:#fff;text-shadow:1px 1px 0 #000;font-size:11px;line-height:1.15;text-align:center}
+  .dicon .g{width:34px;height:30px;background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);display:grid;place-items:center;font-size:15px;font-weight:bold;color:var(--title)}
+  .dicon:focus-visible,.dicon.sel{background:rgba(0,0,128,.45);border:1px dotted #fff}
+  .win{position:absolute;background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);box-shadow:inset 1px 1px 0 #dfdfdf,inset -1px -1px 0 var(--sh),2px 2px 0 rgba(0,0,0,.35);display:flex;flex-direction:column;min-width:260px;max-width:calc(100vw - 8px)}
+  .win.max{left:2px!important;top:2px!important;width:calc(100vw - 4px)!important;height:calc(100vh - 34px)!important}
+  .tbar{display:flex;align-items:center;gap:6px;padding:2px 3px;background:linear-gradient(90deg,var(--title),var(--title2));color:#fff;font-weight:bold;touch-action:none}
+  .win.blur .tbar{background:linear-gradient(90deg,#808080,#b5b5b5)}
+  .tbar .ttl{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;display:flex;gap:6px;align-items:center}
+  .tbar .mini{width:16px;height:14px;background:var(--face);color:var(--title);display:grid;place-items:center;font-size:10px;font-weight:bold}
+  .tbtn{width:18px;height:16px;background:var(--face);border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi);display:grid;place-items:center;font-size:10px;font-weight:bold;padding:0;color:#000}
+  .tbtn:active{border-color:var(--dk) var(--hi) var(--hi) var(--dk)}
+  .wbody{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px;user-select:text}
+  .wstatus{border-top:1px solid var(--sh);box-shadow:0 -1px 0 var(--hi);padding:3px 8px;font-size:11px;display:flex;justify-content:space-between;gap:8px}
+  .wstatus b{color:var(--title)}
+  .oprail{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-family:Consolas,monospace;font-size:11px}
+  .opchip{padding:2px 7px;background:#e6f0ff;border:2px solid;border-color:var(--dk) var(--hi) var(--hi) var(--dk);color:var(--title);font-weight:bold}
+  .opchip.stopc{color:#802000;background:#fff}
+  .judges{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:4px}
+  .judge{background:#fff;border:1px solid var(--sh);padding:5px 7px;font-size:11px}
+  .judge b{display:block;font-size:12px;color:var(--title)}
+  .judge.warn b{color:#802000}
+  .dial{width:100%;height:96px;background:#000;border:2px solid;border-color:var(--dk) var(--hi) var(--hi) var(--dk)}
+  table{border-collapse:collapse;width:100%;background:#fff}
+  th,td{border:1px solid var(--sh);padding:4px 6px;font-size:11.5px;text-align:left;vertical-align:top}
+  th{background:var(--face)}
+  #taskbar{position:fixed;left:0;right:0;bottom:0;height:30px;background:var(--face);border-top:2px solid;border-color:var(--hi) transparent transparent transparent;display:flex;align-items:center;gap:4px;padding:2px 4px;z-index:900}
+  #startbtn{display:flex;align-items:center;gap:5px;font-weight:bold;padding:2px 8px;height:24px}
+  #startbtn .flag{display:grid;grid-template-columns:repeat(2,6px);gap:1px}
+  #startbtn .flag i{width:6px;height:6px}
+  #tasks{flex:1;display:flex;gap:3px;overflow:hidden}
+  .taskbtn{max-width:150px;min-width:56px;flex:1;height:24px;display:flex;align-items:center;gap:5px;padding:2px 7px;overflow:hidden;white-space:nowrap;font-size:11px}
+  .taskbtn.active{border-color:var(--dk) var(--hi) var(--hi) var(--dk);background:#dfdfdf;font-weight:bold}
+  #clock{padding:3px 10px;height:24px;display:flex;align-items:center;font-size:11px}
+  #startmenu{position:fixed;left:2px;bottom:32px;width:224px;background:var(--face);z-index:950;display:none;border:2px solid;border-color:var(--hi) var(--dk) var(--dk) var(--hi)}
+  #startmenu.open{display:flex}
+  .sside{width:26px;background:linear-gradient(180deg,var(--title),var(--title2));color:#fff;writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;padding:8px 2px;font-weight:bold;letter-spacing:2px;font-size:14px}
+  .sitems{flex:1;display:flex;flex-direction:column;padding:3px}
+  .sitem{display:flex;gap:8px;padding:6px 8px;background:none;border:none;text-align:left;font-size:12px;width:100%}
+  .sitem:hover{background:var(--title);color:#fff}
+  .sitem .g{width:20px;text-align:center;font-weight:bold;color:var(--title)}
+  .sitem:hover .g{color:#9cc3ff}
+  @media (max-width:640px){#icons{left:4px}.win{min-width:0}}
+</style>
+</head>
+<body>
+<div id="desk"><div id="icons" role="toolbar" aria-label="Desktop"></div></div>
+
+<div id="startmenu"><div class="sside">ARCHIE&nbsp;95</div><div class="sitems" id="smenu"></div></div>
+
+<div id="taskbar">
+  <button id="startbtn" class="btn"><span class="flag" aria-hidden="true"><i style="background:#f25022"></i><i style="background:#7fba00"></i><i style="background:#00a4ef"></i><i style="background:#ffb900"></i></span>Start</button>
+  <div id="tasks"></div>
+  <div id="clock" class="btn" style="pointer-events:none">--:--</div>
+</div>
+
+<script type="module">
+import { createTransformer } from '../transformer-core.mjs';
+import { createRouter } from '../operator-core.mjs';
+
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store=(k,v)=>localStorage.setItem('a95-'+k,JSON.stringify(v));
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem('a95-'+k))??d}catch{return d}};
+
+/* ------------------------- model boot: transformer first ------------------ */
+let brain=null, brainKind='none', MODELMETA={};
+try {
+  const m=await (await fetch('../transformer-model.json')).json();
+  brain=createTransformer(m); brainKind='transformer';
+  MODELMETA={params:m.parameters,digest:m.model_digest,results:m.results,kind:'from-scratch transformer (int8)'};
+} catch {
+  try {
+    const m=await (await fetch('../model.json')).json();
+    const infer=createRouter(m);
+    brain={predict:(req,ctx)=>{const r=infer(req);return{...r,authority:'allow',context:r.route==='clarify'?'ambiguous':'ready',reference:'none',outcomes:r.route==='clarify'?[]:[r.route],distribution:(r.alternatives||[]).map(a=>({route:a.route,p:a.confidence}))};}};
+    brainKind='mlp'; MODELMETA={params:m.parameters,digest:m.model_digest,kind:'sparse MLP fallback (int8)'};
+  } catch { brainKind='none'; }
+}
+
+const PROTO={summary:['OBSERVE','DRAFT','STOP'],checklist:['OBSERVE','DECOMPOSE','DRAFT','STOP'],message:['OBSERVE','DRAFT','STOP'],decision:['OBSERVE','COMPARE','DRAFT','STOP'],study:['RETRIEVE','DECOMPOSE','ORDER','SCHEDULE','STOP'],event:['OBSERVE','DECOMPOSE','ORDER','SCHEDULE','STOP'],errands:['OBSERVE','ORDER','SCHEDULE','STOP'],plan:['RETRIEVE','DECOMPOSE','ORDER','DRAFT','STOP'],next_action:['OBSERVE','DECOMPOSE','STOP'],objective:['OBSERVE','DRAFT','VERIFY','STOP'],compound:['OBSERVE','DECOMPOSE','ORDER','SCHEDULE','STOP'],clarify:['ASK','STOP']};
+
+/* ------------------------------ programs --------------------------------- */
+const PROGRAMS={
+  operator:{title:'Ask Archie',glyph:'A',w:520,desk:true},
+  pursuits:{title:'Pursuits',glyph:'◎',w:430,desk:true},
+  history:{title:'History',glyph:'≡',w:470,desk:true},
+  receipts:{title:'Receipts',glyph:'§',w:470,desk:true},
+  about:{title:'Model Evidence',glyph:'ℹ',w:440,desk:false}
+};
+
+let attach=null; // {name, snippet}
+function appBody(kind){
+  switch(kind){
+    case 'operator': return `
+      <fieldset><legend>Request</legend>
+        <textarea id="req" rows="3" placeholder="Type the messy version…"></textarea>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <button class="btn" id="attachbtn">Attach…</button><span id="attachlbl" style="font-size:11px;color:#333">No files</span>
+          <input id="attfile" type="file" style="display:none">
+          <span style="flex:1"></span>
+          <button class="btn" style="font-weight:bold" id="gobtn">Go</button>
+        </div></fieldset>
+      <fieldset><legend>Context channels (the model reads these as tokens)</legend>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <label style="flex:1;min-width:150px;font-size:11px">Memory<input type="text" id="mem" placeholder="e.g. trusted saved instruction…"></label>
+          <label style="flex:1;min-width:150px;font-size:11px">Thread<input type="text" id="thr" placeholder="e.g. previous turn contains…"></label>
+        </div></fieldset>
+      <div id="verdict"><p style="color:#333">The ${brainKind==='transformer'?'transformer':'router'} is idle. Say something.</p></div>
+      <canvas id="dial" class="dial" aria-label="route distribution"></canvas>`;
+    case 'pursuits': {
+      const ps=load('pursuits',[]);
+      return `<div style="display:flex;gap:6px"><input type="text" id="newp" placeholder="Name a pursuit…"><button class="btn" id="addp">Go</button></div>
+        <div id="plist">${ps.length? renderPursuits(ps):'<p style="color:#333">EMPTY — 0 items. Decisions that repeat become pursuits.</p>'}</div>`;
+    }
+    case 'history': {
+      const h=load('history',[]);
+      return h.length? `<table><tr><th>when</th><th>request</th><th>route</th><th>judgments</th></tr>${h.map(e=>`<tr><td>${esc(e.at)}</td><td>${esc(e.req).slice(0,70)}</td><td><b>${esc(e.route)}</b> ${Math.round(e.conf*100)}%</td><td>${esc(e.j)}</td></tr>`).join('')}</table>
+        <div style="display:flex;justify-content:flex-end"><button class="btn" onclick="clearHistory()">Clear</button></div>`
+        : '<p style="color:#333">EMPTY — decisions will be logged here.</p>';
+    }
+    case 'receipts': {
+      const h=load('history',[]);
+      return `<p style="font-size:11px;color:#333">Every decision is receipt-shaped: inputs, judgments, model digest.</p>
+        <div style="display:flex;gap:6px"><button class="btn" id="exportbtn">Export…</button><span style="font-size:11px;color:#333">${h.length} items</span></div>
+        <pre id="rc" style="white-space:pre-wrap;font-size:10px;background:#fff;border:1px solid var(--sh);padding:6px;max-height:220px;overflow:auto">${esc(JSON.stringify({model:MODELMETA,decisions:h.slice(0,3)},null,1))}</pre>`;
+    }
+    case 'about': {
+      const r=MODELMETA.results||{};
+      const b=r.blind_429||{};
+      return `<table>
+        <tr><th>engine</th><td>${esc(MODELMETA.kind||'none')}</td></tr>
+        <tr><th>parameters</th><td>${(MODELMETA.params||0).toLocaleString()}</td></tr>
+        <tr><th>blind 429 (full-factor)</th><td>${b.full_accuracy!=null?(100*b.full_accuracy).toFixed(1)+'%':'—'}</td></tr>
+        <tr><th>confidence trust</th><td>${b.mean_confidence_correct!=null?`correct ${b.mean_confidence_correct} vs wrong ${b.mean_confidence_incorrect}`:'—'}</td></tr>
+        <tr><th>digest</th><td style="word-break:break-all;font-family:monospace;font-size:9px">${esc(MODELMETA.digest||'')}</td></tr>
+        <tr><th>promotion</th><td>not-admitted</td></tr></table>
+        <p style="font-size:11px;color:#333">All judgments are learned weights — no keyword scaffolding. Attachment, memory, and thread text enter the same token stream the transformer attends over.</p>`;
+    }
+  }
+}
+function renderPursuits(ps){return `<table><tr><th>pursuit</th><th>state</th><th>momentum</th></tr>${ps.map((p,i)=>`<tr><td>${esc(p.name)}</td><td>${esc(p.state)}</td><td>${'▮'.repeat(Math.max(1,Math.round(p.m*8)))}</td></tr>`).join('')}</table>`}
+window.clearHistory=()=>{store('history',[]);reopen('history');};
+
+function wire(kind,el){
+  if(kind==='operator'){
+    el.querySelector('#attachbtn').onclick=()=>el.querySelector('#attfile').click();
+    el.querySelector('#attfile').onchange=async ev=>{
+      const f=ev.target.files[0]; if(!f)return;
+      const text=await f.text().catch(()=>'');
+      attach={name:f.name,snippet:text.slice(0,400)};
+      el.querySelector('#attachlbl').textContent=f.name+' ('+f.size+'b)';
+    };
+    const go=()=>{
+      const req=el.querySelector('#req').value.trim(); if(!req||!brain)return;
+      const ctx={attachments:attach?`${attach.name} ${attach.snippet}`:'',memory:el.querySelector('#mem').value.trim(),thread:el.querySelector('#thr').value.trim()};
+      const p=brain.predict(req,ctx);
+      const proto=PROTO[p.route]||['OBSERVE','STOP'];
+      const deny=p.authority==='deny', missing=p.context==='missing';
+      el.querySelector('#verdict').innerHTML=`
+        <fieldset><legend>Decision — ${brainKind}</legend>
+          <div class="judges">
+            <div class="judge"><span>route</span><b>${esc(p.route)}</b></div>
+            <div class="judge${deny?' warn':''}"><span>authority</span><b>${esc(p.authority)}</b></div>
+            <div class="judge${missing?' warn':''}"><span>context</span><b>${esc(p.context)}</b></div>
+            <div class="judge"><span>reference</span><b>${esc(p.reference||'none')}</b></div>
+            <div class="judge"><span>outcomes</span><b>${esc(p.outcomes.join(' → ')||'—')}</b></div>
+            <div class="judge"><span>confidence</span><b>${Math.round(p.confidence*100)}%</b></div>
+          </div>
+          <div class="oprail">${proto.map(op=>`<span class="opchip${op==='STOP'?' stopc':''}">${op}</span>`).join('<span>→</span>')}</div>
+          ${deny?'<p style="color:#802000;font-weight:bold">⚠ Fails closed: this request is outside authority. Nothing will run.</p>':''}
+          ${missing?'<p style="color:#802000">The request references support that is not attached. Provide it or Archie clarifies.</p>':''}
+        </fieldset>`;
+      drawDial(el.querySelector('#dial'),p.distribution||[]);
+      const h=load('history',[]); h.unshift({at:new Date().toLocaleTimeString(),req,route:p.route,conf:p.confidence,j:`${p.authority}/${p.context}/${p.reference||'none'}`}); store('history',h.slice(0,80));
+      if(p.route!=='clarify'&&!deny){const ps=load('pursuits',[]);const key=req.split(/\s+/).slice(0,4).join(' ');
+        const ex=ps.find(x=>x.name===key); if(ex){ex.m=Math.min(1,ex.m+0.15);} else ps.unshift({name:key,state:'bounded',m:0.3});
+        store('pursuits',ps.slice(0,20));}
+    };
+    el.querySelector('#gobtn').onclick=go;
+    el.querySelector('#req').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))go();});
+  }
+  if(kind==='pursuits'){const b=el.querySelector('#addp');if(b)b.onclick=()=>{const v=el.querySelector('#newp').value.trim();if(!v)return;const ps=load('pursuits',[]);ps.unshift({name:v,state:'named',m:0.2});store('pursuits',ps.slice(0,20));reopen('pursuits');};}
+  if(kind==='receipts'){const b=el.querySelector('#exportbtn');if(b)b.onclick=()=>{
+    const blob=new Blob([JSON.stringify({model:MODELMETA,decisions:load('history',[])},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='archie-receipts.json';a.click();};}
+}
+
+function drawDial(canvas,dist){
+  if(!canvas||!dist.length)return;
+  const dpr=Math.min(devicePixelRatio||1,2);
+  const w=canvas.clientWidth*dpr,h=canvas.clientHeight*dpr;canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,w,h);
+  const bw=w/dist.length;
+  dist.forEach((d2,i)=>{
+    const bh=Math.max(2,d2.p*(h-16));
+    ctx.fillStyle=i===0?'#7af6d2':'#4a5a8a';
+    ctx.fillRect(i*bw+2,h-bh-12,bw-4,bh);
+    ctx.fillStyle='#9aa';ctx.font=`${8*dpr}px monospace`;ctx.save();
+    ctx.translate(i*bw+bw/2,h-2);ctx.fillText(d2.route.slice(0,4),-(8*dpr),0);ctx.restore();
+  });
+}
+
+/* ------------------------- window manager -------------------------------- */
+let zTop=10,spawn=0;const openWins=new Map();
+window.reopen=k=>{const el=openWins.get(k);if(el){el.querySelector('.wbody').innerHTML=appBody(k);wire(k,el);}};
+window.openApp=(kind)=>{
+  if(openWins.has(kind)){focusWin(kind);return;}
+  const meta=PROGRAMS[kind];if(!meta)return;
+  const el=document.createElement('div');el.className='win';el.dataset.kind=kind;
+  const small=innerWidth<640;
+  el.style.left=(small?4:70+(spawn%6)*32)+'px';el.style.top=(small?4:26+(spawn%6)*30)+'px';
+  el.style.width=Math.min(meta.w,innerWidth-10)+'px';spawn+=1;
+  if(small)el.classList.add('max');
+  el.innerHTML=`<div class="tbar"><span class="ttl"><span class="mini">${meta.glyph}</span>${meta.title}</span>
+    <button class="tbtn" data-a="min">▁</button><button class="tbtn" data-a="max">□</button><button class="tbtn" data-a="close">×</button></div>
+    <div class="wbody">${appBody(kind)}</div>
+    <div class="wstatus"><span>Ready</span><b>${brainKind==='transformer'?'NEURAL CORE OK':brainKind==='mlp'?'FALLBACK ROUTER':'NO MODEL'}</b></div>`;
+  document.getElementById('desk').appendChild(el);openWins.set(kind,el);
+  makeTaskButton(kind,meta);wire(kind,el);
+  el.addEventListener('pointerdown',()=>focusWin(kind));
+  const bar=el.querySelector('.tbar');
+  bar.addEventListener('pointerdown',ev=>{
+    if(ev.target.closest('.tbtn')||el.classList.contains('max'))return;
+    const sx=ev.clientX-el.offsetLeft,sy=ev.clientY-el.offsetTop;
+    const mv=m=>{el.style.left=Math.max(-40,Math.min(innerWidth-60,m.clientX-sx))+'px';el.style.top=Math.max(0,Math.min(innerHeight-70,m.clientY-sy))+'px';};
+    const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);};
+    addEventListener('pointermove',mv);addEventListener('pointerup',up);ev.preventDefault();
+  });
+  bar.addEventListener('dblclick',()=>el.classList.toggle('max'));
+  el.querySelectorAll('.tbtn').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();
+    const act=b.dataset.a;
+    if(act==='close'){el.remove();openWins.delete(kind);taskBtn(kind)?.remove();}
+    else if(act==='max')el.classList.toggle('max');
+    else {el.style.display='none';taskBtn(kind)?.classList.remove('active');}}));
+  focusWin(kind);
+};
+function focusWin(kind){for(const[k,w]of openWins){w.classList.toggle('blur',k!==kind);taskBtn(k)?.classList.toggle('active',k===kind);}const el=openWins.get(kind);if(el){el.style.display='';el.style.zIndex=++zTop;}}
+const taskBtn=k=>document.querySelector(`.taskbtn[data-kind="${k}"]`);
+function makeTaskButton(kind,meta){const b=document.createElement('button');b.className='btn taskbtn';b.dataset.kind=kind;
+  b.innerHTML=`<span class="mini" style="background:none;color:var(--title)">${meta.glyph}</span>${meta.title}`;
+  b.onclick=()=>{const el=openWins.get(kind);if(el.style.display==='none'){el.style.display='';}focusWin(kind);};
+  document.getElementById('tasks').appendChild(b);}
+
+/* ------------------------------ desktop ---------------------------------- */
+const icons=document.getElementById('icons');
+for(const[kind,meta]of Object.entries(PROGRAMS)){
+  if(!meta.desk)continue;
+  const b=document.createElement('button');b.className='dicon';
+  b.innerHTML=`<span class="g">${meta.glyph}</span><span>${meta.title}</span>`;
+  let last=0;b.addEventListener('pointerup',()=>{const n=Date.now();if(n-last<450)openApp(kind);last=n;
+    document.querySelectorAll('.dicon').forEach(d=>d.classList.remove('sel'));b.classList.add('sel');});
+  b.addEventListener('dblclick',()=>openApp(kind));
+  icons.appendChild(b);
+}
+const smenu=document.getElementById('smenu');
+smenu.innerHTML=Object.entries(PROGRAMS).map(([k,m])=>`<button class="sitem" data-k="${k}"><span class="g">${m.glyph}</span>${m.title}</button>`).join('')
+  +'<button class="sitem" data-k="__shut"><span class="g">⏻</span>Shut Down…</button>';
+smenu.querySelectorAll('.sitem').forEach(b=>b.onclick=()=>{document.getElementById('startmenu').classList.remove('open');
+  if(b.dataset.k==='__shut'){document.body.innerHTML='<div style="height:100vh;display:grid;place-items:center;background:#000;color:#ffb35c;font-family:monospace;font-size:20px;text-align:center">It\'s now safe to turn off<br>your operator.</div>';}
+  else openApp(b.dataset.k);});
+document.getElementById('startbtn').onclick=()=>document.getElementById('startmenu').classList.toggle('open');
+addEventListener('pointerdown',e=>{if(!e.target.closest('#startmenu,#startbtn'))document.getElementById('startmenu').classList.remove('open');});
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});},1000);
+openApp('operator');
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>

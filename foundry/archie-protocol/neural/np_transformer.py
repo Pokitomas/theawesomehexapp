@@ -484,6 +484,8 @@ def main():
                     "route_temperature": best_t},
         "data": {"train_rows": len(train), "real_language_rows": real_count, "dev_rows": len(dev),
                  "dropped_frozen_collisions": dropped, "vocab": len(vmap),
+                 "vocab_tokens": sorted(vmap, key=vmap.get),
+                 "real_repeat": a.real_repeat,
                  "train_digest": sha([norm_input(r) for r in train[:2000]])},
         "model": {"parameters": model.params_count(),
                   "weights_file": weights_path.name,
