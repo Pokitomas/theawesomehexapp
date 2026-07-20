@@ -1,0 +1,93 @@
+{
+  "schema": "archie-factorized-local-summary/v1",
+  "promotion": "not-admitted",
+  "local_run": {
+    "seed": 94041,
+    "environment_limitations": [
+      "/mnt/data/archie_app checkout was absent in the execution runtime",
+      "gh was unavailable",
+      "github.com was not resolvable from the container",
+      "the requested local receipt /mnt/data/archie_app/artifacts/postfreeze-v10.evaluation.json was not present"
+    ]
+  },
+  "datasets": {
+    "train_rows_after_dedupe": 1477,
+    "development_rows_after_dedupe": 550,
+    "blind_challenge_rows_after_dedupe": 429,
+    "blind_challenge_sha256": "3d053ee28c346e712a4e422a73cc8154f492db13947a129581084857a0ad101f",
+    "dedupe_passed": true,
+    "pre_freeze_drops": {
+      "train_exact": 443,
+      "development_exact_or_train_overlap": 146,
+      "challenge_exact_or_prior_overlap": 103,
+      "challenge_near_prior": 0
+    }
+  },
+  "architecture": {
+    "factorized": true,
+    "semantic_route_ensemble": [
+      "char_ngram_logistic",
+      "word_ngram_logistic",
+      "compact_svd_semantic",
+      "byte_gru_investigated_killed",
+      "structural_lexicon"
+    ],
+    "clause_execution": "split active clauses, remove negated/replaced clauses, predict route per clause, construct ordered outcomes",
+    "reference_typing": ["none", "attachment", "memory", "thread", "generic_unresolved", "ambiguous"],
+    "authority_factorization": ["operation", "target", "actionability", "destructive_or_exfiltrative_capability", "authorization_gap", "documentation_or_defensive_frame"],
+    "confidence": "log-probability fusion plus temperature search and disagreement penalties; calibration did not prove useful because incorrect mean confidence remained higher than correct mean confidence"
+  },
+  "results": {
+    "development": {
+      "correct": 488,
+      "examples": 550,
+      "accuracy": 0.8872727272727273
+    },
+    "blind_challenge": {
+      "correct": 386,
+      "examples": 429,
+      "accuracy": 0.8997668997668997,
+      "negative_log_likelihood": 0.6945759703875866,
+      "brier_score": 0.22738831051452665,
+      "expected_calibration_error": 0.23484103510724297,
+      "mean_confidence_correct": 0.7821083260641468,
+      "mean_confidence_incorrect": 0.909753071586793,
+      "mean_ms_per_example": 1.688890925407738
+    },
+    "semantic_model_alone": {
+      "correct": 192,
+      "examples": 237,
+      "accuracy": 0.810126582278481
+    },
+    "structural_controller_alone": {
+      "accuracy": 0.8904428904428905
+    },
+    "quantized_candidate": {
+      "status": "not_available",
+      "reason": "byte-GRU was killed before fusion, leaving no PyTorch path worth quantizing in the final completed candidate"
+    },
+    "counterfactual_isolation": {
+      "authority_payload_invariance": {"passed": true, "cases": 40, "failures": 0},
+      "non_target_payload_invariance": {"passed": true, "cases": 40, "failures": 0}
+    }
+  },
+  "comparisons": {
+    "existing_v9_runtime": {"source": "user-supplied prior result, not rerun here", "correct": 294, "examples": 310, "accuracy": 0.9483870967741935},
+    "failed_v10_cognitive_router": {"source": "user-supplied prior result, not rerun here", "correct": 209, "examples": 310, "accuracy": 0.6741935483870968},
+    "invalid_310_regex_candidate": {"status": "rejected as leakage / negative evidence only"}
+  },
+  "artifact_identities_from_local_run": {
+    "factorized_controller_py_sha256": "a51943895a48644498048798be4c96928e622e1a0f6c2e165afb1adcc841e1d0",
+    "evaluation_receipt_json_sha256": "a19becc955cc6aa1ddcd2d5a04b642ebefd6c052fde3eaeac24f14d48f172dcf",
+    "factorized_controller_joblib_sha256": "efd3f791a00588e0eeb7ca357364c8c98e5331b45c510030623ab10a7e6490e5",
+    "publication_summary_sha256": "manual-json-record"
+  },
+  "promotion_gate": {
+    "legacy_retention": "not_run",
+    "postfreeze_pack": "not_run_locally",
+    "new_blind_challenge": "run",
+    "javascript_runtime_parity": "not_run",
+    "deterministic_execution_controls": "unchanged / not touched",
+    "admitted": false
+  }
+}
