@@ -1,0 +1,10 @@
+{
+  "schema": "archie-factorized-freeze/v2",
+  "created_before_retraining": true,
+  "rows": 287,
+  "sha256": "d14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6",
+  "seed": 20260743,
+  "disjoint_axes": ["verbs", "topics", "connectors", "reference forms", "authority operations", "authority targets"],
+  "protected_postfreeze_used_only_for_exact_dedup": true,
+  "promotion": "not-admitted"
+}
