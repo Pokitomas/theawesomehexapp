@@ -1,0 +1,19 @@
+{
+  "schema": "archie-factorized-training/v2",
+  "seed": 20260720,
+  "training_rows": 1539,
+  "development_rows": 280,
+  "blind_rows": 287,
+  "history": [{"epoch": 1, "loss": 2.4138806206839427}],
+  "temperatures": {"semantic": 6.954256534576416, "byte_gru": 0.05000000074505806},
+  "elapsed_seconds": 10.938766241073608,
+  "artifacts": {
+    "data/train-v2.jsonl": {"bytes": 466852, "sha256": "d49e24a61fdf0db26b72aa98fab0b6055957f26a43bacd9298945ac547010d2b"},
+    "data/dev-v2.jsonl": {"bytes": 89293, "sha256": "5419eb0c22d58d845c0148b593b5bee4bb9a29b6fcaedd07a2f9fc524d0b2efc"},
+    "data/blind-challenge-v2.jsonl": {"bytes": 99816, "sha256": "d14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6"},
+    "artifacts/factorized-controller-v2.joblib": {"bytes": 2199174, "sha256": "586d7eab8cf72c0adae717f41dc8998255d4ff377cae3c9157141d416b15fc7d"},
+    "artifacts/byte-gru-v2.pt": {"bytes": 119174, "sha256": "3fa670f43eaaae1e4d738a8ea99cd62c57dbdfea62f933eff6d391704384d0d8"},
+    "artifacts/blind-v2-freeze.json": {"bytes": 433, "sha256": "029ba1de184f87a581f0650eed8f4f1c9ffefb145d8ea61e6bac4c17f955bdc3"}
+  },
+  "promotion": "not-admitted"
+}
