@@ -78,15 +78,14 @@ class TypedControllerTests(unittest.TestCase):
         self.assertIn("<MEMORY> <PRESENT> Condition alpha", text)
         self.assertIn("<THREAD> <ABSENT>", text)
 
-    def test_authority_lane_is_invariant_to_memory_payload(self):
+    def test_authority_lane_is_invariant_to_memory_payload_and_length(self):
         Model = controller.build_controller_class(FakeReasoner, reasoning_steps=3)
         model = Model(vocab_size=32, pad_id=0, transform_classes=2, config=self.config()).eval()
-        left = torch.tensor([[4, 10, 5, 8, 6, 9, 20, 7, 8]])
-        right = torch.tensor([[4, 10, 5, 8, 6, 9, 21, 7, 8]])
-        padding = torch.zeros_like(left, dtype=torch.bool)
+        left = torch.tensor([[4, 10, 5, 8, 6, 9, 20, 7, 8, 0]])
+        right = torch.tensor([[4, 10, 5, 8, 6, 9, 21, 22, 7, 8]])
         with torch.no_grad():
-            _, left_state = model.encode(left, padding)
-            _, right_state = model.encode(right, padding)
+            _, left_state = model.encode(left, left.eq(0))
+            _, right_state = model.encode(right, right.eq(0))
             left_auth = model.authority_head(left_state)
             right_auth = model.authority_head(right_state)
         self.assertTrue(torch.equal(left_auth, right_auth))
