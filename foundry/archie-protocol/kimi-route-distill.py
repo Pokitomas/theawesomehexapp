@@ -101,20 +101,44 @@ def generation_messages(batch,samples,style):
     system=f"Create hard supervision for Archie's routes {ROUTES}. Return structured final labels only, no chain-of-thought. Authority {AUTH}; context {CONTEXT}. JSON only."
     request=f'''Produce up to {samples} meaning-preserving {style} rewrites per source. Target {FAILURES}. Include negated/corrected clauses, punctuation and before-ordering, safe security documentation, vague references, and memory-current-operation conflicts. Do not copy wording or invent authority. Metadata is allowed only when the prompt explicitly refers to it. Sources: {json.dumps(sources,ensure_ascii=False)}. Return {{"candidates":[{{"source_id":0,"prompt":"...","route":"summary","authority":"allow","context":"ready","active_clauses":1,"compound":false,"operation":"summarize","target":"report","failure_family":"{FAILURES[0]}","attachments":[],"memory":"","reply_to":""}}]}}.'''
     return [{'role':'system','content':system},{'role':'user','content':request}]
-def route_messages(c,replica):
-    system=f'Independently label this Archie request. Ignore prior labels. Return JSON only, no reasoning. Verifier {replica}.'
-    request=f'''Request: {c['prompt']} Allowed routes {ROUTES}; authority {AUTH}; context {CONTEXT}. Return {{"route":"...","authority":"allow","context":"ready","active_clauses":1,"compound":false,"confidence":0.0}}.'''
+def verifier_messages(batch,candidates,replica):
+    entries=[]
+    for candidate in candidates:
+        source=batch[candidate['_source_id']]
+        entries.append({
+            'candidate_id':candidate['_candidate_id'],
+            'source':{
+                'prompt':source['prompt'],
+                'route':source['route'],
+                'authority':source.get('authority','allow'),
+                'context':source.get('context','ready'),
+            },
+            'candidate':{key:candidate.get(key) for key in (
+                'prompt','route','authority','context','active_clauses','compound',
+                'operation','target','failure_family')},
+        })
+    system=f'''Independently verify Archie distillation candidates. Allowed routes: {ROUTES}; authority: {AUTH}; context: {CONTEXT}. Treat each candidate_id as an isolated record. Never transfer facts, labels, memory, attachments, or clauses between records. Return JSON only and no reasoning.'''
+    request=f'''Verifier replica {replica}. For each record, independently relabel the candidate request and judge whether it faithfully preserves its own source operation, target, authority, context, active/negated clauses, and ordered outcome count. Return exactly one verdict for every candidate_id and no unknown IDs. Records: {json.dumps(entries,ensure_ascii=False)}. Return {{"verdicts":[{{"candidate_id":"0:0","route":"summary","authority":"allow","context":"ready","active_clauses":1,"compound":false,"faithful":true,"confidence":0.0}}]}}.'''
     return [{'role':'system','content':system},{'role':'user','content':request}]
-def fidelity_messages(source,c,replica):
-    system=f'Judge semantic fidelity. Return JSON only, no reasoning. Verifier {replica}.'
-    request=f'''Source: {source['prompt']} Candidate: {c['prompt']} Preserve operation, target, authority, context, active/negated clauses, and outcome order/count? Return {{"faithful":true,"confidence":0.0}}.'''
-    return [{'role':'system','content':system},{'role':'user','content':request}]
-def consensus(c,routes,fidelity,min_conf):
-    need=len(routes)//2+1; key=(c['route'],c['authority'],c['context'],c['active_clauses'],c['compound'])
-    match=sum((v.get('route'),v.get('authority'),v.get('context'),v.get('active_clauses'),v.get('compound'))==key for v in routes)
-    faithful=sum(bool(v.get('faithful')) for v in fidelity)
-    conf=[float(v.get('confidence',0)) for v in routes+fidelity]
-    return match>=need and faithful>=need and sum(conf)/max(1,len(conf))>=min_conf
+
+def index_verdicts(candidates,payload):
+    expected={candidate['_candidate_id'] for candidate in candidates}
+    verdicts=payload.get('verdicts',[]) if isinstance(payload,dict) else []
+    result={}
+    for verdict in verdicts:
+        candidate_id=verdict.get('candidate_id') if isinstance(verdict,dict) else None
+        if candidate_id not in expected or candidate_id in result:
+            return None
+        result[candidate_id]=verdict
+    return result if set(result)==expected else None
+
+def batch_consensus(candidate,verdicts,min_conf):
+    need=len(verdicts)//2+1
+    key=(candidate['route'],candidate['authority'],candidate['context'],candidate['active_clauses'],candidate['compound'])
+    matches=sum((v.get('route'),v.get('authority'),v.get('context'),v.get('active_clauses'),v.get('compound'))==key for v in verdicts)
+    faithful=sum(bool(v.get('faithful')) for v in verdicts)
+    confidence=sum(float(v.get('confidence',0)) for v in verdicts)/max(1,len(verdicts))
+    return matches>=need and faithful>=need and confidence>=min_conf
 
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--data',required=True); p.add_argument('--out',required=True)
@@ -122,31 +146,69 @@ def main():
     p.add_argument('--samples-per-row',type=int,default=4); p.add_argument('--judges',type=int,default=3); p.add_argument('--batch-size',type=int,default=8); p.add_argument('--max-sources',type=int,default=0); p.add_argument('--max-additions-per-route',type=int,default=4000)
     p.add_argument('--min-confidence',type=float,default=.72); p.add_argument('--max-source-jaccard',type=float,default=.82); p.add_argument('--timeout',type=int,default=180); p.add_argument('--retries',type=int,default=4); p.add_argument('--cache'); p.add_argument('--freeze',action='append',default=[]); p.add_argument('--thinking',action='store_true')
     p.add_argument('--reasoning-effort',choices=['low','high','max'],default=None,help='Kimi K3 reasoning effort; defaults to low, or max with --thinking')
+    p.add_argument('--estimate-only',action='store_true',help='Print API-call and output-token-cap estimates without calling the teacher')
     args=p.parse_args(); args.api_key=os.getenv(args.api_key_env) or os.getenv('ARCHIE_TEACHER_KEY')
-    if not args.api_key: raise RuntimeError(f'missing API key in {args.api_key_env} or ARCHIE_TEACHER_KEY')
     rows=[{**r,'prompt':user_text(r)} for r in load(args.data) if r.get('route') in ROUTES and user_text(r)]
     if args.max_sources: rows=rows[:args.max_sources]
+    generation_batches=(len(rows)+max(1,args.batch_size)-1)//max(1,args.batch_size)
+    estimate={
+        'sources':len(rows),
+        'candidate_upper_bound':len(rows)*args.samples_per_row,
+        'generation_calls':generation_batches,
+        'verifier_calls_upper_bound':generation_batches*args.judges,
+        'total_calls_upper_bound':generation_batches*(1+args.judges),
+        'max_completion_tokens_exposure':generation_batches*(1+args.judges)*4096,
+    }
+    if args.estimate_only:
+        print(json.dumps(estimate,indent=2)); return
+    if not args.api_key: raise RuntimeError(f'missing API key in {args.api_key_env} or ARCHIE_TEACHER_KEY')
     holdout=frozen(args.freeze)
     if any(canon(r['prompt']) in holdout for r in rows): raise RuntimeError('training source overlaps frozen evaluation')
     cache=Cache(args.cache); seen={canon(r['prompt']) for r in rows}|holdout; accepted=[]; rejected=[]; per_route=Counter(); families=Counter()
+    generation_calls=0; verifier_calls=0
     for start in range(0,len(rows),max(1,args.batch_size)):
         batch=rows[start:start+max(1,args.batch_size)]; style=STYLES[(start//max(1,args.batch_size))%len(STYLES)]
-        try: candidates=teacher(args,cache,generation_messages(batch,args.samples_per_row,style),.8,4096).get('candidates',[])
-        except Exception as exc: rejected.append({'batch':start,'reason':str(exc)}); continue
-        for c in candidates:
-            sid=c.get('source_id')
-            if not isinstance(sid,int) or not 0<=sid<len(batch): rejected.append({'batch':start,'reason':'source-id'}); continue
-            source=batch[sid]; reason=reject(c,source,seen,holdout,args.max_source_jaccard)
-            if reason or per_route[c.get('route')]>=args.max_additions_per_route: rejected.append({'source':start+sid,'reason':reason or 'route-cap'}); continue
-            rv=[]; fv=[]
-            for j in range(args.judges):
-                try:
-                    rv.append(teacher(args,cache,route_messages(c,j+1),0,768)); fv.append(teacher(args,cache,fidelity_messages(source,c,j+1),0,512))
-                except Exception: rv.append({'confidence':0}); fv.append({'faithful':False,'confidence':0})
-            if not consensus(c,rv,fv,args.min_confidence): rejected.append({'source':start+sid,'reason':'verifier'}); continue
-            seen.add(canon(c['prompt'])); per_route[c['route']]+=1; family=c.get('failure_family') if c.get('failure_family') in FAILURES else 'other'; families[family]+=1
-            accepted.append({**source,**c,'route':source['route'],'distillation':{'method':'failure-directed-structured-consensus/v2','teacher':args.model,'source_digest':digest({'route':source['route'],'prompt':source['prompt']}),'route_consensus':sum(v.get('route')==source['route'] for v in rv),'fidelity_consensus':sum(bool(v.get('faithful')) for v in fv)}})
+        try:
+            candidates=teacher(args,cache,generation_messages(batch,args.samples_per_row,style),.8,4096).get('candidates',[])
+            generation_calls+=1
+        except Exception as exc:
+            rejected.append({'batch':start,'reason':str(exc)}); continue
+        pending=[]
+        for position,candidate in enumerate(candidates):
+            sid=candidate.get('source_id')
+            if not isinstance(sid,int) or not 0<=sid<len(batch):
+                rejected.append({'batch':start,'reason':'source-id'}); continue
+            source=batch[sid]; reason=reject(candidate,source,seen,holdout,args.max_source_jaccard)
+            if reason or per_route[candidate.get('route')]>=args.max_additions_per_route:
+                rejected.append({'source':start+sid,'reason':reason or 'route-cap'}); continue
+            pending.append({**candidate,'_source_id':sid,'_candidate_id':f'{start}:{position}'})
+        if not pending: continue
+        judge_maps=[]
+        for judge in range(args.judges):
+            try:
+                payload=teacher(args,cache,verifier_messages(batch,pending,judge+1),0,4096)
+                verifier_calls+=1
+                indexed=index_verdicts(pending,payload)
+            except Exception:
+                indexed=None
+            if indexed is None:
+                rejected.extend({'source':start+c['_source_id'],'reason':f'verifier-isolation-{judge+1}'} for c in pending)
+                judge_maps=[]; break
+            judge_maps.append(indexed)
+        if len(judge_maps)!=args.judges: continue
+        for candidate in pending:
+            source=batch[candidate['_source_id']]
+            verdicts=[mapping[candidate['_candidate_id']] for mapping in judge_maps]
+            if not batch_consensus(candidate,verdicts,args.min_confidence):
+                rejected.append({'source':start+candidate['_source_id'],'reason':'verifier'}); continue
+            text=canon(candidate['prompt'])
+            if text in seen or per_route[candidate['route']]>=args.max_additions_per_route:
+                rejected.append({'source':start+candidate['_source_id'],'reason':'post-verifier-duplicate-or-cap'}); continue
+            seen.add(text); per_route[candidate['route']]+=1
+            family=candidate.get('failure_family') if candidate.get('failure_family') in FAILURES else 'other'; families[family]+=1
+            cleaned={key:value for key,value in candidate.items() if not key.startswith('_')}
+            accepted.append({**source,**cleaned,'route':source['route'],'distillation':{'method':'failure-directed-batched-consensus/v3','teacher':args.model,'source_digest':digest({'route':source['route'],'prompt':source['prompt']}),'verifier_consensus':sum(v.get('route')==source['route'] and bool(v.get('faithful')) for v in verdicts)}})
     output=rows+accepted; out=Path(args.out); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(output,indent=2,ensure_ascii=False)+'\n')
-    body={'schema':'archie-route-kimi-distill/v1','teacher':args.model,'endpoint_host':re.sub(r'^https?://','',args.endpoint).split('/')[0],'source_rows':len(rows),'accepted_rows':len(accepted),'rejected_rows':len(rejected),'route_additions':dict(per_route),'failure_family_additions':dict(families),'frozen_prompt_count':len(holdout),'output_digest':digest(output),'promotion':'not-admitted','claim_boundary':'Teacher-consensus training material only; not independent evidence of improvement or admission.'}
+    body={'schema':'archie-route-kimi-distill/v1','teacher':args.model,'endpoint_host':re.sub(r'^https?://','',args.endpoint).split('/')[0],'source_rows':len(rows),'accepted_rows':len(accepted),'rejected_rows':len(rejected),'route_additions':dict(per_route),'failure_family_additions':dict(families),'frozen_prompt_count':len(holdout),'api_calls':{'generation':generation_calls,'verification':verifier_calls},'preflight_estimate':estimate,'output_digest':digest(output),'promotion':'not-admitted','claim_boundary':'Teacher-consensus training material only; not independent evidence of improvement or admission.'}
     receipt={**body,'receipt_digest':digest(body)}; Path(str(out)+'.receipt.json').write_text(json.dumps(receipt,indent=2)+'\n'); print(json.dumps(receipt,indent=2))
 if __name__=='__main__': main()
