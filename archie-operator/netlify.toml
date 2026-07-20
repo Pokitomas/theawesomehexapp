@@ -23,6 +23,11 @@
     Cross-Origin-Opener-Policy = "same-origin"
 
 [[redirects]]
+  from = "/"
+  to = "/index-v7.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "/index-v7.html"
   status = 200
