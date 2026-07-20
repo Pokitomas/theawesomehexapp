@@ -1,0 +1,33 @@
+{
+  "logical_bytes": 24387,
+  "logical_sha256": "1e5b1956dfcc1362ae5c37833c146dec11360ad233eb2e1bae6eecbafaa0fdfe",
+  "media_type": "application/json",
+  "parts": [
+    {
+      "bytes": 6000,
+      "path": "part-00.json.fragment",
+      "sha256": "0f725cc0c9c6bec6ee89934ecab2bae4d778ad07afff842fa410e0c5a1f65d0f"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-01.json.fragment",
+      "sha256": "cf5ab7fc388613f317354ac7e47fe52394df81c249a48e027a210c33b39f5b59"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-02.json.fragment",
+      "sha256": "307e69a8bfc79bb1e16619e46c9964fa1e93779734632088e52e0420168d3068"
+    },
+    {
+      "bytes": 6000,
+      "path": "part-03.json.fragment",
+      "sha256": "6c37c8e79ed5519471acd9121e44f3040cb70d48a19f148046a34252fa755058"
+    },
+    {
+      "bytes": 387,
+      "path": "part-04.json.fragment",
+      "sha256": "4c945984ae3bfb2e559076cfb5116cc1e9a7267d89b70bd3aebf12f06e1f1e01"
+    }
+  ],
+  "schema": "archie-chunked-json/v1"
+}
