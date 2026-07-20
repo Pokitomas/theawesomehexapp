@@ -106,12 +106,12 @@ function extractDeadline(text) {
 function extractRecipient(text) {
   const source = normalizeText(text);
   const patterns = [
-    /\b(?:message|text|email|write|tell|reply to|respond to|follow up with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+    /\b(?:[Mm]essage|[Tt]ext|[Ee]mail|[Ww]rite|[Tt]ell|[Rr]eply to|[Rr]espond to|[Ff]ollow up with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
     /\bto\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:\s+that|\s+about|\s+saying|[,.:]|$)/
   ];
   for (const pattern of patterns) {
     const match = source.match(pattern);
-    if (match) return match[1];
+    if (match) return sentenceCase(match[1]);
   }
   return null;
 }
@@ -141,16 +141,17 @@ function resolveLocalContext(prompt, context = {}) {
   const activeObjective = normalizeText(context.activeObjective);
   const vague = /\b(?:from before|like before|same thing|what we discussed|whatever i said|the earlier one)\b/i.test(prompt) || /^(?:please\s+)?(?:handle|do|fix|sort|use|continue)\s+(?:it|that|this|the thing)\b/i.test(prompt) || /^(?:it|that|this|the thing)[.!?]*$/i.test(prompt);
   const last = history[0];
-  if (!vague) return { resolvedText: prompt, used: null, unresolved: false };
+  if (!vague) return { resolvedText: prompt, contextText: null, used: null, unresolved: false };
   if (last?.request) {
     return {
       resolvedText: `${prompt}\n\nPrevious local request: ${normalizeText(last.request)}\nPrevious local result: ${normalizeText(last.response || '').slice(0, 500)}`,
+      contextText: normalizeText(last.request),
       used: 'previous-turn',
       unresolved: false
     };
   }
-  if (activeObjective) return { resolvedText: `${prompt}\n\nActive local objective: ${activeObjective}`, used: 'active-objective', unresolved: false };
-  return { resolvedText: prompt, used: null, unresolved: true };
+  if (activeObjective) return { resolvedText: `${prompt}\n\nActive local objective: ${activeObjective}`, contextText: activeObjective, used: 'active-objective', unresolved: false };
+  return { resolvedText: prompt, contextText: null, used: null, unresolved: true };
 }
 
 function attachmentEvidence(attachments = []) {
@@ -174,9 +175,9 @@ export function analyzeRequest(prompt, context = {}) {
   const clauseModes = clauses.map(clause => ({ clause, mode: detectMode(clause) })).filter(item => item.mode && !excludedModes.includes(item.mode));
   const requestedModes = [...new Set(clauseModes.map(item => item.mode))];
   const explicitMode = detectMode(raw);
-  const compound = clauses.length > 1 && (requestedModes.length > 1 || clauses.some(clause => /\b(?:and then|then|also|plus|after)\b/i.test(clause)));
+  const compound = clauses.length > 1;
   const rawSourceWithoutTask = RAW_SOURCE.test(raw) && raw.length > 80 && !/\b(?:summari[sz]e|explain|review|debug|fix|extract|convert)\b/i.test(raw);
-  const tooVague = raw.split(/\s+/).length < 4 || resolved.unresolved || /^(?:handle|do|fix|sort|use)\s+(?:it|that|this|the thing)[.!?]*$/i.test(raw);
+  const tooVague = resolved.unresolved || /^(?:handle|do|fix|sort|use)\s+(?:it|that|this|the thing)[.!?]*$/i.test(raw) || (raw.split(/\s+/).length < 3 && !explicitMode && !attachments.length);
   return {
     raw,
     resolvedText: analysisText,
@@ -190,6 +191,7 @@ export function analyzeRequest(prompt, context = {}) {
     rawSourceWithoutTask,
     tooVague,
     contextUsed: resolved.used,
+    contextText: resolved.contextText,
     attachments,
     deadline: extractDeadline(raw),
     recipient: extractRecipient(raw),
@@ -297,12 +299,13 @@ export function composeLocalResponse(prompt, modelInference = {}, context = {}) 
     else response = analysis.contextUsed ? 'Which part of the previous local request should I continue, and what finished result should exist?' : 'What exact result should exist when this is done? Reply: “The finished result is ___, by ___, and do not ___.”';
   } else if (decision.mode === 'compound') {
     const parts = analysis.clauses.map((clause, index) => {
+      const clauseText = index === 0 && analysis.contextText ? analysis.contextText : clause;
       const mode = detectMode(clause) || (index === 0 ? (modelInference?.mode || modelInference?.route || 'plan') : 'next_action');
       const safeMode = analysis.excludedModes.includes(mode) ? 'next_action' : mode;
-      return `${index + 1}. ${MODE_LABELS[safeMode] || sentenceCase(safeMode)}\n${composeSingle(safeMode, clause, { ...analysis, options: extractOptions(clause), recipient: extractRecipient(clause), deadline: extractDeadline(clause) || analysis.deadline })}`;
+      return `${index + 1}. ${MODE_LABELS[safeMode] || sentenceCase(safeMode)}\n${composeSingle(safeMode, clauseText, { ...analysis, options: extractOptions(clause), recipient: extractRecipient(clause), deadline: extractDeadline(clause) || analysis.deadline })}`;
     });
     response = parts.join('\n\n');
-  } else response = composeSingle(decision.mode, analysis.raw, analysis);
+  } else response = composeSingle(decision.mode, analysis.contextText || analysis.raw, analysis);
 
   if (analysis.attachments.length && !analysis.attachments.some(file => file.text)) {
     response += `\n\nAttachment boundary: I received metadata for ${analysis.attachments.map(file => file.name).join(', ')}, but this browser build could not read those file contents.`;
