@@ -118,6 +118,17 @@ class Model:
     def params_count(self):
         return int(sum(v.size for v in self.P.values()))
 
+    def load_weights(self, npz_path):
+        loaded = np.load(npz_path)
+        for k in self.P:
+            if k not in loaded:
+                raise ValueError(f"checkpoint missing key {k} -- vocab/architecture mismatch")
+            if loaded[k].shape != self.P[k].shape:
+                raise ValueError(f"shape mismatch for {k}: checkpoint {loaded[k].shape} vs model {self.P[k].shape}")
+            self.P[k] = loaded[k].copy()
+        self.opt = {k: [np.zeros_like(v), np.zeros_like(v)] for k, v in self.P.items()}
+        self.t = 0
+
     @staticmethod
     def _ln_fwd(x, g, b):
         mu = x.mean(-1, keepdims=True); xc = x - mu
@@ -397,6 +408,8 @@ def main():
     ap.add_argument("--real-repeat", type=int, default=1, help="oversampling factor for real-language rows")
     ap.add_argument("--finetune-epochs", type=int, default=0, help="extra epochs training ONLY on real-language rows, route head only, after main training")
     ap.add_argument("--finetune-lr", type=float, default=0.0, help="LR for the finetune phase (default: main lr * 0.15)")
+    ap.add_argument("--freeze-backbone", action="store_true", help="during finetune, zero gradients for every param except the route head (protects the shared trunk from drift)")
+    ap.add_argument("--init-weights", default="", help="load an existing .npz checkpoint instead of random init (vocab/config must reproduce the checkpoint's exactly)")
     ap.add_argument("--legacy-dir", default="")
     ap.add_argument("--frozen-pack", default=str(HERE.parent / "factorized" / "blind-challenge-pack.frozen.json"))
     ap.add_argument("--out", default=str(HERE / "runs"))
@@ -447,6 +460,9 @@ def main():
     vmap = build_vocab(train)
     ys_all = [labels_for(r) for r in train]
     model = Model(len(vmap), a.d, a.layers, a.heads, a.tmax, a.seed)
+    if a.init_weights:
+        model.load_weights(a.init_weights)
+        print(json.dumps({"loaded_init_weights": a.init_weights}), flush=True)
     rng = np.random.default_rng(a.seed + 99)
     order = np.arange(len(train))
     steps_per = math.ceil(len(train) / a.batch)
@@ -502,6 +518,10 @@ def main():
                 ids, mask = encode_batch(rows, vmap, a.tmax)
                 ys = {name: np.array([ys_all[i][name] for i in sel]) for name in Model.HEADS}
                 loss, G = model.loss_and_grads(ids, mask, ys, a.drop * 0.5, rng, head_weights=ft_weights)
+                if a.freeze_backbone:
+                    for k in G:
+                        if k not in ("Hroute", "Hbroute"):
+                            G[k] = np.zeros_like(G[k])
                 model.step(G, ft_lr)
                 ep_loss += loss
             dev_eval = evaluate_pack(model, dev, vmap, a.tmax, 1.0)
@@ -536,7 +556,8 @@ def main():
                     "subword": SUBWORD, "route_temperature": best_t,
                     "real_repeat": a.real_repeat, "finetune_epochs": a.finetune_epochs,
                     "finetune_lr": (a.finetune_lr if a.finetune_lr > 0 else a.lr * 0.15) if a.finetune_epochs > 0 else None,
-                    "curriculum": "real-language-dominant mix + real-only route-head finetune phase" if a.finetune_epochs > 0 else "single-phase mixed synthetic+real"},
+                    "freeze_backbone": a.freeze_backbone, "init_weights": a.init_weights or None,
+                    "curriculum": ("real-only route-head finetune, backbone frozen" if a.freeze_backbone else "real-language-dominant mix + real-only route-head finetune, shared trunk") if a.finetune_epochs > 0 else "single-phase mixed synthetic+real, no finetune"},
         "data": {"train_rows": len(train), "real_language_rows": real_count, "dev_rows": len(dev),
                  "dropped_frozen_collisions": dropped, "vocab": len(vmap),
                  "vocab_tokens": sorted(vmap, key=vmap.get),
