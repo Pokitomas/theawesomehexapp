@@ -48,10 +48,11 @@ jobs:
           --emitter-epochs 8
       - name: Run untouched capacity pack
         working-directory: foundry/archie-reasoner
-        run: >-
-          python evaluate_block_sparse_capacity.py
-          --bundle ../../../.local/archie-block-sparse/seed-20260720/model.pt
-          --output runs/block-sparse-hybrid-v1/ci-capacity-pack.json
+        run: |
+          mkdir -p runs/block-sparse-hybrid-v1
+          python evaluate_block_sparse_capacity.py \
+            --bundle ../../../.local/archie-block-sparse/seed-20260720/model.pt \
+            --output runs/block-sparse-hybrid-v1/ci-capacity-pack.json
       - name: Export selected int8 artifact
         working-directory: foundry/archie-reasoner
         run: >-
