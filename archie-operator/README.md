@@ -22,33 +22,46 @@ The directory can be published as-is to Netlify, Cloudflare Pages, GitHub Pages,
 archie-operator
 ```
 
-No build command is required.
+No build command is required. `netlify.toml` sends the production root to `index-v7.html`, which wraps the existing neural router with the register/order projection and accepts optional attached-file names and remembered context.
 
-## Bootstrap from ArchieAudit.zip
+## Completed Linux audit run
 
-Unpack the audit outside the repository, then freeze the suite and prepare governed route rows:
+The real `Archie-Audit.zip` archive was unpacked and processed on Linux CPU. The run produced:
+
+- 1,282 governed base route rows;
+- 13,275 diverse synthetic/register rows;
+- a frozen reconstructed 80-case suite;
+- two trained 8,192-feature neural candidates, both rejected for regression;
+- a selected deterministic register/order projection around the existing local neural router.
+
+The digest-bound receipt is:
+
+```text
+foundry/archie-protocol/runs/linux-register-distill-20260720.json
+```
+
+Observed projection results against the audit reference router were 498/498, 60/60, 48/48, and 75/80 on suite-80. Promotion remains `not-admitted`; the selected product layer is not represented as a newly improved neural checkpoint.
+
+## Reproduce the deterministic path
 
 ```bash
 mkdir -p .local/archie-audit .local/archie-route
-unzip ArchieAudit.zip -d .local/archie-audit
+unzip Archie-Audit.zip -d .local/archie-audit
+
 node foundry/archie-protocol/prepare-route-data.mjs \
-  --audit .local/archie-audit \
+  --audit .local/archie-audit/files \
   --out .local/archie-route/route-train.json \
-  --evals-out .local/archie-route/evals \
   --freeze-suite .local/archie-route/suite-80.json
-```
 
-Add deterministic conversational-register variants:
-
-```bash
-node foundry/archie-protocol/augment-route-register.mjs \
+node foundry/archie-protocol/mega-distill-route-data.mjs \
   --input .local/archie-route/route-train.json \
-  --out .local/archie-route/route-train.register.json
+  --out .local/archie-route/route-train.distilled.json \
+  --copies 6
 ```
 
-## Verified local megadistillation
+## Optional local-teacher megadistillation
 
-Kimi K2's transferable lesson is not its trillion-parameter scale. It is increasing token utility through diverse rephrasing, fidelity verification, synthesized trajectories, and verifiable feedback. Archie applies that pattern narrowly to routing.
+Kimi K2's transferable lesson is not its scale. It is increasing token utility through diverse rephrasing, fidelity verification, synthesized trajectories, and verifiable feedback. Archie applies that pattern narrowly to routing.
 
 Start any local OpenAI-compatible teacher. With llama.cpp:
 
@@ -64,42 +77,32 @@ Generate multiple conversational and order-sensitive rewrites, protect every fro
 
 ```bash
 python3 foundry/archie-protocol/megadistill-route-corpus.py \
-  --data .local/archie-route/route-train.register.json \
+  --data .local/archie-route/route-train.json \
   --out .local/archie-route/route-train.megadistilled.json \
   --endpoint http://127.0.0.1:8080 \
   --model local-teacher \
   --samples-per-row 6 \
   --judges 3 \
   --freeze .local/archie-route/suite-80.json \
-  --freeze .local/archie-route/evals/router-v2-original-heldout.jsonl \
-  --freeze .local/archie-route/evals/router-real-v2-heldout.jsonl \
-  --freeze .local/archie-route/evals/router-real-v3-final.jsonl
+  --freeze .local/archie-audit/files/artifacts/evals/router-v2-original-heldout.jsonl \
+  --freeze .local/archie-audit/files/artifacts/evals/router-real-v2-heldout.jsonl \
+  --freeze .local/archie-audit/files/artifacts/evals/router-real-v3-final.jsonl
 ```
 
-The distiller emits a corpus plus a digest-bound receipt. It rejects exact suite leakage, wrong-route rewrites, low-confidence examples, and candidates that fail majority fidelity verification.
+The teacher-backed distiller emits a corpus plus a digest-bound receipt. It rejects exact suite leakage, wrong-route rewrites, low-confidence examples, and candidates that fail majority fidelity verification.
 
-Train the order/context-aware encoder and export the browser model:
+## Train experimental context candidates
 
 ```bash
 node foundry/archie-protocol/train-context-route-model.mjs \
-  --data .local/archie-route/route-train.megadistilled.json \
-  --evals .local/archie-route/evals \
+  --data .local/archie-route/route-train.distilled.json \
+  --evals .local/archie-audit/files/artifacts/evals \
   --suite .local/archie-route/suite-80.json \
-  --model-out archie-operator/model.json \
-  --out foundry/archie-protocol/runs/context-route-model-receipt.json
+  --model-out .local/archie-route/candidate-model.json \
+  --out .local/archie-route/candidate-receipt.json
 ```
 
-The context encoder adds positional buckets, head/tail features, ordered trigrams, skip-bigrams, and explicit attachment, memory, and thread signals. Those metadata signals do not imply file-content understanding or durable memory.
-
-## Width sweeps
-
-For controlled width and seed comparisons on the committed protocol corpus:
-
-```bash
-node foundry/archie-protocol/train-protocol-sweep.mjs
-```
-
-The sweep writes a receipt under `foundry/archie-protocol/runs/`. It selects a candidate only by held-out performance, uses parameter count as a tie-breaker, and keeps promotion at `not-admitted`.
+Do not replace `archie-operator/model.json` unless a candidate beats the existing model on every mandatory retention gate. The Linux candidates in the committed receipt did not, so they were rejected rather than shipped.
 
 ## Boundary
 
