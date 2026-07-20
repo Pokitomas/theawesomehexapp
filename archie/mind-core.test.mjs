@@ -58,3 +58,19 @@ test('explicit decision language beats an unrelated model route', () => {
   const analysis = analyzeRequest('Choose between repairing the laptop and replacing it');
   assert.equal(chooseRoute(model('plan'), analysis).mode, 'decision');
 });
+
+test('short explicit requests and repeated output types remain actionable', () => {
+  assert.equal(composeLocalResponse('Plan my move', model('plan')).mode, 'plan');
+  const repeated = composeLocalResponse('Text Maya that Friday works, then text Jennifer that Monday works', model('message'));
+  assert.equal(repeated.mode, 'compound');
+  assert.match(repeated.response, /Hi Maya,/);
+  assert.match(repeated.response, /Hi Jennifer,/);
+});
+
+test('resolved thread context changes the generated content', () => {
+  const result = composeLocalResponse('Continue that, but make it a checklist.', model('plan'), {
+    history: [{ request: 'Prepare my move for next Saturday', response: 'A short plan' }]
+  });
+  assert.equal(result.mode, 'checklist');
+  assert.match(result.response, /prepare move next saturday/i);
+});
