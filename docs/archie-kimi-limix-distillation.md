@@ -123,7 +123,19 @@ python3 foundry/archie-protocol/kimi-route-distill.py \
 
 The run writes its accepted rows and receipt even when coverage is incomplete, then exits nonzero if any source has fewer than the required accepted candidates. Inspect coverage, rejection reasons, family additions, cache accounting, and all `verifier-isolation-*` failures before training.
 
-Retrain the context-aware route model on the merged full corpus, not the augmentation file:
+Train the full multi-head Archie Reasoner on the merged corpus through the Kimi bridge. The bridge patches only the training target builder: route, authority, context, transform, attachment, memory, and thread supervision continue to use the existing Reasoner heads, while active clauses, compound state, operation, target, and ordered outcomes become explicit autoregressive task-graph fields. The original reasoner files and fail-closed inference gate remain unchanged.
+
+```bash
+python3 foundry/archie-protocol/train-kimi-reasoner.py \
+  --data .local/archie-route/route-train-kimi-smoke.json \
+  --evals .local/archie-audit/files/artifacts/evals \
+  --suite .local/archie-route/suite-80.json \
+  --output .local/archie-route/kimi-reasoner-smoke \
+  --preset diagnostic \
+  --device cpu
+```
+
+Use the existing context-route MLP only as a route-only ablation. It consumes prompt, route, attachment, memory, and thread signals, but it does not train authority, context, clause, compound, operation, target, or ordered-outcome heads.
 
 ```bash
 node foundry/archie-protocol/train-context-route-model.mjs \
@@ -140,7 +152,7 @@ Only expand to the 768-source second stage after the smoke improves the complete
 
 The bounded implementation was exercised on Linux with:
 
-- 18 unit tests covering K3 request construction, strict schema, metadata projection and preservation, drift rejection, exact verifier IDs, strict verdict types, unanimous consensus, augmentation/full-corpus separation, low-correlation source selection, and fail-closed auxiliary calibration;
+- 25 unit tests covering K3 request construction, strict schema, metadata projection and preservation, drift rejection, exact verifier IDs, strict verdict types, unanimous consensus, augmentation/full-corpus separation, low-correlation source selection, fail-closed auxiliary calibration, unique augmentation identities, missing-frozen-suite rejection, and the multi-head Kimi Reasoner bridge;
 - an end-to-end local HTTP mock that executed real `urllib` requests through generation, verification, receipt writing, augmentation output, and merged-corpus output;
 - a synthetic 96-source selector run proving 16 low-correlation rows in every family;
 - the 96-source cost preflight, which reproduced the 48-call, 196,608-token, $2.95 ceiling.
