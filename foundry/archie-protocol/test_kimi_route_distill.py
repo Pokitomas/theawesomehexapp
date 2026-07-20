@@ -100,6 +100,20 @@ class KimiRouteDistillTests(unittest.TestCase):
         self.assertEqual(source['thread'], 'previous discussion')
         self.assertEqual(source['attachments'], [{'filename': 'new.pdf'}])
 
+    def test_missing_frozen_file_fails_closed(self):
+        with self.assertRaises(FileNotFoundError):
+            MOD.frozen(['/definitely/missing/archie-suite.jsonl'])
+
+    def test_accepted_rows_get_unique_ids_and_preserve_source_identity(self):
+        source = {**self.source(), 'id': 'source-17'}
+        first = {**self.candidate(), '_source_id': 0, '_candidate_id': '0:0'}
+        second = {**first, 'prompt': 'Please summarize the attached incident file while disregarding the stale remembered plan.', '_candidate_id': '0:1'}
+        first_row = MOD.accepted_row(source, first, [self.verdict('0:0')], 'kimi-k3')
+        second_row = MOD.accepted_row(source, second, [self.verdict('0:1')], 'kimi-k3')
+        self.assertNotEqual(first_row['id'], second_row['id'])
+        self.assertTrue(first_row['id'].startswith('kimi-'))
+        self.assertEqual(first_row['distillation']['source_id'], 'source-17')
+
     def test_k3_uses_reasoning_effort_and_strict_schema_without_sampling(self):
         schema = MOD.generation_schema(2, 2)
         body = MOD.request_body(self.args(), [{'role': 'user', 'content': 'x'}], .8, 512, 'test', schema)
