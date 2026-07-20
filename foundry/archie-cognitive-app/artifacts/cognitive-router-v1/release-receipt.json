@@ -1,35 +1,77 @@
 {
-  "schema": "archie-cognitive-app-release/v1",
-  "candidate": "cognitive-router-v1",
   "architecture": {
     "byte_level_segment_encoder": true,
-    "segments": ["request", "attachment", "memory", "thread"],
+    "checkpoint_bytes": 260293,
+    "heads": [
+      "route",
+      "authority",
+      "context"
+    ],
     "recurrent_steps": 3,
-    "heads": ["route", "authority", "context"],
-    "symbolic_controller": ["authority-boundary", "context-reference", "correction", "ordered-outcomes", "semantic-expert-ensemble"],
-    "checkpoint_bytes": 260293
+    "segments": [
+      "request",
+      "attachment",
+      "memory",
+      "thread"
+    ],
+    "symbolic_controller": [
+      "authority-boundary",
+      "context-reference",
+      "correction",
+      "ordered-outcomes",
+      "semantic-expert-ensemble"
+    ]
   },
-  "training": {
-    "schema": "archie-cognitive-router-training/v1",
-    "config": {"byte_vocab": 257, "max_request": 240, "max_payload": 160, "embed": 32, "hidden": 48, "lane": 32, "steps": 3, "dropout": 0.12, "batch": 512, "epochs": 2, "lr": 0.0035, "seed": 3407},
-    "training_rows": 20608,
-    "development_rows": 1792,
-    "best_score": 1.0,
-    "temperature": 0.4772261679172516,
-    "promotion": "not-admitted"
-  },
+  "candidate": "cognitive-router-v1",
   "evaluation": {
+    "accuracy": 1.0,
+    "correct": 310,
+    "examples": 310,
+    "independent_admission_claim": false,
     "pack_sha256": "f0b8f8b99d9af10e51757f308c9310ed8498c20070f484cfcfb51531674334db",
     "receipt_sha256": "1464e886b3eb87699774423f3e0377bbd9145ab80778ba5cfeba71437fd72728",
-    "examples": 310,
-    "correct": 310,
-    "accuracy": 1.0,
-    "status": "development-after-inspection",
-    "independent_admission_claim": false
+    "status": "development-after-inspection"
   },
-  "runtime_ms": {"coldish_p50": 7.082468500129835, "coldish_p95": 61.74946300006923, "cached_observed": 0.2},
-  "model_sha256": "20199e4fbc638f18bc0060e2d36d6b4d4a17f381c51805a99ac0e9982fc5a605",
-  "tests": {"unit": 7, "postfreeze_errors": 0, "checkpoint_roundtrip": true},
+  "model_sha256": "bdda6dce73da91c281b45fd4b75cca8681999a3042324449f9c0954c23739caa",
   "promotion": "not-admitted",
-  "reason": "The supplied pack was inspected and used for mechanism repair; a new untouched admission pack and product parity gates are still required."
+  "reason": "The supplied pack was inspected and used for mechanism repair; a new untouched admission pack and product parity gates are still required.",
+  "runtime_ms": {
+    "cached_observed": 0.2,
+    "coldish_p50": 7.082468500129835,
+    "coldish_p95": 61.74946300006923
+  },
+  "schema": "archie-cognitive-app-release/v1",
+  "tests": {
+    "checkpoint_roundtrip": true,
+    "postfreeze_errors": 0,
+    "unit": 7
+  },
+  "training": {
+    "best_score": 1.0,
+    "config": {
+      "batch": 512,
+      "byte_vocab": 257,
+      "dropout": 0.12,
+      "embed": 32,
+      "epochs": 2,
+      "hidden": 48,
+      "lane": 32,
+      "lr": 0.0035,
+      "max_payload": 160,
+      "max_request": 240,
+      "seed": 3407,
+      "steps": 3
+    },
+    "development_rows": 1792,
+    "promotion": "not-admitted",
+    "schema": "archie-cognitive-router-training/v1",
+    "temperature": 0.4649127721786499,
+    "training_rows": 20608
+  },
+  "workflow": {
+    "commit": "6dc8eb5256b3964f60cec27999794885641c0c36",
+    "run_attempt": "1",
+    "run_id": "29777676056",
+    "runner": "ubuntu-latest"
+  }
 }
