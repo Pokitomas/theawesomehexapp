@@ -97,6 +97,12 @@ test('language core handles negation, memory, attachments, and authority boundar
   assert.equal(contextual.contextUsed, 'previous-turn');
   assert.match(contextual.resolvedText, /Prepare my move/);
 
+  const contextualResult = composeLocalResponse('Continue that, but make it a checklist.', model('plan'), {
+    history: [{ request: 'Prepare my move for next Saturday', response: 'A short plan' }]
+  });
+  assert.equal(contextualResult.mode, 'checklist');
+  assert.match(contextualResult.response, /prepare move next saturday/i);
+
   const attached = composeLocalResponse('Summarize the attached file', model('summary'), {
     attachments: [{ name: 'notes.txt', type: 'text/plain', size: 120, text: 'Revenue increased in June. Churn fell after onboarding changed. The team will test annual pricing next.' }]
   });
@@ -109,4 +115,12 @@ test('language core handles negation, memory, attachments, and authority boundar
 
   const decision = analyzeRequest('Choose between repairing the laptop and replacing it');
   assert.equal(chooseRoute(model('plan'), decision).mode, 'decision');
+});
+
+test('short explicit requests and repeated output types remain actionable', () => {
+  assert.equal(composeLocalResponse('Plan my move', model('plan')).mode, 'plan');
+  const repeated = composeLocalResponse('Text Maya that Friday works, then text Jennifer that Monday works', model('message'));
+  assert.equal(repeated.mode, 'compound');
+  assert.match(repeated.response, /Hi Maya,/);
+  assert.match(repeated.response, /Hi Jennifer,/);
 });
