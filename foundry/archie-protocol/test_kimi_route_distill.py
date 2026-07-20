@@ -71,6 +71,31 @@ class KimiRouteDistillTests(unittest.TestCase):
         self.assertEqual(k2['temperature'], .4)
         self.assertNotIn('reasoning_effort', k2)
 
+    def test_batch_verdict_index_requires_exact_isolation(self):
+        candidates = [
+            {'_candidate_id': '0:0'},
+            {'_candidate_id': '0:1'},
+        ]
+        good = {'verdicts': [
+            {'candidate_id': '0:0'},
+            {'candidate_id': '0:1'},
+        ]}
+        self.assertEqual(set(MOD.index_verdicts(candidates, good)), {'0:0', '0:1'})
+        self.assertIsNone(MOD.index_verdicts(candidates, {'verdicts': [{'candidate_id': '0:0'}]}))
+        self.assertIsNone(MOD.index_verdicts(candidates, {'verdicts': [
+            {'candidate_id': '0:0'}, {'candidate_id': 'other'},
+        ]}))
+
+    def test_batch_consensus_requires_label_and_fidelity_majority(self):
+        candidate = {
+            'route': 'summary', 'authority': 'allow', 'context': 'ready',
+            'active_clauses': 1, 'compound': False,
+        }
+        verdict = {**candidate, 'faithful': True, 'confidence': .9}
+        wrong = {**verdict, 'route': 'message'}
+        self.assertTrue(MOD.batch_consensus(candidate, [verdict, verdict, wrong], .72))
+        self.assertFalse(MOD.batch_consensus(candidate, [verdict, wrong, wrong], .72))
+
 
 if __name__ == '__main__':
     unittest.main()
