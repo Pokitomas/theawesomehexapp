@@ -1,7 +1,7 @@
 # Maker executive live-state synthesis
 
 Issue: #679  
-Stacked dependency: PR #680 at `03d489e78df2417baebb31ace6a1464326232457`
+Integration base: `main@96b17dcdc0ee5c503d52fc548571451d4e211204` after PR #680 merged
 
 ## Purpose
 
@@ -91,11 +91,7 @@ The isolated contract covers:
 - transitive duplicate-investigation collapse;
 - stale-head, superseded-branch, stale-log, and disproven-assumption eviction.
 
-The isolated test passed seven cases before repository mutation. Repository Actions remain independent evidence.
-
-## Current external blocker
-
-PR #680 has successful kernel, lease/collision, authority-manifest, exact-tree, manual-gate, and related repository checks. Its universal-media workflow failed three internal attempts at `studio/manual/tests/universal-media-clickthrough.mjs:206` while the PR changes only Maker scripts and documentation. That failure is preserved as an unrelated blocker; this lane does not widen ownership into manual-product code.
+The isolated test passed seven cases before repository mutation. The branch was then metadata-rebound to the exact current `main` above so repository Actions could evaluate the synthetic merge tree rather than the stale stack base.
 
 ## Claim boundary
 
