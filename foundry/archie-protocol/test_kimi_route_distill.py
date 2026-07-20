@@ -147,6 +147,7 @@ class KimiRouteDistillTests(unittest.TestCase):
         self.assertEqual(accepted['attachments'], source['attachments'])
         self.assertEqual(accepted['memory'], source['memory'])
         self.assertEqual(accepted['thread'], source['thread'])
+        self.assertEqual(accepted['context_state'], source['context'])
 
     def test_candidate_validation_rejects_label_and_family_drift(self):
         source = self.source()
