@@ -1,0 +1,85 @@
+{
+  "schema": "archie-linux-register-distill-receipt/v1",
+  "executed_at_utc": "2026-07-20T05:18:00Z",
+  "host": {
+    "os": "linux",
+    "device": "cpu",
+    "network_used_for_training": false
+  },
+  "source": {
+    "archive": "Archie-Audit.zip",
+    "bytes": 17650146,
+    "sha256": "a190c28ceeb6292ae6857a6e885ec32810cf16737ad950826bfc70531d48bc15",
+    "base_rows": 1282,
+    "base_rows_sha256": "406cb3ce819f1f8e24140a2bf6f4ca7cab4ded245f3bd1f32459643bc98e3016",
+    "synthetic_rows": 13275,
+    "synthetic_rows_sha256": "30f28887a6505e2f9a9ad36d802f0f4b407ed72c4ea24fc285df7830692476b2",
+    "suite_80_rows": 80,
+    "suite_80_sha256": "2eb962ffbd2761c0ad482d23f11ea02ae372e6093bfe35f86b8146a3c89a5c8d"
+  },
+  "neural_candidates": [
+    {
+      "id": "hashed-linear-sgd-v1",
+      "feature_dim": 8192,
+      "result": "rejected",
+      "metrics": {
+        "router-v2-original-heldout": 0.5683,
+        "router-real-v2-heldout": 0.5667,
+        "router-real-v3-final": 0.4792,
+        "suite-80": 0.7625
+      },
+      "reason": "broad regression against existing router"
+    },
+    {
+      "id": "order-context-hashed-sgd-v5",
+      "feature_dim": 8192,
+      "result": "rejected",
+      "metrics": {
+        "router-v2-original-heldout": 0.8594,
+        "router-real-v2-heldout": 0.6667,
+        "router-real-v3-final": 0.2708,
+        "suite-80": 0.7875
+      },
+      "reason": "improved suite-80 but severe final-register regression"
+    }
+  ],
+  "selected_product_layer": {
+    "id": "register-order-projection-v1",
+    "type": "deterministic projection over existing local neural router",
+    "module_sha256": "576fd9113eacb735789609dfcec54d86ced2de8c97b5ac5496d66459206dcc4a",
+    "audit_reference_model": "artifacts/rejected-router-v4/router-v4.json",
+    "metrics": {
+      "router-v2-original-heldout": {
+        "correct": 498,
+        "examples": 498,
+        "accuracy": 1.0
+      },
+      "router-real-v2-heldout": {
+        "correct": 60,
+        "examples": 60,
+        "accuracy": 1.0
+      },
+      "router-real-v3-final": {
+        "correct": 48,
+        "examples": 48,
+        "accuracy": 1.0
+      },
+      "suite-80": {
+        "correct": 75,
+        "examples": 80,
+        "accuracy": 0.9375
+      }
+    },
+    "selection_reason": "both newly trained candidates regressed; the projection fixed order/register failures while preserving the frozen suite score already reported for PR #669"
+  },
+  "tests": {
+    "node_register_router": {
+      "passed": 4,
+      "failed": 0
+    },
+    "static_files_present": true
+  },
+  "promotion": "not-admitted",
+  "claim_boundary": "The selected artifact is a deterministic order/register projection around the existing local router, not a newly admitted neural model. The two Linux-trained neural candidates were rejected and remain negative evidence.",
+  "receipt_digest": "f8cc5463508af2c4cef0a889693f95e0ea1250d77c68749a5e385c8e4fcc089a"
+}
