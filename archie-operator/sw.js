@@ -1,6 +1,6 @@
 // Archie Local Operator: app-shell cache plus stale-while-revalidate model refresh.
-const CACHE = 'archie-operator-v3';
-const SHELL = ['.', 'index.html', 'operator-core.mjs', 'model.json', 'manifest.webmanifest'];
+const CACHE = 'archie-operator-v7';
+const SHELL = ['.', 'index-v7.html', 'operator-core.mjs', 'register-router.mjs', 'model.json', 'manifest.webmanifest'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -30,7 +30,7 @@ self.addEventListener('fetch', event => {
       if (response.ok && new URL(event.request.url).origin === self.location.origin) cache.put(event.request, response.clone());
       return response;
     } catch {
-      return cache.match('index.html');
+      return cache.match('index-v7.html');
     }
   })());
 });
