@@ -1,4 +1,4 @@
-name: Isolate Archie neural register transfer
+name: Self-contained Archie neural register experiment
 
 on:
   pull_request:
@@ -10,11 +10,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: archie-neural-isolation-${{ github.event.pull_request.number || github.ref }}
+  group: archie-neural-self-contained-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  isolate:
+  train:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 330
@@ -23,14 +23,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Stop after evidence is committed
         id: already
         shell: bash
         run: |
-          if [[ -f foundry/archie-protocol/neural/runs/npt-realdom-noft-d128-seed424243-receipt.json && \
-                -f foundry/archie-protocol/neural/runs/npt-realdom-headsafe-d128-seed424243-receipt.json ]]; then
+          if [[ -f foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243-receipt.json && \
+                -f foundry/archie-protocol/neural/runs/npt-committed-headsafe-d128-seed424243-receipt.json ]]; then
             echo "done=true" >> "$GITHUB_OUTPUT"
           else
             echo "done=false" >> "$GITHUB_OUTPUT"
@@ -47,85 +47,44 @@ jobs:
         if: steps.already.outputs.done != 'true'
         run: python -m pip install --upgrade numpy scipy scikit-learn joblib
 
-      - name: Discover governed corpus and frozen legacy suites
+      - name: Build deterministic committed-data corpus
         if: steps.already.outputs.done != 'true'
-        id: assets
         shell: bash
         run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
+          mkdir -p .tmp/empty-legacy
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import { buildCorpus } from './foundry/archie-protocol/protocol-corpus.mjs';
+          const corpus = buildCorpus();
+          const rows = [...corpus.train, ...corpus.development, ...corpus.hard]
+            .map(row => ({ prompt: row.prompt, route: row.intent, source: `protocol-corpus:${row.split}` }));
+          const payload = JSON.stringify(rows, null, 2) + '\n';
+          fs.mkdirSync('.tmp', { recursive: true });
+          fs.writeFileSync('.tmp/committed-route-corpus.json', payload);
+          const counts = Object.fromEntries([...new Set(rows.map(r => r.route))].sort()
+            .map(route => [route, rows.filter(r => r.route === route).length]));
+          const manifest = {
+            schema: 'archie-committed-route-corpus/v1',
+            source: 'foundry/archie-protocol/protocol-corpus.mjs',
+            rows: rows.length,
+            route_counts: counts,
+            sha256: crypto.createHash('sha256').update(payload).digest('hex'),
+            claim_boundary: 'Repository-authored prompts only. This is not run C\'s missing 925-row governed corpus.'
+          };
+          fs.writeFileSync('.tmp/committed-route-corpus.manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          console.log(JSON.stringify(manifest, null, 2));
+          NODE
 
-          root = Path('.')
-          candidates = []
-          for path in root.rglob('*.json'):
-              parts = set(path.parts)
-              if '.git' in parts or 'node_modules' in parts or 'runs' in parts:
-                  continue
-              try:
-                  if path.stat().st_size > 80_000_000:
-                      continue
-                  data = json.loads(path.read_text())
-              except Exception:
-                  continue
-              if not isinstance(data, list) or not data:
-                  continue
-              sample = data[:min(80, len(data))]
-              if all(isinstance(row, dict) and 'prompt' in row and 'route' in row for row in sample):
-                  name = str(path).lower()
-                  score = (
-                      0 if len(data) == 925 else 1,
-                      0 if 'real' in name else 1,
-                      0 if any(token in name for token in ('prompt', 'corpus', 'register')) else 1,
-                      abs(len(data) - 925),
-                      len(name),
-                  )
-                  candidates.append((score, path, len(data)))
-          if not candidates:
-              raise SystemExit('No governed prompt/route JSON corpus found')
-          candidates.sort(key=lambda item: item[0])
-          _, real_path, real_count = candidates[0]
-
-          matches = list(root.rglob('router-v2-original-heldout.jsonl'))
-          if not matches:
-              raise SystemExit('Legacy suite directory not found')
-          legacy_dir = matches[0].parent
-          required = [
-              legacy_dir / 'router-v2-original-heldout.jsonl',
-              legacy_dir / 'router-real-v2-heldout.jsonl',
-              legacy_dir / 'router-real-v3-final.jsonl',
-          ]
-          missing = [str(path) for path in required if not path.exists()]
-          if missing:
-              raise SystemExit(f'Missing legacy suites: {missing}')
-
-          frozen = root / 'foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json'
-          if not frozen.exists():
-              raise SystemExit(f'Frozen 429 pack missing: {frozen}')
-
-          print(json.dumps({
-              'real_rows': str(real_path),
-              'real_count': real_count,
-              'legacy_dir': str(legacy_dir),
-              'frozen_pack': str(frozen),
-              'all_candidates': [(str(path), count) for _, path, count in candidates[:10]],
-          }, indent=2))
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'real_rows={real_path}\n')
-              output.write(f'real_count={real_count}\n')
-              output.write(f'legacy_dir={legacy_dir}\n')
-              output.write(f'frozen_pack={frozen}\n')
-          PY
-
-      - name: Verify trainer implementation
+      - name: Verify trainer and protected-adaptation implementation
         if: steps.already.outputs.done != 'true'
         working-directory: foundry/archie-protocol/neural
         run: |
           python np_transformer.py --gradcheck
           python test_np_transformer.py
+          python -m py_compile protected_finetune.py
 
-      - name: Train isolated real-dominant checkpoint without fine-tuning
+      - name: Train committed authored-dominant checkpoint
         if: steps.already.outputs.done != 'true'
         run: |
           python foundry/archie-protocol/neural/np_transformer.py \
@@ -139,37 +98,37 @@ jobs:
             --lr 0.0022 \
             --drop 0.10 \
             --scale 3 \
-            --real-rows "${{ steps.assets.outputs.real_rows }}" \
-            --real-repeat 15 \
+            --real-rows .tmp/committed-route-corpus.json \
+            --real-repeat 40 \
             --finetune-epochs 0 \
-            --legacy-dir "${{ steps.assets.outputs.legacy_dir }}" \
-            --frozen-pack "${{ steps.assets.outputs.frozen_pack }}" \
+            --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
             --out foundry/archie-protocol/neural/runs \
-            --tag npt-realdom-noft-d128
+            --tag npt-committed-authored-d128
 
-      - name: Adapt only the route head with replay and proximal protection
+      - name: Adapt only route head with replay and proximal protection
         if: steps.already.outputs.done != 'true'
         run: |
           python foundry/archie-protocol/neural/protected_finetune.py \
-            --source-receipt foundry/archie-protocol/neural/runs/npt-realdom-noft-d128-seed424243-receipt.json \
-            --source-weights foundry/archie-protocol/neural/runs/npt-realdom-noft-d128-seed424243.npz \
-            --real-rows "${{ steps.assets.outputs.real_rows }}" \
-            --legacy-dir "${{ steps.assets.outputs.legacy_dir }}" \
-            --frozen-pack "${{ steps.assets.outputs.frozen_pack }}" \
+            --source-receipt foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243-receipt.json \
+            --source-weights foundry/archie-protocol/neural/runs/npt-committed-authored-d128-seed424243.npz \
+            --real-rows .tmp/committed-route-corpus.json \
+            --legacy-dir .tmp/empty-legacy \
+            --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
             --out foundry/archie-protocol/neural/runs \
-            --tag npt-realdom-headsafe-d128 \
+            --tag npt-committed-headsafe-d128 \
             --epochs 4 \
             --batch 64 \
             --lr 0.0001 \
-            --real-repeat 3 \
+            --real-repeat 4 \
             --replay-ratio 1.0 \
             --proximal 0.001 \
             --label-smoothing 0.05
 
-      - name: Rebuild comparison and write exact isolation report
+      - name: Write evidence and promotion decision
         if: steps.already.outputs.done != 'true'
         shell: bash
         run: |
+          cp .tmp/committed-route-corpus.manifest.json foundry/archie-protocol/neural/runs/committed-route-corpus.manifest.json
           node foundry/archie-protocol/neural/compare-runs.mjs
           python - <<'PY'
           import json
@@ -180,81 +139,88 @@ jobs:
           names = {
               'B': 'npt-sw-d128-seed424243-receipt.json',
               'C': 'npt-realdom-d128-seed424243-receipt.json',
-              'D': 'npt-realdom-noft-d128-seed424243-receipt.json',
-              'E': 'npt-realdom-headsafe-d128-seed424243-receipt.json',
+              'F': 'npt-committed-authored-d128-seed424243-receipt.json',
+              'G': 'npt-committed-headsafe-d128-seed424243-receipt.json',
           }
           receipts = {key: json.loads((runs / name).read_text()) for key, name in names.items()}
+          manifest = json.loads((runs / 'committed-route-corpus.manifest.json').read_text())
 
-          def metric(receipt, suite, field):
-              return receipt.get('results', {}).get(suite, {}).get(field)
-
+          def blind(key, field):
+              return receipts[key]['results']['blind_429'][field]
           def pct(value):
-              return '—' if value is None else f'{100 * value:.1f}%'
+              return f'{100 * value:.1f}%'
 
           rows = []
-          for key in ('B', 'C', 'D', 'E'):
+          for key in ('B', 'C', 'F', 'G'):
               receipt = receipts[key]
               rows.append({
                   'run': key,
                   'tag': receipt['tag'],
-                  'blind_full': metric(receipt, 'blind_429', 'full_accuracy'),
-                  'blind_route': metric(receipt, 'blind_429', 'route_accuracy'),
-                  's498': metric(receipt, 'router-v2-original-heldout', 'route_accuracy'),
-                  's60': metric(receipt, 'router-real-v2-heldout', 'route_accuracy'),
-                  's48': metric(receipt, 'router-real-v3-final', 'route_accuracy'),
-                  'conf_ok': metric(receipt, 'blind_429', 'mean_confidence_correct'),
-                  'conf_bad': metric(receipt, 'blind_429', 'mean_confidence_incorrect'),
+                  'blind_full': blind(key, 'full_accuracy'),
+                  'blind_route': blind(key, 'route_accuracy'),
+                  'conf_ok': blind(key, 'mean_confidence_correct'),
+                  'conf_bad': blind(key, 'mean_confidence_incorrect'),
               })
 
-          d, e = receipts['D'], receipts['E']
-          d_vs_b = metric(d, 'blind_429', 'full_accuracy') - metric(receipts['B'], 'blind_429', 'full_accuracy')
-          d_vs_c = metric(d, 'blind_429', 'full_accuracy') - metric(receipts['C'], 'blind_429', 'full_accuracy')
-          protected = e.get('protection', {})
-          selected_epoch = e.get('config', {}).get('selected_epoch')
-
-          if d_vs_b > 0.01:
-              corpus_conclusion = 'The real-dominant corpus mix helped blind full accuracy relative to run B.'
-          elif d_vs_b < -0.01:
-              corpus_conclusion = 'The real-dominant corpus mix hurt blind full accuracy even without post-hoc fine-tuning; corpus weighting alone is falsified as the remedy.'
-          else:
-              corpus_conclusion = 'The real-dominant corpus mix was neutral within one percentage point of run B; corpus weighting alone did not close the transfer gap.'
-
-          production = {'s498': 477/498, 's60': 56/60, 's48': 26/48}
-          candidate = rows[-1]
-          legacy_pass = all(candidate[key] is not None and candidate[key] >= production[key] for key in ('s498', 's60', 's48'))
-          promotion = 'admitted' if legacy_pass and candidate['blind_full'] is not None and candidate['blind_full'] >= 0.90 else 'not-admitted'
-
-          lines = [
-              '# Neural register-transfer isolation — runs D and E',
-              '',
-              'This experiment resolves the two-variable confound left by run C and tests the mechanistically precise protection suggested by its catastrophic-forgetting trace.',
-              '',
-              '| run | mechanism | blind full | blind route | 498 | 60 | 48 | confidence correct / incorrect |',
-              '|---|---|---:|---:|---:|---:|---:|---|',
-          ]
-          mechanisms = {
-              'B': 'prior strongest subword transformer',
-              'C': 'real-dominant mix + shared-trunk route fine-tune',
-              'D': 'same real-dominant mix, no fine-tune',
-              'E': 'D + frozen-trunk route-head adaptation with replay',
+          protection = receipts['G']['protection']
+          selected_epoch = receipts['G']['config']['selected_epoch']
+          best_key = max(('B', 'F', 'G'), key=lambda key: blind(key, 'full_accuracy'))
+          promotion = 'not-admitted'
+          summary = {
+              'schema': 'archie-neural-self-contained-followup/v1',
+              'exact_run_c_isolation': 'blocked-missing-source-assets',
+              'missing_assets': [
+                  {'name': 'run-C governed corpus', 'expected_rows': 925, 'retained': False},
+                  {'name': 'router-v2-original-heldout.jsonl', 'retained': False},
+                  {'name': 'router-real-v2-heldout.jsonl', 'retained': False},
+                  {'name': 'router-real-v3-final.jsonl', 'retained': False},
+                  {'name': 'Archie-Audit.zip', 'sha256': 'a190c28ceeb6292ae6857a6e885ec32810cf16737ad950826bfc70531d48bc15', 'retained': False},
+              ],
+              'committed_corpus': manifest,
+              'runs': rows,
+              'best_blind_run': best_key,
+              'protected_bit_exact': protection['bit_exact'],
+              'protected_digest': protection['protected_before_sha256'],
+              'selected_epoch': selected_epoch,
+              'promotion': promotion,
+              'claim_boundary': 'Runs F/G are a new committed-data experiment, not a reconstruction of run C. Legacy admission suites were unavailable, so neither candidate can be promoted regardless of blind-pack performance.'
           }
+          (runs / 'self-contained-followup-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+
+          mechanisms = {
+              'B': 'prior strongest transformer',
+              'C': 'missing-corpus mix + damaging shared-trunk fine-tune',
+              'F': 'repository-authored dominant mix; no post-hoc fine-tune',
+              'G': 'F + route-head-only protected adaptation and replay',
+          }
+          lines = [
+              '# Neural register-transfer follow-up',
+              '',
+              '## Exact isolation result',
+              '',
+              'The preregistered run-D reconstruction cannot be executed honestly: run C’s exact 925-row governed corpus, the three legacy JSONL suites, and the audit archive bytes were not retained. The run-C receipt stores only a truncated normalized training digest and vocabulary, which is insufficient to reconstruct its pre-fine-tune state. No substitute corpus is labeled as causal isolation.',
+              '',
+              '## New self-contained learned experiment',
+              '',
+              f"A deterministic {manifest['rows']}-row corpus was generated from committed `protocol-corpus.mjs` prompts and digest-bound as `{manifest['sha256']}`. It was weighted to dominate the mixed training distribution without a post-hoc shared-trunk fine-tune. Run G then adapted only the route head with replay and proximal anchoring.",
+              '',
+              '| run | mechanism | blind full | blind route | confidence correct / incorrect |',
+              '|---|---|---:|---:|---|',
+          ]
           for row in rows:
-              lines.append(
-                  f"| {row['run']} `{row['tag']}` | {mechanisms[row['run']]} | {pct(row['blind_full'])} | {pct(row['blind_route'])} | {pct(row['s498'])} | {pct(row['s60'])} | {pct(row['s48'])} | {row['conf_ok']} / {row['conf_bad']} |"
-              )
+              lines.append(f"| {row['run']} `{row['tag']}` | {mechanisms[row['run']]} | {pct(row['blind_full'])} | {pct(row['blind_route'])} | {row['conf_ok']} / {row['conf_bad']} |")
           lines += [
               '',
               '## Findings',
               '',
-              f'- **Corpus isolation:** {corpus_conclusion}',
-              f'- **Fine-tune damage isolated:** removing the shared-trunk fine-tune changed blind full accuracy by {d_vs_c * 100:+.1f} percentage points relative to run C.',
-              f"- **Protection proof:** run E selected epoch {selected_epoch}; shared trunk plus every auxiliary head remained bit-exact: `{protected.get('bit_exact')}` with before/after digest `{protected.get('protected_before_sha256')}`.",
-              '- **Selection hygiene:** run E was selected only on generated-development route accuracy and NLL. Frozen suites were evaluated after the checkpoint was fixed.',
-              f'- **Promotion:** `{promotion}`. Production remains unchanged unless every declared gate is cleared.',
+              f"- Best blind-pack full accuracy among comparable learned runs B/F/G: **run {best_key} at {pct(blind(best_key, 'full_accuracy'))}**.",
+              f"- Protected adaptation selected generated-dev epoch {selected_epoch}; every shared-trunk and auxiliary-head byte remained identical: `{protection['bit_exact']}` (`{protection['protected_before_sha256']}`).",
+              f"- Run G changed blind full accuracy by {(blind('G', 'full_accuracy') - blind('F', 'full_accuracy')) * 100:+.1f} percentage points relative to F.",
+              '- The missing legacy suites make admission impossible. Production remains unchanged and promotion remains `not-admitted`.',
               '',
-              '## Reproduction',
+              '## Reproducibility repair',
               '',
-              'The exact commands are encoded in `.github/workflows/archie-neural-isolation.yml`; receipts contain source, corpus, frozen-pack, and checkpoint digests.',
+              'Future experimental receipts must retain or repository-address every training corpus and admission suite by content digest. A row count, vocabulary, or partial digest is not a reconstructible training input.',
               '',
           ]
           report = '\n'.join(lines)
@@ -262,27 +228,14 @@ jobs:
 
           mastery = here / 'NEURAL_MASTERY.md'
           current = mastery.read_text()
-          marker = '## Follow-up isolation: runs D and E'
+          marker = '## Follow-up: source retention and protected adaptation'
           if marker not in current:
-              current += f"\n\n{marker}\n\nSee `NEURAL_ISOLATION.md`. Run D isolates the real-dominant corpus from run C's damaging shared-trunk fine-tune. Run E tests frozen-trunk route-head adaptation with digest-proven protection. Final promotion remains `{promotion}`.\n"
+              current += f"\n\n{marker}\n\nSee `NEURAL_ISOLATION.md`. Exact run-C isolation is blocked because its external corpus and legacy suites were not retained. A separate committed-data run and digest-proven route-head-only adaptation were completed; promotion remains `{promotion}`.\n"
               mastery.write_text(current)
-
-          summary = {
-              'schema': 'archie-neural-isolation-summary/v1',
-              'runs': rows,
-              'corpus_conclusion': corpus_conclusion,
-              'd_minus_c_blind_full': d_vs_c,
-              'd_minus_b_blind_full': d_vs_b,
-              'protected_bit_exact': protected.get('bit_exact'),
-              'protected_digest': protected.get('protected_before_sha256'),
-              'selected_epoch': selected_epoch,
-              'promotion': promotion,
-          }
-          (runs / 'isolation-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
           print(report)
           PY
 
-      - name: Commit permanent evidence to the PR branch
+      - name: Commit permanent evidence and remove temporary workflow
         if: steps.already.outputs.done != 'true'
         shell: bash
         env:
@@ -290,8 +243,9 @@ jobs:
         run: |
           git config user.name "archie-neural-lab"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/archie-neural-isolation.yml
           git add foundry/archie-protocol/neural/runs \
                   foundry/archie-protocol/neural/NEURAL_ISOLATION.md \
                   foundry/archie-protocol/neural/NEURAL_MASTERY.md
-          git commit -m "Isolate register corpus and protect route adaptation [skip ci]"
+          git commit -m "Complete self-contained neural follow-up [skip ci]"
           git push origin "HEAD:${BRANCH}"
