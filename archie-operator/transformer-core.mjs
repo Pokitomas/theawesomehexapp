@@ -30,12 +30,24 @@ export function createTransformer(model) {
   const hd = d / heads;
   const H = Object.fromEntries(['route', 'auth', 'ctx', 'ref', 'out1', 'out2'].map(n => [n, W2[`H${n}`]]));
 
+  const subword = model.config.subword !== false;
+  function expand(words, limit) {
+    const out = [];
+    for (const w of words.slice(0, limit)) {
+      out.push(w);
+      if (subword && w.length >= 4 && /^[a-z0-9]+$/.test(w)) {
+        const marked = `^${w}$`;
+        for (let i = 0; i + 3 <= marked.length; i += 1) out.push('#' + marked.slice(i, i + 3));
+      }
+    }
+    return out;
+  }
   function rowTokens(request, context = {}) {
-    const toks = ['<cls>', ...tokenizeTf(request)];
+    const toks = ['<cls>', ...expand(tokenizeTf(request), 64)];
     const chans = [['attachments', '<att>'], ['memory', '<mem>'], ['thread', '<thr>']];
     for (const [key, marker] of chans) {
       const payload = context[key];
-      if (payload) toks.push(marker, ...tokenizeTf(payload).slice(0, 10));
+      if (payload) toks.push(marker, ...expand(tokenizeTf(payload), 10));
     }
     return toks.slice(0, tmax);
   }

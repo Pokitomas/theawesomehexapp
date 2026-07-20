@@ -53,12 +53,26 @@ def tokenize(text: str) -> list[str]:
     return out
 
 
+SUBWORD = True  # emit char-trigram subword tokens so held-out topic words still activate learned features
+
+
+def _expand(words: list[str], limit: int) -> list[str]:
+    out = []
+    for w in words[:limit]:
+        out.append(w)
+        if SUBWORD and len(w) >= 4 and w.isalnum():
+            marked = f"^{w}$"
+            for i in range(len(marked) - 2):
+                out.append("#" + marked[i:i + 3])
+    return out
+
+
 def row_tokens(row: dict) -> list[str]:
-    toks = ["<cls>"] + tokenize(row.get("request", ""))
+    toks = ["<cls>"] + _expand(tokenize(row.get("request", "")), 64)
     for key, marker in (("attachments", "<att>"), ("memory", "<mem>"), ("thread", "<thr>")):
         payload = row.get(key) or ""
         if payload:
-            toks += [marker] + tokenize(payload)[:10]
+            toks += [marker] + _expand(tokenize(payload), 10)
     return toks
 
 
@@ -481,7 +495,7 @@ def main():
         "tag": a.tag,
         "config": {"d": a.d, "layers": a.layers, "heads": a.heads, "tmax": a.tmax, "epochs": a.epochs,
                     "batch": a.batch, "lr": a.lr, "dropout": a.drop, "scale": a.scale, "seed": a.seed,
-                    "route_temperature": best_t},
+                    "subword": SUBWORD, "route_temperature": best_t},
         "data": {"train_rows": len(train), "real_language_rows": real_count, "dev_rows": len(dev),
                  "dropped_frozen_collisions": dropped, "vocab": len(vmap),
                  "vocab_tokens": sorted(vmap, key=vmap.get),

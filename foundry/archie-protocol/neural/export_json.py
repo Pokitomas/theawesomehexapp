@@ -73,7 +73,7 @@ def main():
 
     body = {
         "schema": "archie-np-transformer-web/v1",
-        "config": {kk: cfg[kk] for kk in ("d", "layers", "heads", "tmax", "seed", "route_temperature")},
+        "config": {**{kk: cfg[kk] for kk in ("d", "layers", "heads", "tmax", "seed", "route_temperature")}, "subword": cfg.get("subword", True)},
         "routes": T.ROUTES, "authority": T.AUTHORITY, "context": T.CONTEXT, "ref": T.REF,
         "out1": T.OUT1, "out2": T.OUT2, "special": T.SPECIAL,
         "vocab": sorted(vmap, key=vmap.get),
