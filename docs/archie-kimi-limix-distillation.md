@@ -4,9 +4,13 @@
 
 Use Kimi only as an offline, evidence-producing teacher. Do not add Kimi, an API key, or a hosted dependency to the Archie product runtime.
 
-The preferred teacher path is the OpenAI-compatible Kimi API with `kimi-k3`. K3 always reasons, so the request uses top-level `reasoning_effort` and never sends the older K2.x `thinking` object. K3 also fixes its sampling parameters, so the distiller omits `temperature` for K3 requests. K2.x and local compatible teachers retain their existing request contracts.
+The preferred teacher path is the OpenAI-compatible Kimi API with `kimi-k3`. K3 always reasons, so the request uses top-level `reasoning_effort` and never sends the older K2.x `thinking` object. K3 fixes its sampling parameters, so the distiller omits `temperature` and other optional sampling fields for K3 requests. K2.x and local compatible teachers retain their existing request contracts.
 
-The distiller parses only the final JSON in `message.content`; it does not request, save, or train on hidden reasoning text. It emits structured final supervision only:
+The distiller parses only the final JSON in `message.content`; it does not request, save, or train on hidden reasoning text. K3 requests use strict `json_schema` structured output by default, with `json_object` retained as an explicit compatibility fallback. The script still validates every candidate, verdict, label, candidate ID, type, range, and consensus result itself.
+
+## What is distilled
+
+The teacher emits structured final supervision only:
 
 - route;
 - authority allow/deny;
@@ -14,9 +18,12 @@ The distiller parses only the final JSON in `message.content`; it does not reque
 - active clause count;
 - compound-request flag;
 - operation and target summaries;
+- ordered outcomes;
 - failure-family identity.
 
 Free-form rationales are unnecessary for this classifier and are harder to verify.
+
+Attachment, memory, and thread context are not teacher-generated fields. The source pack's structural context is projected into both generation and verification prompts, and the accepted row preserves the original source metadata exactly. A candidate cannot replace or invent source attachments, memory, thread state, authority, context, route, or failure family.
 
 ## Why the previous breadth expansion was inefficient
 
@@ -29,13 +36,31 @@ The first supervised atom model already showed that breadth alone can retain the
 5. vague references that require abstention;
 6. unseen summary and decision phrasing.
 
-Generation and verification are separated. A candidate first passes deterministic leakage and near-copy checks, then three independent verifier replicas relabel it and judge semantic fidelity.
+Generation and verification are separated. A candidate first passes deterministic leakage, exact-duplicate, near-copy, label-preservation, schema, and frozen-suite checks. Three replicated verifier passes then relabel it and check fidelity. These are deliberately described as replicated passes, not statistically independent judges: they use the same teacher model. Candidate order changes deterministically between passes to expose order-sensitive cross-record contamination.
 
-Verifier calls are batched rather than issued once per candidate. Every record has a unique `candidate_id`, and each verifier must return exactly one verdict for every expected ID with no duplicate or unknown IDs. Any missing, duplicated, or crossed identifier rejects the whole verifier batch. Acceptance still requires label and fidelity consensus per candidate.
+Every record has a unique `candidate_id`. Each verifier pass must return exactly one strictly typed verdict for every expected ID with no duplicate or unknown IDs. Any missing, duplicated, malformed, or crossed identifier rejects the whole verifier batch. The smoke run defaults to unanimous three-of-three acceptance, and every passing verdict must independently preserve authority, context, ordered outcomes, and negation/correction behavior.
+
+## Source-pack independence
+
+The 51,838 compound-head rows are correlated classifier observations, not 51,838 equally valuable teacher seeds. The smoke selector therefore:
+
+- requires equal family coverage;
+- removes exact duplicates;
+- respects explicit source, template, origin, and cluster provenance IDs when present;
+- greedily rejects high-overlap prompts within a failure family;
+- fails closed unless each family still has the requested number of low-correlation sources.
+
+```bash
+python3 foundry/archie-protocol/select-kimi-smoke.py \
+  --data .local/archie-route/failure-directed-source-pool.json \
+  --out .local/archie-route/kimi-smoke-96.json \
+  --per-family 16 \
+  --max-similarity 0.84
+```
 
 ## Cost preflight
 
-Do not send all 51,838 compound-head training rows to Kimi. Those are classifier observations, not 51,838 independently valuable teacher seeds. A full four-rewrite pass would create up to 207,352 candidates and is not justified before a bounded experiment proves transfer.
+Do not send the entire compound-head corpus to Kimi before bounded transfer is demonstrated. A full four-rewrite pass would create up to 207,352 candidates.
 
 The original per-candidate verifier design would require:
 
@@ -45,7 +70,7 @@ The original per-candidate verifier design would require:
 1,250,592 total calls
 ```
 
-With batch size eight and three isolated verifier replicas, the current design reduces the upper bound to:
+With batch size eight and three verifier passes, the current upper bound is:
 
 ```text
 6,480 generation calls
@@ -53,35 +78,42 @@ With batch size eight and three isolated verifier replicas, the current design r
 25,920 total calls
 ```
 
-This is still too large for a first run. Use `--estimate-only` before any paid execution:
+Use `--estimate-only` before any paid execution. The estimator reports logical call ceilings, configured completion-token exposure, structured-output mode, and the output-price ceiling. Runtime receipts separately report logical calls, cache hits, cache misses, HTTP attempts, and successful HTTP responses.
 
 ```bash
 python3 foundry/archie-protocol/kimi-route-distill.py \
-  --data .local/archie-route/route-train.json \
+  --data .local/archie-route/kimi-smoke-96.json \
   --out /tmp/not-written.json \
   --model kimi-k3 \
-  --samples-per-row 4 \
+  --samples-per-row 2 \
   --judges 3 \
   --batch-size 8 \
   --estimate-only
 ```
 
-## First paid run: cross-record isolation smoke
+For 96 sources, two candidates, batch size eight, and three verifier passes, the ceiling is 48 calls, 196,608 configured completion tokens, and $2.95 of output tokens at $15 per million. Uncached input is additional.
 
-Start with 96 source rows selected outside the script: 16 from each of the six failure families. Use two rewrites per source, batch size eight, three verifier replicas, and low reasoning effort.
+## First paid run
+
+`--data` is the bounded teacher-source pack. `--out` contains accepted augmentation rows only. It is intentionally not a standalone training corpus. Supplying `--base-data` and `--merged-out` creates the complete original corpus plus accepted augmentations, preventing an accidental retrain on only the 96 smoke sources.
 
 ```bash
 export MOONSHOT_API_KEY=...
 
 python3 foundry/archie-protocol/kimi-route-distill.py \
   --data .local/archie-route/kimi-smoke-96.json \
-  --out .local/archie-route/kimi-smoke-96.output.json \
+  --out .local/archie-route/kimi-smoke-96.augmentation.json \
+  --base-data .local/archie-route/route-train.json \
+  --merged-out .local/archie-route/route-train-kimi-smoke.json \
   --endpoint https://api.moonshot.ai/v1 \
   --model kimi-k3 \
   --reasoning-effort low \
+  --structured-output json_schema \
   --cache .local/archie-route/kimi-k3-cache.jsonl \
   --samples-per-row 2 \
   --judges 3 \
+  --verifier-agreement 1.0 \
+  --min-accepted-per-source 1 \
   --batch-size 8 \
   --freeze .local/archie-route/suite-80.json \
   --freeze .local/archie-audit/files/artifacts/evals/router-v2-original-heldout.jsonl \
@@ -89,20 +121,35 @@ python3 foundry/archie-protocol/kimi-route-distill.py \
   --freeze .local/archie-audit/files/artifacts/evals/router-real-v3-final.jsonl
 ```
 
-That run has 12 generation calls and at most 36 verifier calls: 48 calls total. The current 4,096-token completion cap creates a hard output-token exposure of 196,608 tokens, before actual early stopping. Inspect the receipt for API call counts, accepted rows, category coverage, and any `verifier-isolation-*` rejection before expanding.
+The run writes its accepted rows and receipt even when coverage is incomplete, then exits nonzero if any source has fewer than the required accepted candidates. Inspect coverage, rejection reasons, family additions, cache accounting, and all `verifier-isolation-*` failures before training.
 
-The second stage should contain at most 768 targeted sources, 128 per failure family. Retrain immediately after it and expand only the still-failing families. Do not perform a uniform pass over the whole corpus.
+Retrain the context-aware route model on the merged full corpus, not the augmentation file:
 
-The cache makes interrupted runs resumable and avoids paying twice for identical requests. Frozen loaders inspect `text`, `prompt`, `request`, and user-message content.
+```bash
+node foundry/archie-protocol/train-context-route-model.mjs \
+  --data .local/archie-route/route-train-kimi-smoke.json \
+  --evals .local/archie-audit/files/artifacts/evals \
+  --suite .local/archie-route/suite-80.json \
+  --model-out .local/archie-route/context-route-kimi-smoke.int8.json \
+  --out foundry/archie-protocol/runs/context-route-kimi-smoke-receipt.json
+```
+
+Only expand to the 768-source second stage after the smoke improves the complete runtime without legacy, authority, abstention, quantization, or JavaScript-parity regressions. Expand only the families that remain weak.
+
+## Linux validation completed without paid calls
+
+The bounded implementation was exercised on Linux with:
+
+- 18 unit tests covering K3 request construction, strict schema, metadata projection and preservation, drift rejection, exact verifier IDs, strict verdict types, unanimous consensus, augmentation/full-corpus separation, low-correlation source selection, and fail-closed auxiliary calibration;
+- an end-to-end local HTTP mock that executed real `urllib` requests through generation, verification, receipt writing, augmentation output, and merged-corpus output;
+- a synthetic 96-source selector run proving 16 low-correlation rows in every family;
+- the 96-source cost preflight, which reproduced the 48-call, 196,608-token, $2.95 ceiling.
+
+No Moonshot key or external Archie audit corpus was mounted in that Linux runtime. Therefore no paid K3 request, teacher-quality claim, model retraining, or admission claim was made.
 
 ## Auxiliary-head repair
 
-The route head is primary. Authority and context are calibrated vetoes, while inactivity and compound detection are calibrated promotions. An auxiliary head may override only when a threshold meets both:
-
-- a high precision floor; and
-- the declared route-retention floor.
-
-If no threshold qualifies, that override is disabled. This directly addresses the observed failure mode where an auxiliary classifier erased a correct route.
+The route head is primary. Authority and context are calibrated vetoes, while inactivity and compound detection are calibrated promotions. An auxiliary head may override only when a threshold meets both a high precision floor and the declared route-retention floor. If no threshold qualifies, that override is disabled.
 
 ```bash
 python3 foundry/archie-protocol/calibrate-route-vetoes.py \
