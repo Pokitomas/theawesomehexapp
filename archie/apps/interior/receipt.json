@@ -5,7 +5,7 @@
   "created_at": "2026-07-20T03:06:37Z",
   "artifact": {
     "path": "archie/apps/interior/index.html",
-    "sha256": "74de8005ffb52f510d9b6319dc2e4360a2be50d68daed5a1d77ad00853e40a67",
+    "sha256": "fa717c24f31be9af4ada9f659d168080dc64e539510a60d6b7286570e7e10716",
     "media_type": "text/html",
     "independent_runnable": true,
     "server_calls": 0

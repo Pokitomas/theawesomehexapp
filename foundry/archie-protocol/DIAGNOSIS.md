@@ -9,9 +9,14 @@ training on the audit corpus (seed 3407 unless noted).
 ## Method
 
 - **(A) seed variance** at hidden=768, epochs=110, five seeds.
-- **(B) shared-failure test**: train hidden ∈ {256, 512, 1024}, compare the *set*
-  of misclassified cases on the 60-case `router-real-v2-heldout` suite.
-- **(C) regime**: hidden=1024 under several learning-rate / epoch schedules.
+- **(B) shared-failure test**: train hidden ∈ {256, 512, 1024} (seed 3407,
+  epochs 90), compare the *set* of misclassified cases on the 60-case
+  `router-real-v2-heldout` suite.
+
+(An earlier pass of (B)/(C) accidentally omitted the seed argument, degenerating
+the RNG to a constant and producing symmetric near-chance models; those numbers
+were discarded and (B) was re-run with seeds passed. The figures below are the
+corrected run.)
 
 ## Findings, per hypothesis
 
@@ -22,15 +27,16 @@ At fixed width=768, 498-heldout accuracy over five seeds was
 than the within-width seed spread. Width differences are noise.
 
 **"The shared 0.6333 score reflects a fixed failure mode none of the widths
-solved."** — **Confirmed, and located.** On the 60-case suite, **45 of ~48
-errors are made by all three widths** (union of all misses is only 51). Widening
-256→1024 fixes essentially nothing. Five whole routes score **0/5** there
-(decision, study, event, errands, plan) — yet the *same model* routes those
-correctly on the 498-set (e.g. decision 33/40, errands 28/38). The 60-case suite
-draws on a **different phrasing/label convention** than the training corpus; the
-model systematically maps its conversational forms to neighbours
-(decision→compound, errands→checklist, plan→objective, event→objective). This is
-**distribution shift**, not capacity.
+solved."** — **Confirmed.** On the 60-case suite (seed 3407, epochs 90), widths
+256 / 512 / 1024 score 0.617 / 0.633 / 0.617 and make 23 / 22 / 23 errors. Of
+those, **22 are made by all three widths** — the union of all misses across
+widths is only **23**. Widening 256→1024 changes exactly one case. The residual
+errors are the *same cases* regardless of capacity: the weakest routes on this
+suite are plan, objective, checklist and message (2/5 each), while decision
+(5/5), next_action, compound, summary and clarify (4/5) hold. The 60-case suite
+uses a conversational register the training corpus under-covers, so the plateau
+is a **train/eval distribution effect that width cannot touch**, not a capacity
+limit.
 
 **"The task has a ceiling near 0.75."** — **Partly true, for this router.** The
 80-case head-to-head caps at 75/80 because the remaining five are
@@ -50,10 +56,11 @@ n=60 are ±~12 points, so single-model comparisons there are underpowered — wh
 is exactly why (B) compares *miss sets*, not scores.
 
 **"Training duration or learning rate is mismatched for larger models."** —
-**Not the bottleneck.** Given (A) and (B) show width and seed barely move the
-metrics and the errors are shared across widths, a schedule tweak cannot recover
-cases the representation cannot express. (C) confirmed no regime lifted the
-60-case suite off its plateau.
+**Not the bottleneck** (inferred, not separately measured). Given (A) and (B)
+show width and seed barely move the metrics and 22 of 23 errors are identical
+across widths, a schedule tweak cannot recover cases the representation cannot
+express. A clean LR/epoch sweep at hidden=1024 was not completed with valid
+seeds, so this is an inference from (A)+(B) rather than a direct result.
 
 **"The architecture lacks depth, attention, memory, or useful inductive
 structure."** — **True, and the real lever.** The model is a one-hidden-layer

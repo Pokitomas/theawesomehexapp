@@ -294,7 +294,7 @@ async function main() {
     capacity_diagnosis: {
       summary: 'Scaling width 256→1024 does not move the metrics; the residual error is shared across widths, stable across seeds, and concentrated in a register the corpus never contained. See foundry/archie-protocol/DIAGNOSIS.md.',
       seed_noise: 'hidden=768, 5 seeds: 498-heldout sd 0.0023 (range 0.006). Width spread (0.751/0.747/0.749) < seed spread — noise.',
-      fixed_failure_mode: '60-case suite: 45 of ~48 errors shared by all widths {256,512,1024}; five routes score 0/5 there yet route correctly on the 498-set. Distribution shift, not capacity.',
+      fixed_failure_mode: '60-case suite (seed 3407): widths {256,512,1024} score 0.617/0.633/0.617 with 23/22/23 errors; 22 errors shared by all widths, union only 23 — widening changes ~1 case. Train/eval register mismatch, not capacity.',
       real_lever: 'One-hidden-layer bag-of-features MLP: no order beyond bigrams, no attention, no turn/file memory. Next step is corpus register coverage and an order/context-aware encoder, not more parameters.'
     },
     promotion: 'not-admitted',
