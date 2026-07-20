@@ -51,7 +51,9 @@ def source_row(row):
     return normalized
 
 def frozen(paths):
-    return sorted(set(canon(user_text(row)) for path in paths if Path(path).exists() for row in load(path) if user_text(row)))
+    missing=[path for path in paths if not Path(path).is_file()]
+    if missing: raise FileNotFoundError(f'missing frozen evaluation files: {missing}')
+    return sorted(set(canon(user_text(row)) for path in paths for row in load(path) if user_text(row)))
 
 def jaccard(first,second):
     left,right=set(canon(first).split()),set(canon(second).split()); return len(left&right)/max(1,len(left|right))
