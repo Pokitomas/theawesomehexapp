@@ -1,9 +1,9 @@
 name: Train Archie cognitive checkpoint
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/archie-kimi-calibrated-distill-20260720
+      - main
     paths:
       - 'foundry/archie-cognitive-app/**'
       - '.github/workflows/train-archie-cognitive.yml'
@@ -13,12 +13,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: archie-cognitive-${{ github.ref }}
+  group: archie-cognitive-pr-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   train-package-verify:
-    if: ${{ !contains(github.event.head_commit.message || '', '[skip ci]') }}
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -96,4 +96,4 @@ jobs:
             exit 0
           fi
           git commit -m 'Package Linux-trained cognitive checkpoint [skip ci]'
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
