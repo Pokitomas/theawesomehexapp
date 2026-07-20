@@ -1,0 +1,79 @@
+{
+  "artifact_bytes": 61952,
+  "artifact_sha256": "7bd31b5d67c24b5e16d9ef65bb35bf31d918bd5d25a18ef73f0538fc33595f5b",
+  "changed_tensor_count": 27,
+  "claim_boundary": "Training and changed tensors are real. The corpus is deterministic synthetic supervision derived from the repository's 12-route protocol and does not replace untouched real-corpus admission.",
+  "elapsed_seconds": 21.447,
+  "gradient_steps": 252,
+  "heldout": {
+    "authority_accuracy": 0.9201388888888888,
+    "context_accuracy": 0.875,
+    "examples": 288,
+    "guarded_protocol_exact": 0.4305555555555556,
+    "protocol_exact": 0.4305555555555556,
+    "route_accuracy": 0.3680555555555556,
+    "routed_protocol_exact": 0.4895833333333333,
+    "transform_accuracy": 0.6527777777777778
+  },
+  "heldout_error_ids": [
+    "test-decision-0018",
+    "test-event-0008",
+    "test-errands-0004",
+    "test-next_action-0008",
+    "test-summary-0003",
+    "test-summary-0000",
+    "test-event-0019",
+    "test-plan-0006",
+    "test-event-0023",
+    "test-summary-0017",
+    "test-study-0006",
+    "test-compound-0010",
+    "test-summary-0008",
+    "test-message-0010",
+    "test-event-0017",
+    "test-study-0013",
+    "test-decision-0012",
+    "test-summary-0007",
+    "test-study-0012",
+    "test-event-0007",
+    "test-study-0016",
+    "test-event-0010",
+    "test-event-0009",
+    "test-next_action-0022"
+  ],
+  "initial_state_sha256": "13ccb436a551ec046466054d99aa2bbd5dd40ce9903759269dce520ef34d4fcc",
+  "parameter_count": 43706,
+  "promotion": "not-admitted",
+  "quantization_retention": {
+    "guarded_protocol": 1.0080645161290323,
+    "route": 0.990566037735849
+  },
+  "quantized_heldout": {
+    "authority_accuracy": 0.9201388888888888,
+    "context_accuracy": 0.875,
+    "examples": 288,
+    "guarded_protocol_exact": 0.4340277777777778,
+    "protocol_exact": 0.4340277777777778,
+    "route_accuracy": 0.3645833333333333,
+    "routed_protocol_exact": 0.4861111111111111,
+    "transform_accuracy": 0.6527777777777778
+  },
+  "schema": "archie-synthetic-reasoning-training-receipt/v1",
+  "seed": 3407,
+  "splits": {
+    "dev": {
+      "rows": 216,
+      "sha256": "bf639cb67c28138eec1a485421fbcedab8345e4236a78bce30cb9185f68be612"
+    },
+    "test": {
+      "rows": 288,
+      "sha256": "5ffd3732e3e0dea04e96177f81d54b71067ec0e333d6c608233cb8a8bd8179b6"
+    },
+    "train": {
+      "rows": 864,
+      "sha256": "884ee2e4b628c452579a128fb7485557881644a0e59e99e8426f371d8a7203ed"
+    }
+  },
+  "tensor_count": 27,
+  "trained_state_sha256": "c06125a61e3e611e08b459780e5be62aa0a0c7fc2504b4b52275781d95438ca3"
+}
