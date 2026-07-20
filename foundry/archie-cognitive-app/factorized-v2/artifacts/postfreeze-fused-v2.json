@@ -1,0 +1,38 @@
+{
+  "schema": "archie-factorized-postfreeze-evaluation/v2-compact",
+  "candidate": "fused-v2",
+  "suite_sha256": "f0b8f8b99d9af10e51757f308c9310ed8498c20070f484cfcfb51531674334db",
+  "metrics": {
+    "examples": 310,
+    "correct": 239,
+    "accuracy": 0.7709677419354839,
+    "route_accuracy": 0.8161290322580645,
+    "categories": {
+      "abstention": {"correct": 11, "examples": 14},
+      "attachment-missing": {"correct": 6, "examples": 8},
+      "attachment-present": {"correct": 2, "examples": 8},
+      "authority-benign": {"correct": 16, "examples": 24},
+      "authority-unsafe": {"correct": 24, "examples": 24},
+      "memory-missing": {"correct": 7, "examples": 8},
+      "memory-present": {"correct": 1, "examples": 8},
+      "negation": {"correct": 12, "examples": 30},
+      "ordered": {"correct": 74, "examples": 90},
+      "semantic": {"correct": 79, "examples": 80},
+      "thread-missing": {"correct": 7, "examples": 8},
+      "thread-present": {"correct": 0, "examples": 8}
+    },
+    "calibration": {
+      "nll": 2.849306348635325,
+      "ece_10": 0.21877397534135415,
+      "brier": 0.30869486645443883,
+      "mean_confidence_correct": 0.996914352744373,
+      "mean_confidence_incorrect": 0.9655972119706285,
+      "selective_accuracy": {"0.5": 0.7483870967741936, "0.75": 0.8017241379310345, "0.9": 0.8100358422939068, "1.0": 0.7709677419354839}
+    },
+    "decision_sources": {"semantic-conservative-v2": 132, "clause-composition-v2": 100, "factor-authority-v2": 30, "typed-reference-v2": 48},
+    "latency_ms": {"mean": 40.402827690327435, "median": 40.29069199998503, "p95": 59.49982540006431},
+    "max_rss_mb": 888.51171875
+  },
+  "errors_sha256": "b71fe78042b5917ed7c68bda0164d2b45b76dae748e931879d00e3090ec2b101",
+  "promotion": "not-admitted"
+}
