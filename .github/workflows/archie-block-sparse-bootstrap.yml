@@ -1,0 +1,87 @@
+name: Archie block-sparse bootstrap
+
+on:
+  push:
+    branches:
+      - agent/block-sparse-archie-hybrid
+    paths:
+      - '.archie-bootstrap/**'
+      - '.github/workflows/archie-block-sparse-bootstrap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  train-and-publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Verify and unpack source
+        run: python .archie-bootstrap/unpack.py
+      - name: Install isolated training dependencies
+        run: python -m pip install -r foundry/archie-reasoner/requirements-block-sparse.txt
+      - name: Run isolation and API adapter tests
+        working-directory: foundry/archie-reasoner
+        run: python -m unittest -v test_block_sparse.py
+      - name: Train selected independent seed
+        working-directory: foundry/archie-reasoner
+        run: >-
+          python train_block_sparse.py
+          --output ../../../.local/archie-block-sparse/seed-20260720
+          --seed 20260720
+          --executive-epochs 10
+          --emitter-epochs 8
+      - name: Run untouched capacity pack
+        working-directory: foundry/archie-reasoner
+        run: >-
+          python evaluate_block_sparse_capacity.py
+          --bundle ../../../.local/archie-block-sparse/seed-20260720/model.pt
+          --output runs/block-sparse-hybrid-v1/ci-capacity-pack.json
+      - name: Export selected int8 artifact
+        working-directory: foundry/archie-reasoner
+        run: >-
+          python export_block_sparse.py
+          --bundle ../../../.local/archie-block-sparse/seed-20260720/model.pt
+          --output artifacts/block-sparse-hybrid-v1
+          --chunk-bytes 49152
+      - name: Bind CI receipts and enforce admission
+        working-directory: foundry/archie-reasoner
+        run: |
+          cp ../../../.local/archie-block-sparse/seed-20260720/receipt.json runs/block-sparse-hybrid-v1/ci-training-receipt.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('.')
+          train = json.loads((root/'runs/block-sparse-hybrid-v1/ci-training-receipt.json').read_text())
+          cap = json.loads((root/'runs/block-sparse-hybrid-v1/ci-capacity-pack.json').read_text())
+          export = json.loads((root/'artifacts/block-sparse-hybrid-v1/export-receipt.json').read_text())
+          assert train['admission']['passed'], train['heldout']
+          assert cap['passed'] == cap['cases'] == 16, cap
+          assert export['admission']['passed'], export['quantized_heldout']
+          assert export['quantized_capacity_pack']['passed'] == 16, export['quantized_capacity_pack']
+          assert export['quantized_heldout']['route_segment_swap_max_logit_delta'] == 0.0
+          PY
+          rm artifacts/block-sparse-hybrid-v1/model.int8.json
+          mv artifacts/block-sparse-hybrid-v1/export-receipt.json runs/block-sparse-hybrid-v1/ci-export-receipt.json
+      - name: Smoke-test reconstructed artifact
+        working-directory: foundry/archie-reasoner
+        run: >-
+          python infer_block_sparse.py
+          --artifact artifacts/block-sparse-hybrid-v1/model.int8.manifest.json
+          --request 'summarize the quarterly report'
+          --permissions summary,message
+      - name: Commit verified source, receipts, and weights
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add foundry/archie-reasoner
+          git commit -m 'Publish verified block-sparse Archie candidate'
+          git push origin HEAD:agent/block-sparse-archie-hybrid
