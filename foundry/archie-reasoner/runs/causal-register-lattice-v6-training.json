@@ -1,0 +1,22 @@
+{
+  "artifact_bytes": 5944707,
+  "artifact_sha256": "8641f59758bff4c0ffee7269d2e97dbfa36cd56c024916920706e682d36be044",
+  "authority_rows": 7439,
+  "authority_threshold": 0.5,
+  "claim_boundary": "v5 through v8 first-run suites are now development data. Fresh evidence requires v9.",
+  "development_sources": {
+    "base": 6667,
+    "capability_v4": 119,
+    "capability_v5": 149,
+    "capability_v6": 133,
+    "capability_v7": 116,
+    "capability_v8": 98,
+    "final": 98
+  },
+  "promotion": "not-admitted",
+  "runtime_code_sha256": "41708824d4c357c834b5c687f1b5076ae777858bc8449a9e926f5625eafa77d0",
+  "schema": "archie-causal-register-lattice-training/v6",
+  "segment_rows": 5148,
+  "structured_rows": 9102,
+  "trained_at_utc": "2026-07-20T18:42:18.709641+00:00"
+}
