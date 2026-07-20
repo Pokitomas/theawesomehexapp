@@ -39,7 +39,7 @@ export const ROUTE_PROTOCOL = Object.freeze({
 });
 
 const CONFIG = Object.freeze({
-  minCount: 2, hidden: 384, epochs: 60, learningRate: 0.08,
+  minCount: 2, hidden: 1024, epochs: 110, learningRate: 0.08,
   weightDecay: 2e-5, seed: 3407, charNgrams: true, devFraction: 0.1
 });
 

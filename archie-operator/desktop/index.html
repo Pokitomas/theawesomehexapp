@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#008080">
+<title>Archie 95</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23008080'/%3E%3Crect x='10' y='12' width='44' height='32' fill='%23c0c0c0' stroke='%23000'/%3E%3Crect x='12' y='14' width='40' height='7' fill='%23000080'/%3E%3Ctext x='32' y='38' font-family='monospace' font-size='16' fill='%23000080' text-anchor='middle' font-weight='bold'%3EA%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --teal:#008080; --face:#c0c0c0; --shadow:#808080; --dark:#404040; --hi:#ffffff;
+    --title:#000080; --title2:#1084d0; --title-off:#808080;
+    --sel:#000080; --seltx:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:Tahoma,"MS Sans Serif",Geneva,system-ui,sans-serif;font-size:12px;
+    background:var(--teal);color:#000;user-select:none;
+  }
+  /* ---------- bevels ---------- */
+  .out{border:2px solid;border-color:var(--hi) var(--dark) var(--dark) var(--hi);box-shadow:inset 1px 1px 0 var(--face), inset -1px -1px 0 var(--shadow)}
+  .in{border:2px solid;border-color:var(--dark) var(--hi) var(--hi) var(--dark);box-shadow:inset 1px 1px 0 var(--shadow), inset -1px -1px 0 var(--face)}
+  button{font:inherit;cursor:pointer}
+  .btn{background:var(--face);padding:4px 14px;border:2px solid;border-color:var(--hi) var(--dark) var(--dark) var(--hi);box-shadow:inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 var(--shadow)}
+  .btn:active{border-color:var(--dark) var(--hi) var(--hi) var(--dark);box-shadow:inset 1px 1px 0 var(--shadow)}
+  .btn:focus-visible{outline:1px dotted #000;outline-offset:-5px}
+  textarea,input[type=text],input[type=time]{
+    font:inherit;background:#fff;border:2px solid;border-color:var(--dark) var(--hi) var(--hi) var(--dark);
+    padding:4px 6px;width:100%;user-select:text;
+  }
+  textarea{resize:none}
+  /* ---------- boot ---------- */
+  #boot{position:fixed;inset:0;background:#000;color:#c0c0c0;z-index:1000;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:26px;font-family:"Cascadia Code",Consolas,monospace;transition:opacity .5s}
+  #boot.done{opacity:0;pointer-events:none}
+  .bootlogo{display:flex;align-items:center;gap:16px}
+  .bootblocks{display:grid;grid-template-columns:repeat(2,22px);gap:3px}
+  .bootblocks span{width:22px;height:22px}
+  .bootlogo h1{font-size:34px;letter-spacing:2px;color:#fff}
+  .bootlogo h1 small{display:block;font-size:12px;color:#808080;letter-spacing:6px}
+  #bootbar{width:min(340px,72vw);height:14px;border:1px solid #c0c0c0;padding:2px}
+  #bootfill{height:100%;width:0;background:repeating-linear-gradient(90deg,#000080 0 10px,#1084d0 10px 20px);transition:width .3s}
+  #bootmsg{font-size:11px;color:#808080;min-height:1.2em}
+  /* ---------- desktop ---------- */
+  #desktop{position:fixed;inset:0 0 30px 0;overflow:hidden}
+  #icons{position:absolute;top:8px;left:8px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,84px);gap:2px 6px;height:calc(100% - 12px)}
+  .dicon{width:76px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:1px solid transparent;padding:5px 2px;color:#fff;text-shadow:1px 1px 0 #000;font-size:11px;line-height:1.15;text-align:center}
+  .dicon .glyph{width:34px;height:30px;background:var(--face);border:2px solid;border-color:var(--hi) var(--dark) var(--dark) var(--hi);display:grid;place-items:center;font-size:15px;font-weight:bold;color:var(--title)}
+  .dicon:focus-visible,.dicon.sel{background:rgba(0,0,128,.45);border:1px dotted #fff}
+  /* ---------- windows ---------- */
+  .win{position:absolute;background:var(--face);border:2px solid;border-color:var(--hi) var(--dark) var(--dark) var(--hi);
+    box-shadow:inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 var(--shadow), 2px 2px 0 rgba(0,0,0,.35);
+    display:flex;flex-direction:column;min-width:260px;max-width:calc(100vw - 8px)}
+  .win.max{left:2px!important;top:2px!important;width:calc(100vw - 4px)!important;height:calc(100vh - 34px)!important}
+  .tbar{display:flex;align-items:center;gap:6px;padding:2px 3px;background:linear-gradient(90deg,var(--title),var(--title2));color:#fff;font-weight:bold;cursor:default;touch-action:none}
+  .win.blur .tbar{background:linear-gradient(90deg,var(--title-off),#b5b5b5)}
+  .tbar .ttl{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;display:flex;gap:6px;align-items:center}
+  .tbar .mini{width:16px;height:14px;background:var(--face);color:var(--title);display:grid;place-items:center;font-size:10px;font-weight:bold}
+  .tbtn{width:18px;height:16px;background:var(--face);border:2px solid;border-color:var(--hi) var(--dark) var(--dark) var(--hi);display:grid;place-items:center;font-size:10px;font-weight:bold;line-height:1;color:#000;padding:0}
+  .tbtn:active{border-color:var(--dark) var(--hi) var(--hi) var(--dark)}
+  .wbody{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px;user-select:text}
+  .wstatus{border-top:1px solid var(--shadow);box-shadow:0 -1px 0 var(--hi);padding:3px 8px;font-size:11px;color:#222;display:flex;justify-content:space-between;gap:8px}
+  .wstatus b{color:var(--title)}
+  fieldset{border:1px solid var(--shadow);box-shadow:1px 1px 0 var(--hi) inset;padding:8px;display:flex;flex-direction:column;gap:6px}
+  legend{padding:0 4px;font-size:11px}
+  /* protocol rail */
+  .oprail{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-family:Consolas,monospace;font-size:11px}
+  .opchip{padding:2px 7px;background:#fff;border:2px solid;border-color:var(--dark) var(--hi) var(--hi) var(--dark);color:#555}
+  .opchip.on{color:var(--title);font-weight:bold;background:#e6f0ff}
+  .opchip.stopc{color:#802000}
+  /* checklist rows */
+  .rowline{display:flex;gap:6px;align-items:center}
+  .rowline input[type=text]{flex:1}
+  .items{display:flex;flex-direction:column;gap:4px}
+  .taskrow{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--shadow);padding:4px 6px}
+  .taskrow.done label{text-decoration:line-through;color:#666}
+  .taskrow label{flex:1;user-select:text}
+  .ordbtn{width:20px;height:18px;padding:0;font-size:9px}
+  /* compare table */
+  table{border-collapse:collapse;width:100%;background:#fff}
+  th,td{border:1px solid var(--shadow);padding:4px 6px;font-size:12px;vertical-align:top}
+  th{background:var(--face)}
+  td[contenteditable]{min-width:90px}
+  td[contenteditable]:focus{outline:2px solid var(--title)}
+  /* taskbar */
+  #taskbar{position:fixed;left:0;right:0;bottom:0;height:30px;background:var(--face);border-top:2px solid;border-color:var(--hi) transparent transparent transparent;box-shadow:inset 0 1px 0 #dfdfdf;display:flex;align-items:center;gap:4px;padding:2px 4px;z-index:900}
+  #startbtn{display:flex;align-items:center;gap:5px;font-weight:bold;padding:2px 8px;height:24px}
+  #startbtn .flag{display:grid;grid-template-columns:repeat(2,6px);gap:1px}
+  #startbtn .flag i{width:6px;height:6px}
+  #tasks{flex:1;display:flex;gap:3px;overflow:hidden}
+  .taskbtn{max-width:160px;min-width:60px;flex:1;height:24px;display:flex;align-items:center;gap:5px;padding:2px 7px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px}
+  .taskbtn.active{border-color:var(--dark) var(--hi) var(--hi) var(--dark);background:#dfdfdf;font-weight:bold}
+  #clock{padding:3px 10px;height:24px;display:flex;align-items:center;font-size:11px;font-variant-numeric:tabular-nums}
+  /* start menu */
+  #startmenu{position:fixed;left:2px;bottom:32px;width:230px;background:var(--face);z-index:950;display:none;flex-direction:row}
+  #startmenu.open{display:flex}
+  .sside{width:26px;background:linear-gradient(180deg,var(--title),var(--title2));color:#fff;writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;padding:8px 2px;font-weight:bold;letter-spacing:2px;font-size:15px}
+  .sitems{flex:1;display:flex;flex-direction:column;padding:3px}
+  .sitem{display:flex;align-items:center;gap:8px;padding:6px 8px;background:none;border:none;text-align:left;font-size:12px;width:100%}
+  .sitem:hover,.sitem:focus-visible{background:var(--sel);color:var(--seltx)}
+  .sitem .g{width:20px;text-align:center;font-weight:bold;color:var(--title)}
+  .sitem:hover .g{color:#9cc3ff}
+  .sdiv{height:1px;background:var(--shadow);box-shadow:0 1px 0 var(--hi);margin:3px 2px}
+  .submenu{position:absolute;left:226px;bottom:0;width:210px;background:var(--face);display:none;flex-direction:column;padding:3px;max-height:70vh;overflow:auto}
+  .submenu.open{display:flex}
+  /* dialog */
+  #dlgwrap{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.12);z-index:980}
+  #dlgwrap.open{display:grid}
+  #dlg{width:min(360px,92vw)}
+  #dlg .wbody{flex-direction:row;gap:12px;align-items:flex-start}
+  .dlgicon{font-size:30px;line-height:1}
+  /* shutdown */
+  #shutdown{position:fixed;inset:0;background:#000;display:none;place-items:center;z-index:1001;color:#ffb35c;font-family:Consolas,monospace;font-size:clamp(15px,3.4vw,26px);text-align:center;padding:20px}
+  #shutdown.open{display:grid}
+  @media (max-width:640px){
+    #icons{grid-template-rows:repeat(auto-fill,80px);left:4px}
+    .win{min-width:0}
+  }
+  @media (prefers-reduced-motion: reduce){ #boot{transition:none} }
+</style>
+</head>
+<body>
+
+<div id="boot" role="status">
+  <div class="bootlogo">
+    <div class="bootblocks" aria-hidden="true">
+      <span style="background:#f25022"></span><span style="background:#7fba00"></span>
+      <span style="background:#00a4ef"></span><span style="background:#ffb900"></span>
+    </div>
+    <h1>ARCHIE<small>LOCAL OPERATOR 95</small></h1>
+  </div>
+  <div id="bootbar" class="in"><div id="bootfill"></div></div>
+  <p id="bootmsg">Starting Archie 95…</p>
+</div>
+
+<div id="desktop"><div id="icons" role="toolbar" aria-label="Desktop icons"></div></div>
+
+<div id="dlgwrap"><div id="dlg" class="win">
+  <div class="tbar"><span class="ttl"><span class="mini">?</span><span id="dlgtitle">Archie</span></span>
+    <button class="tbtn" onclick="closeDialog()" aria-label="Close">×</button></div>
+  <div class="wbody"><div class="dlgicon" aria-hidden="true">🛈</div><div style="flex:1">
+    <p id="dlgtext" style="margin-bottom:10px"></p>
+    <div style="display:flex;justify-content:flex-end;gap:6px"><button class="btn" onclick="closeDialog()">OK</button></div>
+  </div></div>
+</div></div>
+
+<div id="startmenu" class="out">
+  <div class="sside">ARCHIE&nbsp;95</div>
+  <div class="sitems">
+    <button class="sitem" id="mi-programs" aria-haspopup="true">▸ <span class="g">▤</span>Programs</button>
+    <button class="sitem" onclick="openApp('documents')"><span class="g">🗎</span>Documents</button>
+    <button class="sitem" onclick="openApp('evidence')"><span class="g">§</span>Model Evidence</button>
+    <div class="sdiv"></div>
+    <button class="sitem" onclick="shutDown()"><span class="g">⏻</span>Shut Down…</button>
+  </div>
+  <div class="submenu out" id="programsmenu"></div>
+</div>
+
+<div id="taskbar">
+  <button id="startbtn" class="btn" aria-haspopup="true" aria-expanded="false">
+    <span class="flag" aria-hidden="true"><i style="background:#f25022"></i><i style="background:#7fba00"></i><i style="background:#00a4ef"></i><i style="background:#ffb900"></i></span>Start
+  </button>
+  <div id="tasks"></div>
+  <div id="clock" class="in">--:--</div>
+</div>
+
+<div id="shutdown"><p>It's now safe to turn off<br>your operator.<br><br><button class="btn" onclick="location.reload()" style="font-family:inherit">Restart Archie 95</button></p></div>
+
+<script type="module">
+import { createRouter } from '../operator-core.mjs';
+
+/* ============================ model boot ================================= */
+let infer = null, MODEL = null;
+const bootMsgs = ['Loading governed route model…','Dequantizing int8 weights…','Verifying protocol grammar…','Preparing desktop…'];
+(async () => {
+  const fill = document.getElementById('bootfill'), msg = document.getElementById('bootmsg');
+  const step = (i, pct) => { msg.textContent = bootMsgs[i] || ''; fill.style.width = pct + '%'; };
+  step(0, 15);
+  try {
+    MODEL = await (await fetch('../model.json')).json();
+    step(1, 45);
+    infer = createRouter(MODEL);
+    step(2, 75);
+  } catch { msg.textContent = 'Model failed to load — programs run without routing.'; }
+  step(3, 100);
+  buildDesktop();
+  setTimeout(() => document.getElementById('boot').classList.add('done'), 450);
+})();
+
+/* ============================ route programs ============================= */
+const PROGRAMS = {
+  operator:   { title: 'Ask Archie',        glyph: 'A',  w: 460, desk: true },
+  summary:    { title: 'Summary Viewer',    glyph: '≡',  w: 470, desk: true },
+  checklist:  { title: 'Checklist Builder', glyph: '✓',  w: 430, desk: true },
+  message:    { title: 'Message Composer',  glyph: '✉',  w: 440, desk: true },
+  decision:   { title: 'Decision Desk',     glyph: '⚖',  w: 500, desk: true },
+  plan:       { title: 'Phase Planner',     glyph: '☰',  w: 440, desk: true },
+  study:      { title: 'Study Scheduler',   glyph: '✎',  w: 440, desk: false },
+  event:      { title: 'Event Organizer',   glyph: '🎈', w: 440, desk: false },
+  errands:    { title: 'Errand Router',     glyph: '🚗', w: 430, desk: true },
+  next_action:{ title: 'Next Action',       glyph: '➜',  w: 400, desk: false },
+  objective:  { title: 'Objective Log',     glyph: '◎',  w: 420, desk: false },
+  compound:   { title: 'Compound Splitter', glyph: '⧉',  w: 460, desk: false },
+  documents:  { title: 'My Documents',      glyph: '🗎', w: 440, desk: true },
+  evidence:   { title: 'Model Evidence',    glyph: '§',  w: 460, desk: false }
+};
+
+/* deterministic helpers — the apps execute protocols; the model only routes */
+function splitItems(text) {
+  return String(text).split(/[,;\n]| and then | then | and also | plus |(?<=\w)\.\s+(?=[A-Z])/i)
+    .map(s => s.trim().replace(/^(and|also|then)\s+/i, '').replace(/[.]+$/, ''))
+    .filter(s => s.length > 1);
+}
+function extractiveSummary(text, n = 3) {
+  const sentences = String(text).replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
+  if (sentences.length <= n) return sentences.map(s => s.trim());
+  const freq = {};
+  for (const w of text.toLowerCase().match(/[a-z']{3,}/g) || []) freq[w] = (freq[w] || 0) + 1;
+  return sentences
+    .map((s, i) => ({ s: s.trim(), i, score: (s.toLowerCase().match(/[a-z']{3,}/g) || []).reduce((t, w) => t + (freq[w] || 0), 0) / Math.sqrt(s.length) }))
+    .sort((a, b) => b.score - a.score).slice(0, n)
+    .sort((a, b) => a.i - b.i).map(x => x.s);
+}
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function opRail(protocol, upTo = -1) {
+  return `<div class="oprail">` + protocol.map((op, i) =>
+    `<span class="opchip${i <= upTo || upTo === -2 ? ' on' : ''}${op === 'STOP' ? ' stopc' : ''}">${op}</span>`).join('<span aria-hidden="true">→</span>') + `</div>`;
+}
+function protoOf(route) {
+  return (MODEL && (MODEL.route_protocol || MODEL.intent_protocol) || {})[route] || ['OBSERVE','STOP'];
+}
+
+/* saved outputs */
+const DOCS_KEY = 'archie95-docs';
+const loadDocs = () => { try { return JSON.parse(localStorage.getItem(DOCS_KEY)) || []; } catch { return []; } };
+function saveDoc(kind, title, body) {
+  const docs = loadDocs();
+  docs.unshift({ kind, title, body, at: new Date().toLocaleString() });
+  localStorage.setItem(DOCS_KEY, JSON.stringify(docs.slice(0, 60)));
+  setStatus(kind, 'Saved to My Documents');
+}
+
+/* ============================ app bodies ================================= */
+function itemsEditor(id, items, { checkbox = true, times = false } = {}) {
+  const rows = items.map((it, i) => `
+    <div class="taskrow" data-i="${i}">
+      ${checkbox ? `<input type="checkbox" id="${id}-c${i}" onchange="this.closest('.taskrow').classList.toggle('done',this.checked)">` : `<b>${i + 1}.</b>`}
+      <label for="${id}-c${i}">${esc(it)}</label>
+      ${times ? `<input type="time" style="width:86px">` : ''}
+      <button class="btn ordbtn" title="Move up" onclick="moveRow(this,-1)">▲</button>
+      <button class="btn ordbtn" title="Move down" onclick="moveRow(this,1)">▼</button>
+    </div>`).join('');
+  return `<div class="items" id="${id}-items">${rows}</div>`;
+}
+window.moveRow = (btn, dir) => {
+  const row = btn.closest('.taskrow'), parent = row.parentElement;
+  const sib = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
+  if (sib) dir < 0 ? parent.insertBefore(row, sib) : parent.insertBefore(sib, row);
+};
+
+function appBody(kind, seed) {
+  const p = protoOf(kind);
+  const observe = `<fieldset><legend>OBSERVE — the request</legend>
+    <textarea id="${kind}-in" rows="3" placeholder="Type or paste the request…">${esc(seed || '')}</textarea>
+    <div style="display:flex;justify-content:flex-end"><button class="btn" onclick="runApp('${kind}')">Run protocol ▸</button></div></fieldset>`;
+  switch (kind) {
+    case 'operator': return `
+      <p>Type the messy version. The on-device model picks the route and opens the right program.</p>
+      <fieldset><legend>Request</legend>
+        <textarea id="op-in" rows="3" placeholder="e.g. Plan the picnic and arrange the grocery run"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span id="op-verdict" style="font-size:11px;color:#333"></span>
+          <button class="btn" style="font-weight:bold" onclick="routeIt()">Decode ▸</button>
+        </div></fieldset>
+      <div id="op-out"></div>`;
+    case 'documents': {
+      const docs = loadDocs();
+      return docs.length === 0 ? '<p>No saved documents yet. Programs save their finished output here.</p>'
+        : docs.map(d => `<fieldset><legend>${esc(d.kind)} — ${esc(d.at)}</legend><b>${esc(d.title)}</b><pre style="white-space:pre-wrap;font-family:inherit">${esc(d.body)}</pre></fieldset>`).join('');
+    }
+    case 'evidence': {
+      if (!MODEL) return '<p>Model not loaded.</p>';
+      const e = MODEL.evaluation || {};
+      return `<fieldset><legend>Governed route model</legend>
+        <table><tr><th>parameters</th><td>${MODEL.parameters.toLocaleString()}</td></tr>
+        <tr><th>routes</th><td>${(MODEL.routes||[]).join(', ')}</td></tr>
+        <tr><th>weights</th><td>int8, per-row scales</td></tr>
+        <tr><th>80-case route selection</th><td><b>75/80 (93.75%)</b> vs Q6 1.7B checkpoint 72/80 (90.0%) on the Q6's own admission suite</td></tr>
+        <tr><th>red-team abstention</th><td>24/24 routed to clarify</td></tr>
+        <tr><th>498-prompt heldout</th><td>${e.int8_suites ? (e.int8_suites['router-v2-original-heldout']*100).toFixed(1)+'%' : 'n/a'} (the audit's frozen seed router still leads there)</td></tr>
+        <tr><th>digest</th><td style="word-break:break-all;font-family:monospace;font-size:10px">${esc(MODEL.model_digest||'')}</td></tr>
+        <tr><th>promotion</th><td>${esc(MODEL.promotion||'not-admitted')}</td></tr></table>
+        <p style="font-size:11px;color:#333">Routing only: the model chooses the program and protocol; each program is a deterministic executor. No text generation, no tool execution, no network calls after load.</p></fieldset>`;
+    }
+    default: return observe + `<div id="${kind}-out">${opRail(p, 0)}</div>`;
+  }
+}
+
+/* protocol executors */
+window.runApp = kind => {
+  const input = document.getElementById(`${kind}-in`)?.value.trim() || '';
+  const out = document.getElementById(`${kind}-out`);
+  if (!out) return;
+  const p = protoOf(kind);
+  const items = splitItems(input);
+  const rail = opRail(p, -2);
+  const finish = (title, bodyFn) => `
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">
+      <button class="btn" onclick='saveDocFrom("${kind}", ${JSON.stringify(title)})'>STOP — save to Documents</button></div>`;
+  let html = rail;
+  if (kind === 'summary') {
+    const bullets = extractiveSummary(input, 3);
+    html += `<fieldset><legend>DRAFT — extractive summary</legend><div id="${kind}-result"><ul style="padding-left:18px">${bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul></div></fieldset>` + finish('Summary');
+  } else if (kind === 'checklist') {
+    html += `<fieldset><legend>DECOMPOSE → DRAFT — tick them off</legend><div id="${kind}-result">${itemsEditor(kind, items)}</div></fieldset>` + finish('Checklist');
+  } else if (kind === 'message') {
+    html += `<fieldset><legend>DRAFT — compose</legend><div id="${kind}-result"><textarea rows="5">${esc(input ? `Hi,\n\n${input}\n\nThanks!` : '')}</textarea></div></fieldset>` + finish('Message');
+  } else if (kind === 'decision') {
+    html += `<fieldset><legend>COMPARE — fill the table, then decide</legend><div id="${kind}-result">
+      <table><tr><th></th><th>Option A</th><th>Option B</th></tr>
+      <tr><th>For</th><td contenteditable></td><td contenteditable></td></tr>
+      <tr><th>Against</th><td contenteditable></td><td contenteditable></td></tr>
+      <tr><th>Verdict</th><td contenteditable colspan="2"></td></tr></table></div></fieldset>` + finish('Decision');
+  } else if (kind === 'plan' || kind === 'study') {
+    html += `<fieldset><legend>DECOMPOSE → ORDER — phases</legend><div id="${kind}-result">${itemsEditor(kind, items.length ? items : ['Phase 1','Phase 2','Phase 3'], { checkbox: false })}</div></fieldset>` + finish(kind === 'plan' ? 'Plan' : 'Study plan');
+  } else if (kind === 'errands' || kind === 'event' || kind === 'compound') {
+    html += `<fieldset><legend>ORDER → SCHEDULE — stops and times</legend><div id="${kind}-result">${itemsEditor(kind, items.length ? items : ['First stop'], { checkbox: false, times: true })}</div></fieldset>` + finish(PROGRAMS[kind].title);
+  } else if (kind === 'next_action') {
+    const first = items[0] || input;
+    html += `<fieldset><legend>DECOMPOSE — the one next move</legend><div id="${kind}-result"><p style="font-size:15px"><b>➜ ${esc(first)}</b></p><p style="font-size:11px;color:#333">Everything else waits until this is done.</p></div></fieldset>` + finish('Next action');
+  } else if (kind === 'objective') {
+    html += `<fieldset><legend>DRAFT → VERIFY</legend><div id="${kind}-result">
+      <div class="rowline"><b>Objective:</b><input type="text" value="${esc(input)}"></div>
+      <label style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox"> VERIFY — measurable and dated</label></div></fieldset>` + finish('Objective');
+  }
+  out.innerHTML = html;
+  setStatus(kind, `${p.join(' → ')}`);
+};
+window.saveDocFrom = (kind, title) => {
+  const node = document.getElementById(`${kind}-result`);
+  const text = node ? (node.querySelector('textarea')?.value || node.innerText) : '';
+  saveDoc(kind, title, text.trim());
+};
+
+/* operator routing */
+window.routeIt = () => {
+  const input = document.getElementById('op-in').value.trim();
+  const out = document.getElementById('op-out');
+  const verdict = document.getElementById('op-verdict');
+  if (!input || !infer) return;
+  const r = infer(input);
+  const pct = Math.round(r.confidence * 100);
+  verdict.textContent = `route: ${r.route} · ${pct}%`;
+  if (r.route === 'clarify') {
+    out.innerHTML = opRail(r.protocol, -2);
+    showDialog('Archie needs more information',
+      'This request is too vague or not something Archie will act on. Say what outcome you want, with the concrete thing it applies to.');
+    return;
+  }
+  out.innerHTML = opRail(r.protocol, -2) + `
+    <fieldset><legend>Routed</legend>
+      <p><b>${esc(PROGRAMS[r.route]?.title || r.route)}</b> will run this protocol.</p>
+      <div style="display:flex;justify-content:flex-end"><button class="btn" style="font-weight:bold"
+        onclick='openApp("${r.route}", ${JSON.stringify(input)}); '>Open ${esc(PROGRAMS[r.route]?.title || r.route)} ▸</button></div>
+    </fieldset>`;
+};
+
+/* ============================ window manager ============================= */
+let zTop = 10, spawn = 0;
+const openWins = new Map();
+window.openApp = (kind, seed) => {
+  if (openWins.has(kind)) { focusWin(kind); if (seed) { const i = document.getElementById(`${kind}-in`); if (i) { i.value = seed; runApp(kind); } } return; }
+  const meta = PROGRAMS[kind]; if (!meta) return;
+  const el = document.createElement('div');
+  el.className = 'win'; el.dataset.kind = kind;
+  const small = innerWidth < 640;
+  const x = small ? 4 : 60 + (spawn % 6) * 34, y = small ? 4 : 30 + (spawn % 6) * 30; spawn += 1;
+  el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.width = Math.min(meta.w, innerWidth - 10) + 'px';
+  if (small) el.classList.add('max');
+  el.innerHTML = `
+    <div class="tbar">
+      <span class="ttl"><span class="mini">${meta.glyph}</span>${meta.title}</span>
+      <button class="tbtn" aria-label="Minimize" data-a="min">▁</button>
+      <button class="tbtn" aria-label="Maximize" data-a="max">□</button>
+      <button class="tbtn" aria-label="Close" data-a="close">×</button>
+    </div>
+    <div class="wbody">${appBody(kind, seed)}</div>
+    <div class="wstatus"><span id="${kind}-status">Ready</span><b>ARCHIE.SYS OK</b></div>`;
+  document.getElementById('desktop').appendChild(el);
+  openWins.set(kind, el);
+  makeTaskButton(kind, meta);
+  el.addEventListener('pointerdown', () => focusWin(kind));
+  const bar = el.querySelector('.tbar');
+  bar.addEventListener('pointerdown', ev => {
+    if (ev.target.closest('.tbtn') || el.classList.contains('max')) return;
+    const sx = ev.clientX - el.offsetLeft, sy = ev.clientY - el.offsetTop;
+    const move = m => { el.style.left = Math.max(-40, Math.min(innerWidth - 60, m.clientX - sx)) + 'px'; el.style.top = Math.max(0, Math.min(innerHeight - 70, m.clientY - sy)) + 'px'; };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+    ev.preventDefault();
+  });
+  bar.addEventListener('dblclick', () => el.classList.toggle('max'));
+  el.querySelectorAll('.tbtn').forEach(b => b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const a = b.dataset.a;
+    if (a === 'close') closeWin(kind);
+    else if (a === 'max') el.classList.toggle('max');
+    else if (a === 'min') { el.style.display = 'none'; taskBtn(kind)?.classList.remove('active'); }
+  }));
+  focusWin(kind);
+  if (seed) runApp(kind);
+};
+function focusWin(kind) {
+  for (const [k, w] of openWins) { w.classList.toggle('blur', k !== kind); taskBtn(k)?.classList.toggle('active', k === kind); }
+  const el = openWins.get(kind); if (!el) return;
+  el.style.display = ''; el.style.zIndex = ++zTop;
+}
+function closeWin(kind) { openWins.get(kind)?.remove(); openWins.delete(kind); taskBtn(kind)?.remove(); }
+const taskBtn = kind => document.querySelector(`.taskbtn[data-kind="${kind}"]`);
+function makeTaskButton(kind, meta) {
+  const b = document.createElement('button');
+  b.className = 'btn taskbtn'; b.dataset.kind = kind;
+  b.innerHTML = `<span class="mini" style="background:none;color:var(--title)">${meta.glyph}</span>${meta.title}`;
+  b.addEventListener('click', () => {
+    const el = openWins.get(kind);
+    if (el.style.display === 'none' || !el.classList.contains('blur')) { el.style.display = el.style.display === 'none' ? '' : el.style.display; focusWin(kind); }
+    else focusWin(kind);
+  });
+  document.getElementById('tasks').appendChild(b);
+}
+function setStatus(kind, text) { const s = document.getElementById(`${kind}-status`); if (s) s.textContent = text; }
+
+/* dialogs */
+window.showDialog = (title, text) => {
+  document.getElementById('dlgtitle').textContent = title;
+  document.getElementById('dlgtext').textContent = text;
+  document.getElementById('dlgwrap').classList.add('open');
+};
+window.closeDialog = () => document.getElementById('dlgwrap').classList.remove('open');
+window.shutDown = () => { toggleStart(false); document.getElementById('shutdown').classList.add('open'); };
+
+/* ============================ desktop build ============================== */
+function buildDesktop() {
+  const icons = document.getElementById('icons');
+  icons.innerHTML = '';
+  for (const [kind, meta] of Object.entries(PROGRAMS)) {
+    if (!meta.desk) continue;
+    const b = document.createElement('button');
+    b.className = 'dicon';
+    b.innerHTML = `<span class="glyph">${meta.glyph}</span><span>${meta.title}</span>`;
+    b.addEventListener('click', () => { document.querySelectorAll('.dicon').forEach(d => d.classList.remove('sel')); b.classList.add('sel'); });
+    b.addEventListener('dblclick', () => openApp(kind));
+    let tapped = 0;
+    b.addEventListener('pointerup', () => { const now = Date.now(); if (now - tapped < 450) openApp(kind); tapped = now; });
+    icons.appendChild(b);
+  }
+  const menu = document.getElementById('programsmenu');
+  menu.innerHTML = Object.entries(PROGRAMS).map(([kind, meta]) =>
+    `<button class="sitem" data-open="${kind}"><span class="g">${meta.glyph}</span>${meta.title}</button>`).join('');
+  menu.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { toggleStart(false); openApp(b.dataset.open); }));
+  openApp('operator');
+}
+
+/* start menu + clock */
+const startbtn = document.getElementById('startbtn'), startmenu = document.getElementById('startmenu');
+function toggleStart(force) {
+  const open = force !== undefined ? force : !startmenu.classList.contains('open');
+  startmenu.classList.toggle('open', open);
+  startbtn.setAttribute('aria-expanded', String(open));
+  if (!open) document.getElementById('programsmenu').classList.remove('open');
+}
+startbtn.addEventListener('click', () => toggleStart());
+document.getElementById('mi-programs').addEventListener('click', () =>
+  document.getElementById('programsmenu').classList.toggle('open'));
+addEventListener('pointerdown', ev => { if (!ev.target.closest('#startmenu,#startbtn')) toggleStart(false); });
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }, 1000);
+
+/* PWA */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(() => {});
+</script>
+</body>
+</html>

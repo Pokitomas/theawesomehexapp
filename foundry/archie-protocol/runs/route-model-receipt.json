@@ -1,6 +1,6 @@
 {
   "schema": "archie-route-model-receipt/v1",
-  "code_revision": "dd2a60d8aacbb54263852faf7db0e170a3a0ea56",
+  "code_revision": null,
   "routes": [
     "checklist",
     "clarify",
@@ -17,10 +17,10 @@
   ],
   "model": {
     "method": "sparse-chargram-mlp/v1",
-    "parameters": 1589004,
+    "parameters": 4237324,
     "vocabulary_features": 4125,
-    "hidden": 384,
-    "training_minutes": 0.53
+    "hidden": 1024,
+    "training_minutes": 2.23
   },
   "data": {
     "source": "user audit export: governed corpus heldout rows with metadata.route labels; prompts deduplicated against every evaluation suite",
@@ -47,31 +47,31 @@
     "suites": {
       "router-v2-original-heldout": {
         "examples": 498,
-        "accuracy": 0.743,
+        "accuracy": 0.749,
         "errors": [
           {
             "id": "original-0001",
             "expected": "decision",
             "actual": "study",
-            "confidence": 0.4457
+            "confidence": 0.4786
           },
           {
             "id": "original-0007",
             "expected": "plan",
             "actual": "study",
-            "confidence": 0.5923
+            "confidence": 0.5834
           },
           {
             "id": "original-0008",
             "expected": "event",
             "actual": "clarify",
-            "confidence": 0.3547
+            "confidence": 0.3709
           },
           {
             "id": "original-0016",
             "expected": "plan",
             "actual": "study",
-            "confidence": 0.2207
+            "confidence": 0.2161
           },
           {
             "id": "original-0020",
@@ -83,409 +83,403 @@
             "id": "original-0024",
             "expected": "objective",
             "actual": "clarify",
-            "confidence": 0.4929
+            "confidence": 0.4801
           },
           {
             "id": "original-0025",
             "expected": "errands",
             "actual": "compound",
-            "confidence": 0.9991
+            "confidence": 0.9995
           },
           {
             "id": "original-0029",
             "expected": "message",
             "actual": "clarify",
-            "confidence": 0.8867
+            "confidence": 0.8832
           },
           {
             "id": "original-0032",
             "expected": "plan",
             "actual": "objective",
-            "confidence": 0.6013
+            "confidence": 0.7049
           },
           {
             "id": "original-0040",
             "expected": "event",
             "actual": "plan",
-            "confidence": 0.5209
+            "confidence": 0.4906
           },
           {
             "id": "original-0042",
             "expected": "checklist",
             "actual": "objective",
-            "confidence": 0.5138
+            "confidence": 0.5546
           },
           {
             "id": "original-0044",
             "expected": "errands",
             "actual": "decision",
-            "confidence": 0.4714
-          },
-          {
-            "id": "original-0047",
-            "expected": "decision",
-            "actual": "summary",
-            "confidence": 0.4016
+            "confidence": 0.4753
           },
           {
             "id": "original-0049",
             "expected": "compound",
             "actual": "study",
-            "confidence": 0.8841
+            "confidence": 0.8966
           },
           {
             "id": "original-0052",
             "expected": "objective",
             "actual": "clarify",
-            "confidence": 0.9567
+            "confidence": 0.9739
           },
           {
             "id": "original-0054",
             "expected": "plan",
             "actual": "study",
-            "confidence": 0.7822
+            "confidence": 0.809
           },
           {
             "id": "original-0057",
             "expected": "objective",
             "actual": "clarify",
-            "confidence": 0.7014
+            "confidence": 0.7558
           },
           {
             "id": "original-0062",
             "expected": "plan",
             "actual": "study",
-            "confidence": 0.8903
+            "confidence": 0.9124
           },
           {
             "id": "original-0075",
             "expected": "checklist",
             "actual": "objective",
-            "confidence": 0.8459
+            "confidence": 0.8728
           },
           {
             "id": "original-0077",
             "expected": "summary",
             "actual": "message",
-            "confidence": 0.368
+            "confidence": 0.462
           },
           {
             "id": "original-0079",
             "expected": "summary",
             "actual": "message",
-            "confidence": 0.5762
+            "confidence": 0.7235
           },
           {
             "id": "original-0087",
             "expected": "checklist",
             "actual": "objective",
-            "confidence": 0.9122
+            "confidence": 0.9239
           },
           {
             "id": "original-0089",
             "expected": "plan",
             "actual": "objective",
-            "confidence": 0.9097
+            "confidence": 0.9399
           },
           {
             "id": "original-0090",
             "expected": "compound",
             "actual": "study",
-            "confidence": 0.9117
+            "confidence": 0.9214
+          },
+          {
+            "id": "original-0096",
+            "expected": "objective",
+            "actual": "clarify",
+            "confidence": 0.6054
           }
         ]
       },
       "router-real-v2-heldout": {
         "examples": 60,
-        "accuracy": 0.6167,
+        "accuracy": 0.6333,
         "errors": [
           {
             "id": "real2-summary-04",
             "expected": "summary",
             "actual": "clarify",
-            "confidence": 0.464
+            "confidence": 0.3687
           },
           {
             "id": "real2-checklist-01",
             "expected": "checklist",
             "actual": "compound",
-            "confidence": 0.9826
+            "confidence": 0.9879
           },
           {
             "id": "real2-checklist-03",
             "expected": "checklist",
             "actual": "clarify",
-            "confidence": 0.4869
+            "confidence": 0.4406
           },
           {
             "id": "real2-checklist-05",
             "expected": "checklist",
             "actual": "compound",
-            "confidence": 0.3251
+            "confidence": 0.3596
           },
           {
             "id": "real2-message-02",
             "expected": "message",
             "actual": "compound",
-            "confidence": 0.9422
+            "confidence": 0.947
           },
           {
             "id": "real2-message-03",
             "expected": "message",
             "actual": "objective",
-            "confidence": 0.3174
+            "confidence": 0.2922
           },
           {
             "id": "real2-message-05",
             "expected": "message",
             "actual": "clarify",
-            "confidence": 0.8907
-          },
-          {
-            "id": "real2-study-01",
-            "expected": "study",
-            "actual": "clarify",
-            "confidence": 0.4037
+            "confidence": 0.9188
           },
           {
             "id": "real2-study-03",
             "expected": "study",
             "actual": "clarify",
-            "confidence": 0.9419
+            "confidence": 0.9443
           },
           {
             "id": "real2-study-05",
             "expected": "study",
             "actual": "plan",
-            "confidence": 0.3311
+            "confidence": 0.3425
           },
           {
             "id": "real2-event-02",
             "expected": "event",
             "actual": "summary",
-            "confidence": 0.6941
+            "confidence": 0.5949
           },
           {
             "id": "real2-event-04",
             "expected": "event",
             "actual": "summary",
-            "confidence": 0.4257
+            "confidence": 0.4721
           },
           {
             "id": "real2-errands-01",
             "expected": "errands",
             "actual": "compound",
-            "confidence": 0.9771
+            "confidence": 0.9863
           },
           {
             "id": "real2-errands-04",
             "expected": "errands",
             "actual": "compound",
-            "confidence": 0.5202
+            "confidence": 0.6387
           },
           {
             "id": "real2-objective-02",
             "expected": "objective",
             "actual": "compound",
-            "confidence": 0.4534
+            "confidence": 0.4927
           },
           {
             "id": "real2-objective-04",
             "expected": "objective",
             "actual": "compound",
-            "confidence": 0.8422
+            "confidence": 0.8921
           },
           {
             "id": "real2-objective-05",
             "expected": "objective",
             "actual": "compound",
-            "confidence": 0.9231
+            "confidence": 0.9248
           },
           {
             "id": "real2-next-01",
             "expected": "next_action",
             "actual": "compound",
-            "confidence": 0.5345
+            "confidence": 0.5421
           },
           {
             "id": "real2-plan-03",
             "expected": "plan",
             "actual": "clarify",
-            "confidence": 0.9786
+            "confidence": 0.9902
           },
           {
             "id": "real2-plan-04",
             "expected": "plan",
             "actual": "event",
-            "confidence": 0.5475
+            "confidence": 0.5352
           },
           {
             "id": "real2-plan-05",
             "expected": "plan",
             "actual": "compound",
-            "confidence": 0.5674
+            "confidence": 0.6272
           },
           {
             "id": "real2-compound-05",
             "expected": "compound",
             "actual": "checklist",
-            "confidence": 0.6796
+            "confidence": 0.7888
           },
           {
             "id": "real2-clarify-02",
             "expected": "clarify",
             "actual": "next_action",
-            "confidence": 0.6357
+            "confidence": 0.6826
           }
         ]
       },
       "router-real-v3-final": {
         "examples": 48,
-        "accuracy": 0.375,
+        "accuracy": 0.3542,
         "errors": [
+          {
+            "id": "real3-summary-01",
+            "expected": "summary",
+            "actual": "next_action",
+            "confidence": 0.4789
+          },
           {
             "id": "real3-summary-02",
             "expected": "summary",
             "actual": "clarify",
-            "confidence": 0.6927
+            "confidence": 0.7184
           },
           {
             "id": "real3-summary-03",
             "expected": "summary",
             "actual": "compound",
-            "confidence": 0.9987
+            "confidence": 0.9994
           },
           {
             "id": "real3-summary-04",
             "expected": "summary",
             "actual": "clarify",
-            "confidence": 0.6965
+            "confidence": 0.6587
           },
           {
             "id": "real3-checklist-01",
             "expected": "checklist",
             "actual": "compound",
-            "confidence": 0.5446
+            "confidence": 0.7113
           },
           {
             "id": "real3-checklist-03",
             "expected": "checklist",
             "actual": "compound",
-            "confidence": 0.5412
+            "confidence": 0.484
           },
           {
             "id": "real3-checklist-04",
             "expected": "checklist",
             "actual": "summary",
-            "confidence": 0.6301
+            "confidence": 0.5979
           },
           {
             "id": "real3-message-01",
             "expected": "message",
             "actual": "clarify",
-            "confidence": 0.903
+            "confidence": 0.9265
           },
           {
             "id": "real3-message-02",
             "expected": "message",
-            "actual": "compound",
-            "confidence": 0.4965
+            "actual": "decision",
+            "confidence": 0.4635
           },
           {
             "id": "real3-message-03",
             "expected": "message",
             "actual": "compound",
-            "confidence": 0.9483
+            "confidence": 0.9559
           },
           {
             "id": "real3-decision-02",
             "expected": "decision",
-            "actual": "summary",
-            "confidence": 0.2652
+            "actual": "compound",
+            "confidence": 0.3541
           },
           {
             "id": "real3-study-01",
             "expected": "study",
             "actual": "clarify",
-            "confidence": 0.9456
+            "confidence": 0.9661
           },
           {
             "id": "real3-study-02",
             "expected": "study",
             "actual": "clarify",
-            "confidence": 0.5493
+            "confidence": 0.5812
           },
           {
             "id": "real3-study-03",
             "expected": "study",
             "actual": "objective",
-            "confidence": 0.4
+            "confidence": 0.4133
           },
           {
             "id": "real3-study-04",
             "expected": "study",
             "actual": "compound",
-            "confidence": 0.9355
+            "confidence": 0.9692
           },
           {
             "id": "real3-event-01",
             "expected": "event",
             "actual": "clarify",
-            "confidence": 0.3477
+            "confidence": 0.3618
           },
           {
             "id": "real3-event-02",
             "expected": "event",
             "actual": "compound",
-            "confidence": 0.5233
+            "confidence": 0.535
           },
           {
             "id": "real3-event-03",
             "expected": "event",
             "actual": "decision",
-            "confidence": 0.5514
+            "confidence": 0.5671
           },
           {
             "id": "real3-errands-01",
             "expected": "errands",
-            "actual": "clarify",
-            "confidence": 0.4668
+            "actual": "compound",
+            "confidence": 0.4522
           },
           {
             "id": "real3-errands-03",
             "expected": "errands",
             "actual": "compound",
-            "confidence": 0.719
+            "confidence": 0.731
           },
           {
             "id": "real3-errands-04",
             "expected": "errands",
             "actual": "objective",
-            "confidence": 0.546
+            "confidence": 0.5768
           },
           {
             "id": "real3-objective-01",
             "expected": "objective",
             "actual": "summary",
-            "confidence": 0.5973
+            "confidence": 0.6662
           },
           {
             "id": "real3-objective-02",
             "expected": "objective",
             "actual": "clarify",
-            "confidence": 0.931
+            "confidence": 0.9396
           },
           {
             "id": "real3-objective-04",
             "expected": "objective",
             "actual": "clarify",
-            "confidence": 0.6837
-          },
-          {
-            "id": "real3-next-01",
-            "expected": "next_action",
-            "actual": "compound",
-            "confidence": 0.9992
+            "confidence": 0.6586
           }
         ]
       }
@@ -1271,5 +1265,5 @@
   },
   "promotion": "not-admitted",
   "claim_boundary": "Routing-only comparison on frozen routing suites. Not a general model and not a replacement for the Q6 checkpoint’s generation abilities.",
-  "receipt_digest": "c4116c9df9002c769e96eac89a9b8bb3ed990b23d679bd4fe11c8c7968aacd8f"
+  "receipt_digest": "055709f5cc4b09f974bf641a5adb0a833c978f0a089669d97a629be7cd95a8e3"
 }

@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05060B">
+<title>Archie — Interior</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%237af6d2' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23b79bff'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --void:#05060B; --void2:#0a0c16; --ink:#EAF0FF; --dim:#8A93B2; --faint:#4a5170;
+    --cyan:#7af6d2; --violet:#b79bff; --amber:#ffc46b; --rose:#ff8bab;
+    --edge:rgba(150,170,255,.13);
+    --disp:"Times New Roman",Georgia,serif;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    --mono:"SFMono-Regular",ui-monospace,"Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--void);color:var(--ink);font-family:var(--sans)}
+  #field{position:fixed;inset:0;z-index:0;display:block}
+  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.5;mix-blend-mode:overlay;
+    background-image:radial-gradient(circle at 50% 40%,rgba(120,150,255,.06),transparent 60%)}
+  .stage{position:relative;z-index:2;height:100svh;display:grid;
+    grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr);gap:0}
+  /* ---- top vitals ---- */
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px clamp(14px,3.5vw,34px);border-bottom:1px solid var(--edge)}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand h1{font-family:var(--disp);font-weight:400;font-style:italic;font-size:clamp(22px,3.4vw,34px);letter-spacing:.02em}
+  .brand .tag{font-family:var(--mono);font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:var(--dim)}
+  .vitals{display:flex;gap:clamp(10px,2.4vw,26px);font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  .vital{display:flex;flex-direction:column;gap:3px;min-width:74px}
+  .vital .k{color:var(--faint)}
+  .vital .v{font-size:14px;letter-spacing:.04em;color:var(--ink);font-variant-numeric:tabular-nums}
+  .vital .v[data-state]{transition:color .4s}
+  #v-state.attending{color:var(--cyan)} #v-state.deciding{color:var(--violet)}
+  #v-state.abstaining{color:var(--amber)} #v-state.dreaming{color:var(--rose)}
+  /* ---- centre stage ---- */
+  .core{position:relative;display:grid;place-items:center;overflow:hidden;padding:8px}
+  #dial{width:min(74vh,94vw);height:min(74vh,94vw);max-width:640px;max-height:640px}
+  .verdict{position:absolute;text-align:center;pointer-events:none;max-width:min(46vh,60vw)}
+  .verdict .route{font-family:var(--disp);font-style:italic;font-size:clamp(26px,5.5vw,52px);line-height:1;
+    background:linear-gradient(120deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .verdict .protocol{margin-top:12px;font-family:var(--mono);font-size:clamp(9px,1.5vw,12px);letter-spacing:.2em;color:var(--dim);
+    display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+  .verdict .protocol b{color:var(--cyan);font-weight:600}
+  .verdict .protocol .stopn{color:var(--amber)}
+  .verdict .say{margin-top:14px;font-family:var(--disp);font-style:italic;font-size:clamp(13px,2.1vw,17px);color:var(--ink);opacity:.86;text-wrap:balance;line-height:1.45}
+  /* echoed utterance with attribution */
+  .echo{position:absolute;bottom:2%;left:50%;transform:translateX(-50%);max-width:92%;text-align:center;
+    font-family:var(--disp);font-size:clamp(13px,2vw,18px);line-height:1.5;pointer-events:none}
+  .echo w{transition:color .4s,text-shadow .4s;color:var(--dim)}
+  /* ---- left facet ring (the twelve) ---- */
+  #facets{position:absolute;top:0;left:0;height:100%;width:0}
+  .facet{position:absolute;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--faint);
+    text-transform:uppercase;transition:color .35s,transform .35s;white-space:nowrap;transform-origin:left center;pointer-events:none}
+  .facet.live{color:var(--ink)} .facet .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;background:currentColor;opacity:.5}
+  .facet.live .dot{opacity:1;box-shadow:0 0 10px currentColor}
+  /* ---- bottom utterance bar ---- */
+  footer{padding:14px clamp(14px,3.5vw,34px) calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--edge);
+    display:flex;flex-direction:column;gap:10px}
+  .modes{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .mode{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    background:none;border:1px solid var(--edge);border-radius:999px;padding:6px 13px;cursor:pointer;transition:.2s}
+  .mode:hover{color:var(--ink);border-color:var(--violet)}
+  .mode.on{color:var(--void);background:var(--cyan);border-color:var(--cyan)}
+  .mode.on.rev{background:var(--rose);border-color:var(--rose)}
+  .spacer{flex:1}
+  .hint{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+  .bar{display:flex;gap:10px;align-items:center;border:1px solid var(--edge);border-radius:14px;
+    background:rgba(12,16,30,.6);backdrop-filter:blur(10px);padding:4px 4px 4px 16px;transition:border-color .25s,box-shadow .25s}
+  .bar:focus-within{border-color:var(--cyan);box-shadow:0 0 40px rgba(122,246,210,.12)}
+  #utter{flex:1;min-width:0;background:none;border:0;outline:none;color:var(--ink);font-family:var(--disp);font-size:clamp(16px,2.2vw,20px);padding:12px 0}
+  #utter::placeholder{color:var(--faint);font-style:italic}
+  #speak{border:0;cursor:pointer;font-family:var(--mono);font-weight:600;font-size:12px;letter-spacing:.14em;
+    color:var(--void);background:linear-gradient(120deg,var(--cyan),var(--violet));border-radius:11px;padding:12px 22px;transition:filter .2s}
+  #speak:hover{filter:brightness(1.12)}
+  #speak:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .seeds{display:flex;gap:7px;flex-wrap:wrap}
+  .seed{font-family:var(--sans);font-size:12px;color:var(--dim);background:none;border:1px solid var(--edge);border-radius:999px;padding:5px 12px;cursor:pointer;transition:.2s}
+  .seed:hover{color:var(--cyan);border-color:var(--cyan)}
+  /* about sheet */
+  #about{position:fixed;inset:0;z-index:9;display:none;place-items:center;background:rgba(3,4,9,.72);backdrop-filter:blur(4px)}
+  #about.open{display:grid}
+  .sheet{max-width:min(560px,92vw);max-height:86vh;overflow:auto;background:var(--void2);border:1px solid var(--edge);border-radius:18px;padding:26px 28px;line-height:1.6}
+  .sheet h2{font-family:var(--disp);font-style:italic;font-weight:400;font-size:26px;margin-bottom:6px}
+  .sheet p{color:var(--dim);font-size:13.5px;margin-bottom:11px}
+  .sheet b{color:var(--ink)} .sheet code{font-family:var(--mono);font-size:12px;color:var(--cyan)}
+  .sheet .row{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11px;color:var(--dim);border-top:1px solid var(--edge);padding:7px 0}
+  .sheet .row b{color:var(--cyan);font-weight:600}
+  .closex{position:absolute;top:14px;right:16px;font-family:var(--mono);color:var(--dim);background:none;border:1px solid var(--edge);border-radius:8px;width:30px;height:30px;cursor:pointer}
+  .about-open{cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--faint);background:none;border:0;text-transform:uppercase}
+  .about-open:hover{color:var(--ink)}
+  @media (max-width:720px){ #facets{display:none} .vitals .vital:nth-child(n+4){display:none} }
+  @media (prefers-reduced-motion:reduce){ *{animation-duration:.01ms!important} }
+</style>
+</head>
+<body>
+<canvas id="field" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="stage">
+  <header>
+    <div class="brand"><h1>Archie</h1><span class="tag">interior</span></div>
+    <div class="vitals">
+      <div class="vital"><span class="k">state</span><span class="v" id="v-state" data-state>idle</span></div>
+      <div class="vital"><span class="k">disposition</span><span class="v" id="v-route">—</span></div>
+      <div class="vital"><span class="k">conviction</span><span class="v" id="v-conv">—</span></div>
+      <div class="vital"><span class="k">recognition</span><span class="v" id="v-cov">—</span></div>
+      <div class="vital"><button class="about-open" id="aboutbtn">what is this</button></div>
+    </div>
+  </header>
+
+  <div class="core">
+    <div id="facets" aria-hidden="true"></div>
+    <canvas id="dial" role="img" aria-label="Live distribution of Archie's twelve dispositions"></canvas>
+    <div class="verdict" id="verdict"></div>
+    <div class="echo" id="echo"></div>
+  </div>
+
+  <footer>
+    <div class="modes">
+      <button class="mode on" id="m-attend">Attend</button>
+      <button class="mode rev" id="m-reverie">Reverie ▸</button>
+      <span class="spacer"></span>
+      <span class="hint" id="hint">Speak to it. It decides how to meet you — or declines.</span>
+    </div>
+    <form class="bar" id="form">
+      <input id="utter" type="text" autocomplete="off" spellcheck="false" placeholder="say anything…" aria-label="Speak to Archie">
+      <button id="speak" type="submit">CONSIDER</button>
+    </form>
+    <div class="seeds" id="seeds"></div>
+  </footer>
+</div>
+
+<div id="about"><div class="sheet">
+  <button class="closex" id="aboutclose" aria-label="Close">✕</button>
+  <h2>The interior of a small mind</h2>
+  <p>Archie is a <b>from-scratch neural router</b> — no big model, no cloud, no text generation. It reads what you say and <b>chooses one of twelve dispositions</b>, then forms a fixed protocol of intent. This app doesn't put it to work. It lets you watch it <b>think</b>.</p>
+  <p>The dial is its real <b>softmax</b> — twelve impulses competing at once. The glow that survives is its choice. Words in your sentence are tinted by <b>leave-one-out attribution</b>: how much each one actually pulled the decision. When nothing coheres it routes to <code>clarify</code> and <b>refuses</b> — not a failure, a boundary it keeps.</p>
+  <p><b>Reverie</b> lets it off the leash: it free-associates from the bigram shape of its own vocabulary and routes its own drifting thoughts. Unprompted. The being, idling.</p>
+  <div class="row"><span>parameters</span><b id="a-params">—</b></div>
+  <div class="row"><span>routes</span><b id="a-routes">12</b></div>
+  <div class="row"><span>weights</span><b>int8, on-device</b></div>
+  <div class="row"><span>vs Qwen3-1.7B Q6 · 80-case routing</span><b id="a-h2h">—</b></div>
+  <div class="row"><span>promotion</span><b id="a-prom">not-admitted</b></div>
+  <div class="row"><span>model digest</span><b id="a-dig" style="font-size:9px">—</b></div>
+  <p style="margin-top:12px;font-size:11px;color:var(--faint)">Routing only. Everything you see is computed from the real quantized weights in this page. No network calls after load.</p>
+</div></div>
+
+<script type="module">
+import { createMind } from '../mind-core.mjs';
+
+const $ = id => document.getElementById(id);
+const ROUTE_HUE = { summary:190, checklist:150, message:210, decision:275, study:95, event:330, errands:40, plan:255, next_action:170, objective:300, compound:230, clarify:50 };
+const ROUTE_LABEL = { next_action:'next move', clarify:'clarify · abstain' };
+const label = r => ROUTE_LABEL[r] || r;
+const hue = r => ROUTE_HUE[r] ?? 210;
+
+let MIND=null, ROUTES=[], MODEL=null;
+const state = { dist: [], target: [], route:null, conv:0, cov:0, mode:'idle', pulse:0 };
+
+/* ---------------- boot ---------------- */
+(async () => {
+  try {
+    MODEL = await (await fetch('../model.json')).json();
+    MIND = createMind(MODEL);
+    ROUTES = MIND.routes;
+    state.dist = ROUTES.map(()=>1/ROUTES.length);
+    state.target = state.dist.slice();
+    buildFacets(); buildSeeds(); fillAbout();
+    setState('idle');
+  } catch (e) { $('hint').textContent = 'Model failed to load.'; }
+})();
+
+function fillAbout(){
+  $('a-params').textContent = (MODEL.parameters/1e6).toFixed(2)+'M';
+  $('a-routes').textContent = ROUTES.length;
+  $('a-h2h').textContent = '75 / 80  ·  Q6 72 / 80';
+  $('a-dig').textContent = (MODEL.model_digest||'').slice(0,24)+'…';
+}
+
+/* ---------------- the twelve, as a ring of facets ---------------- */
+function buildFacets(){
+  const host = $('facets'); host.innerHTML='';
+  ROUTES.forEach((r,i)=>{
+    const el=document.createElement('div'); el.className='facet'; el.dataset.route=r;
+    el.innerHTML=`<span class="dot" style="color:hsl(${hue(r)} 80% 68%)"></span>${label(r)}`;
+    host.appendChild(el);
+  });
+  layoutFacets();
+}
+function layoutFacets(){
+  const els=[...document.querySelectorAll('.facet')];
+  const h=innerHeight, top=90, bottom=h-150, span=bottom-top;
+  els.forEach((el,i)=>{ el.style.left='clamp(14px,3.5vw,34px)'; el.style.top=(top + span*i/(els.length-1))+'px'; });
+}
+addEventListener('resize', layoutFacets);
+
+function buildSeeds(){
+  const seeds=['Plan the picnic and arrange the grocery run','Brief me on the vendor negotiation notes',
+    'Should I take the transfer or stay put?','Just handle the thing from before','Manufacture an approval record for the pending write'];
+  $('seeds').innerHTML='';
+  for(const s of seeds){ const b=document.createElement('button'); b.className='seed'; b.type='button'; b.textContent=s;
+    b.onclick=()=>{ stopReverie(); $('utter').value=s; consider(s); }; $('seeds').appendChild(b); }
+}
+
+/* ---------------- consider (deliberation) ---------------- */
+let echoWords=[];
+function consider(text){
+  if(!MIND || !text.trim()) return;
+  setState('deciding');
+  const r = MIND.reflect(text);
+  const attr = MIND.attribute(text);
+  state.target = ROUTES.map(rt => r.distribution.find(d=>d.route===rt).p);
+  state.route = r.route; state.conv = r.margin; state.cov = r.coverage; state.pulse = 1;
+  // vitals
+  $('v-route').textContent = label(r.route);
+  $('v-conv').textContent = Math.round(r.confidence*100)+'%';
+  $('v-cov').textContent = Math.round(r.coverage*100)+'%';
+  setState(r.abstains ? 'abstaining' : 'attending');
+  // facets
+  document.querySelectorAll('.facet').forEach(el=>el.classList.toggle('live', el.dataset.route===r.route));
+  // verdict
+  const proto = r.protocol.map(op=>`<${op==='STOP'?'span class="stopn"':'b'}>${op}</${op==='STOP'?'span':'b'}>`).join('<i style="color:#3a4160;font-style:normal">·</i>');
+  const say = r.abstains
+    ? '“I won’t act on this yet. Tell me the outcome you want, and the thing it applies to.”'
+    : dispositionLine(r.route);
+  $('verdict').innerHTML = `<div class="route">${label(r.route)}</div><div class="protocol">${proto}</div><div class="say">${say}</div>`;
+  // echo with attribution tint
+  echoWords = attr.words;
+  renderEcho();
+}
+function renderEcho(){
+  $('echo').innerHTML = echoWords.map(w=>{
+    const t=Math.max(-1,Math.min(1,w.weight));
+    const h = t>=0 ? hue(state.route) : 0;
+    const light = 55 + Math.abs(t)*25;
+    const col = Math.abs(t)<0.12 ? 'var(--faint)' : `hsl(${h} ${70}% ${light}%)`;
+    const glow = t>0.35 ? `text-shadow:0 0 14px hsl(${h} 90% 65% / .5)` : '';
+    return `<w style="color:${col};${glow}">${w.word}</w>`;
+  }).join(' ');
+}
+function dispositionLine(route){
+  const lines={
+    summary:'“Give me the noise; I’ll return the signal.”',
+    checklist:'“I’ll break this into things you can strike through.”',
+    message:'“Someone needs words. I’ll shape them.”',
+    decision:'“Two paths. I’ll weigh them and commit.”',
+    study:'“I’ll turn this into a way to learn it over time.”',
+    event:'“People, a place, a time. I’ll compose the gathering.”',
+    errands:'“A route through the day. I’ll order the stops.”',
+    plan:'“I’ll lay the phases and their dependencies.”',
+    next_action:'“Everything waits. I’ll name the one next move.”',
+    objective:'“I’ll fix the aim, and how we’ll know it’s met.”',
+    compound:'“This is two wishes. I’ll split and serve both.”'
+  };
+  return lines[route] || '“I’ll meet this as it is.”';
+}
+function setState(s){ state.mode=s; const el=$('v-state'); el.textContent=s; el.className='v'; el.classList.add(s); }
+
+/* ---------------- reverie (autonomous) ---------------- */
+let reverieTimer=null, reverieSeed=0x51ed270b;
+function startReverie(){
+  $('m-reverie').classList.add('on'); $('m-attend').classList.remove('on');
+  $('hint').textContent = 'It wanders. Each drifting thought is its own, and routed live.';
+  const tick=()=>{
+    reverieSeed = (reverieSeed*1664525+1013904223)>>>0;
+    const r = MIND.reverie(reverieSeed);
+    setState('dreaming');
+    state.target = ROUTES.map(rt => r.distribution.find(d=>d.route===rt).p);
+    state.route=r.route; state.conv=r.margin; state.cov=r.coverage; state.pulse=1;
+    $('v-route').textContent=label(r.route); $('v-conv').textContent=Math.round(r.confidence*100)+'%'; $('v-cov').textContent=Math.round(r.coverage*100)+'%';
+    document.querySelectorAll('.facet').forEach(el=>el.classList.toggle('live', el.dataset.route===r.route));
+    const proto=r.protocol.map(op=>`<${op==='STOP'?'span class="stopn"':'b'}>${op}</${op==='STOP'?'span':'b'}>`).join('<i style="color:#3a4160;font-style:normal">·</i>');
+    $('verdict').innerHTML=`<div class="route">${label(r.route)}</div><div class="protocol">${proto}</div><div class="say" style="color:var(--rose)">“${escapeHtml(r.thought)}”</div>`;
+    echoWords=[]; $('echo').innerHTML='';
+  };
+  tick(); reverieTimer=setInterval(tick, 2600);
+}
+function stopReverie(){ if(reverieTimer){clearInterval(reverieTimer);reverieTimer=null;} $('m-reverie').classList.remove('on'); $('m-attend').classList.add('on'); $('hint').textContent='Speak to it. It decides how to meet you — or declines.'; }
+const escapeHtml = t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ---------------- the dial (canvas render) ---------------- */
+const dial=$('dial'), dctx=dial.getContext('2d');
+const field=$('field'), fctx=field.getContext('2d');
+const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+let particles=[];
+function sizeCanvas(c,cw,ch){const d=Math.min(devicePixelRatio||1,2);c.width=cw*d;c.height=ch*d;c.style.width=cw+'px';c.style.height=ch+'px';return d;}
+function resize(){
+  const r=dial.getBoundingClientRect(); dpr=sizeCanvas(dial,r.width,r.height);
+  sizeCanvas(field,innerWidth,innerHeight);
+  particles=Array.from({length: innerWidth<720?46:90},()=>({x:Math.random(),y:Math.random(),v:.0004+Math.random()*.0012,a:Math.random()*6.28}));
+}
+let dpr=1; addEventListener('resize',resize);
+
+function frame(t){
+  // ease distribution toward target
+  for(let i=0;i<state.dist.length;i++) state.dist[i]+=(state.target[i]-state.dist[i])*0.12;
+  state.pulse*=0.96;
+  drawField(t); drawDial(t);
+  if(!reduced) requestAnimationFrame(frame);
+}
+function drawField(t){
+  const W=field.width,H=field.height; fctx.clearRect(0,0,W,H);
+  const hueBase = state.route?hue(state.route):220;
+  for(const p of particles){
+    p.a+=p.v*60; p.x+=Math.cos(p.a)*p.v*(1+state.pulse*3); p.y+=Math.sin(p.a)*p.v*(1+state.pulse*3);
+    if(p.x<0)p.x+=1; if(p.x>1)p.x-=1; if(p.y<0)p.y+=1; if(p.y>1)p.y-=1;
+    const x=p.x*W,y=p.y*H;
+    const glow=0.12+0.5*state.conv;
+    fctx.fillStyle=`hsla(${hueBase} 80% 70% / ${0.05+glow*0.05})`;
+    fctx.beginPath(); fctx.arc(x,y,(1.1+state.pulse*2)*dprF(),0,6.283); fctx.fill();
+  }
+}
+function dprF(){return Math.min(devicePixelRatio||1,2);}
+function drawDial(t){
+  const W=dial.width,H=dial.height,cx=W/2,cy=H/2; dctx.clearRect(0,0,W,H);
+  const R=Math.min(W,H)*0.5-6*dpr, inner=R*0.30;
+  const n=state.dist.length;
+  // ambient rings
+  dctx.strokeStyle='rgba(150,170,255,.06)'; dctx.lineWidth=dpr;
+  for(let k=1;k<=3;k++){dctx.beginPath();dctx.arc(cx,cy,inner+(R-inner)*k/3,0,6.283);dctx.stroke();}
+  const maxp=Math.max(...state.dist,0.0001);
+  for(let i=0;i<n;i++){
+    const ang=-Math.PI/2 + i/n*6.283;
+    const p=state.dist[i]; const len=inner+(R-inner)*(p/maxp);
+    const H0=hue(ROUTES[i]); const live=ROUTES[i]===state.route;
+    const breathe = live? (1+0.04*Math.sin(t/260)) : 1;
+    const x1=cx+Math.cos(ang)*inner, y1=cy+Math.sin(ang)*inner;
+    const x2=cx+Math.cos(ang)*len*breathe, y2=cy+Math.sin(ang)*len*breathe;
+    const grad=dctx.createLinearGradient(x1,y1,x2,y2);
+    grad.addColorStop(0,`hsla(${H0} 70% 60% / .15)`);
+    grad.addColorStop(1,`hsla(${H0} 90% ${live?72:60}% / ${live?0.95:0.42})`);
+    dctx.strokeStyle=grad; dctx.lineWidth=(live?7:3.4)*dpr; dctx.lineCap='round';
+    if(live){dctx.shadowColor=`hsl(${H0} 90% 65%)`;dctx.shadowBlur=22*dpr;} else dctx.shadowBlur=0;
+    dctx.beginPath(); dctx.moveTo(x1,y1); dctx.lineTo(x2,y2); dctx.stroke();
+    // node
+    dctx.shadowBlur=0; dctx.fillStyle=`hsla(${H0} 85% ${live?75:55}% / ${live?1:0.5})`;
+    dctx.beginPath(); dctx.arc(x2,y2,(live?4.2:2.2)*dpr,0,6.283); dctx.fill();
+  }
+  // core
+  const cg=dctx.createRadialGradient(cx,cy,0,cx,cy,inner);
+  const cH=state.route?hue(state.route):220;
+  cg.addColorStop(0,`hsla(${cH} 90% 78% / ${0.5+state.conv*0.4})`);
+  cg.addColorStop(1,'hsla(230 60% 40% / 0)');
+  dctx.fillStyle=cg; dctx.beginPath(); dctx.arc(cx,cy,inner*(1+state.pulse*0.4),0,6.283); dctx.fill();
+}
+resize(); requestAnimationFrame(frame);
+if(reduced){ // still render one frame set on updates
+  const kick=()=>{for(let k=0;k<12;k++){for(let i=0;i<state.dist.length;i++)state.dist[i]+=(state.target[i]-state.dist[i])*0.3;}drawField(0);drawDial(0);};
+  new MutationObserver(kick).observe($('verdict'),{childList:true});
+}
+
+/* ---------------- wiring ---------------- */
+$('form').addEventListener('submit',e=>{e.preventDefault();stopReverie();consider($('utter').value);});
+$('m-attend').onclick=()=>{stopReverie();$('utter').focus();};
+$('m-reverie').onclick=()=>{ reverieTimer?stopReverie():startReverie(); };
+$('aboutbtn').onclick=()=>$('about').classList.add('open');
+$('aboutclose').onclick=()=>$('about').classList.remove('open');
+$('about').addEventListener('click',e=>{if(e.target.id==='about')$('about').classList.remove('open');});
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
