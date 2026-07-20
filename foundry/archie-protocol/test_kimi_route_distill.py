@@ -42,6 +42,35 @@ class KimiRouteDistillTests(unittest.TestCase):
         }
         self.assertEqual(MOD.reject(candidate, source, set(), set(), .70), 'near-copy')
 
+    def test_k3_uses_reasoning_effort_without_thinking_or_temperature(self):
+        class Args:
+            model = 'kimi-k3'
+            reasoning_effort = None
+            thinking = False
+        body = MOD.request_body(Args(), [{'role': 'user', 'content': 'x'}], .8, 512)
+        self.assertEqual(body['reasoning_effort'], 'low')
+        self.assertEqual(body['max_completion_tokens'], 512)
+        self.assertNotIn('thinking', body)
+        self.assertNotIn('temperature', body)
+
+    def test_k3_explicit_effort_and_legacy_kimi_contracts(self):
+        class K3Args:
+            model = 'moonshotai/kimi-k3'
+            reasoning_effort = 'high'
+            thinking = True
+        k3 = MOD.request_body(K3Args(), [], 0, 768)
+        self.assertEqual(k3['reasoning_effort'], 'high')
+        self.assertNotIn('thinking', k3)
+
+        class K2Args:
+            model = 'kimi-k2.6'
+            reasoning_effort = None
+            thinking = True
+        k2 = MOD.request_body(K2Args(), [], .4, 768)
+        self.assertEqual(k2['thinking'], {'type': 'enabled'})
+        self.assertEqual(k2['temperature'], .4)
+        self.assertNotIn('reasoning_effort', k2)
+
 
 if __name__ == '__main__':
     unittest.main()
