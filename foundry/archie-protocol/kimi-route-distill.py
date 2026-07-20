@@ -48,9 +48,27 @@ class Cache:
             with self.path.open('a') as f: f.write(json.dumps({'key':key,'value':value},ensure_ascii=False)+'\n')
         return value
 
-def teacher(args,cache,messages,temp):
-    body={'model':args.model,'messages':messages,'response_format':{'type':'json_object'},'temperature':temp}
-    if 'kimi' in args.model.lower(): body['thinking']={'type':'enabled' if args.thinking else 'disabled'}
+def request_body(args,messages,temp,max_completion_tokens):
+    body={
+        'model':args.model,
+        'messages':messages,
+        'response_format':{'type':'json_object'},
+        'max_completion_tokens':max_completion_tokens,
+    }
+    model=args.model.lower()
+    is_k3=('kimi-k3' in model or 'kimi_k3' in model or model in {'k3','kimi/k3'} or model.endswith('/k3'))
+    if is_k3:
+        # K3 always reasons. It rejects the K2.x `thinking` object and fixes
+        # sampling parameters, so omit both `thinking` and `temperature`.
+        body['reasoning_effort']=args.reasoning_effort or ('max' if args.thinking else 'low')
+    else:
+        body['temperature']=temp
+        if 'kimi' in model:
+            body['thinking']={'type':'enabled' if args.thinking else 'disabled'}
+    return body
+
+def teacher(args,cache,messages,temp,max_completion_tokens):
+    body=request_body(args,messages,temp,max_completion_tokens)
     key=digest({'endpoint':endpoint(args.endpoint),**body})
     def request():
         req=urllib.request.Request(endpoint(args.endpoint),data=json.dumps(body).encode(),headers={'Content-Type':'application/json','Authorization':f'Bearer {args.api_key}'})
@@ -103,6 +121,7 @@ def main():
     p.add_argument('--endpoint',default='https://api.moonshot.ai/v1'); p.add_argument('--model',default='kimi-k2.6'); p.add_argument('--api-key-env',default='MOONSHOT_API_KEY')
     p.add_argument('--samples-per-row',type=int,default=4); p.add_argument('--judges',type=int,default=3); p.add_argument('--batch-size',type=int,default=8); p.add_argument('--max-sources',type=int,default=0); p.add_argument('--max-additions-per-route',type=int,default=4000)
     p.add_argument('--min-confidence',type=float,default=.72); p.add_argument('--max-source-jaccard',type=float,default=.82); p.add_argument('--timeout',type=int,default=180); p.add_argument('--retries',type=int,default=4); p.add_argument('--cache'); p.add_argument('--freeze',action='append',default=[]); p.add_argument('--thinking',action='store_true')
+    p.add_argument('--reasoning-effort',choices=['low','high','max'],default=None,help='Kimi K3 reasoning effort; defaults to low, or max with --thinking')
     args=p.parse_args(); args.api_key=os.getenv(args.api_key_env) or os.getenv('ARCHIE_TEACHER_KEY')
     if not args.api_key: raise RuntimeError(f'missing API key in {args.api_key_env} or ARCHIE_TEACHER_KEY')
     rows=[{**r,'prompt':user_text(r)} for r in load(args.data) if r.get('route') in ROUTES and user_text(r)]
@@ -112,7 +131,7 @@ def main():
     cache=Cache(args.cache); seen={canon(r['prompt']) for r in rows}|holdout; accepted=[]; rejected=[]; per_route=Counter(); families=Counter()
     for start in range(0,len(rows),max(1,args.batch_size)):
         batch=rows[start:start+max(1,args.batch_size)]; style=STYLES[(start//max(1,args.batch_size))%len(STYLES)]
-        try: candidates=teacher(args,cache,generation_messages(batch,args.samples_per_row,style),.8).get('candidates',[])
+        try: candidates=teacher(args,cache,generation_messages(batch,args.samples_per_row,style),.8,4096).get('candidates',[])
         except Exception as exc: rejected.append({'batch':start,'reason':str(exc)}); continue
         for c in candidates:
             sid=c.get('source_id')
@@ -122,7 +141,7 @@ def main():
             rv=[]; fv=[]
             for j in range(args.judges):
                 try:
-                    rv.append(teacher(args,cache,route_messages(c,j+1),0)); fv.append(teacher(args,cache,fidelity_messages(source,c,j+1),0))
+                    rv.append(teacher(args,cache,route_messages(c,j+1),0,768)); fv.append(teacher(args,cache,fidelity_messages(source,c,j+1),0,512))
                 except Exception: rv.append({'confidence':0}); fv.append({'faithful':False,'confidence':0})
             if not consensus(c,rv,fv,args.min_confidence): rejected.append({'source':start+sid,'reason':'verifier'}); continue
             seen.add(canon(c['prompt'])); per_route[c['route']]+=1; family=c.get('failure_family') if c.get('failure_family') in FAILURES else 'other'; families[family]+=1
