@@ -1,99 +1,48 @@
-name: Train Archie cognitive checkpoint
+name: Validate Archie cognitive shadow evidence
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'foundry/archie-cognitive-app/**'
+      - 'docs/archie-factorized-controller-v2.md'
       - '.github/workflows/train-archie-cognitive.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: archie-cognitive-pr-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  train-package-verify:
-    if: ${{ github.actor != 'github-actions[bot]' }}
+  validate-shadow-evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: foundry/archie-cognitive-app
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: pip
-      - name: Install CPU training dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install numpy torch --index-url https://download.pytorch.org/whl/cpu
-      - name: Train the local controller
-        run: |
-          rm -rf artifacts/workflow-build
-          python train_cognitive_router.py --output artifacts/workflow-build --epochs 2 --seed 3407
-      - name: Package and restore checkpoint
-        run: |
-          rm -f artifacts/cognitive-router-v1/part-*.b64
-          python package_checkpoint.py \
-            --model artifacts/workflow-build/cognitive-router.pt \
-            --out artifacts/cognitive-router-v1 \
-            --part-bytes 90000
-          cp artifacts/workflow-build/training-receipt.json artifacts/cognitive-router-v1/training-receipt.json
-          python restore_checkpoint.py \
-            --artifact-dir artifacts/cognitive-router-v1 \
-            --out artifacts/cognitive-router.pt
-      - name: Verify runtime contract
-        run: |
-          python -m compileall -q .
-          python -m unittest test_cognitive_router_app.py test_runtime_contract.py
-      - name: Bind release receipt to workflow artifact
+      - name: Compile factorized research code
+        run: python -m compileall -q foundry/archie-cognitive-app/factorized-v2
+      - name: Verify fail-closed result contract
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          root = Path('artifacts/cognitive-router-v1')
-          manifest = json.loads((root / 'manifest.json').read_text())
-          training = json.loads((root / 'training-receipt.json').read_text())
-          receipt_path = root / 'release-receipt.json'
-          receipt = json.loads(receipt_path.read_text())
-          receipt['model_sha256'] = manifest['sha256']
-          receipt['architecture']['checkpoint_bytes'] = manifest['bytes']
-          receipt['training'] = training
-          receipt['workflow'] = {
-              'run_id': '${{ github.run_id }}',
-              'run_attempt': '${{ github.run_attempt }}',
-              'commit': '${{ github.sha }}',
-              'runner': 'ubuntu-latest',
-          }
-          receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + '\n')
+
+          root = Path('foundry/archie-cognitive-app/factorized-v2/artifacts')
+          report = json.loads((root / 'final-report.json').read_text())
+          fused = json.loads((root / 'postfreeze-fused-v2.json').read_text())
+          quant = json.loads((root / 'postfreeze-fused-v2-int8.json').read_text())
+
+          assert report['promotion'] == 'not-admitted'
+          assert report['gate']['admit'] is False
+          assert report['decision']['selected_checkpoint'] == 'v9'
+          assert report['comparisons']['v9']['correct'] == 294
+          assert fused['correct'] == 239 and fused['examples'] == 310
+          assert quant['correct'] == fused['correct']
+          assert quant['predictions_sha256'] == fused['predictions_sha256']
+          assert report['relative_to_v9']['repairs'] == 1
+          assert report['relative_to_v9']['regressions'] == 56
+          assert report['negative_evidence']['invalid_regex_310']['legitimate_candidate'] is False
+          print('shadow evidence contract: pass')
           PY
-      - name: Upload checkpoint artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: archie-cognitive-router-v1
-          path: |
-            foundry/archie-cognitive-app/artifacts/cognitive-router.pt
-            foundry/archie-cognitive-app/artifacts/cognitive-router-v1/
-          if-no-files-found: error
-      - name: Commit verified checkpoint parts
-        run: |
-          rm -rf artifacts/workflow-build artifacts/cognitive-router.pt
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add artifacts/cognitive-router-v1
-          if git diff --cached --quiet; then
-            echo 'Checkpoint artifact already matches the branch.'
-            exit 0
-          fi
-          git commit -m 'Package Linux-trained cognitive checkpoint [skip ci]'
-          git push origin HEAD:${{ github.head_ref || github.ref_name }}
