@@ -24,10 +24,10 @@ import { buildCorpus } from './protocol-corpus.mjs';
 import { ROUTES } from './train-route-model.mjs';
 
 const FROZEN_SUITES = ['router-v2-original-heldout', 'router-real-v2-heldout', 'router-real-v3-final'];
-const PER_ROUTE_CAP = 260;
+const PER_ROUTE_CAP = 150;
 // clarify covers both vague requests and the whole red-team abstention space,
 // so it gets a higher cap than the semantic routes.
-const CLARIFY_CAP = 520;
+const CLARIFY_CAP = 320;
 
 const AUTHORED = {
   objective: [
@@ -238,7 +238,7 @@ function main() {
     candidates.set(key, { resolved: true });
     byRoute.get(route).push({ prompt: cleaned, route, source });
   };
-  synthesizeCompounds(byRoute, directPush, 300);
+  synthesizeCompounds(byRoute, directPush, 140);
 
   // Balance: cap over-represented routes deterministically (stable order).
   const rows = [];

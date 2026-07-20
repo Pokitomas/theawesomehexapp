@@ -2,7 +2,7 @@
   "name": "Archie — Local Operator",
   "short_name": "Archie",
   "description": "Turn one request into a concrete local response. Private and offline after first load.",
-  "start_url": ".",
+  "start_url": "./index-v7.html",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",

@@ -1,0 +1,66 @@
+{
+  "attempts": [
+    {
+      "artifact_created": false,
+      "claim": "no result",
+      "id": "full-two-seed-autoregressive-01",
+      "status": "compute-window-exhausted"
+    },
+    {
+      "candidates": [
+        {
+          "artifact_sha256": "ee88d071d0ef922202a063ec41c068b71531f54fe416bae45273611e4c53fa41",
+          "gradient_steps": 24,
+          "heldout_guarded_protocol_exact": 0.0,
+          "heldout_route_accuracy": 0.087963,
+          "seed": 3407
+        },
+        {
+          "artifact_sha256": "0a925bb370dc3d1a4a4ce9cf56786be05cf2d2a4577c3419748ca0497185adf2",
+          "gradient_steps": 24,
+          "heldout_guarded_protocol_exact": 0.0,
+          "heldout_route_accuracy": 0.143519,
+          "seed": 20260720
+        }
+      ],
+      "epochs": 4,
+      "id": "small-four-epoch-01",
+      "status": "completed-rejected"
+    },
+    {
+      "artifact_created": false,
+      "claim": "no result",
+      "id": "expanded-two-seed-02",
+      "status": "compute-window-exhausted"
+    },
+    {
+      "artifact_created": false,
+      "claim": "no result",
+      "id": "expanded-two-seed-03",
+      "status": "compute-window-exhausted"
+    },
+    {
+      "heldout_guarded_protocol_exact": 0.356481,
+      "heldout_route_accuracy": 0.25463,
+      "id": "single-seed-intermediate-04",
+      "seed": 3407,
+      "status": "completed-rejected"
+    },
+    {
+      "artifact_sha256": "7bd31b5d67c24b5e16d9ef65bb35bf31d918bd5d25a18ef73f0538fc33595f5b",
+      "id": "selected-seed-3407-05",
+      "seed": 3407,
+      "status": "completed-selected-shadow-only"
+    },
+    {
+      "artifact_sha256": "73e19ec7016423a99c4ff21d5954efcfa65b66356463ab49472e69d9f9925a9c",
+      "id": "comparison-seed-20260720-06",
+      "seed": 20260720,
+      "status": "completed-not-selected"
+    }
+  ],
+  "promotion": "not-admitted",
+  "schema": "archie-synthetic-training-experiment-ledger/v1",
+  "source_main_sha": "19723c58ba9db322a39db573c06cc6cf5e737beb",
+  "terminal_decision": "training occurred; candidate preserved; production admission denied"
+}
