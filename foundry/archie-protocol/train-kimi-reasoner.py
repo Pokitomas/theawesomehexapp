@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Train Archie Reasoner with verified Kimi structural supervision.
 
-This bridge leaves the existing reasoner implementation unchanged. It patches the
-training target builder before importing the trainer so accepted Kimi fields are
-part of the autoregressive task-graph target rather than dead audit metadata.
-Every output remains promotion:not-admitted under the reasoner's own receipt.
+This bridge enriches accepted teacher targets and installs the typed recurrent
+controller before importing the existing trainer. The admitted runtime remains
+unchanged; every checkpoint and receipt remains promotion:not-admitted.
 """
 from __future__ import annotations
 
@@ -13,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+PROTOCOL_DIR = Path(__file__).resolve().parent
 ROOT = Path(__file__).resolve().parents[1]
 REASONER_DIR = ROOT / "archie-reasoner"
 
@@ -109,12 +109,22 @@ def install_patch(reasoner_module: Any) -> None:
     reasoner_module.target_objects = patched
 
 
+def install_controller_patch(reasoner_module: Any) -> None:
+    """Install first-class source channels and the bounded recurrent controller."""
+    if str(PROTOCOL_DIR) not in sys.path:
+        sys.path.insert(0, str(PROTOCOL_DIR))
+    controller = importlib.import_module("typed_recurrent_controller")
+    controller.install_controller(reasoner_module)
+
+
 def main() -> int:
     if not REASONER_DIR.is_dir():
         raise RuntimeError(f"missing Archie Reasoner directory: {REASONER_DIR}")
-    sys.path.insert(0, str(REASONER_DIR))
+    if str(REASONER_DIR) not in sys.path:
+        sys.path.insert(0, str(REASONER_DIR))
     reasoner = importlib.import_module("archie_reasoner")
     install_patch(reasoner)
+    install_controller_patch(reasoner)
     trainer = importlib.import_module("train")
     return int(trainer.main())
 
