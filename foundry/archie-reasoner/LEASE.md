@@ -21,3 +21,5 @@
 ```
 
 This lane is reserved for a generative reasoning student and its evidence. It does not modify the central `archie/` product paths owned by PR #676.
+
+The implementation is complete; real audit-corpus training remains an external, separately evidenced execution step.
