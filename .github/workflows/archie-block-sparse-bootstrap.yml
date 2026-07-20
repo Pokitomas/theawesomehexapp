@@ -7,9 +7,16 @@ on:
     paths:
       - '.archie-bootstrap/**'
       - '.github/workflows/archie-block-sparse-bootstrap.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.archie-bootstrap/**'
+      - '.github/workflows/archie-block-sparse-bootstrap.yml'
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   train-and-publish:
