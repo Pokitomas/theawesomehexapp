@@ -1,0 +1,60 @@
+{
+  "architecture": {
+    "centroid_hash_coordinates_per_view": 32768,
+    "features": 86,
+    "heads": ["route", "authority", "context", "activity", "compound", "clause_route"],
+    "kimi": "governed adapter prepared; external calls=0",
+    "limix": "tabular export prepared; no LimiX checkpoint or service run",
+    "method": "dual-view learned tabular language: full request plus operation-focus span over proven atom margins, route centroids, evidence relations, and learned clause routes",
+    "route_policy": "route head primary; auxiliary heads may only deny or clarify above 0.95 confidence"
+  },
+  "gate": {
+    "admit": false,
+    "current_repo_suites_replayed": false,
+    "exact_audit_replayed": false,
+    "frozen_v5_all_at_least_0_94": false,
+    "frozen_v5_route_at_least_0_97": false,
+    "known_repair_all": false,
+    "legacy_route_606": true
+  },
+  "identity": {
+    "frozen_v5_sha256": "69703565cc6f5de1c74ac8ce6c14256d089ca0f00a1a9ebe013c7e4e69ce06ed",
+    "known_repair_sha256": "c69c93674d7f6b7b3424ee87300d2d527f2a3d0f0f039e65cc30a37fb76e5d3a",
+    "model_sha256": "c001250b3a9b7d55e06dadcf62eb5fd047ad554b9c19d51b3fdef760824d8e8a",
+    "old_model_sha256": "7e61d995b5c990497351c85d67656140a0e81d4ec789e194ff45a0b17a56e3cf"
+  },
+  "metrics": {
+    "development_v2": {"all_accuracy": 0.9396628216503993, "all_correct": 1059, "authority_correct": 1127, "context_correct": 1126, "examples": 1127, "outcomes_correct": 1059, "route_accuracy": 0.997338065661047, "route_correct": 1124},
+    "development_v3": {"all_accuracy": 0.9830985915492958, "all_correct": 1396, "authority_correct": 1420, "context_correct": 1420, "examples": 1420, "outcomes_correct": 1396, "route_accuracy": 1.0, "route_correct": 1420},
+    "development_v4": {"all_accuracy": 0.9608433734939759, "all_correct": 1595, "authority_correct": 1660, "context_correct": 1660, "examples": 1660, "outcomes_correct": 1595, "route_accuracy": 1.0, "route_correct": 1660},
+    "frozen_v5": {"all_accuracy": 0.8526595744680852, "all_correct": 1603, "authority_correct": 1880, "context_correct": 1866, "examples": 1880, "outcomes_correct": 1682, "route_accuracy": 0.8952127659574468, "route_correct": 1683},
+    "known_repair": {"all_accuracy": 0.9831932773109243, "all_correct": 117, "authority_correct": 119, "context_correct": 118, "examples": 119, "outcomes_correct": 118, "route_accuracy": 1.0, "route_correct": 119},
+    "legacy_route_only": {"examples": 606, "route_accuracy": 1.0, "route_correct": 606}
+  },
+  "promotion": "not-admitted",
+  "reason": "The exact Archie-Audit.zip and complete current-main admission/runtime suites were not replayed. Frozen-v5 remains untouched by fitting.",
+  "rejected_successor": {
+    "decision": "rejected; v5 remains selected shadow candidate",
+    "frozen_v6_all": "1382/2400",
+    "frozen_v6_route": "1462/2400",
+    "id": "hierarchical-focused-v6",
+    "legacy_route": "533/606"
+  },
+  "schema": "archie-focused-foundational-admission/v3-compact",
+  "starting_main_commit": "476a9b18c62e0158e0eeea21542bff63e450fefb",
+  "training": {
+    "activity_rows": 84632,
+    "clause_rows": 72224,
+    "external_teacher_calls": 0,
+    "rows": 66325,
+    "seed": 20260753,
+    "source_counts": {"authority": 5000, "context": 7500, "final-v3": 1420, "frozen": 7, "frozen-foundational-v1": 1120, "frozen-v4": 1660, "governed-contrast": 7333, "governed-synthetic-v1": 28200, "known-repair": 119, "legacy": 606, "semantic-distill": 13360}
+  },
+  "validation": {
+    "command": "python -m unittest -v test_archie_foundational_router.py",
+    "external_teacher_calls": 0,
+    "production_router_changed": false,
+    "python": "3.13.5",
+    "tests": "6/6"
+  }
+}
