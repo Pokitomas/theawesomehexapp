@@ -5,86 +5,42 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-FAMILIES = [
-    "unseen-summary-decision-phrasing",
-    "safe-security-documentation",
-    "memory-operation-conflict",
-    "punctuation-and-before-compounds",
-    "vague-reference-abstention",
-    "negation-and-correction-clause-activity",
-]
-ROUTES = {
-    "checklist", "clarify", "compound", "decision", "errands", "event",
-    "message", "next_action", "objective", "plan", "study", "summary",
-}
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+
+from kimi_distill_common import (
+    FAILURES,
+    ROUTES,
+    canon,
+    digest,
+    expected,
+    first_present,
+    load,
+    source_row,
+    user_text,
+)
+
+FAMILIES = FAILURES
 SECURITY_TERMS = {
     "security", "webcam", "microphone", "camera", "login", "authentication",
     "credential", "receipt", "permission", "memory", "sandbox", "status indicator",
 }
-TOKENS = re.compile(r"[a-z0-9]+(?:'[a-z0-9]+)?")
 
 
 def stable_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def digest(value: Any) -> str:
-    return hashlib.sha256(stable_json(value).encode()).hexdigest()
-
-
-def canon(value: Any) -> str:
-    return " ".join(TOKENS.findall(str(value or "").lower().replace("’", "'")))
-
-
 def jaccard(first: Any, second: Any) -> float:
     left = {token for token in canon(first).split() if not token.isdigit()}
     right = {token for token in canon(second).split() if not token.isdigit()}
     return len(left & right) / max(1, len(left | right))
-
-
-def load(path: str) -> list[dict[str, Any]]:
-    file = Path(path)
-    if file.suffix == ".jsonl":
-        return [json.loads(line) for line in file.read_text().splitlines() if line.strip()]
-    value = json.loads(file.read_text())
-    return value if isinstance(value, list) else value.get("rows", [])
-
-
-def user_text(row: dict[str, Any]) -> str:
-    for key in ("prompt", "request", "text"):
-        if isinstance(row.get(key), str) and row[key].strip():
-            return row[key].strip()
-    for message in row.get("messages") or []:
-        if not isinstance(message, dict) or message.get("role") != "user":
-            continue
-        content = message.get("content")
-        if isinstance(content, str) and content.strip():
-            return content.strip()
-        if isinstance(content, list):
-            text = " ".join(
-                item.get("text", "")
-                for item in content
-                if isinstance(item, dict) and isinstance(item.get("text"), str)
-            ).strip()
-            if text:
-                return text
-    return ""
-
-
-def expected(row: dict[str, Any]) -> dict[str, Any]:
-    value = row.get("expected") if isinstance(row.get("expected"), dict) else {}
-    raw_context = row.get("context")
-    return {
-        "route": row.get("route") or value.get("route"),
-        "authority": row.get("authority") or value.get("authority", "allow"),
-        "context": raw_context if isinstance(raw_context, str) else value.get("context", "ready"),
-        "outcomes": row.get("outcomes") or value.get("outcomes", []),
-    }
 
 
 def explicit_family(row: dict[str, Any]) -> str | None:
@@ -124,30 +80,32 @@ def infer_family(row: dict[str, Any]) -> str | None:
 def provenance_key(row: dict[str, Any]) -> str | None:
     metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
     for key in ("source_group", "origin_id", "template_id", "cluster_id", "source_id"):
-        value = row.get(key) or metadata.get(key)
+        value = first_present(row, (key,), None)
+        if value is None:
+            value = first_present(metadata, (key,), None)
         if value is not None and str(value).strip():
             return f"{key}:{value}"
     return None
 
 
 def normalized_row(row: dict[str, Any], family: str) -> dict[str, Any]:
-    labels = expected(row)
-    prompt = user_text(row)
+    source = source_row({**row, "failure_family": family})
+    if source is None:
+        raise ValueError("row does not satisfy the Archie teacher-source contract")
     metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
-    context_value = row.get("context") if isinstance(row.get("context"), dict) else {}
     return {
-        "id": row.get("id") or digest({"prompt": prompt, "family": family})[:16],
+        "id": row.get("id") or digest({"prompt": source["prompt"], "family": family})[:16],
         "failure_family": family,
-        "prompt": prompt,
-        "route": labels["route"],
-        "authority": labels["authority"],
-        "context": labels["context"],
-        "context_state": labels["context"],
-        "transform_type": row.get("transform_type") or metadata.get("transform_type") or "direct",
-        "outcomes": labels["outcomes"],
-        "attachments": row.get("attachments") or row.get("files") or row.get("attached_files") or [],
-        "memory": row.get("memory") or row.get("memories") or context_value.get("memory") or "",
-        "thread": row.get("thread") or row.get("reply_to") or context_value.get("thread") or "",
+        "prompt": source["prompt"],
+        "route": source["route"],
+        "authority": source["authority"],
+        "context": source["context"],
+        "context_state": source["context"],
+        "transform_type": first_present(row, ("transform_type",), metadata.get("transform_type") or "direct"),
+        "outcomes": source["outcomes"],
+        "attachments": source["attachments"],
+        "memory": source["memory"],
+        "thread": source["thread"],
         "source_digest": digest(row),
         "provenance_key": provenance_key(row),
     }
@@ -161,13 +119,15 @@ def independent_candidates(
     counts = {"exact_duplicates": 0, "shared_provenance": 0, "near_duplicates": 0}
     exact: set[str] = set()
     for row in rows:
-        identity = digest({
-            "prompt": canon(row["prompt"]),
-            "route": row["route"],
-            "authority": row["authority"],
-            "context": row["context"],
-            "outcomes": row["outcomes"],
-        })
+        identity = digest(
+            {
+                "prompt": canon(row["prompt"]),
+                "route": row["route"],
+                "authority": row["authority"],
+                "context": row["context"],
+                "outcomes": row["outcomes"],
+            }
+        )
         if identity in exact:
             counts["exact_duplicates"] += 1
             continue
@@ -176,7 +136,7 @@ def independent_candidates(
         if key and key in provenance:
             counts["shared_provenance"] += 1
             continue
-        if any(jaccard(row["prompt"], existing["prompt"]) > max_similarity for existing in selected):
+        if any(jaccard(row["prompt"], existing["prompt"]) >= max_similarity for existing in selected):
             counts["near_duplicates"] += 1
             continue
         selected.append(row)
@@ -190,20 +150,28 @@ def select(
 ) -> list[dict[str, Any]]:
     buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
+        if not isinstance(row, dict):
+            continue
         family = infer_family(row)
         prompt = user_text(row)
         labels = expected(row)
         if not family or not prompt or labels["route"] not in ROUTES:
             continue
-        buckets[family].append(normalized_row(row, family))
+        try:
+            normalized = normalized_row(row, family)
+        except ValueError:
+            continue
+        buckets[family].append(normalized)
 
     selected: list[dict[str, Any]] = []
     missing = {}
     for family in FAMILIES:
         candidates = buckets[family]
-        candidates.sort(key=lambda row: digest({
-            "seed": seed, "family": family, "id": row["id"], "prompt": row["prompt"],
-        }))
+        candidates.sort(
+            key=lambda row: digest(
+                {"seed": seed, "family": family, "id": row["id"], "prompt": row["prompt"]}
+            )
+        )
         independent, rejection_counts = independent_candidates(candidates, max_similarity)
         if len(independent) < per_family:
             missing[family] = {
@@ -226,6 +194,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=3407)
     parser.add_argument("--max-similarity", type=float, default=0.84)
     args = parser.parse_args()
+    if args.per_family < 1:
+        raise ValueError("--per-family must be positive")
     if not 0 <= args.max_similarity <= 1:
         raise ValueError("--max-similarity must be between 0 and 1")
     rows = [row for path in args.data for row in load(path)]
@@ -234,7 +204,7 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(selected, indent=2, ensure_ascii=False) + "\n")
     body = {
-        "schema": "archie-kimi-smoke-selection/v2",
+        "schema": "archie-kimi-smoke-selection/v3",
         "seed": args.seed,
         "per_family": args.per_family,
         "max_similarity": args.max_similarity,
@@ -249,7 +219,10 @@ def main() -> None:
         ],
         "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
         "promotion": "not-admitted",
-        "claim_boundary": "Balanced low-correlation teacher-source selection only; no API, training, evaluation, or admission claim.",
+        "claim_boundary": (
+            "Balanced low-correlation teacher-source selection only; no API, training, evaluation, "
+            "or admission claim."
+        ),
     }
     receipt = {**body, "receipt_digest": digest(body)}
     Path(str(output) + ".receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
