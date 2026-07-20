@@ -1,0 +1,48 @@
+{
+  "attempts": [
+    {
+      "id": "independent-vocabulary-five-heads",
+      "lesson": "Repeated word/character vocabulary fitting and chi-square selection per head does not scale inside the execution window.",
+      "status": "compute-window-exhausted"
+    },
+    {
+      "features_seconds": 18.015,
+      "id": "shared-basis-exact-linear-svc",
+      "lesson": "Feature construction was solved, but exact multiclass margin optimization remained the dominant cost; replace with bounded averaged SGD.",
+      "shape": [63763, 28416],
+      "status": "terminated-after-eight-minutes-before-first-head"
+    },
+    {
+      "id": "tabular-lightgbm-220x12",
+      "lesson": "The 220-tree multiclass arbiter was unnecessarily expensive; reduce tree count and leaf count because the feature table is already distilled.",
+      "shape": [48785, 62],
+      "status": "terminated-after-ten-minutes-before-first-head"
+    },
+    {
+      "id": "tabular-lightgbm-72x12",
+      "lesson": "Even reduced boosting was wasteful on an already distilled low-dimensional table; use weighted convex multinomial heads.",
+      "shape": [48785, 62],
+      "status": "terminated-after-eight-minutes-before-first-head"
+    },
+    {
+      "architecture": "atomic-operation head + learned compound mode + paired evidence availability",
+      "frozen_pack": {
+        "rows": 2400,
+        "sha256": "109e810fb06de305699c47d9a7c55024d2923826db6732af0ffdfb1db7c3d593"
+      },
+      "id": "hierarchical-focused-v6",
+      "lesson": "Disentangling operation, compound mode, and context solved seen contrast families but did not create broad paraphrase invariance; lexical representation remains the limiting factor.",
+      "metrics": {
+        "development_v5_all": "1830/1880",
+        "frozen_v6_all": "1382/2400",
+        "frozen_v6_route": "1462/2400",
+        "known_repair_all": "114/119",
+        "legacy_route": "533/606"
+      },
+      "status": "rejected-on-frozen-v6-and-legacy-regression",
+      "training_rows": 76068
+    }
+  ],
+  "promotion": "not-admitted",
+  "schema": "archie-training-negative-evidence/v1"
+}
