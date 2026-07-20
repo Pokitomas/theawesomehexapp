@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import math
 import tempfile
@@ -21,6 +22,10 @@ class KimiRouteDistillTests(unittest.TestCase):
         value.structured_output = structured_output
         value.reasoning_effort = reasoning_effort
         value.thinking = thinking
+        value.endpoint = 'https://api.moonshot.ai/v1'
+        value.api_key = 'test'
+        value.retries = 0
+        value.timeout = 5
         return value
 
     def source(self):
@@ -96,13 +101,43 @@ class KimiRouteDistillTests(unittest.TestCase):
         }
         source = MOD.source_row(row)
         self.assertEqual(source['context'], 'ready')
+        self.assertEqual(source['context_state'], 'ready')
         self.assertEqual(source['memory'], ['old plan'])
         self.assertEqual(source['thread'], 'previous discussion')
         self.assertEqual(source['attachments'], [{'filename': 'new.pdf'}])
 
+    def test_context_and_outcome_aliases_respect_explicit_empty_context(self):
+        row = {
+            'request': 'Use the current request only.',
+            'route': 'summary',
+            'authority': 'allow',
+            'context_state': 'ambiguous',
+            'ordered_outcomes': ['summary'],
+            'failure_family': 'memory-operation-conflict',
+            'attachments': [],
+            'files': [{'filename': 'must-not-leak.pdf'}],
+            'memory': '',
+            'memories': ['must not leak'],
+            'thread': '',
+            'reply_to': 'must not leak',
+        }
+        source = MOD.source_row(row)
+        self.assertEqual(source['context'], 'ambiguous')
+        self.assertEqual(source['outcomes'], ['summary'])
+        self.assertEqual(source['attachments'], [])
+        self.assertEqual(source['memory'], '')
+        self.assertEqual(source['thread'], '')
+
     def test_missing_frozen_file_fails_closed(self):
         with self.assertRaises(FileNotFoundError):
             MOD.frozen(['/definitely/missing/archie-suite.jsonl'])
+
+    def test_invalid_source_rows_are_not_silently_dropped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'sources.json'
+            path.write_text(json.dumps([self.source(), {'prompt': 'bad row'}]))
+            with self.assertRaisesRegex(ValueError, r'indices \[1\]'):
+                MOD.normalized_sources(str(path))
 
     def test_accepted_rows_get_unique_ids_and_preserve_source_identity(self):
         source = {**self.source(), 'id': 'source-17'}
@@ -113,6 +148,16 @@ class KimiRouteDistillTests(unittest.TestCase):
         self.assertNotEqual(first_row['id'], second_row['id'])
         self.assertTrue(first_row['id'].startswith('kimi-'))
         self.assertEqual(first_row['distillation']['source_id'], 'source-17')
+        self.assertIn('candidate_digest', first_row['distillation'])
+
+    def test_source_identity_binds_structural_context(self):
+        first_source = {**self.source(), 'id': 'same'}
+        second_source = {**first_source, 'memory': 'Different remembered objective.'}
+        candidate = {**self.candidate(), '_source_id': 0, '_candidate_id': '0:0'}
+        self.assertNotEqual(MOD.source_digest(first_source), MOD.source_digest(second_source))
+        first = MOD.accepted_row(first_source, candidate, [self.verdict()], 'kimi-k3')
+        second = MOD.accepted_row(second_source, candidate, [self.verdict()], 'kimi-k3')
+        self.assertNotEqual(first['id'], second['id'])
 
     def test_k3_uses_reasoning_effort_and_strict_schema_without_sampling(self):
         schema = MOD.generation_schema(2, 2)
@@ -162,9 +207,31 @@ class KimiRouteDistillTests(unittest.TestCase):
             changed = {**candidate, key: bad}
             self.assertEqual(MOD.candidate_error(changed, source, set(), [], .95, .95), reason)
 
+    def test_candidate_validation_enforces_json_object_semantics(self):
+        candidate = self.candidate()
+        self.assertEqual(
+            MOD.candidate_error({**candidate, 'reasoning': 'leak'}, self.source(), set(), [], .95, .95),
+            'candidate-schema',
+        )
+        self.assertEqual(
+            MOD.candidate_error({**candidate, 'operation': 'x' * 161}, self.source(), set(), [], .95, .95),
+            'invalid-operation',
+        )
+        self.assertEqual(
+            MOD.candidate_error({**candidate, 'ordered_outcomes': ['one', 'two']}, self.source(), set(), [], .95, .95),
+            'ordered-outcome-compound-mismatch',
+        )
+
     def test_candidate_validation_rejects_bool_as_clause_count(self):
         candidate = {**self.candidate(), 'active_clauses': True}
         self.assertEqual(MOD.candidate_error(candidate, self.source(), set(), [], .95, .95), 'invalid-active-clauses')
+
+    def test_generation_payload_requires_exact_top_level_schema_and_bound(self):
+        self.assertEqual(MOD.extract_candidates({'candidates': [self.candidate()]}, 1, 1), [self.candidate()])
+        with self.assertRaisesRegex(ValueError, 'only candidates'):
+            MOD.extract_candidates({'candidates': [], 'reasoning': 'x'}, 1, 1)
+        with self.assertRaisesRegex(ValueError, 'exceeds'):
+            MOD.extract_candidates({'candidates': [self.candidate(), self.candidate()]}, 1, 1)
 
     def test_verdict_index_requires_exact_ids_and_strict_types(self):
         candidates = [{'_candidate_id': '0:0'}, {'_candidate_id': '0:1'}]
@@ -177,6 +244,9 @@ class KimiRouteDistillTests(unittest.TestCase):
         bad_conf = self.verdict('0:1')
         bad_conf['confidence'] = math.inf
         self.assertIsNone(MOD.index_verdicts(candidates, {'verdicts': [self.verdict('0:0'), bad_conf]}))
+        extra = {**self.verdict('0:1'), 'reasoning': 'no'}
+        self.assertIsNone(MOD.index_verdicts(candidates, {'verdicts': [self.verdict('0:0'), extra]}))
+        self.assertIsNone(MOD.index_verdicts(candidates, {'verdicts': [self.verdict('0:0'), self.verdict('0:1')], 'extra': True}))
 
     def test_consensus_defaults_to_unanimous(self):
         candidate = self.candidate()
@@ -185,6 +255,34 @@ class KimiRouteDistillTests(unittest.TestCase):
         self.assertTrue(MOD.batch_consensus(candidate, [good, good, good], .72, 1.0))
         self.assertFalse(MOD.batch_consensus(candidate, [good, good, bad], .72, 1.0))
         self.assertTrue(MOD.batch_consensus(candidate, [good, good, bad], .72, .66))
+
+    def test_cache_fails_closed_on_conflicting_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'cache.jsonl'
+            key = 'a' * 64
+            path.write_text(
+                json.dumps({'key': key, 'value': {'candidates': []}}) + '\n' +
+                json.dumps({'key': key, 'value': {'candidates': [{}]}}) + '\n'
+            )
+            with self.assertRaisesRegex(ValueError, 'conflicting cache values'):
+                MOD.Cache(str(path))
+
+    def test_teacher_accounts_for_reported_usage(self):
+        response_payload = {
+            'choices': [{'message': {'content': json.dumps({'candidates': []})}}],
+            'usage': {'prompt_tokens': 11, 'completion_tokens': 7, 'total_tokens': 18},
+        }
+        response = io.BytesIO(json.dumps(response_payload).encode())
+        stats = MOD.ApiStats()
+        with mock.patch.object(MOD.urllib.request, 'urlopen', return_value=response):
+            value = MOD.teacher(
+                self.args(), MOD.Cache(None), stats, [], 0, 32, 'x', MOD.generation_schema(1, 1)
+            )
+        self.assertEqual(value, {'candidates': []})
+        self.assertEqual(stats.http_responses, 1)
+        self.assertEqual(stats.http_successes, 1)
+        self.assertEqual(stats.completion_tokens, 7)
+        self.assertEqual(stats.total_tokens, 18)
 
     def test_main_writes_augmentation_only_and_full_merged_corpus(self):
         source = self.source()
@@ -216,11 +314,15 @@ class KimiRouteDistillTests(unittest.TestCase):
                 MOD.main()
             augmentation = json.loads(augmentation_path.read_text())
             merged = json.loads(merged_path.read_text())
+            receipt = json.loads(Path(str(augmentation_path) + '.receipt.json').read_text())
             self.assertEqual(len(augmentation), 1)
             self.assertEqual(len(merged), 2)
             self.assertEqual(augmentation[0]['attachments'], source['attachments'])
             self.assertEqual(augmentation[0]['memory'], source['memory'])
             self.assertEqual(merged[0], base[0])
+            self.assertEqual(receipt['schema'], 'archie-route-kimi-distill/v3')
+            self.assertIn('cache', receipt)
+            self.assertIn('reported_completion_tokens', receipt['calls'])
 
 
 if __name__ == '__main__':
