@@ -1,0 +1,22 @@
+{
+  "schema": "archie-cognitive-router-training/v1",
+  "config": {
+    "byte_vocab": 257,
+    "max_request": 240,
+    "max_payload": 160,
+    "embed": 32,
+    "hidden": 48,
+    "lane": 32,
+    "steps": 3,
+    "dropout": 0.12,
+    "batch": 512,
+    "epochs": 2,
+    "lr": 0.0035,
+    "seed": 3407
+  },
+  "training_rows": 20608,
+  "development_rows": 1792,
+  "best_score": 1.0,
+  "temperature": 0.4772261679172516,
+  "promotion": "not-admitted"
+}
