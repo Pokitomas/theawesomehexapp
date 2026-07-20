@@ -1,0 +1,40 @@
+{
+  "schema": "archie-factorized-artifact-manifest/v2",
+  "promotion": "not-admitted",
+  "selected_checkpoint": "v9",
+  "shadow_artifacts": {
+    "factorized-controller-v2.joblib": {
+      "bytes": 2199174,
+      "sha256": "586d7eab8cf72c0adae717f41dc8998255d4ff377cae3c9157141d416b15fc7d",
+      "included_in_git": false,
+      "reason": "connected publication path accepts UTF-8 text; binary is in the local delivery archive"
+    },
+    "byte-gru-v2.pt": {
+      "bytes": 119174,
+      "sha256": "3fa670f43eaaae1e4d738a8ea99cd62c57dbdfea62f933eff6d391704384d0d8",
+      "included_in_git": false,
+      "reason": "connected publication path accepts UTF-8 text; binary is in the local delivery archive"
+    },
+    "byte-gru-v2.int8.npz": {
+      "bytes": 31262,
+      "sha256": "4876fe8a255375f231a88183f6835dc85fb6d424203cfec8dd14d53b64c659b6",
+      "included_in_git": false,
+      "reason": "connected publication path accepts UTF-8 text; binary is in the local delivery archive"
+    }
+  },
+  "external_dependencies": {
+    "router_bundle.joblib": {
+      "bytes": 11065591,
+      "sha256": "06d33ca857dc6ab2c678a6bfe2ec65b8c3d223052d0109280bbc2301a00c7414",
+      "included_in_git": false,
+      "reason": "existing v9 research checkpoint supplied to the run"
+    }
+  },
+  "frozen_data": {
+    "blind-challenge-v2.jsonl": {
+      "bytes": 99816,
+      "sha256": "d14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6",
+      "committed_as": "blind-challenge-v2.jsonl.zlib.b85"
+    }
+  }
+}
