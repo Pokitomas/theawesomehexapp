@@ -23,6 +23,18 @@ jobs:
           python-version: '3.11'
       - name: Compile factorized research code
         run: python -m compileall -q foundry/archie-cognitive-app/factorized-v2
+      - name: Verify frozen challenge identity
+        working-directory: foundry/archie-cognitive-app/factorized-v2
+        run: |
+          python materialize_blind_v2.py
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          path = Path('blind-challenge-v2.jsonl')
+          assert path.stat().st_size == 99816
+          assert hashlib.sha256(path.read_bytes()).hexdigest() == 'd14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6'
+          path.unlink()
+          PY
       - name: Verify fail-closed result contract
         run: |
           python - <<'PY'
@@ -33,16 +45,22 @@ jobs:
           report = json.loads((root / 'final-report.json').read_text())
           fused = json.loads((root / 'postfreeze-fused-v2.json').read_text())
           quant = json.loads((root / 'postfreeze-fused-v2-int8.json').read_text())
+          blind = json.loads((root / 'blind-v2-evaluation.json').read_text())
 
           assert report['promotion'] == 'not-admitted'
           assert report['gate']['admit'] is False
-          assert report['decision']['selected_checkpoint'] == 'v9'
-          assert report['comparisons']['v9']['correct'] == 294
-          assert fused['correct'] == 239 and fused['examples'] == 310
-          assert quant['correct'] == fused['correct']
-          assert quant['predictions_sha256'] == fused['predictions_sha256']
+          assert report['selected_checkpoint'] == 'v9'
+          assert report['protected_postfreeze']['v9']['correct'] == 294
+          assert report['protected_postfreeze']['v10']['correct'] == 209
+          assert fused['metrics']['correct'] == 239
+          assert fused['metrics']['examples'] == 310
+          assert quant['metrics']['correct'] == fused['metrics']['correct']
+          assert quant['errors_sha256'] == fused['errors_sha256']
+          assert blind['metrics']['correct'] == 121
+          assert blind['metrics']['examples'] == 287
           assert report['relative_to_v9']['repairs'] == 1
           assert report['relative_to_v9']['regressions'] == 56
           assert report['negative_evidence']['invalid_regex_310']['legitimate_candidate'] is False
+          assert report['gate']['deterministic_execution_controls_changed'] is False
           print('shadow evidence contract: pass')
           PY
