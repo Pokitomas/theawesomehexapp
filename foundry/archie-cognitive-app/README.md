@@ -26,7 +26,7 @@ This is **development-after-inspection evidence**, not an untouched admission re
 python3 train_cognitive_router.py --output artifacts --epochs 2
 ```
 
-The trainer generates its curriculum locally and never reads the post-freeze evaluation pack.
+The trainer generates its curriculum locally and never reads the post-freeze evaluation pack. The branch workflow repeats this training on `ubuntu-latest`, restores the packaged checkpoint, runs the runtime contract, uploads a workflow artifact, and commits verified base64 parts with a skip-CI marker.
 
 ## Restore the committed checkpoint
 
