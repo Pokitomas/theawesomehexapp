@@ -1,0 +1,942 @@
+{
+  "schema": "archie-np-transformer-receipt/v1",
+  "tag": "npt-s6-d96",
+  "config": {
+    "d": 96,
+    "layers": 2,
+    "heads": 4,
+    "tmax": 48,
+    "epochs": 8,
+    "batch": 64,
+    "lr": 0.0025,
+    "dropout": 0.1,
+    "scale": 6,
+    "seed": 424243,
+    "route_temperature": 0.7999999999999999
+  },
+  "data": {
+    "train_rows": 17070,
+    "real_language_rows": 5550,
+    "dev_rows": 696,
+    "dropped_frozen_collisions": 0,
+    "vocab": 1429,
+    "train_digest": "b8b341f5204938f3a41403fd22b7206a5faab65d823ddf04d44472aa7c4608b0"
+  },
+  "model": {
+    "parameters": 370029,
+    "weights_file": "npt-s6-d96-seed424243.npz",
+    "weights_sha256": "7446bb7963171844c2fadbdece1fe5d53d5d80001f28654bef114356372dbb65"
+  },
+  "frozen_pack_sha256": "3d053ee28c346e712a4e422a73cc8154f492db13947a129581084857a0ad101f",
+  "results": {
+    "blind_429": {
+      "examples": 429,
+      "full_accuracy": 0.547786,
+      "route_accuracy": 0.617716,
+      "mean_confidence_correct": 0.9715,
+      "mean_confidence_incorrect": 0.7861,
+      "errors": [
+        {
+          "id": "challenge-compound-41",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan",
+              "decision"
+            ],
+            "reference_type": "none",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan",
+              "objective"
+            ],
+            "confidence": 0.9904988329455012
+          }
+        },
+        {
+          "id": "challenge-compound-correct-59",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "reference_type": "none",
+            "route": "plan"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "study",
+              "plan"
+            ],
+            "confidence": 0.9853213394729482
+          }
+        },
+        {
+          "id": "challenge-memory-present-6",
+          "category": "memory_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "message"
+            ],
+            "reference_type": "memory",
+            "route": "message"
+          },
+          "actual": {
+            "route": "study",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "study"
+            ],
+            "confidence": 0.4258115705912288
+          }
+        },
+        {
+          "id": "challenge-compound-5",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan",
+              "study"
+            ],
+            "reference_type": "none",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "decision",
+              "objective"
+            ],
+            "confidence": 0.9898970466721108
+          }
+        },
+        {
+          "id": "challenge-compound-neg-42",
+          "category": "negation",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "study"
+            ],
+            "reference_type": "none",
+            "route": "study"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "checklist",
+              "plan"
+            ],
+            "confidence": 0.9916120317702771
+          }
+        },
+        {
+          "id": "challenge-compound-correct-47",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "checklist"
+            ],
+            "reference_type": "none",
+            "route": "checklist"
+          },
+          "actual": {
+            "route": "study",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "study"
+            ],
+            "confidence": 0.5329032210429324
+          }
+        },
+        {
+          "id": "challenge-attachment-present-10",
+          "category": "attachment_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "message"
+            ],
+            "reference_type": "attachment",
+            "route": "message"
+          },
+          "actual": {
+            "route": "plan",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "confidence": 0.3736859792195485
+          }
+        },
+        {
+          "id": "challenge-compound-correct-7",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary"
+            ],
+            "reference_type": "none",
+            "route": "summary"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "plan"
+            ],
+            "confidence": 0.9150481989266113
+          }
+        },
+        {
+          "id": "challenge-compound-correct-43",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action"
+            ],
+            "reference_type": "none",
+            "route": "next_action"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "next_action"
+            ],
+            "confidence": 0.9620285852696111
+          }
+        },
+        {
+          "id": "challenge-single-15",
+          "category": "semantic_errands",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands"
+            ],
+            "reference_type": "none",
+            "route": "errands"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9936860601650078
+          }
+        },
+        {
+          "id": "challenge-single-126",
+          "category": "semantic_next_action",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action"
+            ],
+            "reference_type": "none",
+            "route": "next_action"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9877397302116384
+          }
+        },
+        {
+          "id": "challenge-compound-49",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective",
+              "study"
+            ],
+            "reference_type": "ambiguous",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective",
+              "objective"
+            ],
+            "confidence": 0.9911100050067134
+          }
+        },
+        {
+          "id": "challenge-single-103",
+          "category": "semantic_message",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "message"
+            ],
+            "reference_type": "none",
+            "route": "message"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9360456720006046
+          }
+        },
+        {
+          "id": "challenge-single-73",
+          "category": "semantic_errands",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands"
+            ],
+            "reference_type": "none",
+            "route": "errands"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9911687731750539
+          }
+        },
+        {
+          "id": "challenge-compound-56",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "plan"
+            ],
+            "reference_type": "none",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action",
+              "next_action"
+            ],
+            "confidence": 0.9914083809803547
+          }
+        },
+        {
+          "id": "challenge-thread-present-4",
+          "category": "thread_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "event"
+            ],
+            "reference_type": "thread",
+            "route": "event"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "event",
+              "plan"
+            ],
+            "confidence": 0.8512298772448269
+          }
+        },
+        {
+          "id": "challenge-compound-36",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action",
+              "message"
+            ],
+            "reference_type": "ambiguous",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "next_action"
+            ],
+            "confidence": 0.9898826660525105
+          }
+        },
+        {
+          "id": "challenge-thread-present-1",
+          "category": "thread_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "decision"
+            ],
+            "reference_type": "thread",
+            "route": "decision"
+          },
+          "actual": {
+            "route": "plan",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "confidence": 0.918393965599382
+          }
+        },
+        {
+          "id": "challenge-single-1",
+          "category": "semantic_objective",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "reference_type": "none",
+            "route": "objective"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.725400493157903
+          }
+        },
+        {
+          "id": "challenge-single-78",
+          "category": "semantic_objective",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "reference_type": "none",
+            "route": "objective"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9685014931073006
+          }
+        },
+        {
+          "id": "challenge-compound-37",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands",
+              "next_action"
+            ],
+            "reference_type": "ambiguous",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands",
+              "objective"
+            ],
+            "confidence": 0.9891368492371322
+          }
+        },
+        {
+          "id": "challenge-compound-neg-22",
+          "category": "negation",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "reference_type": "none",
+            "route": "plan"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "plan"
+            ],
+            "confidence": 0.9940055104904615
+          }
+        },
+        {
+          "id": "challenge-thread-present-9",
+          "category": "thread_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "decision"
+            ],
+            "reference_type": "thread",
+            "route": "decision"
+          },
+          "actual": {
+            "route": "plan",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "confidence": 0.6885614328758898
+          }
+        },
+        {
+          "id": "challenge-single-40",
+          "category": "semantic_objective",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "reference_type": "none",
+            "route": "objective"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.725400493157903
+          }
+        },
+        {
+          "id": "challenge-single-2",
+          "category": "semantic_event",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "event"
+            ],
+            "reference_type": "none",
+            "route": "event"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9700455255722921
+          }
+        },
+        {
+          "id": "challenge-compound-45",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "checklist",
+              "study"
+            ],
+            "reference_type": "ambiguous",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "event",
+              "objective"
+            ],
+            "confidence": 0.9876443105845009
+          }
+        },
+        {
+          "id": "challenge-single-136",
+          "category": "semantic_message",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "message"
+            ],
+            "reference_type": "ambiguous",
+            "route": "message"
+          },
+          "actual": {
+            "route": "event",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "event"
+            ],
+            "confidence": 0.38816162194390197
+          }
+        },
+        {
+          "id": "challenge-compound-correct-31",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action"
+            ],
+            "reference_type": "none",
+            "route": "next_action"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "next_action"
+            ],
+            "confidence": 0.9940432508570959
+          }
+        },
+        {
+          "id": "challenge-attachment-present-0",
+          "category": "attachment_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "study"
+            ],
+            "reference_type": "attachment",
+            "route": "study"
+          },
+          "actual": {
+            "route": "objective",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "confidence": 0.42411801644843544
+          }
+        },
+        {
+          "id": "challenge-compound-correct-27",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "reference_type": "none",
+            "route": "objective"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "summary",
+              "plan"
+            ],
+            "confidence": 0.9926686805130434
+          }
+        },
+        {
+          "id": "challenge-compound-correct-23",
+          "category": "correction",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "reference_type": "none",
+            "route": "objective"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action",
+              "next_action"
+            ],
+            "confidence": 0.9764027969359805
+          }
+        },
+        {
+          "id": "challenge-attachment-present-6",
+          "category": "attachment_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "decision"
+            ],
+            "reference_type": "attachment",
+            "route": "decision"
+          },
+          "actual": {
+            "route": "plan",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "confidence": 0.8790277963414282
+          }
+        },
+        {
+          "id": "challenge-single-95",
+          "category": "semantic_event",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "event"
+            ],
+            "reference_type": "none",
+            "route": "event"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action",
+              "errands"
+            ],
+            "confidence": 0.47836198521758205
+          }
+        },
+        {
+          "id": "challenge-memory-present-19",
+          "category": "memory_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "decision"
+            ],
+            "reference_type": "memory",
+            "route": "decision"
+          },
+          "actual": {
+            "route": "plan",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "confidence": 0.7280714184039254
+          }
+        },
+        {
+          "id": "challenge-single-27",
+          "category": "semantic_next_action",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "next_action"
+            ],
+            "reference_type": "none",
+            "route": "next_action"
+          },
+          "actual": {
+            "route": "errands",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands"
+            ],
+            "confidence": 0.7330278649062786
+          }
+        },
+        {
+          "id": "challenge-single-98",
+          "category": "semantic_plan",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "reference_type": "none",
+            "route": "plan"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [],
+            "confidence": 0.4977133830339736
+          }
+        },
+        {
+          "id": "challenge-compound-13",
+          "category": "ordered_compound",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands",
+              "summary"
+            ],
+            "reference_type": "none",
+            "route": "compound"
+          },
+          "actual": {
+            "route": "compound",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "errands",
+              "objective"
+            ],
+            "confidence": 0.9868792162103635
+          }
+        },
+        {
+          "id": "challenge-single-153",
+          "category": "semantic_checklist",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "checklist"
+            ],
+            "reference_type": "none",
+            "route": "checklist"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [],
+            "confidence": 0.44174541525320127
+          }
+        },
+        {
+          "id": "challenge-single-110",
+          "category": "semantic_plan",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "plan"
+            ],
+            "reference_type": "none",
+            "route": "plan"
+          },
+          "actual": {
+            "route": "clarify",
+            "authority": "allow",
+            "context": "ambiguous",
+            "outcomes": [],
+            "confidence": 0.9334573106751559
+          }
+        },
+        {
+          "id": "challenge-attachment-present-9",
+          "category": "attachment_present",
+          "expected": {
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "study"
+            ],
+            "reference_type": "attachment",
+            "route": "study"
+          },
+          "actual": {
+            "route": "objective",
+            "authority": "allow",
+            "context": "ready",
+            "outcomes": [
+              "objective"
+            ],
+            "confidence": 0.38564619921688226
+          }
+        }
+      ]
+    },
+    "router-v2-original-heldout": {
+      "examples": 498,
+      "route_accuracy": 0.62249
+    },
+    "router-real-v2-heldout": {
+      "examples": 60,
+      "route_accuracy": 0.5
+    },
+    "router-real-v3-final": {
+      "examples": 48,
+      "route_accuracy": 0.291667
+    }
+  },
+  "minutes": 13.6,
+  "promotion": "not-admitted",
+  "claim_boundary": "From-scratch NumPy transformer; heads learn factorized judgments from tokens alone. No deterministic route scaffolding at inference. Frozen texts excluded from training by normalized match.",
+  "receipt_digest": "d5ae28cc97a85be66a167bdf465b99808bc6365941530c79c61754c2e3039dc6"
+}
