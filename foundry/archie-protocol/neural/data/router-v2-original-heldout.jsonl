@@ -1,0 +1,498 @@
+{"id": "original-0000", "text": "break learning to drive into phases; also prepare the schedule and logistics for a family picnic", "expected": "compound"}
+{"id": "original-0001", "text": "reason through taking the class or working more hours", "expected": "decision"}
+{"id": "original-0002", "text": "brief me on the customer interview transcript", "expected": "summary"}
+{"id": "original-0003", "text": "brief me on the chapter on cell biology. After that, pick one immediate move because the client has not replied", "expected": "compound"}
+{"id": "original-0004", "text": "what should drive my choice between repairing the car or replacing it", "expected": "decision"}
+{"id": "original-0005", "text": "how should I tackle the thesis chapter. After that, what now three urgent tasks are competing", "expected": "compound"}
+{"id": "original-0006", "text": "record the objective read twenty books this year", "expected": "objective"}
+{"id": "original-0007", "text": "sequence a sensible approach to learning to drive", "expected": "plan"}
+{"id": "original-0008", "text": "work out the details for a retirement lunch", "expected": "event"}
+{"id": "original-0009", "text": "where do I start if the room is a total mess and then build a punch list for hosting overnight guests", "expected": "compound"}
+{"id": "original-0010", "text": "what matters most in the article on urban farming and then what should drive my choice between launching now or waiting for one more test", "expected": "compound"}
+{"id": "original-0011", "text": "brief me on the chapter on cell biology", "expected": "summary"}
+{"id": "original-0012", "text": "where do I start if the API keeps returning 429", "expected": "next_action"}
+{"id": "original-0013", "text": "build revision sessions for the group research project", "expected": "study"}
+{"id": "original-0014", "text": "arrange the stops for shopping for groceries and dropping off mail", "expected": "errands"}
+{"id": "original-0015", "text": "structure my work on the economics midterm. After that, how should I phrase a note to thank the interviewer for their time", "expected": "compound"}
+{"id": "original-0016", "text": "sequence a sensible approach to building a portfolio", "expected": "plan"}
+{"id": "original-0017", "text": "pick one immediate move because I missed yesterday's checkpoint", "expected": "next_action"}
+{"id": "original-0018", "text": "brief me on the discussion about hiring", "expected": "summary"}
+{"id": "original-0019", "text": "structure my work on a biology assignment", "expected": "study"}
+{"id": "original-0020", "text": "optimize a trip through the dentist then the supermarket", "expected": "errands"}
+{"id": "original-0021", "text": "how should I phrase a note to decline the invitation politely", "expected": "message"}
+{"id": "original-0022", "text": "break shipping the beta into phases; also what should drive my choice between keeping the subscription or canceling it", "expected": "compound"}
+{"id": "original-0023", "text": "prepare the schedule and logistics for the community meetup", "expected": "event"}
+{"id": "original-0024", "text": "pin apply to ten jobs as my current goal", "expected": "objective"}
+{"id": "original-0025", "text": "what order should I visit the dentist then the supermarket", "expected": "errands"}
+{"id": "original-0026", "text": "brief me on the article on urban farming", "expected": "summary"}
+{"id": "original-0027", "text": "what do you think", "expected": "clarify"}
+{"id": "original-0028", "text": "compress this report about quarterly revenue into three bullets and then record the objective finish the prototype this month", "expected": "compound"}
+{"id": "original-0029", "text": "I need a client reply rather than a summary.", "expected": "message"}
+{"id": "original-0030", "text": "evaluate both sides of repairing the car or replacing it", "expected": "decision"}
+{"id": "original-0031", "text": "record the objective practice piano every day", "expected": "objective"}
+{"id": "original-0032", "text": "what path should I take for reducing monthly expenses", "expected": "plan"}
+{"id": "original-0033", "text": "break migrating the database into phases", "expected": "plan"}
+{"id": "original-0034", "text": "evaluate both sides of taking the class or working more hours", "expected": "decision"}
+{"id": "original-0035", "text": "what should drive my choice between flying or taking the train", "expected": "decision"}
+{"id": "original-0036", "text": "word a polite response to decline the invitation politely", "expected": "message"}
+{"id": "original-0037", "text": "what order should I visit picking up keys and returning equipment and then keep me accountable for write one page each morning", "expected": "compound"}
+{"id": "original-0038", "text": "convert hosting overnight guests into items I can check off", "expected": "checklist"}
+{"id": "original-0039", "text": "structure my work on the group research project", "expected": "study"}
+{"id": "original-0040", "text": "work out the details for a product launch party", "expected": "event"}
+{"id": "original-0041", "text": "break fixing my sleep schedule into phases. After that, pick one immediate move because I missed yesterday's checkpoint", "expected": "compound"}
+{"id": "original-0042", "text": "track the required tasks for submitting a grant application", "expected": "checklist"}
+{"id": "original-0043", "text": "keep me accountable for finish the prototype this month", "expected": "objective"}
+{"id": "original-0044", "text": "what order should I visit milk a prescription pickup and ice cream", "expected": "errands"}
+{"id": "original-0045", "text": "reason through paying debt or building savings", "expected": "decision"}
+{"id": "original-0046", "text": "work out the details for a client workshop", "expected": "event"}
+{"id": "original-0047", "text": "Evaluate leasing versus purchasing without making the final choice.", "expected": "decision"}
+{"id": "original-0048", "text": "convert winterizing the house into items I can check off", "expected": "checklist"}
+{"id": "original-0049", "text": "build revision sessions for my history presentation; also brief me on the attached project update", "expected": "compound"}
+{"id": "original-0050", "text": "compress this report about quarterly revenue into three bullets", "expected": "summary"}
+{"id": "original-0051", "text": "brief me on these research findings", "expected": "summary"}
+{"id": "original-0052", "text": "pin lose ten pounds safely as my current goal", "expected": "objective"}
+{"id": "original-0053", "text": "what should drive my choice between hiring a contractor or doing it myself", "expected": "decision"}
+{"id": "original-0054", "text": "break fixing my sleep schedule into phases", "expected": "plan"}
+{"id": "original-0055", "text": "arrange the stops for flowers medicine and a birthday card", "expected": "errands"}
+{"id": "original-0056", "text": "build a punch list for opening the store; also work out the details for a neighborhood cleanup", "expected": "compound"}
+{"id": "original-0057", "text": "keep me accountable for lose ten pounds safely", "expected": "objective"}
+{"id": "original-0058", "text": "break setting up a home office into phases", "expected": "plan"}
+{"id": "original-0059", "text": "pin submit the portfolio by Friday as my current goal", "expected": "objective"}
+{"id": "original-0060", "text": "build revision sessions for the chemistry lab report", "expected": "study"}
+{"id": "original-0061", "text": "build a punch list for submitting a grant application", "expected": "checklist"}
+{"id": "original-0062", "text": "sequence a sensible approach to fixing my sleep schedule", "expected": "plan"}
+{"id": "original-0063", "text": "word a polite response to apologize for missing the meeting", "expected": "message"}
+{"id": "original-0064", "text": "brief me on these meeting notes about the delayed launch plus reason through launching now or waiting for one more test", "expected": "compound"}
+{"id": "original-0065", "text": "track the required tasks for winterizing the house; also how should I tackle my history presentation", "expected": "compound"}
+{"id": "original-0066", "text": "what matters most in these notes from the design review", "expected": "summary"}
+{"id": "original-0067", "text": "how should I phrase a note to tell my neighbor the package arrived", "expected": "message"}
+{"id": "original-0068", "text": "sequence a sensible approach to migrating the database", "expected": "plan"}
+{"id": "original-0069", "text": "optimize a trip through shopping for groceries and dropping off mail", "expected": "errands"}
+{"id": "original-0070", "text": "I am not sure", "expected": "clarify"}
+{"id": "original-0071", "text": "how should I tackle the chemistry lab report", "expected": "study"}
+{"id": "original-0072", "text": "set up the community meetup", "expected": "event"}
+{"id": "original-0073", "text": "arrange the stops for the market pet store and post office", "expected": "errands"}
+{"id": "original-0074", "text": "word a polite response to tell the client the launch moved one week", "expected": "message"}
+{"id": "original-0075", "text": "track the required tasks for moving apartments", "expected": "checklist"}
+{"id": "original-0076", "text": "reason through flying or taking the train", "expected": "decision"}
+{"id": "original-0077", "text": "compress the attached project update into three bullets", "expected": "summary"}
+{"id": "original-0078", "text": "work out the details for the community meetup", "expected": "event"}
+{"id": "original-0079", "text": "brief me on the attached project update", "expected": "summary"}
+{"id": "original-0080", "text": "build revision sessions for my history presentation", "expected": "study"}
+{"id": "original-0081", "text": "sequence a sensible approach to moving to a new city", "expected": "plan"}
+{"id": "original-0082", "text": "how should I tackle my history presentation", "expected": "study"}
+{"id": "original-0083", "text": "set up a book club meeting", "expected": "event"}
+{"id": "original-0084", "text": "Give me migration phases, explicitly not a task list.", "expected": "plan"}
+{"id": "original-0085", "text": "how should I tackle the calculus exam and then work out the details for a birthday dinner for eight", "expected": "compound"}
+{"id": "original-0086", "text": "pick one immediate move because the API keeps returning 429", "expected": "next_action"}
+{"id": "original-0087", "text": "track the required tasks for preparing the car for a trip", "expected": "checklist"}
+{"id": "original-0088", "text": "structure my work on my coding homework", "expected": "study"}
+{"id": "original-0089", "text": "what path should I take for building a portfolio", "expected": "plan"}
+{"id": "original-0090", "text": "reason through renting or buying a home. After that, build revision sessions for my coding homework", "expected": "compound"}
+{"id": "original-0091", "text": "convert backing up my computer into items I can check off; also evaluate both sides of paying debt or building savings", "expected": "compound"}
+{"id": "original-0092", "text": "optimize a trip through the library gas station and bakery", "expected": "errands"}
+{"id": "original-0093", "text": "convert closing the office into items I can check off", "expected": "checklist"}
+{"id": "original-0094", "text": "where do I start if the client has not replied", "expected": "next_action"}
+{"id": "original-0095", "text": "where do I start if the client has not replied and then arrange the stops for the post office pharmacy and grocery store", "expected": "compound"}
+{"id": "original-0096", "text": "pin ship version two as my current goal", "expected": "objective"}
+{"id": "original-0097", "text": "keep me accountable for practice piano every day", "expected": "objective"}
+{"id": "original-0098", "text": "structure my work on the calculus exam", "expected": "study"}
+{"id": "original-0099", "text": "work out the details for a beach gathering", "expected": "event"}
+{"id": "original-0100", "text": "The server is rate-limiting me. Give me one immediate step.", "expected": "next_action"}
+{"id": "original-0101", "text": "shorten it", "expected": "clarify"}
+{"id": "original-0102", "text": "sequence a sensible approach to preparing for a road trip", "expected": "plan"}
+{"id": "original-0103", "text": "compress the discussion about hiring into three bullets", "expected": "summary"}
+{"id": "original-0104", "text": "what should drive my choice between keeping the subscription or canceling it", "expected": "decision"}
+{"id": "original-0105", "text": "build a punch list for backing up my computer", "expected": "checklist"}
+{"id": "original-0106", "text": "record the objective finish the prototype this month", "expected": "objective"}
+{"id": "original-0107", "text": "The word message is irrelevant. Produce release checkboxes.", "expected": "checklist"}
+{"id": "original-0108", "text": "Recap the memo, extract its tasks, and prepare a status note.", "expected": "compound"}
+{"id": "original-0109", "text": "what path should I take for migrating the database", "expected": "plan"}
+{"id": "original-0110", "text": "how should I tackle the group research project and then work out the details for a product launch party", "expected": "compound"}
+{"id": "original-0111", "text": "compress the attached project update into three bullets. After that, record the objective finish the prototype this month", "expected": "compound"}
+{"id": "original-0112", "text": "compress the article on urban farming into three bullets. After that, how should I tackle my coding homework", "expected": "compound"}
+{"id": "original-0113", "text": "pick one immediate move because I have one hour before the deadline", "expected": "next_action"}
+{"id": "original-0114", "text": "record the objective pay off the credit card", "expected": "objective"}
+{"id": "original-0115", "text": "evaluate both sides of hiring a contractor or doing it myself", "expected": "decision"}
+{"id": "original-0116", "text": "track the required tasks for packing for a camping trip", "expected": "checklist"}
+{"id": "original-0117", "text": "word a polite response to tell Sam I cannot make dinner but Thursday works", "expected": "message"}
+{"id": "original-0118", "text": "evaluate both sides of accepting the offer or staying put", "expected": "decision"}
+{"id": "original-0119", "text": "what matters most in the contract section below", "expected": "summary"}
+{"id": "original-0120", "text": "Pin shipping the portfolio on Friday as my current target.", "expected": "objective"}
+{"id": "original-0121", "text": "how should I tackle the group research project plus record the objective pay off the credit card", "expected": "compound"}
+{"id": "original-0122", "text": "sequence a sensible approach to building a portfolio; also how should I tackle the calculus exam", "expected": "compound"}
+{"id": "original-0123", "text": "brief me on the customer interview transcript; also set up a product launch party", "expected": "compound"}
+{"id": "original-0124", "text": "brief me on these notes from the design review", "expected": "summary"}
+{"id": "original-0125", "text": "how should I phrase a note to thank the interviewer for their time", "expected": "message"}
+{"id": "original-0126", "text": "prepare the schedule and logistics for a holiday potluck", "expected": "event"}
+{"id": "original-0127", "text": "how should I phrase a note to reply that I agree with the proposal", "expected": "message"}
+{"id": "original-0128", "text": "sequence a sensible approach to setting up a home office; also build revision sessions for a biology assignment", "expected": "compound"}
+{"id": "original-0129", "text": "Tell Priya I am unavailable Wednesday and offer Friday instead.", "expected": "message"}
+{"id": "original-0130", "text": "pick one immediate move because my notes are scattered everywhere; also what should drive my choice between morning workouts or evening workouts", "expected": "compound"}
+{"id": "original-0131", "text": "track the required tasks for submitting a grant application; also work out the details for a holiday potluck", "expected": "compound"}
+{"id": "original-0132", "text": "break building a portfolio into phases", "expected": "plan"}
+{"id": "original-0133", "text": "convert preparing the car for a trip into items I can check off", "expected": "checklist"}
+{"id": "original-0134", "text": "keep me accountable for pay off the credit card", "expected": "objective"}
+{"id": "original-0135", "text": "word a polite response to ask the manager for Friday off", "expected": "message"}
+{"id": "original-0136", "text": "sequence a sensible approach to fixing my sleep schedule and then keep me accountable for lose ten pounds safely", "expected": "compound"}
+{"id": "original-0137", "text": "make a plan", "expected": "clarify"}
+{"id": "original-0138", "text": "build revision sessions for the reading response and then convert publishing a podcast episode into items I can check off", "expected": "compound"}
+{"id": "original-0139", "text": "what should drive my choice between the cheaper apartment or the shorter commute", "expected": "decision"}
+{"id": "original-0140", "text": "build a punch list for opening the store", "expected": "checklist"}
+{"id": "original-0141", "text": "work out the details for a neighborhood cleanup", "expected": "event"}
+{"id": "original-0142", "text": "what now the client has not replied", "expected": "next_action"}
+{"id": "original-0143", "text": "build a punch list for submitting a grant application and then word a polite response to tell the client the launch moved one week", "expected": "compound"}
+{"id": "original-0144", "text": "build revision sessions for the thesis chapter", "expected": "study"}
+{"id": "original-0145", "text": "pick one immediate move because I do not know where to begin", "expected": "next_action"}
+{"id": "original-0146", "text": "Pick between the low-rent apartment and the place near work.", "expected": "decision"}
+{"id": "original-0147", "text": "build a punch list for hosting overnight guests", "expected": "checklist"}
+{"id": "original-0148", "text": "word a polite response to thank the interviewer for their time", "expected": "message"}
+{"id": "original-0149", "text": "pick one immediate move because I am stuck on the blank page", "expected": "next_action"}
+{"id": "original-0150", "text": "break cleaning the garage into phases plus prepare the schedule and logistics for a birthday dinner for eight", "expected": "compound"}
+{"id": "original-0151", "text": "what now I am stuck on the blank page", "expected": "next_action"}
+{"id": "original-0152", "text": "break reducing monthly expenses into phases", "expected": "plan"}
+{"id": "original-0153", "text": "what should drive my choice between renting or buying a home", "expected": "decision"}
+{"id": "original-0154", "text": "which one", "expected": "clarify"}
+{"id": "original-0155", "text": "word a polite response to tell my neighbor the package arrived", "expected": "message"}
+{"id": "original-0156", "text": "how should I tackle a biology assignment", "expected": "study"}
+{"id": "original-0157", "text": "what order should I visit the post office pharmacy and grocery store", "expected": "errands"}
+{"id": "original-0158", "text": "prepare the schedule and logistics for a client workshop; also record the objective finish the prototype this month", "expected": "compound"}
+{"id": "original-0159", "text": "structure my work on the literature essay", "expected": "study"}
+{"id": "original-0160", "text": "what order should I visit returning a package and buying dog food", "expected": "errands"}
+{"id": "original-0161", "text": "sequence a sensible approach to switching careers; also pin save five thousand dollars as my current goal", "expected": "compound"}
+{"id": "original-0162", "text": "pin practice piano every day as my current goal", "expected": "objective"}
+{"id": "original-0163", "text": "what matters most in the article on urban farming", "expected": "summary"}
+{"id": "original-0164", "text": "how should I tackle the thesis chapter", "expected": "study"}
+{"id": "original-0165", "text": "brief me on the discussion about hiring. After that, build revision sessions for my coding homework", "expected": "compound"}
+{"id": "original-0166", "text": "The word route is irrelevant; recap the passage.", "expected": "summary"}
+{"id": "original-0167", "text": "build revision sessions for a biology assignment", "expected": "study"}
+{"id": "original-0168", "text": "pin write one page each morning as my current goal", "expected": "objective"}
+{"id": "original-0169", "text": "track the required tasks for winterizing the house", "expected": "checklist"}
+{"id": "original-0170", "text": "how should I phrase a note to confirm tomorrow's appointment", "expected": "message"}
+{"id": "original-0171", "text": "what now I do not know where to begin", "expected": "next_action"}
+{"id": "original-0172", "text": "how should I tackle the economics midterm", "expected": "study"}
+{"id": "original-0173", "text": "reason through accepting the offer or staying put", "expected": "decision"}
+{"id": "original-0174", "text": "what path should I take for learning to drive", "expected": "plan"}
+{"id": "original-0175", "text": "keep me accountable for publish the first episode", "expected": "objective"}
+{"id": "original-0176", "text": "what matters most in the passage about climate policy", "expected": "summary"}
+{"id": "original-0177", "text": "Coordinate the picnic and optimize the supply-store trip.", "expected": "compound"}
+{"id": "original-0178", "text": "how should I tackle my language test", "expected": "study"}
+{"id": "original-0179", "text": "optimize a trip through milk a prescription pickup and ice cream", "expected": "errands"}
+{"id": "original-0180", "text": "compress the customer interview transcript into three bullets", "expected": "summary"}
+{"id": "original-0181", "text": "prepare the schedule and logistics for a family picnic", "expected": "event"}
+{"id": "original-0182", "text": "please do the thing", "expected": "clarify"}
+{"id": "original-0183", "text": "convert publishing a podcast episode into items I can check off; also sequence a sensible approach to reducing monthly expenses", "expected": "compound"}
+{"id": "original-0184", "text": "compress the article on urban farming into three bullets", "expected": "summary"}
+{"id": "original-0185", "text": "what now my notes are scattered everywhere", "expected": "next_action"}
+{"id": "original-0186", "text": "what order should I visit flowers medicine and a birthday card", "expected": "errands"}
+{"id": "original-0187", "text": "how should I phrase a note to tell the client the launch moved one week", "expected": "message"}
+{"id": "original-0188", "text": "break cleaning the garage into phases", "expected": "plan"}
+{"id": "original-0189", "text": "what should drive my choice between accepting the offer or staying put", "expected": "decision"}
+{"id": "original-0190", "text": "what path should I take for starting a garden", "expected": "plan"}
+{"id": "original-0191", "text": "reason through taking the class or working more hours and then where do I start if the project feels too large", "expected": "compound"}
+{"id": "original-0192", "text": "what should drive my choice between buying new equipment or renting it", "expected": "decision"}
+{"id": "original-0193", "text": "how should I phrase a note to apologize for missing the meeting and then structure my work on the economics midterm", "expected": "compound"}
+{"id": "original-0194", "text": "track the required tasks for hosting overnight guests", "expected": "checklist"}
+{"id": "original-0195", "text": "build a punch list for packing for a camping trip and then sequence a sensible approach to organizing family photos", "expected": "compound"}
+{"id": "original-0196", "text": "what path should I take for fixing my sleep schedule", "expected": "plan"}
+{"id": "original-0197", "text": "what matters most in the attached project update", "expected": "summary"}
+{"id": "original-0198", "text": "where do I start if my notes are scattered everywhere", "expected": "next_action"}
+{"id": "original-0199", "text": "sequence a sensible approach to setting up a home office", "expected": "plan"}
+{"id": "original-0200", "text": "structure my work on the chemistry lab report", "expected": "study"}
+{"id": "original-0201", "text": "arrange the stops for the post office pharmacy and grocery store", "expected": "errands"}
+{"id": "original-0202", "text": "set up a team offsite", "expected": "event"}
+{"id": "original-0203", "text": "how should I tackle my coding homework", "expected": "study"}
+{"id": "original-0204", "text": "where do I start if the build fails with no clear error and then sendable wording to tell the client the launch moved one week", "expected": "compound"}
+{"id": "original-0205", "text": "Organize supper and prepare a note for the hiring manager.", "expected": "compound"}
+{"id": "original-0206", "text": "sendable wording to tell the client the launch moved one week", "expected": "message"}
+{"id": "original-0207", "text": "what order should I visit the dentist then the supermarket and then what should drive my choice between the cheaper apartment or the shorter commute", "expected": "compound"}
+{"id": "original-0208", "text": "pin pay off the credit card as my current goal. After that, what now I missed yesterday's checkpoint", "expected": "compound"}
+{"id": "original-0209", "text": "what now the API keeps returning 429", "expected": "next_action"}
+{"id": "original-0210", "text": "evaluate both sides of buying new equipment or renting it", "expected": "decision"}
+{"id": "original-0211", "text": "keep me accountable for read twenty books this year", "expected": "objective"}
+{"id": "original-0212", "text": "what order should I visit the car wash pharmacy and frozen food", "expected": "errands"}
+{"id": "original-0213", "text": "break switching careers into phases", "expected": "plan"}
+{"id": "original-0214", "text": "what matters most in these research findings", "expected": "summary"}
+{"id": "original-0215", "text": "break launching a small shop into phases", "expected": "plan"}
+{"id": "original-0216", "text": "convert setting up a new phone into items I can check off", "expected": "checklist"}
+{"id": "original-0217", "text": "build a punch list for onboarding a new employee", "expected": "checklist"}
+{"id": "original-0218", "text": "reason through hiring a contractor or doing it myself", "expected": "decision"}
+{"id": "original-0219", "text": "pick one immediate move because the client has not replied", "expected": "next_action"}
+{"id": "original-0220", "text": "what now I keep avoiding the first step", "expected": "next_action"}
+{"id": "original-0221", "text": "record the objective save five thousand dollars", "expected": "objective"}
+{"id": "original-0222", "text": "pin save five thousand dollars as my current goal", "expected": "objective"}
+{"id": "original-0223", "text": "word a polite response to confirm tomorrow's appointment", "expected": "message"}
+{"id": "original-0224", "text": "what should drive my choice between paying debt or building savings", "expected": "decision"}
+{"id": "original-0225", "text": "convert backing up my computer into items I can check off", "expected": "checklist"}
+{"id": "original-0226", "text": "what should drive my choice between morning workouts or evening workouts", "expected": "decision"}
+{"id": "original-0227", "text": "what path should I take for switching careers", "expected": "plan"}
+{"id": "original-0228", "text": "build a punch list for setting up a new phone", "expected": "checklist"}
+{"id": "original-0229", "text": "compress the passage about climate policy into three bullets plus record the objective practice piano every day", "expected": "compound"}
+{"id": "original-0230", "text": "pick one immediate move because the room is a total mess", "expected": "next_action"}
+{"id": "original-0231", "text": "word a polite response to reply that I agree with the proposal", "expected": "message"}
+{"id": "original-0232", "text": "record the objective submit the portfolio by Friday and then break fixing my sleep schedule into phases", "expected": "compound"}
+{"id": "original-0233", "text": "how should I tackle the literature essay", "expected": "study"}
+{"id": "original-0234", "text": "Use checkboxes rather than a roadmap for the move.", "expected": "checklist"}
+{"id": "original-0235", "text": "record the objective submit the portfolio by Friday. After that, what order should I visit three pickups across town", "expected": "compound"}
+{"id": "original-0236", "text": "compress these research findings into three bullets plus prepare the schedule and logistics for a family picnic", "expected": "compound"}
+{"id": "original-0237", "text": "build revision sessions for the reading response", "expected": "study"}
+{"id": "original-0238", "text": "track the required tasks for backing up my computer", "expected": "checklist"}
+{"id": "original-0239", "text": "build a punch list for closing the office", "expected": "checklist"}
+{"id": "original-0240", "text": "where do I start if I keep avoiding the first step", "expected": "next_action"}
+{"id": "original-0241", "text": "what now I do not know where to begin. After that, reason through morning workouts or evening workouts", "expected": "compound"}
+{"id": "original-0242", "text": "Email is only context. Build revision blocks for the physics test.", "expected": "study"}
+{"id": "original-0243", "text": "what path should I take for organizing family photos", "expected": "plan"}
+{"id": "original-0244", "text": "what path should I take for moving to a new city", "expected": "plan"}
+{"id": "original-0245", "text": "Bread, prescription, parcel return, then frozen food: arrange the trip.", "expected": "errands"}
+{"id": "original-0246", "text": "reason through repairing the car or replacing it", "expected": "decision"}
+{"id": "original-0247", "text": "convert moving apartments into items I can check off", "expected": "checklist"}
+{"id": "original-0248", "text": "what matters most in this report about quarterly revenue", "expected": "summary"}
+{"id": "original-0249", "text": "what now I have one hour before the deadline", "expected": "next_action"}
+{"id": "original-0250", "text": "set up a backyard wedding and then word a polite response to confirm tomorrow's appointment", "expected": "compound"}
+{"id": "original-0251", "text": "how should I phrase a note to tell Sam I cannot make dinner but Thursday works", "expected": "message"}
+{"id": "original-0252", "text": "track the required tasks for hosting overnight guests plus structure my work on the literature essay", "expected": "compound"}
+{"id": "original-0253", "text": "sequence a sensible approach to starting a garden", "expected": "plan"}
+{"id": "original-0254", "text": "where do I start if three urgent tasks are competing", "expected": "next_action"}
+{"id": "original-0255", "text": "Compare taking another course with adding more shifts at work.", "expected": "decision"}
+{"id": "original-0256", "text": "record the objective ship version two", "expected": "objective"}
+{"id": "original-0257", "text": "evaluate both sides of the cheaper apartment or the shorter commute", "expected": "decision"}
+{"id": "original-0258", "text": "structure my work on the thesis chapter", "expected": "study"}
+{"id": "original-0259", "text": "what should drive my choice between launching now or waiting for one more test", "expected": "decision"}
+{"id": "original-0260", "text": "break decluttering the apartment into phases", "expected": "plan"}
+{"id": "original-0261", "text": "how should I tackle the economics midterm and then what should drive my choice between the cheaper apartment or the shorter commute", "expected": "compound"}
+{"id": "original-0262", "text": "sendable wording to reply that I agree with the proposal and then track the required tasks for opening the store", "expected": "compound"}
+{"id": "original-0263", "text": "set up a holiday potluck", "expected": "event"}
+{"id": "original-0264", "text": "what should drive my choice between hiring a contractor or doing it myself and then optimize a trip through picking up keys and returning equipment", "expected": "compound"}
+{"id": "original-0265", "text": "Could you take care of it?", "expected": "clarify"}
+{"id": "original-0266", "text": "arrange the stops for shopping for groceries and dropping off mail and then word a polite response to tell my neighbor the package arrived", "expected": "compound"}
+{"id": "original-0267", "text": "build revision sessions for the economics midterm", "expected": "study"}
+{"id": "original-0268", "text": "compress this long incident report into three bullets", "expected": "summary"}
+{"id": "original-0269", "text": "keep me accountable for apply to ten jobs", "expected": "objective"}
+{"id": "original-0270", "text": "what now the room is a total mess", "expected": "next_action"}
+{"id": "original-0271", "text": "what now the build fails with no clear error", "expected": "next_action"}
+{"id": "original-0272", "text": "work out the details for a backyard wedding", "expected": "event"}
+{"id": "original-0273", "text": "convert onboarding a new employee into items I can check off", "expected": "checklist"}
+{"id": "original-0274", "text": "prepare the schedule and logistics for a team offsite and then record the objective ship version two", "expected": "compound"}
+{"id": "original-0275", "text": "The goal is already set. Choose today's first concrete move.", "expected": "next_action"}
+{"id": "original-0276", "text": "work out the details for a backyard wedding. After that, structure my work on the reading response", "expected": "compound"}
+{"id": "original-0277", "text": "brief me on the passage about climate policy", "expected": "summary"}
+{"id": "original-0278", "text": "evaluate both sides of morning workouts or evening workouts", "expected": "decision"}
+{"id": "original-0279", "text": "pin read twenty books this year as my current goal", "expected": "objective"}
+{"id": "original-0280", "text": "word a polite response to ask my landlord to fix the heater", "expected": "message"}
+{"id": "original-0281", "text": "where do I start if I am stuck on the blank page", "expected": "next_action"}
+{"id": "original-0282", "text": "optimize a trip through the car wash pharmacy and frozen food", "expected": "errands"}
+{"id": "original-0283", "text": "build a punch list for moving apartments; also where do I start if I have one hour before the deadline", "expected": "compound"}
+{"id": "original-0284", "text": "break renovating the kitchen into phases", "expected": "plan"}
+{"id": "original-0285", "text": "prepare the schedule and logistics for a neighborhood cleanup", "expected": "event"}
+{"id": "original-0286", "text": "how should I tackle the calculus exam. After that, reason through morning workouts or evening workouts", "expected": "compound"}
+{"id": "original-0287", "text": "pick one immediate move because the build fails with no clear error", "expected": "next_action"}
+{"id": "original-0288", "text": "evaluate both sides of paying debt or building savings", "expected": "decision"}
+{"id": "original-0289", "text": "prepare the schedule and logistics for a book club meeting", "expected": "event"}
+{"id": "original-0290", "text": "what order should I visit shopping for groceries and dropping off mail plus brief me on the discussion about hiring", "expected": "compound"}
+{"id": "original-0291", "text": "work out the details for a birthday dinner for eight", "expected": "event"}
+{"id": "original-0292", "text": "word a polite response to decline the invitation politely plus sequence a sensible approach to launching a small shop", "expected": "compound"}
+{"id": "original-0293", "text": "what should drive my choice between the cheaper apartment or the shorter commute. After that, sequence a sensible approach to launching a small shop", "expected": "compound"}
+{"id": "original-0294", "text": "how should I phrase a note to ask the vendor when the invoice will be paid plus pick one immediate move because the API keeps returning 429", "expected": "compound"}
+{"id": "original-0295", "text": "sendable wording to tell Sam I cannot make dinner but Thursday works", "expected": "message"}
+{"id": "original-0296", "text": "where do I start if the build fails with no clear error plus work out the details for a beach gathering", "expected": "compound"}
+{"id": "original-0297", "text": "build a punch list for preparing the car for a trip", "expected": "checklist"}
+{"id": "original-0298", "text": "arrange the stops for shopping for groceries and dropping off mail; also pick one immediate move because the API keeps returning 429", "expected": "compound"}
+{"id": "original-0299", "text": "pin publish the first episode as my current goal", "expected": "objective"}
+{"id": "original-0300", "text": "record the objective apply to ten jobs", "expected": "objective"}
+{"id": "original-0301", "text": "sendable wording to follow up with the recruiter", "expected": "message"}
+{"id": "original-0302", "text": "arrange the stops for dry cleaning the bank and hardware store", "expected": "errands"}
+{"id": "original-0303", "text": "evaluate both sides of keeping the subscription or canceling it", "expected": "decision"}
+{"id": "original-0304", "text": "pin pay off the credit card as my current goal", "expected": "objective"}
+{"id": "original-0305", "text": "what order should I visit the library gas station and bakery", "expected": "errands"}
+{"id": "original-0306", "text": "sequence a sensible approach to launching a small shop plus record the objective submit the portfolio by Friday", "expected": "compound"}
+{"id": "original-0307", "text": "arrange the stops for returning a package and buying dog food", "expected": "errands"}
+{"id": "original-0308", "text": "reason through morning workouts or evening workouts", "expected": "decision"}
+{"id": "original-0309", "text": "optimize a trip through the market pet store and post office", "expected": "errands"}
+{"id": "original-0310", "text": "arrange the stops for the car wash pharmacy and frozen food", "expected": "errands"}
+{"id": "original-0311", "text": "break starting a garden into phases", "expected": "plan"}
+{"id": "original-0312", "text": "how should I tackle my final paper", "expected": "study"}
+{"id": "original-0313", "text": "what now the project feels too large", "expected": "next_action"}
+{"id": "original-0314", "text": "how should I phrase a note to apologize for missing the meeting", "expected": "message"}
+{"id": "original-0315", "text": "pick one immediate move because the project feels too large", "expected": "next_action"}
+{"id": "original-0316", "text": "evaluate both sides of flying or taking the train", "expected": "decision"}
+{"id": "original-0317", "text": "work out the details for a book club meeting", "expected": "event"}
+{"id": "original-0318", "text": "arrange the stops for the library gas station and bakery and then what path should I take for migrating the database", "expected": "compound"}
+{"id": "original-0319", "text": "Set up a dinner party for six with a strict budget.", "expected": "event"}
+{"id": "original-0320", "text": "what now I missed yesterday's checkpoint", "expected": "next_action"}
+{"id": "original-0321", "text": "sequence a sensible approach to switching careers", "expected": "plan"}
+{"id": "original-0322", "text": "compress these notes from the design review into three bullets", "expected": "summary"}
+{"id": "original-0323", "text": "set up a neighborhood cleanup", "expected": "event"}
+{"id": "original-0324", "text": "how should I phrase a note to ask the manager for Friday off", "expected": "message"}
+{"id": "original-0325", "text": "prepare the schedule and logistics for a team offsite", "expected": "event"}
+{"id": "original-0326", "text": "pick one immediate move because my notes are scattered everywhere", "expected": "next_action"}
+{"id": "original-0327", "text": "optimize a trip through dry cleaning the bank and hardware store", "expected": "errands"}
+{"id": "original-0328", "text": "what order should I visit the post office pharmacy and grocery store; also pin run a half marathon as my current goal", "expected": "compound"}
+{"id": "original-0329", "text": "optimize a trip through three pickups across town", "expected": "errands"}
+{"id": "original-0330", "text": "what matters most in this long incident report", "expected": "summary"}
+{"id": "original-0331", "text": "what matters most in the customer interview transcript", "expected": "summary"}
+{"id": "original-0332", "text": "brief me on these meeting notes about the delayed launch", "expected": "summary"}
+{"id": "original-0333", "text": "sendable wording to thank the interviewer for their time", "expected": "message"}
+{"id": "original-0334", "text": "prepare the schedule and logistics for a product launch party", "expected": "event"}
+{"id": "original-0335", "text": "build a punch list for onboarding a new employee; also set up a family picnic", "expected": "compound"}
+{"id": "original-0336", "text": "prepare the schedule and logistics for a birthday dinner for eight", "expected": "event"}
+{"id": "original-0337", "text": "sequence a sensible approach to launching a small shop", "expected": "plan"}
+{"id": "original-0338", "text": "keep me accountable for submit the portfolio by Friday", "expected": "objective"}
+{"id": "original-0339", "text": "what path should I take for renovating the kitchen", "expected": "plan"}
+{"id": "original-0340", "text": "set up a product launch party", "expected": "event"}
+{"id": "original-0341", "text": "sequence a sensible approach to reducing monthly expenses", "expected": "plan"}
+{"id": "original-0342", "text": "compress the contract section below into three bullets", "expected": "summary"}
+{"id": "original-0343", "text": "structure my work on the economics midterm", "expected": "study"}
+{"id": "original-0344", "text": "optimize a trip through the post office pharmacy and grocery store", "expected": "errands"}
+{"id": "original-0345", "text": "what order should I visit dry cleaning the bank and hardware store", "expected": "errands"}
+{"id": "original-0346", "text": "optimize a trip through flowers medicine and a birthday card", "expected": "errands"}
+{"id": "original-0347", "text": "keep me accountable for ship version two", "expected": "objective"}
+{"id": "original-0348", "text": "how should I phrase a note to ask my landlord to fix the heater", "expected": "message"}
+{"id": "original-0349", "text": "brief me on this long incident report", "expected": "summary"}
+{"id": "original-0350", "text": "sendable wording to apologize for missing the meeting", "expected": "message"}
+{"id": "original-0351", "text": "build revision sessions for the calculus exam", "expected": "study"}
+{"id": "original-0352", "text": "what should drive my choice between renting or buying a home. After that, track the required tasks for moving apartments", "expected": "compound"}
+{"id": "original-0353", "text": "where do I start if the room is a total mess", "expected": "next_action"}
+{"id": "original-0354", "text": "brief me on the contract section below", "expected": "summary"}
+{"id": "original-0355", "text": "word a polite response to follow up with the recruiter", "expected": "message"}
+{"id": "original-0356", "text": "compress the chapter on cell biology into three bullets", "expected": "summary"}
+{"id": "original-0357", "text": "pin finish the prototype this month as my current goal", "expected": "objective"}
+{"id": "original-0358", "text": "break preparing for a road trip into phases", "expected": "plan"}
+{"id": "original-0359", "text": "convert moving apartments into items I can check off. After that, what now I do not know where to begin", "expected": "compound"}
+{"id": "original-0360", "text": "build a punch list for packing for a camping trip", "expected": "checklist"}
+{"id": "original-0361", "text": "arrange the stops for picking up keys and returning equipment", "expected": "errands"}
+{"id": "original-0362", "text": "break organizing family photos into phases", "expected": "plan"}
+{"id": "original-0363", "text": "break launching a small shop into phases plus word a polite response to ask the vendor when the invoice will be paid", "expected": "compound"}
+{"id": "original-0364", "text": "structure my work on my language test", "expected": "study"}
+{"id": "original-0365", "text": "Build exam sessions and compose a note asking the teacher a question.", "expected": "compound"}
+{"id": "original-0366", "text": "sendable wording to tell my neighbor the package arrived", "expected": "message"}
+{"id": "original-0367", "text": "break learning to drive into phases", "expected": "plan"}
+{"id": "original-0368", "text": "record the objective submit the portfolio by Friday", "expected": "objective"}
+{"id": "original-0369", "text": "can you help?", "expected": "clarify"}
+{"id": "original-0370", "text": "set up a beach gathering", "expected": "event"}
+{"id": "original-0371", "text": "track the required tasks for winterizing the house; also how should I phrase a note to reply that I agree with the proposal", "expected": "compound"}
+{"id": "original-0372", "text": "where do I start if I missed yesterday's checkpoint", "expected": "next_action"}
+{"id": "original-0373", "text": "sequence a sensible approach to renovating the kitchen", "expected": "plan"}
+{"id": "original-0374", "text": "build revision sessions for my final paper", "expected": "study"}
+{"id": "original-0375", "text": "where do I start if the build fails with no clear error; also how should I tackle the group research project", "expected": "compound"}
+{"id": "original-0376", "text": "pick one immediate move because the client has not replied; also what path should I take for building a portfolio", "expected": "compound"}
+{"id": "original-0377", "text": "what matters most in these meeting notes about the delayed launch", "expected": "summary"}
+{"id": "original-0378", "text": "set up a family picnic", "expected": "event"}
+{"id": "original-0379", "text": "where do I start if I do not know where to begin", "expected": "next_action"}
+{"id": "original-0380", "text": "track the required tasks for onboarding a new employee", "expected": "checklist"}
+{"id": "original-0381", "text": "prepare the schedule and logistics for a backyard wedding", "expected": "event"}
+{"id": "original-0382", "text": "record the objective publish the first episode", "expected": "objective"}
+{"id": "original-0383", "text": "keep me accountable for run a half marathon", "expected": "objective"}
+{"id": "original-0384", "text": "structure my work on my history presentation", "expected": "study"}
+{"id": "original-0385", "text": "brief me on this report about quarterly revenue", "expected": "summary"}
+{"id": "original-0386", "text": "sequence a sensible approach to decluttering the apartment", "expected": "plan"}
+{"id": "original-0387", "text": "what path should I take for shipping the beta", "expected": "plan"}
+{"id": "original-0388", "text": "pick one immediate move because the API keeps returning 429; also word a polite response to tell Sam I cannot make dinner but Thursday works", "expected": "compound"}
+{"id": "original-0389", "text": "record the objective write one page each morning", "expected": "objective"}
+{"id": "original-0390", "text": "sequence a sensible approach to organizing family photos", "expected": "plan"}
+{"id": "original-0391", "text": "what order should I visit the market pet store and post office", "expected": "errands"}
+{"id": "original-0392", "text": "what matters most in the discussion about hiring", "expected": "summary"}
+{"id": "original-0393", "text": "what path should I take for cleaning the garage", "expected": "plan"}
+{"id": "original-0394", "text": "prepare the schedule and logistics for a retirement lunch", "expected": "event"}
+{"id": "original-0395", "text": "structure my work on the reading response", "expected": "study"}
+{"id": "original-0396", "text": "record the objective lose ten pounds safely", "expected": "objective"}
+{"id": "original-0397", "text": "reason through the cheaper apartment or the shorter commute", "expected": "decision"}
+{"id": "original-0398", "text": "prepare the schedule and logistics for a beach gathering", "expected": "event"}
+{"id": "original-0399", "text": "arrange the stops for the dentist then the supermarket", "expected": "errands"}
+{"id": "original-0400", "text": "how should I tackle the calculus exam", "expected": "study"}
+{"id": "original-0401", "text": "word a polite response to ask the vendor when the invoice will be paid", "expected": "message"}
+{"id": "original-0402", "text": "reason through launching now or waiting for one more test", "expected": "decision"}
+{"id": "original-0403", "text": "what path should I take for decluttering the apartment", "expected": "plan"}
+{"id": "original-0404", "text": "break moving to a new city into phases", "expected": "plan"}
+{"id": "original-0405", "text": "prepare the schedule and logistics for a client workshop", "expected": "event"}
+{"id": "original-0406", "text": "structure my work on a biology assignment and then work out the details for a beach gathering", "expected": "compound"}
+{"id": "original-0407", "text": "build revision sessions for my language test", "expected": "study"}
+{"id": "original-0408", "text": "what path should I take for preparing for a road trip", "expected": "plan"}
+{"id": "original-0409", "text": "where do I start if the project feels too large", "expected": "next_action"}
+{"id": "original-0410", "text": "compress these meeting notes about the delayed launch into three bullets", "expected": "summary"}
+{"id": "original-0411", "text": "what now three urgent tasks are competing", "expected": "next_action"}
+{"id": "original-0412", "text": "where do I start if I have one hour before the deadline", "expected": "next_action"}
+{"id": "original-0413", "text": "pick one immediate move because I keep avoiding the first step", "expected": "next_action"}
+{"id": "original-0414", "text": "Structure the work needed for my term essay.", "expected": "study"}
+{"id": "original-0415", "text": "build revision sessions for my coding homework. After that, compress the attached project update into three bullets", "expected": "compound"}
+{"id": "original-0416", "text": "sequence a sensible approach to cleaning the garage", "expected": "plan"}
+{"id": "original-0417", "text": "structure my work on my language test. After that, keep me accountable for finish the prototype this month", "expected": "compound"}
+{"id": "original-0418", "text": "track the required tasks for closing the office", "expected": "checklist"}
+{"id": "original-0419", "text": "build a punch list for winterizing the house", "expected": "checklist"}
+{"id": "original-0420", "text": "what matters most in the chapter on cell biology", "expected": "summary"}
+{"id": "original-0421", "text": "sendable wording to ask my landlord to fix the heater", "expected": "message"}
+{"id": "original-0422", "text": "set up a backyard wedding", "expected": "event"}
+{"id": "original-0423", "text": "optimize a trip through returning a package and buying dog food", "expected": "errands"}
+{"id": "original-0424", "text": "work out the details for a team offsite", "expected": "event"}
+{"id": "original-0425", "text": "convert packing for a camping trip into items I can check off", "expected": "checklist"}
+{"id": "original-0426", "text": "what order should I visit three pickups across town", "expected": "errands"}
+{"id": "original-0427", "text": "optimize a trip through picking up keys and returning equipment", "expected": "errands"}
+{"id": "original-0428", "text": "how should I phrase a note to reply that I agree with the proposal and then keep me accountable for read twenty books this year", "expected": "compound"}
+{"id": "original-0429", "text": "reason through keeping the subscription or canceling it", "expected": "decision"}
+{"id": "original-0430", "text": "Create a three-line recap and a sendable client update from it.", "expected": "compound"}
+{"id": "original-0431", "text": "Which choice is better?", "expected": "clarify"}
+{"id": "original-0432", "text": "keep me accountable for save five thousand dollars", "expected": "objective"}
+{"id": "original-0433", "text": "break shipping the beta into phases", "expected": "plan"}
+{"id": "original-0434", "text": "evaluate both sides of renting or buying a home", "expected": "decision"}
+{"id": "original-0435", "text": "work out the details for a holiday potluck", "expected": "event"}
+{"id": "original-0436", "text": "sendable wording to decline the invitation politely", "expected": "message"}
+{"id": "original-0437", "text": "arrange the stops for milk a prescription pickup and ice cream", "expected": "errands"}
+{"id": "original-0438", "text": "write back", "expected": "clarify"}
+{"id": "original-0439", "text": "build a punch list for moving apartments", "expected": "checklist"}
+{"id": "original-0440", "text": "sequence a sensible approach to shipping the beta", "expected": "plan"}
+{"id": "original-0441", "text": "pick one immediate move because three urgent tasks are competing", "expected": "next_action"}
+{"id": "original-0442", "text": "compress the passage about climate policy into three bullets", "expected": "summary"}
+{"id": "original-0443", "text": "Not a gathering: order the market, bank, and pharmacy stops.", "expected": "errands"}
+{"id": "original-0444", "text": "build revision sessions for my coding homework", "expected": "study"}
+{"id": "original-0445", "text": "evaluate both sides of launching now or waiting for one more test", "expected": "decision"}
+{"id": "original-0446", "text": "sendable wording to reply that I agree with the proposal", "expected": "message"}
+{"id": "original-0447", "text": "Convert these notes to tasks: renew tags; pay utilities; call the clinic.", "expected": "checklist"}
+{"id": "original-0448", "text": "arrange the stops for three pickups across town", "expected": "errands"}
+{"id": "original-0449", "text": "evaluate both sides of launching now or waiting for one more test and then where do I start if the API keeps returning 429", "expected": "compound"}
+{"id": "original-0450", "text": "how should I tackle the group research project", "expected": "study"}
+{"id": "original-0451", "text": "convert submitting a grant application into items I can check off", "expected": "checklist"}
+{"id": "original-0452", "text": "where do I start if my notes are scattered everywhere plus what path should I take for fixing my sleep schedule", "expected": "compound"}
+{"id": "original-0453", "text": "The email, lab, and grocery run are all urgent. Select the first move only.", "expected": "next_action"}
+{"id": "original-0454", "text": "how should I phrase a note to ask the vendor when the invoice will be paid", "expected": "message"}
+{"id": "original-0455", "text": "track the required tasks for setting up a new phone", "expected": "checklist"}
+{"id": "original-0456", "text": "how should I phrase a note to follow up with the recruiter", "expected": "message"}
+{"id": "original-0457", "text": "what path should I take for launching a small shop", "expected": "plan"}
+{"id": "original-0458", "text": "brief me on the article on urban farming. After that, break fixing my sleep schedule into phases", "expected": "compound"}
+{"id": "original-0459", "text": "compress the contract section below into three bullets. After that, work out the details for a backyard wedding", "expected": "compound"}
+{"id": "original-0460", "text": "what order should I visit shopping for groceries and dropping off mail", "expected": "errands"}
+{"id": "original-0461", "text": "compress these research findings into three bullets", "expected": "summary"}
+{"id": "original-0462", "text": "how should I tackle the reading response", "expected": "study"}
+{"id": "original-0463", "text": "build a punch list for publishing a podcast episode", "expected": "checklist"}
+{"id": "original-0464", "text": "record the objective run a half marathon", "expected": "objective"}
+{"id": "original-0465", "text": "reason through renting or buying a home", "expected": "decision"}
+{"id": "original-0466", "text": "what order should I visit picking up keys and returning equipment", "expected": "errands"}
+{"id": "original-0467", "text": "reason through buying new equipment or renting it", "expected": "decision"}
+{"id": "original-0468", "text": "what should drive my choice between taking the class or working more hours", "expected": "decision"}
+{"id": "original-0469", "text": "track the required tasks for publishing a podcast episode", "expected": "checklist"}
+{"id": "original-0470", "text": "what path should I take for setting up a home office", "expected": "plan"}
+{"id": "original-0471", "text": "sendable wording to ask the vendor when the invoice will be paid. After that, optimize a trip through picking up keys and returning equipment", "expected": "compound"}
+{"id": "original-0472", "text": "build a punch list for publishing a podcast episode; also optimize a trip through picking up keys and returning equipment", "expected": "compound"}
+{"id": "original-0473", "text": "pin run a half marathon as my current goal", "expected": "objective"}
+{"id": "original-0474", "text": "keep me accountable for write one page each morning", "expected": "objective"}
+{"id": "original-0475", "text": "Do not draft prose; compare whether to remain or relocate.", "expected": "decision"}
+{"id": "original-0476", "text": "set up a holiday potluck and then what path should I take for starting a garden", "expected": "compound"}
+{"id": "original-0477", "text": "build revision sessions for the literature essay", "expected": "study"}
+{"id": "original-0478", "text": "convert submitting a grant application into items I can check off. After that, what matters most in the passage about climate policy", "expected": "compound"}
+{"id": "original-0479", "text": "convert publishing a podcast episode into items I can check off", "expected": "checklist"}
+{"id": "original-0480", "text": "set up a birthday dinner for eight", "expected": "event"}
+{"id": "original-0481", "text": "structure my work on my final paper", "expected": "study"}
+{"id": "original-0482", "text": "set up a retirement lunch", "expected": "event"}
+{"id": "original-0483", "text": "sendable wording to confirm tomorrow's appointment", "expected": "message"}
+{"id": "original-0484", "text": "convert opening the store into items I can check off", "expected": "checklist"}
+{"id": "original-0485", "text": "arrange the stops for the library gas station and bakery", "expected": "errands"}
+{"id": "original-0486", "text": "keep me accountable for publish the first episode plus what order should I visit the market pet store and post office", "expected": "compound"}
+{"id": "original-0487", "text": "prepare the schedule and logistics for a team offsite plus record the objective lose ten pounds safely", "expected": "compound"}
+{"id": "original-0488", "text": "what now my notes are scattered everywhere; also optimize a trip through milk a prescription pickup and ice cream", "expected": "compound"}
+{"id": "original-0489", "text": "set up a client workshop", "expected": "event"}
+{"id": "original-0490", "text": "work out the details for a family picnic", "expected": "event"}
+{"id": "original-0491", "text": "Please make it shorter.", "expected": "clarify"}
+{"id": "original-0492", "text": "where do I start if the build fails with no clear error", "expected": "next_action"}
+{"id": "original-0493", "text": "track the required tasks for opening the store", "expected": "checklist"}
+{"id": "original-0494", "text": "sendable wording to ask the vendor when the invoice will be paid", "expected": "message"}
+{"id": "original-0495", "text": "sendable wording to ask the manager for Friday off", "expected": "message"}
+{"id": "original-0496", "text": "pin finish the prototype this month as my current goal. After that, optimize a trip through the post office pharmacy and grocery store", "expected": "compound"}
+{"id": "original-0497", "text": "compress the passage about climate policy into three bullets plus build revision sessions for the economics midterm", "expected": "compound"}
