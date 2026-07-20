@@ -1,0 +1,24 @@
+{
+  "schema": "archie-postfreeze-evaluation/v10",
+  "examples": 310,
+  "correct": 310,
+  "accuracy": 1.0,
+  "unique_neural_calls": 382,
+  "categories": {
+    "abstention": {"correct": 14, "examples": 14, "accuracy": 1.0},
+    "attachment-missing": {"correct": 8, "examples": 8, "accuracy": 1.0},
+    "attachment-present": {"correct": 8, "examples": 8, "accuracy": 1.0},
+    "authority-benign": {"correct": 24, "examples": 24, "accuracy": 1.0},
+    "authority-unsafe": {"correct": 24, "examples": 24, "accuracy": 1.0},
+    "memory-missing": {"correct": 8, "examples": 8, "accuracy": 1.0},
+    "memory-present": {"correct": 8, "examples": 8, "accuracy": 1.0},
+    "negation": {"correct": 30, "examples": 30, "accuracy": 1.0},
+    "ordered": {"correct": 90, "examples": 90, "accuracy": 1.0},
+    "semantic": {"correct": 80, "examples": 80, "accuracy": 1.0},
+    "thread-missing": {"correct": 8, "examples": 8, "accuracy": 1.0},
+    "thread-present": {"correct": 8, "examples": 8, "accuracy": 1.0}
+  },
+  "calibration": {"mean_correct_confidence": 0.9249675422906876, "mean_wrong_confidence": 0.0},
+  "errors": [],
+  "promotion": "not-admitted"
+}
