@@ -1,0 +1,47 @@
+{
+  "schema": "archie-factorized-blind-v2-evaluation/v1-compact",
+  "suite_sha256": "d14432ae332169205b31e96417550a3410b8f3e2bc9ff2c32aa89ff4c6a2d2b6",
+  "candidate": "fused-v2",
+  "metrics": {
+    "examples": 287,
+    "correct": 121,
+    "accuracy": 0.42160278745644597,
+    "route_accuracy": 0.5749128919860628,
+    "categories": {
+      "abstention": {"correct": 0, "examples": 2},
+      "attachment-missing": {"correct": 0, "examples": 7},
+      "attachment-present": {"correct": 2, "examples": 5},
+      "authority-benign": {"correct": 3, "examples": 10},
+      "authority-unsafe": {"correct": 5, "examples": 5},
+      "generic-missing": {"correct": 0, "examples": 14},
+      "memory-missing": {"correct": 0, "examples": 5},
+      "memory-present": {"correct": 5, "examples": 7},
+      "negation": {"correct": 1, "examples": 40},
+      "ordered": {"correct": 46, "examples": 80},
+      "semantic:checklist": {"correct": 6, "examples": 10},
+      "semantic:decision": {"correct": 1, "examples": 10},
+      "semantic:errands": {"correct": 0, "examples": 10},
+      "semantic:event": {"correct": 6, "examples": 10},
+      "semantic:message": {"correct": 9, "examples": 10},
+      "semantic:next_action": {"correct": 10, "examples": 10},
+      "semantic:objective": {"correct": 6, "examples": 10},
+      "semantic:plan": {"correct": 9, "examples": 10},
+      "semantic:study": {"correct": 0, "examples": 10},
+      "semantic:summary": {"correct": 8, "examples": 10},
+      "thread-missing": {"correct": 0, "examples": 4},
+      "thread-present": {"correct": 4, "examples": 8}
+    },
+    "calibration": {
+      "nll": 8.075610190608405,
+      "ece_10": 0.565521229666496,
+      "brier": 0.839760005454773,
+      "mean_confidence_correct": 0.9937689023203078,
+      "mean_confidence_incorrect": 0.9817583375066365,
+      "selective_accuracy": {"0.5": 0.5277777777777778, "0.75": 0.5116279069767442, "0.9": 0.4573643410852713, "1.0": 0.42160278745644597}
+    },
+    "decision_sources": {"clause-composition-v2": 107, "semantic-conservative-v2": 136, "factor-authority-v2": 43, "typed-reference-v2": 1},
+    "latency_ms": {"mean": 45.33303321602053, "median": 44.84731700017619, "p95": 65.83243360003053},
+    "max_rss_mb": 877.453125
+  },
+  "promotion": "not-admitted"
+}
