@@ -32,7 +32,7 @@
     "receipt_sha256": "1464e886b3eb87699774423f3e0377bbd9145ab80778ba5cfeba71437fd72728",
     "status": "development-after-inspection"
   },
-  "model_sha256": "bdda6dce73da91c281b45fd4b75cca8681999a3042324449f9c0954c23739caa",
+  "model_sha256": "60cb30f1f3c371557e779fa343345199ec0d2a7b4d0cb9f01c7bdd21f6b638f4",
   "promotion": "not-admitted",
   "reason": "The supplied pack was inspected and used for mechanism repair; a new untouched admission pack and product parity gates are still required.",
   "runtime_ms": {
@@ -65,13 +65,13 @@
     "development_rows": 1792,
     "promotion": "not-admitted",
     "schema": "archie-cognitive-router-training/v1",
-    "temperature": 0.4649127721786499,
+    "temperature": 0.4701463282108307,
     "training_rows": 20608
   },
   "workflow": {
-    "commit": "6dc8eb5256b3964f60cec27999794885641c0c36",
+    "commit": "263b2adab34430145858ad02fa7e40cbb2a557a8",
     "run_attempt": "1",
-    "run_id": "29777676056",
+    "run_id": "29778038372",
     "runner": "ubuntu-latest"
   }
 }

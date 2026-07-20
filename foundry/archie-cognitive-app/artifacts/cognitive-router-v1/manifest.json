@@ -2,7 +2,7 @@
   "schema": "archie-cognitive-router-artifact/v1",
   "model": "cognitive-router.pt",
   "bytes": 260293,
-  "sha256": "bdda6dce73da91c281b45fd4b75cca8681999a3042324449f9c0954c23739caa",
+  "sha256": "60cb30f1f3c371557e779fa343345199ec0d2a7b4d0cb9f01c7bdd21f6b638f4",
   "encoding": "base64-concatenated",
   "parts": [
     "part-000.b64",
