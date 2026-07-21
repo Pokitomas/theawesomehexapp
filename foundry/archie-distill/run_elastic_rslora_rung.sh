@@ -44,7 +44,7 @@ fi
 ARCHIE_COMPUTE_PROVIDER="${ARCHIE_COMPUTE_PROVIDER:-unlabeled-external-runner}" \
 ARCHIE_RUNNER_LABELS="${ARCHIE_RUNNER_LABELS:-}" \
 "$PY" foundry/archie-distill/elastic_information_budgeted_rslora.py train-rung \
-  --profile "$PROFILE" --workspace "$root/workspace" \
+  --profile "$PROFILE" --training-config "$CONFIG" --workspace "$root/workspace" \
   --preference-data "$shard_dir/causal-preference.train.jsonl" \
   --preference-receipt "$shard_dir/causal-preference-receipt.json" \
   --reference-cache "$root/reference-cache" --model-dir "$MODEL" \
@@ -60,7 +60,8 @@ export_root="$root/export"
 mkdir -p "$export_root"
 cp -a "$root/bundle" "$export_root/bundle"
 cp -a "$root/reference-cache" "$export_root/reference-cache"
-artifact_name="archie-elastic-rslora-rung-${RUNG}-shard-${shard}-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
+# Stable within a workflow run so rerun-failed-jobs can consume successful predecessor artifacts.
+artifact_name="archie-elastic-rslora-rung-${RUNG}-shard-${shard}-${GITHUB_RUN_ID:-local}"
 output_file="${OUTPUT_FILE:-${GITHUB_OUTPUT:-}}"
 if [[ -z "$output_file" ]]; then
   printf 'No GitHub output file is available.\n' >&2
