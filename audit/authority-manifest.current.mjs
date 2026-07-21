@@ -6,27 +6,28 @@ const researchWorkflowRows = [
   {
     id: 'workflow.archie-research-read-only',
     family: 'workflow',
-    operation: 'Export, train, verify, and package Archie research candidates without repository mutation authority',
+    operation: 'Export, train, verify, package, and issue signed local-compute capsules for Archie research candidates without repository mutation authority',
     originActor: 'GitHub push, pull-request, or explicit workflow-dispatch actor',
     principalSource: 'Read-only GitHub Actions token executing an exact candidate checkout',
-    requiredAuthority: 'contents:read only for source and verification workflows; no repository write authority',
-    mutableObject: 'Ephemeral runner files, digest-bound evidence bundles, and uploaded research artifacts',
+    requiredAuthority: 'contents:read only for source, verification, and signed-capsule workflows; no repository write authority',
+    mutableObject: 'Ephemeral runner files, digest-bound evidence bundles, signed research capsules, and uploaded research artifacts',
     authorityOwner: 'Repository CI configuration; admission remains governed separately',
     denialConditions: [
       'event or path filter does not match',
-      'checkout, materialization, compilation, training, evaluation, or artifact publication fails',
-      'evidence verification fails',
+      'checkout, materialization, compilation, training, evaluation, capsule signing, or artifact publication fails',
+      'evidence or capsule verification fails',
       'candidate attempts admission or production mutation'
     ],
-    replayBoundary: 'Exact workflow run, candidate and merge SHA, pinned actions, source and artifact digests, optimizer budget, frozen evaluation suites, and terminal promotion state.',
+    replayBoundary: 'Exact workflow run, candidate and merge SHA, pinned actions, source and artifact digests, signed capsule digest, optimizer budget, frozen evaluation suites, and terminal promotion state.',
     residue: {
-      public: 'Public check status, bounded summaries, artifact names, and cryptographic digests.',
-      private: 'Ephemeral runner state and GitHub token are discarded; no production credential or model-promotion authority is consumed.'
+      public: 'Public check status, bounded summaries, artifact names, signed capsule identities, and cryptographic digests.',
+      private: 'Ephemeral runner state, HMAC secret, and GitHub token are discarded; no production credential or model-promotion authority is consumed.'
     },
     status: 'enforced',
     surfaces: [
       'workflow-permission:.github/workflows/archie-campaign-source-export-v2.yml:contents:read',
       'workflow-permission:.github/workflows/archie-causal-mechanism-full-budget.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-continuum-capsule.yml:contents:read',
       'workflow-permission:.github/workflows/archie-generalized-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-latent-world-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-source-export.yml:contents:read',
@@ -40,15 +41,18 @@ const researchWorkflowRows = [
     ],
     implementation: references([
       ['.github/workflows/archie-causal-mechanism-full-budget.yml', 'permissions:', 'contents: read', 'Independently verify evidence bundle'],
+      ['.github/workflows/archie-continuum-capsule.yml', 'contents: read', 'Require repository owner dispatch', 'Sign exact checked-out source capsule'],
       ['.github/workflows/archie-productize-winner.yml', 'contents: read', 'shadow-product-not-admitted'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-typed-program-student.yml', 'contents: read', 'promotion']
     ]),
     allowWitness: references([
+      ['compute/continuum/test_continuum.py', 'test_sign_and_verify_capsule'],
       ['scripts/tests/supply-chain-contract.test.mjs', 'read-only proof workflows disable persisted checkout credentials']
     ]),
     denyWitness: references([
+      ['compute/continuum/test_continuum.py', 'test_tampering_is_rejected', 'test_promotion_is_fail_closed'],
       ['.github/workflows/archie-productize-winner.yml', 'promotion'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'promotion']
     ])
