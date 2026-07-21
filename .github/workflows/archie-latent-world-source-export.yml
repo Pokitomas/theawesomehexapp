@@ -1,0 +1,46 @@
+name: Archie latent-world source export
+
+on:
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-latent-world-source-export.yml
+      - foundry/archie-protocol/latent_world_benchmark/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Materialize digest-bound benchmark
+        run: python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+      - name: Verify benchmark contracts
+        run: python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
+      - name: Package exact benchmark sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=foundry/archie-protocol/latent_world_benchmark
+          out=artifacts/latent-world-source
+          mkdir -p "$out"
+          cp "$root/latent_world_benchmark.py" "$out/"
+          cp "$root/test_benchmark.py" "$out/"
+          cp "$root/restore_checkpoints.py" "$out/"
+          cp "$root/checkpoint-manifest.json" "$out/"
+          cp "$root/unified_evaluation.json" "$out/"
+          cp "$root/README.md" "$out/"
+          find "$out" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$out/SHA256SUMS"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archie-latent-world-source-${{ github.run_id }}
+          path: artifacts/latent-world-source
+          if-no-files-found: error
+          retention-days: 7
