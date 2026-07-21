@@ -74,9 +74,10 @@ jobs:
             /tmp/register-reproduction-v3 \
             artifacts/register-formal-v3 \
             2>&1 | tee artifacts/register-formal-v3/formal-admission.log
-          node -e "const r=require('./artifacts/register-formal-v3/formal-admission.json'); if(r.admitted!==false || r.decision!=='rejected-incomplete-student-evidence'){throw new Error('formal contract did not fail closed as required')}"
+          node -e "const r=require('./artifacts/register-formal-v3/formal-admission.json'); if(r.decision!=='rejected-incomplete-student-evidence' || r.launch_candidate_intelligence_binding!==null){throw new Error('formal contract did not fail closed as required')}"
           sha256sum artifacts/register-formal-v3/* > artifacts/register-formal-v3/SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: register-student-v3-formal-negative-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/register-formal-v3
