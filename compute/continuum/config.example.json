@@ -5,7 +5,7 @@
   "repo_cache": "~/archie-continuum/repo-cache",
   "poll": {
     "workflow": "archie-continuum-capsule.yml",
-    "branch": "agent/archie-continuum-local-compute",
+    "branch": "agent/archie-generalized-program-v1-20260721",
     "limit": 20
   },
   "security": {
