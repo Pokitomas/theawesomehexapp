@@ -13,7 +13,7 @@ permissions:
   contents: read
   actions: read
 
-consurrency:
+concurrency:
   group: archie-typed-program-v2-${{ github.ref }}
   cancel-in-progress: false
 
