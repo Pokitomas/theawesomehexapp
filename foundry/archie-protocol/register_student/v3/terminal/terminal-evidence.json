@@ -49,6 +49,7 @@
       ],
       "fresh_v3_pack_used_for_selection": false
     },
+    "training_receipt_schema": "archie-register-student-training-receipt/v1",
     "training_receipt_file_sha256": "98aab633c46765fc8e046090478a09bb347c0d58cec73c4ac95cec03919d948a",
     "training_receipt_embedded_digest": "9898d3faeedbd9ffd84965ee3f85ea1784bedd174270fb72b5882110dae1233c"
   },
@@ -61,7 +62,8 @@
     "controller_v3_sha256": "98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71",
     "shipped_router_candidate_sha256": "2c8062f239c66c95c5b7802623d64e2abc2c633264328481b86289cc2488de1c",
     "model_bytes": 1442990,
-    "tokenizer": "embedded exact vocabulary and IDF state in model artifact"
+    "tokenizer_representation": "vocabulary and IDF state embedded inside the model artifact",
+    "standalone_tokenizer_artifact": false
   },
   "development_selection": {
     "opened_v2_pack": { "correct": 1800, "examples": 1800 },
@@ -106,7 +108,7 @@
       "mean_latency_ms": 0.21281991764622424,
       "peak_rss_bytes": 106795008
     },
-    "repository_judge": {
+    "custom_repository_judge": {
       "admitted": true,
       "blockers": [],
       "admission_report_artifact_id": 8485745528,
@@ -121,7 +123,7 @@
     "admission_suite_exit_code": 0,
     "passed": true
   },
-  "second_environment": {
+  "second_environment_smoke": {
     "artifact_id": 8485722290,
     "artifact_digest": "sha256:c51ccf2cd4d4447c04e00ebcdb08c9057912d1040928ce31b2cd2abab5a87c3c",
     "os": "darwin",
@@ -130,23 +132,43 @@
     "duration_ms": 15000.322209,
     "predictions": 96341,
     "rss_bytes": 103727104,
-    "passed": true
+    "passed": true,
+    "formal_archie_student_clean_reproduction_receipt": false
   },
   "provider_neutral_admission": {
-    "exact_artifact_and_runtime_binding": true,
-    "fresh_row_untouched_evaluation": true,
-    "protected_product_tests": true,
-    "second_environment_reproduction": true,
-    "sustained_resource_evidence": true,
+    "formal_candidate_manifest_constructed": false,
+    "formal_admission_script_executed": false,
+    "standalone_tokenizer_descriptor_bound": false,
+    "runtime_executable_descriptor_and_identity_bound": false,
+    "license_and_redistribution_provenance_bound": false,
+    "formal_training_receipt_schema_valid": false,
+    "formal_independent_evaluation_report_valid": false,
     "independent_judge_only_hidden_evaluation": false,
-    "blocker": "pack rows were withheld from candidate selection, but evaluator authorship and execution were not organizationally independent of the training branch"
+    "formal_authority_report_valid": false,
+    "formal_clean_second_environment_reproduction_receipt_valid": false,
+    "formal_resource_report_valid": false,
+    "founder_launch_target_domain_and_requirement_scope_evaluated": false,
+    "promotion_eligible": false,
+    "blockers": [
+      "formal archie-student-admission-candidate/v1 manifest was not constructed",
+      "tokenizer state is embedded but no separately bound tokenizer descriptor exists",
+      "runtime executable identity, license text, source provenance, and redistribution fields were not packaged to the formal contract",
+      "training receipt uses archie-register-student-training-receipt/v1 rather than archie-student-training-receipt/v1",
+      "custom evaluation is not archie-student-independent-evaluation/v1 and is neither organizationally independent nor judge-only-hidden",
+      "custom authority evidence is not archie-student-authority-report/v1",
+      "macOS smoke is not archie-student-clean-reproduction/v1 with all formal bindings",
+      "resource evidence is not archie-student-resource-report/v1 with all formal bindings",
+      "the narrow router was not evaluated against every domain, intelligence requirement, and metric in founder/archie-launch-target.json"
+    ]
   },
   "terminal": {
     "artifact_id": 8485748305,
     "artifact_digest": "sha256:a391edef5a6acae12fcee6fafebbf5080fa6902675bdcfcfafe6b441e5defc47",
     "terminal_decision_file_sha256": "99f9710433b8f55d57df58f47436c1a0a1721a0c49f2f9b46b2a2f4e9dce0629",
+    "custom_router_judge_passed": true,
+    "formal_provider_neutral_admission_passed": false,
     "final_promotion_eligible": false,
     "decision": "not-admitted",
-    "reason": "independent judge-only-hidden evaluation was not genuinely established"
+    "reason": "the exact candidate passed the custom router gate but was never packaged or evaluated under the complete provider-neutral Archie student admission contract"
   }
 }
