@@ -2,14 +2,10 @@ name: Archie latent-world source export
 
 on:
   pull_request:
-    branches:
-      - agent/archie-register-v4-admission-20260720
     paths:
       - .github/workflows/archie-latent-world-source-export.yml
       - foundry/archie-protocol/latent_world_benchmark/**
   push:
-    branches:
-      - agent/archie-generalized-program-v1-20260721
     paths:
       - .github/workflows/archie-latent-world-source-export.yml
       - foundry/archie-protocol/latent_world_benchmark/**
@@ -26,25 +22,22 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
-      - name: Materialize digest-bound benchmark and campaign
+      - name: Materialize current research sources
         shell: bash
         run: |
           set -euo pipefail
-          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
-          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
-      - name: Record benchmark contract status
-        continue-on-error: true
-        shell: bash
-        run: |
-          python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
-          python3 foundry/archie-protocol/latent_world_benchmark/test_full_budget_campaign.py
-      - name: Package exact benchmark and campaign sources
+          root=foundry/archie-protocol/latent_world_benchmark
+          python3 "$root/materialize.py"
+          python3 "$root/campaign_v2/materialize.py"
+          python3 "$root/product/materialize.py"
+          python3 "$root/radial/materialize.py"
+      - name: Package current source tree
         shell: bash
         run: |
           set -euo pipefail
           root=foundry/archie-protocol/latent_world_benchmark
           out=artifacts/latent-world-source
-          mkdir -p "$out"
+          mkdir -p "$out/product" "$out/radial" "$out/research"
           cp "$root/latent_world_benchmark.py" "$out/"
           cp "$root/full_budget_campaign.py" "$out/"
           cp "$root/full_budget_profile.json" "$out/"
@@ -55,14 +48,15 @@ jobs:
           cp "$root/checkpoint-manifest.json" "$out/"
           cp "$root/unified_evaluation.json" "$out/"
           cp "$root/README.md" "$out/"
-          if test -f "$root/research/efficient_terminal_training.py"; then
-            mkdir -p "$out/research"
-            cp "$root/research/efficient_terminal_training.py" "$out/research/"
-          fi
-          find "$out" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$out/SHA256SUMS"
+          cp "$root/product/winner_productization.py" "$out/product/"
+          cp "$root/product/world_state_app.py" "$out/product/"
+          cp "$root/product/test_winner_productization.py" "$out/product/"
+          cp "$root/radial/radial_campaign.py" "$out/radial/"
+          cp "$root/radial/test_radial_campaign.py" "$out/radial/"
+          cp "$root/research/efficient_terminal_training.py" "$out/research/"
+          cp "$root/research/radical_object_ledger.py" "$out/research/"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: archie-latent-world-source-${{ github.run_id }}
           path: artifacts/latent-world-source
           if-no-files-found: error
-          retention-days: 7
