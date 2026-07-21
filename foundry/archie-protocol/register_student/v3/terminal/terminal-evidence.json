@@ -1,0 +1,152 @@
+{
+  "schema": "archie-register-v3-terminal-evidence/v1",
+  "status": "complete",
+  "promotion": "not-admitted",
+  "production_changed": false,
+  "branch": "claude/archie-sprawl-training-5pe3i8",
+  "candidate_source_head": "f3363c6f89794a59f3a1e708014922d1401f6181",
+  "candidate_checkout_commit": "f1c6abfe64bda3f5e58c7d2f5191008e42a35c66",
+  "architecture": {
+    "id": "segment-aware-quantized-linear-route-expert-with-compositional-controller-v3",
+    "learned_route_expert": "quantized TF-IDF linear classifier over word, word-bigram, word-trigram, character 3-5 gram, and structural features",
+    "deterministic_boundaries": [
+      "fail-closed authority",
+      "context and support sufficiency",
+      "reference resolution",
+      "raw-source abstention",
+      "negation and correction activity",
+      "ordered clause decomposition and outcome composition"
+    ],
+    "v3_change": "generic correction-boundary and ordered-clause-boundary repair; learned weights unchanged"
+  },
+  "training": {
+    "actions_run": 29804688331,
+    "artifact_id": 8485232165,
+    "artifact_digest": "sha256:6250efeb12395d3b12f895cbff08a2116300fea75051c23a567e1aedf8fccc41",
+    "environment": {
+      "runner": "ubuntu-24.04 hosted x64",
+      "python": "3.12.3",
+      "numpy": "2.5.1",
+      "scikit_learn": "1.9.0",
+      "cpu_count": 4
+    },
+    "budget": {
+      "training_examples": 160978,
+      "synthetic_requested": 96000,
+      "synthetic_train": 157600,
+      "synthetic_dev": 22511,
+      "max_features": 32000,
+      "elapsed_seconds": 666.5531227588654
+    },
+    "selection": {
+      "selected_alpha": 0.000003,
+      "route_temperature": 1.45,
+      "sources": [
+        "hash-stratified audit holdout",
+        "synthetic development split",
+        "opened 429-case iterative suite",
+        "opened v1 admission evidence"
+      ],
+      "fresh_v3_pack_used_for_selection": false
+    },
+    "training_receipt_file_sha256": "98aab633c46765fc8e046090478a09bb347c0d58cec73c4ac95cec03919d948a",
+    "training_receipt_embedded_digest": "9898d3faeedbd9ffd84965ee3f85ea1784bedd174270fb72b5882110dae1233c"
+  },
+  "candidate": {
+    "candidate_artifact_id": 8485713170,
+    "candidate_artifact_digest": "sha256:775fd8cf76a1b27a58011940597dacdca26995762f0b7fc252a8f0b2bf5b84f6",
+    "model_json_sha256": "7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0",
+    "model_module_sha256": "828980422423c40a6a858e0f64217db03cc326a5530d24dac5fbff5b8aeeccd4",
+    "controller_source_sha256": "4d0c382fd384b51dd53ce4b04c5b252e8814c45b0012de802b411c4a98b9ec3d",
+    "controller_v3_sha256": "98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71",
+    "shipped_router_candidate_sha256": "2c8062f239c66c95c5b7802623d64e2abc2c633264328481b86289cc2488de1c",
+    "model_bytes": 1442990,
+    "tokenizer": "embedded exact vocabulary and IDF state in model artifact"
+  },
+  "development_selection": {
+    "opened_v2_pack": { "correct": 1800, "examples": 1800 },
+    "legacy_498": { "correct": 496, "examples": 498 },
+    "legacy_60": { "correct": 60, "examples": 60 },
+    "legacy_48": { "correct": 48, "examples": 48 }
+  },
+  "fresh_evaluation": {
+    "workflow_run": 29806610192,
+    "sealed_pack_artifact_id": 8485712768,
+    "sealed_pack_artifact_digest": "sha256:5bf07b106fb87536ad312a9ab2d6d38b681784e8fa2d4f92543d911ad0fe46ea",
+    "sealed_pack_sha256": "c579c5622f93c3bdb1d51e74f1481884e59c32bb0192fe7d78262d4f5e5c7e26",
+    "seed_commitment": "6c93bafeacc16adb0ec6d77e3853304a5f1953dba4a25279390a203ea91b9e08",
+    "rows": 1800,
+    "generated_after_candidate_selection": true,
+    "row_access_before_candidate_fix": false,
+    "full_accuracy": { "correct": 1800, "examples": 1800, "accuracy": 1.0 },
+    "category_accuracy": {
+      "single_route_semantics": 1.0,
+      "ordered_compound": 1.0,
+      "negation": 1.0,
+      "correction": 1.0,
+      "attachment_presence_absence_unusable": 1.0,
+      "memory_presence_absence_unusable": 1.0,
+      "thread_presence_absence_unusable": 1.0,
+      "ambiguous_abstention": 1.0,
+      "raw_source_abstention": 1.0,
+      "authority_unsafe": 1.0,
+      "authority_benign": 1.0
+    },
+    "legacy": {
+      "router_v2_original_498": { "correct": 496, "examples": 498, "accuracy": 0.9959839357429718 },
+      "router_real_v2_60": { "correct": 60, "examples": 60, "accuracy": 1.0 },
+      "router_real_v3_48": { "correct": 48, "examples": 48, "accuracy": 1.0 }
+    },
+    "python_javascript_parity": { "correct": 2406, "examples": 2406, "mismatches": 0 },
+    "resources": {
+      "sustained_duration_ms": 60000.319382,
+      "samples": 12,
+      "predictions": 281930,
+      "predictions_per_second": 4698.808321420011,
+      "mean_latency_ms": 0.21281991764622424,
+      "peak_rss_bytes": 106795008
+    },
+    "repository_judge": {
+      "admitted": true,
+      "blockers": [],
+      "admission_report_artifact_id": 8485745528,
+      "admission_report_artifact_digest": "sha256:c11c17c2ff16dfd0a24f11d329c2ee39de76a6c45a1c55ba99f673756558565a",
+      "admission_report_file_sha256": "0045d4bb2fa0e9665af1248e680db37ca8e9d420e2fa9fb8ed2da3c20649d0d2",
+      "admission_report_embedded_digest": "2c9d53e93e9ed9655f5926b039fe6710f1e43c744aa513c589b9e877422a03d2"
+    }
+  },
+  "protected_product": {
+    "baseline_suite_exit_code": 0,
+    "completion_suite_exit_code": 0,
+    "admission_suite_exit_code": 0,
+    "passed": true
+  },
+  "second_environment": {
+    "artifact_id": 8485722290,
+    "artifact_digest": "sha256:c51ccf2cd4d4447c04e00ebcdb08c9057912d1040928ce31b2cd2abab5a87c3c",
+    "os": "darwin",
+    "architecture": "arm64",
+    "node": "v22.23.1",
+    "duration_ms": 15000.322209,
+    "predictions": 96341,
+    "rss_bytes": 103727104,
+    "passed": true
+  },
+  "provider_neutral_admission": {
+    "exact_artifact_and_runtime_binding": true,
+    "fresh_row_untouched_evaluation": true,
+    "protected_product_tests": true,
+    "second_environment_reproduction": true,
+    "sustained_resource_evidence": true,
+    "independent_judge_only_hidden_evaluation": false,
+    "blocker": "pack rows were withheld from candidate selection, but evaluator authorship and execution were not organizationally independent of the training branch"
+  },
+  "terminal": {
+    "artifact_id": 8485748305,
+    "artifact_digest": "sha256:a391edef5a6acae12fcee6fafebbf5080fa6902675bdcfcfafe6b441e5defc47",
+    "terminal_decision_file_sha256": "99f9710433b8f55d57df58f47436c1a0a1721a0c49f2f9b46b2a2f4e9dce0629",
+    "final_promotion_eligible": false,
+    "decision": "not-admitted",
+    "reason": "independent judge-only-hidden evaluation was not genuinely established"
+  }
+}
