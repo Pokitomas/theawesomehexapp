@@ -1,0 +1,186 @@
+name: Archie segment neurocompiler admission
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-segment-neurocompiler-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    name: Train and freeze segment neurocompiler
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install CPU training stack
+        run: python -m pip install --disable-pip-version-check numpy==2.2.6 scipy==1.15.3 scikit-learn==1.6.1
+      - name: Download immutable development and hard-negative curricula
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/source-v4 artifacts/source-typed
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8485713170/zip" > /tmp/v4.zip
+          echo '775fd8cf76a1b27a58011940597dacdca26995762f0b7fc252a8f0b2bf5b84f6  /tmp/v4.zip' | sha256sum -c -
+          unzip -q /tmp/v4.zip -d artifacts/source-v4
+          echo '34262ef1ffe8f2d3e22a71ef4d63472e01794f8a0159720ad26ec5bed04cc6a1  artifacts/source-v4/development-input.json' | sha256sum -c -
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8489495917/zip" > /tmp/typed.zip
+          echo '83a2ce3f5944108be11e503a36319eafb9c79dce87411b5fba26bb1a703fc55a  /tmp/typed.zip' | sha256sum -c -
+          unzip -q /tmp/typed.zip -d artifacts/source-typed
+          sha256sum artifacts/source-typed/blind-pack.json
+      - name: Compile sources
+        run: |
+          python -m py_compile \
+            foundry/archie-protocol/neurocompiler/train_neurocompiler.py \
+            foundry/archie-protocol/neurocompiler/neurocompiler_runtime.py \
+            foundry/archie-protocol/neurocompiler/generate_sealed_pack_v5.py
+          node --check foundry/archie-protocol/neurocompiler/neurocompiler_runtime.mjs
+          node --check foundry/archie-protocol/neurocompiler/evaluate_neurocompiler.mjs
+      - name: Train, cross-validate, quantize, and freeze
+        run: |
+          set -euo pipefail
+          python foundry/archie-protocol/neurocompiler/train_neurocompiler.py \
+            --development artifacts/source-v4/development-input.json \
+            --typed-blind artifacts/source-typed/blind-pack.json \
+            --output-dir artifacts/neurocompiler-candidate \
+            --candidate-commit "$GITHUB_SHA" \
+            --cross-validation-folds 5 | tee artifacts/neurocompiler-candidate/train-summary.json
+          cp foundry/archie-protocol/neurocompiler/neurocompiler_runtime.py artifacts/neurocompiler-candidate/
+          cp foundry/archie-protocol/neurocompiler/neurocompiler_runtime.mjs artifacts/neurocompiler-candidate/
+          jq -e '.opened_training_evaluation.accuracy == 1 and (.cross_validation | length) == 5 and all(.cross_validation[]; .accuracy >= 0.995)' \
+            artifacts/neurocompiler-candidate/training-receipt.json >/dev/null
+          test "$(stat -c%s artifacts/neurocompiler-candidate/neurocompiler-model.json)" -le 2500000
+          find artifacts/neurocompiler-candidate -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > artifacts/neurocompiler-candidate/SHA256SUMS
+      - name: Upload immutable candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-segment-neurocompiler-candidate-${{ github.run_id }}
+          path: artifacts/neurocompiler-candidate
+          if-no-files-found: error
+          retention-days: 30
+
+  seal:
+    name: Seal fresh post-candidate pack
+    needs: train
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: archie-segment-neurocompiler-candidate-${{ github.run_id }}
+          path: artifacts/neurocompiler-candidate
+      - name: Generate candidate-bound 2,400-row pack
+        run: |
+          set -euo pipefail
+          model_sha="$(sha256sum artifacts/neurocompiler-candidate/neurocompiler-model.json | cut -d' ' -f1)"
+          runtime_sha="$(sha256sum artifacts/neurocompiler-candidate/neurocompiler_runtime.mjs | cut -d' ' -f1)"
+          python foundry/archie-protocol/neurocompiler/generate_sealed_pack_v5.py \
+            --output-dir artifacts/neurocompiler-seal \
+            --candidate-commit "$GITHUB_SHA" \
+            --model-sha256 "$model_sha" \
+            --runtime-sha256 "$runtime_sha"
+          jq -e '.rows == 2400 and .generated_after_candidate_fixed == true' artifacts/neurocompiler-seal/sealed-pack-v5.json.manifest.json >/dev/null
+          find artifacts/neurocompiler-seal -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > artifacts/neurocompiler-seal/SHA256SUMS
+      - name: Upload sealed pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-segment-neurocompiler-sealed-${{ github.run_id }}
+          path: artifacts/neurocompiler-seal
+          if-no-files-found: error
+          retention-days: 30
+
+  judge:
+    name: Independent generalized admission judge
+    needs: [train, seal]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: archie-segment-neurocompiler-candidate-${{ github.run_id }}
+          path: artifacts/neurocompiler-candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: archie-segment-neurocompiler-sealed-${{ github.run_id }}
+          path: artifacts/neurocompiler-seal
+      - name: Recover immutable independent sources
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/source-v4 artifacts/source-typed artifacts/neurocompiler-admission
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8485713170/zip" > /tmp/v4.zip
+          echo '775fd8cf76a1b27a58011940597dacdca26995762f0b7fc252a8f0b2bf5b84f6  /tmp/v4.zip' | sha256sum -c -
+          unzip -q /tmp/v4.zip -d artifacts/source-v4
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8489495917/zip" > /tmp/typed.zip
+          echo '83a2ce3f5944108be11e503a36319eafb9c79dce87411b5fba26bb1a703fc55a  /tmp/typed.zip' | sha256sum -c -
+          unzip -q /tmp/typed.zip -d artifacts/source-typed
+      - name: Run strict sealed admission
+        run: |
+          set -euo pipefail
+          node foundry/archie-protocol/neurocompiler/evaluate_neurocompiler.mjs \
+            --candidate-dir artifacts/neurocompiler-candidate \
+            --pack artifacts/neurocompiler-seal/sealed-pack-v5.json \
+            --manifest artifacts/neurocompiler-seal/sealed-pack-v5.json.manifest.json \
+            --development artifacts/source-v4/development-input.json \
+            --typed-blind artifacts/source-typed/blind-pack.json \
+            --output artifacts/neurocompiler-admission/admission-report.json \
+            --python-runtime artifacts/neurocompiler-candidate/neurocompiler_runtime.py \
+            --candidate-commit "$GITHUB_SHA" \
+            --duration-ms 60000 | tee artifacts/neurocompiler-admission/judge-summary.json
+          jq -e '.decision == "admitted-generalized-register-neurocompiler" and (.blockers | length) == 0' \
+            artifacts/neurocompiler-admission/admission-report.json >/dev/null
+      - name: Run protected repository gates
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run test:archie:baseline
+          npm run test:archie:completion
+          npm run test:archie:admission
+      - name: Seal terminal receipt
+        if: always()
+        run: |
+          set -euo pipefail
+          cp artifacts/neurocompiler-candidate/neurocompiler-model.json artifacts/neurocompiler-admission/ || true
+          cp artifacts/neurocompiler-candidate/training-receipt.json artifacts/neurocompiler-admission/ || true
+          cp artifacts/neurocompiler-seal/sealed-pack-v5.json.manifest.json artifacts/neurocompiler-admission/ || true
+          printf '{"schema":"archie-neurocompiler-environment/v1","repository":"%s","commit":"%s","run_id":"%s","node":"%s","python":"%s"}\n' \
+            "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$GITHUB_RUN_ID" "$(node --version)" "$(python --version 2>&1)" \
+            > artifacts/neurocompiler-admission/environment.json
+          find artifacts/neurocompiler-admission -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > artifacts/neurocompiler-admission/SHA256SUMS
+      - name: Upload admission evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-segment-neurocompiler-admission-${{ github.run_id }}
+          path: artifacts/neurocompiler-admission
+          if-no-files-found: error
+          retention-days: 30
