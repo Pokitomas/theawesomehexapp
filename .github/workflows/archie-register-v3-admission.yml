@@ -1,6 +1,7 @@
 name: Archie register v3 admission research
 
 on:
+  pull_request:
   push:
     branches: [claude/archie-sprawl-training-5pe3i8]
   workflow_dispatch:
