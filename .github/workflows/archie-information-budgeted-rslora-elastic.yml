@@ -1,0 +1,152 @@
+name: Plan Archie elastic RSLoRA evidence graph
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/archie-information-budgeted-rslora-elastic.yml'
+      - 'docs/archie-information-budgeted-rslora-elastic.md'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Audit label for the bounded elastic campaign
+        required: true
+        type: string
+      round:
+        description: Zero-based recursive round
+        required: true
+        default: '0'
+        type: string
+      shards:
+        description: Number of canonical specialists to plan
+        required: true
+        default: '2'
+        type: string
+      max_fused_rank:
+        description: Maximum fused rank for the canonical specialists
+        required: true
+        default: '64'
+        type: string
+      rung_budget:
+        description: Bounded optimizer-step budget per rung
+        required: true
+        default: '128'
+        type: string
+      max_rungs:
+        description: Maximum rungs per specialist before review
+        required: true
+        default: '8'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-information-budgeted-rslora-elastic-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Verify elastic successor language is explicit
+        run: |
+          set -euo pipefail
+          grep -Fq 'bounded optimizer-step or information-token interval' docs/archie-information-budgeted-rslora-elastic.md
+          grep -Fq 'repository SHA' docs/archie-information-budgeted-rslora-elastic.md
+          grep -Fq 'not-admitted' docs/archie-information-budgeted-rslora-elastic.md
+          grep -Fq 'rung_budget' .github/workflows/archie-information-budgeted-rslora-elastic.yml
+
+  authorize:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      allowed: ${{ steps.plan.outputs.allowed }}
+      missing: ${{ steps.plan.outputs.missing }}
+      request_path: ${{ steps.plan.outputs.request_path }}
+    steps:
+      - id: plan
+        env:
+          ROUND_INPUT: ${{ inputs.round }}
+          SHARDS_INPUT: ${{ inputs.shards }}
+          MAX_FUSED_RANK_INPUT: ${{ inputs.max_fused_rank }}
+          RUNG_BUDGET_INPUT: ${{ inputs.rung_budget }}
+          MAX_RUNGS_INPUT: ${{ inputs.max_rungs }}
+          ARCHIE_SEGMENTED_DISTILL_READY: ${{ vars.ARCHIE_SEGMENTED_DISTILL_READY }}
+          ARCHIE_CUDA_RUNNER_LABELS: ${{ vars.ARCHIE_CUDA_RUNNER_LABELS }}
+          ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+          ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+          ARCHIE_TRAJECTORY_BATCH_PATH: ${{ vars.ARCHIE_TRAJECTORY_BATCH_PATH }}
+          ARCHIE_STUDENT_MODEL_DIR: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const required = [
+            'ARCHIE_CUDA_RUNNER_LABELS',
+            'ARCHIE_TRAINING_PYTHON',
+            'ARCHIE_TRAINING_CONFIG_PATH',
+            'ARCHIE_TRAJECTORY_BATCH_PATH',
+            'ARCHIE_STUDENT_MODEL_DIR'
+          ];
+          const missing = required.filter(name => !String(process.env[name] || '').trim());
+          if (process.env.ARCHIE_SEGMENTED_DISTILL_READY !== '1') missing.push('ARCHIE_SEGMENTED_DISTILL_READY=1');
+          const ints = {
+            round: Number(process.env.ROUND_INPUT),
+            shards: Number(process.env.SHARDS_INPUT),
+            max_fused_rank: Number(process.env.MAX_FUSED_RANK_INPUT),
+            rung_budget: Number(process.env.RUNG_BUDGET_INPUT),
+            max_rungs: Number(process.env.MAX_RUNGS_INPUT)
+          };
+          if (!Number.isInteger(ints.round) || ints.round < 0) missing.push('round>=0');
+          if (!Number.isInteger(ints.shards) || ints.shards < 1 || ints.shards > 4) missing.push('1<=shards<=4');
+          if (!Number.isInteger(ints.max_fused_rank) || ints.max_fused_rank < 1 || ints.max_fused_rank > 128) missing.push('1<=max_fused_rank<=128');
+          if (!Number.isInteger(ints.rung_budget) || ints.rung_budget < 1) missing.push('rung_budget>=1');
+          if (!Number.isInteger(ints.max_rungs) || ints.max_rungs < 1) missing.push('max_rungs>=1');
+          let labels = [];
+          try { labels = JSON.parse(String(process.env.ARCHIE_CUDA_RUNNER_LABELS || '[]')); }
+          catch { missing.push('ARCHIE_CUDA_RUNNER_LABELS valid JSON'); }
+          if (!Array.isArray(labels) || !labels.length || labels.some(label => typeof label !== 'string' || !label.trim())) missing.push('ARCHIE_CUDA_RUNNER_LABELS nonempty string array');
+          const requestPath = `${process.env.GITHUB_WORKSPACE}/elastic-rslora-request.json`;
+          fs.writeFileSync(requestPath, JSON.stringify({
+            schema: 'archie-elastic-rslora-plan/v1',
+            request_id: process.env.GITHUB_EVENT_INPUTS_REQUEST_ID || '',
+            repository: process.env.GITHUB_REPOSITORY,
+            revision: process.env.GITHUB_SHA,
+            round: ints.round,
+            shards: ints.shards,
+            max_fused_rank: ints.max_fused_rank,
+            rung_budget: ints.rung_budget,
+            max_rungs: ints.max_rungs,
+            runner_labels: labels
+          }, null, 2) + '\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `allowed=${missing.length === 0}\nmissing=${missing.join(', ')}\nrequest_path=${requestPath}\n`);
+          NODE
+
+  blocker:
+    needs: authorize
+    if: github.event_name == 'workflow_dispatch' && needs.authorize.outputs.allowed != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          printf '%s\n' 'Archie elastic RSLoRA planning refused: ${{ needs.authorize.outputs.missing }}' >&2
+          exit 1
+
+  publish_plan:
+    needs: authorize
+    if: github.event_name == 'workflow_dispatch' && needs.authorize.outputs.allowed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-elastic-rslora-plan-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ needs.authorize.outputs.request_path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
