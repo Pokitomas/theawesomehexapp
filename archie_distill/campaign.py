@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import pathlib
 import subprocess
@@ -64,7 +63,7 @@ def _append_unique(target: pathlib.Path, sources: list[pathlib.Path]) -> dict[st
             seen.add(identity)
             rows.append(row)
     if not rows:
-        raise RuntimeError("Cumulative training dataset would be empty")
+        raise RuntimeError("Cumulative dataset would be empty")
     write_jsonl(target, rows)
     return {
         "path": str(target),
@@ -74,13 +73,21 @@ def _append_unique(target: pathlib.Path, sources: list[pathlib.Path]) -> dict[st
     }
 
 
-def _history(target: pathlib.Path, trajectory_paths: list[pathlib.Path]) -> dict[str, Any]:
-    return _append_unique(target, trajectory_paths)
-
-
 def _metric(receipt_path: pathlib.Path) -> float:
     receipt = read_json(receipt_path)
     return float((receipt.get("metrics") or {}).get("combined", 0.0))
+
+
+def _teacher_environment(config_path: pathlib.Path) -> list[str]:
+    config = read_json(config_path)
+    teachers = config.get("teachers") or []
+    if not teachers:
+        raise SystemExit("Campaign config must contain at least one authorized teacher")
+    required = sorted({str(item.get("api_key_env")) for item in teachers if item.get("api_key_env")})
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise SystemExit(f"Missing teacher credential environment variables: {missing}")
+    return required
 
 
 def configure_parser(parser: Any) -> None:
@@ -116,8 +123,7 @@ def run_from_args(args: Any) -> dict[str, Any]:
         raise SystemExit(f"Local model directory is missing: {model}")
     if initial_adapter is not None and not initial_adapter.is_dir():
         raise SystemExit(f"Initial adapter directory is missing: {initial_adapter}")
-    if not os.environ.get("ARCHIE_TEACHER_API_KEY"):
-        raise SystemExit("ARCHIE_TEACHER_API_KEY is required for on-policy teacher correction")
+    teacher_environment = _teacher_environment(config)
 
     output.mkdir(parents=True)
     env = dict(os.environ)
@@ -127,10 +133,49 @@ def run_from_args(args: Any) -> dict[str, Any]:
     lesson_paths: list[pathlib.Path] = [bootstrap]
     trajectory_paths: list[pathlib.Path] = []
     round_receipts: list[dict[str, Any]] = []
-    current_adapter = initial_adapter
-    best_adapter: pathlib.Path | None = initial_adapter
-    best_score = float("-inf")
     started = time.monotonic()
+
+    if initial_adapter is None:
+        bootstrap_dir = output / "bootstrap-training"
+        _run(
+            _cli(
+                "train",
+                "--config", str(config),
+                "--dataset", str(bootstrap),
+                "--model", str(model),
+                "--output", str(bootstrap_dir),
+            ),
+            env=env,
+            log_path=output / "bootstrap-training.log",
+        )
+        current_adapter = bootstrap_dir / "adapter"
+        bootstrap_training = {
+            "mode": "trained",
+            "adapter": str(current_adapter),
+            "receipt": {
+                "path": str(bootstrap_dir / "training-receipt.json"),
+                "sha256": sha256_file(bootstrap_dir / "training-receipt.json"),
+            },
+        }
+    else:
+        current_adapter = initial_adapter
+        bootstrap_training = {"mode": "supplied", "adapter": str(current_adapter)}
+
+    bootstrap_evaluation = output / "bootstrap-evaluation-receipt.json"
+    _run(
+        _cli(
+            "evaluate",
+            "--config", str(config),
+            "--holdout", str(holdout),
+            "--model", str(model),
+            "--adapter", str(current_adapter),
+            "--output", str(bootstrap_evaluation),
+        ),
+        env=env,
+        log_path=output / "bootstrap-evaluation.log",
+    )
+    best_adapter: pathlib.Path = current_adapter
+    best_score = _metric(bootstrap_evaluation)
 
     for round_index in range(rounds):
         paths = round_plan(round_index, root=output)
@@ -141,14 +186,13 @@ def run_from_args(args: Any) -> dict[str, Any]:
             "--config", str(config),
             "--prompts", str(prompts),
             "--model", str(model),
+            "--adapter", str(current_adapter),
             "--round", str(round_index),
             "--output", str(paths["rollout"]),
         )
-        if current_adapter is not None:
-            rollout_command.extend(["--adapter", str(current_adapter)])
         if trajectory_paths:
             history_path = paths["round"] / "prior-trajectories.jsonl"
-            history_receipt = _history(history_path, trajectory_paths)
+            history_receipt = _append_unique(history_path, trajectory_paths)
             rollout_command.extend(["--history", str(history_path)])
         else:
             history_receipt = None
@@ -160,7 +204,7 @@ def run_from_args(args: Any) -> dict[str, Any]:
             round_receipts.append({
                 "round_index": round_index,
                 "status": "converged-no-teacher-repairs",
-                "adapter": str(current_adapter) if current_adapter else None,
+                "adapter": str(current_adapter),
                 "history": history_receipt,
             })
             break
@@ -225,15 +269,16 @@ def run_from_args(args: Any) -> dict[str, Any]:
         })
         write_json(output / "campaign-progress.json", {
             "schema": SCHEMA_CAMPAIGN,
+            "bootstrap": bootstrap_training,
             "rounds": round_receipts,
-            "best_adapter": str(best_adapter) if best_adapter else None,
-            "best_combined": best_score if best_score != float("-inf") else None,
+            "best_adapter": str(best_adapter),
+            "best_combined": best_score,
             "promotion": "not-admitted",
         })
 
     receipt: dict[str, Any] = {
         "schema": SCHEMA_CAMPAIGN,
-        "method": "iterative-student-rollout-fork-repair-cumulative-qlora-sft/v1",
+        "method": "bootstrap-then-iterative-student-rollout-fork-repair-cumulative-qlora-sft/v1",
         "inputs": {
             "config": {"path": str(config), "sha256": sha256_file(config)},
             "bootstrap": {"path": str(bootstrap), "sha256": sha256_file(bootstrap)},
@@ -241,14 +286,18 @@ def run_from_args(args: Any) -> dict[str, Any]:
             "holdout": {"path": str(holdout), "sha256": sha256_file(holdout)},
             "model": str(model),
             "initial_adapter": str(initial_adapter) if initial_adapter else None,
+            "teacher_environment_names": teacher_environment,
+        },
+        "bootstrap_training": bootstrap_training,
+        "bootstrap_evaluation": {
+            "path": str(bootstrap_evaluation),
+            "sha256": sha256_file(bootstrap_evaluation),
+            "combined": _metric(bootstrap_evaluation),
         },
         "requested_rounds": rounds,
         "completed_rounds": sum(item.get("status") == "completed" for item in round_receipts),
         "rounds": round_receipts,
-        "selection": {
-            "best_adapter": str(best_adapter) if best_adapter else None,
-            "best_combined": best_score if best_score != float("-inf") else None,
-        },
+        "selection": {"best_adapter": str(best_adapter), "best_combined": best_score},
         "runtime_seconds": round(time.monotonic() - started, 3),
         "claim_boundary": "The campaign selects only by frozen holdout evidence and remains research-only.",
         "promotion": "not-admitted",
