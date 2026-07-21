@@ -1,0 +1,116 @@
+name: Verify Archie 95 admitted app
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify package identity and app shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import zlib from 'node:zlib';
+          import { pathToFileURL } from 'node:url';
+          const root = path.resolve('archie-operator/archie95');
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'model-package.json'), 'utf8'));
+          const receipt = JSON.parse(fs.readFileSync(path.join(root, 'package-receipt.json'), 'utf8'));
+          const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+          if (manifest.schema !== 'archie95-admitted-model-package/v1') throw new Error('wrong package schema');
+          if (receipt.source_admission_artifact !== 8487452814) throw new Error('wrong source artifact');
+          const encoded = manifest.model_parts.map(part => fs.readFileSync(path.join(root, part), 'utf8')).join('');
+          const compressed = Buffer.from(encoded, 'base64');
+          if (hash(compressed) !== manifest.model_gzip_sha256) throw new Error('compressed digest mismatch');
+          const raw = zlib.gunzipSync(compressed);
+          if (hash(raw) !== '7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0') throw new Error('model digest mismatch');
+          const controllerPath = path.join(root, manifest.controller_path);
+          if (hash(fs.readFileSync(controllerPath)) !== 'e064bf0cf3bd94fe0808257c929c7238d9cc6de9af1d9f51bd1b77891616b5fc') throw new Error('controller digest mismatch');
+          const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+          for (const required of ['MODEL: ADMITTED V4','model-package.json','DecompressionStream','controller.predict(request,ctx)','serviceWorker.register']) if (!html.includes(required)) throw new Error(`missing app binding: ${required}`);
+          const serviceWorker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+          for (const required of ['model-package.json','register-student-core-v4.mjs','manifest.model_parts']) if (!serviceWorker.includes(required)) throw new Error(`missing offline asset binding: ${required}`);
+          const runtime = await import(pathToFileURL(controllerPath).href);
+          const controller = runtime.createRegisterStudentController(JSON.parse(raw));
+          const smoke = controller.predict('Create a three-line recap and a sendable client update from it.', {});
+          if (smoke.route !== 'compound') throw new Error('app runtime smoke failed');
+          console.log(JSON.stringify({ model: manifest.model_json_sha256, controller: manifest.controller_sha256, model_parts: manifest.model_parts.length, compressed_bytes: compressed.length }));
+          NODE
+
+      - name: Download final sealed admission pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8487420438/zip" > /tmp/sealed.zip
+          echo '7386a50cd03308f583d2f8659771d7d40655e80e767def46befc6bf01e159183  /tmp/sealed.zip' | sha256sum -c -
+          rm -rf /tmp/sealed
+          mkdir -p /tmp/sealed
+          unzip -q /tmp/sealed.zip -d /tmp/sealed
+
+      - name: Replay 1,800 sealed cases through browser package
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import zlib from 'node:zlib';
+          import { pathToFileURL } from 'node:url';
+          const root = path.resolve('archie-operator/archie95');
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'model-package.json'), 'utf8'));
+          const encoded = manifest.model_parts.map(part => fs.readFileSync(path.join(root, part), 'utf8')).join('');
+          const model = JSON.parse(zlib.gunzipSync(Buffer.from(encoded, 'base64')));
+          const runtime = await import(pathToFileURL(path.join(root, manifest.controller_path)).href);
+          const controller = runtime.createRegisterStudentController(model);
+          const pack = JSON.parse(fs.readFileSync('/tmp/sealed/sealed-pack-v4.json', 'utf8'));
+          const errors = [];
+          const categories = {};
+          for (const row of pack) {
+            const actual = controller.predict(row.request, { attachments: row.attachments || '', memory: row.memory || '', thread: row.thread || '' });
+            const expected = row.expected;
+            const correct = actual.route === expected.route && actual.authority === expected.authority && actual.context === expected.context && JSON.stringify(actual.outcomes) === JSON.stringify(expected.outcomes);
+            categories[row.category] ||= { correct: 0, examples: 0 };
+            categories[row.category].examples += 1;
+            if (correct) categories[row.category].correct += 1;
+            else errors.push({ id: row.id, category: row.category, expected, actual });
+          }
+          if (errors.length) {
+            console.error(JSON.stringify(errors.slice(0, 10), null, 2));
+            throw new Error(`sealed replay failed ${pack.length - errors.length}/${pack.length}`);
+          }
+          console.log(JSON.stringify({ correct: pack.length, examples: pack.length, categories }, null, 2));
+          NODE
+
+      - name: Verify static serving and protected suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8095 --directory archie-operator/archie95 >/tmp/archie95-http.log 2>&1 &
+          server=$!
+          trap 'kill "$server"' EXIT
+          sleep 1
+          curl --fail --silent http://127.0.0.1:8095/ | grep -q 'Archie 95 — Admitted Model'
+          curl --fail --silent http://127.0.0.1:8095/model-package.json | jq -e '.admission.decision == "admitted-register-router"' >/dev/null
+          for part in $(jq -r '.model_parts[]' archie-operator/archie95/model-package.json); do curl --fail --silent "http://127.0.0.1:8095/$part" >/dev/null; done
+          npm run test:archie:baseline
+          npm run test:archie:completion
+          npm run test:archie:admission
