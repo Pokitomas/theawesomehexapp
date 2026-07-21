@@ -6,21 +6,21 @@ const researchWorkflowRows = [
   {
     id: 'workflow.archie-research-read-only',
     family: 'workflow',
-    operation: 'Export, normalize, train, verify, package, and issue signed local-compute capsules for Archie research candidates without repository mutation authority',
+    operation: 'Export, normalize, train, verify, package, observe, and issue signed local-compute capsules for Archie research candidates without repository mutation authority',
     originActor: 'GitHub push, pull-request, or explicit workflow-dispatch actor',
     principalSource: 'Read-only GitHub Actions token executing an exact candidate checkout',
-    requiredAuthority: 'contents:read only for source, normalization, verification, and signed-capsule workflows; no repository write authority',
-    mutableObject: 'Ephemeral runner files, normalized research patches, digest-bound evidence bundles, signed research capsules, and uploaded research artifacts',
+    requiredAuthority: 'contents:read only for source, normalization, verification, observation, and signed-capsule workflows; no repository write authority',
+    mutableObject: 'Ephemeral runner files, normalized research patches, digest-bound evidence bundles, signed research capsules, bounded run receipts, and uploaded research artifacts',
     authorityOwner: 'Repository CI configuration; admission remains governed separately',
     denialConditions: [
       'event or path filter does not match',
-      'checkout, normalization, materialization, compilation, training, evaluation, capsule signing, or artifact publication fails',
-      'evidence or capsule verification fails',
+      'checkout, normalization, materialization, compilation, training, evaluation, observation, capsule signing, or artifact publication fails',
+      'evidence, run receipt, or capsule verification fails',
       'candidate attempts admission or production mutation'
     ],
-    replayBoundary: 'Exact workflow run, candidate and merge SHA, pinned actions, normalized patch identity, source and artifact digests, signed capsule digest, optimizer budget, frozen evaluation suites, and terminal promotion state.',
+    replayBoundary: 'Exact workflow run, candidate and merge SHA, pinned actions, normalized patch identity, source and artifact digests, signed capsule digest, observed run identity, optimizer budget, frozen evaluation suites, and terminal promotion state.',
     residue: {
-      public: 'Public check status, bounded summaries, artifact names, normalized patch receipts, signed capsule identities, and cryptographic digests.',
+      public: 'Public check status, bounded summaries, artifact names, normalized patch receipts, observed run identities, signed capsule identities, and cryptographic digests.',
       private: 'Ephemeral runner state and GitHub token are discarded; signing authority is represented separately and no production credential or model-promotion authority is consumed.'
     },
     status: 'enforced',
@@ -36,6 +36,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:contents:read',
       'workflow-permission:.github/workflows/archie-register-v4-admission.yml:contents:read',
       'workflow-permission:.github/workflows/archie-terminal-efficiency-v3.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-terminal-run-observer.yml:contents:read',
       'workflow-permission:.github/workflows/archie-typed-program-freeze-v3.yml:contents:read',
       'workflow-permission:.github/workflows/archie-typed-program-student.yml:contents:read',
       'workflow-permission:.github/workflows/normalize-live-research.yml:contents:read'
@@ -46,6 +47,7 @@ const researchWorkflowRows = [
       ['.github/workflows/archie-productize-winner.yml', 'contents: read', 'shadow-product-not-admitted'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'promotion'],
+      ['.github/workflows/archie-terminal-run-observer.yml', 'contents: read', 'Observe terminal tournament to completion'],
       ['.github/workflows/archie-typed-program-student.yml', 'contents: read', 'promotion'],
       ['.github/workflows/normalize-live-research.yml', 'contents: read', 'Rewrite research surfaces around live sources', 'persist-credentials: false']
     ]),
@@ -62,21 +64,21 @@ const researchWorkflowRows = [
   {
     id: 'workflow.archie-research-artifact-read',
     family: 'workflow',
-    operation: 'Read immutable GitHub Actions artifacts for independent admission and continuation evaluation',
+    operation: 'Read immutable GitHub Actions artifacts and run metadata for independent admission, continuation evaluation, and bounded completion observation',
     originActor: 'GitHub pull-request or explicit workflow-dispatch actor',
     principalSource: 'GitHub Actions token scoped to actions:read and contents:read',
-    requiredAuthority: 'actions:read only for downloading named prior-run artifacts',
-    mutableObject: 'Ephemeral copies of immutable workflow artifacts',
+    requiredAuthority: 'actions:read only for downloading named prior-run artifacts and reading bounded workflow-run metadata',
+    mutableObject: 'Ephemeral copies of immutable workflow artifacts and bounded run receipts',
     authorityOwner: 'GitHub Actions artifact service and repository CI configuration',
     denialConditions: [
       'source run is absent or incomplete',
-      'artifact cannot be downloaded',
+      'artifact or run metadata cannot be read',
       'artifact digest or independent verification fails',
       'workflow attempts to mutate a prior run or artifact'
     ],
-    replayBoundary: 'Source workflow run ID, artifact identity and digest, downloader workflow run, exact candidate SHA, and independent verification output.',
+    replayBoundary: 'Source workflow run ID, observed workflow run ID, artifact identity and digest, downloader or observer workflow run, exact candidate SHA, and independent verification output.',
     residue: {
-      public: 'Check status, source run identifier, artifact name, and bounded verification result.',
+      public: 'Check status, source and observed run identifiers, artifact name, and bounded verification result.',
       private: 'GitHub token and ephemeral downloaded bytes remain runner-local until bounded artifact publication.'
     },
     status: 'enforced',
@@ -86,6 +88,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v4-admission.yml:actions:read',
       'workflow-permission:.github/workflows/archie-terminal-efficiency-v3.yml:actions:read',
+      'workflow-permission:.github/workflows/archie-terminal-run-observer.yml:actions:read',
       'workflow-permission:.github/workflows/archie-typed-program-student.yml:actions:read'
     ],
     implementation: references([
@@ -93,15 +96,18 @@ const researchWorkflowRows = [
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'actions: read', 'gh run download', 'Independently verify source evidence'],
       ['.github/workflows/archie-register-v4-admission.yml', 'actions: read'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'actions: read', 'SOURCE_RUN_ID', 'gh run download'],
+      ['.github/workflows/archie-terminal-run-observer.yml', 'actions: read', 'Poll push-triggered tournament'],
       ['.github/workflows/archie-typed-program-student.yml', 'actions: read']
     ]),
     allowWitness: references([
       ['.github/workflows/archie-productize-winner.yml', 'Independently verify source campaign'],
-      ['.github/workflows/archie-radial-mechanism-probe.yml', 'Independently verify source evidence']
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'Independently verify source evidence'],
+      ['.github/workflows/archie-terminal-run-observer.yml', 'receipt.json', 'SHA256SUMS']
     ]),
     denyWitness: references([
       ['.github/workflows/archie-productize-winner.yml', 'test -n "$evidence"'],
-      ['.github/workflows/archie-radial-mechanism-probe.yml', 'test -n "$evidence"']
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'test -n "$evidence"'],
+      ['.github/workflows/archie-terminal-run-observer.yml', 'Enforce observed completion']
     ])
   },
   {
