@@ -1,6 +1,6 @@
 {
   "controller_sha256": "e064bf0cf3bd94fe0808257c929c7238d9cc6de9af1d9f51bd1b77891616b5fc",
-  "generated_from_commit": "bd611473ce7498e8e2bd63107653e317438d4fd4",
+  "generated_from_commit": "d3ed710ddd30496bfe0136b461cfafc2e683922d",
   "model_gzip_sha256": "6805f9eb103a88bc80778aac0c514d01f4d6c32ebb46e57703b6133d2c738ac9",
   "model_json_sha256": "7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0",
   "model_parts": 9,
