@@ -68,8 +68,27 @@ jobs:
         run: python3 test_benchmark.py
 
       - name: Verify full-budget campaign contracts
+        id: campaign_contracts
         working-directory: foundry/archie-protocol/latent_world_benchmark
-        run: python3 test_full_budget_campaign.py
+        shell: bash
+        run: |
+          set +e
+          mkdir -p artifacts/contract-diagnostics
+          python3 -VV > artifacts/contract-diagnostics/runtime.txt 2>&1
+          python3 -m pip freeze >> artifacts/contract-diagnostics/runtime.txt 2>&1
+          python3 test_full_budget_campaign.py > artifacts/contract-diagnostics/test.log 2>&1
+          status=$?
+          cat artifacts/contract-diagnostics/test.log
+          exit "$status"
+
+      - name: Upload contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-causal-mechanism-contract-diagnostics-${{ github.run_id }}
+          path: foundry/archie-protocol/latent_world_benchmark/artifacts/contract-diagnostics
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Execute the exact full-budget profile
         working-directory: foundry/archie-protocol/latent_world_benchmark
