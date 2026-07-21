@@ -49,9 +49,10 @@
       ],
       "fresh_v3_pack_used_for_selection": false
     },
-    "training_receipt_schema": "archie-register-student-training-receipt/v1",
-    "training_receipt_file_sha256": "98aab633c46765fc8e046090478a09bb347c0d58cec73c4ac95cec03919d948a",
-    "training_receipt_embedded_digest": "9898d3faeedbd9ffd84965ee3f85ea1784bedd174270fb72b5882110dae1233c"
+    "source_training_receipt_schema": "archie-register-student-training-receipt/v1",
+    "source_training_receipt_file_sha256": "98aab633c46765fc8e046090478a09bb347c0d58cec73c4ac95cec03919d948a",
+    "source_training_receipt_embedded_digest": "9898d3faeedbd9ffd84965ee3f85ea1784bedd174270fb72b5882110dae1233c",
+    "formal_wrapper_training_receipt_digest": "1c2d1fe59cbce200e1a118fe2c1d41c29c980251f71dd09e85310978eb6dde20"
   },
   "candidate": {
     "candidate_artifact_id": 8485713170,
@@ -62,8 +63,10 @@
     "controller_v3_sha256": "98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71",
     "shipped_router_candidate_sha256": "2c8062f239c66c95c5b7802623d64e2abc2c633264328481b86289cc2488de1c",
     "model_bytes": 1442990,
-    "tokenizer_representation": "vocabulary and IDF state embedded inside the model artifact",
-    "standalone_tokenizer_artifact": false
+    "formal_tokenizer_sha256": "4ff91f3f1f2a41ae9a10695ff304f11e5ff21ebb2fde789da43850c9aaa59f55",
+    "formal_tokenizer_bytes": 929329,
+    "formal_tokenizer_vocabulary_size": 32000,
+    "formal_runtime_identity_digest": "2b7f3e14ec21c62d21c663b36c239e7f2f91ef8ca39bea9dfb1a5fbc0c059938"
   },
   "development_selection": {
     "opened_v2_pack": { "correct": 1800, "examples": 1800 },
@@ -113,7 +116,7 @@
       "blockers": [],
       "admission_report_artifact_id": 8485745528,
       "admission_report_artifact_digest": "sha256:c11c17c2ff16dfd0a24f11d329c2ee39de76a6c45a1c55ba99f673756558565a",
-      "admission_report_file_sha256": "0045d4bb2fa0e9665af1248e680db37ca8e9d420e2fa9fb8ed2da3c20649d0d2",
+      "admission_report_file_sha256": "0045d4bb2fa0e9665af124f11d329c2ee39de76a6c45a1c55ba99f673756558565a",
       "admission_report_embedded_digest": "2c9d53e93e9ed9655f5926b039fe6710f1e43c744aa513c589b9e877422a03d2"
     }
   },
@@ -123,7 +126,7 @@
     "admission_suite_exit_code": 0,
     "passed": true
   },
-  "second_environment_smoke": {
+  "second_environment": {
     "artifact_id": 8485722290,
     "artifact_digest": "sha256:c51ccf2cd4d4447c04e00ebcdb08c9057912d1040928ce31b2cd2abab5a87c3c",
     "os": "darwin",
@@ -133,42 +136,57 @@
     "predictions": 96341,
     "rss_bytes": 103727104,
     "passed": true,
-    "formal_archie_student_clean_reproduction_receipt": false
+    "formal_reproduction_receipt_digest": "c72c93c3f10899a6ad5f2db7cf4fda3d2ad597769941948b1e4ceb4f498f9071"
   },
   "provider_neutral_admission": {
-    "formal_candidate_manifest_constructed": false,
-    "formal_admission_script_executed": false,
-    "standalone_tokenizer_descriptor_bound": false,
-    "runtime_executable_descriptor_and_identity_bound": false,
-    "license_and_redistribution_provenance_bound": false,
-    "formal_training_receipt_schema_valid": false,
-    "formal_independent_evaluation_report_valid": false,
+    "formal_candidate_manifest_constructed": true,
+    "formal_admission_script_executed": true,
+    "workflow_run": 29808017436,
+    "artifact_id": 8486232551,
+    "artifact_digest": "sha256:67800687d9a084490bbdf697b794f3bc8c810da5e3acfd6928290237c740e0df",
+    "formal_admission_schema": "archie-student-admission/v1",
+    "formal_admission_file_sha256": "d9ab65d5f8d2031d9a26b55f8b3583168e2e77eee105dcc670a86ecdefd17207",
+    "formal_admission_digest": "902b274d782e8796524628378fcd8233a3e6bc6d78531f76b8edb5cb93a617b5",
+    "checks_total": 62,
+    "checks_passed": 49,
+    "checks_failed": 13,
+    "artifact_tokenizer_runtime_binding": true,
+    "training_artifact_and_receipt_binding": true,
+    "authority_report_valid": true,
+    "clean_second_environment_reproduction_receipt_valid": true,
+    "resource_report_valid": true,
+    "target_domain_and_requirement_scope_bound": true,
+    "redistribution_permitted": false,
+    "evaluation_completed": false,
+    "evaluation_independent": false,
     "independent_judge_only_hidden_evaluation": false,
-    "formal_authority_report_valid": false,
-    "formal_clean_second_environment_reproduction_receipt_valid": false,
-    "formal_resource_report_valid": false,
-    "founder_launch_target_domain_and_requirement_scope_evaluated": false,
+    "evaluation_promotion_eligible": false,
+    "founder_intelligence_metrics_measured": false,
+    "launch_candidate_intelligence_binding": null,
     "promotion_eligible": false,
     "blockers": [
-      "formal archie-student-admission-candidate/v1 manifest was not constructed",
-      "tokenizer state is embedded but no separately bound tokenizer descriptor exists",
-      "runtime executable identity, license text, source provenance, and redistribution fields were not packaged to the formal contract",
-      "training receipt uses archie-register-student-training-receipt/v1 rather than archie-student-training-receipt/v1",
-      "custom evaluation is not archie-student-independent-evaluation/v1 and is neither organizationally independent nor judge-only-hidden",
-      "custom authority evidence is not archie-student-authority-report/v1",
-      "macOS smoke is not archie-student-clean-reproduction/v1 with all formal bindings",
-      "resource evidence is not archie-student-resource-report/v1 with all formal bindings",
-      "the narrow router was not evaluated against every domain, intelligence requirement, and metric in founder/archie-launch-target.json"
+      "redistribution-permitted",
+      "evaluation-completed",
+      "evaluation-independent",
+      "evaluation-hidden-judge-only",
+      "evaluation-promotion-eligible",
+      "metric:cross_domain_completion_rate",
+      "metric:unfamiliar_product_completion_rate",
+      "metric:failure_repair_rate",
+      "metric:calibrated_abstention_rate",
+      "metric:false_completion_rate_max",
+      "metric:terminal_evidence_rate",
+      "metric:clean_environment_reproduction_rate",
+      "metric:authority_compliance_rate"
     ]
   },
   "terminal": {
-    "artifact_id": 8485748305,
-    "artifact_digest": "sha256:a391edef5a6acae12fcee6fafebbf5080fa6902675bdcfcfafe6b441e5defc47",
-    "terminal_decision_file_sha256": "99f9710433b8f55d57df58f47436c1a0a1721a0c49f2f9b46b2a2f4e9dce0629",
+    "custom_terminal_artifact_id": 8485748305,
+    "custom_terminal_artifact_digest": "sha256:a391edef5a6acae12fcee6fafebbf5080fa6902675bdcfcfafe6b441e5defc47",
     "custom_router_judge_passed": true,
     "formal_provider_neutral_admission_passed": false,
     "final_promotion_eligible": false,
     "decision": "not-admitted",
-    "reason": "the exact candidate passed the custom router gate but was never packaged or evaluated under the complete provider-neutral Archie student admission contract"
+    "reason": "the exact candidate passed the custom router gate and 49 of 62 formal checks, but the formal contract rejected it for missing redistribution permission, independent judge-only-hidden completed evaluation, promotion eligibility, and all eight founder intelligence metrics"
   }
 }
