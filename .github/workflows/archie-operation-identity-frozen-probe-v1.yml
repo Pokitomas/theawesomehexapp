@@ -1,0 +1,234 @@
+name: Archie operation identity frozen probe v1
+
+on:
+  push:
+    branches:
+      - agent/pok-185-operation-identity-probe-v1-20260721
+    paths:
+      - .github/workflows/archie-operation-identity-frozen-probe-v1.yml
+      - foundry/archie-protocol/latent_world_benchmark/research/frozen_operation_probe.py
+      - foundry/archie-protocol/latent_world_benchmark/research/test_frozen_operation_probe.py
+      - audit/authority-manifest.current.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-operation-identity-frozen-probe-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review frozen-probe implementation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU review runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Compile and unit-test the diagnostic
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile research/frozen_operation_probe.py research/test_frozen_operation_probe.py
+          python3 -m unittest research/test_frozen_operation_probe.py -v
+
+  probe:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-pok-185-probe]'))
+    needs: review
+    name: Frozen operation-information diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TERMINAL_ARTIFACT_ID: "8510576517"
+      TERMINAL_ARTIFACT_SHA256: c35cc475bcc0bb477d25ae1670dc0b4a4f4c762cc486e247766d11b0ce77c7dd
+      TERMINAL_RUN_ID: "29867827958"
+      TERMINAL_JOB_ID: "88760401498"
+      CAMPAIGN_ARTIFACT_ID: "8504094525"
+      CAMPAIGN_ARTIFACT_SHA256: ce7cf88f5ced8d02be4bc6407ffc9be113a5adcf4c0fc7b2896b0c301b2b0203
+      CAMPAIGN_RUN_ID: "29834460894"
+      ARCHIVED_TRAINER_SHA256: d9ddba23573e03bb6d0627adc3fec61732a355b2b38012ab4f1f4e6db6934770
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Enforce distinct POK-185 execution boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "agent/pok-185-operation-identity-probe-v1-20260721"
+          test "${{ github.workflow }}" = "Archie operation identity frozen probe v1"
+          test "$TERMINAL_ARTIFACT_ID" = "8510576517"
+          test "$CAMPAIGN_ARTIFACT_ID" = "8504094525"
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU diagnostic runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Materialize and compile immutable benchmark sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+          cd foundry/archie-protocol/latent_world_benchmark
+          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py research/frozen_operation_probe.py
+          python3 test_full_budget_campaign.py
+
+      - name: Download exact immutable artifacts by ID
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-artifacts/terminal source-artifacts/campaign
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$TERMINAL_ARTIFACT_ID/zip" \
+            --output source-artifacts/terminal.zip
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$CAMPAIGN_ARTIFACT_ID/zip" \
+            --output source-artifacts/campaign.zip
+          echo "$TERMINAL_ARTIFACT_SHA256  source-artifacts/terminal.zip" | sha256sum -c -
+          echo "$CAMPAIGN_ARTIFACT_SHA256  source-artifacts/campaign.zip" | sha256sum -c -
+          unzip -q source-artifacts/terminal.zip -d source-artifacts/terminal
+          unzip -q source-artifacts/campaign.zip -d source-artifacts/campaign
+
+      - name: Verify terminal checkpoint inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd source-artifacts/terminal
+            sha256sum -c artifacts/terminal-efficiency-v3/SHA256SUMS
+          )
+          echo "$ARCHIVED_TRAINER_SHA256  source-artifacts/terminal/research/efficient_terminal_training.py" | sha256sum -c -
+
+      - name: Independently verify canonical campaign artifact
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          campaign_root="$GITHUB_WORKSPACE/source-artifacts/campaign"
+          (
+            cd "$campaign_root"
+            sha256sum -c SHA256SUMS
+          )
+          python3 full_budget_campaign.py verify --output "$campaign_root"
+
+      - name: Record immutable artifact identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          receipt = {
+              "terminal": {
+                  "id": int(os.environ["TERMINAL_ARTIFACT_ID"]),
+                  "run_id": int(os.environ["TERMINAL_RUN_ID"]),
+                  "job_id": int(os.environ["TERMINAL_JOB_ID"]),
+                  "sha256": os.environ["TERMINAL_ARTIFACT_SHA256"],
+                  "verified": True,
+              },
+              "campaign": {
+                  "id": int(os.environ["CAMPAIGN_ARTIFACT_ID"]),
+                  "run_id": int(os.environ["CAMPAIGN_RUN_ID"]),
+                  "sha256": os.environ["CAMPAIGN_ARTIFACT_SHA256"],
+                  "verified": True,
+              },
+          }
+          Path("source-artifacts/artifact-receipt.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+          PY
+
+      - name: Run frozen probes without executor training
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf artifacts/operation-identity-frozen-probe-v1
+          PYTHONPATH=. python3 research/frozen_operation_probe.py \
+            --terminal-root "$GITHUB_WORKSPACE/source-artifacts/terminal/artifacts/terminal-efficiency-v3" \
+            --campaign-root "$GITHUB_WORKSPACE/source-artifacts/campaign" \
+            --archived-trainer "$GITHUB_WORKSPACE/source-artifacts/terminal/research/efficient_terminal_training.py" \
+            --artifact-receipt "$GITHUB_WORKSPACE/source-artifacts/artifact-receipt.json" \
+            --output artifacts/operation-identity-frozen-probe-v1 \
+            --repository-sha "$GITHUB_SHA" \
+            --threads 4 \
+            | tee artifacts/operation-identity-frozen-probe-command.json
+
+      - name: Publish diagnostic summary and SHA256 inventory
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=artifacts/operation-identity-frozen-probe-v1
+          cp "$GITHUB_WORKSPACE/source-artifacts/terminal/artifacts/terminal-efficiency-v3/terminal-efficiency-report.json" "$root/immutable-terminal-report.json"
+          cp "$GITHUB_WORKSPACE/source-artifacts/terminal/research/efficient_terminal_training.py" "$root/archived-efficient-terminal-training.py"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$root/SHA256SUMS"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/operation-identity-frozen-probe-v1/diagnostic-report.json").read_text())
+          assert report["promotion"] == "research-only-not-admitted"
+          assert report["executor_training_performed"] is False
+          print("# POK-185 Phase A frozen probe")
+          print()
+          print(f"- Promotion: `{report['promotion']}`")
+          print(f"- Executor training performed: `{report['executor_training_performed']}`")
+          print(f"- Untouched evaluations per checkpoint: `{report['untouched_suite_evaluations_per_checkpoint']}`")
+          print(f"- Aggregate next boundary: `{report['aggregate']['next_boundary']}`")
+          for checkpoint in report["checkpoints"]:
+              methods = checkpoint["evaluation"]["operation"]["methods"]
+              hidden = methods["linear_probe_hidden_seq"]["accuracy_across_seeds_95"]
+              router = methods["existing_prim_flags_router"]["accuracy"]
+              terminal = checkpoint["evaluation"]["terminal"]["summary"]
+              print(f"- `{checkpoint['checkpoint']}` hidden probe `{hidden['mean']:.6f}` (95% seed CI `{hidden['lower']:.6f}`–`{hidden['upper']:.6f}`); original router `{router:.6f}`; full exact terminal `{terminal['full_exact_terminal']:.6f}`")
+          print()
+          print("The executor remained frozen, terminal metrics matched the immutable report bit-for-bit, and no admission or production state changed.")
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-operation-identity-frozen-probe-v1-${{ github.run_id }}
+          path: |
+            foundry/archie-protocol/latent_world_benchmark/artifacts/operation-identity-frozen-probe-v1
+            foundry/archie-protocol/latent_world_benchmark/artifacts/operation-identity-frozen-probe-command.json
+            foundry/archie-protocol/latent_world_benchmark/research/frozen_operation_probe.py
+            foundry/archie-protocol/latent_world_benchmark/research/test_frozen_operation_probe.py
+          if-no-files-found: error
+          retention-days: 90
