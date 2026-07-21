@@ -25,6 +25,7 @@ const researchWorkflowRows = [
     },
     status: 'enforced',
     surfaces: [
+      'workflow-permission:.github/workflows/archie-campaign-source-export-v2.yml:contents:read',
       'workflow-permission:.github/workflows/archie-causal-mechanism-full-budget.yml:contents:read',
       'workflow-permission:.github/workflows/archie-generalized-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-latent-world-source-export.yml:contents:read',
