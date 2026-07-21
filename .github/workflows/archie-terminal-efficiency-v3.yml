@@ -113,12 +113,14 @@ jobs:
           from pathlib import Path
 
           report = json.loads(Path("artifacts/radical-object-ledger-v4/radical-object-ledger-report.json").read_text())
+          assert report["promotion"] == "research-only-not-admitted", report["promotion"]
           print("# Archie radical object ledger v4")
           print()
           print(f"- Verdict: **{report['verdict']}**")
           print(f"- Sealed full-exact gain: `{report['radical_sealed_full_exact_gain']:+.6f}`")
           print(f"- Sealed score gain: `{report['radical_sealed_score_gain']:+.6f}`")
           print(f"- Equal continuation budget: `{report['rungs'][-1]}` steps per finalist seed")
+          print(f"- Promotion: `{report['promotion']}`")
           for finalist in report["finalists"]:
               print(f"- {finalist['label']}: `{finalist['arm']['name']}`; sealed full exact `{finalist['mean_sealed_full_exact']:.6f}`; sealed score `{finalist['mean_sealed_score']:.6f}`")
           print()
