@@ -1,0 +1,33 @@
+{
+  "admission": {
+    "admission_artifact": 8487452814,
+    "decision": "admitted-register-router",
+    "hidden_runtime": "1800/1800",
+    "legacy": "606/606",
+    "mean_latency_ms": 0.23029987196910365,
+    "parity": "2406/2406",
+    "report_digest": "660c3549f5c6907bb36c3791bb423704be84b048047dfc96ab0add2a96223286",
+    "sealed_artifact": 8487420438,
+    "workflow_run": 29811060912
+  },
+  "compressed_bytes": 425394,
+  "controller_path": "register-student-core-v4.mjs",
+  "controller_sha256": "e064bf0cf3bd94fe0808257c929c7238d9cc6de9af1d9f51bd1b77891616b5fc",
+  "model_bytes": 1442990,
+  "model_gzip_sha256": "6805f9eb103a88bc80778aac0c514d01f4d6c32ebb46e57703b6133d2c738ac9",
+  "model_id": "archie-register-student-v4-negation-isolated-20260721",
+  "model_json_sha256": "7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0",
+  "model_parts": [
+    "model.parts/part-00.b64",
+    "model.parts/part-01.b64",
+    "model.parts/part-02.b64",
+    "model.parts/part-03.b64",
+    "model.parts/part-04.b64",
+    "model.parts/part-05.b64",
+    "model.parts/part-06.b64",
+    "model.parts/part-07.b64",
+    "model.parts/part-08.b64"
+  ],
+  "parameters": 384012,
+  "schema": "archie95-admitted-model-package/v1"
+}
