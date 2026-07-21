@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
       - name: Generate 1,800-row post-fix pack
@@ -31,7 +31,7 @@ jobs:
             --candidate-commit "$GITHUB_SHA"
           sha256sum artifacts/register-v4-seal/* > artifacts/register-v4-seal/SHA256SUMS
       - name: Upload sealed pack
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: archie-register-v4-sealed-${{ github.run_id }}
           path: artifacts/register-v4-seal
@@ -46,11 +46,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
       - name: Download sealed pack
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: archie-register-v4-sealed-${{ github.run_id }}
           path: artifacts/register-v4-seal
@@ -121,7 +121,7 @@ jobs:
             | sort -z | xargs -0 sha256sum > artifacts/register-v4-admission/SHA256SUMS
       - name: Upload V4 admission evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: archie-register-v4-admission-${{ github.run_id }}
           path: artifacts/register-v4-admission
