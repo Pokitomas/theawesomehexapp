@@ -1,0 +1,110 @@
+name: Archie operation probe observer
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-operation-probe-observer.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-operation-probe-observer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observe:
+    name: Observe push-triggered operation diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 15c3b9627115893266dfbbc9f9a4970c3ecd9f9b
+      TARGET_WORKFLOW: Archie operation information probe
+    steps:
+      - name: Resolve and poll exact push run
+        id: poll
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/operation-probe-observer
+          run_id=""
+          status=""
+          conclusion=""
+          for attempt in $(seq 1 90); do
+            run_json="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TARGET_SHA}&event=push&per_page=100" \
+              | jq -c --arg name "$TARGET_WORKFLOW" \
+                  '[.workflow_runs[] | select(.name == $name)] | sort_by(.created_at) | last'
+            )"
+            if [[ -n "$run_json" && "$run_json" != "null" ]]; then
+              run_id="$(jq -r '.id' <<<"$run_json")"
+              status="$(jq -r '.status' <<<"$run_json")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
+              jq -S . <<<"$run_json" > artifacts/operation-probe-observer/workflow-run.json
+              printf 'attempt=%s run=%s status=%s conclusion=%s\n' "$attempt" "$run_id" "$status" "${conclusion:-pending}"
+              if [[ "$status" == "completed" ]]; then
+                break
+              fi
+            else
+              printf 'attempt=%s run=not-visible\n' "$attempt"
+            fi
+            sleep 30
+          done
+          test -n "$run_id"
+          test "$status" = "completed"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+
+          gh api --paginate --slurp \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
+          | jq '{jobs: [.[][].jobs[] | {id,name,status,conclusion,started_at,completed_at,steps}]}' \
+          > artifacts/operation-probe-observer/jobs.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
+            --jq '{artifacts: [.artifacts[] | {id,name,size_in_bytes,digest,expired,created_at,expires_at}]}' \
+          > artifacts/operation-probe-observer/artifacts.json
+
+          jq -n -S \
+            --arg schema "archie-operation-probe-observer/v1" \
+            --arg target_sha "$TARGET_SHA" \
+            --argjson run_id "$run_id" \
+            --arg status "$status" \
+            --arg conclusion "$conclusion" \
+            --slurpfile jobs artifacts/operation-probe-observer/jobs.json \
+            --slurpfile artifacts artifacts/operation-probe-observer/artifacts.json \
+            '{schema:$schema,target_sha:$target_sha,run_id:$run_id,status:$status,conclusion:$conclusion,jobs:$jobs[0].jobs,artifacts:$artifacts[0].artifacts}' \
+          > artifacts/operation-probe-observer/receipt.json
+          find artifacts/operation-probe-observer -type f ! -name SHA256SUMS -print0 \
+            | sort -z | xargs -0 sha256sum \
+            > artifacts/operation-probe-observer/SHA256SUMS
+
+      - name: Publish observed state
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Archie operation probe observer"
+            echo
+            echo "- Target SHA: \`${TARGET_SHA}\`"
+            echo "- Target run: \`${{ steps.poll.outputs.run_id || 'unresolved' }}\`"
+            echo "- Target conclusion: \`${{ steps.poll.outputs.conclusion || 'unresolved' }}\`"
+            if [[ -f artifacts/operation-probe-observer/jobs.json ]]; then
+              jq -r '.jobs[] | "- Job `\(.name)`: `\(.conclusion // .status)`"' artifacts/operation-probe-observer/jobs.json
+            fi
+            if [[ -f artifacts/operation-probe-observer/artifacts.json ]]; then
+              jq -r '.artifacts[] | "- Artifact `\(.name)`: id `\(.id)`, digest `\(.digest // "unavailable")`"' artifacts/operation-probe-observer/artifacts.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: archie-operation-probe-observer-${{ github.run_id }}
+          path: artifacts/operation-probe-observer
+          if-no-files-found: warn
+          retention-days: 14
