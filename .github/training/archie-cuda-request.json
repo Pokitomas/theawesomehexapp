@@ -1,9 +1,0 @@
-{
-  "schema": "archie-cuda-training-request/v2",
-  "request_id": "pok-133-causal-divergence-8bb6fac",
-  "issue_number": 583,
-  "baseline_commit": "8bb6fac2809afcc55f91f900bc6bf16f84dfb788",
-  "method": "verifier-anchored-causal-divergence-qlora/v1",
-  "intent": "Queue the first exact causal-divergence CUDA QLoRA attempt on a configured runner, or emit a pre-queue infrastructure blocker.",
-  "promotion": "not-admitted"
-}

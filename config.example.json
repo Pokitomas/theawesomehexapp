@@ -1,0 +1,46 @@
+{
+  "schema": "archie-distill-config/v1",
+  "seed": 20260721,
+  "collection": {
+    "max_output_tokens": 256,
+    "min_teachers": 1,
+    "max_teachers": 3,
+    "verify_rate": 0.1,
+    "confidence_floor": 0.75,
+    "temperature": 0.0,
+    "parallelism": 3,
+    "max_total_teacher_tokens": 1000000
+  },
+  "teachers": [
+    {
+      "id": "local-primary",
+      "base_url": "http://127.0.0.1:8080/v1",
+      "model": "teacher-primary",
+      "priority": 0,
+      "timeout_seconds": 120
+    },
+    {
+      "id": "local-verifier",
+      "base_url": "http://127.0.0.1:8081/v1",
+      "model": "teacher-verifier",
+      "priority": 1,
+      "timeout_seconds": 120
+    }
+  ],
+  "training": {
+    "epochs": 1.0,
+    "learning_rate": 0.0002,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.0,
+    "target_modules": "all-linear",
+    "max_seq_length": 1024,
+    "packing": true,
+    "logging_steps": 1
+  },
+  "evaluation": {
+    "max_new_tokens": 256
+  }
+}
