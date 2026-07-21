@@ -31,6 +31,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-latent-world-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-winner.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-radial-mechanism-probe.yml:contents:read',
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:contents:read',
       'workflow-permission:.github/workflows/archie-register-v4-admission.yml:contents:read',
       'workflow-permission:.github/workflows/archie-terminal-efficiency-v3.yml:contents:read',
@@ -40,6 +41,7 @@ const researchWorkflowRows = [
     implementation: references([
       ['.github/workflows/archie-causal-mechanism-full-budget.yml', 'permissions:', 'contents: read', 'Independently verify evidence bundle'],
       ['.github/workflows/archie-productize-winner.yml', 'contents: read', 'shadow-product-not-admitted'],
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-typed-program-student.yml', 'contents: read', 'promotion']
     ]),
@@ -47,7 +49,8 @@ const researchWorkflowRows = [
       ['scripts/tests/supply-chain-contract.test.mjs', 'read-only proof workflows disable persisted checkout credentials']
     ]),
     denyWitness: references([
-      ['.github/workflows/archie-productize-winner.yml', 'promotion']
+      ['.github/workflows/archie-productize-winner.yml', 'promotion'],
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'not-admitted']
     ])
   },
   {
@@ -73,6 +76,7 @@ const researchWorkflowRows = [
     status: 'enforced',
     surfaces: [
       'workflow-permission:.github/workflows/archie-productize-winner.yml:actions:read',
+      'workflow-permission:.github/workflows/archie-radial-mechanism-probe.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v4-admission.yml:actions:read',
       'workflow-permission:.github/workflows/archie-terminal-efficiency-v3.yml:actions:read',
@@ -80,15 +84,18 @@ const researchWorkflowRows = [
     ],
     implementation: references([
       ['.github/workflows/archie-productize-winner.yml', 'actions: read', 'gh run download'],
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'actions: read', 'gh run download', 'Independently verify source evidence'],
       ['.github/workflows/archie-register-v4-admission.yml', 'actions: read'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'actions: read', 'SOURCE_RUN_ID', 'gh run download'],
       ['.github/workflows/archie-typed-program-student.yml', 'actions: read']
     ]),
     allowWitness: references([
-      ['.github/workflows/archie-productize-winner.yml', 'Independently verify source campaign']
+      ['.github/workflows/archie-productize-winner.yml', 'Independently verify source campaign'],
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'Independently verify source evidence']
     ]),
     denyWitness: references([
-      ['.github/workflows/archie-productize-winner.yml', 'test -n "$evidence"']
+      ['.github/workflows/archie-productize-winner.yml', 'test -n "$evidence"'],
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'test -n "$evidence"']
     ])
   }
 ];
