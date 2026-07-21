@@ -7,12 +7,6 @@ on:
     paths:
       - .github/workflows/archie-productize-winner.yml
       - foundry/archie-protocol/latent_world_benchmark/product/**
-  pull_request:
-    branches:
-      - agent/archie-register-v4-admission-20260720
-    paths:
-      - .github/workflows/archie-productize-winner.yml
-      - foundry/archie-protocol/latent_world_benchmark/product/**
   workflow_dispatch:
     inputs:
       source_run_id:
