@@ -26,12 +26,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Materialize digest-bound benchmark
-        run: python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
-      - name: Record benchmark contract status
+      - name: Materialize digest-bound benchmark and maximal campaign
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+          cd foundry/archie-protocol/latent_world_benchmark
+          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py test_benchmark.py test_full_budget_campaign.py
+      - name: Record benchmark and campaign contract status
         continue-on-error: true
-        run: python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
-      - name: Package exact benchmark sources
+        shell: bash
+        run: |
+          python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
+          python3 foundry/archie-protocol/latent_world_benchmark/test_full_budget_campaign.py
+      - name: Package exact benchmark and campaign sources
         shell: bash
         run: |
           set -euo pipefail
@@ -39,6 +48,10 @@ jobs:
           out=artifacts/latent-world-source
           mkdir -p "$out"
           cp "$root/latent_world_benchmark.py" "$out/"
+          cp "$root/full_budget_campaign.py" "$out/"
+          cp "$root/full_budget_profile.json" "$out/"
+          cp "$root/FULL_BUDGET_CAMPAIGN.md" "$out/"
+          cp "$root/test_full_budget_campaign.py" "$out/"
           cp "$root/test_benchmark.py" "$out/"
           cp "$root/restore_checkpoints.py" "$out/"
           cp "$root/checkpoint-manifest.json" "$out/"
