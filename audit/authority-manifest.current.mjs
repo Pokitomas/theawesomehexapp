@@ -30,6 +30,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-continuum-capsule.yml:contents:read',
       'workflow-permission:.github/workflows/archie-generalized-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-latent-world-source-export.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-operation-identity-frozen-probe-v1.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-winner.yml:contents:read',
       'workflow-permission:.github/workflows/archie-radial-mechanism-probe.yml:contents:read',
@@ -44,6 +45,7 @@ const researchWorkflowRows = [
     implementation: references([
       ['.github/workflows/archie-causal-mechanism-full-budget.yml', 'permissions:', 'contents: read', 'Independently verify evidence bundle'],
       ['.github/workflows/archie-continuum-capsule.yml', 'contents: read', 'Require repository owner dispatch', 'Sign exact checked-out source capsule'],
+      ['.github/workflows/archie-operation-identity-frozen-probe-v1.yml', 'contents: read', 'Run frozen probes without executor training', 'research-only-not-admitted'],
       ['.github/workflows/archie-productize-winner.yml', 'contents: read', 'shadow-product-not-admitted'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'promotion'],
@@ -53,10 +55,12 @@ const researchWorkflowRows = [
     ]),
     allowWitness: references([
       ['compute/continuum/test_continuum.py', 'test_sign_and_verify_capsule'],
+      ['foundry/archie-protocol/latent_world_benchmark/research/test_frozen_operation_probe.py', 'test_artifact_receipt_is_fail_closed', 'test_state_dict_digest_changes_with_parameter'],
       ['scripts/tests/supply-chain-contract.test.mjs', 'read-only proof workflows disable persisted checkout credentials']
     ]),
     denyWitness: references([
       ['compute/continuum/test_continuum.py', 'test_tampering_is_rejected', 'test_promotion_is_fail_closed'],
+      ['.github/workflows/archie-operation-identity-frozen-probe-v1.yml', 'Enforce distinct POK-185 execution boundary', 'executor_training_performed'],
       ['.github/workflows/archie-productize-winner.yml', 'promotion'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'promotion']
     ])
@@ -83,6 +87,7 @@ const researchWorkflowRows = [
     },
     status: 'enforced',
     surfaces: [
+      'workflow-permission:.github/workflows/archie-operation-identity-frozen-probe-v1.yml:actions:read',
       'workflow-permission:.github/workflows/archie-productize-winner.yml:actions:read',
       'workflow-permission:.github/workflows/archie-radial-mechanism-probe.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:actions:read',
@@ -92,6 +97,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-typed-program-student.yml:actions:read'
     ],
     implementation: references([
+      ['.github/workflows/archie-operation-identity-frozen-probe-v1.yml', 'actions: read', 'TERMINAL_ARTIFACT_ID', 'CAMPAIGN_ARTIFACT_ID', 'Download exact immutable artifacts by ID'],
       ['.github/workflows/archie-productize-winner.yml', 'actions: read', 'gh run download'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'actions: read', 'gh run download', 'Independently verify source evidence'],
       ['.github/workflows/archie-register-v4-admission.yml', 'actions: read'],
@@ -100,11 +106,13 @@ const researchWorkflowRows = [
       ['.github/workflows/archie-typed-program-student.yml', 'actions: read']
     ]),
     allowWitness: references([
+      ['.github/workflows/archie-operation-identity-frozen-probe-v1.yml', 'Verify terminal checkpoint inventory', 'Independently verify canonical campaign artifact'],
       ['.github/workflows/archie-productize-winner.yml', 'Independently verify source campaign'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'Independently verify source evidence'],
       ['.github/workflows/archie-terminal-run-observer.yml', 'receipt.json', 'SHA256SUMS']
     ]),
     denyWitness: references([
+      ['.github/workflows/archie-operation-identity-frozen-probe-v1.yml', 'test "$TERMINAL_ARTIFACT_ID" = "8510576517"', 'test "$CAMPAIGN_ARTIFACT_ID" = "8504094525"'],
       ['.github/workflows/archie-productize-winner.yml', 'test -n "$evidence"'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'test -n "$evidence"'],
       ['.github/workflows/archie-terminal-run-observer.yml', 'Enforce observed completion']
