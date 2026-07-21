@@ -127,6 +127,7 @@ jobs:
           from pathlib import Path
 
           report = json.loads(Path("artifacts/radial-probe/radial-probe-report.json").read_text())
+          assert report["promotion"] == "not-admitted", report["promotion"]
           decision = report["decision"]
           delta = decision["deltas_vs_neural_interpreter"]
           stats = report["radial"]["statistics"]
