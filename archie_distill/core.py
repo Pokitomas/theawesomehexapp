@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
@@ -11,20 +12,19 @@ from collections import Counter
 from typing import Any, Iterable
 
 SCHEMA_CONFIG = "archie-distill-config/v1"
-SCHEMA_COLLECTION = "archie-distill-collection/v1"
+SCHEMA_COLLECTION = "archie-distill-collection/v2"
 SCHEMA_TRAINING = "archie-distill-training/v1"
-SCHEMA_EVALUATION = "archie-distill-evaluation/v1"
-SCHEMA_SELECTION = "archie-distill-selection/v1"
+SCHEMA_PREFERENCE_DATASET = "archie-causal-preference-dataset/v1"
+SCHEMA_PREFERENCE_TRAINING = "archie-causal-preference-training/v1"
+SCHEMA_EVALUATION = "archie-distill-evaluation/v2"
+SCHEMA_SELECTION = "archie-distill-selection/v2"
+SCHEMA_FUSION = "archie-adapter-fusion/v1"
+SCHEMA_REPRODUCTION = "archie-independent-reproduction/v1"
+SCHEMA_GATE = "archie-research-gate/v1"
 
 _REASONING_KEYS = {
-    "analysis",
-    "reasoning",
-    "rationale",
-    "chain_of_thought",
-    "chain-of-thought",
-    "scratchpad",
-    "thoughts",
-    "thinking",
+    "analysis", "reasoning", "rationale", "chain_of_thought", "chain-of-thought",
+    "scratchpad", "thoughts", "thinking",
 }
 _REASONING_BLOCK = re.compile(
     r"<(?:think|thinking|analysis|reasoning|scratchpad)>.*?</(?:think|thinking|analysis|reasoning|scratchpad)>",
@@ -59,14 +59,24 @@ def manifest(root: pathlib.Path) -> list[dict[str, Any]]:
         return []
     rows: list[dict[str, Any]] = []
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
-        rows.append(
-            {
-                "path": path.relative_to(root).as_posix(),
-                "bytes": path.stat().st_size,
-                "sha256": sha256_file(path),
-            }
-        )
+        rows.append({
+            "path": path.relative_to(root).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        })
     return rows
+
+
+def directory_identity(root: pathlib.Path, *, include_files: bool = False) -> dict[str, Any]:
+    files = manifest(root)
+    value: dict[str, Any] = {
+        "digest": sha256_text(stable_json(files)),
+        "file_count": len(files),
+        "bytes": sum(int(item["bytes"]) for item in files),
+    }
+    if include_files:
+        value["files"] = files
+    return value
 
 
 def read_json(path: pathlib.Path) -> dict[str, Any]:
@@ -126,24 +136,16 @@ def _drop_reasoning(value: Any) -> Any:
 
 
 def extract_final(raw: str) -> tuple[str, float | None]:
-    """Return only a teacher's final answer and optional confidence.
-
-    Reasoning-tag blocks and reasoning-shaped JSON fields are deleted before
-    anything is admitted to the training dataset. Raw responses are never
-    required by downstream code.
-    """
-
+    """Return only a teacher final answer and optional confidence."""
     text = _REASONING_BLOCK.sub("", str(raw)).strip()
     fenced = _CODE_FENCE.match(text)
     if fenced:
         text = fenced.group(1).strip()
-
     confidence: float | None = None
     try:
         value = json.loads(text)
     except json.JSONDecodeError:
         value = None
-
     if isinstance(value, dict):
         clean = _drop_reasoning(value)
         for key in ("confidence", "score", "certainty"):
@@ -158,7 +160,6 @@ def extract_final(raw: str) -> tuple[str, float | None]:
                 break
         else:
             text = stable_json(clean)
-
     text = _REASONING_BLOCK.sub("", text).strip()
     text = _FINAL_PREFIX.sub("", text).strip()
     return text, confidence
@@ -177,9 +178,7 @@ def estimated_tokens(value: str) -> int:
 
 
 def answer_quality(answer: str, max_output_tokens: int) -> float:
-    if not answer.strip():
-        return float("-inf")
-    if _REASONING_BLOCK.search(answer):
+    if not answer.strip() or _REASONING_BLOCK.search(answer):
         return float("-inf")
     token_count = estimated_tokens(answer)
     if token_count > max_output_tokens:
@@ -189,23 +188,16 @@ def answer_quality(answer: str, max_output_tokens: int) -> float:
     return printable + concise_bonus
 
 
-def choose_consensus(
-    candidates: list[dict[str, Any]],
-    *,
-    max_output_tokens: int,
-) -> tuple[dict[str, Any], dict[str, Any]]:
+def choose_consensus(candidates: list[dict[str, Any]], *, max_output_tokens: int) -> tuple[dict[str, Any], dict[str, Any]]:
     valid = [
-        candidate
-        for candidate in candidates
+        candidate for candidate in candidates
         if answer_quality(str(candidate.get("answer", "")), max_output_tokens) != float("-inf")
     ]
     if not valid:
         raise ValueError("No valid teacher answers")
-
     groups: dict[str, list[dict[str, Any]]] = {}
     for candidate in valid:
         groups.setdefault(normalize_answer(str(candidate["answer"])), []).append(candidate)
-
     winning_key, winning_group = max(
         groups.items(),
         key=lambda item: (
@@ -223,14 +215,33 @@ def choose_consensus(
         ),
     )
     counts = Counter(normalize_answer(str(row["answer"])) for row in valid)
-    metadata = {
+    return winner, {
         "agreement": len(winning_group),
         "candidate_count": len(valid),
         "distinct_answers": len(groups),
         "winning_normalized_sha256": sha256_text(winning_key),
         "answer_histogram": sorted(counts.values(), reverse=True),
     }
-    return winner, metadata
+
+
+def sanitized_rejections(candidates: list[dict[str, Any]], winner: dict[str, Any]) -> list[dict[str, Any]]:
+    winning = normalize_answer(str(winner.get("answer", "")))
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for candidate in sorted(candidates, key=lambda item: (int(item.get("priority", 0)), str(item.get("teacher_id", "")))):
+        answer = str(candidate.get("answer") or "").strip()
+        normalized = normalize_answer(answer)
+        if not answer or normalized == winning or normalized in seen:
+            continue
+        seen.add(normalized)
+        rows.append({
+            "answer": answer,
+            "answer_sha256": sha256_text(answer),
+            "teacher_id": str(candidate.get("teacher_id") or "unknown"),
+            "confidence": candidate.get("confidence"),
+            "source": "teacher-disagreement-final-answer",
+        })
+    return rows
 
 
 def should_verify(prompt_id: str, *, seed: int, verify_rate: float) -> bool:
@@ -261,21 +272,87 @@ def token_f1(prediction: str, references: list[str]) -> float:
     return best
 
 
-def score_answer(prediction: str, references: list[str]) -> dict[str, float]:
+def _numeric_score(prediction: str, references: list[str], tolerance: float) -> dict[str, float]:
+    try:
+        predicted = float(normalize_answer(prediction))
+    except ValueError:
+        return {"exact": 0.0, "token_f1": token_f1(prediction, references), "combined": 0.0}
+    distances: list[float] = []
+    exact = 0.0
+    for reference in references:
+        try:
+            expected = float(normalize_answer(reference))
+        except ValueError:
+            continue
+        distance = abs(predicted - expected)
+        distances.append(distance)
+        if distance <= tolerance:
+            exact = 1.0
+    if not distances:
+        return {"exact": 0.0, "token_f1": token_f1(prediction, references), "combined": 0.0}
+    scale = max(1.0, min(abs(float(normalize_answer(item))) for item in references if _is_float(normalize_answer(item))))
+    closeness = max(0.0, 1.0 - min(distances) / scale)
+    return {"exact": exact, "token_f1": closeness, "combined": 0.8 * exact + 0.2 * closeness}
+
+
+def _is_float(value: str) -> bool:
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _json_score(prediction: str, references: list[str]) -> dict[str, float]:
+    try:
+        predicted = json.loads(prediction)
+    except json.JSONDecodeError:
+        return {"exact": 0.0, "token_f1": token_f1(prediction, references), "combined": 0.0}
+    for reference in references:
+        try:
+            expected = json.loads(reference)
+        except json.JSONDecodeError:
+            continue
+        if predicted == expected:
+            return {"exact": 1.0, "token_f1": 1.0, "combined": 1.0}
+    return {"exact": 0.0, "token_f1": token_f1(stable_json(predicted), references), "combined": 0.2 * token_f1(stable_json(predicted), references)}
+
+
+def score_answer(
+    prediction: str,
+    references: list[str],
+    *,
+    evaluator: str = "text",
+    tolerance: float = 0.0,
+) -> dict[str, float]:
+    evaluator = evaluator.casefold()
+    if evaluator in {"number", "numeric", "float"}:
+        return _numeric_score(prediction, references, tolerance)
+    if evaluator in {"json", "structured-json"}:
+        return _json_score(prediction, references)
     exact = float(any(normalize_answer(prediction) == normalize_answer(item) for item in references))
     f1 = token_f1(prediction, references)
     return {"exact": exact, "token_f1": f1, "combined": 0.8 * exact + 0.2 * f1}
 
 
-def select_best(receipts: list[dict[str, Any]], *, minimum_score: float) -> dict[str, Any]:
-    eligible = [
-        receipt
-        for receipt in receipts
-        if receipt.get("schema") == SCHEMA_EVALUATION
-        and float(receipt.get("metrics", {}).get("combined", -1.0)) >= minimum_score
-    ]
+def select_best(
+    receipts: list[dict[str, Any]],
+    *,
+    minimum_score: float,
+    require_non_regression: bool = True,
+) -> dict[str, Any]:
+    eligible = []
+    for receipt in receipts:
+        if receipt.get("schema") != SCHEMA_EVALUATION:
+            continue
+        if float(receipt.get("metrics", {}).get("combined", -1.0)) < minimum_score:
+            continue
+        gate = receipt.get("comparison") or {}
+        if require_non_regression and gate and gate.get("non_regression_passed") is not True:
+            continue
+        eligible.append(receipt)
     if not eligible:
-        raise ValueError("No evaluation receipt meets the minimum score")
+        raise ValueError("No evaluation receipt meets the score and non-regression requirements")
     return max(
         eligible,
         key=lambda receipt: (
@@ -285,3 +362,15 @@ def select_best(receipts: list[dict[str, Any]], *, minimum_score: float) -> dict
             str(receipt.get("adapter", {}).get("digest", "")),
         ),
     )
+
+
+def metric_delta(candidate: dict[str, Any], baseline: dict[str, Any]) -> dict[str, float]:
+    keys = sorted(set(candidate) | set(baseline))
+    return {key: float(candidate.get(key, 0.0)) - float(baseline.get(key, 0.0)) for key in keys}
+
+
+def finite_number(value: Any, *, name: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{name} must be finite")
+    return number
