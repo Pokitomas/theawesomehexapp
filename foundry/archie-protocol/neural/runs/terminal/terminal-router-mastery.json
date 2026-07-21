@@ -1,0 +1,94 @@
+{
+  "schema": "archie-terminal-router-mastery/v1",
+  "production": {
+    "changed": false,
+    "promotion": "not-admitted",
+    "runtime": "admitted register-aware router"
+  },
+  "transformer": {
+    "source_head": "c8260ac20cab9790d016ad452961a7fd750190c3",
+    "workflow_run_id": 29791875543,
+    "artifact_id": 8480797657,
+    "artifact_digest": "sha256:d79ef41a6dbea07949f823987d868d21bc74492007e6a9b648c95174d6e8f1bd",
+    "receipt_digest": "0d39f19e63bb6bc8b96465190e7373b8dfd65ca6296fd9dd369560f0a058f924",
+    "d_identity": {
+      "schema": "archie-run-d-identity/v5",
+      "artifact_run_id": 29790064778,
+      "artifact_digest": "sha256:0dd521bed9d1322fd51267db0f1ca0e3867a770c7f6aa84d2e98b2ae31ad254e",
+      "train_digest_matches_c": true,
+      "vocabulary_matches_c": true,
+      "d_weights_sha256": "b6f49baf5566252c9502874214a7a8ced5d255eb88fe7f03a461772b3670f5bb",
+      "e_selected_epoch": 0,
+      "e_protected_bit_exact": true,
+      "e_protected_sha256": "8d79823fec72171b237ab5637076342ba2c9c5e96d3a6b7b75ed65a871639752"
+    },
+    "metrics": {
+      "B": {
+        "blind_full": 0.543124,
+        "blind_route": 0.615385,
+        "legacy": {"router-v2-original-heldout": 0.630522, "router-real-v2-heldout": 0.416667, "router-real-v3-final": 0.395833},
+        "weights_sha256": "0cb5433ec627aaa5199f84ad5c407a72135f6eab31d56caf137b6cc7ff08be19"
+      },
+      "C": {
+        "blind_full": 0.156177,
+        "blind_route": 0.456876,
+        "legacy": {"router-v2-original-heldout": 0.550201, "router-real-v2-heldout": 0.35, "router-real-v3-final": 0.25},
+        "weights_sha256": "1042488d8bb0ee84ed583e59552133222a36510843c246468e27cd1eeecf499e"
+      },
+      "D": {
+        "blind_full": 0.505828,
+        "blind_route": 0.578089,
+        "legacy": {"router-v2-original-heldout": 0.646586, "router-real-v2-heldout": 0.433333, "router-real-v3-final": 0.333333},
+        "weights_sha256": "b6f49baf5566252c9502874214a7a8ced5d255eb88fe7f03a461772b3670f5bb"
+      },
+      "E": {
+        "blind_full": 0.505828,
+        "blind_route": 0.578089,
+        "legacy": {"router-v2-original-heldout": 0.646586, "router-real-v2-heldout": 0.433333, "router-real-v3-final": 0.333333},
+        "weights_sha256": "b6f49baf5566252c9502874214a7a8ced5d255eb88fe7f03a461772b3670f5bb"
+      },
+      "H2": {
+        "blind_full": 0.529138,
+        "blind_route": 0.60373,
+        "legacy": {"router-v2-original-heldout": 0.614458, "router-real-v2-heldout": 0.316667, "router-real-v3-final": 0.229167},
+        "weights_sha256": "b0dbd5d805fef06c8b0ba14c5081e4f26253d9984422621a56fbfb96fa0cbc9a"
+      }
+    },
+    "h2_selected_epoch": 7,
+    "finding": "Mass-matched authored diversity did not improve blind full accuracy and reduced all three exact legacy scores."
+  },
+  "factorized": {
+    "source_head": "30c6cbddd60f72aec31774a185da6fbed8c5ab2c",
+    "workflow_run_id": 29800088006,
+    "artifact_id": 8483432437,
+    "artifact_digest": "sha256:eec4431e877758acf819748950587bcb03b3513f3b8114eaea37257223771b01",
+    "summary_digest": "2c4cc925b457817448a801730b96d7b9b71159ba5200c0945652944a2ed567d4",
+    "route": {
+      "selected_spec": {"audit_repeat": 1, "structural_share": 0.15, "route_temperature": 0.55},
+      "baseline_blind_full": 0.8997668997668997,
+      "selected_blind_full": 0.8531468531468531,
+      "selected_semantic_only_blind": 0.8059071729957806,
+      "selected_legacy_controller_route": {"router-v2-original-heldout": 0.5582329317269076, "router-real-v2-heldout": 0.48333333333333334, "router-real-v3-final": 0.4166666666666667},
+      "model_sha256": "e22aaca98c41bce9aa1fd5467cd1fe6405a7c288f4afe43ad62798f57e41a8c6",
+      "receipt_digest": "fe6f21818b24e44fdc7dc1a17a400c1e0dab524aee091e02403bbc581080d45a",
+      "comparison_digest": "5ecc1c3528a95943877790d3ba39abfc0060adaaa59e39b80e6ff3e0be9b948b"
+    },
+    "compound": {
+      "selected_spec": {"structural_share": 0.3, "audit_share": 0.3, "compound_threshold": 0.6000000000000001, "route_temperature": 0.8500000000000001},
+      "baseline_blind_full": 0.8904428904428905,
+      "selected_blind_full": 0.8974358974358975,
+      "baseline_ordered_compound": {"examples": 30, "correct": 15, "accuracy": 0.5},
+      "selected_ordered_compound": {"examples": 30, "correct": 16, "accuracy": 0.5333333333333333},
+      "selected_legacy_controller_route": {"router-v2-original-heldout": 0.6224899598393574, "router-real-v2-heldout": 0.4666666666666667, "router-real-v3-final": 0.5208333333333334},
+      "model_sha256": "cc0db4d3beeffbd6c8dd890fea79b4655a47122071e3e4ed91b473715605f0de",
+      "receipt_digest": "31e8531749613f1c88e1582b5c5bd1ee3b9bf2def84fe79a28f29f2341cc14e2",
+      "comparison_digest": "afffefdacd3e892e4e9ed640a66ced7a1e67859dc2e0749789d12a3bdaf9a970"
+    },
+    "finding": "The learned compound stack reached 89.7% blind full, but legacy retention stayed mixed and the 429 pack was iterative evidence."
+  },
+  "decision": {
+    "status": "not-admitted",
+    "reason": "No candidate clears a new untouched full-runtime pack plus authority, context, abstention, packaging, parity, and resource gates."
+  },
+  "receipt_digest": "8fe6a6dd2bbd10c19e8e5b6f4b9a189b01635068bf4fba684ed7480a3e2534e7"
+}
