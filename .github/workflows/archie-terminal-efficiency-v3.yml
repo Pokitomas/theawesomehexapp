@@ -1,6 +1,11 @@
 name: Archie terminal efficiency v3
 
 on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+    paths:
+      - .github/workflows/archie-terminal-efficiency-v3.yml
   push:
     branches:
       - agent/archie-generalized-program-v1-20260721
@@ -18,6 +23,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  diagnose-prior-failure:
+    if: github.event_name == 'pull_request'
+    name: Extract prior terminal failure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FAILED_JOB_ID: "88736586210"
+    steps:
+      - name: Download exact failed job log
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics
+          gh api "/repos/$GITHUB_REPOSITORY/actions/jobs/$FAILED_JOB_ID/logs" > diagnostics/job-$FAILED_JOB_ID.log
+          tail -n 180 diagnostics/job-$FAILED_JOB_ID.log | tee diagnostics/tail.log
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-terminal-failure-diagnostic-${{ github.run_id }}
+          path: diagnostics
+          if-no-files-found: error
+          retention-days: 7
+
   train:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-terminal-v3]'))
     name: Adaptive full-state terminal training
