@@ -42,7 +42,7 @@ const researchWorkflowRows = [
       ['.github/workflows/archie-causal-mechanism-full-budget.yml', 'permissions:', 'contents: read', 'Independently verify evidence bundle'],
       ['.github/workflows/archie-productize-winner.yml', 'contents: read', 'shadow-product-not-admitted'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'contents: read', 'promotion'],
-      ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'verdict'],
+      ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-typed-program-student.yml', 'contents: read', 'promotion']
     ]),
     allowWitness: references([
