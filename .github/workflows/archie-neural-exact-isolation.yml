@@ -1,4 +1,4 @@
-name: Exact Archie pre-finetune isolation
+name: True Archie real-dominant isolation
 
 on:
   pull_request:
@@ -10,14 +10,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: archie-neural-exact-isolation-${{ github.event.pull_request.number || github.ref }}
+  group: archie-neural-true-isolation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
   isolate:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - name: Check out exact candidate head
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -35,7 +35,7 @@ jobs:
       - name: Install numerical dependencies
         run: python -m pip install --upgrade numpy scipy scikit-learn joblib
 
-      - name: Verify exact retained inputs
+      - name: Verify retained inputs and invalidate surrogate checkpoint
         shell: bash
         run: |
           set -euo pipefail
@@ -45,6 +45,7 @@ jobs:
 
           root = Path('foundry/archie-protocol/neural')
           data = root / 'data'
+          runs = root / 'runs'
           rows = json.loads((data / 'route-train-v6.json').read_text())
           if len(rows) != 925:
               raise SystemExit(f'expected 925 governed rows, found {len(rows)}')
@@ -53,7 +54,7 @@ jobs:
               'router-real-v2-heldout.jsonl': 60,
               'router-real-v3-final.jsonl': 48,
           }
-          manifest = {'schema': 'archie-exact-isolation-inputs/v1', 'files': {}}
+          manifest = {'schema': 'archie-true-isolation-inputs/v1', 'files': {}}
           for name, count in suites.items():
               path = data / name
               actual = sum(1 for line in path.read_text().splitlines() if line.strip())
@@ -64,48 +65,67 @@ jobs:
           manifest['files']['route-train-v6.json'] = {'rows': len(rows), 'sha256': hashlib.sha256(corpus.read_bytes()).hexdigest()}
           frozen = root.parent / 'factorized' / 'blind-challenge-pack.frozen.json'
           manifest['files']['blind-challenge-pack.frozen.json'] = {'sha256': hashlib.sha256(frozen.read_bytes()).hexdigest()}
-          checkpoint = root / 'runs' / 'npt-E-frozen-backbone-seed424243-pre-finetune.npz'
-          manifest['files'][checkpoint.name] = {'sha256': hashlib.sha256(checkpoint.read_bytes()).hexdigest(), 'bytes': checkpoint.stat().st_size}
-          source = root / 'runs' / 'npt-realdom-d128-seed424243-receipt.json'
-          manifest['files'][source.name] = {'sha256': hashlib.sha256(source.read_bytes()).hexdigest()}
-          out = Path('.tmp/exact-isolation')
+          b = runs / 'npt-sw-d128-seed424243.npz'
+          surrogate = runs / 'npt-E-frozen-backbone-seed424243-pre-finetune.npz'
+          b_sha = hashlib.sha256(b.read_bytes()).hexdigest()
+          surrogate_sha = hashlib.sha256(surrogate.read_bytes()).hexdigest()
+          if b_sha != surrogate_sha:
+              raise SystemExit('surrogate checkpoint is no longer byte-identical to run B; re-audit before proceeding')
+          manifest['invalid_surrogate'] = {
+              'file': surrogate.name,
+              'sha256': surrogate_sha,
+              'equals_run_b': True,
+              'reason': 'Cannot measure the real-dominant main phase because it is byte-identical to run B.'
+          }
+          out = Path('.tmp/true-isolation')
           out.mkdir(parents=True, exist_ok=True)
           (out / 'input-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
           print(json.dumps(manifest, indent=2))
           PY
 
-      - name: Evaluate exact pre-finetune checkpoint as run D
-        shell: bash
+      - name: Verify trainer contracts
+        working-directory: foundry/archie-protocol/neural
         run: |
           set -euo pipefail
-          python foundry/archie-protocol/neural/protected_finetune.py \
-            --source-receipt foundry/archie-protocol/neural/runs/npt-realdom-d128-seed424243-receipt.json \
-            --source-weights foundry/archie-protocol/neural/runs/npt-E-frozen-backbone-seed424243-pre-finetune.npz \
-            --real-rows foundry/archie-protocol/neural/data/route-train-v6.json \
-            --legacy-dir foundry/archie-protocol/neural/data \
-            --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
-            --out .tmp/exact-isolation \
-            --tag npt-realdom-noft-exact-d128 \
-            --epochs 0 \
-            --batch 64 \
-            --lr 0.0001 \
-            --real-repeat 3 \
-            --replay-ratio 1.0 \
-            --proximal 0.001 \
-            --label-smoothing 0.05
+          python np_transformer.py --gradcheck
+          python test_np_transformer.py
+          python -m py_compile protected_finetune.py
 
-      - name: Adapt exact checkpoint with frozen trunk as run E
+      - name: Train true run D without post-hoc fine-tuning
+        shell: bash
+        run: |
+          set -euo pipefail
+          python foundry/archie-protocol/neural/np_transformer.py \
+            --seed 424243 \
+            --d 128 \
+            --layers 2 \
+            --heads 4 \
+            --tmax 84 \
+            --epochs 8 \
+            --batch 64 \
+            --lr 0.0022 \
+            --drop 0.10 \
+            --scale 3 \
+            --real-rows foundry/archie-protocol/neural/data/route-train-v6.json \
+            --real-repeat 15 \
+            --finetune-epochs 0 \
+            --legacy-dir foundry/archie-protocol/neural/data \
+            --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
+            --out .tmp/true-isolation \
+            --tag npt-realdom-noft-true-d128
+
+      - name: Adapt true run D with frozen trunk as run E
         shell: bash
         run: |
           set -euo pipefail
           python foundry/archie-protocol/neural/protected_finetune.py \
-            --source-receipt .tmp/exact-isolation/npt-realdom-noft-exact-d128-seed424243-receipt.json \
-            --source-weights .tmp/exact-isolation/npt-realdom-noft-exact-d128-seed424243.npz \
+            --source-receipt .tmp/true-isolation/npt-realdom-noft-true-d128-seed424243-receipt.json \
+            --source-weights .tmp/true-isolation/npt-realdom-noft-true-d128-seed424243.npz \
             --real-rows foundry/archie-protocol/neural/data/route-train-v6.json \
             --legacy-dir foundry/archie-protocol/neural/data \
             --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
-            --out .tmp/exact-isolation \
-            --tag npt-realdom-headsafe-exact-d128 \
+            --out .tmp/true-isolation \
+            --tag npt-realdom-headsafe-true-d128 \
             --epochs 4 \
             --batch 64 \
             --lr 0.0001 \
@@ -114,7 +134,7 @@ jobs:
             --proximal 0.001 \
             --label-smoothing 0.05
 
-      - name: Write exact causal comparison and fail-closed decision
+      - name: Write causal comparison and fail-closed decision
         shell: bash
         run: |
           set -euo pipefail
@@ -123,12 +143,12 @@ jobs:
           from pathlib import Path
 
           repo_runs = Path('foundry/archie-protocol/neural/runs')
-          out = Path('.tmp/exact-isolation')
+          out = Path('.tmp/true-isolation')
           names = {
               'B': repo_runs / 'npt-sw-d128-seed424243-receipt.json',
               'C': repo_runs / 'npt-realdom-d128-seed424243-receipt.json',
-              'D': out / 'npt-realdom-noft-exact-d128-seed424243-receipt.json',
-              'E': out / 'npt-realdom-headsafe-exact-d128-seed424243-receipt.json',
+              'D': out / 'npt-realdom-noft-true-d128-seed424243-receipt.json',
+              'E': out / 'npt-realdom-headsafe-true-d128-seed424243-receipt.json',
           }
           receipts = {key: json.loads(path.read_text()) for key, path in names.items()}
           suites = ['blind_429', 'router-v2-original-heldout', 'router-real-v2-heldout', 'router-real-v3-final']
@@ -144,12 +164,14 @@ jobs:
                   }
               return result
           rows = [compact(key) for key in ('B','C','D','E')]
-          d = receipts['D']; e = receipts['E']
-          d_protection = d['protection']; e_protection = e['protection']
-          if not d_protection['bit_exact'] or not e_protection['bit_exact']:
+          d, e = receipts['D'], receipts['E']
+          e_protection = e['protection']
+          if not e_protection['bit_exact']:
               raise SystemExit('protected parameter digest changed')
           if e_protection['protected_before_sha256'] != e_protection['protected_after_sha256']:
               raise SystemExit('run E protected digest mismatch')
+          if d['model']['weights_sha256'] == receipts['B']['model']['weights_sha256']:
+              raise SystemExit('true run D unexpectedly equals run B byte-for-byte')
           projection_gate = {
               'router-v2-original-heldout': 1.0,
               'router-real-v2-heldout': 1.0,
@@ -160,7 +182,7 @@ jobs:
           if promotion != 'not-admitted':
               raise SystemExit('unexpected admission; independent promotion review required')
           summary = {
-              'schema': 'archie-exact-prefinetune-isolation/v1',
+              'schema': 'archie-true-realdominant-isolation/v1',
               'inputs': json.loads((out / 'input-manifest.json').read_text()),
               'runs': rows,
               'd_minus_b_blind_full': d['results']['blind_429']['full_accuracy'] - receipts['B']['results']['blind_429']['full_accuracy'],
@@ -170,41 +192,41 @@ jobs:
               'run_e_protected_bit_exact': e_protection['bit_exact'],
               'run_e_protected_sha256': e_protection['protected_before_sha256'],
               'promotion': promotion,
-              'claim_boundary': 'D is the preserved pre-fine-tune checkpoint from run C evaluated against retained exact suites. E changes only Hroute/Hbroute and selects on generated development data before frozen evaluation.'
+              'claim_boundary': 'D is a fresh deterministic retraining of run C’s main phase with the exact retained corpus/config and finetune disabled. E changes only Hroute/Hbroute and selects on generated development data before frozen evaluation.'
           }
-          (out / 'exact-isolation-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          (out / 'true-isolation-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
 
           def pct(value): return '—' if value is None else f'{100*value:.1f}%'
           lines = [
-              '# Exact neural pre-fine-tune isolation', '',
-              'Run D evaluates the preserved run-C checkpoint immediately before the damaging shared-trunk fine-tune. Run E starts from D and permits only the route head to change, with synthetic replay and proximal anchoring; all shared and auxiliary arrays are digest-protected.', '',
+              '# True neural real-dominant isolation', '',
+              'The previously retained pre-fine-tune surrogate was byte-identical to run B and therefore invalid for corpus-mix isolation. Run D is the actual from-scratch deterministic rerun of run C’s main phase with the exact 925-row corpus, same seed/config, and no post-hoc fine-tune. Run E permits only the route head to change.', '',
               '| run | blind full | blind route | 498 | 60 | 48 | weights |',
               '|---|---:|---:|---:|---:|---:|---|',
           ]
           for row in rows:
               lines.append(f"| {row['run']} `{row['tag']}` | {pct(row['blind_429']['full_accuracy'])} | {pct(row['blind_429']['route_accuracy'])} | {pct(row['router-v2-original-heldout']['route_accuracy'])} | {pct(row['router-real-v2-heldout']['route_accuracy'])} | {pct(row['router-real-v3-final']['route_accuracy'])} | `{row['weights_sha256'][:16]}…` |")
           lines += ['', '## Decision', '',
-              f"- Removing run C’s fine-tune changes blind full accuracy by {summary['d_minus_c_blind_full']*100:+.1f} points.",
-              f"- Relative to run B, the real-dominant mix alone changes blind full accuracy by {summary['d_minus_b_blind_full']*100:+.1f} points.",
+              f"- Real-dominant training without fine-tuning changes blind full accuracy by {summary['d_minus_b_blind_full']*100:+.1f} points relative to B.",
+              f"- Removing C’s destructive fine-tune changes blind full accuracy by {summary['d_minus_c_blind_full']*100:+.1f} points.",
               f"- Protected route-head adaptation changes blind full accuracy by {summary['e_minus_d_blind_full']*100:+.1f} points and selected epoch {summary['run_e_selected_epoch']}.",
-              f"- Shared trunk and auxiliary heads are bit-exact: `{summary['run_e_protected_bit_exact']}` (`{summary['run_e_protected_sha256']}`).",
+              f"- Shared trunk and auxiliary heads are bit-exact in E: `{summary['run_e_protected_bit_exact']}` (`{summary['run_e_protected_sha256']}`).",
               f"- Promotion: `{promotion}`. Production remains unchanged.", '',
           ]
-          (out / 'EXACT_ISOLATION.md').write_text('\n'.join(lines))
+          (out / 'TRUE_ISOLATION.md').write_text('\n'.join(lines))
           print('\n'.join(lines))
           PY
 
-      - name: Upload exact digest-bound evidence
+      - name: Upload true digest-bound evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: archie-neural-exact-isolation-${{ github.event.pull_request.head.sha || github.sha }}
+          name: archie-neural-true-isolation-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            .tmp/exact-isolation/input-manifest.json
-            .tmp/exact-isolation/npt-realdom-noft-exact-d128-seed424243.npz
-            .tmp/exact-isolation/npt-realdom-noft-exact-d128-seed424243-receipt.json
-            .tmp/exact-isolation/npt-realdom-headsafe-exact-d128-seed424243.npz
-            .tmp/exact-isolation/npt-realdom-headsafe-exact-d128-seed424243-receipt.json
-            .tmp/exact-isolation/exact-isolation-summary.json
-            .tmp/exact-isolation/EXACT_ISOLATION.md
+            .tmp/true-isolation/input-manifest.json
+            .tmp/true-isolation/npt-realdom-noft-true-d128-seed424243.npz
+            .tmp/true-isolation/npt-realdom-noft-true-d128-seed424243-receipt.json
+            .tmp/true-isolation/npt-realdom-headsafe-true-d128-seed424243.npz
+            .tmp/true-isolation/npt-realdom-headsafe-true-d128-seed424243-receipt.json
+            .tmp/true-isolation/true-isolation-summary.json
+            .tmp/true-isolation/TRUE_ISOLATION.md
           if-no-files-found: error
           retention-days: 14
