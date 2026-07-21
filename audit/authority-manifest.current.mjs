@@ -50,7 +50,7 @@ const researchWorkflowRows = [
     ]),
     denyWitness: references([
       ['.github/workflows/archie-productize-winner.yml', 'promotion'],
-      ['.github/workflows/archie-radial-mechanism-probe.yml', 'not-admitted']
+      ['.github/workflows/archie-radial-mechanism-probe.yml', 'promotion']
     ])
   },
   {
