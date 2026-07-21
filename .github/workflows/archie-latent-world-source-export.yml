@@ -1,6 +1,12 @@
 name: Archie latent-world source export
 
 on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+    paths:
+      - .github/workflows/archie-latent-world-source-export.yml
+      - foundry/archie-protocol/latent_world_benchmark/**
   push:
     branches:
       - agent/archie-generalized-program-v1-20260721
