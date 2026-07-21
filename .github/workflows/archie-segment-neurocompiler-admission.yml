@@ -28,7 +28,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
       - name: Install CPU training stack
         run: python -m pip install --disable-pip-version-check numpy==2.2.6 scipy==1.15.3 scikit-learn==1.6.1
       - name: Download immutable development and hard-negative curricula
@@ -45,6 +44,11 @@ jobs:
           echo '83a2ce3f5944108be11e503a36319eafb9c79dce87411b5fba26bb1a703fc55a  /tmp/typed.zip' | sha256sum -c -
           unzip -q /tmp/typed.zip -d artifacts/source-typed
           sha256sum artifacts/source-typed/blind-pack.json
+      - name: Materialize digest-bound trainer
+        run: |
+          set -euo pipefail
+          python foundry/archie-protocol/neurocompiler/materialize.py
+          echo 'ae969bf646741db209f65fe452d08f1e071b0e292a6ab729906342a71200b658  foundry/archie-protocol/neurocompiler/train_neurocompiler.py' | sha256sum -c -
       - name: Compile sources
         run: |
           python -m py_compile \
@@ -56,6 +60,7 @@ jobs:
       - name: Train, cross-validate, quantize, and freeze
         run: |
           set -euo pipefail
+          mkdir -p artifacts/neurocompiler-candidate
           python foundry/archie-protocol/neurocompiler/train_neurocompiler.py \
             --development artifacts/source-v4/development-input.json \
             --typed-blind artifacts/source-typed/blind-pack.json \
