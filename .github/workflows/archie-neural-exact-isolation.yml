@@ -62,7 +62,7 @@ jobs:
               manifest['files'][name] = {'rows': actual, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
           corpus = data / 'route-train-v6.json'
           manifest['files']['route-train-v6.json'] = {'rows': len(rows), 'sha256': hashlib.sha256(corpus.read_bytes()).hexdigest()}
-          frozen = root / 'factorized' / 'blind-challenge-pack.frozen.json'
+          frozen = root.parent / 'factorized' / 'blind-challenge-pack.frozen.json'
           manifest['files']['blind-challenge-pack.frozen.json'] = {'sha256': hashlib.sha256(frozen.read_bytes()).hexdigest()}
           checkpoint = root / 'runs' / 'npt-E-frozen-backbone-seed424243-pre-finetune.npz'
           manifest['files'][checkpoint.name] = {'sha256': hashlib.sha256(checkpoint.read_bytes()).hexdigest(), 'bytes': checkpoint.stat().st_size}
