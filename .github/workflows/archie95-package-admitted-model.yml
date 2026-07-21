@@ -22,10 +22,87 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          persist-credentials: true
+          persist-credentials: false
           fetch-depth: 0
+
+      - name: Repair authority and supply-chain bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          checkout = 'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4'
+          upload = 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4'
+          download = 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4'
+
+          replacements = {
+              Path('.github/workflows/archie-register-v4-admission.yml'): {
+                  'actions/checkout@v4': checkout,
+                  'actions/upload-artifact@v4': upload,
+                  'actions/download-artifact@v4': download,
+              },
+              Path('.github/workflows/archie95-admitted-app.yml'): {
+                  'actions/checkout@v4': checkout,
+              },
+          }
+          for path, mapping in replacements.items():
+              text = path.read_text()
+              for old, new in mapping.items():
+                  text = text.replace(old, new)
+              path.write_text(text)
+
+          projection = Path('audit/authority-manifest.workflow-projection.mjs')
+          text = projection.read_text()
+          anchor = "  {\n    id: 'workflow.read-only-ci'"
+          if 'workflow.archie-register-artifact-verification' not in text:
+              rows = """  {
+    id: 'workflow.archie-register-artifact-verification', f: 'workflow', op: 'Verify exact register admission artifacts and the Archie 95 browser package through read-only GitHub Actions',
+    actor: 'GitHub push, pull-request, or manual actor', principal: 'Read-only GitHub Actions token executing the exact candidate head and reading immutable repository artifacts',
+    auth: 'contents:read and actions:read only', object: 'Immutable admission artifacts, hidden sealed packs, browser-package bytes, check results, and bounded evidence artifacts', owner: 'Repository CI configuration and GitHub Actions artifact retention',
+    deny: 'event or branch filter does not match|artifact is missing or expired|artifact or package digest differs|controller, parity, sealed replay, protected suite, or static serving check fails',
+    replay: 'Exact workflow run, candidate SHA, artifact IDs and digests, model and controller digests, sealed row outcomes, and invoked protected commands.',
+    pub: 'Public check status, bounded metrics, and artifact identifiers.', priv: 'GitHub token, artifact transport authorization, hidden seed material, and ephemeral runner files are discarded.', st: 'e',
+    s: [
+      'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:actions:read',
+      'workflow-permission:.github/workflows/archie-register-v4-admission.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-register-v4-admission.yml:actions:read',
+      'workflow-permission:.github/workflows/archie95-admitted-app.yml:contents:read',
+      'workflow-permission:.github/workflows/archie95-admitted-app.yml:actions:read'
+    ],
+    impl: [
+      ['.github/workflows/archie-register-v3-formal-negative.yml', 'contents: read', 'actions: read', 'persist-credentials: false'],
+      ['.github/workflows/archie-register-v4-admission.yml', 'contents: read', 'actions: read', 'persist-credentials: false'],
+      ['.github/workflows/archie95-admitted-app.yml', 'contents: read', 'actions: read', 'persist-credentials: false', 'Replay 1,800 sealed cases through browser package']
+    ],
+    allow: [['.github/workflows/archie95-admitted-app.yml', 'Verify package identity and app shell']],
+    denyW: [['.github/workflows/archie95-admitted-app.yml', 'sealed replay failed']]
+  },
+  {
+    id: 'workflow.archie95-package-admitted-model', f: 'workflow', op: 'Materialize the exact admitted V4 artifact into the bounded Archie 95 product branch',
+    actor: 'Repository-authorized push actor or explicit manual-dispatch actor; GitHub Actions bot pushes are excluded', principal: 'GitHub Actions token with actions:read and branch-scoped contents:write during one packaging job',
+    auth: 'actions:read to fetch one immutable admitted artifact and contents:write only to commit digest-bound generated model assets and governance repairs to agent/archie95-admitted-model-20260721',
+    object: 'Archie 95 controller, compressed model parts, package manifest and receipt, pinned workflow sources, authority-manifest rows, and one branch commit', owner: 'Repository owner retains review and merge authority; the workflow is bounded to the named product branch',
+    deny: 'actor is github-actions bot|source artifact or inner digest differs|browser reconstruction or route probes fail|governance patch anchor is absent|no staged change exists|branch push is rejected',
+    replay: 'Source artifact ID and digest, source report digest, candidate SHA, generated package digests, route probes, staged paths, commit SHA, and exact target branch.',
+    pub: 'Workflow status, generated assets, receipt, commit, and pull-request diff are public.', priv: 'GitHub token and artifact transport authorization remain private; no model source beyond the admitted public package is exposed.', st: 'e',
+    s: [
+      'workflow-permission:.github/workflows/archie95-package-admitted-model.yml:contents:write',
+      'workflow-permission:.github/workflows/archie95-package-admitted-model.yml:actions:read'
+    ],
+    impl: [['.github/workflows/archie95-package-admitted-model.yml', 'contents: write', 'actions: read', "github.actor != 'github-actions[bot]'", 'persist-credentials: false', '8487452814', 'Verify packaged browser runtime', 'agent/archie95-admitted-model-20260721']],
+    allow: [['.github/workflows/archie95-package-admitted-model.yml', 'Commit generated package']],
+    denyW: [['.github/workflows/archie95-package-admitted-model.yml', "github.actor != 'github-actions[bot]'"]]
+  },
+"""
+              if anchor not in text:
+                  raise SystemExit('authority projection insertion anchor missing')
+              text = text.replace(anchor, rows + anchor, 1)
+          projection.write_text(text)
+          PY
 
       - name: Download exact admitted package
         shell: bash
@@ -50,7 +127,6 @@ jobs:
           import hashlib
           import json
           import pathlib
-          import shutil
 
           source = pathlib.Path('/tmp/archie-v4/package')
           root = pathlib.Path('archie-operator/archie95')
@@ -150,13 +226,16 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add archie-operator/archie95/model.parts \
+          git add audit/authority-manifest.workflow-projection.mjs \
+                  .github/workflows/archie-register-v4-admission.yml \
+                  .github/workflows/archie95-admitted-app.yml \
+                  archie-operator/archie95/model.parts \
                   archie-operator/archie95/model-package.json \
                   archie-operator/archie95/package-receipt.json \
                   archie-operator/archie95/register-student-core-v4.mjs
           if git diff --cached --quiet; then
-            echo 'Package already exact.'
+            echo 'Package and governance bindings already exact.'
             exit 0
           fi
-          git commit -m 'Package admitted V4 model for Archie 95'
-          git push origin HEAD:agent/archie95-admitted-model-20260721
+          git commit -m 'Bind Archie 95 model package authority'
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:agent/archie95-admitted-model-20260721
