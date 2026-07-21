@@ -17,21 +17,29 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   export:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           persist-credentials: false
-      - name: Materialize digest-bound benchmark
-        run: python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+      - name: Materialize digest-bound benchmark and campaign
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
       - name: Record benchmark contract status
         continue-on-error: true
-        run: python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
-      - name: Package exact benchmark sources
+        shell: bash
+        run: |
+          python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
+          python3 foundry/archie-protocol/latent_world_benchmark/test_full_budget_campaign.py
+      - name: Package exact benchmark and campaign sources
         shell: bash
         run: |
           set -euo pipefail
@@ -39,15 +47,126 @@ jobs:
           out=artifacts/latent-world-source
           mkdir -p "$out"
           cp "$root/latent_world_benchmark.py" "$out/"
+          cp "$root/full_budget_campaign.py" "$out/"
+          cp "$root/full_budget_profile.json" "$out/"
+          cp "$root/FULL_BUDGET_CAMPAIGN.md" "$out/"
+          cp "$root/test_full_budget_campaign.py" "$out/"
           cp "$root/test_benchmark.py" "$out/"
           cp "$root/restore_checkpoints.py" "$out/"
           cp "$root/checkpoint-manifest.json" "$out/"
           cp "$root/unified_evaluation.json" "$out/"
           cp "$root/README.md" "$out/"
+          if test -f "$root/research/efficient_terminal_training.py"; then
+            mkdir -p "$out/research"
+            cp "$root/research/efficient_terminal_training.py" "$out/research/"
+          fi
           find "$out" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$out/SHA256SUMS"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: archie-latent-world-source-${{ github.run_id }}
           path: artifacts/latent-world-source
           if-no-files-found: error
           retention-days: 7
+
+  terminal-efficiency:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[terminal-efficiency]'))
+    name: Adaptive full-state terminal training
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: "29834460894"
+      SOURCE_ARTIFACT: archie-causal-mechanism-maximal-29834460894
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install CPU training runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Materialize and compile sealed sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+          cd foundry/archie-protocol/latent_world_benchmark
+          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py research/efficient_terminal_training.py
+          python3 test_full_budget_campaign.py
+      - name: Download verified maximal campaign artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-artifacts
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$SOURCE_ARTIFACT" --dir source-artifacts
+          evidence="$(find source-artifacts -type f -name evidence-bundle.json -print -quit)"
+          test -n "$evidence"
+          campaign_root="$(dirname "$evidence")"
+          echo "CAMPAIGN_ROOT=$GITHUB_WORKSPACE/$campaign_root" >> "$GITHUB_ENV"
+      - name: Independently verify source artifact
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py verify --output "$CAMPAIGN_ROOT"
+      - name: Run adaptive efficiency tournament
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf artifacts/terminal-efficiency-v3
+          python3 research/efficient_terminal_training.py \
+            --campaign-root "$CAMPAIGN_ROOT" \
+            --output artifacts/terminal-efficiency-v3 \
+            --scale base \
+            --rung1 192 \
+            --rung2 640 \
+            --rung3 1536 \
+            --batch-size 64 \
+            --eval-batch-size 32 \
+            --threads 4 \
+            | tee artifacts/terminal-efficiency-command.json
+      - name: Publish summary and digests
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=artifacts/terminal-efficiency-v3
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$root/SHA256SUMS"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/terminal-efficiency-v3/terminal-efficiency-report.json").read_text())
+          print("# Archie terminal efficiency v3")
+          print()
+          print(f"- Winner: `{report['winner']['name']}`")
+          print(f"- Allocation rungs: `{report['rung_steps']}`")
+          print(f"- Promotion: `{report['promotion']}`")
+          print(f"- Prior best legacy exact: `{report['historical_audit']['best_by_legacy_exact']['candidate']}`")
+          print(f"- Prior best legacy exact/FLOP: `{report['historical_audit']['best_by_legacy_exact_per_flop']['candidate']}`")
+          for record in report["records"]:
+              summary = record["sealed_canonical"]["summary"]
+              print(f"- Seed `{record['seed']}` full exact: `{summary['full_exact_terminal']:.6f}`; legacy-compatible exact: `{summary['exact_terminal']:.6f}`; first-divergence fraction: `{summary['first_divergence_fraction']:.6f}`")
+          print()
+          print("Corrected full exact includes queue occupancy and queue identity. Research-only; not admitted.")
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-terminal-efficiency-v3-${{ github.run_id }}
+          path: |
+            foundry/archie-protocol/latent_world_benchmark/artifacts/terminal-efficiency-v3
+            foundry/archie-protocol/latent_world_benchmark/artifacts/terminal-efficiency-command.json
+            foundry/archie-protocol/latent_world_benchmark/research/efficient_terminal_training.py
+          if-no-files-found: error
+          retention-days: 90
