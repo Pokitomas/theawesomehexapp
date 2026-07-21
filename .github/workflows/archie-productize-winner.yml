@@ -1,7 +1,7 @@
 name: Archie winner model and app
 
 on:
-  pull_request:
+  push:
     branches:
       - agent/archie-generalized-program-v1-20260721
     paths:
@@ -12,7 +12,7 @@ on:
       source_run_id:
         description: Completed causal-mechanism campaign run
         required: true
-        default: "29833720111"
+        default: "29834460894"
         type: string
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id || '29833720111' }}
+      SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id || '29834460894' }}
       OMP_NUM_THREADS: "4"
       MKL_NUM_THREADS: "4"
       OPENBLAS_NUM_THREADS: "4"
@@ -88,7 +88,7 @@ jobs:
           set -euo pipefail
           python3 full_budget_campaign.py verify --output "$CAMPAIGN_ROOT"
 
-      - name: Spend remaining 0.8 budget on selected winner
+      - name: Continue selected winner with 0.8x source budget
         working-directory: foundry/archie-protocol/latent_world_benchmark
         shell: bash
         run: |
