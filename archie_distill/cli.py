@@ -5,6 +5,7 @@ import json
 import pathlib
 from typing import Any
 
+from . import alchemy as alchemy_module
 from . import collect as collect_module
 from . import evaluate as evaluate_module
 from . import on_policy as on_policy_module
@@ -52,6 +53,13 @@ def main() -> None:
     )
     on_policy_module.configure_parser(on_policy_parser)
     on_policy_parser.set_defaults(handler=on_policy_module.run_from_args)
+
+    alchemy_parser = subparsers.add_parser(
+        "alchemy",
+        help="Explode student failures into divergence and self-prefix recovery SFT lessons",
+    )
+    alchemy_module.configure_parser(alchemy_parser)
+    alchemy_parser.set_defaults(handler=alchemy_module.run_from_args)
 
     pairs_parser = subparsers.add_parser(
         "pairs",
