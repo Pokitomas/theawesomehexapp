@@ -6,6 +6,7 @@ import pathlib
 from typing import Any
 
 from . import alchemy as alchemy_module
+from . import campaign as campaign_module
 from . import collect as collect_module
 from . import evaluate as evaluate_module
 from . import on_policy as on_policy_module
@@ -60,6 +61,13 @@ def main() -> None:
     )
     alchemy_module.configure_parser(alchemy_parser)
     alchemy_parser.set_defaults(handler=alchemy_module.run_from_args)
+
+    campaign_parser = subparsers.add_parser(
+        "campaign",
+        help="Run iterative rollout, fork-repair curriculum, QLoRA SFT, and frozen evaluation",
+    )
+    campaign_module.configure_parser(campaign_parser)
+    campaign_parser.set_defaults(handler=campaign_module.run_from_args)
 
     pairs_parser = subparsers.add_parser(
         "pairs",
