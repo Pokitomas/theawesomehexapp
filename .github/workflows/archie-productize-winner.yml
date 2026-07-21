@@ -67,7 +67,7 @@ jobs:
             product/world_state_app.py \
             product/test_winner_productization.py
           cd product
-          python3 -m unittest -v test_winner_productization.py
+          PYTHONPATH=.. python3 -m unittest -v test_winner_productization.py
 
       - name: Download completed campaign evidence
         shell: bash
