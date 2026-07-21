@@ -94,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf product-release
-          python3 product/winner_productization.py \
+          PYTHONPATH=. python3 product/winner_productization.py \
             --campaign "$CAMPAIGN_ROOT" \
             --output product-release \
             --fraction 0.8 \
