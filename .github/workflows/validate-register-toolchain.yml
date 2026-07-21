@@ -1,0 +1,49 @@
+name: Validate register toolchain chunks
+
+on:
+  push:
+    branches: [claude/archie-sprawl-training-5pe3i8]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  part00:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo '6a4c0e1c75d720a8d810ee2683735f9480fa92dd7642d470d1c20de3289939ea  foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part00' | sha256sum -c -
+  part01:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo 'e3042a3b5ea1347cebb082661325c801fd7a36ce7c52841ea4fca4899bd83cd5  foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part01' | sha256sum -c -
+  part02:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo '6c3a1d5047277ab5b586d681cb1d35842cd5db70b171df6ca3557e0dbf3038bc  foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part02' | sha256sum -c -
+  part03:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo 'ad449784cbbded713154fb8623c58167d9c85d56ae31b896bfba1a6077f1647a  foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part03' | sha256sum -c -
+  part04:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo '9e7ede2a34dceb3c29a34aee888c6b0cac0d89b88af079c96bc070d002440839  foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part04' | sha256sum -c -
+  part05:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo '796d1a2ed880dd19e9317e1a8802d71bad50a96e01de8fc8a4b4abb4b9afdde3  foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part05' | sha256sum -c -
+  archive:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cat foundry/archie-protocol/register_student/bundles/v2-toolchain.tar.gz.b64.part* | base64 -d > /tmp/v2-toolchain.tar.gz
+          sha256sum /tmp/v2-toolchain.tar.gz
+          tar -tzf /tmp/v2-toolchain.tar.gz
