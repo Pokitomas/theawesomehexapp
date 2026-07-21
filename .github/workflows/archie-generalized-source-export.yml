@@ -1,6 +1,9 @@
 name: Archie generalized source export
 
 on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
   push:
     branches:
       - agent/archie-generalized-program-v1-20260721
