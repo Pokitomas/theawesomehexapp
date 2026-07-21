@@ -35,6 +35,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/live-normalized
+          git rev-parse HEAD > /tmp/live-normalized/parent-commit.txt
+          git rev-parse 'HEAD^{tree}' > /tmp/live-normalized/base-tree.txt
           git diff --binary > /tmp/live-normalized/normalized.patch
           git status --porcelain=v1 -z > /tmp/live-normalized/status.z
           python3 - <<'PY'
