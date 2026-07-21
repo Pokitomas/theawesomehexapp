@@ -1,0 +1,255 @@
+name: Reproduce Archie run D and exact legacy retention
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-run-d-reproduction-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reproduce:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - name: Check out exact candidate head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install numerical dependencies
+        run: python -m pip install --upgrade numpy scipy scikit-learn joblib
+
+      - name: Materialize exact audit-backed evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/legacy foundry/archie-protocol/neural/runs/reproduction
+          python foundry/archie-protocol/neural/materialize_run_c_corpus.py \
+            --out .tmp/run-c-governed-route-corpus.json \
+            --manifest foundry/archie-protocol/neural/runs/reproduction/run-c-corpus.manifest.json
+          python foundry/archie-protocol/neural/materialize_legacy_suites.py \
+            --out .tmp/legacy \
+            --manifest foundry/archie-protocol/neural/runs/reproduction/legacy-suites.manifest.json
+
+      - name: Verify implementation contracts
+        working-directory: foundry/archie-protocol/neural
+        run: |
+          set -euo pipefail
+          python -m py_compile materialize_run_c_corpus.py materialize_legacy_suites.py evaluate_checkpoint_legacy.py
+          python np_transformer.py --gradcheck
+          python test_np_transformer.py
+
+      - name: Reproduce pre-fine-tune run D
+        run: |
+          set -euo pipefail
+          python foundry/archie-protocol/neural/np_transformer.py \
+            --seed 424243 \
+            --d 128 \
+            --layers 2 \
+            --heads 4 \
+            --tmax 84 \
+            --epochs 8 \
+            --batch 64 \
+            --lr 0.0022 \
+            --drop 0.10 \
+            --scale 3 \
+            --real-rows .tmp/run-c-governed-route-corpus.json \
+            --real-repeat 15 \
+            --finetune-epochs 0 \
+            --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
+            --out foundry/archie-protocol/neural/runs/reproduction \
+            --tag npt-run-d-reproduced-d128
+
+      - name: Prove run-D identity before accepting results
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          runs = Path('foundry/archie-protocol/neural/runs')
+          c = json.loads((runs / 'npt-realdom-d128-seed424243-receipt.json').read_text())
+          d_path = runs / 'reproduction/npt-run-d-reproduced-d128-seed424243-receipt.json'
+          d = json.loads(d_path.read_text())
+          manifest = json.loads((runs / 'reproduction/run-c-corpus.manifest.json').read_text())
+
+          expected = {
+              'seed': 424243,
+              'd': 128,
+              'layers': 2,
+              'heads': 4,
+              'tmax': 84,
+              'epochs': 8,
+              'batch': 64,
+              'lr': 0.0022,
+              'dropout': 0.1,
+              'scale': 3,
+              'real_repeat': 15,
+          }
+          for key, value in expected.items():
+              if d['config'].get(key) != value:
+                  raise SystemExit(f'run-D config mismatch {key}: {d["config"].get(key)!r} != {value!r}')
+          if d['config'].get('finetune_epochs') != 0:
+              raise SystemExit('run D unexpectedly fine-tuned')
+          if d['data']['real_language_rows'] != 13875 or d['data']['train_rows'] != 19635:
+              raise SystemExit('run-D row-count identity failed')
+          if d['data']['train_digest'] != c['data']['train_digest']:
+              raise SystemExit('run-D generated training-order digest differs from run C')
+          if d['data']['vocab_tokens'] != c['data']['vocab_tokens']:
+              raise SystemExit('run-D vocabulary differs from run C')
+          if d['data']['vocab'] != 3594 or d['model']['parameters'] != c['model']['parameters']:
+              raise SystemExit('run-D model identity failed')
+          if manifest['rows'] != 925 or manifest['corpus_sha256'] != '38d9df9c6f59d37c669cc3c3385172d2503995f5dc31e665d70941eb62ef8c57':
+              raise SystemExit('run-D corpus identity failed')
+
+          identity = {
+              'schema': 'archie-run-d-identity/v1',
+              'exact_run_c_corpus': True,
+              'corpus_sha256': manifest['corpus_sha256'],
+              'audit_archive_sha256': manifest['source_archive_sha256'],
+              'rows': manifest['rows'],
+              'train_rows': d['data']['train_rows'],
+              'real_language_rows': d['data']['real_language_rows'],
+              'train_digest_matches_run_c': True,
+              'vocabulary_matches_run_c': True,
+              'vocab': d['data']['vocab'],
+              'parameters': d['model']['parameters'],
+              'difference_from_run_c': 'post-hoc fine-tuning disabled',
+          }
+          (runs / 'reproduction/run-d-identity.json').write_text(json.dumps(identity, indent=2) + '\n')
+          print(json.dumps(identity, indent=2))
+          PY
+
+      - name: Download F and G evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: archie-neural-self-contained-9f16d1e880eec188556b6b139b6620315c45bb58
+          path: .tmp/fg
+          github-token: ${{ github.token }}
+          run-id: 29788732914
+
+      - name: Download H evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: archie-neural-masked-69f347c583682510eddcc69559116e9d826e4c4a
+          path: .tmp/h
+          github-token: ${{ github.token }}
+          run-id: 29789405141
+
+      - name: Evaluate every learned candidate on exact legacy suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNS=foundry/archie-protocol/neural/runs
+          OUT=$RUNS/reproduction
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$RUNS/npt-sw-d128-seed424243-receipt.json" \
+            --weights "$RUNS/npt-sw-d128-seed424243.npz" \
+            --legacy-dir .tmp/legacy --out "$OUT/legacy-B.json"
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$RUNS/npt-realdom-d128-seed424243-receipt.json" \
+            --weights "$RUNS/npt-realdom-d128-seed424243.npz" \
+            --legacy-dir .tmp/legacy --out "$OUT/legacy-C.json"
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$OUT/npt-run-d-reproduced-d128-seed424243-receipt.json" \
+            --weights "$OUT/npt-run-d-reproduced-d128-seed424243.npz" \
+            --legacy-dir .tmp/legacy --out "$OUT/legacy-D.json"
+          F_RECEIPT=$(find .tmp/fg -name 'npt-committed-authored-d128-seed424243-receipt.json' -print -quit)
+          F_WEIGHTS=$(find .tmp/fg -name 'npt-committed-authored-d128-seed424243.npz' -print -quit)
+          G_RECEIPT=$(find .tmp/fg -name 'npt-committed-headsafe-d128-seed424243-receipt.json' -print -quit)
+          G_WEIGHTS=$(find .tmp/fg -name 'npt-committed-headsafe-d128-seed424243.npz' -print -quit)
+          H_RECEIPT=$(find .tmp/h -name 'npt-authored-masked-d128-seed424243-receipt.json' -print -quit)
+          H_WEIGHTS=$(find .tmp/h -name 'npt-authored-masked-d128-seed424243.npz' -print -quit)
+          test -n "$F_RECEIPT" && test -n "$F_WEIGHTS" && test -n "$G_RECEIPT" && test -n "$G_WEIGHTS" && test -n "$H_RECEIPT" && test -n "$H_WEIGHTS"
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$F_RECEIPT" --weights "$F_WEIGHTS" \
+            --legacy-dir .tmp/legacy --out "$OUT/legacy-F.json"
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$G_RECEIPT" --weights "$G_WEIGHTS" \
+            --legacy-dir .tmp/legacy --out "$OUT/legacy-G.json"
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$H_RECEIPT" --weights "$H_WEIGHTS" \
+            --legacy-dir .tmp/legacy --out "$OUT/legacy-H.json"
+
+      - name: Write terminal comparison and non-promotion decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('foundry/archie-protocol/neural/runs')
+          out = root / 'reproduction'
+          receipts = {
+              'B': json.loads((root / 'npt-sw-d128-seed424243-receipt.json').read_text()),
+              'C': json.loads((root / 'npt-realdom-d128-seed424243-receipt.json').read_text()),
+              'D': json.loads((out / 'npt-run-d-reproduced-d128-seed424243-receipt.json').read_text()),
+          }
+          for directory, label, name in [
+              (Path('.tmp/fg'), 'F', 'npt-committed-authored-d128-seed424243-receipt.json'),
+              (Path('.tmp/fg'), 'G', 'npt-committed-headsafe-d128-seed424243-receipt.json'),
+              (Path('.tmp/h'), 'H', 'npt-authored-masked-d128-seed424243-receipt.json'),
+          ]:
+              path = next(directory.rglob(name))
+              receipts[label] = json.loads(path.read_text())
+          identity = json.loads((out / 'run-d-identity.json').read_text())
+          rows = []
+          for label in ('B', 'C', 'D', 'F', 'G', 'H'):
+              receipt = receipts[label]
+              blind = receipt['results']['blind_429']
+              legacy = json.loads((out / f'legacy-{label}.json').read_text())
+              rows.append({
+                  'run': label,
+                  'tag': receipt['tag'],
+                  'blind_full': blind['full_accuracy'],
+                  'blind_route': blind['route_accuracy'],
+                  'legacy_exact': legacy['exact_legacy_retention'],
+                  'legacy': {
+                      name: result['route_accuracy']
+                      for name, result in legacy['results'].items()
+                  },
+                  'weights_sha256': legacy['checkpoint_weights_sha256'],
+              })
+          best = max(rows, key=lambda row: row['blind_full'])
+          summary = {
+              'schema': 'archie-run-d-terminal-comparison/v1',
+              'identity': identity,
+              'runs': rows,
+              'best_blind_run': best['run'],
+              'best_blind_full': best['blind_full'],
+              'promotion': 'not-admitted',
+              'production_changed': False,
+              'reason': 'Exact run-D and legacy-route evidence are necessary but not sufficient. No learned candidate passes the complete protected capability, authority, context, abstention, ordered-outcome, runtime-parity, and resource admission contract.',
+          }
+          summary['receipt_digest'] = hashlib.sha256(json.dumps(summary, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+          (out / 'terminal-comparison.json').write_text(json.dumps(summary, indent=2) + '\n')
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Upload exact reproduction evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-run-d-reproduction-${{ github.event.pull_request.head.sha || github.sha }}
+          path: foundry/archie-protocol/neural/runs/reproduction
+          if-no-files-found: error
+          retention-days: 30
