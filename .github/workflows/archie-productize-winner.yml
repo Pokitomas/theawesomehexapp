@@ -14,6 +14,11 @@ on:
         required: true
         default: "29834460894"
         type: string
+      continuation_fraction:
+        description: Extra optimizer budget as a fraction of the source campaign
+        required: true
+        default: "8.0"
+        type: string
 
 permissions:
   contents: read
@@ -28,10 +33,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-winner]'))
     name: Select, continue-train, and package winner
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id || '29834460894' }}
+      CONTINUATION_FRACTION: ${{ github.event.inputs.continuation_fraction || '8.0' }}
       OMP_NUM_THREADS: "4"
       MKL_NUM_THREADS: "4"
       OPENBLAS_NUM_THREADS: "4"
@@ -89,7 +95,7 @@ jobs:
           set -euo pipefail
           python3 full_budget_campaign.py verify --output "$CAMPAIGN_ROOT"
 
-      - name: Continue selected winner with 0.8x source budget
+      - name: Continue selected winner with configured source budget
         working-directory: foundry/archie-protocol/latent_world_benchmark
         shell: bash
         run: |
@@ -98,7 +104,7 @@ jobs:
           PYTHONPATH=. python3 product/winner_productization.py \
             --campaign "$CAMPAIGN_ROOT" \
             --output product-release \
-            --fraction 0.8 \
+            --fraction "$CONTINUATION_FRACTION" \
             --batch-size 64 \
             --eval-batches 8 \
             --eval-batch-size 64 \
