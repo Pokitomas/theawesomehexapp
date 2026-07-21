@@ -244,11 +244,12 @@ const candidate = {
 await fs.writeFile(path.join(outputDir, 'candidate-manifest.json'), `${JSON.stringify(candidate, null, 2)}\n`);
 const admission = await evaluateStudentAdmission(candidate, { root: outputDir, target });
 await fs.writeFile(path.join(outputDir, 'formal-admission.json'), `${JSON.stringify(admission, null, 2)}\n`);
+const admitted = admission.decision === 'admitted-provider-neutral-student' && admission.launch_candidate_intelligence_binding !== null;
 
 const summary = {
   schema: 'archie-register-v3-formal-negative-summary/v1',
   decision: admission.decision,
-  admitted: admission.admitted,
+  admitted,
   blockers: admission.blockers,
   admission_digest: admission.admission_digest,
   custom_router_report_digest: customAdmission.report_digest,
@@ -257,4 +258,4 @@ const summary = {
 };
 await fs.writeFile(path.join(outputDir, 'formal-summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
-if (admission.admitted) throw new Error('Formal negative admission unexpectedly admitted the candidate.');
+if (admitted) throw new Error('Formal negative admission unexpectedly admitted the candidate.');
