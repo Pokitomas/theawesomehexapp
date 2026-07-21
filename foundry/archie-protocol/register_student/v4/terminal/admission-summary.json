@@ -1,0 +1,72 @@
+{
+  "admission_artifact": {
+    "digest": "sha256:a7e5bd92c4dc85cf11b40f047d7960ac8a3a8e2771de492c0aeb82468bb8ed83",
+    "id": 8486803126
+  },
+  "all_checks_passed": true,
+  "blockers": [],
+  "branch_head": "42787dd5f9c622cdd1b3e2ffe083ea4dacbf0627",
+  "check_count": 77,
+  "claim_boundary": "This admission covers the exact local register route model, V4 controller, context sufficiency, authority denial, abstention, negation, correction, and ordered composition behavior only. It is not provider-neutral maximal Archie student admission, embodiment admission, execution authorization, or launch admission.",
+  "decision": "admitted-register-router",
+  "evaluated_merge_commit": "fc67584b42f7f8c8a757ebfa080acc13eb928884",
+  "hidden": {
+    "accuracy": 1,
+    "correct": 1800,
+    "examples": 1800
+  },
+  "identities": {
+    "controller_v3_sha256": "98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71",
+    "controller_v4_sha256": "74ba2961c1baf7455837cc47925c3102f2500c5f90d8b0fe52e7a21d2a4e5b7e",
+    "model_module_sha256": "828980422423c40a6a858e0f64217db03cc326a5530d24dac5fbff5b8aeeccd4",
+    "model_sha256": "7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0",
+    "training_receipt_sha256": "98aab633c46765fc8e046090478a09bb347c0d58cec73c4ac95cec03919d948a"
+  },
+  "immutable_learned_weights": true,
+  "legacy": {
+    "router-real-v2-heldout": {
+      "accuracy": 1,
+      "correct": 60,
+      "examples": 60
+    },
+    "router-real-v3-final": {
+      "accuracy": 1,
+      "correct": 48,
+      "examples": 48
+    },
+    "router-v2-original-heldout": {
+      "accuracy": 1,
+      "correct": 498,
+      "examples": 498
+    }
+  },
+  "ordered_compound": {
+    "accuracy": 1,
+    "correct": 255,
+    "examples": 255
+  },
+  "packaged_model_bytes": 1442990,
+  "parity": {
+    "accuracy": 1,
+    "correct": 2406,
+    "examples": 2406,
+    "maximum_confidence_delta": 7.028294601862939e-08
+  },
+  "report_digest": "e98e300278761712816f5716572347cd17922f536a8c04887a748c94047df319",
+  "resources": {
+    "mean_latency_ms": 0.23653846094333505,
+    "p95_latency_ms": 0.507884,
+    "peak_rss_bytes": 121757696,
+    "predictions": 253337,
+    "predictions_per_second": 4222.253022834446,
+    "sample_count": 12,
+    "sustained_duration_ms": 60000.430725
+  },
+  "schema": "archie-register-v4-terminal-receipt/v1",
+  "scope": "local register routing only",
+  "sealed_artifact": {
+    "digest": "sha256:70cd0414f42ecb5ac5c136cb72321950545edeaa5f378cfca8ac7f3f21399590",
+    "id": 8486771611
+  },
+  "workflow_run_id": 29809363517
+}
