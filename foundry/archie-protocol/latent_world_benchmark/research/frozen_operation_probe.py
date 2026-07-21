@@ -272,12 +272,15 @@ def seed_interval(values: Iterable[float]) -> dict[str, float]:
     }
 
 
-def classify_result(hidden_accuracy: float, prim_accuracy: float, development_accuracy: float) -> str:
-    if development_accuracy >= 0.80 and hidden_accuracy < 0.20:
+def classify_result(hidden_interval: dict[str, float], majority_accuracy: float, development_accuracy: float) -> str:
+    near_chance = max(0.20, majority_accuracy + 0.05)
+    if development_accuracy >= 0.80 and hidden_interval["upper"] <= near_chance:
         return "development-success-untouched-collapse"
-    if hidden_accuracy >= max(0.20, prim_accuracy + 0.05):
+    if hidden_interval["lower"] >= 0.80:
         return "execution-representation-contains-linearly-recoverable-operation-information"
-    return "operation-identity-not-linearly-represented-in-execution-state"
+    if hidden_interval["upper"] <= near_chance:
+        return "operation-identity-not-linearly-represented-in-execution-state"
+    return "inconclusive-intermediate-operation-signal"
 
 
 def metrics_from_output(out: dict[str, Any], batch: dict[str, torch.Tensor], cfg: Any, base: Any) -> dict[str, float]:
@@ -497,8 +500,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             raise RuntimeError("sealed terminal summary differs bit-for-bit from the immutable report")
 
         methods = evaluation["operation"]["methods"]
-        hidden_accuracy = methods["linear_probe_hidden_seq"]["accuracy_across_seeds_95"]["mean"]
-        prim_accuracy = methods["linear_probe_prim_plus_flags"]["accuracy_across_seeds_95"]["mean"]
+        hidden_interval = methods["linear_probe_hidden_seq"]["accuracy_across_seeds_95"]
+        majority_accuracy = methods["development_majority"]["accuracy"]
         dev_hidden = statistics.fmean(
             float(predict_probe(probe, development_features["hidden_seq"]).eq(development_labels).double().mean())
             for probe in probes["hidden_seq"]
@@ -519,7 +522,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "hidden_seq_training_accuracy_mean": dev_hidden,
             },
             "evaluation": evaluation,
-            "phase_a_classification": classify_result(hidden_accuracy, prim_accuracy, dev_hidden),
+            "phase_a_classification": classify_result(hidden_interval, majority_accuracy, dev_hidden),
         })
 
     hidden_means = [
@@ -563,7 +566,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 if classifications == ["operation-identity-not-linearly-represented-in-execution-state"]
                 else "publish-negative-compositional-collapse-and-redesign-objective"
                 if classifications == ["development-success-untouched-collapse"]
-                else "mixed-checkpoint-result-requires-review-before-any-training"
+                else "hold-training-and-review-intermediate-or-mixed-signal"
             ),
         },
         "interpretation_boundary": "Perfect terminal state is not evidence of latent-program discovery. This diagnostic changes no production or admission state.",
