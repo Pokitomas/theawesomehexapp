@@ -1,0 +1,120 @@
+name: Archie causal mechanism full-budget
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+    paths:
+      - .github/workflows/archie-causal-mechanism-full-budget.yml
+      - foundry/archie-protocol/latent_world_benchmark/**
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-causal-mechanism-full-budget.yml
+      - foundry/archie-protocol/latent_world_benchmark/campaign_v2/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-causal-mechanism-full-budget-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  campaign:
+    name: Execute complete receipt-bound CPU campaign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU training runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Materialize sealed benchmark and campaign sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+
+      - name: Verify source contracts
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py test_full_budget_campaign.py
+          python3 test_benchmark.py
+          python3 test_full_budget_campaign.py
+
+      - name: Execute the exact full-budget profile
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py run \
+            --output artifacts/full-budget \
+            --steps 24 \
+            --batch-size 24 \
+            --seeds 2 \
+            --eval-batches 2 \
+            --eval-batch-size 32 \
+            --checkpoint-every 4 \
+            --threads 4
+
+      - name: Independently verify evidence bundle
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py verify --output artifacts/full-budget
+          cd artifacts/full-budget
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Publish canonical campaign summary
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          root = Path("artifacts/full-budget")
+          report = json.loads((root / "falsification-report.json").read_text())
+          evidence = json.loads((root / "evidence-bundle.json").read_text())
+          print("# Archie causal mechanism full-budget campaign")
+          print()
+          print(f"- Campaign complete: `{report['campaign_complete']}`")
+          print(f"- Planned/completed optimizer steps: `{report['budget']['planned_optimizer_steps']}` / `{report['budget']['completed_optimizer_steps']}`")
+          print(f"- Total event tokens: `{report['budget']['total_event_tokens']}`")
+          print(f"- Decision: `{report['canonical_decision']}`")
+          print(f"- Manifest: `{evidence['manifest_sha256']}`")
+          print()
+          print("## Falsification")
+          print(f"- Surviving: `{', '.join(report['falsification']['surviving_mechanisms']) or 'none'}`")
+          print(f"- Eliminated: `{', '.join(report['falsification']['eliminated_hypotheses']) or 'none'}`")
+          print(f"- Unresolved: `{', '.join(report['falsification']['unresolved_mechanisms']) or 'none'}`")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archie-causal-mechanism-full-budget-${{ github.run_id }}
+          path: foundry/archie-protocol/latent_world_benchmark/artifacts/full-budget
+          if-no-files-found: error
+          retention-days: 30
