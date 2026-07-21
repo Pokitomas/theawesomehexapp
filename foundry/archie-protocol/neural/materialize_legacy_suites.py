@@ -2,8 +2,8 @@
 """Materialize and verify the exact frozen Archie legacy route suites.
 
 The payload is a deterministic gzip-compressed tar recovered from the user's
-Archie-Audit.zip. Extraction is allowlisted and every resulting byte stream is
-bound to the original audit digest before use.
+Archie-Audit.zip. It is split into independently digest-bound text chunks;
+extraction is allowlisted and every resulting byte stream is bound again.
 """
 from __future__ import annotations
 
@@ -15,8 +15,14 @@ import json
 import tarfile
 from pathlib import Path
 
-
 PAYLOAD_SHA256 = "23ebfdf7a0eba98425d8e20e5bf0e89f181d81b087a5e2463be1fcb01e305771"
+EXPECTED_CHUNKS = {
+    "part-00": "84c5d34be3592c9584998c18d92992450f6a3531bf586cf907eba739c83ebb7c",
+    "part-01": "d337f2dc90ddeaa72a595e05e58d3eafc621212e4562b31a05611e069bb0c377",
+    "part-02": "c6192c2228771f7ff53ec540b9a33fbe488a9564ebbff58a3adb877e91aa89c9",
+    "part-03": "bc32de3a892bd324fd352d3b42bbab6cf70eb616919d85c1c5195c818ff35397",
+    "part-04": "7ea62654efcc8d5c4ba3f4075a4dd228a64513906d4ac8a3bab12ad0e34b2f24",
+}
 SUITES = {
     "router-v2-original-heldout.jsonl": {
         "rows": 498,
@@ -38,17 +44,34 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def read_encoded_payload(path: Path) -> str:
+    if path.is_file():
+        return "".join(path.read_text().split())
+    if not path.is_dir():
+        raise SystemExit(f"legacy suite payload path does not exist: {path}")
+    names = [entry.name for entry in sorted(path.iterdir()) if entry.is_file()]
+    if names != list(EXPECTED_CHUNKS):
+        raise SystemExit(f"legacy suite payload chunk set mismatch: {names}")
+    encoded_parts = []
+    for name in names:
+        raw = (path / name).read_bytes()
+        if sha256(raw) != EXPECTED_CHUNKS[name]:
+            raise SystemExit(f"legacy suite payload chunk digest mismatch: {name}")
+        encoded_parts.append(raw.decode("ascii"))
+    return "".join("".join(part.split()) for part in encoded_parts)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--payload",
-        default=str(Path(__file__).resolve().parent / "evidence" / "legacy-suites.tar.gz.b64"),
+        default=str(Path(__file__).resolve().parent / "evidence" / "legacy-suites.parts"),
     )
     parser.add_argument("--out", required=True)
     parser.add_argument("--manifest", default="")
     args = parser.parse_args()
 
-    encoded = "".join(Path(args.payload).read_text().split())
+    encoded = read_encoded_payload(Path(args.payload))
     archive = base64.b64decode(encoded, validate=True)
     if sha256(archive) != PAYLOAD_SHA256:
         raise SystemExit("legacy suite payload digest mismatch")
@@ -82,6 +105,7 @@ def main() -> None:
         "source_archive": "Archie-Audit.zip",
         "source_archive_sha256": AUDIT_ARCHIVE_SHA256,
         "payload_sha256": PAYLOAD_SHA256,
+        "payload_chunks": EXPECTED_CHUNKS,
         "suites": SUITES,
         "rows": sum(item["rows"] for item in SUITES.values()),
         "claim": "Exact byte-for-byte legacy route suites recovered from the digest-matched audit archive.",
