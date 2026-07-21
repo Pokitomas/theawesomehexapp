@@ -6,21 +6,21 @@ const researchWorkflowRows = [
   {
     id: 'workflow.archie-research-read-only',
     family: 'workflow',
-    operation: 'Export, normalize, train, verify, package, observe, and issue signed local-compute capsules for Archie research candidates without repository mutation authority',
+    operation: 'Export, normalize, train, diagnose, verify, package, observe, and issue signed local-compute capsules for Archie research candidates without repository mutation authority',
     originActor: 'GitHub push, pull-request, or explicit workflow-dispatch actor',
     principalSource: 'Read-only GitHub Actions token executing an exact candidate checkout',
-    requiredAuthority: 'contents:read only for source, normalization, verification, observation, and signed-capsule workflows; no repository write authority',
-    mutableObject: 'Ephemeral runner files, normalized research patches, digest-bound evidence bundles, signed research capsules, bounded run receipts, and uploaded research artifacts',
+    requiredAuthority: 'contents:read only for source, normalization, diagnosis, verification, observation, and signed-capsule workflows; no repository write authority',
+    mutableObject: 'Ephemeral runner files, normalized research patches, digest-bound evidence bundles, signed research capsules, bounded diagnostic and run receipts, and uploaded research artifacts',
     authorityOwner: 'Repository CI configuration; admission remains governed separately',
     denialConditions: [
       'event or path filter does not match',
-      'checkout, normalization, materialization, compilation, training, evaluation, observation, capsule signing, or artifact publication fails',
-      'evidence, run receipt, or capsule verification fails',
+      'checkout, normalization, materialization, compilation, training, diagnosis, evaluation, observation, capsule signing, or artifact publication fails',
+      'evidence, diagnostic receipt, run receipt, or capsule verification fails',
       'candidate attempts admission or production mutation'
     ],
-    replayBoundary: 'Exact workflow run, candidate and merge SHA, pinned actions, normalized patch identity, source and artifact digests, signed capsule digest, observed run identity, optimizer budget, frozen evaluation suites, and terminal promotion state.',
+    replayBoundary: 'Exact workflow run, candidate and merge SHA, pinned actions, normalized patch identity, source and artifact digests, signed capsule digest, observed run identity, diagnostic configuration, optimizer budget, frozen evaluation suites, and terminal promotion state.',
     residue: {
-      public: 'Public check status, bounded summaries, artifact names, normalized patch receipts, observed run identities, signed capsule identities, and cryptographic digests.',
+      public: 'Public check status, bounded summaries, artifact names, normalized patch receipts, diagnostic identities, observed run identities, signed capsule identities, and cryptographic digests.',
       private: 'Ephemeral runner state and GitHub token are discarded; signing authority is represented separately and no production credential or model-promotion authority is consumed.'
     },
     status: 'enforced',
@@ -30,6 +30,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-continuum-capsule.yml:contents:read',
       'workflow-permission:.github/workflows/archie-generalized-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-latent-world-source-export.yml:contents:read',
+      'workflow-permission:.github/workflows/archie-operation-information-probe.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-source-export.yml:contents:read',
       'workflow-permission:.github/workflows/archie-productize-winner.yml:contents:read',
       'workflow-permission:.github/workflows/archie-radial-mechanism-probe.yml:contents:read',
@@ -44,6 +45,7 @@ const researchWorkflowRows = [
     implementation: references([
       ['.github/workflows/archie-causal-mechanism-full-budget.yml', 'permissions:', 'contents: read', 'Independently verify evidence bundle'],
       ['.github/workflows/archie-continuum-capsule.yml', 'contents: read', 'Require repository owner dispatch', 'Sign exact checked-out source capsule'],
+      ['.github/workflows/archie-operation-information-probe.yml', 'contents: read', 'Run frozen operation-information diagnostic', 'research-only-not-admitted'],
       ['.github/workflows/archie-productize-winner.yml', 'contents: read', 'shadow-product-not-admitted'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'contents: read', 'promotion'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'contents: read', 'promotion'],
@@ -57,6 +59,7 @@ const researchWorkflowRows = [
     ]),
     denyWitness: references([
       ['compute/continuum/test_continuum.py', 'test_tampering_is_rejected', 'test_promotion_is_fail_closed'],
+      ['.github/workflows/archie-operation-information-probe.yml', 'Enforce research-only diagnostic boundary'],
       ['.github/workflows/archie-productize-winner.yml', 'promotion'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'promotion']
     ])
@@ -64,11 +67,11 @@ const researchWorkflowRows = [
   {
     id: 'workflow.archie-research-artifact-read',
     family: 'workflow',
-    operation: 'Read immutable GitHub Actions artifacts and run metadata for independent admission, continuation evaluation, and bounded completion observation',
+    operation: 'Read immutable GitHub Actions artifacts and run metadata for independent diagnosis, admission, continuation evaluation, and bounded completion observation',
     originActor: 'GitHub pull-request or explicit workflow-dispatch actor',
     principalSource: 'GitHub Actions token scoped to actions:read and contents:read',
     requiredAuthority: 'actions:read only for downloading named prior-run artifacts and reading bounded workflow-run metadata',
-    mutableObject: 'Ephemeral copies of immutable workflow artifacts and bounded run receipts',
+    mutableObject: 'Ephemeral copies of immutable workflow artifacts and bounded diagnostic or run receipts',
     authorityOwner: 'GitHub Actions artifact service and repository CI configuration',
     denialConditions: [
       'source run is absent or incomplete',
@@ -76,13 +79,14 @@ const researchWorkflowRows = [
       'artifact digest or independent verification fails',
       'workflow attempts to mutate a prior run or artifact'
     ],
-    replayBoundary: 'Source workflow run ID, observed workflow run ID, artifact identity and digest, downloader or observer workflow run, exact candidate SHA, and independent verification output.',
+    replayBoundary: 'Source workflow run ID, observed workflow run ID, artifact identity and digest, downloader, diagnostic, or observer workflow run, exact candidate SHA, and independent verification output.',
     residue: {
-      public: 'Check status, source and observed run identifiers, artifact name, and bounded verification result.',
+      public: 'Check status, source and observed run identifiers, artifact name, and bounded diagnostic or verification result.',
       private: 'GitHub token and ephemeral downloaded bytes remain runner-local until bounded artifact publication.'
     },
     status: 'enforced',
     surfaces: [
+      'workflow-permission:.github/workflows/archie-operation-information-probe.yml:actions:read',
       'workflow-permission:.github/workflows/archie-productize-winner.yml:actions:read',
       'workflow-permission:.github/workflows/archie-radial-mechanism-probe.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:actions:read',
@@ -92,6 +96,7 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-typed-program-student.yml:actions:read'
     ],
     implementation: references([
+      ['.github/workflows/archie-operation-information-probe.yml', 'actions: read', 'gh run download', 'Verify immutable source artifact identities'],
       ['.github/workflows/archie-productize-winner.yml', 'actions: read', 'gh run download'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'actions: read', 'gh run download', 'Independently verify source evidence'],
       ['.github/workflows/archie-register-v4-admission.yml', 'actions: read'],
@@ -100,11 +105,13 @@ const researchWorkflowRows = [
       ['.github/workflows/archie-typed-program-student.yml', 'actions: read']
     ]),
     allowWitness: references([
+      ['.github/workflows/archie-operation-information-probe.yml', 'Independently verify canonical campaign', 'SHA256SUMS'],
       ['.github/workflows/archie-productize-winner.yml', 'Independently verify source campaign'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'Independently verify source evidence'],
       ['.github/workflows/archie-terminal-run-observer.yml', 'receipt.json', 'SHA256SUMS']
     ]),
     denyWitness: references([
+      ['.github/workflows/archie-operation-information-probe.yml', 'test "$terminal_digest"', 'Enforce research-only diagnostic boundary'],
       ['.github/workflows/archie-productize-winner.yml', 'test -n "$evidence"'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'test -n "$evidence"'],
       ['.github/workflows/archie-terminal-run-observer.yml', 'Enforce observed completion']
