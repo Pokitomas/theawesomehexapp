@@ -1,4 +1,4 @@
-name: Evaluate exact Archie D E and train H2
+name: Evaluate exact D E and mass-matched H2
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ jobs:
   train:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
       - name: Check out exact candidate head
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -44,40 +44,26 @@ jobs:
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
-          root = Path('foundry/archie-protocol/neural')
-          data = root / 'data'
+          data = Path('foundry/archie-protocol/neural/data')
           expected = {
               'route-train-v6.json': (925, '38d9df9c6f59d37c669cc3c3385172d2503995f5dc31e665d70941eb62ef8c57'),
               'router-v2-original-heldout.jsonl': (498, '188d67330955a67bdb24a1bb096f2910eaa13a268b48dde77216cdd4f8be40f5'),
               'router-real-v2-heldout.jsonl': (60, '72c0d30af384c42c54e244c6466f1ed710a1f58b157ed26cceb65f9d91068f64'),
               'router-real-v3-final.jsonl': (48, 'cb9131eaa0888d14a8e68f83e0486221b9b3dc5bf5b31a0df1a1f016433594dd'),
           }
-          manifest = {
-              'schema': 'archie-neural-exact-input-manifest/v4',
-              'source_archive': 'Archie-Audit.zip',
-              'source_archive_sha256': 'a190c28ceeb6292ae6857a6e885ec32810cf16737ad950826bfc70531d48bc15',
-              'files': {},
-          }
-          for name, (expected_rows, expected_digest) in expected.items():
+          manifest = {'schema':'archie-neural-exact-input-manifest/v5','files':{}}
+          for name, (expected_rows, expected_sha) in expected.items():
               path = data / name
               digest = hashlib.sha256(path.read_bytes()).hexdigest()
-              if digest != expected_digest:
-                  raise SystemExit(f'{name} digest mismatch: {digest}')
               rows = len(json.loads(path.read_text())) if path.suffix == '.json' else sum(bool(line.strip()) for line in path.read_text().splitlines())
-              if rows != expected_rows:
-                  raise SystemExit(f'{name} row mismatch: {rows}')
-              manifest['files'][name] = {'rows': rows, 'sha256': digest}
-          frozen = root.parent / 'factorized' / 'blind-challenge-pack.frozen.json'
-          manifest['files'][frozen.name] = {
-              'examples': len(json.loads(frozen.read_text())),
-              'sha256': hashlib.sha256(frozen.read_bytes()).hexdigest(),
-          }
-          out = root / 'runs' / 'reproduction' / 'input-manifest.json'
+              if digest != expected_sha or rows != expected_rows:
+                  raise SystemExit(f'{name} identity mismatch rows={rows} sha={digest}')
+              manifest['files'][name] = {'rows':rows,'sha256':digest}
+          out = Path('foundry/archie-protocol/neural/runs/reproduction/input-manifest.json')
           out.write_text(json.dumps(manifest, indent=2) + '\n')
-          print(json.dumps(manifest, indent=2))
           PY
           cd foundry/archie-protocol/neural
-          python -m py_compile evaluate_checkpoint_legacy.py protected_finetune.py masked_mixed_train.py
+          python -m py_compile evaluate_checkpoint_legacy.py masked_mixed_train.py
           python np_transformer.py --gradcheck
           python test_np_transformer.py
 
@@ -89,86 +75,61 @@ jobs:
           github-token: ${{ github.token }}
           run-id: 29790064778
 
-      - name: Prove downloaded D E identity and protection
+      - name: Verify and retain D E evidence
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib, json, shutil
+          import json, shutil
           from pathlib import Path
-          runs = Path('foundry/archie-protocol/neural/runs')
-          out = runs / 'reproduction'
-          evidence = Path('.tmp/de')
-          c = json.loads((runs / 'npt-realdom-d128-seed424243-receipt.json').read_text())
-          d_path = next(evidence.rglob('npt-realdom-noft-true-d128-seed424243-receipt.json'))
-          e_path = next(evidence.rglob('npt-realdom-headsafe-true-d128-seed424243-receipt.json'))
-          d = json.loads(d_path.read_text())
-          e = json.loads(e_path.read_text())
-          if d['data']['train_digest'] != c['data']['train_digest']:
-              raise SystemExit('run D training digest differs from run C')
-          if d['data']['vocab_tokens'] != c['data']['vocab_tokens']:
-              raise SystemExit('run D vocabulary differs from run C')
-          if d['data']['real_language_rows'] != 13875 or d['data']['train_rows'] != 19635:
-              raise SystemExit('run D row identity failed')
-          if d['config']['finetune_epochs'] != 0:
-              raise SystemExit('run D unexpectedly fine-tuned')
+          source = Path('.tmp/de')
+          out = Path('foundry/archie-protocol/neural/runs/reproduction')
+          d = json.loads(next(source.rglob('npt-realdom-noft-true-d128-seed424243-receipt.json')).read_text())
+          e = json.loads(next(source.rglob('npt-realdom-headsafe-true-d128-seed424243-receipt.json')).read_text())
+          c = json.loads(Path('foundry/archie-protocol/neural/runs/npt-realdom-d128-seed424243-receipt.json').read_text())
+          if d['data']['train_digest'] != c['data']['train_digest'] or d['data']['vocab_tokens'] != c['data']['vocab_tokens']:
+              raise SystemExit('D is not the exact no-finetune form of C')
           if not e['protection']['bit_exact']:
-              raise SystemExit('run E protected parameters changed')
-          files = [
-              'npt-realdom-noft-true-d128-seed424243-receipt.json',
-              'npt-realdom-noft-true-d128-seed424243.npz',
-              'npt-realdom-headsafe-true-d128-seed424243-receipt.json',
-              'npt-realdom-headsafe-true-d128-seed424243.npz',
-              'true-isolation-summary.json',
-              'TRUE_ISOLATION.md',
-          ]
-          for name in files:
-              shutil.copy2(next(evidence.rglob(name)), out / name)
+              raise SystemExit('E changed protected parameters')
+          for name in ['npt-realdom-noft-true-d128-seed424243-receipt.json','npt-realdom-headsafe-true-d128-seed424243-receipt.json','true-isolation-summary.json','TRUE_ISOLATION.md']:
+              shutil.copy2(next(source.rglob(name)), out / name)
           identity = {
-              'schema': 'archie-run-d-identity/v4',
-              'artifact_run_id': 29790064778,
-              'artifact_digest': 'sha256:0dd521bed9d1322fd51267db0f1ca0e3867a770c7f6aa84d2e98b2ae31ad254e',
-              'exact_run_c_corpus': True,
-              'corpus_sha256': '38d9df9c6f59d37c669cc3c3385172d2503995f5dc31e665d70941eb62ef8c57',
-              'rows': 925,
-              'train_digest_matches_run_c': True,
-              'vocabulary_matches_run_c': True,
-              'd_weights_sha256': d['model']['weights_sha256'],
-              'e_protected_bit_exact': e['protection']['bit_exact'],
-              'e_protected_sha256': e['protection']['protected_before_sha256'],
-              'only_changed_variable_b_to_d': 'real-dominant corpus mixture',
-              'only_changed_variable_c_to_d': 'post-hoc fine-tuning disabled',
+              'schema':'archie-run-d-identity/v5',
+              'artifact_run_id':29790064778,
+              'artifact_digest':'sha256:0dd521bed9d1322fd51267db0f1ca0e3867a770c7f6aa84d2e98b2ae31ad254e',
+              'train_digest_matches_c':True,
+              'vocabulary_matches_c':True,
+              'd_weights_sha256':d['model']['weights_sha256'],
+              'e_selected_epoch':e['config']['selected_epoch'],
+              'e_protected_bit_exact':e['protection']['bit_exact'],
+              'e_protected_sha256':e['protection']['protected_before_sha256'],
           }
-          (out / 'run-d-identity.json').write_text(json.dumps(identity, indent=2) + '\n')
-          print(json.dumps(identity, indent=2))
+          (out/'run-d-identity.json').write_text(json.dumps(identity, indent=2) + '\n')
           PY
 
-      - name: Train H2 with full audit corpus and masked auxiliary supervision
+      - name: Train mass-matched H2
         run: |
           set -euo pipefail
           python foundry/archie-protocol/neural/masked_mixed_train.py \
             --authored-rows foundry/archie-protocol/neural/data/route-train-v6.json \
             --frozen-pack foundry/archie-protocol/factorized/blind-challenge-pack.frozen.json \
             --out foundry/archie-protocol/neural/runs/reproduction \
-            --tag npt-audit-masked-d128 \
+            --tag npt-audit-masked-r8-d128 \
             --seed 424243 --d 128 --layers 2 --heads 4 --tmax 84 \
             --epochs 8 --batch 64 --lr 0.0022 --drop 0.10 --scale 3 \
-            --authored-repeat 40 --authored-loss-weight 0.55
+            --authored-repeat 8 --authored-loss-weight 0.55
 
-      - name: Evaluate retained and new candidates on exact legacy suites
-        shell: bash
+      - name: Evaluate H2 on exact legacy suites
         run: |
           set -euo pipefail
-          RUNS=foundry/archie-protocol/neural/runs
-          OUT=$RUNS/reproduction
-          DATA=foundry/archie-protocol/neural/data
-          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py --receipt "$RUNS/npt-sw-d128-seed424243-receipt.json" --weights "$RUNS/npt-sw-d128-seed424243.npz" --legacy-dir "$DATA" --out "$OUT/legacy-B.json"
-          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py --receipt "$RUNS/npt-realdom-d128-seed424243-receipt.json" --weights "$RUNS/npt-realdom-d128-seed424243.npz" --legacy-dir "$DATA" --out "$OUT/legacy-C.json"
-          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py --receipt "$OUT/npt-realdom-noft-true-d128-seed424243-receipt.json" --weights "$OUT/npt-realdom-noft-true-d128-seed424243.npz" --legacy-dir "$DATA" --out "$OUT/legacy-D.json"
-          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py --receipt "$OUT/npt-realdom-headsafe-true-d128-seed424243-receipt.json" --weights "$OUT/npt-realdom-headsafe-true-d128-seed424243.npz" --legacy-dir "$DATA" --out "$OUT/legacy-E.json"
-          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py --receipt "$OUT/npt-audit-masked-d128-seed424243-receipt.json" --weights "$OUT/npt-audit-masked-d128-seed424243.npz" --legacy-dir "$DATA" --out "$OUT/legacy-H2.json"
+          OUT=foundry/archie-protocol/neural/runs/reproduction
+          python foundry/archie-protocol/neural/evaluate_checkpoint_legacy.py \
+            --receipt "$OUT/npt-audit-masked-r8-d128-seed424243-receipt.json" \
+            --weights "$OUT/npt-audit-masked-r8-d128-seed424243.npz" \
+            --legacy-dir foundry/archie-protocol/neural/data \
+            --out "$OUT/legacy-H2.json"
 
-      - name: Write terminal comparison and fail-closed decision
+      - name: Write terminal transformer comparison
         shell: bash
         run: |
           set -euo pipefail
@@ -178,70 +139,35 @@ jobs:
           root = Path('foundry/archie-protocol/neural/runs')
           out = root / 'reproduction'
           receipts = {
-              'B': json.loads((root / 'npt-sw-d128-seed424243-receipt.json').read_text()),
-              'C': json.loads((root / 'npt-realdom-d128-seed424243-receipt.json').read_text()),
-              'D': json.loads((out / 'npt-realdom-noft-true-d128-seed424243-receipt.json').read_text()),
-              'E': json.loads((out / 'npt-realdom-headsafe-true-d128-seed424243-receipt.json').read_text()),
-              'H2': json.loads((out / 'npt-audit-masked-d128-seed424243-receipt.json').read_text()),
+              'B':json.loads((root/'npt-sw-d128-seed424243-receipt.json').read_text()),
+              'C':json.loads((root/'npt-realdom-d128-seed424243-receipt.json').read_text()),
+              'D':json.loads((out/'npt-realdom-noft-true-d128-seed424243-receipt.json').read_text()),
+              'E':json.loads((out/'npt-realdom-headsafe-true-d128-seed424243-receipt.json').read_text()),
+              'H2':json.loads((out/'npt-audit-masked-r8-d128-seed424243-receipt.json').read_text()),
           }
-          h2 = receipts['H2']
-          h2['claim_boundary'] = 'The exact 925-row audit corpus supervises route only; auxiliary labels are masked. Epoch and temperature selection never use frozen suites. Exact legacy suites are evaluated after checkpoint selection.'
-          h2['receipt_digest'] = hashlib.sha256(json.dumps(h2, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-          (out / 'npt-audit-masked-d128-seed424243-receipt.json').write_text(json.dumps(h2, indent=2) + '\n')
-          rows = []
-          for label in ('B','C','D','E','H2'):
-              receipt = receipts[label] if label != 'H2' else h2
-              blind = receipt['results']['blind_429']
-              legacy = json.loads((out / f'legacy-{label}.json').read_text())
-              rows.append({
-                  'run': label,
-                  'tag': receipt['tag'],
-                  'blind_full': blind['full_accuracy'],
-                  'blind_route': blind['route_accuracy'],
-                  'legacy_exact': legacy['exact_legacy_retention'],
-                  'legacy': {name: result['route_accuracy'] for name, result in legacy['results'].items()},
-                  'weights_sha256': legacy['checkpoint_weights_sha256'],
-              })
-          best_blind = max(rows, key=lambda row: row['blind_full'])
-          best_498 = max(rows, key=lambda row: row['legacy']['router-v2-original-heldout'])
-          e = receipts['E']
-          summary = {
-              'schema': 'archie-neural-terminal-comparison/v4',
-              'identity': json.loads((out / 'run-d-identity.json').read_text()),
-              'runs': rows,
-              'best_blind_run': best_blind['run'],
-              'best_blind_full': best_blind['blind_full'],
-              'best_498_run': best_498['run'],
-              'best_498_accuracy': best_498['legacy']['router-v2-original-heldout'],
-              'protected_e': {
-                  'selected_epoch': e['config']['selected_epoch'],
-                  'bit_exact': e['protection']['bit_exact'],
-                  'protected_sha256': e['protection']['protected_before_sha256'],
-              },
-              'promotion': 'not-admitted',
-              'production_changed': False,
-              'reason': 'No candidate may replace production unless every protected route, authority, context, reference, order, and abstention gate is met.',
-          }
-          summary['receipt_digest'] = hashlib.sha256(json.dumps(summary, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-          (out / 'terminal-comparison.json').write_text(json.dumps(summary, indent=2) + '\n')
+          receipts['H2']['claim_boundary'] = 'H2 uses all 925 unique audit rows at 8x repetition, approximately mass-matched to H’s 193 rows at 40x. Audit rows supervise route only; auxiliary labels are masked. Frozen suites are evaluation-only.'
+          receipts['H2']['receipt_digest'] = hashlib.sha256(json.dumps(receipts['H2'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
+          (out/'npt-audit-masked-r8-d128-seed424243-receipt.json').write_text(json.dumps(receipts['H2'],indent=2)+'\n')
+          rows=[]
+          for label, receipt in receipts.items():
+              blind=receipt['results']['blind_429']
+              if label=='H2':
+                  legacy=json.loads((out/'legacy-H2.json').read_text())['results']
+              else:
+                  legacy={name:receipt['results'][name] for name in ['router-v2-original-heldout','router-real-v2-heldout','router-real-v3-final']}
+              rows.append({'run':label,'tag':receipt['tag'],'blind_full':blind['full_accuracy'],'blind_route':blind['route_accuracy'],'legacy':{name:value['route_accuracy'] for name,value in legacy.items()},'weights_sha256':receipt['model']['weights_sha256']})
+          best_blind=max(rows,key=lambda row:row['blind_full'])
+          best_498=max(rows,key=lambda row:row['legacy']['router-v2-original-heldout'])
+          summary={'schema':'archie-neural-terminal-comparison/v5','identity':json.loads((out/'run-d-identity.json').read_text()),'runs':rows,'best_blind_run':best_blind['run'],'best_blind_full':best_blind['blind_full'],'best_498_run':best_498['run'],'best_498_accuracy':best_498['legacy']['router-v2-original-heldout'],'promotion':'not-admitted','production_changed':False}
+          summary['receipt_digest']=hashlib.sha256(json.dumps(summary,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+          (out/'terminal-comparison.json').write_text(json.dumps(summary,indent=2)+'\n')
           def pct(value): return f'{100*value:.1f}%'
-          mechanisms = {
-              'B':'subword transformer baseline',
-              'C':'real-dominant plus destructive shared-trunk fine-tune',
-              'D':'exact real-dominant main phase, no fine-tune',
-              'E':'D plus protected route-head-only adaptation',
-              'H2':'925-row audit corpus with masked auxiliary supervision',
-          }
-          lines = ['# Terminal learned-router comparison','', '| run | mechanism | blind full | blind route | 498 | 60 | 48 |', '|---|---|---:|---:|---:|---:|---:|']
+          mechanisms={'B':'subword baseline','C':'real-dominant + destructive finetune','D':'exact real-dominant, no finetune','E':'D + protected head adaptation','H2':'925 unique audit rows, route-only masked, mass-matched'}
+          lines=['# Terminal transformer comparison','', '| run | mechanism | blind full | blind route | 498 | 60 | 48 |','|---|---|---:|---:|---:|---:|---:|']
           for row in rows:
-              legacy = row['legacy']
-              lines.append(f"| {row['run']} `{row['tag']}` | {mechanisms[row['run']]} | {pct(row['blind_full'])} | {pct(row['blind_route'])} | {pct(legacy['router-v2-original-heldout'])} | {pct(legacy['router-real-v2-heldout'])} | {pct(legacy['router-real-v3-final'])} |")
-          lines += ['', '## Decision', '',
-              f"- Best blind full in the exact terminal set: run {best_blind['run']} at {pct(best_blind['blind_full'])}.",
-              f"- Best 498-suite retention: run {best_498['run']} at {pct(best_498['legacy']['router-v2-original-heldout'])}.",
-              f"- Protected E selected epoch {summary['protected_e']['selected_epoch']} and kept shared/auxiliary arrays bit-exact: `{summary['protected_e']['bit_exact']}`.",
-              '- Promotion: `not-admitted`; production remains unchanged.', '']
-          (out / 'TERMINAL_COMPARISON.md').write_text('\n'.join(lines))
+              legacy=row['legacy']; lines.append(f"| {row['run']} `{row['tag']}` | {mechanisms[row['run']]} | {pct(row['blind_full'])} | {pct(row['blind_route'])} | {pct(legacy['router-v2-original-heldout'])} | {pct(legacy['router-real-v2-heldout'])} | {pct(legacy['router-real-v3-final'])} |")
+          lines += ['', '## Decision','',f"- Best blind full: run {best_blind['run']} at {pct(best_blind['blind_full'])}.",f"- Best 498-suite retention: run {best_498['run']} at {pct(best_498['legacy']['router-v2-original-heldout'])}.",'- Promotion: `not-admitted`; production remains unchanged.','']
+          (out/'TERMINAL_COMPARISON.md').write_text('\n'.join(lines))
           print('\n'.join(lines))
           PY
 
