@@ -1,6 +1,9 @@
 name: Archie register V4 admission
 
 on:
+  pull_request:
+    branches:
+      - claude/archie-sprawl-training-5pe3i8
   push:
     branches:
       - agent/archie-register-v4-admission-20260720
