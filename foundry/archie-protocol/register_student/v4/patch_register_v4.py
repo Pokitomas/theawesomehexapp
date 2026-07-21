@@ -2,11 +2,12 @@
 """Build the V4 register controller from the immutable V3 controller.
 
 The learned model and quantized weights remain bit-identical. This patch adds
-three generic controller repairs:
+four generic controller repairs:
 
 * acceptance expressed as binary/pass-fail controls routes to checklist;
 * bare artifact requests without a subject fail closed to clarify;
-* one generative verb governing two article-led outputs decomposes as compound.
+* one generative verb governing two article-led outputs decomposes as compound;
+* a removed negated clause cannot be reintroduced by whole-request compound fallback.
 
 Safe-documentation routing is applied per clause so a safe checklist clause can
 coexist with another requested outcome.
@@ -18,7 +19,7 @@ import hashlib
 from pathlib import Path
 
 SOURCE_SHA256 = "98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71"
-OUTPUT_SHA256 = "74ba2961c1baf7455837cc47925c3102f2500c5f90d8b0fe52e7a21d2a4e5b7e"
+OUTPUT_SHA256 = "e064bf0cf3bd94fe0808257c929c7238d9cc6de9af1d9f51bd1b77891616b5fc"
 
 
 def digest(data: bytes) -> str:
@@ -78,7 +79,9 @@ def main() -> None:
     }
     const clauses = splitRegisterClauses(request).filter(clause => !isNegatedRegisterClause(clause));
 """,
-        """    const clauses = splitRegisterClauses(request).filter(clause => !isNegatedRegisterClause(clause));
+        """    const rawClauses = splitRegisterClauses(request);
+    const hadNegatedClauses = rawClauses.some(clause => isNegatedRegisterClause(clause));
+    const clauses = rawClauses.filter(clause => !isNegatedRegisterClause(clause));
     const safeDocumentationRoute = value => {
       const safeText = normalizeText(value);
       return /(?:verification tests?|non-destructive tests?|checklist|binary controls?|binary gates?|acceptance (?:criteria|controls?|gates?)|pass[ -]?fail (?:criteria|controls?|gates?))/i.test(safeText) ? 'checklist' : /(?:explain|summarize|why|safe custody|prohibition)/i.test(safeText) ? 'summary' : 'plan';
@@ -96,6 +99,13 @@ def main() -> None:
         "    const clausePredictions = clauses.map(clause => bestActivePrediction(student.infer(clause)));",
         "    const clausePredictions = clauses.map(clause => SAFE_DOCUMENTATION.test(clause) ? { ...student.infer(clause), route: safeDocumentationRoute(clause), confidence: 1, recognized: Math.max(2, student.infer(clause).recognized), decision_source: 'fail-closed-safe-documentation-route' } : bestActivePrediction(student.infer(clause)));",
         "safe documentation clause prediction",
+    )
+
+    text = replace_once(
+        text,
+        "    if (clauses.length === 1 && whole.route === 'compound' && explicitCompoundSyntax) {",
+        "    if (clauses.length === 1 && whole.route === 'compound' && explicitCompoundSyntax && !hadNegatedClauses) {",
+        "negated-clause compound fallback isolation",
     )
 
     output = text.encode("utf-8")
