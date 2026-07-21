@@ -105,7 +105,7 @@ const researchWorkflowRows = [
       ['.github/workflows/archie-typed-program-student.yml', 'actions: read']
     ]),
     allowWitness: references([
-      ['.github/workflows/archie-operation-information-probe.yml', 'Independently verify canonical campaign', 'SHA256SUMS'],
+      ['.github/workflows/archie-operation-information-probe.yml', 'Independently verify canonical campaign', 'operation-information-report.json'],
       ['.github/workflows/archie-productize-winner.yml', 'Independently verify source campaign'],
       ['.github/workflows/archie-radial-mechanism-probe.yml', 'Independently verify source evidence'],
       ['.github/workflows/archie-terminal-run-observer.yml', 'receipt.json', 'SHA256SUMS']
