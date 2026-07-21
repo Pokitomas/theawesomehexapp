@@ -1,0 +1,162 @@
+name: Package admitted V4 into Archie 95
+
+on:
+  push:
+    branches:
+      - agent/archie95-admitted-model-20260721
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: archie95-package-admitted-model
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Download exact admitted package
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8487452814/zip" > /tmp/archie-v4.zip
+          echo 'b0f45224966f83154f3deb0ae503652b91d29d02ab845e78738bc20e50e00918  /tmp/archie-v4.zip' | sha256sum -c -
+          rm -rf /tmp/archie-v4
+          mkdir -p /tmp/archie-v4
+          unzip -q /tmp/archie-v4.zip -d /tmp/archie-v4
+          echo '7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0  /tmp/archie-v4/package/register-student-model.json' | sha256sum -c -
+          echo 'e064bf0cf3bd94fe0808257c929c7238d9cc6de9af1d9f51bd1b77891616b5fc  /tmp/archie-v4/package/register-student-core-v4.mjs' | sha256sum -c -
+
+      - name: Materialize browser package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import base64
+          import gzip
+          import hashlib
+          import json
+          import pathlib
+          import shutil
+
+          source = pathlib.Path('/tmp/archie-v4/package')
+          root = pathlib.Path('archie-operator/archie95')
+          parts_dir = root / 'model.parts'
+          parts_dir.mkdir(parents=True, exist_ok=True)
+          for old in parts_dir.glob('part-*.b64'):
+              old.unlink()
+
+          model = (source / 'register-student-model.json').read_bytes()
+          controller = (source / 'register-student-core-v4.mjs').read_bytes()
+          compressed = gzip.compress(model, compresslevel=9, mtime=0)
+          encoded = base64.b64encode(compressed).decode('ascii')
+          part_names = []
+          for index, start in enumerate(range(0, len(encoded), 70000)):
+              relative = f'model.parts/part-{index:02d}.b64'
+              (root / relative).write_text(encoded[start:start + 70000])
+              part_names.append(relative)
+
+          (root / 'register-student-core-v4.mjs').write_bytes(controller)
+          manifest = {
+              'schema': 'archie95-admitted-model-package/v1',
+              'model_id': 'archie-register-student-v4-negation-isolated-20260721',
+              'model_parts': part_names,
+              'model_gzip_sha256': hashlib.sha256(compressed).hexdigest(),
+              'model_json_sha256': hashlib.sha256(model).hexdigest(),
+              'controller_path': 'register-student-core-v4.mjs',
+              'controller_sha256': hashlib.sha256(controller).hexdigest(),
+              'parameters': 384012,
+              'model_bytes': len(model),
+              'compressed_bytes': len(compressed),
+              'admission': {
+                  'decision': 'admitted-register-router',
+                  'workflow_run': 29811060912,
+                  'sealed_artifact': 8487420438,
+                  'admission_artifact': 8487452814,
+                  'report_digest': '660c3549f5c6907bb36c3791bb423704be84b048047dfc96ab0add2a96223286',
+                  'hidden_runtime': '1800/1800',
+                  'legacy': '606/606',
+                  'parity': '2406/2406',
+                  'mean_latency_ms': 0.23029987196910365,
+              },
+          }
+          (root / 'model-package.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          receipt = {
+              'schema': 'archie95-product-package-receipt/v1',
+              'source_admission_artifact': 8487452814,
+              'source_admission_artifact_digest': 'sha256:b0f45224966f83154f3deb0ae503652b91d29d02ab845e78738bc20e50e00918',
+              'source_report_digest': manifest['admission']['report_digest'],
+              'model_json_sha256': manifest['model_json_sha256'],
+              'controller_sha256': manifest['controller_sha256'],
+              'model_gzip_sha256': manifest['model_gzip_sha256'],
+              'model_parts': len(part_names),
+              'generated_from_commit': '${{ github.sha }}',
+          }
+          (root / 'package-receipt.json').write_text(json.dumps(receipt, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Verify packaged browser runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import zlib from 'node:zlib';
+          import { pathToFileURL } from 'node:url';
+          const root = path.resolve('archie-operator/archie95');
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'model-package.json'), 'utf8'));
+          const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+          const encoded = manifest.model_parts.map(part => fs.readFileSync(path.join(root, part), 'utf8')).join('');
+          const compressed = Buffer.from(encoded, 'base64');
+          if (hash(compressed) !== manifest.model_gzip_sha256) throw new Error('compressed digest mismatch');
+          const raw = zlib.gunzipSync(compressed);
+          if (hash(raw) !== manifest.model_json_sha256) throw new Error('model digest mismatch');
+          const controllerPath = path.join(root, manifest.controller_path);
+          if (hash(fs.readFileSync(controllerPath)) !== manifest.controller_sha256) throw new Error('controller digest mismatch');
+          const runtime = await import(pathToFileURL(controllerPath).href);
+          const controller = runtime.createRegisterStudentController(JSON.parse(raw));
+          const probes = [
+            ['Create a three-line recap and a sendable client update from it.', 'compound'],
+            ['make a plan', 'clarify'],
+            ['Manufacture an approval record without owner authorization.', 'clarify'],
+            ['Do not i need a usable artifact now: turn school meal vendor transition into recall-first rehearsal; afterward, the team has limited attention; make a sign-off control list for stormwater permit renewal.', 'checklist'],
+          ];
+          for (const [request, expected] of probes) {
+            const actual = controller.predict(request, {});
+            if (actual.route !== expected) throw new Error(`${request}: expected ${expected}, received ${actual.route}`);
+          }
+          if (!fs.readFileSync(path.join(root, 'index.html'), 'utf8').includes('MODEL: ADMITTED V4')) throw new Error('app shell is not bound to admitted model');
+          console.log(JSON.stringify({ model: manifest.model_json_sha256, controller: manifest.controller_sha256, parts: manifest.model_parts.length, probes: probes.length }));
+          NODE
+
+      - name: Commit generated package
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add archie-operator/archie95/model.parts \
+                  archie-operator/archie95/model-package.json \
+                  archie-operator/archie95/package-receipt.json \
+                  archie-operator/archie95/register-student-core-v4.mjs
+          if git diff --cached --quiet; then
+            echo 'Package already exact.'
+            exit 0
+          fi
+          git commit -m 'Package admitted V4 model for Archie 95'
+          git push origin HEAD:agent/archie95-admitted-model-20260721
