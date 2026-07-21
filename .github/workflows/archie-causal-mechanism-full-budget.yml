@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   campaign:
-    if: github.event_name != 'push'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.sha == 'cd51cbe2b7d62f3209ffb23b6880487d6c7abfce')
     name: Execute maximal receipt-bound CPU campaign
     runs-on: ubuntu-24.04
     timeout-minutes: 350
