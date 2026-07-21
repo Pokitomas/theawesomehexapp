@@ -6,6 +6,11 @@ on:
       - agent/archie-productize-v1-20260721
     paths:
       - .github/workflows/archie-productize-source-export.yml
+  pull_request:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-productize-source-export.yml
   workflow_dispatch:
 
 permissions:
