@@ -10,7 +10,7 @@ on:
       - audit/authority-manifest.current.mjs
   push:
     branches:
-      - agent/archie-continuum-local-compute
+      - agent/archie-generalized-program-v1-20260721
     paths:
       - .github/workflows/archie-continuum-capsule.yml
       - compute/continuum/**
