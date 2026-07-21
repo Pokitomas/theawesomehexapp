@@ -1,0 +1,68 @@
+{
+  "schema": "archie-register-v3-formal-admission-binding/v1",
+  "workflow": {
+    "run_id": 29808017436,
+    "head_sha": "d0edbc548e20dc03bbe19fd2e473895b8f50eb24",
+    "artifact_id": 8486232551,
+    "artifact_digest": "sha256:67800687d9a084490bbdf697b794f3bc8c810da5e3acfd6928290237c740e0df"
+  },
+  "formal_admission": {
+    "schema": "archie-student-admission/v1",
+    "candidate_id": "archie-register-student-v3-formal-negative-20260721",
+    "decision": "rejected-incomplete-student-evidence",
+    "admission_digest": "902b274d782e8796524628378fcd8233a3e6bc6d78531f76b8edb5cb93a617b5",
+    "file_sha256": "d9ab65d5f8d2031d9a26b55f8b3583168e2e77eee105dcc670a86ecdefd17207",
+    "checks_total": 62,
+    "checks_passed": 49,
+    "checks_failed": 13,
+    "launch_candidate_intelligence_binding": null
+  },
+  "artifact": {
+    "format": "archie-register-student-json",
+    "model_id": "archie-register-student-full-budget-v2-20260721",
+    "checkpoint_id": "sha256-7a7f4619a9bb300ff5e6",
+    "quantization": "int8-per-class-row",
+    "sha256": "7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0",
+    "bytes": 1442990
+  },
+  "tokenizer": {
+    "format": "archie-register-student-tokenizer-json",
+    "vocabulary_size": 32000,
+    "sha256": "4ff91f3f1f2a41ae9a10695ff304f11e5ff21ebb2fde789da43850c9aaa59f55",
+    "bytes": 929329
+  },
+  "runtime": {
+    "engine_id": "node-esm-register-student",
+    "engine_version": "v22.23.1",
+    "abi": "archie-register-student-runtime-v3",
+    "operating_system": "linux",
+    "architecture": "x86_64",
+    "executable_sha256": "98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71",
+    "runtime_identity_digest": "2b7f3e14ec21c62d21c663b36c239e7f2f91ef8ca39bea9dfb1a5fbc0c059938"
+  },
+  "provenance": {
+    "source_digest": "0d37dc3e12bd854fb7c7b505bc58b73b6aceed3e96921ca6f05fd95c7c0f6da4",
+    "license_spdx": "NOASSERTION",
+    "redistribution_permitted": false,
+    "license_text_sha256": "64eba0ad0cc061477e168165dd3cfc051932a5c57b10f87b3c810bb688545591",
+    "training_receipt_digest": "1c2d1fe59cbce200e1a118fe2c1d41c29c980251f71dd09e85310978eb6dde20"
+  },
+  "formal_evidence_digests": {
+    "independent_evaluation_report": "d225caa7265cb52c043dee7c21e627c2d8339fb599ae5d1bedebbd201cf14e3b",
+    "authority_report": "6843c66d513dff779e9bb4e75ab009621ec7ecb056bda96f9db03310d0d8185e",
+    "reproduction_receipt": "c72c93c3f10899a6ad5f2db7cf4fda3d2ad597769941948b1e4ceb4f498f9071",
+    "resource_report": "58d9db743dc20cb9c30591e13e5d7e5c83dc0dbbbfdf854f6c1488a49f73fcfe",
+    "hidden_dataset": "c579c5622f93c3bdb1d51e74f1481884e59c32bb0192fe7d78262d4f5e5c7e26",
+    "machine_fingerprint": "ae34ed437088698d01567aca9fd1182a756d21b6a5ebfd196ade7fb9f0a5234e"
+  },
+  "formal_file_sha256": {
+    "candidate_manifest": "97d50f77de24d527bb712cb1fee2dc13d51b1814e967b6cea9ff69d9b5362706",
+    "training_receipt": "e31eb3bcc0868520f6f2939ae3cb6c67220cbdfd4de7d720fd811ef43d04769d",
+    "independent_evaluation": "2b2c8edc88b937f6cacc307c86c3ec95b643a9c59a3b4ae92cee127e1117b64c",
+    "authority_report": "d6d14b28378e0dc23fb633c87183a8a1e9c62cf5c04acd1ecc62eff4ae795d35",
+    "reproduction_receipt": "d7a3cd45414afc4c0a183ddf09173062496ee352a23c1e3b15cb8781bebab5e0",
+    "resource_report": "20b7aab6d0238ef3ecb98709b013e3f97c96e7920352e86ea3eb5a2b9f28c5b5",
+    "formal_summary": "80b90c584e16fcd4780c8bda6dec4132152e6f821231e093dec486a90e3b0cc9"
+  },
+  "claim_boundary": "The formal contract bound the exact narrow-router package and accepted its artifact, tokenizer, runtime, authority, reproduction, and resource evidence, but rejected promotion because redistribution, independent hidden evaluation, evaluation completion and promotion eligibility, and all founder intelligence metrics were not established."
+}
