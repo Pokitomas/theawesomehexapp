@@ -1,6 +1,9 @@
 name: Archie typed-program freeze v3
 
 on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
   push:
     branches:
       - agent/archie-typed-program-student-v2-20260721
