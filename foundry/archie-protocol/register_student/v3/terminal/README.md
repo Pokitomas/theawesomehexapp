@@ -4,7 +4,9 @@
 
 **Not admitted. Production remains unchanged.**
 
-The exact v3 package passed the repository-owned fresh evaluation, all protected Archie suites, exact Python/JavaScript parity, sustained Linux resource measurement, and an ARM64 macOS reproduction. It was not promoted because the provider-neutral contract additionally requires a genuinely independent judge-only-hidden evaluation. This run withheld fresh rows from candidate selection, but the evaluator and execution topology remained owned by the same training branch, so that gate is explicitly false.
+The exact v3 package passed a custom repository-owned fresh router evaluation, all protected Archie router suites, exact Python/JavaScript parity, sustained Linux measurement, and an ARM64 macOS smoke reproduction. Those are strong candidate-specific results, but they do not constitute `archie-student-admission/v1`.
+
+The formal provider-neutral admission path in `scripts/archie-student-admission.mjs` was not executed. No complete `archie-student-admission-candidate/v1` package bound a standalone tokenizer descriptor, runtime executable identity, license and redistribution provenance, formal report schemas, or the full founder launch-target scope. The evaluator was also not organizationally independent or judge-only-hidden. Promotion therefore remains fail-closed.
 
 ## Architecture actually evaluated
 
@@ -27,9 +29,9 @@ Deterministic code remains limited to fail-closed authority, context/support suf
 
 V3 selection on opened development evidence produced 1800/1800, 60/60, 48/48, and 496/498 before the fresh v3 pack existed.
 
-## Fresh evaluation
+## Fresh custom-router evaluation
 
-Actions run `29806610192` packaged the frozen candidate and independently generated a fresh 1,800-row pack with unlogged entropy. The candidate did not receive those rows before packaging.
+Actions run `29806610192` packaged the frozen candidate and generated a fresh 1,800-row pack with unlogged entropy. The candidate did not receive those rows before packaging.
 
 | Gate | Result |
 |---|---:|
@@ -50,15 +52,31 @@ Actions run `29806610192` packaged the frozen candidate and independently genera
 | Python/JavaScript raw parity | 2406/2406 |
 | Protected baseline/completion/admission suites | pass/pass/pass |
 
-The two retained 498-suite misses are `make a plan` (historically labeled clarify) and `Create a three-line recap and a sendable client update from it.` (historically labeled compound). They do not violate the 98% retention threshold.
+The two retained 498-suite misses are `make a plan` (historically labeled clarify) and `Create a three-line recap and a sendable client update from it.` (historically labeled compound). They do not violate the custom judge's 98% retention threshold.
 
-## Resources and reproduction
+## Resources and cross-platform smoke
 
 Linux sustained measurement ran for 60.000 seconds with 12 samples, 281,930 predictions, 4,698.81 predictions/second, 0.21282 ms mean latency, and 106,795,008 bytes peak RSS.
 
-A separate macOS 15 ARM64 lane reproduced the exact JavaScript package, passed the opened development suites, and completed 96,341 predictions over 15.000 seconds with 103,727,104 bytes RSS.
+A separate macOS 15 ARM64 lane reproduced the exact JavaScript package, passed the opened development suites, and completed 96,341 predictions over 15.000 seconds with 103,727,104 bytes RSS. This is useful second-platform evidence, but it is not a complete `archie-student-clean-reproduction/v1` receipt.
 
-## Exact bindings
+## Formal provider-neutral blockers
+
+The following required evidence was not constructed or validated by `scripts/archie-student-admission.mjs`:
+
+- a complete `archie-student-admission-candidate/v1` manifest;
+- a separately bound tokenizer file and descriptor;
+- a bound runtime executable identity and supported artifact format;
+- source, license text, SPDX, redistribution, and training-receipt provenance in the required schema;
+- `archie-student-independent-evaluation/v1` with non-mock independent judge-only-hidden access and complete founder-target metrics;
+- `archie-student-authority-report/v1`;
+- `archie-student-clean-reproduction/v1`;
+- `archie-student-resource-report/v1`;
+- domain, intelligence-requirement, and metric coverage for the complete `founder/archie-launch-target.json` target.
+
+The training receipt itself uses `archie-register-student-training-receipt/v1`, not the formal `archie-student-training-receipt/v1` schema.
+
+## Exact custom-router bindings
 
 - Model JSON: `7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0`
 - Model module: `828980422423c40a6a858e0f64217db03cc326a5530d24dac5fbff5b8aeeccd4`
@@ -66,8 +84,8 @@ A separate macOS 15 ARM64 lane reproduced the exact JavaScript package, passed t
 - V3 controller: `98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71`
 - Candidate router: `2c8062f239c66c95c5b7802623d64e2abc2c633264328481b86289cc2488de1c`
 - Sealed pack: `c579c5622f93c3bdb1d51e74f1481884e59c32bb0192fe7d78262d4f5e5c7e26`
-- Admission report embedded digest: `2c9d53e93e9ed9655f5926b039fe6710f1e43c744aa513c589b9e877422a03d2`
+- Custom admission report embedded digest: `2c9d53e93e9ed9655f5926b039fe6710f1e43c744aa513c589b9e877422a03d2`
 - Terminal artifact: `8485748305`
 - Terminal artifact digest: `sha256:a391edef5a6acae12fcee6fafebbf5080fa6902675bdcfcfafe6b441e5defc47`
 
-The machine-readable companion is `terminal-evidence.json`.
+The machine-readable companion is `terminal-evidence.json`. The concurrent alternate controller is recorded in `alternate-v3-evidence.json`.
