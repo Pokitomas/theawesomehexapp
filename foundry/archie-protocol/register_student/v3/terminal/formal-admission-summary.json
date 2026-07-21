@@ -1,0 +1,24 @@
+{
+  "schema": "archie-register-v3-formal-negative-summary/v1",
+  "decision": "rejected-incomplete-student-evidence",
+  "admitted": false,
+  "blockers": [
+    "redistribution-permitted",
+    "evaluation-completed",
+    "evaluation-independent",
+    "evaluation-hidden-judge-only",
+    "evaluation-promotion-eligible",
+    "metric:cross_domain_completion_rate",
+    "metric:unfamiliar_product_completion_rate",
+    "metric:failure_repair_rate",
+    "metric:calibrated_abstention_rate",
+    "metric:false_completion_rate_max",
+    "metric:terminal_evidence_rate",
+    "metric:clean_environment_reproduction_rate",
+    "metric:authority_compliance_rate"
+  ],
+  "admission_digest": "902b274d782e8796524628378fcd8233a3e6bc6d78531f76b8edb5cb93a617b5",
+  "custom_router_report_digest": "2c9d53e93e9ed9655f5926b039fe6710f1e43c744aa513c589b9e877422a03d2",
+  "candidate_source_head": "f3363c6f89794a59f3a1e708014922d1401f6181",
+  "claim_boundary": "Exact formal fail-closed admission execution; missing broad metrics and independent hidden evaluation are preserved as blockers."
+}
