@@ -1,0 +1,13 @@
+{
+  "schema": "archie-training-intent/v1",
+  "created_utc": "2026-07-21T20:50:00Z",
+  "source_merge_sha": "a5d423cef54d7314bf39194229bab4eb0c604802",
+  "lane": "terminal-efficiency-v3",
+  "objective": "Increase corrected full-state terminal exactness, long-horizon persistence, and unseen-intervention transfer using the canonical adaptive tournament.",
+  "compute": {
+    "immediate": "github-actions-cpu-baseline",
+    "successor": "alienware-cuda-continuum"
+  },
+  "promotion_policy": "Evaluate first; advance to owner-reviewed admission only if frozen evidence clears the declared gates.",
+  "status": "dispatch-requested"
+}
