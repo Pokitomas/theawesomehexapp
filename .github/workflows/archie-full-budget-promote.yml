@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
 
+# This workflow is intentionally branch-scoped until a candidate clears admission.
 jobs:
   discover:
     runs-on: ubuntu-latest
