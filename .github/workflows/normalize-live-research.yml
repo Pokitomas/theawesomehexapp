@@ -11,7 +11,7 @@ on:
       - .github/workflows/normalize-live-research.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: normalize-live-research-${{ github.head_ref || github.ref }}
@@ -30,16 +30,34 @@ jobs:
           python-version: "3.x"
       - name: Rewrite research surfaces around live sources
         run: python3 scripts/normalize-live-research.py
-      - name: Commit normalized tree
+      - name: Package normalized tree
         shell: bash
         run: |
           set -euo pipefail
-          target="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "Remove dates and research identity seals"
-          git push origin "HEAD:${target}"
+          mkdir -p /tmp/live-normalized
+          git diff --binary > /tmp/live-normalized/normalized.patch
+          git status --porcelain=v1 -z > /tmp/live-normalized/status.z
+          python3 - <<'PY'
+          import subprocess
+          import tarfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          raw = subprocess.check_output([
+              "git", "diff", "--name-only", "--diff-filter=ACMRTUXB", "-z"
+          ])
+          paths = [Path(item.decode()) for item in raw.split(b"\0") if item]
+          with tarfile.open("/tmp/live-normalized/files.tar.gz", "w:gz") as archive:
+              for relative in paths:
+                  path = root / relative
+                  if path.is_file():
+                      archive.add(path, arcname=str(relative))
+          (Path("/tmp/live-normalized") / "paths.txt").write_text(
+              "\n".join(str(path) for path in paths) + "\n"
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: live-research-normalized
+          path: /tmp/live-normalized
+          if-no-files-found: error
