@@ -23,24 +23,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
-      - name: Materialize digest-bound benchmark and maximal campaign
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
-          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
-          cd foundry/archie-protocol/latent_world_benchmark
-          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py test_benchmark.py test_full_budget_campaign.py
-      - name: Record benchmark and campaign contract status
+      - name: Materialize digest-bound benchmark
+        run: python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+      - name: Record benchmark contract status
         continue-on-error: true
-        shell: bash
-        run: |
-          python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
-          python3 foundry/archie-protocol/latent_world_benchmark/test_full_budget_campaign.py
-      - name: Package exact benchmark and campaign sources
+        run: python3 foundry/archie-protocol/latent_world_benchmark/test_benchmark.py
+      - name: Package exact benchmark sources
         shell: bash
         run: |
           set -euo pipefail
@@ -48,17 +39,13 @@ jobs:
           out=artifacts/latent-world-source
           mkdir -p "$out"
           cp "$root/latent_world_benchmark.py" "$out/"
-          cp "$root/full_budget_campaign.py" "$out/"
-          cp "$root/full_budget_profile.json" "$out/"
-          cp "$root/FULL_BUDGET_CAMPAIGN.md" "$out/"
-          cp "$root/test_full_budget_campaign.py" "$out/"
           cp "$root/test_benchmark.py" "$out/"
           cp "$root/restore_checkpoints.py" "$out/"
           cp "$root/checkpoint-manifest.json" "$out/"
           cp "$root/unified_evaluation.json" "$out/"
           cp "$root/README.md" "$out/"
           find "$out" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > "$out/SHA256SUMS"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: archie-latent-world-source-${{ github.run_id }}
           path: artifacts/latent-world-source
