@@ -56,16 +56,20 @@ class FrozenOperationProbeTests(unittest.TestCase):
 
     def test_result_classification_boundaries(self) -> None:
         self.assertEqual(
-            probe.classify_result(0.50, 0.05, 0.90),
+            probe.classify_result({"lower": 0.82, "upper": 0.90}, 0.10, 0.90),
             "execution-representation-contains-linearly-recoverable-operation-information",
         )
         self.assertEqual(
-            probe.classify_result(0.01, 0.02, 0.40),
+            probe.classify_result({"lower": 0.01, "upper": 0.12}, 0.05, 0.40),
             "operation-identity-not-linearly-represented-in-execution-state",
         )
         self.assertEqual(
-            probe.classify_result(0.01, 0.02, 0.95),
+            probe.classify_result({"lower": 0.01, "upper": 0.12}, 0.05, 0.95),
             "development-success-untouched-collapse",
+        )
+        self.assertEqual(
+            probe.classify_result({"lower": 0.30, "upper": 0.70}, 0.10, 0.75),
+            "inconclusive-intermediate-operation-signal",
         )
 
     def test_atomic_json_writes_complete_document(self) -> None:
