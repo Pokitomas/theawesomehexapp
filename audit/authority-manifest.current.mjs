@@ -72,7 +72,6 @@ const researchWorkflowRows = [
     },
     status: 'enforced',
     surfaces: [
-      'workflow-permission:.github/workflows/archie-latent-world-source-export.yml:actions:read',
       'workflow-permission:.github/workflows/archie-productize-winner.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v3-formal-negative.yml:actions:read',
       'workflow-permission:.github/workflows/archie-register-v4-admission.yml:actions:read',
@@ -80,7 +79,6 @@ const researchWorkflowRows = [
       'workflow-permission:.github/workflows/archie-typed-program-student.yml:actions:read'
     ],
     implementation: references([
-      ['.github/workflows/archie-latent-world-source-export.yml', 'actions: read', 'gh run download'],
       ['.github/workflows/archie-productize-winner.yml', 'actions: read', 'gh run download'],
       ['.github/workflows/archie-register-v4-admission.yml', 'actions: read'],
       ['.github/workflows/archie-terminal-efficiency-v3.yml', 'actions: read', 'SOURCE_RUN_ID', 'gh run download'],
