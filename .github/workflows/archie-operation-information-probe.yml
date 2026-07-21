@@ -1,0 +1,220 @@
+name: Archie operation information probe
+
+on:
+  push:
+    branches:
+      - agent/archie-operation-probe-20260721
+    paths:
+      - .github/workflows/archie-operation-information-probe.yml
+      - audit/authority-manifest.current.mjs
+      - foundry/archie-protocol/latent_world_benchmark/research/operation_information_probe.py
+      - foundry/archie-protocol/latent_world_benchmark/research/test_operation_information_probe.py
+      - foundry/archie-protocol/latent_world_benchmark/research/OPERATION_INFORMATION_PROBE.md
+  pull_request:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-operation-information-probe.yml
+      - audit/authority-manifest.current.mjs
+      - foundry/archie-protocol/latent_world_benchmark/research/operation_information_probe.py
+      - foundry/archie-protocol/latent_world_benchmark/research/test_operation_information_probe.py
+      - foundry/archie-protocol/latent_world_benchmark/research/OPERATION_INFORMATION_PROBE.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-operation-information-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Verify operation-probe contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU diagnostic runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Materialize exact benchmark sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+
+      - name: Compile and test diagnostic contracts
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            latent_world_benchmark.py \
+            full_budget_campaign.py \
+            research/efficient_terminal_training.py \
+            research/operation_information_probe.py \
+            research/test_operation_information_probe.py
+          PYTHONPATH=. python3 research/test_operation_information_probe.py
+
+  probe:
+    name: Run frozen operation-information diagnostic
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-operation-probe]'))
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TERMINAL_RUN_ID: "29867827958"
+      TERMINAL_ARTIFACT_ID: "8510576517"
+      TERMINAL_ARTIFACT_NAME: archie-terminal-efficiency-v3-29867827958
+      TERMINAL_ARTIFACT_DIGEST: sha256:c35cc475bcc0bb477d25ae1670dc0b4a4f4c762cc486e247766d11b0ce77c7dd
+      CAMPAIGN_RUN_ID: "29834460894"
+      CAMPAIGN_ARTIFACT_ID: "8504094525"
+      CAMPAIGN_ARTIFACT_NAME: archie-causal-mechanism-maximal-29834460894
+      CAMPAIGN_ARTIFACT_DIGEST: sha256:ce7cf88f5ced8d02be4bc6407ffc9be113a5adcf4c0fc7b2896b0c301b2b0203
+      PYTHONUNBUFFERED: "1"
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU diagnostic runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Materialize exact benchmark sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+
+      - name: Verify immutable source artifact identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          terminal_digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${TERMINAL_ARTIFACT_ID}" --jq '.digest')"
+          campaign_digest="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${CAMPAIGN_ARTIFACT_ID}" --jq '.digest')"
+          test "$terminal_digest" = "$TERMINAL_ARTIFACT_DIGEST"
+          test "$campaign_digest" = "$CAMPAIGN_ARTIFACT_DIGEST"
+
+      - name: Download immutable terminal and campaign artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/terminal evidence/campaign
+          gh run download "$TERMINAL_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$TERMINAL_ARTIFACT_NAME" \
+            --dir evidence/terminal
+          gh run download "$CAMPAIGN_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$CAMPAIGN_ARTIFACT_NAME" \
+            --dir evidence/campaign
+
+          checkpoint_a="$(find evidence/terminal -type f -name 'factorized_w36_lr1e3__seed30260721.pt' -print -quit)"
+          checkpoint_b="$(find evidence/terminal -type f -name 'factorized_w36_lr1e3__seed30360724.pt' -print -quit)"
+          evidence_bundle="$(find evidence/campaign -type f -name evidence-bundle.json -print -quit)"
+          test -n "$checkpoint_a"
+          test -n "$checkpoint_b"
+          test -n "$evidence_bundle"
+          echo '63e57e657121b653017213a19ddf4b2803a33aa6d4f0f0a6a1086ab62199b937  '"$checkpoint_a" | sha256sum -c -
+          echo '458ae00a900aed22c5d95b023b2d4b87e8554ea5be7c03b4f271db124d4f2c29  '"$checkpoint_b" | sha256sum -c -
+          echo "CHECKPOINT_A=$GITHUB_WORKSPACE/$checkpoint_a" >> "$GITHUB_ENV"
+          echo "CHECKPOINT_B=$GITHUB_WORKSPACE/$checkpoint_b" >> "$GITHUB_ENV"
+          echo "CAMPAIGN_ROOT=$GITHUB_WORKSPACE/$(dirname "$evidence_bundle")" >> "$GITHUB_ENV"
+
+      - name: Independently verify canonical campaign
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py verify --output "$CAMPAIGN_ROOT"
+
+      - name: Run frozen operation-information diagnostic
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          rm -rf artifacts/operation-information-probe
+          PYTHONPATH=. python3 research/operation_information_probe.py \
+            --campaign-root "$CAMPAIGN_ROOT" \
+            --checkpoint "$CHECKPOINT_A" \
+            --checkpoint-sha256 63e57e657121b653017213a19ddf4b2803a33aa6d4f0f0a6a1086ab62199b937 \
+            --checkpoint "$CHECKPOINT_B" \
+            --checkpoint-sha256 458ae00a900aed22c5d95b023b2d4b87e8554ea5be7c03b4f271db124d4f2c29 \
+            --output artifacts/operation-information-probe \
+            --scale base \
+            --threads 4 \
+            | tee artifacts/operation-information-command.json
+
+      - name: Publish diagnostic summary
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          report=artifacts/operation-information-probe/operation-information-report.json
+          jq -e '.schema == "archie-operation-information-probe/v1"' "$report" >/dev/null
+          jq -e '.promotion == "research-only-not-admitted"' "$report" >/dev/null
+          jq -e '.records | all(.existing_router_intervention_metrics.operation_accuracy == 0.0)' "$report" >/dev/null
+          jq -e '.records | all(.unseen_intervention_labels == [9, 10])' "$report" >/dev/null
+          jq -e '.records | all(.historical_state_dict_sha256_before == .historical_state_dict_sha256_after)' "$report" >/dev/null
+          {
+            echo "# Archie operation-information probe"
+            echo
+            echo "- Historical terminal run: \`$(jq -r '.historical_terminal_run' "$report")\`"
+            echo "- Existing intervention router accuracy: \`0.0\`"
+            echo "- Unseen intervention labels: \`9, 10\`"
+            echo "- Mean intervention signature exactness: \`$(jq -r '.overall_mean_intervention_signature_exact' "$report")\`"
+            echo "- Mean intervention signature bit accuracy: \`$(jq -r '.overall_mean_intervention_signature_bit_accuracy' "$report")\`"
+            echo "- Verdicts: \`$(jq -r '.verdicts | join(", ")' "$report")\`"
+            echo "- Promotion: \`research-only-not-admitted\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-operation-information-probe-${{ github.run_id }}
+          path: |
+            foundry/archie-protocol/latent_world_benchmark/artifacts/operation-information-probe
+            foundry/archie-protocol/latent_world_benchmark/artifacts/operation-information-command.json
+            foundry/archie-protocol/latent_world_benchmark/research/operation_information_probe.py
+            foundry/archie-protocol/latent_world_benchmark/research/OPERATION_INFORMATION_PROBE.md
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce research-only diagnostic boundary
+        if: always()
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          report=artifacts/operation-information-probe/operation-information-report.json
+          test -f "$report"
+          jq -e '.promotion == "research-only-not-admitted"' "$report" >/dev/null
