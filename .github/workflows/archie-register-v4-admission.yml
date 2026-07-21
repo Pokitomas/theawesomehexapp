@@ -1,0 +1,197 @@
+name: Archie register V4 admission
+
+on:
+  push:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-register-v4-admission-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  seal:
+    name: Seal fresh post-fix pack
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate 1,800-row entropy-seeded pack after candidate commit is fixed
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/register-v4-seal /tmp/register-v4-packs
+          python3 <<'PY'
+          import hashlib
+          import json
+          import os
+          import random
+          import secrets
+          import subprocess
+          from pathlib import Path
+
+          generator = Path('foundry/archie-protocol/register_student/sealed_pack.py')
+          seed_a = secrets.randbits(63)
+          seed_b = secrets.randbits(63)
+          shuffle_seed = secrets.randbits(63)
+          pack_a = Path('/tmp/register-v4-packs/a.json')
+          pack_b = Path('/tmp/register-v4-packs/b.json')
+          subprocess.run(['python3', str(generator), '--out', str(pack_a), '--seed', str(seed_a)], check=True, stdout=subprocess.DEVNULL)
+          subprocess.run(['python3', str(generator), '--out', str(pack_b), '--seed', str(seed_b)], check=True, stdout=subprocess.DEVNULL)
+          rows_a = json.loads(pack_a.read_text())
+          rows_b = json.loads(pack_b.read_text())
+          if len(rows_a) != 1584 or len(rows_b) != 1584:
+              raise SystemExit(f'unexpected generator row counts: {len(rows_a)}, {len(rows_b)}')
+          extra = rows_b[:216]
+          for index, row in enumerate(extra):
+              row['id'] = f"sealed-v4-extra-{index:04d}-{row['id']}"
+          rows = rows_a + extra
+          random.Random(shuffle_seed).shuffle(rows)
+          ids = [row['id'] for row in rows]
+          if len(rows) != 1800 or len(ids) != len(set(ids)):
+              raise SystemExit('sealed V4 pack cardinality or ID uniqueness failure')
+          output = Path('artifacts/register-v4-seal/sealed-pack-v4.json')
+          payload = (json.dumps(rows, indent=2, sort_keys=True, ensure_ascii=False) + '\n').encode()
+          output.write_bytes(payload)
+          controller_sha = '74ba2961c1baf7455837cc47925c3102f2500c5f90d8b0fe52e7a21d2a4e5b7e'
+          model_sha = '7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0'
+          manifest = {
+              'schema': 'archie-register-sealed-admission-pack/v4',
+              'rows': len(rows),
+              'sha256': hashlib.sha256(payload).hexdigest(),
+              'seed_commitments': [
+                  hashlib.sha256(str(seed_a).encode()).hexdigest(),
+                  hashlib.sha256(str(seed_b).encode()).hexdigest(),
+                  hashlib.sha256(str(shuffle_seed).encode()).hexdigest(),
+              ],
+              'generator_sha256': hashlib.sha256(generator.read_bytes()).hexdigest(),
+              'candidate_commit': os.environ['GITHUB_SHA'],
+              'controller_sha256': controller_sha,
+              'model_sha256': model_sha,
+              'generated_after_candidate_fixed': True,
+              'access_contract': 'seal job only; candidate commit fixed before generation; judge job opens artifact after upload',
+          }
+          Path('artifacts/register-v4-seal/sealed-pack-v4.json.manifest.json').write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+          print(json.dumps({key: manifest[key] for key in ('schema', 'rows', 'sha256', 'candidate_commit', 'controller_sha256', 'model_sha256')}, indent=2))
+          PY
+          sha256sum artifacts/register-v4-seal/* > artifacts/register-v4-seal/SHA256SUMS
+
+      - name: Upload sealed pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-register-v4-sealed-${{ github.run_id }}
+          path: artifacts/register-v4-seal
+          if-no-files-found: error
+          retention-days: 30
+
+  judge:
+    name: Independent sealed component judge
+    needs: seal
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download sealed pack
+        uses: actions/download-artifact@v4
+        with:
+          name: archie-register-v4-sealed-${{ github.run_id }}
+          path: artifacts/register-v4-seal
+
+      - name: Download immutable learned candidate artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/register-candidate-v4
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/8485713170/zip" > /tmp/register-v3-candidate.zip
+          echo '775fd8cf76a1b27a58011940597dacdca26995762f0b7fc252a8f0b2bf5b84f6  /tmp/register-v3-candidate.zip' | sha256sum -c -
+          unzip -q /tmp/register-v3-candidate.zip -d artifacts/register-candidate-v4
+          echo '7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0  artifacts/register-candidate-v4/register-student-model.json' | sha256sum -c -
+          echo '828980422423c40a6a858e0f64217db03cc326a5530d24dac5fbff5b8aeeccd4  artifacts/register-candidate-v4/register-student-model.mjs' | sha256sum -c -
+          echo '98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71  artifacts/register-candidate-v4/register-student-core.mjs' | sha256sum -c -
+          echo '98aab633c46765fc8e046090478a09bb347c0d58cec73c4ac95cec03919d948a  artifacts/register-candidate-v4/training-receipt.json' | sha256sum -c -
+
+      - name: Build exact V4 controller without changing learned weights
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/register_student/v4/patch_register_v4.py \
+            artifacts/register-candidate-v4/register-student-core.mjs \
+            artifacts/register-candidate-v4/register-student-core-v4.mjs
+          echo '74ba2961c1baf7455837cc47925c3102f2500c5f90d8b0fe52e7a21d2a4e5b7e  artifacts/register-candidate-v4/register-student-core-v4.mjs' | sha256sum -c -
+          node --check artifacts/register-candidate-v4/register-student-core-v4.mjs
+          python3 -m py_compile \
+            foundry/archie-protocol/register_student/v4/patch_register_v4.py \
+            foundry/archie-protocol/register_student/v4/raw_parity.py
+
+      - name: Run strict component admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/register-v4-admission
+          node foundry/archie-protocol/register_student/v4/evaluate_register_v4.mjs \
+            --candidate-dir artifacts/register-candidate-v4 \
+            --pack artifacts/register-v4-seal/sealed-pack-v4.json \
+            --manifest artifacts/register-v4-seal/sealed-pack-v4.json.manifest.json \
+            --output artifacts/register-v4-admission/admission-report.json \
+            --python-parity foundry/archie-protocol/register_student/v4/raw_parity.py \
+            --candidate-commit "$GITHUB_SHA" \
+            --duration-ms 60000 | tee artifacts/register-v4-admission/judge-summary.json
+          jq -e '.decision == "admitted-register-router" and (.blockers | length == 0)' artifacts/register-v4-admission/admission-report.json >/dev/null
+
+      - name: Run protected repository gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:archie:baseline
+          npm run test:archie:completion
+          npm run test:archie:admission
+
+      - name: Seal admitted package and environment receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/register-v4-admission/package
+          cp artifacts/register-candidate-v4/register-student-model.json artifacts/register-v4-admission/package/
+          cp artifacts/register-candidate-v4/register-student-model.mjs artifacts/register-v4-admission/package/
+          cp artifacts/register-candidate-v4/register-student-core-v4.mjs artifacts/register-v4-admission/package/
+          cp artifacts/register-candidate-v4/training-receipt.json artifacts/register-v4-admission/package/
+          cp artifacts/register-candidate-v4/candidate-v3-manifest.json artifacts/register-v4-admission/package/
+          cp artifacts/register-v4-seal/sealed-pack-v4.json.manifest.json artifacts/register-v4-admission/package/
+          cat > artifacts/register-v4-admission/environment.json <<EOF
+          {
+            "schema": "archie-register-v4-environment/v1",
+            "repository": "${GITHUB_REPOSITORY}",
+            "commit": "${GITHUB_SHA}",
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}",
+            "runner_os": "${RUNNER_OS}",
+            "runner_arch": "${RUNNER_ARCH}",
+            "node": "$(node --version)",
+            "python": "$(python3 --version 2>&1)"
+          }
+          EOF
+          find artifacts/register-v4-admission -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > artifacts/register-v4-admission/SHA256SUMS
+
+      - name: Upload V4 admission evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-register-v4-admission-${{ github.run_id }}
+          path: artifacts/register-v4-admission
+          if-no-files-found: error
+          retention-days: 30
