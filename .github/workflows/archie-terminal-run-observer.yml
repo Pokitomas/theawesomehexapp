@@ -35,13 +35,13 @@ jobs:
             target_sha="$(
               gh api --paginate --slurp \
                 "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/commits?per_page=100" \
-                --jq '[.[][] | select(.commit.message | contains("[run-terminal-v3]"))][-1].sha'
+              | jq -r '[.[][] | select(.commit.message | contains("[run-terminal-v3]"))][-1].sha'
             )"
           else
             target_sha="$(
               gh api --paginate --slurp \
                 "/repos/${GITHUB_REPOSITORY}/commits?sha=agent/archie-generalized-program-v1-20260721&per_page=100" \
-                --jq '[.[][] | select(.commit.message | contains("[run-terminal-v3]"))][0].sha'
+              | jq -r '[.[][] | select(.commit.message | contains("[run-terminal-v3]"))][0].sha'
             )"
           fi
           test -n "$target_sha" && test "$target_sha" != "null"
@@ -62,7 +62,8 @@ jobs:
           for attempt in $(seq 1 185); do
             run_json="$(
               gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${target_sha}&event=push&per_page=100" \
-                --jq '[.workflow_runs[] | select(.name == env.TARGET_WORKFLOW_NAME)] | sort_by(.created_at) | last'
+              | jq -c --arg name "$TARGET_WORKFLOW_NAME" \
+                  '[.workflow_runs[] | select(.name == $name)] | sort_by(.created_at) | last'
             )"
             if [[ -n "$run_json" && "$run_json" != "null" ]]; then
               run_id="$(jq -r '.id' <<<"$run_json")"
@@ -86,8 +87,8 @@ jobs:
 
           gh api --paginate --slurp \
             "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
-            --jq '{jobs: [.[][].jobs[] | {id, name, status, conclusion, started_at, completed_at, steps}]}' \
-            > artifacts/terminal-run-observer/jobs.json
+          | jq '{jobs: [.[][].jobs[] | {id, name, status, conclusion, started_at, completed_at, steps}]}' \
+          > artifacts/terminal-run-observer/jobs.json
 
           gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
             --jq '{artifacts: [.artifacts[] | {id, name, size_in_bytes, expired, created_at, expires_at}]}' \
