@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import manifest from '../audit/authority-manifest.mjs';
+import manifest from '../audit/authority-manifest.current.mjs';
 import {
   discoverAuthoritySurfaces,
   validateManifest
