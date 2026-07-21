@@ -7,7 +7,7 @@ name = "squeeze-relay"
 version = "0.1.0"
 description = "Fail-closed local GPU relay for sealed Archie research jobs"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["cryptography>=45"]
 
 [project.scripts]
 squeeze = "squeeze.cli:main"
