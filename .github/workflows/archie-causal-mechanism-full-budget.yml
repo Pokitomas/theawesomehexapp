@@ -1,4 +1,4 @@
-name: Archie causal mechanism full-budget
+name: Archie causal mechanism maximal training
 
 on:
   pull_request:
@@ -19,18 +19,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: archie-causal-mechanism-full-budget-${{ github.ref }}
+  group: archie-causal-mechanism-maximal-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   campaign:
-    name: Execute complete receipt-bound CPU campaign
+    if: github.event_name != 'push'
+    name: Execute maximal receipt-bound CPU campaign
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 350
     env:
       OMP_NUM_THREADS: "4"
       MKL_NUM_THREADS: "4"
       OPENBLAS_NUM_THREADS: "4"
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,21 +90,21 @@ jobs:
           name: archie-causal-mechanism-contract-diagnostics-${{ github.run_id }}
           path: foundry/archie-protocol/latent_world_benchmark/artifacts/contract-diagnostics
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
 
-      - name: Execute the exact full-budget profile
+      - name: Execute maximal convergence profile
         working-directory: foundry/archie-protocol/latent_world_benchmark
         shell: bash
         run: |
           set -euo pipefail
           python3 full_budget_campaign.py run \
             --output artifacts/full-budget \
-            --steps 24 \
-            --batch-size 24 \
-            --seeds 2 \
-            --eval-batches 2 \
-            --eval-batch-size 32 \
-            --checkpoint-every 4 \
+            --steps 2048 \
+            --batch-size 64 \
+            --seeds 3 \
+            --eval-batches 8 \
+            --eval-batch-size 64 \
+            --checkpoint-every 128 \
             --threads 4
 
       - name: Independently verify evidence bundle
@@ -125,11 +127,12 @@ jobs:
           root = Path("artifacts/full-budget")
           report = json.loads((root / "falsification-report.json").read_text())
           evidence = json.loads((root / "evidence-bundle.json").read_text())
-          print("# Archie causal mechanism full-budget campaign")
+          print("# Archie causal mechanism maximal training")
           print()
           print(f"- Campaign complete: `{report['campaign_complete']}`")
           print(f"- Planned/completed optimizer steps: `{report['budget']['planned_optimizer_steps']}` / `{report['budget']['completed_optimizer_steps']}`")
           print(f"- Total event tokens: `{report['budget']['total_event_tokens']}`")
+          print(f"- Estimated training FLOPs: `{report['budget']['total_estimated_training_flops']}`")
           print(f"- Decision: `{report['canonical_decision']}`")
           print(f"- Manifest: `{evidence['manifest_sha256']}`")
           print()
@@ -141,7 +144,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: archie-causal-mechanism-full-budget-${{ github.run_id }}
+          name: archie-causal-mechanism-maximal-${{ github.run_id }}
           path: foundry/archie-protocol/latent_world_benchmark/artifacts/full-budget
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
