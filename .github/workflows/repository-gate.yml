@@ -53,3 +53,178 @@ jobs:
             .github/workflows
           if-no-files-found: error
           retention-days: 14
+
+  seal-register-admission-pack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Seal untouched full-runtime pack before training
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/sealed-register-pack
+          python3 foundry/archie-protocol/register_student/sealed_pack.py \
+            --out artifacts/sealed-register-pack/sealed-pack.json \
+            --seed 734921
+          sha256sum artifacts/sealed-register-pack/* > artifacts/sealed-register-pack/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sealed-register-admission-pack-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/sealed-register-pack
+          if-no-files-found: error
+          retention-days: 14
+
+  train-register-student:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Decode immutable training and runtime sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/register-candidate /tmp/register-student
+          base64 -d foundry/archie-protocol/register_student/bundles/train_full_budget.py.gz.b64 | gzip -d > /tmp/register-student/train_full_budget.py
+          base64 -d foundry/archie-protocol/register_student/bundles/register-student-core.mjs.gz.b64 | gzip -d > foundry/archie-protocol/register_student/register-student-core.mjs
+          python3 -m py_compile /tmp/register-student/train_full_budget.py
+          node --check foundry/archie-protocol/register_student/register-student-core.mjs
+      - name: Install CPU training stack
+        run: python3 -m pip install --disable-pip-version-check --no-input numpy scipy scikit-learn
+      - name: Train full-budget quantized register student
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDIT="$(find foundry/archie-protocol -type f -name 'route-train-v6.json' | head -n1)"
+          CHALLENGE="$(find foundry/archie-protocol -type f -name 'blind-challenge-pack.frozen.json' | head -n1)"
+          LEGACY_DIR="foundry/archie-protocol/neural/data"
+          test -n "$AUDIT" && test -f "$AUDIT"
+          test -n "$CHALLENGE" && test -f "$CHALLENGE"
+          test -d "$LEGACY_DIR"
+          /usr/bin/time -v python3 /tmp/register-student/train_full_budget.py \
+            --audit-corpus "$AUDIT" \
+            --old-challenge "$CHALLENGE" \
+            --legacy-dir "$LEGACY_DIR" \
+            --synthetic 72000 \
+            --max-features 28000 \
+            --seed 1319771 \
+            --out artifacts/register-candidate \
+            2>&1 | tee artifacts/register-candidate/training.log
+          cp foundry/archie-protocol/register_student/register-student-core.mjs artifacts/register-candidate/
+          sha256sum artifacts/register-candidate/* > artifacts/register-candidate/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: register-student-candidate-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/register-candidate
+          if-no-files-found: error
+          retention-days: 14
+
+  judge-register-student:
+    needs: [seal-register-admission-pack, train-register-student]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: sealed-register-admission-pack-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/sealed-register-pack
+      - uses: actions/download-artifact@v4
+        with:
+          name: register-student-candidate-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/register-candidate
+      - name: Decode independent judge and exact JS runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/register-admission /tmp/register-student
+          base64 -d foundry/archie-protocol/register_student/bundles/train_full_budget.py.gz.b64 | gzip -d > /tmp/register-student/train_full_budget.py
+          base64 -d foundry/archie-protocol/register_student/bundles/judge_candidate.py.gz.b64 | gzip -d > /tmp/register-student/judge_candidate.py
+          base64 -d foundry/archie-protocol/register_student/bundles/register-student-core.mjs.gz.b64 | gzip -d > foundry/archie-protocol/register_student/register-student-core.mjs
+          python3 -m py_compile /tmp/register-student/train_full_budget.py /tmp/register-student/judge_candidate.py
+          node --check foundry/archie-protocol/register_student/register-student-core.mjs
+      - name: Install independent evaluation stack
+        run: python3 -m pip install --disable-pip-version-check --no-input numpy scipy scikit-learn
+      - name: Open sealed pack only after candidate is fixed and judge admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 /tmp/register-student/judge_candidate.py \
+            --repo . \
+            --candidate artifacts/register-candidate \
+            --pack artifacts/sealed-register-pack/sealed-pack.json \
+            --pack-manifest artifacts/sealed-register-pack/sealed-pack.json.manifest.json \
+            --legacy-dir foundry/archie-protocol/neural/data \
+            --resource-seconds 60 \
+            --out artifacts/register-admission \
+            2>&1 | tee artifacts/register-admission/judge.log
+      - name: Execute protected Archie suites against admitted candidate in a temporary tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADMITTED="$(node -e "const p=require('./artifacts/register-admission/promotion.json'); process.stdout.write(String(p.admitted))")"
+          if [ "$ADMITTED" != true ]; then
+            printf '{"executed":false,"reason":"independent-admission-blocked"}\n' > artifacts/register-admission/protected-tests.json
+            exit 0
+          fi
+          cp artifacts/register-admission/register-student-core.mjs archie-operator/register-student-core.mjs
+          cp artifacts/register-admission/register-student-model.mjs archie-operator/register-student-model.mjs
+          cp artifacts/register-admission/register-router.mjs archie-operator/register-router.mjs
+          npm ci --ignore-scripts
+          set +e
+          npm run test:archie:baseline > artifacts/register-admission/protected-baseline.log 2>&1
+          BASELINE=$?
+          npm run test:archie:completion > artifacts/register-admission/protected-completion.log 2>&1
+          COMPLETION=$?
+          npm run test:archie:admission > artifacts/register-admission/protected-admission.log 2>&1
+          ADMISSION=$?
+          set -e
+          node - "$BASELINE" "$COMPLETION" "$ADMISSION" > artifacts/register-admission/protected-tests.json <<'NODE'
+          const [baseline, completion, admission] = process.argv.slice(2).map(Number);
+          process.stdout.write(JSON.stringify({
+            executed: true,
+            passed: baseline === 0 && completion === 0 && admission === 0,
+            exit_codes: { baseline, completion, admission }
+          }, null, 2) + '\n');
+          NODE
+          test "$BASELINE" -eq 0
+          test "$COMPLETION" -eq 0
+          test "$ADMISSION" -eq 0
+      - name: Bind final promotion status
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const promotion = JSON.parse(fs.readFileSync('artifacts/register-admission/promotion.json', 'utf8'));
+          const protectedPath = 'artifacts/register-admission/protected-tests.json';
+          const protectedTests = fs.existsSync(protectedPath) ? JSON.parse(fs.readFileSync(protectedPath, 'utf8')) : { executed: false, passed: false };
+          const final = {
+            ...promotion,
+            protected_tests: protectedTests,
+            final_promotion_eligible: promotion.admitted === true && protectedTests.passed === true
+          };
+          fs.writeFileSync('artifacts/register-admission/final-promotion.json', JSON.stringify(final, null, 2) + '\n');
+          NODE
+          sha256sum artifacts/register-admission/* > artifacts/register-admission/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: register-student-admission-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/register-admission
+          if-no-files-found: error
+          retention-days: 14
