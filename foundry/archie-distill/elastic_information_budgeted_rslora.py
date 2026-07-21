@@ -2,8 +2,9 @@
 """Elastic, receipt-bound resume wrapper for the information-budgeted RSLoRA trainer.
 
 The canonical trainer remains the source of model, loss, tokenization, and evidence logic.
-This wrapper only partitions its fixed optimizer budget into durable rungs that can move
-between compatible external CUDA runners without losing model or optimizer state.
+This wrapper partitions the fixed optimizer budget into durable rungs that can move
+between compatible external CUDA runners without losing model, optimizer, scheduler,
+RNG, or lineage state.
 """
 from __future__ import annotations
 
@@ -19,6 +20,10 @@ import time
 from typing import Any, Iterable
 
 RUNG_SCHEMA = "archie-elastic-information-budgeted-rslora-rung/v1"
+OPTIMIZER_STATE_FILES = ("optimizer.pt", "optimizer.bin")
+MODEL_STATE_FILES = ("adapter_model.safetensors", "pytorch_model.bin", "model.safetensors")
+REQUIRED_TRAINER_STATE_FILES = ("trainer_state.json", "scheduler.pt", "rng_state.pth")
+PACKAGE_VERSION_NAMES = ["torch", "transformers", "peft", "bitsandbytes", "accelerate", "datasets"]
 
 
 def stable(value: Any) -> str:
@@ -105,17 +110,22 @@ def checkpoint_step(path: pathlib.Path) -> int:
         raise SystemExit(f"Invalid Trainer checkpoint name: {path.name}") from exc
 
 
+def _require_one(checkpoint: pathlib.Path, names: tuple[str, ...], label: str) -> None:
+    if not any((checkpoint / name).is_file() for name in names):
+        raise SystemExit(f"Checkpoint has no {label}: {checkpoint}")
+
+
 def latest_checkpoint(root: pathlib.Path) -> pathlib.Path:
     candidates = [path for path in root.glob("checkpoint-*") if path.is_dir()]
     if not candidates:
         raise SystemExit(f"No durable Trainer checkpoint found under {root}.")
     checkpoint = max(candidates, key=checkpoint_step)
-    required = [checkpoint / "trainer_state.json"]
-    if not any((checkpoint / name).is_file() for name in ("optimizer.pt", "optimizer.bin")):
-        raise SystemExit(f"Checkpoint has no optimizer state: {checkpoint}")
-    for path in required:
+    _require_one(checkpoint, OPTIMIZER_STATE_FILES, "optimizer state")
+    _require_one(checkpoint, MODEL_STATE_FILES, "model or adapter state")
+    for name in REQUIRED_TRAINER_STATE_FILES:
+        path = checkpoint / name
         if not path.is_file():
-            raise SystemExit(f"Checkpoint is incomplete: {path}")
+            raise SystemExit(f"Checkpoint is incomplete; missing {name}: {checkpoint}")
     return checkpoint
 
 
@@ -135,12 +145,16 @@ def parent_checkpoint(
     *,
     rung: int,
     request_id: str,
+    code_revision: str,
     shard_index: int,
     base_profile_sha256: str,
     dataset_sha256: str,
     pair_receipt_digest: str,
+    reference_cache_receipt_digest: str,
     student_directory_digest: str,
+    training_package_versions: dict[str, Any],
     total_steps: int,
+    previous_target_optimizer_step: int,
     rung_count: int,
 ) -> tuple[pathlib.Path, dict[str, Any]]:
     receipt_path = bundle / "elastic-rung-receipt.json"
@@ -149,14 +163,18 @@ def parent_checkpoint(
     expected = {
         "schema": RUNG_SCHEMA,
         "request_id": request_id,
+        "code_revision": code_revision,
         "shard_index": shard_index,
         "rung": rung - 1,
         "rung_count": rung_count,
         "base_profile_sha256": base_profile_sha256,
         "preference_dataset_sha256": dataset_sha256,
         "pair_receipt_digest": pair_receipt_digest,
+        "reference_cache_receipt_digest": reference_cache_receipt_digest,
         "student_checkpoint_directory_digest": student_directory_digest,
+        "training_package_versions": training_package_versions,
         "total_optimizer_steps": total_steps,
+        "target_optimizer_step": previous_target_optimizer_step,
     }
     for key, value in expected.items():
         if receipt.get(key) != value:
@@ -165,13 +183,16 @@ def parent_checkpoint(
     if relative.is_absolute() or ".." in relative.parts:
         raise SystemExit("Parent checkpoint path escapes its bundle.")
     checkpoint = bundle / pathlib.Path(relative)
+    latest_checkpoint(checkpoint.parent)
     entries = receipt.get("checkpoint", {}).get("manifest")
     if not isinstance(entries, list):
         raise SystemExit("Parent checkpoint manifest is missing.")
     verify_manifest(checkpoint, entries, str(receipt.get("checkpoint", {}).get("manifest_digest") or ""))
     state = read_json(checkpoint / "trainer_state.json")
-    if int(state.get("global_step", -1)) != int(receipt.get("target_optimizer_step", -2)):
-        raise SystemExit("Parent checkpoint global step does not match its receipt.")
+    if int(state.get("global_step", -1)) != previous_target_optimizer_step:
+        raise SystemExit("Parent checkpoint global step does not match the exact next optimizer step.")
+    if int(receipt.get("checkpoint", {}).get("global_step", -1)) != previous_target_optimizer_step:
+        raise SystemExit("Parent checkpoint receipt global step does not match the exact next optimizer step.")
     return checkpoint, receipt
 
 
@@ -214,7 +235,9 @@ def train_rung(args: argparse.Namespace) -> None:
         raise SystemExit(f"Refusing overwrite: {output}")
     profile = read_json(profile_path)
     pair_receipt = read_json(pair_path)
+    cache_receipt = read_json(cache_path / "reference-cache-receipt.json")
     base.verify_receipt(pair_receipt)
+    base.verify_receipt(cache_receipt)
     rows = base.read_jsonl(data_path, required=True)
     cfg = profile.get("training") or {}
     total_steps = optimizer_steps(len(rows), args.batch_size, args.gradient_accumulation_steps, float(cfg["epochs"]))
@@ -226,7 +249,9 @@ def train_rung(args: argparse.Namespace) -> None:
     profile_sha = sha256(profile_path)
     dataset_sha = sha256(data_path)
     pair_digest = str(pair_receipt.get("receipt_digest") or "")
+    cache_digest = str(cache_receipt.get("receipt_digest") or "")
     student_digest = str(base.directory_identity(model_dir).get("directory_digest") or "")
+    package_versions = base.package_versions(PACKAGE_VERSION_NAMES)
     resume_checkpoint = None
     parent_receipt = None
     if args.rung == 0:
@@ -239,12 +264,16 @@ def train_rung(args: argparse.Namespace) -> None:
             pathlib.Path(args.resume_bundle).resolve(),
             rung=args.rung,
             request_id=args.request_id,
+            code_revision=args.code_revision,
             shard_index=args.shard_index,
             base_profile_sha256=profile_sha,
             dataset_sha256=dataset_sha,
             pair_receipt_digest=pair_digest,
+            reference_cache_receipt_digest=cache_digest,
             student_directory_digest=student_digest,
+            training_package_versions=package_versions,
             total_steps=total_steps,
+            previous_target_optimizer_step=previous_target,
             rung_count=args.rung_count,
         )
         if checkpoint_step(resume_checkpoint) != previous_target:
@@ -252,13 +281,14 @@ def train_rung(args: argparse.Namespace) -> None:
 
     output.mkdir(parents=True)
     effective_profile = json.loads(json.dumps(profile))
-    effective_profile.setdefault("elastic_execution", {})
     effective_profile["elastic_execution"] = {
         "schema": RUNG_SCHEMA,
         "request_id": args.request_id,
+        "code_revision": args.code_revision,
         "shard_index": args.shard_index,
         "rung": args.rung,
         "rung_count": args.rung_count,
+        "previous_target_optimizer_step": previous_target,
         "target_optimizer_step": target_step,
         "total_optimizer_steps": total_steps,
     }
@@ -322,8 +352,9 @@ def train_rung(args: argparse.Namespace) -> None:
         "effective_profile_sha256": sha256(effective_profile_path),
         "preference_dataset_sha256": dataset_sha,
         "pair_receipt_digest": pair_digest,
-        "reference_cache_receipt_digest": read_json(cache_path / "reference-cache-receipt.json").get("receipt_digest"),
+        "reference_cache_receipt_digest": cache_digest,
         "student_checkpoint_directory_digest": student_digest,
+        "training_package_versions": package_versions,
         "total_optimizer_steps": total_steps,
         "previous_target_optimizer_step": previous_target,
         "target_optimizer_step": target_step,
