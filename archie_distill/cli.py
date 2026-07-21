@@ -7,6 +7,9 @@ from typing import Any
 
 from . import collect as collect_module
 from . import evaluate as evaluate_module
+from . import on_policy as on_policy_module
+from . import pairs as pairs_module
+from . import preference as preference_module
 from . import train as train_module
 from .core import SCHEMA_SELECTION, read_json, select_best, sha256_text, stable_json, write_json
 
@@ -42,6 +45,27 @@ def main() -> None:
     train_parser = subparsers.add_parser("train", help="Train a CUDA-only QLoRA adapter")
     train_module.configure_parser(train_parser)
     train_parser.set_defaults(handler=train_module.run_from_args)
+
+    on_policy_parser = subparsers.add_parser(
+        "on-policy",
+        help="Generate student trajectories and collect black-box teacher repairs",
+    )
+    on_policy_module.configure_parser(on_policy_parser)
+    on_policy_parser.set_defaults(handler=on_policy_module.run_from_args)
+
+    pairs_parser = subparsers.add_parser(
+        "pairs",
+        help="Compile teacher disagreements and verified repairs into divergence pairs",
+    )
+    pairs_module.configure_parser(pairs_parser)
+    pairs_parser.set_defaults(handler=pairs_module.run_from_args)
+
+    preference_parser = subparsers.add_parser(
+        "preference-train",
+        help="Train a CUDA causal-divergence preference adapter",
+    )
+    preference_module.configure_parser(preference_parser)
+    preference_parser.set_defaults(handler=preference_module.run_from_args)
 
     evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate one adapter")
     evaluate_module.configure_parser(evaluate_parser)
