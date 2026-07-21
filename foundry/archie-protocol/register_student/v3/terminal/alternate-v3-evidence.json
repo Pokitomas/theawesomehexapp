@@ -1,0 +1,51 @@
+{
+  "schema": "archie-register-v3-alternate-evidence/v1",
+  "status": "not-admitted",
+  "purpose": "Preserve the concurrent temporally sealed v3 controller result without conflating it with the selected terminal candidate.",
+  "workflow_run": 29806610161,
+  "admission_artifact_id": 8485739291,
+  "admission_artifact_digest": "sha256:fa8aeb9ce5f20b6e919308b7bc6abb14fa8c32c5d0ee67d2c7c9dec08c5e7396",
+  "trained_weights_artifact_id": 8485232165,
+  "sealed_pack_artifact_id": 8485464028,
+  "controller_sha256": "16f79047291b47c721d2f8ca89b6d0b198e6726cedf8d4112f5150d00d5cb0d4",
+  "model_json_sha256": "7a7f4619a9bb300ff5e690970663373d974fb0584a3b6b975cb1858f223a18b0",
+  "model_module_sha256": "828980422423c40a6a858e0f64217db03cc326a5530d24dac5fbff5b8aeeccd4",
+  "sealed_pack": {
+    "schema": "archie-register-sealed-admission-pack/v3",
+    "sha256": "78f1ee8553089329a483a2a30c8aba6fe8ece4ba1b8a79f6783c0cfd4ab0dc85",
+    "seed_commitment": "76aac153d6ff396137c15444daa5fa1af225ab0126f3d2714061d2935897a9f8",
+    "rows": 1800,
+    "created_before_controller_commit": true,
+    "row_untouched": true
+  },
+  "evaluation": {
+    "full": { "correct": 1798, "examples": 1800, "accuracy": 0.9988888888888889 },
+    "ordered_compound": { "correct": 239, "examples": 240, "accuracy": 0.9958333333333333 },
+    "semantic_checklist": { "correct": 69, "examples": 70, "accuracy": 0.9857142857142858 },
+    "all_other_fresh_categories_accuracy": 1.0,
+    "legacy_498": { "correct": 498, "examples": 498, "accuracy": 1.0 },
+    "legacy_60": { "correct": 60, "examples": 60, "accuracy": 1.0 },
+    "legacy_48": { "correct": 48, "examples": 48, "accuracy": 1.0 },
+    "python_javascript_parity": { "correct": 2406, "examples": 2406, "mismatches": 0 },
+    "resource_duration_ms": 60000.132988,
+    "predictions": 265991,
+    "predictions_per_second": 4433.173507352027,
+    "mean_latency_ms": 0.22557204186607815,
+    "peak_rss_bytes": 108576768
+  },
+  "repository_judge": {
+    "admitted": false,
+    "blockers": ["sealed-pack-bound"],
+    "reason": "The pre-frozen judge accepted only the v2 sealed-pack schema and therefore rejected the v3 pack binding before protected-product execution.",
+    "report_file_sha256": "6ddafad93aa5df287c92d9ab89652498a210500f4185607686563c3f0d927235",
+    "report_embedded_digest": "043b39ff66f201c2bbf8123478293cfbebd3237f4c17259b0f358486ca8ae63f"
+  },
+  "comparison_to_selected_terminal_candidate": {
+    "fresh_full_accuracy": "lower: 1798/1800 versus 1800/1800",
+    "legacy_498": "higher: 498/498 versus 496/498",
+    "parity": "equal: 2406/2406",
+    "final_provider_neutral_admission": "both blocked because no genuinely independent judge-only-hidden evaluator existed"
+  },
+  "production_changed": false,
+  "promotion": "not-admitted"
+}
