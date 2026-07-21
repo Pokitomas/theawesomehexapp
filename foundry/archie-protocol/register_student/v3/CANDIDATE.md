@@ -9,11 +9,12 @@ Candidate selection was frozen before the fresh v3 pack was generated.
 - Frozen v3 controller SHA-256: `98c81fd2a83b70686155027d830372ca35852918d81b27b75e411ef423fd1e71`.
 - Repair scope: generic correction-boundary and ordered-clause-boundary parsing only.
 - Development evidence: opened v2 pack and legacy suites; v3 scored 1800/1800, 60/60, 48/48, and 496/498 before the fresh pack existed.
-- Fresh evaluation: 1800/1800 overall, 240/240 ordered compound, 60/60, 48/48, 496/498 legacy, and 2406/2406 Python/JavaScript parity.
+- Fresh custom-router evaluation: 1800/1800 overall, 240/240 ordered compound, 60/60, 48/48, 496/498 legacy, and 2406/2406 Python/JavaScript parity.
 - Protected product suites: baseline, completion, and admission all passed.
-- Second environment: exact JavaScript package reproduced on macOS 15 ARM64.
+- Cross-platform smoke: exact JavaScript package reproduced on macOS 15 ARM64.
 - Production status: unchanged.
-- Repository-owned judge status: passed.
-- Provider-neutral promotion status: `not-admitted`.
+- Custom repository router judge: passed.
+- Formal provider-neutral Archie student admission: not executed and not satisfied.
+- Final promotion status: `not-admitted`.
 
-The exact package lacked a genuinely independent judge-only-hidden evaluator. Fresh rows were withheld from candidate selection, but evaluator authorship and execution remained under the training branch. This is an explicit terminal blocker, not an approximate pass. See `terminal/terminal-evidence.json`, `terminal/alternate-v3-evidence.json`, and `terminal/README.md`.
+The custom router receipt is strong model-specific evidence, not an `archie-student-admission/v1` receipt. No formal candidate manifest bound a standalone tokenizer descriptor, runtime executable identity, license and redistribution provenance, the required formal training/evaluation/authority/reproduction/resource report schemas, or the complete founder launch-target scope. The evaluator was also not organizationally independent or judge-only-hidden. See `terminal/terminal-evidence.json`, `terminal/alternate-v3-evidence.json`, and `terminal/README.md`.
