@@ -112,8 +112,11 @@ jobs:
           import json
           from pathlib import Path
           report = json.loads(Path("artifacts/terminal-efficiency-v3/terminal-efficiency-report.json").read_text())
+          assert report["promotion"] == "research-only-not-admitted", report["promotion"]
+          verdict = "research-only"
           print("# Archie terminal efficiency v3")
           print()
+          print(f"- Verdict: `{verdict}`")
           print(f"- Winner: `{report['winner']['name']}`")
           print(f"- Allocation rungs: `{report['rung_steps']}`")
           print(f"- Promotion: `{report['promotion']}`")
