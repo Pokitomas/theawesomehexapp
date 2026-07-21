@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.example/squeeze/job-v1.schema.json",
+  "title": "Squeeze Relay Job Capsule v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "repository",
+    "source_commit",
+    "entrypoint",
+    "entrypoint_sha256",
+    "arguments",
+    "environment_profile",
+    "required_evaluator_sha256",
+    "output_contract",
+    "promotion",
+    "expires_at",
+    "nonce"
+  ],
+  "properties": {
+    "schema": {"const": "squeeze-job-v1"},
+    "repository": {"const": "Pokitomas/theawesomehexapp"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "entrypoint": {"const": "foundry/archie-protocol/latent_world_benchmark/research/efficient_terminal_training.py"},
+    "entrypoint_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "arguments": {"const": ["--scale", "base"]},
+    "environment_profile": {"const": "archie-cuda-v1"},
+    "required_evaluator_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "output_contract": {"const": "terminal-efficiency-v3"},
+    "promotion": {"const": "research-only-not-admitted"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "nonce": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$"}
+  }
+}

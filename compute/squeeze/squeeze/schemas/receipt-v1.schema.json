@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pokitomas.example/squeeze/receipt-v1.schema.json",
+  "title": "Squeeze Relay Evidence Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "promotion",
+    "node",
+    "source_commit",
+    "job_capsule_sha256",
+    "entrypoint_sha256",
+    "evaluator_sha256",
+    "started_at",
+    "finished_at",
+    "resume_count",
+    "environment",
+    "result",
+    "files",
+    "signature"
+  ],
+  "properties": {
+    "schema": {"const": "squeeze-receipt-v1"},
+    "promotion": {"const": "research-only-not-admitted"},
+    "node": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "job_capsule_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "entrypoint_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evaluator_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "resume_count": {"type": "integer", "minimum": 0},
+    "environment": {"type": "object"},
+    "result": {"type": "object"},
+    "files": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "public_key", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {"const": "ed25519"},
+        "public_key": {"type": "string"},
+        "value": {"type": "string"}
+      }
+    }
+  }
+}
