@@ -1,0 +1,70 @@
+name: Archie productization source export
+
+on:
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-productize-source-export.yml
+      - foundry/archie-protocol/latent_world_benchmark/product/**
+  pull_request:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-productize-source-export.yml
+      - foundry/archie-protocol/latent_world_benchmark/product/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Materialize exact model and continuation sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+
+      - name: Materialize sealed sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/product/materialize.py
+          cd foundry/archie-protocol/latent_world_benchmark
+          python3 -m py_compile \
+            latent_world_benchmark.py \
+            full_budget_campaign.py \
+            product/winner_productization.py \
+            product/world_state_app.py \
+            product/test_winner_productization.py
+          tar -czf "$GITHUB_WORKSPACE/archie-productization-sources.tgz" \
+            latent_world_benchmark.py \
+            full_budget_campaign.py \
+            full_budget_profile.json \
+            test_benchmark.py \
+            test_full_budget_campaign.py \
+            README.md \
+            FULL_BUDGET_CAMPAIGN.md \
+            product/winner_productization.py \
+            product/world_state_app.py \
+            product/test_winner_productization.py \
+            product/README.md
+          sha256sum "$GITHUB_WORKSPACE/archie-productization-sources.tgz" > "$GITHUB_WORKSPACE/archie-productization-sources.tgz.sha256"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-productization-sources-${{ github.run_id }}
+          path: |
+            archie-productization-sources.tgz
+            archie-productization-sources.tgz.sha256
+          if-no-files-found: error
+          retention-days: 14

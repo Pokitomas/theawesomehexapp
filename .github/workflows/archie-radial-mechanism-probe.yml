@@ -1,0 +1,156 @@
+name: Archie radial mechanism probe
+
+on:
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-radial-mechanism-probe.yml
+      - foundry/archie-protocol/latent_world_benchmark/radial/**
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Completed sealed causal-mechanism campaign run
+        required: true
+        default: "29834460894"
+        type: string
+      steps:
+        description: Optimizer steps for each of three radial seeds
+        required: true
+        default: "2048"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-radial-mechanism-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  radial:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-radial]'))
+    name: Train and falsify radial latent field
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id || '29834460894' }}
+      RADIAL_STEPS: ${{ github.event.inputs.steps || '2048' }}
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU training runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Materialize and compile sealed sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/radial/materialize.py
+          cd foundry/archie-protocol/latent_world_benchmark
+          python3 -m py_compile \
+            latent_world_benchmark.py \
+            full_budget_campaign.py \
+            radial/radial_campaign.py \
+            radial/test_radial_campaign.py
+          PYTHONPATH=radial python3 -m unittest -v radial/test_radial_campaign.py
+
+      - name: Download completed source evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source-artifacts
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir source-artifacts
+          evidence="$(find source-artifacts -type f -name evidence-bundle.json -print -quit)"
+          test -n "$evidence"
+          campaign_root="$(dirname "$evidence")"
+          echo "CAMPAIGN_ROOT=$GITHUB_WORKSPACE/$campaign_root" >> "$GITHUB_ENV"
+          echo "Campaign root: $campaign_root"
+
+      - name: Independently verify source evidence
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py verify --output "$CAMPAIGN_ROOT"
+
+      - name: Train three radial candidates on frozen suites
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf artifacts/radial-probe
+          mkdir -p artifacts/radial-probe
+          python3 radial/radial_campaign.py run \
+            --campaign "$CAMPAIGN_ROOT" \
+            --output artifacts/radial-probe \
+            --scale base \
+            --steps "$RADIAL_STEPS" \
+            --batch-size 64 \
+            --threads 4 \
+            --seeds 20560730 20660733 20760736 \
+            | tee artifacts/radial-probe-command.json
+
+      - name: Verify changed tensors, checkpoints, and receipts
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 radial/radial_campaign.py verify --output artifacts/radial-probe
+
+      - name: Publish radial verdict
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("artifacts/radial-probe/radial-probe-report.json").read_text())
+          assert report["promotion"] == "not-admitted", report["promotion"]
+          decision = report["decision"]
+          delta = decision["deltas_vs_neural_interpreter"]
+          stats = report["radial"]["statistics"]
+          print("# Archie radial mechanism probe")
+          print()
+          print(f"- Verdict: `{decision['verdict']}`")
+          print(f"- Candidates: `{report['budget']['candidates']}`")
+          print(f"- Completed optimizer steps: `{report['budget']['completed_optimizer_steps']}`")
+          print(f"- Changed tensor counts: `{report['budget']['changed_tensor_counts']}`")
+          print(f"- Mean exact terminal accuracy: `{stats['exact_terminal_accuracy']['mean']:.6f}`")
+          print(f"- Exact terminal delta vs neural_interpreter: `{delta['exact_terminal_accuracy']:+.6f}`")
+          print(f"- Slot-cell delta vs neural_interpreter: `{delta['slot_cell_accuracy']:+.6f}`")
+          print(f"- Temporal-horizon exact delta: `{delta['temporal_horizon_exact_terminal_accuracy']:+.6f}`")
+          print(f"- Promotion: `{report['promotion']}`")
+          print()
+          print(report["capability_truth"])
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-radial-mechanism-probe-${{ github.run_id }}
+          path: |
+            foundry/archie-protocol/latent_world_benchmark/artifacts/radial-probe
+            foundry/archie-protocol/latent_world_benchmark/artifacts/radial-probe-command.json
+          if-no-files-found: error
+          retention-days: 90

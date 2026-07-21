@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import AUTHORITY_MANIFEST from '../../audit/authority-manifest.mjs';
+import AUTHORITY_MANIFEST from '../../audit/authority-manifest.current.mjs';
 import {
   compareSurfaceCoverage,
   discoverAuthoritySurfaces,

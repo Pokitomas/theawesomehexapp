@@ -1,0 +1,150 @@
+name: Archie causal mechanism maximal training
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+    paths:
+      - .github/workflows/archie-causal-mechanism-full-budget.yml
+      - foundry/archie-protocol/latent_world_benchmark/**
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-causal-mechanism-full-budget.yml
+      - foundry/archie-protocol/latent_world_benchmark/campaign_v2/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-causal-mechanism-maximal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  campaign:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.sha == 'cd51cbe2b7d62f3209ffb23b6880487d6c7abfce')
+    name: Execute maximal receipt-bound CPU campaign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU training runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "numpy<3"
+          python3 -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Materialize sealed benchmark and campaign sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+
+      - name: Compile exact campaign sources
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py test_full_budget_campaign.py
+
+      - name: Record legacy benchmark contract status
+        continue-on-error: true
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        run: python3 test_benchmark.py
+
+      - name: Verify full-budget campaign contracts
+        id: campaign_contracts
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set +e
+          mkdir -p artifacts/contract-diagnostics
+          python3 -VV > artifacts/contract-diagnostics/runtime.txt 2>&1
+          python3 -m pip freeze >> artifacts/contract-diagnostics/runtime.txt 2>&1
+          python3 test_full_budget_campaign.py > artifacts/contract-diagnostics/test.log 2>&1
+          status=$?
+          cat artifacts/contract-diagnostics/test.log
+          exit "$status"
+
+      - name: Upload contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-mechanism-contract-diagnostics-${{ github.run_id }}
+          path: foundry/archie-protocol/latent_world_benchmark/artifacts/contract-diagnostics
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Execute maximal convergence profile
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py run \
+            --output artifacts/full-budget \
+            --steps 2048 \
+            --batch-size 64 \
+            --seeds 3 \
+            --eval-batches 8 \
+            --eval-batch-size 64 \
+            --checkpoint-every 128 \
+            --threads 4
+
+      - name: Independently verify evidence bundle
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 full_budget_campaign.py verify --output artifacts/full-budget
+          cd artifacts/full-budget
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Publish canonical campaign summary
+        working-directory: foundry/archie-protocol/latent_world_benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          root = Path("artifacts/full-budget")
+          report = json.loads((root / "falsification-report.json").read_text())
+          evidence = json.loads((root / "evidence-bundle.json").read_text())
+          print("# Archie causal mechanism maximal training")
+          print()
+          print(f"- Campaign complete: `{report['campaign_complete']}`")
+          print(f"- Planned/completed optimizer steps: `{report['budget']['planned_optimizer_steps']}` / `{report['budget']['completed_optimizer_steps']}`")
+          print(f"- Total event tokens: `{report['budget']['total_event_tokens']}`")
+          print(f"- Estimated training FLOPs: `{report['budget']['total_estimated_training_flops']}`")
+          print(f"- Decision: `{report['canonical_decision']}`")
+          print(f"- Manifest: `{evidence['manifest_sha256']}`")
+          print()
+          print("## Falsification")
+          print(f"- Surviving: `{', '.join(report['falsification']['surviving_mechanisms']) or 'none'}`")
+          print(f"- Eliminated: `{', '.join(report['falsification']['eliminated_hypotheses']) or 'none'}`")
+          print(f"- Unresolved: `{', '.join(report['falsification']['unresolved_mechanisms']) or 'none'}`")
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-mechanism-maximal-${{ github.run_id }}
+          path: foundry/archie-protocol/latent_world_benchmark/artifacts/full-budget
+          if-no-files-found: error
+          retention-days: 90
