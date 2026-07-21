@@ -116,7 +116,7 @@
       "blockers": [],
       "admission_report_artifact_id": 8485745528,
       "admission_report_artifact_digest": "sha256:c11c17c2ff16dfd0a24f11d329c2ee39de76a6c45a1c55ba99f673756558565a",
-      "admission_report_file_sha256": "0045d4bb2fa0e9665af124f11d329c2ee39de76a6c45a1c55ba99f673756558565a",
+      "admission_report_file_sha256": "0045d4bb2fa0e9665af1248e680db37ca8e9d420e2fa9fb8ed2da3c20649d0d2",
       "admission_report_embedded_digest": "2c9d53e93e9ed9655f5926b039fe6710f1e43c744aa513c589b9e877422a03d2"
     }
   },
