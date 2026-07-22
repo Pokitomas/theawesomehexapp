@@ -4,11 +4,15 @@ on:
   pull_request:
     paths:
       - 'foundry/archie-distill/information_budgeted_rslora.py'
+      - 'foundry/archie-distill/elastic_information_budgeted_rslora.py'
+      - 'foundry/archie-distill/run_elastic_rslora_rung.sh'
       - 'foundry/archie-distill/fuse_information_budgeted_adapters.py'
       - 'foundry/archie-distill/test_information_budgeted_rslora.py'
+      - 'foundry/archie-distill/test_elastic_information_budgeted_rslora.py'
       - 'maker/evaluations/archie-information-budgeted-rslora.json'
       - '.github/workflows/archie-information-budgeted-rslora.yml'
       - 'docs/archie-information-budgeted-rslora.md'
+      - 'docs/archie-elastic-external-rslora.md'
   workflow_dispatch:
     inputs:
       request_id:
@@ -24,6 +28,11 @@ on:
         description: Number of rank-32 RSLoRA specialists
         required: true
         default: '2'
+        type: string
+      rungs:
+        description: Durable optimizer-state jobs per specialist (1-4; total optimizer budget is unchanged)
+        required: true
+        default: '4'
         type: string
       max_fused_rank:
         description: Maximum fused rank; 64 preserves two rank-32 specialists exactly
@@ -50,18 +59,24 @@ jobs:
       - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
         with:
           python-version: '3.12'
-      - name: Verify information-budgeted contracts without CUDA
+      - name: Verify information-budgeted and elastic contracts without CUDA
         run: |
           set -euo pipefail
           python -m py_compile \
             foundry/archie-distill/information_budgeted_rslora.py \
+            foundry/archie-distill/elastic_information_budgeted_rslora.py \
             foundry/archie-distill/fuse_information_budgeted_adapters.py \
-            foundry/archie-distill/test_information_budgeted_rslora.py
+            foundry/archie-distill/test_information_budgeted_rslora.py \
+            foundry/archie-distill/test_elastic_information_budgeted_rslora.py
           python foundry/archie-distill/test_information_budgeted_rslora.py
+          python foundry/archie-distill/test_elastic_information_budgeted_rslora.py
+          bash -n foundry/archie-distill/run_elastic_rslora_rung.sh
           grep -Fq 'alpha/sqrt(rank)' foundry/archie-distill/information_budgeted_rslora.py
           grep -Fq 'source_scaling_absorbed_into_delta_factors' foundry/archie-distill/fuse_information_budgeted_adapters.py
           grep -Fq 'fused_config["use_rslora"] = False' foundry/archie-distill/fuse_information_budgeted_adapters.py
           grep -Fq 'Refusing CPU fallback' foundry/archie-distill/information_budgeted_rslora.py
+          grep -Fq 'resume_from_checkpoint' foundry/archie-distill/elastic_information_budgeted_rslora.py
+          grep -Fq 'optimizer state' foundry/archie-distill/elastic_information_budgeted_rslora.py
 
   authorize:
     if: github.event_name == 'workflow_dispatch'
@@ -73,6 +88,7 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       round: ${{ steps.plan.outputs.round }}
       shards: ${{ steps.plan.outputs.shards }}
+      rung_count: ${{ steps.plan.outputs.rung_count }}
       max_fused_rank: ${{ steps.plan.outputs.max_fused_rank }}
       evaluation_label: ${{ steps.plan.outputs.evaluation_label }}
     steps:
@@ -80,10 +96,12 @@ jobs:
         env:
           ROUND_INPUT: ${{ inputs.round }}
           SHARDS_INPUT: ${{ inputs.shards }}
+          RUNGS_INPUT: ${{ inputs.rungs }}
           MAX_FUSED_RANK_INPUT: ${{ inputs.max_fused_rank }}
           ARCHIE_SEGMENTED_DISTILL_READY: ${{ vars.ARCHIE_SEGMENTED_DISTILL_READY }}
           ARCHIE_SEGMENT_RUNNER_LABEL: ${{ vars.ARCHIE_SEGMENT_RUNNER_LABEL }}
           ARCHIE_CUDA_RUNNER_LABELS: ${{ vars.ARCHIE_CUDA_RUNNER_LABELS }}
+          ARCHIE_CUDA_PROVIDER_NAMES: ${{ vars.ARCHIE_CUDA_PROVIDER_NAMES }}
           ARCHIE_FUSION_RUNNER_LABEL: ${{ vars.ARCHIE_FUSION_RUNNER_LABEL }}
           ARCHIE_TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
           ARCHIE_TRAINING_CONFIG_PATH: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
@@ -104,20 +122,31 @@ jobs:
           if (String(process.env.GITHUB_ACTOR || '').toLowerCase() !== String(process.env.GITHUB_REPOSITORY_OWNER || '').toLowerCase()) missing.push('repository-owner actor');
           const round = Number(process.env.ROUND_INPUT);
           const shards = Number(process.env.SHARDS_INPUT);
+          const rungCount = Number(process.env.RUNGS_INPUT);
           const maxFusedRank = Number(process.env.MAX_FUSED_RANK_INPUT);
           if (!Number.isInteger(round) || round < 0) missing.push('round>=0');
           if (!Number.isInteger(shards) || shards < 1 || shards > 4) missing.push('1<=shards<=4');
+          if (!Number.isInteger(rungCount) || rungCount < 1 || rungCount > 4) missing.push('1<=rungs<=4');
           if (!Number.isInteger(maxFusedRank) || maxFusedRank < 1 || maxFusedRank > 128) missing.push('1<=max_fused_rank<=128');
           let labels = [];
+          let providers = [];
           try { labels = JSON.parse(String(process.env.ARCHIE_CUDA_RUNNER_LABELS || '[]')); }
           catch { missing.push('ARCHIE_CUDA_RUNNER_LABELS valid JSON'); }
+          try { providers = JSON.parse(String(process.env.ARCHIE_CUDA_PROVIDER_NAMES || '[]')); }
+          catch { missing.push('ARCHIE_CUDA_PROVIDER_NAMES valid JSON when set'); }
           if (!Array.isArray(labels) || !labels.length || labels.some(label => typeof label !== 'string' || !label.trim())) {
             missing.push('ARCHIE_CUDA_RUNNER_LABELS nonempty string array'); labels = [];
           }
+          if (!Array.isArray(providers)) providers = [];
           const include = Number.isInteger(shards) && shards > 0 && labels.length
-            ? Array.from({ length: shards }, (_, shard) => ({ shard, runner_label: labels[shard % labels.length] })) : [];
+            ? Array.from({ length: shards }, (_, shard) => ({
+                shard,
+                shard_name: String(shard).padStart(3, '0'),
+                runner_label: labels[shard % labels.length],
+                provider: String(providers[shard % Math.max(1, providers.length)] || labels[shard % labels.length])
+              })) : [];
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
-            `allowed=${missing.length === 0}\nmissing=${missing.join(', ')}\nmatrix=${JSON.stringify({ include })}\nround=${round}\nshards=${shards}\nmax_fused_rank=${maxFusedRank}\nevaluation_label=${labels[0] || ''}\n`);
+            `allowed=${missing.length === 0}\nmissing=${missing.join(', ')}\nmatrix=${JSON.stringify({ include })}\nround=${round}\nshards=${shards}\nrung_count=${rungCount}\nmax_fused_rank=${maxFusedRank}\nevaluation_label=${labels[0] || ''}\n`);
           NODE
 
   blocker:
@@ -172,19 +201,21 @@ jobs:
           compression-level: 0
           retention-days: 14
 
-  train:
+  train_rung_0:
     needs: [authorize, segment]
     if: needs.authorize.outputs.allowed == 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.authorize.outputs.matrix) }}
     runs-on: [self-hosted, linux, x64, "${{ matrix.runner_label }}"]
-    timeout-minutes: 720
+    timeout-minutes: 360
     env:
       PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
       CONFIG: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
       MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
       PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+      ARCHIE_COMPUTE_PROVIDER: ${{ matrix.provider }}
+      ARCHIE_RUNNER_LABELS: self-hosted,linux,x64,${{ matrix.runner_label }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -199,48 +230,195 @@ jobs:
         with:
           name: ${{ needs.segment.outputs.artifact_name }}
           path: ${{ runner.temp }}/archie-ib-input
-      - id: train_paths
-        run: |
-          set -euo pipefail
-          printf -v shard '%03d' '${{ matrix.shard }}'
-          shard_dir="${RUNNER_TEMP}/archie-ib-input/segments/shard-${shard}"
-          root="$(mktemp -d "${RUNNER_TEMP}/archie-ib-train-${shard}.XXXXXXXX")"
-          npm run archie:student:compile -- --config "$CONFIG" --output "$root/workspace"
-          "$PY" foundry/archie-distill/information_budgeted_rslora.py cache-reference \
-            --preference-data "$shard_dir/causal-preference.train.jsonl" \
-            --model-dir "$MODEL" --output "$root/reference-cache" \
-            --max-seq-length 896 --prompt-replay-tokens 384 --prompt-head-tokens 32 \
-            --shared-prefix-replay-tokens 96 --max-divergence-tokens 384
-          "$PY" foundry/archie-distill/information_budgeted_rslora.py train \
-            --profile "$PROFILE" --workspace "$root/workspace" \
-            --preference-data "$shard_dir/causal-preference.train.jsonl" \
-            --preference-receipt "$shard_dir/causal-preference-receipt.json" \
-            --reference-cache "$root/reference-cache" --model-dir "$MODEL" --output "$root/output" \
-            --max-seq-length 896 --prompt-replay-tokens 384 --prompt-head-tokens 32 \
-            --shared-prefix-replay-tokens 96 --max-divergence-tokens 384 \
-            --gradient-accumulation-steps 8 --batch-size 1 --beta 0.1 --causal-margin 0.2 --sft-weight 0.35
-          "$PY" foundry/archie-distill/information_budgeted_rslora.py verify \
-            --profile "$PROFILE" --model-dir "$MODEL" --adapter-dir "$root/output/adapter" \
-            --evaluation-data "$shard_dir/causal-preference.development.jsonl" \
-            --training-receipt "$root/output/training-receipt.json" \
-            --shard-receipt "$shard_dir/shard-receipt.json" --output "$root/verification" --max-seq-length 1536
-          bundle="$root/bundle/shard-${shard}"; mkdir -p "$bundle"
-          cp -a "$root/output/adapter" "$bundle/adapter"
-          cp "$root/output/training-receipt.json" "$bundle/training-receipt.json"
-          cp "$root/reference-cache/reference-cache-receipt.json" "$bundle/reference-cache-receipt.json"
-          cp "$root/verification/segment-verification-receipt.json" "$bundle/segment-verification-receipt.json"
-          cp "$shard_dir/shard-receipt.json" "$bundle/shard-receipt.json"
-          printf 'bundle=%s\nartifact_name=archie-ib-adapter-%s-%s-%s\n' "$root/bundle" "$shard" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: rung
+        env:
+          SEGMENTS: ${{ runner.temp }}/archie-ib-input/segments
+          REQUEST_ID: ${{ inputs.request_id }}
+          CODE_REVISION: ${{ github.sha }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          RUNG: '0'
+          RUNG_COUNT: ${{ needs.authorize.outputs.rung_count }}
+        run: bash foundry/archie-distill/run_elastic_rslora_rung.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ steps.train_paths.outputs.artifact_name }}
-          path: ${{ steps.train_paths.outputs.bundle }}
+          name: ${{ steps.rung.outputs.artifact_name }}
+          path: ${{ steps.rung.outputs.artifact_path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  train_rung_1:
+    needs: [authorize, segment, train_rung_0]
+    if: needs.authorize.outputs.allowed == 'true' && fromJson(needs.authorize.outputs.rung_count) >= 2
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.authorize.outputs.matrix) }}
+    runs-on: [self-hosted, linux, x64, "${{ matrix.runner_label }}"]
+    timeout-minutes: 360
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      CONFIG: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+      ARCHIE_COMPUTE_PROVIDER: ${{ matrix.provider }}
+      ARCHIE_RUNNER_LABELS: self-hosted,linux,x64,${{ matrix.runner_label }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with: {persist-credentials: false, ref: '${{ github.sha }}'}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with: {node-version: '22', cache: npm}
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: '${{ needs.segment.outputs.artifact_name }}', path: '${{ runner.temp }}/archie-ib-input'}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-0-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-previous'}
+      - id: rung
+        env:
+          SEGMENTS: ${{ runner.temp }}/archie-ib-input/segments
+          RESUME_ROOT: ${{ runner.temp }}/archie-elastic-previous
+          REQUEST_ID: ${{ inputs.request_id }}
+          CODE_REVISION: ${{ github.sha }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          RUNG: '1'
+          RUNG_COUNT: ${{ needs.authorize.outputs.rung_count }}
+        run: bash foundry/archie-distill/run_elastic_rslora_rung.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: {name: '${{ steps.rung.outputs.artifact_name }}', path: '${{ steps.rung.outputs.artifact_path }}', if-no-files-found: error, compression-level: 0, retention-days: 14}
+
+  train_rung_2:
+    needs: [authorize, segment, train_rung_1]
+    if: needs.authorize.outputs.allowed == 'true' && fromJson(needs.authorize.outputs.rung_count) >= 3
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.authorize.outputs.matrix) }}
+    runs-on: [self-hosted, linux, x64, "${{ matrix.runner_label }}"]
+    timeout-minutes: 360
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      CONFIG: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+      ARCHIE_COMPUTE_PROVIDER: ${{ matrix.provider }}
+      ARCHIE_RUNNER_LABELS: self-hosted,linux,x64,${{ matrix.runner_label }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with: {persist-credentials: false, ref: '${{ github.sha }}'}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with: {node-version: '22', cache: npm}
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: '${{ needs.segment.outputs.artifact_name }}', path: '${{ runner.temp }}/archie-ib-input'}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-1-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-previous'}
+      - id: rung
+        env:
+          SEGMENTS: ${{ runner.temp }}/archie-ib-input/segments
+          RESUME_ROOT: ${{ runner.temp }}/archie-elastic-previous
+          REQUEST_ID: ${{ inputs.request_id }}
+          CODE_REVISION: ${{ github.sha }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          RUNG: '2'
+          RUNG_COUNT: ${{ needs.authorize.outputs.rung_count }}
+        run: bash foundry/archie-distill/run_elastic_rslora_rung.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: {name: '${{ steps.rung.outputs.artifact_name }}', path: '${{ steps.rung.outputs.artifact_path }}', if-no-files-found: error, compression-level: 0, retention-days: 14}
+
+  train_rung_3:
+    needs: [authorize, segment, train_rung_2]
+    if: needs.authorize.outputs.allowed == 'true' && fromJson(needs.authorize.outputs.rung_count) >= 4
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.authorize.outputs.matrix) }}
+    runs-on: [self-hosted, linux, x64, "${{ matrix.runner_label }}"]
+    timeout-minutes: 360
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      CONFIG: ${{ vars.ARCHIE_TRAINING_CONFIG_PATH }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+      ARCHIE_COMPUTE_PROVIDER: ${{ matrix.provider }}
+      ARCHIE_RUNNER_LABELS: self-hosted,linux,x64,${{ matrix.runner_label }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with: {persist-credentials: false, ref: '${{ github.sha }}'}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with: {node-version: '22', cache: npm}
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: '${{ needs.segment.outputs.artifact_name }}', path: '${{ runner.temp }}/archie-ib-input'}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-2-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-previous'}
+      - id: rung
+        env:
+          SEGMENTS: ${{ runner.temp }}/archie-ib-input/segments
+          RESUME_ROOT: ${{ runner.temp }}/archie-elastic-previous
+          REQUEST_ID: ${{ inputs.request_id }}
+          CODE_REVISION: ${{ github.sha }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          RUNG: '3'
+          RUNG_COUNT: ${{ needs.authorize.outputs.rung_count }}
+        run: bash foundry/archie-distill/run_elastic_rslora_rung.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: {name: '${{ steps.rung.outputs.artifact_name }}', path: '${{ steps.rung.outputs.artifact_path }}', if-no-files-found: error, compression-level: 0, retention-days: 14}
+
+  verify_final:
+    needs: [authorize, segment, train_rung_0, train_rung_1, train_rung_2, train_rung_3]
+    if: always() && needs.authorize.outputs.allowed == 'true' && needs.train_rung_0.result == 'success' && (fromJson(needs.authorize.outputs.rung_count) < 2 || needs.train_rung_1.result == 'success') && (fromJson(needs.authorize.outputs.rung_count) < 3 || needs.train_rung_2.result == 'success') && (fromJson(needs.authorize.outputs.rung_count) < 4 || needs.train_rung_3.result == 'success')
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.authorize.outputs.matrix) }}
+    runs-on: [self-hosted, linux, x64, "${{ matrix.runner_label }}"]
+    timeout-minutes: 240
+    env:
+      PY: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      MODEL: ${{ vars.ARCHIE_STUDENT_MODEL_DIR }}
+      PROFILE: maker/evaluations/archie-information-budgeted-rslora.json
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with: {persist-credentials: false, ref: '${{ github.sha }}'}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: '${{ needs.segment.outputs.artifact_name }}', path: '${{ runner.temp }}/archie-ib-input'}
+      - if: needs.authorize.outputs.rung_count == '1'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-0-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-final'}
+      - if: needs.authorize.outputs.rung_count == '2'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-1-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-final'}
+      - if: needs.authorize.outputs.rung_count == '3'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-2-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-final'}
+      - if: needs.authorize.outputs.rung_count == '4'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with: {name: 'archie-elastic-rslora-rung-3-shard-${{ matrix.shard_name }}-${{ github.run_id }}-${{ github.run_attempt }}', path: '${{ runner.temp }}/archie-elastic-final'}
+      - id: verify_paths
+        run: |
+          set -euo pipefail
+          shard_dir="${RUNNER_TEMP}/archie-ib-input/segments/shard-${{ matrix.shard_name }}"
+          final="${RUNNER_TEMP}/archie-elastic-final/bundle"
+          root="$(mktemp -d "${RUNNER_TEMP}/archie-ib-verify-${{ matrix.shard_name }}.XXXXXXXX")"
+          "$PY" foundry/archie-distill/information_budgeted_rslora.py verify \
+            --profile "$PROFILE" --model-dir "$MODEL" --adapter-dir "$final/training/adapter" \
+            --evaluation-data "$shard_dir/causal-preference.development.jsonl" \
+            --training-receipt "$final/training/training-receipt.json" \
+            --shard-receipt "$shard_dir/shard-receipt.json" --output "$root/verification" --max-seq-length 1536
+          bundle="$root/bundle/shard-${{ matrix.shard_name }}"; mkdir -p "$bundle"
+          cp -a "$final/training/adapter" "$bundle/adapter"
+          cp "$final/training/training-receipt.json" "$bundle/training-receipt.json"
+          cp "$final/elastic-rung-receipt.json" "$bundle/elastic-rung-receipt.json"
+          cp "${RUNNER_TEMP}/archie-elastic-final/reference-cache/reference-cache-receipt.json" "$bundle/reference-cache-receipt.json"
+          cp "$root/verification/segment-verification-receipt.json" "$bundle/segment-verification-receipt.json"
+          cp "$shard_dir/shard-receipt.json" "$bundle/shard-receipt.json"
+          printf 'bundle=%s\nartifact_name=archie-ib-adapter-${{ matrix.shard_name }}-%s-%s\n' "$root/bundle" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.verify_paths.outputs.artifact_name }}
+          path: ${{ steps.verify_paths.outputs.bundle }}
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
 
   fuse:
-    needs: [authorize, train]
+    needs: [authorize, verify_final]
     if: needs.authorize.outputs.allowed == 'true'
     runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_FUSION_RUNNER_LABEL }}"]
     timeout-minutes: 240
@@ -306,7 +484,8 @@ jobs:
         with:
           name: ${{ needs.fuse.outputs.artifact_name }}
           path: ${{ runner.temp }}/archie-ib-fused
-      - run: |
+      - id: eval_paths
+        run: |
           set -euo pipefail
           segments="${RUNNER_TEMP}/archie-ib-input/segments"
           fused="${RUNNER_TEMP}/archie-ib-fused/output"
@@ -317,3 +496,11 @@ jobs:
             --segmentation-receipt "$segments/segmentation-receipt.json" \
             --evaluation-data "$segments/shard-000/causal-preference.development.jsonl" \
             --output "$output" --max-seq-length 1536
+          printf 'output=%s\nartifact_name=archie-ib-final-evaluation-%s-%s-%s\n' "$output" "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.eval_paths.outputs.artifact_name }}
+          path: ${{ steps.eval_paths.outputs.output }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
