@@ -1,218 +1,191 @@
-# Archie Rootless Direct-Action Student
+# Archie Rootless Self-Trained Student
 
-## Claim
+## Correction
 
-This is a separate forward experiment from the rootless artifact-IR student.
+The important boundary is **tool-free training orchestration**, not tool-free deployment.
 
-The system begins from random initialization. Its teachers are authorized assistant or bounded agent subprocesses, but teacher reasoning is not preserved as prose and teacher weights are never transferred. Verified teacher executions are reduced into compact observation/action/value trajectories. A purpose-built neural controller learns to update its own persistent state and emit bounded actions directly.
+This lane begins from random initialization and is trained directly by the authorized assistant or its bounded agent subprocesses through the Alienware self-relay. The teacher does not need to invoke an external model-training service, external trainer, or separate orchestration tool. The repository, teacher process, sealed capsule, and Alienware CUDA worker are sufficient to create data, train, evaluate, checkpoint, and continue the student's own neural lineage.
 
-At deployment, the student does not call another model, invoke an agent, select a tool, or generate a plan for an external executor. The student itself is the policy.
+The deployed student may still use Archie's existing tools, actuators, compilers, memory, and execution systems. Those capabilities are not prohibited by this lane.
 
-Schema: `archie-rootless-direct-action-student/v1`
+Schema: `archie-rootless-self-trained-student/v1`
 Status: `research-only-not-admitted`
 
 ## Core hypothesis
 
-For a bounded device and artifact environment, intelligence can be distilled into a compact closed-loop neural policy more efficiently than into a general language model when the training target is the actual control process:
+A purpose-built neural student can be created without inheriting a root model and without depending on an outside training stack when the teacher and training loop are collapsed into one bounded system:
 
 ```text
-observation -> latent state update -> action -> new observation -> terminal value
+assistant or bounded agent teachers
+  -> generate verified curriculum episodes
+  -> reduce episodes into observation/action/value supervision
+  -> package sealed training capsule
+  -> Alienware trains random-initialized student on CUDA
+  -> return full checkpoint, optimizer state, and evidence
+  -> teacher inspects failures and emits the next capsule
+  -> student continues from its own prior state
 ```
 
-The teacher may use broad reasoning and tools while generating demonstrations. The student never sees the teacher's hidden chain of thought. It receives only causally sufficient, verifier-bound transitions.
+The teacher supplies intelligence through demonstrations, critiques, counterfactuals, verifier labels, curriculum design, and architecture changes. It does not supply pretrained weights.
 
-## Engineered student
+## What “no external tooling to train” means
 
-The student is initialized from random weights and contains:
+The complete training loop can be driven by the assistant and its authorized subprocesses using repository-native code and the Alienware relay. It does not require:
 
-- **multimodal observation encoder** for bounded screen, file-state, sensor, event, and request channels;
-- **persistent recurrent world state** carried across actions without replaying a text transcript;
-- **hierarchical action head** that chooses an action family, arguments, duration, and stop decision;
-- **success/value head** that estimates verifier success and remaining cost;
-- **uncertainty head** that can halt instead of emitting an unsupported action;
-- **state-consistency decoder** used during training to reconstruct the minimum observation facts required for the next action.
+- a hosted fine-tuning API;
+- a second foundation model endpoint dedicated to training;
+- an external AutoML platform;
+- a human manually operating the CUDA machine between rounds;
+- an external experiment tracker as a source of truth;
+- an external agent framework to coordinate epochs;
+- a pretrained root checkpoint;
+- adapter mounting onto another model.
 
-No pretrained transformer, language model, vision model, embedding table, adapter, tokenizer model, or external policy is permitted.
+Local libraries, CUDA kernels, repository scripts, deterministic verifiers, storage, and the Alienware worker are implementation machinery, not external cognitive tooling.
 
-## Teacher trace reduction
+## Teacher-generated supervision
 
-Authorized teachers generate complete verified executions. A deterministic reducer converts each execution into:
+The assistant or bounded agent subprocesses generate complete episodes from repository tasks. Each episode may include:
 
 ```text
-request_digest
-initial_observation
-[observation_t, action_t, action_result_t, verifier_delta_t, value_t]*
-terminal_observation
-terminal_verifier_bundle
-artifact_or_world_digest
-teacher_lineage
+request
+initial observation or workspace state
+teacher-selected actions or artifact transitions
+resulting observations
+verifier deltas
+terminal artifact or world state
+terminal verifier score
+difficulty and curriculum tags
+teacher lineage
 ```
 
-The reducer removes:
+Teacher traces are reduced into causally useful supervision. Hidden chain-of-thought is not required. The student can receive:
 
-- hidden reasoning;
-- conversational filler;
-- redundant tool narration;
-- provider-specific syntax;
-- unverified intermediate claims;
-- actions that had no causal effect on the verified result.
+- observation/action/value sequences;
+- chosen versus rejected branches;
+- failed transition and verified repair pairs;
+- state reconstruction targets;
+- artifact targets;
+- tool-selection targets;
+- stop and uncertainty labels;
+- verifier-derived rewards;
+- synthetic counterfactual states generated by teacher subprocesses.
 
-The retained sequence is therefore an observation/action/value program grounded in actual state changes.
+## Engineered neural student
 
-## Direct action vocabulary
+The student starts from random weights and is designed for Archie rather than general chat. Candidate components include:
 
-The action space is not a generic tool registry. It is a fixed, compiled actuator vocabulary owned by the deployed environment, for example:
+- compact recurrent or state-space backbone;
+- persistent learned workspace;
+- request and observation encoders;
+- action and tool-selection heads;
+- artifact or token decoder where needed;
+- verifier-value and uncertainty heads;
+- memory read/write heads;
+- optional modality-specific encoders trained from scratch.
 
-```text
-MOVE_POINTER(x, y)
-PRESS(keycode)
-TYPE_BYTES(offset, length)
-WRITE_REGION(target, offset, length)
-SELECT_OBJECT(object_id)
-COMMIT_TRANSITION()
-STOP(success_estimate)
-```
-
-Arguments are emitted by neural heads, not serialized as natural-language tool calls. The device runtime only decodes and applies the action packet. It performs no planning, model inference, search, or semantic interpretation.
-
-This distinction is mandatory:
-
-```text
-forbidden: model -> prose/tool call -> agent/tool executor
-allowed:   student policy -> bounded action packet -> actuator
-```
+The exact architecture is an experimental variable. No pretrained transformer, embedding model, vision encoder, tokenizer model, adapter, or inherited neural checkpoint is permitted in generation zero.
 
 ## Training objective
 
-The student is trained with a mixed offline control objective:
+A candidate combined objective is:
 
 ```text
-L = L_action_bc
+L = L_action_or_artifact
   + lambda_state * L_latent_dynamics
-  + lambda_value * L_return
-  + lambda_adv * L_verified_advantage
-  + lambda_fail * L_failed_branch
-  + lambda_obs * L_minimal_observation_reconstruction
+  + lambda_value * L_verifier_value
+  + lambda_branch * L_failed_vs_repaired
+  + lambda_tool * L_tool_choice
   + lambda_stop * L_calibrated_stop
-  + lambda_budget * L_action_compute_budget
+  + lambda_memory * L_memory_consistency
+  + lambda_budget * L_compute_budget
 ```
 
-Where:
-
-- `L_action_bc` imitates verified teacher actions;
-- `L_latent_dynamics` predicts the next recurrent state after an action result;
-- `L_return` predicts terminal verifier value;
-- `L_verified_advantage` upweights actions that causally improved verifier state;
-- `L_failed_branch` contrasts failed actions with repaired descendants at the first divergence;
-- `L_minimal_observation_reconstruction` prevents latent-state collapse while discouraging transcript memorization;
-- `L_calibrated_stop` teaches the controller to stop only when success is sufficiently supported;
-- `L_action_compute_budget` penalizes unnecessary actions, active state, and recurrent depth.
-
-Optional later stages may add verifier-gated offline reinforcement learning, but no live self-modification or uncontrolled environment exploration is admitted by default.
+This permits either direct action learning, artifact generation, or a hybrid policy. Tool use is a learnable capability rather than something forbidden.
 
 ## Alienware self-relay
 
-The Alienware worker trains the controller as its own continuing neural lineage.
+Generation zero is random. Every later generation descends only from the student's own prior checkpoint.
 
-A sealed outbound-polled capsule contains:
+A sealed capsule contains:
 
 - exact repository commit;
-- random-generation-zero seed or parent student checkpoint digest;
-- full student architecture manifest;
-- observation and action schemas;
-- verified reduced trajectories;
+- student architecture manifest;
+- generation-zero seed or parent checkpoint digest;
+- verified teacher-generated episodes;
 - optimizer and scheduler state;
-- curriculum position;
-- frozen evaluation episodes;
-- required parent and output digests.
+- curriculum state;
+- frozen evaluation tasks;
+- verifier and evidence contracts;
+- expected output digests.
 
-The worker verifies the capsule, resumes the student's complete neural and optimizer state, trains on local CUDA, evaluates in a deterministic sandbox, and returns a signed successor checkpoint and evidence bundle.
+The Alienware worker outbound-polls for the capsule, verifies it, resumes the complete student and optimizer state, trains locally on CUDA, evaluates, and returns a signed successor checkpoint plus receipts.
 
-There is no borrowed root checkpoint. Generation zero starts randomly; generation N+1 descends only from generation N. The Alienware machine is therefore not adapting somebody else's model. It is carrying the student's own nervous system forward.
+The assistant or its subprocesses can then inspect the evidence, generate harder or corrective episodes, alter declared hyperparameters or architecture, and publish the next capsule. No person must manually translate teacher insight into a separate training platform.
 
-## Curriculum
+## Deployment boundary
 
-1. observation encoding and action syntax;
-2. one-step verified state changes;
-3. short closed-loop tasks;
-4. persistent-state tasks with hidden information revealed over time;
-5. failed-versus-repaired causal forks;
-6. long-horizon action compression;
-7. held-out requests and state layouts;
-8. interruption and exact checkpoint resume;
-9. quantized local execution;
-10. physical-device shadow evaluation before any authority-bearing deployment.
+This lane does **not** require deployment to be tool-free.
 
-## Deployment contract
-
-The admitted deployment graph must remain:
+Valid deployed forms include:
 
 ```text
-bounded observations
-  -> local neural controller
-  -> bounded action packet
-  -> deterministic actuator
-  -> next bounded observation
+request -> neural student -> artifact output
+request -> neural student -> Archie tool selection -> verified execution
+observation -> neural student -> bounded action -> next observation
+request -> neural student -> memory/tool/artifact loop
 ```
 
-It may not contain:
+The deployment system may use repository-native tools, deterministic compilers, actuators, memory, retrieval, and authority gates. The empirical requirement is that the trained student is the root policy rather than a wrapper that secretly calls a larger model for cognition.
 
-- a foundation model;
-- remote inference;
-- an assistant or agent subprocess;
-- a planner;
-- a generic tool selector;
-- natural-language action interpretation;
-- retrieval used as a hidden policy;
-- runtime gradient updates;
-- unrestricted shell, network, or authority access.
+Remote or local tools may execute actions. What is forbidden is disguising another foundation model as a tool and treating its output as the student's capability.
 
-## Required evidence
+## Evidence contract
 
-A valid run returns:
+A valid run must return:
 
 - proof of random generation-zero initialization;
 - proof that no pretrained tensors were loaded;
+- teacher-episode and trace-reduction lineage;
 - capsule, parent, and successor checkpoint digests;
-- exact observation and actuator schemas;
-- trace-reduction receipts binding teacher executions to reduced trajectories;
 - CUDA identity and measured GPU-seconds;
 - changed tensor digests;
-- optimizer and recurrent-state continuity across resume;
-- held-out closed-loop success;
-- verifier-value calibration;
-- action count and latency distributions;
-- unseen-layout and unseen-lineage transfer;
-- quantized retention;
+- optimizer continuity across resume;
+- frozen held-out results;
+- tool-use, artifact, action, and verifier metrics relevant to the selected architecture;
+- quantized retention where applicable;
 - deterministic replay receipts;
-- independent reproduction and human admission.
+- independent reproduction;
+- human admission.
 
 ## Falsification gates
 
 Reject or redesign the lane when:
 
-- behavior cloning succeeds only on exact layouts;
-- the recurrent state memorizes trajectories rather than tracking world state;
-- compounding action error prevents long-horizon completion;
-- value estimates are not calibrated enough to support safe stopping;
-- reduced traces omit information required for successful action;
-- the controller requires natural-language planning at deployment;
-- a generic tool or agent loop reappears under another name;
-- training compute exceeds the adapted language-model lanes without a strict latency, memory, autonomy, or energy advantage;
-- quantization breaks closed-loop stability.
+- assistant-generated data produces imitation without transfer;
+- the student memorizes templates instead of maintaining state;
+- teacher subprocesses silently depend on unverifiable external cognition;
+- training cannot resume exactly from the student's own checkpoint;
+- the architecture needs a pretrained root to achieve nontrivial held-out performance;
+- the student only succeeds by forwarding difficult decisions to another model;
+- total teacher-generation and CUDA compute exceeds the adapted-model lanes without a strict deployment, ownership, latency, memory, or learning advantage;
+- quantization or interruption destroys learned behavior.
 
-## Relationship to the rootless artifact-native student
+## Relationship to the other rootless design
 
-The artifact-native student emits a canonical artifact representation that a deterministic compiler converts into bytes. This lane is more direct: it learns the closed-loop policy and emits environment actions itself.
+The earlier artifact-native design chooses one specific deployment output: canonical artifact IR. This lane generalizes the radical part correctly:
 
 ```text
-artifact-native lane: request -> neural student -> artifact IR -> compiler
+rootless artifact-native:
+random student -> artifact IR -> compiler
 
-direct-action lane:   observations -> neural student -> action packet -> actuator -> observations
+rootless self-trained:
+assistant/agent teacher loop -> Alienware trains student's own lineage
+student may later emit artifacts, actions, or tool choices
 ```
 
-The direct-action lane is therefore appropriate only where the observation and actuator boundary can be tightly specified, simulated, verified, and authority-limited.
+The novelty under test is not the absence of tools from the product. It is the absence of a borrowed root model and the absence of an external cognitive training operator.
 
 ## Truth boundary
 
-This document defines an experimental architecture and evidence contract. It does not prove that rootless direct-action training will scale, generalize, remain stable over long horizons, or outperform a language-model controller. Teacher traces are still generated using external intelligence during dataset construction. "No tooling" applies to learned planning and inference at deployment; a deterministic bounded actuator is still necessary to turn an action packet into a state transition. No capability or production claim is permitted before real training and all gates pass.
+This document defines an experimental architecture and training contract. Repository scripts and CUDA libraries are still required to perform numerical training. Teacher episodes may be expensive and biased. A self-contained teacher/Alienware loop does not prove that the resulting student will generalize or outperform adaptation. No capability claim is permitted before real CUDA receipts, held-out gains, independent reproduction, and admission.
