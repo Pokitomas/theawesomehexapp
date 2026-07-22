@@ -33,11 +33,12 @@ jobs:
         run: >-
           python -m foundry.sidepus.developmental_cli validate-program
           --program foundry/sidepus/plans/developmental-program-v1.json
-      - name: Run archive, governance, and developmental contracts
+      - name: Run archive, governance, extraction, and developmental contracts
         run: >-
           python -m unittest -v
           foundry.sidepus.test_sidepus_archive
           foundry.sidepus.test_sidepus_governance
+          foundry.sidepus.test_sidepus_extraction
           foundry.sidepus.test_sidepus_development
       - name: Inspect local parity capabilities
         run: python -m foundry.sidepus.governed_cli doctor
