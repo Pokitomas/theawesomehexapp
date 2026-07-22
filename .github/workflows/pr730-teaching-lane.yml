@@ -1,0 +1,117 @@
+name: PR730 teaching-lane training
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-native/**'
+      - '.github/workflows/pr730-teaching-lane.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr730-teaching-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [730, 1730, 2730]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Install CPU PyTorch
+        run: python -m pip install --disable-pip-version-check --no-cache-dir torch==2.7.1
+      - name: Compile training lane
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-native/generate_pr730_curriculum.py \
+            foundry/archie-native/train_agent_teacher_policy.py
+      - name: Generate sealed procedural curriculum
+        run: |
+          set -euo pipefail
+          mkdir -p returns/pr730-${{ matrix.seed }}
+          python foundry/archie-native/generate_pr730_curriculum.py \
+            --output returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
+            --episodes 320 \
+            --seed 730
+      - name: Train generation zero
+        run: |
+          set -euo pipefail
+          start=$(date +%s)
+          python foundry/archie-native/train_agent_teacher_policy.py \
+            --episodes returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
+            --output returns/pr730-${{ matrix.seed }}/generation-0.pt \
+            --device cpu \
+            --steps 12000 \
+            --batch 16 \
+            --seed ${{ matrix.seed }} | tee returns/pr730-${{ matrix.seed }}/generation-0.log
+          end=$(date +%s)
+          python - <<'PY'
+          import json, os, pathlib, platform, time, torch
+          root = pathlib.Path('returns/pr730-${{ matrix.seed }}')
+          receipt = {
+              'schema': 'pr730-teaching-lane-run/v1',
+              'seed': ${{ matrix.seed }},
+              'device': 'cpu',
+              'torch': torch.__version__,
+              'python': platform.python_version(),
+              'runner': platform.platform(),
+              'elapsed_seconds': int(os.environ.get('ELAPSED_SECONDS', '0')),
+              'claim_boundary': 'Numerical teaching-lane evidence on GitHub-hosted CPU; not CUDA evidence and not admission.',
+          }
+          (root / 'runner-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+        env:
+          ELAPSED_SECONDS: '0'
+      - name: Prove exact continuation
+        run: |
+          set -euo pipefail
+          python foundry/archie-native/train_agent_teacher_policy.py \
+            --episodes returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
+            --parent returns/pr730-${{ matrix.seed }}/generation-0.pt \
+            --output returns/pr730-${{ matrix.seed }}/generation-1.pt \
+            --device cpu \
+            --steps 2000 \
+            --batch 16 \
+            --seed ${{ matrix.seed }} | tee returns/pr730-${{ matrix.seed }}/generation-1.log
+      - name: Validate receipts and lineage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, pathlib, torch
+          root = pathlib.Path('returns/pr730-${{ matrix.seed }}')
+          g0 = torch.load(root / 'generation-0.pt', map_location='cpu', weights_only=False)
+          g1 = torch.load(root / 'generation-1.pt', map_location='cpu', weights_only=False)
+          assert g0['generation'] == 0
+          assert g1['generation'] == 1
+          assert g1['parent_file_digest']
+          assert g0['checkpoint_tensor_digest'] != g1['checkpoint_tensor_digest']
+          summary = {
+              'schema': 'pr730-three-seed-evidence/v1',
+              'seed': ${{ matrix.seed }},
+              'generation_0': g0.get('receipt', g0.get('metrics', {})),
+              'generation_1': g1.get('receipt', g1.get('metrics', {})),
+              'g0_tensor_digest': g0['checkpoint_tensor_digest'],
+              'g1_tensor_digest': g1['checkpoint_tensor_digest'],
+              'continuation_proved': True,
+              'promotion': 'research-only-not-admitted',
+          }
+          (root / 'evidence-summary.json').write_text(json.dumps(summary, indent=2, default=str) + '\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pr730-teaching-seed-${{ matrix.seed }}
+          path: returns/pr730-${{ matrix.seed }}/
+          if-no-files-found: error
+          retention-days: 14
