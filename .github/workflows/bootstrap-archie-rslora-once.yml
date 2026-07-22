@@ -1,5 +1,6 @@
 name: Bootstrap Archie RSLoRA once
 
+# Second default-branch revision activates this already-registered workflow.
 on:
   push:
     branches:
@@ -70,22 +71,5 @@ jobs:
           git rm .github/workflows/bootstrap-archie-rslora-once.yml
           git commit -m 'Remove one-shot RSLoRA bootstrap'
           git push origin HEAD:main
-          body=$(cat <<EOF
-          ## Canonical elastic RSLoRA execution dispatched
-
-          \`\`\`text
-          request_id   ${REQUEST_ID}
-          source_sha   ${{ steps.bridge.outputs.sha }}
-          specialists  2
-          rungs        4
-          fused_rank   64
-          run          ${run_id}
-          status       ${status}
-          \`\`\`
-
-          Run: ${run_url}
-
-          The one-request authority bridge was reverted immediately after dispatch. This run remains \`not-admitted\` until real CUDA training, frozen evaluation, fusion, quantization retention, and independent reproduction produce valid evidence.
-          EOF
-          )
-          gh issue comment 721 --repo "$GITHUB_REPOSITORY" --body "$body"
+          printf 'Canonical elastic RSLoRA execution dispatched.\n\nrequest_id: %s\nsource_sha: %s\nspecialists: 2\nrungs: 4\nfused_rank: 64\nrun: %s\nstatus: %s\n\nRun: %s\n\nThe one-request authority bridge was reverted immediately after dispatch. This remains not-admitted pending real CUDA evidence and independent reproduction.\n' "$REQUEST_ID" '${{ steps.bridge.outputs.sha }}' "$run_id" "$status" "$run_url" > /tmp/comment.md
+          gh issue comment 721 --repo "$GITHUB_REPOSITORY" --body-file /tmp/comment.md
