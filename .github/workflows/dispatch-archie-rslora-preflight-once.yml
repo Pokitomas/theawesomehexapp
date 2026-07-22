@@ -1,0 +1,47 @@
+name: Dispatch Archie RSLoRA preflight once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dispatch-archie-rslora-preflight-once.yml'
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+concurrency:
+  group: dispatch-archie-rslora-preflight-once
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: github.repository == 'Pokitomas/theawesomehexapp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQUEST_ID: pok-721-canonical-elastic-preflight-20260721
+    steps:
+      - name: Dispatch exact canonical campaign preflight
+        run: |
+          set -euo pipefail
+          jq -n --arg request_id "$REQUEST_ID" \
+            '{ref:"main",inputs:{request_id:$request_id,round:"0",shards:"2",rungs:"4",max_fused_rank:"64"}}' \
+            | gh api --method POST \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/archie-information-budgeted-rslora.yml/dispatches" \
+                --input -
+      - name: Record dispatched run
+        run: |
+          set -euo pipefail
+          sleep 8
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/archie-information-budgeted-rslora.yml/runs?event=workflow_dispatch&per_page=20")"
+          run_id="$(jq -r '.workflow_runs[0].id // empty' <<<"$runs")"
+          run_url="$(jq -r '.workflow_runs[0].html_url // empty' <<<"$runs")"
+          head_sha="$(jq -r '.workflow_runs[0].head_sha // empty' <<<"$runs")"
+          status="$(jq -r '.workflow_runs[0].status // empty' <<<"$runs")"
+          test -n "$run_id"
+          printf 'Canonical RSLoRA preflight dispatched.\n\nrequest_id: %s\nrun: %s\nhead_sha: %s\nstatus: %s\nurl: %s\n\nThis is the exact #721 2-specialist, 4-rung, rank-64 workflow. Its authorize/blocker jobs are authoritative for configured runner and immutable-input readiness. No model result is claimed.\n' \
+            "$REQUEST_ID" "$run_id" "$head_sha" "$status" "$run_url" > /tmp/comment.md
+          gh issue comment 721 --repo "$GITHUB_REPOSITORY" --body-file /tmp/comment.md
