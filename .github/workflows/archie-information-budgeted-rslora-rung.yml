@@ -44,10 +44,6 @@ on:
         required: true
         type: number
 
-permissions:
-  contents: read
-  actions: read
-
 jobs:
   train:
     runs-on: [self-hosted, linux, x64, "${{ inputs.runner_label }}"]
