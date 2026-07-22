@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pr730-teaching-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   train:
@@ -20,8 +20,8 @@ jobs:
     timeout-minutes: 360
     env:
       PYTHONUNBUFFERED: '1'
-      OMP_NUM_THREADS: '2'
-      MKL_NUM_THREADS: '2'
+      OMP_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
             --output returns/pr730-${{ matrix.seed }}/smoke.pt \
             --device cpu \
             --steps 2 \
-            --batch 2 \
+            --batch 1 \
             --seed ${{ matrix.seed }} \
             > returns/pr730-${{ matrix.seed }}/smoke.log 2>&1 || {
               status=$?
@@ -75,7 +75,7 @@ jobs:
             --output returns/pr730-${{ matrix.seed }}/generation-0.pt \
             --device cpu \
             --steps 12000 \
-            --batch 4 \
+            --batch 1 \
             --seed ${{ matrix.seed }} \
             > "$log" 2>&1 || {
               status=$?
@@ -96,6 +96,8 @@ jobs:
               'python': platform.python_version(),
               'runner': platform.platform(),
               'elapsed_seconds': int(os.environ['ELAPSED_SECONDS']),
+              'optimizer_steps': 12000,
+              'batch_size': 1,
               'claim_boundary': 'Numerical teaching-lane evidence on GitHub-hosted CPU; not CUDA evidence and not admission.',
           }
           (root / 'runner-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
@@ -110,7 +112,7 @@ jobs:
             --output returns/pr730-${{ matrix.seed }}/generation-1.pt \
             --device cpu \
             --steps 2000 \
-            --batch 4 \
+            --batch 1 \
             --seed ${{ matrix.seed }} \
             > "$log" 2>&1 || {
               status=$?
