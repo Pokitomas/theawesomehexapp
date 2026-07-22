@@ -1,0 +1,63 @@
+name: Dispatch Archie RSLoRA once
+
+on:
+  push:
+    branches:
+      - agent/dispatch-archie-rslora-20260721
+    paths:
+      - .github/workflows/dispatch-archie-rslora-once.yml
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+jobs:
+  dispatch:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQUEST_ID: pok-721-canonical-elastic-20260721
+    steps:
+      - name: Dispatch canonical elastic campaign
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg ref main \
+            --arg request_id "$REQUEST_ID" \
+            '{ref:$ref,inputs:{request_id:$request_id,round:"0",shards:"2",rungs:"4",max_fused_rank:"64"}}' \
+            | gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/archie-information-budgeted-rslora.yml/dispatches" --input -
+      - name: Record dispatched run
+        run: |
+          set -euo pipefail
+          sleep 10
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/archie-information-budgeted-rslora.yml/runs?event=workflow_dispatch&branch=main&per_page=1")"
+          run_id="$(jq -r '.workflow_runs[0].id // empty' <<<"$runs")"
+          run_url="$(jq -r '.workflow_runs[0].html_url // empty' <<<"$runs")"
+          actor="$(jq -r '.workflow_runs[0].actor.login // empty' <<<"$runs")"
+          status="$(jq -r '.workflow_runs[0].status // empty' <<<"$runs")"
+          conclusion="$(jq -r '.workflow_runs[0].conclusion // "pending"' <<<"$runs")"
+          test -n "$run_id"
+          body=$(cat <<EOF
+          ## Canonical elastic RSLoRA dispatch attempted
+
+          \`\`\`text
+          request_id  ${REQUEST_ID}
+          ref         main
+          specialists 2
+          rungs       4
+          fused_rank  64
+          run         ${run_id}
+          actor       ${actor}
+          status      ${status}
+          conclusion  ${conclusion}
+          \`\`\`
+
+          Run: ${run_url}
+
+          This is an execution attempt, not capability evidence. The canonical workflow remains fail-closed on missing CUDA runners, immutable model/data/config paths, owner authority, or evaluation prerequisites.
+          EOF
+          )
+          gh issue comment 721 --repo "$GITHUB_REPOSITORY" --body "$body"
