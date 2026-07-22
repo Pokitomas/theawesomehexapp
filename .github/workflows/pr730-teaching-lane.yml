@@ -33,8 +33,8 @@ jobs:
       - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
         with:
           python-version: '3.12'
-      - name: Install CPU PyTorch
-        run: python -m pip install --disable-pip-version-check --no-cache-dir torch==2.7.1
+      - name: Install numerical dependencies
+        run: python -m pip install --disable-pip-version-check --no-cache-dir torch==2.7.1 numpy==2.3.1
       - name: Compile training lane
         run: |
           set -euo pipefail
@@ -92,6 +92,7 @@ jobs:
               'seed': ${{ matrix.seed }},
               'device': 'cpu',
               'torch': torch.__version__,
+              'numpy': __import__('numpy').__version__,
               'python': platform.python_version(),
               'runner': platform.platform(),
               'elapsed_seconds': int(os.environ['ELAPSED_SECONDS']),
