@@ -1,0 +1,38 @@
+{
+  "schema": "archie-agent-teacher-policy-evaluation/v1",
+  "status": "research-only-not-admitted",
+  "hypothesis": "A random-initialized recurrent student can acquire bounded direct-action behavior from verified assistant and agent-teacher trajectories without inheriting a root model.",
+  "trainer": "foundry/archie-native/train_agent_teacher_policy.py",
+  "generation_zero_curriculum": "foundry/archie-native/curricula/pr730-agent-teacher-seed.jsonl",
+  "required_evidence": [
+    "generation_zero_random_tensor_digest",
+    "teacher_lineage_digest",
+    "episodes_sha256",
+    "action_vocabulary_sha256",
+    "checkpoint_tensor_digest",
+    "checkpoint_file_sha256",
+    "cuda_device",
+    "gpu_seconds",
+    "frozen_before_after_metrics",
+    "exact_parent_file_sha256_on_successor"
+  ],
+  "promotion_gates": {
+    "real_cuda_receipt": true,
+    "minimum_seeds": 3,
+    "held_out_action_gain_required": true,
+    "transition_error_must_not_regress": true,
+    "resume_continuity_required": true,
+    "quantized_retention_required": true,
+    "independent_reproduction_required": true,
+    "human_admission_required": true
+  },
+  "forbidden": [
+    "pretrained_model_weights",
+    "pretrained_tokenizer_or_embeddings",
+    "adapter_on_external_root",
+    "hosted_fine_tuning_api",
+    "third_party_cuda_service",
+    "deployment_foundation_model_call",
+    "cpu_run_reported_as_cuda_success"
+  ]
+}
