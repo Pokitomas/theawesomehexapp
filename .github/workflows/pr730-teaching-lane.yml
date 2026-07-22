@@ -48,7 +48,7 @@ jobs:
       - name: Train generation zero
         run: |
           set -euo pipefail
-          start=$(date +%s)
+          started=$(date +%s)
           python foundry/archie-native/train_agent_teacher_policy.py \
             --episodes returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
             --output returns/pr730-${{ matrix.seed }}/generation-0.pt \
@@ -56,9 +56,9 @@ jobs:
             --steps 12000 \
             --batch 16 \
             --seed ${{ matrix.seed }} | tee returns/pr730-${{ matrix.seed }}/generation-0.log
-          end=$(date +%s)
-          python - <<'PY'
-          import json, os, pathlib, platform, time, torch
+          finished=$(date +%s)
+          ELAPSED_SECONDS=$((finished-started)) python - <<'PY'
+          import json, os, pathlib, platform, torch
           root = pathlib.Path('returns/pr730-${{ matrix.seed }}')
           receipt = {
               'schema': 'pr730-teaching-lane-run/v1',
@@ -67,13 +67,11 @@ jobs:
               'torch': torch.__version__,
               'python': platform.python_version(),
               'runner': platform.platform(),
-              'elapsed_seconds': int(os.environ.get('ELAPSED_SECONDS', '0')),
+              'elapsed_seconds': int(os.environ['ELAPSED_SECONDS']),
               'claim_boundary': 'Numerical teaching-lane evidence on GitHub-hosted CPU; not CUDA evidence and not admission.',
           }
           (root / 'runner-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
           PY
-        env:
-          ELAPSED_SECONDS: '0'
       - name: Prove exact continuation
         run: |
           set -euo pipefail
@@ -89,25 +87,35 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, pathlib, torch
+          import hashlib, json, pathlib, torch
           root = pathlib.Path('returns/pr730-${{ matrix.seed }}')
-          g0 = torch.load(root / 'generation-0.pt', map_location='cpu', weights_only=False)
-          g1 = torch.load(root / 'generation-1.pt', map_location='cpu', weights_only=False)
+          g0_path = root / 'generation-0.pt'
+          g1_path = root / 'generation-1.pt'
+          g0 = torch.load(g0_path, map_location='cpu', weights_only=False)
+          g1 = torch.load(g1_path, map_location='cpu', weights_only=False)
+          r0 = json.loads((root / 'generation-0.pt.receipt.json').read_text())
+          r1 = json.loads((root / 'generation-1.pt.receipt.json').read_text())
+          g0_file_digest = hashlib.sha256(g0_path.read_bytes()).hexdigest()
           assert g0['generation'] == 0
           assert g1['generation'] == 1
-          assert g1['parent_file_digest']
+          assert g1['parent_file_sha256'] == g0_file_digest
+          assert r1['parent_file_sha256'] == g0_file_digest
+          assert g0['action_vocabulary'] == g1['action_vocabulary']
+          assert g0['config'] == g1['config']
           assert g0['checkpoint_tensor_digest'] != g1['checkpoint_tensor_digest']
+          assert r0['after']['action_accuracy'] >= r0['before']['action_accuracy']
           summary = {
               'schema': 'pr730-three-seed-evidence/v1',
               'seed': ${{ matrix.seed }},
-              'generation_0': g0.get('receipt', g0.get('metrics', {})),
-              'generation_1': g1.get('receipt', g1.get('metrics', {})),
+              'generation_0_receipt': r0,
+              'generation_1_receipt': r1,
               'g0_tensor_digest': g0['checkpoint_tensor_digest'],
               'g1_tensor_digest': g1['checkpoint_tensor_digest'],
               'continuation_proved': True,
+              'held_out_non_regression': True,
               'promotion': 'research-only-not-admitted',
           }
-          (root / 'evidence-summary.json').write_text(json.dumps(summary, indent=2, default=str) + '\n')
+          (root / 'evidence-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
