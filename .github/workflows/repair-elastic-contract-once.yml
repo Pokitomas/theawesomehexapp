@@ -1,0 +1,41 @@
+name: Repair elastic contract once
+
+on:
+  push:
+    branches:
+      - agent/archie-elastic-external-rslora-20260721
+    paths:
+      - .github/workflows/repair-elastic-contract-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.repository_owner == 'Pokitomas'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: agent/archie-elastic-external-rslora-20260721
+          fetch-depth: 0
+      - name: Restore literal contract and remove launcher
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          target = Path('foundry/archie-distill/elastic_information_budgeted_rslora.py')
+          text = target.read_text(encoding='utf-8')
+          old = 'budget into durable cumulative rungs and refuses resume when lineage or complete\nTrainer state drifts.'
+          new = 'budget into durable cumulative rungs and refuses resume when lineage or complete\nTrainer and optimizer state drifts.'
+          if old not in text:
+              raise SystemExit('Expected contract docstring was not found; refusing broad edit.')
+          target.write_text(text.replace(old, new, 1), encoding='utf-8')
+          Path('.github/workflows/repair-elastic-contract-once.yml').unlink()
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add foundry/archie-distill/elastic_information_budgeted_rslora.py .github/workflows/repair-elastic-contract-once.yml
+          git commit -m 'Restore elastic optimizer-state contract literal'
+          git push origin HEAD:agent/archie-elastic-external-rslora-20260721
