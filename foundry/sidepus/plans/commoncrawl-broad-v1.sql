@@ -1,7 +1,7 @@
 -- Broad deterministic archive intake for CC-MAIN-2026-25.
--- This is intentionally not a training curriculum. It selects provenance-rich
--- records for later extraction, classification, rights gating, and developmental
--- scheduling. The caller must provide an explicit max-records bound.
+-- Collection diversity is not a training ratio. Selected records remain subject to
+-- exact ranged-WARC retrieval, extraction, rights gating, deduplication, and the
+-- separate developmental scheduler. The caller supplies the hard record ceiling.
 WITH eligible AS (
   SELECT
     url,
@@ -13,35 +13,57 @@ WITH eligible AS (
     content_digest,
     content_mime_type,
     content_mime_detected,
-    content_languages
+    content_languages,
+    coalesce(content_mime_detected, content_mime_type, '') AS effective_mime
   FROM cc_url_index
   WHERE fetch_status = 200
-    AND warc_record_length BETWEEN 256 AND 8388608
+    AND warc_record_length BETWEEN 256 AND 67108864
     AND regexp_matches(url, '^https?://')
-    AND NOT regexp_matches(lower(url), '(logout|signin|login|session=|token=|password=)')
+    AND NOT regexp_matches(
+      lower(url),
+      '(logout|signin|login|session=|token=|password=|access[_-]?key=|auth=)'
+    )
     AND coalesce(content_mime_detected, content_mime_type, '') IN (
       'text/html',
       'application/xhtml+xml',
       'text/plain',
       'application/pdf',
       'application/json',
+      'application/ld+json',
       'application/xml',
       'text/xml',
       'text/css',
       'application/javascript',
       'text/javascript',
-      'image/svg+xml'
+      'image/svg+xml',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'audio/mpeg',
+      'audio/ogg',
+      'audio/wav',
+      'audio/x-wav',
+      'video/mp4',
+      'video/webm',
+      'video/ogg'
     )
 ), deterministic_broad_sample AS (
   SELECT *
   FROM eligible
   WHERE
     CASE
-      WHEN coalesce(content_mime_detected, content_mime_type) = 'application/pdf'
+      WHEN effective_mime IN ('video/mp4','video/webm','video/ogg')
+        THEN hash(url) % 100000 < 350
+      WHEN effective_mime IN ('audio/mpeg','audio/ogg','audio/wav','audio/x-wav')
+        THEN hash(url) % 100000 < 650
+      WHEN effective_mime IN ('image/jpeg','image/png','image/webp','image/gif')
+        THEN hash(url) % 100000 < 900
+      WHEN effective_mime = 'application/pdf'
         THEN hash(url) % 100000 < 9000
-      WHEN coalesce(content_mime_detected, content_mime_type) IN
-        ('application/json','application/xml','text/xml','text/css',
-         'application/javascript','text/javascript','image/svg+xml')
+      WHEN effective_mime IN
+        ('application/json','application/ld+json','application/xml','text/xml',
+         'text/css','application/javascript','text/javascript','image/svg+xml')
         THEN hash(url) % 100000 < 12000
       WHEN coalesce(content_languages, '') NOT LIKE 'eng%'
         THEN hash(url) % 100000 < 4500
