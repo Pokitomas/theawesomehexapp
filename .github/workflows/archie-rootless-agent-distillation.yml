@@ -1,0 +1,117 @@
+name: Run Archie rootless agent distillation
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/train_rootless_policy.py'
+      - 'maker/evaluations/archie-rootless-agent-distillation.json'
+      - 'docs/archie-rootless-agent-distillation.md'
+      - '.github/workflows/archie-rootless-agent-distillation.yml'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Audit label for the run
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-rootless-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755
+        with:
+          python-version: '3.12'
+      - name: Validate rootless contract
+        run: |
+          python -m py_compile foundry/archie-distill/train_rootless_policy.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('maker/evaluations/archie-rootless-agent-distillation.json').read_text())
+          assert p['schema'] == 'archie-rootless-profile/v1'
+          assert p['student']['initialization'] == 'random'
+          assert p['student']['external_base_model'] is None
+          assert p['deployment']['requires_teacher'] is False
+          assert p['deployment']['requires_tool_router'] is False
+          PY
+          grep -Fq 'Refusing CPU fallback' foundry/archie-distill/train_rootless_policy.py
+
+  authorize:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    outputs:
+      allowed: ${{ steps.gate.outputs.allowed }}
+      missing: ${{ steps.gate.outputs.missing }}
+    steps:
+      - id: gate
+        env:
+          READY: ${{ vars.ARCHIE_ROOTLESS_READY }}
+          RUNNER_LABEL: ${{ vars.ARCHIE_ROOTLESS_RUNNER_LABEL }}
+          PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+          TEACHER: ${{ vars.ARCHIE_ROOTLESS_TEACHER_JSONL }}
+          OUTPUT: ${{ vars.ARCHIE_ROOTLESS_OUTPUT_ROOT }}
+        run: |
+          python - <<'PY'
+          import os
+          required = ['RUNNER_LABEL', 'PYTHON', 'TEACHER', 'OUTPUT']
+          missing = [name for name in required if not os.environ.get(name, '').strip()]
+          if os.environ.get('READY') != '1': missing.append('ARCHIE_ROOTLESS_READY=1')
+          if os.environ.get('GITHUB_ACTOR', '').lower() != os.environ.get('GITHUB_REPOSITORY_OWNER', '').lower():
+              missing.append('repository-owner actor')
+          allowed = not missing
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
+              handle.write(f"allowed={str(allowed).lower()}\n")
+              handle.write(f"missing={', '.join(missing)}\n")
+          PY
+
+  train:
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: [self-hosted, linux, x64, "${{ vars.ARCHIE_ROOTLESS_RUNNER_LABEL }}"]
+    timeout-minutes: 720
+    env:
+      TRAINING_PYTHON: ${{ vars.ARCHIE_TRAINING_PYTHON }}
+      TEACHER_JSONL: ${{ vars.ARCHIE_ROOTLESS_TEACHER_JSONL }}
+      OUTPUT_ROOT: ${{ vars.ARCHIE_ROOTLESS_OUTPUT_ROOT }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Prove local CUDA and immutable inputs
+        run: |
+          set -euo pipefail
+          test -x "$TRAINING_PYTHON"
+          test -f "$TEACHER_JSONL"
+          command -v nvidia-smi >/dev/null
+          "$TRAINING_PYTHON" - <<'PY'
+          import torch
+          assert torch.cuda.is_available()
+          assert torch.cuda.device_count() > 0
+          PY
+      - name: Train scratch neural policy
+        run: |
+          set -euo pipefail
+          out="${OUTPUT_ROOT%/}/rootless-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$out"
+          mkdir -p "$out"
+          "$TRAINING_PYTHON" foundry/archie-distill/train_rootless_policy.py \
+            --profile maker/evaluations/archie-rootless-agent-distillation.json \
+            --teacher-jsonl "$TEACHER_JSONL" \
+            --output "$out"
+          test -f "$out/final.pt"
+          test -f "$out/receipt.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-rootless-result
+          path: ${{ vars.ARCHIE_ROOTLESS_OUTPUT_ROOT }}/rootless-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 14
