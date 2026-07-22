@@ -1,5 +1,6 @@
 name: Dispatch Archie RSLoRA preflight once
 
+# Registered on main; this second bounded revision activates the one-shot dispatch.
 on:
   push:
     branches: [main]
