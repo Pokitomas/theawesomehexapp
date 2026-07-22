@@ -41,10 +41,38 @@ def _handle_import_shard(args: Any) -> None:
     engine.print_json(result)
 
 
+def _handle_export_shards(args: Any) -> None:
+    state = pathlib.Path(args.state_dir).expanduser().resolve()
+    with engine.Catalog(state) as catalog:
+        policy_digest = current_content_policy_digest(catalog)
+        bound = bind_pending_jobs(catalog, policy_digest)
+        result = catalog.export_pending_shards(
+            pathlib.Path(args.output_dir), args.shards
+        )
+        result["content_policy_digest"] = policy_digest
+        result["jobs_bound"] = bound
+    engine.print_json(result)
+
+
+def _handle_merge_worker(args: Any) -> None:
+    state = pathlib.Path(args.state_dir).expanduser().resolve()
+    with engine.Catalog(state) as catalog:
+        policy_digest = current_content_policy_digest(catalog)
+        result = catalog.merge_from(pathlib.Path(args.worker_state))
+        result["content_policy_digest"] = policy_digest
+    engine.print_json(result)
+
+
 def main() -> None:
     args = engine.parser().parse_args()
     if args.command == "import-shard":
         _handle_import_shard(args)
+        return
+    if args.command == "export-shards":
+        _handle_export_shards(args)
+        return
+    if args.command == "merge-worker":
+        _handle_merge_worker(args)
         return
 
     engine.discover_commoncrawl_cdx = _governed(
