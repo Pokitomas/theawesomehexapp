@@ -1,0 +1,101 @@
+{
+  "schema": "archie-rootless-direct-action-student/v1",
+  "status": "research-only-not-admitted",
+  "starting_weights": {
+    "kind": "random-initialization",
+    "pretrained_weights_allowed": false,
+    "adapters_allowed": false,
+    "generation_zero_seed_required": true
+  },
+  "teacher_data": {
+    "teachers_allowed": [
+      "authorized-assistant",
+      "bounded-agent-subprocess",
+      "authorized-human"
+    ],
+    "hidden_reasoning_retained": false,
+    "reduction": "verified-observation-action-value-trajectories",
+    "trace_lineage_required": true,
+    "causal_effect_filter_required": true
+  },
+  "student": {
+    "kind": "rootless-recurrent-direct-action-controller",
+    "components": [
+      "multimodal-observation-encoder",
+      "persistent-recurrent-world-state",
+      "hierarchical-action-head",
+      "success-value-head",
+      "uncertainty-head",
+      "state-consistency-decoder"
+    ],
+    "natural_language_planner": false,
+    "runtime_model_calls": false,
+    "runtime_agent_calls": false,
+    "runtime_tool_selection": false
+  },
+  "action_boundary": {
+    "kind": "fixed-compiled-actuator-vocabulary",
+    "neural_output": "bounded-action-packet",
+    "deterministic_actuator_required": true,
+    "generic_tool_registry_allowed": false,
+    "natural_language_action_interpretation_allowed": false
+  },
+  "training": {
+    "device": "local-cuda",
+    "relay": "sealed-outbound-polling-self-lineage-relay",
+    "complete_checkpoint_resume_required": true,
+    "optimizer_continuity_required": true,
+    "network_model_loading_allowed": false,
+    "losses": [
+      "action-behavior-cloning",
+      "latent-dynamics",
+      "terminal-return",
+      "verified-advantage",
+      "failed-vs-repaired-branch",
+      "minimal-observation-reconstruction",
+      "calibrated-stop",
+      "action-compute-budget"
+    ]
+  },
+  "deployment_graph": [
+    "bounded-observation",
+    "local-neural-controller",
+    "bounded-action-packet",
+    "deterministic-actuator",
+    "next-bounded-observation"
+  ],
+  "forbidden_at_deployment": [
+    "foundation-model",
+    "remote-inference",
+    "assistant-subprocess",
+    "agent-loop",
+    "planner",
+    "generic-tool-selector",
+    "natural-language-action-interpreter",
+    "runtime-gradient-update",
+    "unrestricted-shell",
+    "unrestricted-network"
+  ],
+  "required_evidence": [
+    "generation-zero-random-init-proof",
+    "no-pretrained-tensor-load-proof",
+    "capsule-parent-successor-digests",
+    "observation-schema",
+    "actuator-schema",
+    "trace-reduction-receipts",
+    "cuda-device-identity",
+    "gpu-seconds",
+    "changed-tensor-digests",
+    "optimizer-resume-continuity",
+    "held-out-closed-loop-success",
+    "value-calibration",
+    "action-count-and-latency",
+    "unseen-layout-transfer",
+    "unseen-lineage-transfer",
+    "quantized-retention",
+    "deterministic-replay",
+    "independent-reproduction",
+    "human-admission"
+  ],
+  "documentation": "docs/archie-rootless-direct-action-student.md"
+}
