@@ -1,0 +1,211 @@
+{
+  "acquisition_policy_digest": "aa11086067845abfc5d966f92a03b6b8a95ba44145de33e9dcfcdc06c905d5e4",
+  "allocation_guardrails": {
+    "maximum_single_domain_effective_share": 0.3,
+    "maximum_single_host_effective_share": 0.0005,
+    "minimum_language_families_per_large_shard": 8,
+    "no_global_document_cap": true,
+    "replay_anchor_fraction_floor": 0.12,
+    "streaming_compilation_required": true
+  },
+  "approved_by_operator": true,
+  "channel_taxonomy": {
+    "action_consequence": "Intervention, execution, state transition, outcome, and feedback evidence.",
+    "evaluation_only": "Withheld labels, paired counterfactuals, and adversarial diagnostics never exposed as ordinary context.",
+    "interpretation": "Annotations, summaries, inferred states, labels, and other compiler hypotheses.",
+    "observation": "Bytes or modality features directly present in the captured artifact.",
+    "production_context": "Camera, edit, publication, document, source, and recording-process information.",
+    "utterance": "Language produced by a situated speaker, author, narrator, program, or institution."
+  },
+  "design_boundary": "Archive intake is broad. Training is a controlled sequence of views, hidden targets, replay, contamination, and matched counterfactual lineages.",
+  "evaluation_contract": {
+    "checkpoint_cadence_steps": 250,
+    "frozen_development_split": true,
+    "late_horizon_comparison_required": true,
+    "required_families": [
+      "language transfer",
+      "source and claim separation",
+      "temporal direction",
+      "object and entity persistence",
+      "camera or document artifact separation",
+      "execution and intervention consequence",
+      "contradiction and duplicate-source independence",
+      "contamination resistance",
+      "retention and plasticity",
+      "communication quality without assistant-style leakage"
+    ]
+  },
+  "falsification_rule": "A developmental lineage is rejected if its gains disappear under hidden-channel ablation, fail to transfer outside its source medium, exceed matched-resource controls only on response-style benchmarks, or cause retention damage outside the declared bound.",
+  "lineages": [
+    {
+      "id": "episode_state_experimental",
+      "intervention": "hidden supervision and language-as-projection with grounded interleaving",
+      "matched_resource_group": "broad-v1",
+      "role": "experimental",
+      "stage_order": [
+        "grounded_interleave",
+        "world_state_expansion",
+        "deliberate_contamination",
+        "expression_projection"
+      ]
+    },
+    {
+      "id": "language_first_control",
+      "intervention": "same records and token budget with expression stage first",
+      "matched_resource_group": "broad-v1",
+      "role": "control",
+      "stage_order": [
+        "expression_projection",
+        "grounded_interleave",
+        "world_state_expansion",
+        "deliberate_contamination"
+      ]
+    },
+    {
+      "id": "flattened_assistant_control",
+      "intervention": "same records and token budget with compiler interpretations exposed as ordinary context",
+      "matched_resource_group": "broad-v1",
+      "objective_overrides": {
+        "deliberate_contamination": {
+          "add_visible_channels": ["interpretation"],
+          "remove_hidden_targets": ["interpretation"]
+        },
+        "expression_projection": {
+          "add_visible_channels": ["utterance"],
+          "remove_hidden_targets": ["utterance"]
+        },
+        "grounded_interleave": {
+          "add_visible_channels": ["interpretation"],
+          "remove_hidden_targets": ["interpretation"]
+        },
+        "world_state_expansion": {
+          "add_visible_channels": ["interpretation"],
+          "remove_hidden_targets": ["interpretation"]
+        }
+      },
+      "role": "control",
+      "stage_order": [
+        "grounded_interleave",
+        "world_state_expansion",
+        "deliberate_contamination",
+        "expression_projection"
+      ]
+    },
+    {
+      "id": "structure_first_control",
+      "intervention": "same records and token budget with world-state expansion before broad language grounding",
+      "matched_resource_group": "broad-v1",
+      "role": "control",
+      "stage_order": [
+        "world_state_expansion",
+        "grounded_interleave",
+        "deliberate_contamination",
+        "expression_projection"
+      ]
+    }
+  ],
+  "name": "Archie broad developmental corpus v1",
+  "objectives": {
+    "communication_head": {
+      "hidden_targets": ["utterance", "evaluation_only"],
+      "purpose": "Train expression as a lossy readout from a richer state rather than as the sole objective.",
+      "visible_channels": ["observation", "production_context", "interpretation", "action_consequence"]
+    },
+    "contamination_resistance": {
+      "hidden_targets": ["interpretation", "evaluation_only"],
+      "purpose": "Model persuasion, spam, contradiction, imitation, and low-integrity text without installing them as default cognition.",
+      "visible_channels": ["observation", "production_context", "utterance"]
+    },
+    "execution_and_falsification": {
+      "hidden_targets": ["evaluation_only"],
+      "purpose": "Bind formal artifacts and explanations to tests, failures, patches, measurements, and outcomes.",
+      "visible_channels": ["observation", "production_context", "utterance", "action_consequence"]
+    },
+    "language_as_projection": {
+      "hidden_targets": ["interpretation"],
+      "purpose": "Learn language as situated evidence and optional communication rather than the entire cognitive state.",
+      "visible_channels": ["observation", "production_context", "utterance"]
+    },
+    "source_boundary": {
+      "hidden_targets": ["interpretation", "evaluation_only"],
+      "purpose": "Separate captured evidence, authored claims, production artifacts, and compiler interpretation.",
+      "visible_channels": ["observation", "production_context", "utterance"]
+    },
+    "temporal_causal_state": {
+      "hidden_targets": ["interpretation", "evaluation_only"],
+      "purpose": "Predict persistence, change, temporal order, controllability, and consequences without requiring a verbal response.",
+      "visible_channels": ["observation", "production_context", "action_consequence"]
+    }
+  },
+  "schema": "sidepus-developmental-program/v1",
+  "stages": [
+    {
+      "base_exposures": 1,
+      "domain_targets": {
+        "adversarial_messy": 0.0,
+        "empirical_world": 0.24,
+        "formal_executable": 0.2,
+        "language_expression": 0.26,
+        "multimodal_episode": 0.13,
+        "social_institutional": 0.17
+      },
+      "id": "grounded_interleave",
+      "max_extra_exposures": 2,
+      "objectives": ["source_boundary", "language_as_projection", "execution_and_falsification"],
+      "order": 0,
+      "selector": {"exclude_flags": ["quarantined", "rights-blocked"], "minimum_quality": 0.45},
+      "supplemental_fraction": 0.18
+    },
+    {
+      "base_exposures": 1,
+      "domain_targets": {
+        "adversarial_messy": 0.0,
+        "empirical_world": 0.29,
+        "formal_executable": 0.21,
+        "language_expression": 0.16,
+        "multimodal_episode": 0.17,
+        "social_institutional": 0.17
+      },
+      "id": "world_state_expansion",
+      "max_extra_exposures": 3,
+      "objectives": ["temporal_causal_state", "source_boundary", "execution_and_falsification"],
+      "order": 1,
+      "selector": {"exclude_flags": ["quarantined", "rights-blocked"], "minimum_quality": 0.35},
+      "supplemental_fraction": 0.3
+    },
+    {
+      "base_exposures": 1,
+      "domain_targets": {
+        "adversarial_messy": 0.35,
+        "empirical_world": 0.13,
+        "formal_executable": 0.1,
+        "language_expression": 0.14,
+        "multimodal_episode": 0.13,
+        "social_institutional": 0.15
+      },
+      "id": "deliberate_contamination",
+      "max_extra_exposures": 2,
+      "objectives": ["contamination_resistance", "source_boundary", "temporal_causal_state"],
+      "order": 2,
+      "selector": {"exclude_flags": ["quarantined", "rights-blocked"], "minimum_quality": 0.05},
+      "supplemental_fraction": 0.12
+    },
+    {
+      "base_exposures": 1,
+      "domain_targets": {
+        "adversarial_messy": 0.06,
+        "empirical_world": 0.18,
+        "formal_executable": 0.12,
+        "language_expression": 0.32,
+        "multimodal_episode": 0.12,
+        "social_institutional": 0.2
+      },
+      "id": "expression_projection",
+      "max_extra_exposures": 2,
+      "objectives": ["communication_head", "language_as_projection", "source_boundary"],
+      "order": 3,
+      "selector": {"exclude_flags": ["quarantined", "rights-blocked"], "minimum_quality": 0.25},
+      "supplemental_fraction": 0.2
+    }
+  ]
+}
