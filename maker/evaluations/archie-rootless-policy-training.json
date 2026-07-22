@@ -1,0 +1,56 @@
+{
+  "schema": "archie-rootless-policy-training-evaluation/v1",
+  "status": "research-only-not-admitted",
+  "entrypoint": "foundry/archie-native/train_rootless_policy.py",
+  "claim": "A random-initialized recurrent student can learn verified observation/action/value/stop traces and deploy as the root action policy without loading or calling a foundation model.",
+  "required_input": {
+    "format": "jsonl",
+    "episode_schema": {
+      "episode_id": "unique string",
+      "verified": true,
+      "steps": [
+        {
+          "observation": "bounded UTF-8 observation",
+          "action": "integer in declared action vocabulary",
+          "value": "verifier-derived number",
+          "stop": "boolean"
+        }
+      ]
+    }
+  },
+  "training_invariants": [
+    "generation zero is initialized only from the declared random seed",
+    "no pretrained tensors, adapters, embedding models, or tokenizer models are loaded",
+    "generation N greater than zero loads the complete model and optimizer state from exactly one student parent checkpoint",
+    "teacher cognition is reduced to verified observation/action/value/stop supervision before training",
+    "the trained checkpoint emits action, value, and stop outputs directly"
+  ],
+  "alienware_command": "python foundry/archie-native/train_rootless_policy.py --episodes capsule/verified_episodes.jsonl --output returns/rootless-policy.pt --device cuda --steps 10000",
+  "continuation_command": "python foundry/archie-native/train_rootless_policy.py --episodes capsule/verified_episodes.jsonl --parent capsule/parent.pt --output returns/rootless-policy-next.pt --device cuda --steps 10000",
+  "receipt_requirements": [
+    "episode dataset sha256",
+    "random initialization tensor digest",
+    "parent checkpoint file digest when resumed",
+    "successor tensor and file digests",
+    "CUDA device identity",
+    "wall-clock training seconds",
+    "frozen held-out action accuracy",
+    "held-out value and stop calibration errors before and after training"
+  ],
+  "falsification": [
+    "held-out action accuracy does not improve beyond seed-matched random baselines",
+    "value or stop calibration degrades materially",
+    "resume cannot reproduce optimizer-continuous learning",
+    "the policy succeeds only by routing difficult actions to another model",
+    "template leakage explains held-out gains",
+    "quantized deployment loses the learned policy"
+  ],
+  "admission_requires": [
+    "real Alienware CUDA receipt",
+    "frozen held-out improvement across at least three seeds",
+    "exact parent-child checkpoint lineage",
+    "independent replay",
+    "quantized retention",
+    "human admission"
+  ]
+}
