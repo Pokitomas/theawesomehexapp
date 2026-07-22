@@ -2,49 +2,63 @@
 
 ## Status
 
-Sidepus v1 is a deterministic corpus compiler for a manually enumerated collection. It is useful as provenance-aware ingestion, but it is not a web archive and does not have Common Crawl or Internet Archive acquisition parity.
-
-Sidepus v2 separates three authorities:
+Sidepus v2 now separates and implements three governed authorities:
 
 1. **archive acquisition** discovers or captures immutable WARC/ARC/WACZ bytes;
-2. **content policy** decides what portions of the historical and fresh web may be acquired;
-3. **curriculum compilation** later decides what archived observations should become training data.
+2. **content policy** seals the operator-approved acquisition boundary; and
+3. **developmental compilation** converts extracted records into matched, staged model lineages without treating archive ratios as training ratios.
 
-Only the first authority is implemented here. The archive plan is created with `content_policy: null`, and the canonical CLI refuses discovery, fresh capture, worker execution, or shard import until an operator-approved `sidepus-content-policy/v2` is installed.
+The approved acquisition policy is:
 
-This is deliberate. Infrastructure may be aggressive; subject selection may not be smuggled in as a default.
-
-## Hard parity contract
-
-Sidepus v2 fails parity unless all of these lanes exist and validate their outputs:
-
-| Lane | Required mechanism |
-| --- | --- |
-| Common Crawl bounded discovery | CDXJ queries that produce exact WARC filename, offset, and length jobs |
-| Common Crawl broad discovery | DuckDB SQL over the Parquet URL Index, with an explicit record ceiling |
-| Common Crawl retrieval | HTTP `Range` retrieval that requires `206`, exact byte length, and a valid WARC record |
-| Internet Archive holdings | Exact item/file acquisition for WARC, legacy ARC, and WACZ |
-| Wayback discovery | CDX capture discovery with explicit derivative labeling |
-| Wayback retrieval | Replay bytes wrapped in a new provenance-bound WARC; never represented as the original WARC |
-| Local archive ingestion | WARC 1.0/1.1, ARC through `warcio`, and WACZ with path-safe extraction |
-| Fresh static capture | GNU Wget with `--warc-file` support |
-| Fresh browser capture | Browsertrix `crawl` CLI or an explicit container command |
-| Heritrix compatibility | Import and validate Heritrix-produced WARC/ARC output; Java is needed only to run Heritrix itself |
-| Resume and distribution | immutable job IDs, expiring leases, deterministic shards, one SQLite catalog per worker |
-| Merge | deep-verify worker objects and event chain, then content-addressed set union |
-| Storage | SHA-256 object store with a SQLite authority ledger |
-| Validation | WARC framing, content length, block digest where declared, WACZ member safety, deep object verification |
-| Governance | every acquisition job bound to the sealed content-policy SHA-256 |
-
-The doctor command checks local dependencies and, when requested, the public archive endpoints:
-
-```bash
-bash foundry/sidepus/run_sidepus.sh doctor
+```text
+foundry/sidepus/plans/content-policy-broad-v2.json
+policy digest: aa11086067845abfc5d966f92a03b6b8a95ba44145de33e9dcfcdc06c905d5e4
 ```
 
-`--require-parity` exits nonzero if a mandatory adapter, dependency, capture engine, or requested endpoint is unavailable. A passing doctor proves that the tooling is callable. It does not claim that Sidepus holds the web, equals either archive's collection, or has selected a good corpus.
+The canonical launcher initializes the archive state, installs that exact immutable policy, and validates the developmental program. A state already sealed with another policy fails closed.
 
-## Linux setup
+This implementation does **not** claim that any large archive has been downloaded, that the archive equals Common Crawl or Internet Archive holdings, that extracted rights labels are legally dispositive, that the model consumes the six-channel representation yet, or that Archie improved.
+
+## Approved broad boundary
+
+The policy authorizes a maximum archive size of 8 TiB. This is a ceiling, not a command to fill one machine indiscriminately.
+
+Initial historical acquisition begins with exact Common Crawl release `CC-MAIN-2026-25`, with a maximum of 20 million selected ranged-WARC records. A historical expansion lane may resolve one frozen midyear release for each year from 2013 through 2025 before discovery. Wayback is reserved for temporal and disappeared-web counterfactuals. Internet Archive acquisition remains explicit item-and-file selection. Governed fresh capture is capped at 512 GiB.
+
+Archive-intake targets are:
+
+| Subject family | Target |
+|---|---:|
+| Language and human expression | 24% |
+| Empirical world and science | 22% |
+| Formal and executable artifacts | 18% |
+| Social and institutional records | 18% |
+| Multimodal and temporal episodes | 10% |
+| Deliberately messy or adversarial material | 8% |
+
+These percentages diversify holdings only. They do not determine token order, repetitions, objectives, hidden supervision, speaking style, or model personality.
+
+## Hard acquisition contract
+
+| Lane | Required mechanism |
+|---|---|
+| Common Crawl bounded discovery | CDXJ queries producing exact WARC filename, offset, and length jobs |
+| Common Crawl broad discovery | DuckDB SQL over the Parquet URL Index with an explicit result ceiling |
+| Common Crawl retrieval | HTTP `Range` requiring `206`, exact byte length, valid WARC framing, and digest agreement when available |
+| Internet Archive | Exact WARC, ARC, or WACZ item/file acquisition with available upstream size and digest checks |
+| Wayback | CDX replay captured only as a newly generated provenance-bound derivative WARC |
+| Local archive ingestion | WARC 1.0/1.1, ARC through `warcio`, and path-safe WACZ extraction |
+| Fresh static capture | GNU Wget WARC output |
+| Fresh browser capture | Browsertrix CLI or an exact container command |
+| Heritrix compatibility | Import and verify Heritrix WARC/ARC output |
+| Storage | SHA-256 object store and SQLite WAL authority catalog |
+| Distribution | immutable jobs, expiring leases, deterministic shards, one catalog per worker |
+| Merge | deep verification followed by content-addressed set union |
+| Governance | every job bound to the installed content-policy digest |
+
+A passing doctor proves that the adapters and dependencies are callable. It does not prove corpus completeness or quality.
+
+## Linux initialization
 
 ```bash
 python3 -m venv ~/.venv-sidepus
@@ -56,142 +70,34 @@ export SIDEPUS_STATE="$HOME/sidepus-archive-v2"
 bash foundry/sidepus/run_sidepus.sh
 ```
 
-The launcher creates only:
-
-- a disk-backed catalog;
-- a SHA-256 object store;
-- an infrastructure plan;
-- an event ledger.
-
-It does not create Common Crawl queries, Wayback queries, Internet Archive item lists, browser seeds, a subject distribution, language ratios, era ratios, or crawl depth.
-
-## Content-policy stop
-
-Before any acquisition, the operator must approve a policy with these explicit fields:
-
-```json
-{
-  "schema": "sidepus-content-policy/v2",
-  "approved_by_operator": true,
-  "purposes": [],
-  "historical_sources": [],
-  "fresh_capture": {},
-  "languages": [],
-  "time_ranges": [],
-  "subject_allocations": {},
-  "exclusions": [],
-  "maximum_archive_bytes": 0
-}
-```
-
-Install it only after the content decision:
+Hard parity check:
 
 ```bash
-python -m foundry.sidepus.governed_cli install-content-policy \
-  --state-dir "$SIDEPUS_STATE" \
-  --policy /path/to/operator-approved-content-policy.json
+bash foundry/sidepus/run_sidepus.sh doctor
 ```
 
-The policy is immutable within a state directory. A different policy requires a fresh state or an explicit future migration mechanism. Capture requests must name the exact installed policy digest. Pending jobs are rewritten once to carry that digest, and workers reject unbound or mismatched jobs.
+## Broad Common Crawl discovery
 
-## Historical acquisition
+The approved SQL is:
 
-### Common Crawl CDX
-
-Use this only for bounded URL or domain queries. The input is JSONL and must be written after the content policy is approved:
-
-```json
-{"crawl":"CC-MAIN-YYYY-NN","url":"example.org/*","match_type":"prefix","filter":["status:200"],"limit":1000}
+```text
+foundry/sidepus/plans/commoncrawl-broad-v1.sql
 ```
 
-```bash
-python -m foundry.sidepus.governed_cli discover-commoncrawl-cdx \
-  --state-dir "$SIDEPUS_STATE" \
-  --queries /path/to/approved-commoncrawl-queries.jsonl \
-  --receipt "$SIDEPUS_STATE/receipts/commoncrawl-cdx.json"
-```
+It includes textual, structured, PDF, image, audio, and video records with deterministic MIME-specific sampling. Video and audio receive much lower collection probability than text and structured artifacts. Obvious credential/session URLs are excluded. Records may be as large as 64 MiB, but every invocation still supplies a hard result ceiling.
 
-Each result becomes an exact byte-range job. Workers require HTTP 206, the indexed length, valid WARC framing, and matching payload digest when available.
-
-### Common Crawl Parquet URL Index
-
-This is the scalable discovery path. The operator supplies SQL against the `cc_url_index` view and an explicit maximum result count:
+Start with a storage-bounded shard rather than pretending the 20-million-record authorization is one workstation command:
 
 ```bash
 python -m foundry.sidepus.governed_cli discover-commoncrawl-index \
   --state-dir "$SIDEPUS_STATE" \
-  --crawl CC-MAIN-YYYY-NN \
-  --sql /path/to/approved-selection.sql \
-  --max-records 1000000 \
-  --receipt "$SIDEPUS_STATE/receipts/commoncrawl-index.json"
+  --crawl CC-MAIN-2026-25 \
+  --sql foundry/sidepus/plans/commoncrawl-broad-v1.sql \
+  --max-records 250000 \
+  --receipt "$SIDEPUS_STATE/receipts/cc-2026-25-shard-000.json"
 ```
 
-The SQL must return:
-
-- `url`
-- `warc_filename`
-- `warc_record_offset`
-- `warc_record_length`
-
-Optional columns such as MIME, language, status, digest, and fetch time are retained in provenance.
-
-No default SQL is included because default predicates would silently make the content decision.
-
-### Wayback CDX
-
-```bash
-python -m foundry.sidepus.governed_cli discover-wayback \
-  --state-dir "$SIDEPUS_STATE" \
-  --queries /path/to/approved-wayback-queries.jsonl
-```
-
-The public CDX response generally does not provide original WARC byte ranges. Sidepus therefore stores replay responses as newly generated derivative WARCs with the original target, capture timestamp, replay source URI, HTTP response, and a derivative boundary. It does not pretend those bytes are the original archive object.
-
-### Internet Archive items
-
-```json
-{"item":"EXACT_ITEM_IDENTIFIER","include":["*.warc.gz","*.arc.gz","*.wacz"]}
-```
-
-```bash
-python -m foundry.sidepus.governed_cli discover-internet-archive \
-  --state-dir "$SIDEPUS_STATE" \
-  --items /path/to/approved-items.jsonl
-```
-
-File size and upstream SHA-1/MD5 are verified when the item metadata supplies them. WACZ members are extracted without trusting archive paths. Legacy ARC is converted to WARC-shaped record metadata through `warcio`.
-
-## Fresh capture
-
-Create a request template only after deciding the content scope:
-
-```bash
-python -m foundry.sidepus.governed_cli capture-template \
-  --engine wget \
-  --output /path/to/capture-request.json \
-  --capture-output-dir "$SIDEPUS_STATE/fresh/example"
-```
-
-Supported engines:
-
-- `wget`: builds a GNU Wget WARC command and verifies that installed Wget exposes `--warc-file`;
-- `browsertrix`: uses the Browsertrix `crawl` CLI or an exact explicit command with `{seeds}`, `{output}`, and `{collection}` substitutions;
-- `external`: runs an exact argument array for Heritrix or another archival crawler and accepts the run only if valid WARC/ARC/WACZ appears.
-
-The request is rejected unless it contains the exact 64-character installed content-policy digest. A zero exit code is not success by itself. Every emitted archive must ingest and validate.
-
-## Workers, shards, and merge
-
-Run a worker against one catalog:
-
-```bash
-python -m foundry.sidepus.governed_cli worker \
-  --state-dir "$SIDEPUS_STATE" \
-  --owner workstation-a \
-  --limit 1000
-```
-
-Create deterministic JSONL job shards:
+Export deterministic worker shards:
 
 ```bash
 python -m foundry.sidepus.governed_cli export-shards \
@@ -200,48 +106,100 @@ python -m foundry.sidepus.governed_cli export-shards \
   --shards 32
 ```
 
-Each worker should use its own state directory and import one or more shards. Do not place one SQLite catalog on a shared network filesystem.
+Each worker imports one or more shards into its own state directory. Do not place one SQLite file on a shared network filesystem.
 
-Merge a completed worker:
+## Other archive lanes
+
+Bounded Common Crawl CDX:
 
 ```bash
-python -m foundry.sidepus.governed_cli merge-worker \
+python -m foundry.sidepus.governed_cli discover-commoncrawl-cdx \
   --state-dir "$SIDEPUS_STATE" \
-  --worker-state /path/to/worker-state
+  --queries /path/to/approved-commoncrawl-queries.jsonl \
+  --receipt "$SIDEPUS_STATE/receipts/commoncrawl-cdx.json"
 ```
 
-Merge performs a deep source verification, rejects policy mismatch, copies or reuses objects by SHA-256, unions jobs and WARC records, and emits a merge receipt. Re-merging the same worker is idempotent.
-
-## Tests
+Wayback:
 
 ```bash
-python -m unittest -v foundry.sidepus.test_sidepus_archive
+python -m foundry.sidepus.governed_cli discover-wayback \
+  --state-dir "$SIDEPUS_STATE" \
+  --queries /path/to/approved-wayback-queries.jsonl
 ```
 
-The contract suite covers:
+Internet Archive:
 
-- generated WARC validation;
-- WACZ extraction and traversal rejection;
-- real HTTP range behavior;
-- placeholder capture-policy rejection;
-- unbound job rejection;
-- bound WARC ingestion;
-- lease expiration;
-- deep catalog verification;
-- idempotent worker merge;
-- malformed WARC rejection.
+```bash
+python -m foundry.sidepus.governed_cli discover-internet-archive \
+  --state-dir "$SIDEPUS_STATE" \
+  --items /path/to/approved-items.jsonl
+```
 
-## What remains intentionally undone
+Fresh capture requests must include the exact installed policy digest. A crawler exit code is insufficient; emitted archives must ingest and validate.
 
-Sidepus v2 does not yet:
+## WARC to developmental inventory
 
-- choose the content policy;
-- extract cleaned training documents from archive records;
-- perform scalable text, image, audio, or video decoding;
-- deduplicate payloads across the full archive catalog;
-- rank archive records for curriculum;
-- create train/development/test splits;
-- claim web completeness or archive equivalence in holdings;
-- claim that more web data improves Archie.
+Acquired records do not become one flattened text corpus. The extractor stores separate content-addressed channel objects for:
 
-Those belong after the operator content decision and before training. Acquisition parity is a prerequisite, not a curriculum.
+- raw observation;
+- production and source context;
+- situated utterance when text can be extracted;
+- compiler interpretation;
+- action/consequence when later adapters supply it; and
+- evaluation-only counterfactuals when later builders supply them.
+
+HTML scripts, styles, templates, SVG internals, and similar shortcuts are excluded from visible-text extraction. Ordinary HTML is not classified as executable merely because its URL ends in `.html`.
+
+Unknown rights fail closed for training. Without an approved `sidepus-rights-decision/v1` rule, a record receives `rights-blocked`. The archive payload may remain preserved under the acquisition policy, but the developmental scheduler excludes it.
+
+```bash
+python -m foundry.sidepus.developmental_cli extract-warc-inventory \
+  --state-dir "$SIDEPUS_STATE" \
+  --rights-manifest /path/to/operator-approved-rights.json \
+  --maximum-records 1000000 \
+  --maximum-payload-bytes 67108864 \
+  --output "$SIDEPUS_STATE/inventory/broad-000.jsonl"
+
+python -m foundry.sidepus.developmental_cli verify-inventory \
+  --receipt "$SIDEPUS_STATE/inventory/broad-000.jsonl.receipt.json"
+```
+
+## Developmental compilation
+
+The developmental program is:
+
+```text
+foundry/sidepus/plans/developmental-program-v1.json
+```
+
+It emits matched schedules for four lineages: hidden-supervision episode/state training, language-first control, flattened-assistant control, and structure-first control. It stages grounded interleaving, world-state expansion, deliberate contamination, and expression as a projection from broader state.
+
+```bash
+python -m foundry.sidepus.developmental_cli compile \
+  --program foundry/sidepus/plans/developmental-program-v1.json \
+  --content-policy foundry/sidepus/plans/content-policy-broad-v2.json \
+  --inventory "$SIDEPUS_STATE/inventory/broad-000.jsonl" \
+  --output-dir "$SIDEPUS_STATE/developmental/broad-v1"
+
+python -m foundry.sidepus.developmental_cli verify \
+  --receipt "$SIDEPUS_STATE/developmental/broad-v1/developmental-receipt.json"
+```
+
+The compiler uses SQLite-backed streaming inventory indexing and emits schedule references rather than duplicating payloads for every repetition. It has no global demo-sized document cap. A maximum 30% effective-token share for any one subject family is enforced.
+
+## Dedicated evidence
+
+The Sidepus workflow compiles the package, validates the sealed developmental program, runs archive, governance, WARC extraction, rights, hidden-channel, matched-lineage, tamper, lease, range, WACZ, and merge contracts, and checks local parity capabilities.
+
+## Still unproven or incomplete
+
+- no Common Crawl, Wayback, Internet Archive, or fresh-crawl payload has been acquired by this PR;
+- no large-scale archive throughput, storage, resume, or merge benchmark has run;
+- no scalable payload near-deduplication across the extracted archive is implemented;
+- PDF, image, audio, and video semantic adapters are not implemented;
+- the current model architecture does not yet consume channel-separated sensory objectives;
+- token-budget matching must be wired from schedules into the trainer;
+- the four model lineages have not been trained or compared;
+- no claim of frontier superiority, general intelligence, or developmental advantage is admitted.
+
+The archive is now authorized and connected to an executable developmental compiler. The next evidence boundary is real bounded acquisition, extraction, and matched training—not more corpus rhetoric.
