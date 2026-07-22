@@ -1,5 +1,5 @@
 {
-  "schema": "archie-rootless-direct-action-student/v1",
+  "schema": "archie-rootless-self-trained-student/v1",
   "status": "research-only-not-admitted",
   "starting_weights": {
     "kind": "random-initialization",
@@ -7,91 +7,82 @@
     "adapters_allowed": false,
     "generation_zero_seed_required": true
   },
-  "teacher_data": {
+  "teacher_loop": {
     "teachers_allowed": [
       "authorized-assistant",
       "bounded-agent-subprocess",
       "authorized-human"
     ],
+    "external_training_service_required": false,
+    "external_automl_required": false,
+    "external_agent_framework_required": false,
+    "manual_cuda_operation_between_rounds_required": false,
     "hidden_reasoning_retained": false,
-    "reduction": "verified-observation-action-value-trajectories",
-    "trace_lineage_required": true,
-    "causal_effect_filter_required": true
+    "supervision": [
+      "observation-action-value-trajectories",
+      "artifact-targets",
+      "tool-selection-targets",
+      "failed-vs-repaired-branches",
+      "state-reconstruction-targets",
+      "verifier-derived-rewards",
+      "synthetic-counterfactuals"
+    ],
+    "trace_lineage_required": true
   },
   "student": {
-    "kind": "rootless-recurrent-direct-action-controller",
-    "components": [
-      "multimodal-observation-encoder",
-      "persistent-recurrent-world-state",
-      "hierarchical-action-head",
-      "success-value-head",
-      "uncertainty-head",
-      "state-consistency-decoder"
+    "kind": "engineered-rootless-neural-student",
+    "candidate_components": [
+      "compact-recurrent-or-state-space-backbone",
+      "persistent-learned-workspace",
+      "request-and-observation-encoders",
+      "action-and-tool-selection-heads",
+      "artifact-or-token-decoder",
+      "verifier-value-and-uncertainty-heads",
+      "memory-read-write-heads"
     ],
-    "natural_language_planner": false,
-    "runtime_model_calls": false,
-    "runtime_agent_calls": false,
-    "runtime_tool_selection": false
-  },
-  "action_boundary": {
-    "kind": "fixed-compiled-actuator-vocabulary",
-    "neural_output": "bounded-action-packet",
-    "deterministic_actuator_required": true,
-    "generic_tool_registry_allowed": false,
-    "natural_language_action_interpretation_allowed": false
+    "runtime_tools_allowed": true,
+    "runtime_compilers_allowed": true,
+    "runtime_memory_allowed": true,
+    "runtime_retrieval_allowed": true,
+    "runtime_actuators_allowed": true,
+    "hidden_foundation_model_as_tool_allowed": false
   },
   "training": {
-    "device": "local-cuda",
+    "device": "local-cuda-alienware",
     "relay": "sealed-outbound-polling-self-lineage-relay",
     "complete_checkpoint_resume_required": true,
     "optimizer_continuity_required": true,
-    "network_model_loading_allowed": false,
+    "hosted_finetuning_api_required": false,
+    "external_model_training_endpoint_required": false,
+    "repository_native_training_code_required": true,
     "losses": [
-      "action-behavior-cloning",
+      "action-or-artifact",
       "latent-dynamics",
-      "terminal-return",
-      "verified-advantage",
+      "verifier-value",
       "failed-vs-repaired-branch",
-      "minimal-observation-reconstruction",
+      "tool-choice",
       "calibrated-stop",
-      "action-compute-budget"
+      "memory-consistency",
+      "compute-budget"
     ]
   },
-  "deployment_graph": [
-    "bounded-observation",
-    "local-neural-controller",
-    "bounded-action-packet",
-    "deterministic-actuator",
-    "next-bounded-observation"
-  ],
-  "forbidden_at_deployment": [
-    "foundation-model",
-    "remote-inference",
-    "assistant-subprocess",
-    "agent-loop",
-    "planner",
-    "generic-tool-selector",
-    "natural-language-action-interpreter",
-    "runtime-gradient-update",
-    "unrestricted-shell",
-    "unrestricted-network"
+  "deployment_forms_allowed": [
+    "direct-artifact-output",
+    "archie-tool-selection-and-verified-execution",
+    "bounded-direct-action",
+    "memory-tool-artifact-loop"
   ],
   "required_evidence": [
     "generation-zero-random-init-proof",
     "no-pretrained-tensor-load-proof",
+    "teacher-episode-lineage",
     "capsule-parent-successor-digests",
-    "observation-schema",
-    "actuator-schema",
-    "trace-reduction-receipts",
     "cuda-device-identity",
     "gpu-seconds",
     "changed-tensor-digests",
     "optimizer-resume-continuity",
-    "held-out-closed-loop-success",
-    "value-calibration",
-    "action-count-and-latency",
-    "unseen-layout-transfer",
-    "unseen-lineage-transfer",
+    "frozen-held-out-results",
+    "selected-architecture-tool-artifact-action-metrics",
     "quantized-retention",
     "deterministic-replay",
     "independent-reproduction",
