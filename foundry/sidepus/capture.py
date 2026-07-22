@@ -12,8 +12,13 @@ import time
 from collections.abc import Iterable
 from typing import Any
 
-from .acquisition import discover_local_archives, run_worker
+from .acquisition import discover_local_archives
 from .catalog import Catalog, atomic_json, digest_json, sha256_file, utc_now
+from .governance import (
+    bind_pending_jobs,
+    current_content_policy_digest,
+    run_governed_worker,
+)
 
 CAPTURE_SCHEMA = "sidepus-fresh-capture-request/v2"
 SUPPORTED_ENGINES = {"wget", "browsertrix", "external"}
@@ -36,9 +41,12 @@ def load_capture_request(path: pathlib.Path) -> dict[str, Any]:
     output_dir = str(request.get("output_dir", "")).strip()
     if not output_dir:
         raise ValueError("capture request requires output_dir")
-    if request.get("content_policy_digest") in {None, ""}:
+    policy_digest = str(request.get("content_policy_digest", ""))
+    if len(policy_digest) != 64 or any(
+        character not in "0123456789abcdef" for character in policy_digest
+    ):
         raise ValueError(
-            "fresh capture requires an explicit content_policy_digest; Sidepus will not invent crawl scope"
+            "fresh capture requires the exact lowercase SHA-256 content_policy_digest"
         )
     arguments = request.get("arguments", [])
     if not isinstance(arguments, list) or not all(isinstance(item, str) for item in arguments):
@@ -170,6 +178,9 @@ def run_capture(
 ) -> dict[str, Any]:
     request_path = request_path.resolve()
     request = load_capture_request(request_path)
+    installed_policy_digest = current_content_policy_digest(catalog)
+    if request["content_policy_digest"] != installed_policy_digest:
+        raise ValueError("capture request does not match the installed content policy")
     request_digest = digest_json(request)
     output = pathlib.Path(str(request["output_dir"])).expanduser().resolve()
     before = {
@@ -223,7 +234,8 @@ def run_capture(
     discovery = discover_local_archives(
         catalog, changed, source_id=f"fresh-capture:{request_digest}"
     )
-    worker = run_worker(
+    bound = bind_pending_jobs(catalog, installed_policy_digest)
+    worker = run_governed_worker(
         catalog, owner=owner, limit=max(worker_limit, len(changed)),
         quarantine_after_attempts=1,
     )
@@ -247,7 +259,7 @@ def run_capture(
             }
             for path in changed
         ],
-        "discovery": discovery,
+        "discovery": {**discovery, "jobs_bound": bound},
         "worker": worker,
         "catalog": catalog.snapshot(),
         "status": "complete",
@@ -272,7 +284,7 @@ def capture_template(engine: str, output_dir: pathlib.Path) -> dict[str, Any]:
         "seeds": ["REPLACE_WITH_EXPLICIT_SEED_URL"],
         "output_dir": str(output_dir.expanduser().resolve()),
         "collection": "sidepus-capture",
-        "content_policy_digest": "REPLACE_AFTER_OPERATOR_APPROVES_CONTENT_POLICY",
+        "content_policy_digest": "REPLACE_WITH_64_HEX_POLICY_DIGEST",
         "arguments": [],
         "timeout_seconds": 86_400,
         "claim_boundary": (
