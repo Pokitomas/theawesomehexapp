@@ -60,11 +60,13 @@ export_root="$root/export"
 mkdir -p "$export_root"
 cp -a "$root/bundle" "$export_root/bundle"
 cp -a "$root/reference-cache" "$export_root/reference-cache"
-# Stable within a workflow run so rerun-failed-jobs can consume successful predecessor artifacts.
+# The attempt-specific artifact is immutable evidence. The stable alias is an overwriteable handoff.
 artifact_name="archie-elastic-rslora-rung-${RUNG}-shard-${shard}-${GITHUB_RUN_ID:-local}"
+evidence_artifact_name="${artifact_name}-${GITHUB_RUN_ATTEMPT:-1}"
 output_file="${OUTPUT_FILE:-${GITHUB_OUTPUT:-}}"
 if [[ -z "$output_file" ]]; then
   printf 'No GitHub output file is available.\n' >&2
   exit 2
 fi
-printf 'artifact_name=%s\nartifact_path=%s\n' "$artifact_name" "$export_root" >> "$output_file"
+printf 'artifact_name=%s\nevidence_artifact_name=%s\nartifact_path=%s\n' \
+  "$artifact_name" "$evidence_artifact_name" "$export_root" >> "$output_file"
