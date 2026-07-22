@@ -1,0 +1,54 @@
+{
+  "schema": "archie-rootless-profile/v1",
+  "id": "archie-rootless-agent-distillation-v1",
+  "claim_boundary": "This profile specifies a scratch-initialized neural policy distilled from agent and subagent trajectories. It does not admit capability, autonomy, or production readiness.",
+  "teacher": {
+    "source": "agent-and-subagent-trajectories",
+    "root_model_required_at_student_runtime": false,
+    "required_fields": ["episode_id", "step", "observation_tokens", "action_token", "reward", "done"],
+    "forbidden_student_inputs": ["teacher_hidden_states", "teacher_weights", "external_tool_results_at_runtime"]
+  },
+  "student": {
+    "initialization": "random",
+    "architecture": "event-embedded-recurrent-state-policy/v1",
+    "vocabulary_size": 8192,
+    "hidden_size": 768,
+    "state_slots": 32,
+    "state_width": 96,
+    "recurrent_layers": 8,
+    "action_vocab_size": 2048,
+    "value_head": true,
+    "parameters_target": 92000000,
+    "external_base_model": null
+  },
+  "training": {
+    "method": "rootless-agent-trajectory-distillation/v1",
+    "seed": 3407,
+    "epochs": 6,
+    "batch_size": 8,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.1,
+    "sequence_length": 1024,
+    "teacher_action_weight": 1.0,
+    "return_weight": 0.35,
+    "state_consistency_weight": 0.2,
+    "counterfactual_margin_weight": 0.25,
+    "entropy_floor": 0.02,
+    "checkpoint_every_optimizer_steps": 250,
+    "mixed_precision": "bf16"
+  },
+  "deployment": {
+    "runtime": "single-checkpoint-direct-policy",
+    "requires_teacher": false,
+    "requires_tool_router": false,
+    "requires_network": false,
+    "emits": ["action_token", "value", "updated_recurrent_state"]
+  },
+  "hardware": {
+    "runner": "alienware-self-hosted-cuda",
+    "minimum_vram_bytes": 12000000000,
+    "recommended_system_memory_bytes": 32000000000,
+    "resumable": true
+  }
+}
