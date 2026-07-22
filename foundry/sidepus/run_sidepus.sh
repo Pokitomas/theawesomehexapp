@@ -5,6 +5,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 PYTHON="${SIDEPUS_PYTHON:-python3}"
 STATE="${SIDEPUS_STATE:-$HOME/sidepus-archive-v2}"
+POLICY="${SIDEPUS_CONTENT_POLICY:-$HERE/plans/content-policy-broad-v2.json}"
+PROGRAM="${SIDEPUS_DEVELOPMENT_PROGRAM:-$HERE/plans/developmental-program-v1.json}"
 
 cd "$REPO_ROOT"
 
@@ -16,16 +18,30 @@ if [[ ! -f "$STATE/archive-plan.json" ]]; then
   "$PYTHON" -m foundry.sidepus.governed_cli init --state-dir "$STATE"
 fi
 
+"$PYTHON" -m foundry.sidepus.governed_cli install-content-policy \
+  --state-dir "$STATE" \
+  --policy "$POLICY" >/dev/null
+
+"$PYTHON" -m foundry.sidepus.developmental_cli validate-program \
+  --program "$PROGRAM" >/dev/null
+
 cat <<EOF
-Sidepus archive infrastructure is initialized at:
+Sidepus broad archive authority is initialized at:
   $STATE
 
-No content policy has been selected. Historical discovery queries, fresh-crawl
-seeds, subject mix, language mix, era mix, and curriculum ratios remain blocked
-until the operator explicitly decides them.
+Installed immutable acquisition policy:
+  $POLICY
 
-Canonical fail-closed entrypoint:
+Validated developmental program:
+  $PROGRAM
+
+The archive may now be discovered and captured through the canonical governed CLI.
+Archive intake ratios are not training ratios: downstream inventory extraction and
+developmental compilation remain separate hash-bound stages.
+
+Canonical entrypoints:
   $PYTHON -m foundry.sidepus.governed_cli ...
+  $PYTHON -m foundry.sidepus.developmental_cli ...
 
 Run the hard parity gate with:
   $0 doctor
