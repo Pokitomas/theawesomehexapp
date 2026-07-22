@@ -7,6 +7,7 @@ operator-approved content policy, and every resulting job is bound to its digest
 """
 from __future__ import annotations
 
+import json
 import pathlib
 from typing import Any, Callable
 
@@ -54,11 +55,29 @@ def _handle_export_shards(args: Any) -> None:
     engine.print_json(result)
 
 
+def _verify_worker_policy(worker_state: pathlib.Path, expected_digest: str) -> None:
+    with engine.Catalog(worker_state) as worker:
+        observed = current_content_policy_digest(worker)
+        if observed != expected_digest:
+            raise ValueError("worker content policy does not match authority policy")
+        rows = worker.connection.execute(
+            "SELECT job_id, locator_json FROM jobs ORDER BY job_id"
+        ).fetchall()
+        for row in rows:
+            locator = json.loads(row["locator_json"])
+            if locator.get("content_policy_digest") != expected_digest:
+                raise ValueError(
+                    f"worker job {row['job_id']} is not bound to the authority content policy"
+                )
+
+
 def _handle_merge_worker(args: Any) -> None:
     state = pathlib.Path(args.state_dir).expanduser().resolve()
+    worker_state = pathlib.Path(args.worker_state).expanduser().resolve()
     with engine.Catalog(state) as catalog:
         policy_digest = current_content_policy_digest(catalog)
-        result = catalog.merge_from(pathlib.Path(args.worker_state))
+        _verify_worker_policy(worker_state, policy_digest)
+        result = catalog.merge_from(worker_state)
         result["content_policy_digest"] = policy_digest
     engine.print_json(result)
 
