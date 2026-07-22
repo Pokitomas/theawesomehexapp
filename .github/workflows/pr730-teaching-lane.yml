@@ -17,7 +17,11 @@ concurrency:
 jobs:
   train:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 360
+    env:
+      PYTHONUNBUFFERED: '1'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
     strategy:
       fail-fast: false
       matrix:
@@ -45,17 +49,40 @@ jobs:
             --output returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
             --episodes 320 \
             --seed 730
+      - name: Smoke-test numerical path
+        run: |
+          set -euo pipefail
+          python foundry/archie-native/train_agent_teacher_policy.py \
+            --episodes returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
+            --output returns/pr730-${{ matrix.seed }}/smoke.pt \
+            --device cpu \
+            --steps 2 \
+            --batch 2 \
+            --seed ${{ matrix.seed }} \
+            > returns/pr730-${{ matrix.seed }}/smoke.log 2>&1 || {
+              status=$?
+              tail -n 120 returns/pr730-${{ matrix.seed }}/smoke.log
+              exit "$status"
+            }
+          rm -f returns/pr730-${{ matrix.seed }}/smoke.pt returns/pr730-${{ matrix.seed }}/smoke.pt.receipt.json
       - name: Train generation zero
         run: |
           set -euo pipefail
           started=$(date +%s)
+          log=returns/pr730-${{ matrix.seed }}/generation-0.log
           python foundry/archie-native/train_agent_teacher_policy.py \
             --episodes returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
             --output returns/pr730-${{ matrix.seed }}/generation-0.pt \
             --device cpu \
             --steps 12000 \
-            --batch 16 \
-            --seed ${{ matrix.seed }} | tee returns/pr730-${{ matrix.seed }}/generation-0.log
+            --batch 4 \
+            --seed ${{ matrix.seed }} \
+            > "$log" 2>&1 || {
+              status=$?
+              tail -n 120 "$log"
+              exit "$status"
+            }
+          tail -n 20 "$log"
           finished=$(date +%s)
           ELAPSED_SECONDS=$((finished-started)) python - <<'PY'
           import json, os, pathlib, platform, torch
@@ -75,14 +102,21 @@ jobs:
       - name: Prove exact continuation
         run: |
           set -euo pipefail
+          log=returns/pr730-${{ matrix.seed }}/generation-1.log
           python foundry/archie-native/train_agent_teacher_policy.py \
             --episodes returns/pr730-${{ matrix.seed }}/curriculum.jsonl \
             --parent returns/pr730-${{ matrix.seed }}/generation-0.pt \
             --output returns/pr730-${{ matrix.seed }}/generation-1.pt \
             --device cpu \
             --steps 2000 \
-            --batch 16 \
-            --seed ${{ matrix.seed }} | tee returns/pr730-${{ matrix.seed }}/generation-1.log
+            --batch 4 \
+            --seed ${{ matrix.seed }} \
+            > "$log" 2>&1 || {
+              status=$?
+              tail -n 120 "$log"
+              exit "$status"
+            }
+          tail -n 20 "$log"
       - name: Validate receipts and lineage
         run: |
           set -euo pipefail
@@ -117,7 +151,9 @@ jobs:
           }
           (root / 'evidence-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
           PY
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Upload training evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pr730-teaching-seed-${{ matrix.seed }}
           path: returns/pr730-${{ matrix.seed }}/
