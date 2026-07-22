@@ -4,7 +4,7 @@
 The canonical trainer remains authoritative for model loading, loss construction,
 tokenization, and evidence generation. This wrapper partitions the fixed optimizer
 budget into durable cumulative rungs and refuses resume when lineage or complete
-Trainer state drifts.
+Trainer and optimizer state drifts.
 """
 from __future__ import annotations
 
