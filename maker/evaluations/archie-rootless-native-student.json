@@ -18,50 +18,61 @@
     "lineage_required": true
   },
   "student": {
-    "kind": "artifact-native-recurrent-state-space-transducer",
-    "components": [
-      "intent-encoder",
+    "kind": "engineered-rootless-recurrent-or-state-space-student",
+    "candidate_components": [
+      "intent-and-observation-encoder",
       "persistent-workspace",
-      "artifact-ir-decoder",
-      "verifier-value-head"
+      "action-and-tool-heads",
+      "artifact-decoder",
+      "verifier-value-head",
+      "uncertainty-and-stop-head"
     ],
-    "runtime_ai_dependencies": [],
-    "runtime_non_ai_dependency": "deterministic-artifact-compiler"
+    "runtime_tools_allowed": true,
+    "runtime_memory_allowed": true,
+    "runtime_retrieval_allowed": true,
+    "runtime_compilers_allowed": true,
+    "runtime_actuators_allowed": true,
+    "hidden_foundation_model_as_tool_allowed": false
   },
   "training": {
-    "device": "local-cuda",
+    "device": "local-cuda-alienware",
     "relay": "sealed-outbound-polling-self-state-relay",
     "complete_checkpoint_resume_required": true,
     "optimizer_continuity_required": true,
-    "network_model_loading_allowed": false,
+    "hosted_finetuning_api_required": false,
+    "external_automl_required": false,
+    "external_agent_framework_required": false,
+    "manual_cuda_operation_between_rounds_required": false,
+    "repository_native_training_code_required": true,
     "losses": [
-      "artifact-ir",
+      "action-or-artifact",
       "state-delta",
       "verifier-value",
       "failed-vs-repaired-branch",
-      "workspace-budget",
-      "compile-reencode-cycle"
+      "tool-choice",
+      "memory-consistency",
+      "calibrated-stop",
+      "compute-budget"
     ]
   },
-  "inference": {
-    "remote_teacher_allowed": false,
-    "agent_loop_allowed": false,
-    "generic_tool_router_allowed": false,
-    "foundation_model_allowed": false,
-    "output": "canonical-artifact-ir"
-  },
+  "deployment_forms_allowed": [
+    "artifact-ir-and-compiler",
+    "archie-tool-selection-and-verified-execution",
+    "bounded-direct-action",
+    "memory-tool-artifact-loop"
+  ],
   "required_evidence": [
     "capsule-digest",
     "parent-checkpoint-digest",
     "generation-zero-random-init-proof",
     "no-pretrained-tensor-load-proof",
+    "teacher-episode-lineage",
     "cuda-device-identity",
     "gpu-seconds",
     "changed-student-tensor-digests",
     "optimizer-resume-continuity",
     "frozen-held-out-results",
-    "compiler-success-rate",
-    "artifact-byte-digests",
+    "selected-architecture-tool-action-artifact-metrics",
     "quantized-retention",
     "signed-receipt"
   ],
