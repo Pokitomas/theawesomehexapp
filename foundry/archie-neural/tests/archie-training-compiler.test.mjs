@@ -172,7 +172,13 @@ test('compilation is deterministic and emits every required dataset lane', () =>
   const second = compiled();
   assert.deepEqual(first, second);
   assert.equal(verifyArchieTrainingPlan(first.plan), first.plan.plan_digest);
-  assert.equal(first.plan.counts.pretrain, 2);
+  const development = first.files['datasets/development-holdout.jsonl']
+    .split(/\n/).filter(Boolean).map(JSON.parse);
+  assert.equal(
+    first.plan.counts.pretrain
+      + development.filter(item => item.kind === 'continued-pretraining').length,
+    2
+  );
   assert.equal(first.plan.counts.supervised, 1);
   assert.equal(first.plan.counts.negative, 1);
   assert.ok(first.files['datasets/pretrain.train.jsonl']);
