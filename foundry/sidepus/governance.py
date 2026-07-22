@@ -76,7 +76,8 @@ def run_governed_worker(
             catalog.complete_job(job["job_id"], owner, outputs)
             complete += 1
         except Exception as error:
-            quarantine = int(job.get("attempts", 0)) >= quarantine_after_attempts
+            current_attempt = int(job.get("attempts", 0)) + 1
+            quarantine = current_attempt >= quarantine_after_attempts
             catalog.fail_job(
                 job["job_id"], owner, f"{type(error).__name__}: {error}",
                 quarantine=quarantine,
@@ -85,6 +86,7 @@ def run_governed_worker(
             failed += int(not quarantine)
             failures.append({
                 "job_id": job["job_id"],
+                "attempt": current_attempt,
                 "error": f"{type(error).__name__}: {error}",
             })
     return {
