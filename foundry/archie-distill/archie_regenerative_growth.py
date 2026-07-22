@@ -9,6 +9,7 @@ final model is promotable only when frozen capability and retention gates pass.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -24,7 +25,12 @@ import torch
 from archie_hybrid_core import ArchieHybridLM, ModelConfig, parameter_count
 from archie_hybrid_corpus import atomic_json, stable_json, verify_u16_corpus
 from archie_tokenizers import token_byte_lengths
-from train_archie_hybrid import TokenSampler, evaluate, next_token_statistics, normalized_loss
+from train_archie_hybrid import (
+    TokenSampler,
+    evaluate,
+    next_token_statistics,
+    normalized_loss,
+)
 
 MODEL_SCHEMA = "archie-scratch-hybrid-model/v1"
 GROWTH_SCHEMA = "archie-function-preserving-growth/v1"
@@ -150,10 +156,12 @@ def build_descendant(
     source_cfg = ModelConfig(**parent_payload["config"])
     mapping, inserted = plan_block_mapping(source_cfg, add_layers)
     target_cfg = ModelConfig(**{**asdict(source_cfg), "n_layers": source_cfg.n_layers + add_layers})
+
     torch.manual_seed(initialization_seed)
     child = ArchieHybridLM(target_cfg)
     child_state = child.state_dict()
-    for source_name, value in parent_payload["model"].items():
+    parent_state = parent_payload["model"]
+    for source_name, value in parent_state.items():
         if source_name.startswith("blocks."):
             _, raw_index, suffix = source_name.split(".", 2)
             target_name = f"blocks.{mapping[int(raw_index)]}.{suffix}"
@@ -186,9 +194,8 @@ def verify_birth(
     maxima: list[float] = []
     means: list[float] = []
     exact = True
-    used_seeds = [int(seed) for seed in seeds]
-    for seed in used_seeds:
-        generator = torch.Generator(device="cpu").manual_seed(seed)
+    for seed in seeds:
+        generator = torch.Generator(device="cpu").manual_seed(int(seed))
         tokens = torch.randint(
             0, parent_cfg.vocab_size, (2, length), generator=generator, dtype=torch.long
         )
@@ -201,7 +208,7 @@ def verify_birth(
     maximum = max(maxima, default=float("inf"))
     return {
         "schema": "archie-growth-birth-verification/v1",
-        "seeds": used_seeds,
+        "seeds": [int(seed) for seed in seeds],
         "sequence_length": length,
         "max_absolute_logit_delta": maximum,
         "mean_absolute_logit_delta": sum(means) / max(len(means), 1),
@@ -277,10 +284,12 @@ def choose_add_layers(cfg: ModelConfig, requested_multiplier: float) -> int:
 def decide_growth(
     parent_payload: dict[str, Any], evidence: dict[str, Any] | None, *,
     requested_multiplier: float, max_parameter_multiplier: float,
-    minimum_failed_interventions: int, plateau_threshold: float, force: bool,
+    minimum_failed_interventions: int, plateau_threshold: float,
+    force: bool,
 ) -> GrowthDecision:
     cfg = ModelConfig(**parent_payload["config"])
-    source_parameters = parameter_count(ArchieHybridLM(cfg))
+    parent = ArchieHybridLM(cfg)
+    source_parameters = parameter_count(parent)
     evidence = evidence or {}
     failed = infer_failed_interventions(evidence)
     plateau = infer_plateau(evidence)
@@ -288,8 +297,11 @@ def decide_growth(
     estimated = estimate_target_parameters(parent_payload, add_layers)
     multiplier = estimated / max(source_parameters, 1)
     evidence_digest = digest_json(evidence) if evidence else None
-    structural_signal = failed >= minimum_failed_interventions and (
-        plateau is None or plateau <= plateau_threshold
+
+    structural_signal = (
+        failed >= minimum_failed_interventions
+        and plateau is not None
+        and plateau <= plateau_threshold
     )
     within_budget = multiplier <= max_parameter_multiplier
     approved = force or (structural_signal and within_budget)
@@ -305,11 +317,17 @@ def decide_growth(
     else:
         reason = "repeated failed interventions plus a measured plateau justify a descendant trial"
     return GrowthDecision(
-        approved=approved, reason=reason, add_layers=add_layers,
-        source_layers=cfg.n_layers, target_layers=cfg.n_layers + add_layers,
-        source_parameters=source_parameters, estimated_target_parameters=estimated,
-        failed_interventions=failed, plateau_relative_gain=plateau,
-        parameter_multiplier=multiplier, evidence_digest=evidence_digest,
+        approved=approved,
+        reason=reason,
+        add_layers=add_layers,
+        source_layers=cfg.n_layers,
+        target_layers=cfg.n_layers + add_layers,
+        source_parameters=source_parameters,
+        estimated_target_parameters=estimated,
+        failed_interventions=failed,
+        plateau_relative_gain=plateau,
+        parameter_multiplier=multiplier,
+        evidence_digest=evidence_digest,
     )
 
 
@@ -374,7 +392,8 @@ def train_phase(
     sequence_length: int, batch_size: int, eval_batch_size: int, eval_batches: int,
     learning_rate: float, weight_decay: float, grad_clip: float,
     amp_requested: str, evaluation_seed: int, output_model: pathlib.Path,
-    payload_template: dict[str, Any], growth_metadata: dict[str, Any],
+    payload_template: dict[str, Any],
+    growth_metadata: dict[str, Any],
 ) -> PhaseResult:
     random.seed(seed)
     np.random.seed(seed)
@@ -389,9 +408,7 @@ def train_phase(
         lr=learning_rate, betas=(0.9, 0.95), eps=1e-8,
         weight_decay=weight_decay, fused=device.type == "cuda",
     )
-    scaler = torch.amp.GradScaler(
-        "cuda", enabled=device.type == "cuda" and amp_dtype == torch.float16
-    )
+    scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda" and amp_dtype == torch.float16)
     sampler = TokenSampler(train_corpus, sequence_length, batch_size, seed ^ 0x71C3)
     byte_lengths = torch.tensor(token_byte_lengths(tokenizer), dtype=torch.long, device=device)
     if device.type == "cuda":
@@ -409,10 +426,9 @@ def train_phase(
             loss = normalized_loss(nats, token_count, byte_count, "byte")
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        trainable_parameters = [
-            parameter for parameter in model.parameters() if parameter.requires_grad
-        ]
-        norm = torch.nn.utils.clip_grad_norm_(trainable_parameters, grad_clip)
+        norm = torch.nn.utils.clip_grad_norm_(
+            [parameter for parameter in model.parameters() if parameter.requires_grad], grad_clip
+        )
         if not math.isfinite(float(norm)) or not math.isfinite(float(loss.detach())):
             raise RuntimeError(f"non-finite update during {phase}")
         scaler.step(optimizer)
@@ -427,14 +443,21 @@ def train_phase(
         output_model, model, payload_template, growth_metadata, phase
     )
     seconds = time.monotonic() - started
-    peak = torch.cuda.max_memory_allocated(device) / 2**20 if device.type == "cuda" else None
+    peak = (
+        torch.cuda.max_memory_allocated(device) / 2**20 if device.type == "cuda" else None
+    )
     return PhaseResult(
-        phase=phase, seed=seed, steps=steps, trainable_parameters=trainable,
-        tokens_seen=tokens_seen, seconds=seconds,
+        phase=phase,
+        seed=seed,
+        steps=steps,
+        trainable_parameters=trainable,
+        tokens_seen=tokens_seen,
+        seconds=seconds,
         bits_per_byte=metrics["bits_per_byte"],
         relative_gain_vs_parent=(parent_bits_per_byte - metrics["bits_per_byte"])
         / max(parent_bits_per_byte, 1e-12),
-        peak_allocated_mib=peak, model_sha256=model_digest,
+        peak_allocated_mib=peak,
+        model_sha256=model_digest,
     )
 
 
@@ -472,9 +495,15 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
         raise ValueError("parent tokenizer does not match training corpus")
     if eval_metadata["tokenizer"] != parent_payload.get("tokenizer"):
         raise ValueError("parent tokenizer does not match evaluation corpus")
-    retention_metadata = verify_u16_corpus(retention_corpus) if retention_corpus else None
-    if retention_metadata and retention_metadata["tokenizer"] != parent_payload.get("tokenizer"):
-        raise ValueError("parent tokenizer does not match retention corpus")
+    if train_metadata["sha256"] == eval_metadata["sha256"]:
+        raise ValueError("growth evaluation corpus must be independent from training")
+    if retention_corpus:
+        retention_metadata = verify_u16_corpus(retention_corpus)
+        if retention_metadata["tokenizer"] != parent_payload.get("tokenizer"):
+            raise ValueError("parent tokenizer does not match retention corpus")
+    else:
+        retention_metadata = None
+
     device = torch.device(
         args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu")
     )
@@ -483,12 +512,15 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
         batch_size=args.eval_batch_size, batches=args.eval_batches,
         seed=args.evaluation_seed, amp_requested=args.amp_dtype,
     )
-    parent_retention = evaluate_model_payload(
-        parent_payload, retention_corpus, device=device,
-        sequence_length=args.sequence_length, batch_size=args.eval_batch_size,
-        batches=args.eval_batches, seed=args.evaluation_seed ^ 0x9137,
-        amp_requested=args.amp_dtype,
-    ) if retention_corpus else None
+    parent_retention = (
+        evaluate_model_payload(
+            parent_payload, retention_corpus, device=device,
+            sequence_length=args.sequence_length, batch_size=args.eval_batch_size,
+            batches=args.eval_batches, seed=args.evaluation_seed ^ 0x9137,
+            amp_requested=args.amp_dtype,
+        ) if retention_corpus else None
+    )
+
     child, target_cfg, mapping, inserted = build_descendant(
         parent_payload, decision.add_layers, args.initialization_seed
     )
@@ -512,6 +544,7 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
     }
     born_path = state / "born-model.pt"
     born_sha = save_model_payload(born_path, child, parent_payload, growth_metadata, "birth")
+
     probation_path = state / "probation-model.pt"
     probation = train_phase(
         child, phase="new-capacity", new_block_indices=inserted,
@@ -523,9 +556,12 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
         learning_rate=args.probation_learning_rate, weight_decay=args.weight_decay,
         grad_clip=args.grad_clip, amp_requested=args.amp_dtype,
         evaluation_seed=args.evaluation_seed, output_model=probation_path,
-        payload_template=parent_payload, growth_metadata=growth_metadata,
+        payload_template=parent_payload,
+        growth_metadata=growth_metadata,
     )
-    probation_passed = -probation.relative_gain_vs_parent <= args.maximum_probation_regression
+    probation_regression = -probation.relative_gain_vs_parent
+    probation_passed = probation_regression <= args.maximum_probation_regression
+
     unfreeze: PhaseResult | None = None
     final_path = probation_path
     if probation_passed and args.unfreeze_steps > 0:
@@ -540,7 +576,8 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
             learning_rate=args.unfreeze_learning_rate, weight_decay=args.weight_decay,
             grad_clip=args.grad_clip, amp_requested=args.amp_dtype,
             evaluation_seed=args.evaluation_seed, output_model=final_path,
-            payload_template=parent_payload, growth_metadata=growth_metadata,
+            payload_template=parent_payload,
+            growth_metadata=growth_metadata,
         )
     final_payload = load_model_payload(final_path)
     final_eval = evaluate_model_payload(
@@ -549,12 +586,14 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
         seed=args.evaluation_seed, amp_requested=args.amp_dtype,
     )
     final_gain = (parent_eval - final_eval) / max(parent_eval, 1e-12)
-    final_retention = evaluate_model_payload(
-        final_payload, retention_corpus, device=device,
-        sequence_length=args.sequence_length, batch_size=args.eval_batch_size,
-        batches=args.eval_batches, seed=args.evaluation_seed ^ 0x9137,
-        amp_requested=args.amp_dtype,
-    ) if retention_corpus else None
+    final_retention = (
+        evaluate_model_payload(
+            final_payload, retention_corpus, device=device,
+            sequence_length=args.sequence_length, batch_size=args.eval_batch_size,
+            batches=args.eval_batches, seed=args.evaluation_seed ^ 0x9137,
+            amp_requested=args.amp_dtype,
+        ) if retention_corpus else None
+    )
     retention_regression = (
         (final_retention - parent_retention) / max(parent_retention, 1e-12)
         if final_retention is not None and parent_retention is not None else None
@@ -573,7 +612,8 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
         "schema": CYCLE_SCHEMA,
         "decision": asdict(decision),
         "parent": {
-            "path": str(parent_path), "sha256": sha256_file(parent_path),
+            "path": str(parent_path),
+            "sha256": sha256_file(parent_path),
             "parameters": decision.source_parameters,
             "eval_bits_per_byte": parent_eval,
             "retention_bits_per_byte": parent_retention,
@@ -582,9 +622,11 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
         "probation": {**asdict(probation), "passed": probation_passed},
         "unfreeze": asdict(unfreeze) if unfreeze else None,
         "final": {
-            "path": str(final_path), "sha256": sha256_file(final_path),
+            "path": str(final_path),
+            "sha256": sha256_file(final_path),
             "parameters": decision.estimated_target_parameters,
-            "eval_bits_per_byte": final_eval, "relative_eval_gain": final_gain,
+            "eval_bits_per_byte": final_eval,
+            "relative_eval_gain": final_gain,
             "retention_bits_per_byte": final_retention,
             "relative_retention_regression": retention_regression,
         },
@@ -592,7 +634,8 @@ def execute_cycle(args: argparse.Namespace, decision: GrowthDecision) -> dict[st
             "birth_equivalence": birth["passed"],
             "probation_non_destructive": probation_passed,
             "minimum_final_gain": {
-                "threshold": args.minimum_final_gain, "observed": final_gain,
+                "threshold": args.minimum_final_gain,
+                "observed": final_gain,
                 "passed": final_gain >= args.minimum_final_gain,
             },
             "retention": {
@@ -646,9 +689,7 @@ def parser() -> argparse.ArgumentParser:
     cli.add_argument("--unfreeze-learning-rate", type=float, default=1e-4)
     cli.add_argument("--weight-decay", type=float, default=0.1)
     cli.add_argument("--grad-clip", type=float, default=1.0)
-    cli.add_argument(
-        "--amp-dtype", choices=["auto", "float16", "bfloat16", "float32"], default="auto"
-    )
+    cli.add_argument("--amp-dtype", choices=["auto", "float16", "bfloat16", "float32"], default="auto")
     cli.add_argument("--initialization-seed", type=int, default=20260722)
     cli.add_argument("--training-seed", type=int, default=20260723)
     cli.add_argument("--evaluation-seed", type=int, default=20260724)
@@ -682,7 +723,8 @@ def main() -> None:
         requested_multiplier=args.requested_parameter_multiplier,
         max_parameter_multiplier=args.max_parameter_multiplier,
         minimum_failed_interventions=args.minimum_failed_interventions,
-        plateau_threshold=args.plateau_threshold, force=args.force_growth,
+        plateau_threshold=args.plateau_threshold,
+        force=args.force_growth,
     )
     decision_payload = {
         "schema": DECISION_SCHEMA,
