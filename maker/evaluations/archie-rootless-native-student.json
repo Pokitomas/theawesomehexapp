@@ -1,0 +1,74 @@
+{
+  "schema": "archie-rootless-native-student/v1",
+  "status": "research-only-not-admitted",
+  "starting_weights": {
+    "kind": "random-initialization",
+    "pretrained_weights_allowed": false,
+    "adapters_allowed": false,
+    "generation_zero_seed_required": true
+  },
+  "teachers": {
+    "allowed": [
+      "authorized-human",
+      "authorized-assistant",
+      "bounded-agent-subprocess"
+    ],
+    "weights_transferred": false,
+    "verified_episode_required": true,
+    "lineage_required": true
+  },
+  "student": {
+    "kind": "artifact-native-recurrent-state-space-transducer",
+    "components": [
+      "intent-encoder",
+      "persistent-workspace",
+      "artifact-ir-decoder",
+      "verifier-value-head"
+    ],
+    "runtime_ai_dependencies": [],
+    "runtime_non_ai_dependency": "deterministic-artifact-compiler"
+  },
+  "training": {
+    "device": "local-cuda",
+    "relay": "sealed-outbound-polling-self-state-relay",
+    "complete_checkpoint_resume_required": true,
+    "optimizer_continuity_required": true,
+    "network_model_loading_allowed": false,
+    "losses": [
+      "artifact-ir",
+      "state-delta",
+      "verifier-value",
+      "failed-vs-repaired-branch",
+      "workspace-budget",
+      "compile-reencode-cycle"
+    ]
+  },
+  "inference": {
+    "remote_teacher_allowed": false,
+    "agent_loop_allowed": false,
+    "generic_tool_router_allowed": false,
+    "foundation_model_allowed": false,
+    "output": "canonical-artifact-ir"
+  },
+  "required_evidence": [
+    "capsule-digest",
+    "parent-checkpoint-digest",
+    "generation-zero-random-init-proof",
+    "no-pretrained-tensor-load-proof",
+    "cuda-device-identity",
+    "gpu-seconds",
+    "changed-student-tensor-digests",
+    "optimizer-resume-continuity",
+    "frozen-held-out-results",
+    "compiler-success-rate",
+    "artifact-byte-digests",
+    "quantized-retention",
+    "signed-receipt"
+  ],
+  "promotion": {
+    "automatic": false,
+    "requires_independent_reproduction": true,
+    "requires_human_admission": true
+  },
+  "documentation": "docs/archie-rootless-native-student.md"
+}
