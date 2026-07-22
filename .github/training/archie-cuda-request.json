@@ -1,9 +1,10 @@
 {
   "schema": "archie-cuda-training-request/v2",
-  "request_id": "pok-133-causal-divergence-8bb6fac",
+  "request_id": "archie-g-experimental-trainer-20260721",
   "issue_number": 583,
-  "baseline_commit": "8bb6fac2809afcc55f91f900bc6bf16f84dfb788",
+  "baseline_commit": "04001f6bf13277b27ac55f6d4d60ab1952da56a5",
   "method": "verifier-anchored-causal-divergence-qlora/v1",
-  "intent": "Queue the first exact causal-divergence CUDA QLoRA attempt on a configured runner, or emit a pre-queue infrastructure blocker.",
+  "trainer_name": "Archie G Experimental Trainer",
+  "intent": "Launch a canonical research-only CUDA training attempt through any configured provider-neutral runner; emit a pre-queue infrastructure blocker when no eligible CUDA runner and pinned local inputs are ready.",
   "promotion": "not-admitted"
 }
