@@ -10,6 +10,7 @@ from archie_recurrent_state import (
     RecurrentArchieHybridLM,
     RecurrentState,
     detach_state,
+    linked_cross_entropy,
     shuffle_state_channels,
     state_from_lists,
     transplant_state,
@@ -26,7 +27,6 @@ class RecurrentStateTests(unittest.TestCase):
             n_kv_heads=2,
             d_ff=64,
             ssm_expand=2,
-            ssm_chunk_size=8,
             conv_kernel=3,
             attention_every=2,
             attention_window=16,
@@ -70,6 +70,21 @@ class RecurrentStateTests(unittest.TestCase):
         generator = torch.Generator().manual_seed(9)
         shuffled = shuffle_state_channels(state, generator)
         self.assertEqual(shuffled.ssm[0].recurrent.shape, state.ssm[0].recurrent.shape)
+
+    def test_linked_loss_carries_the_final_segment_token(self) -> None:
+        model = self.model()
+        segment = torch.randint(0, 256, (1, 7))
+        _, expected_ssm, expected_kv = model.step(segment)
+        _, linked = linked_cross_entropy(model, [segment], detach_between_segments=False)
+        for expected, actual in zip(expected_ssm, linked.ssm):
+            if expected is not None and actual is not None:
+                torch.testing.assert_close(expected.recurrent, actual.recurrent)
+                torch.testing.assert_close(expected.convolution, actual.convolution)
+        for expected, actual in zip(expected_kv, linked.kv):
+            if expected is not None and actual is not None:
+                torch.testing.assert_close(expected.key, actual.key)
+                torch.testing.assert_close(expected.value, actual.value)
+                torch.testing.assert_close(expected.position, actual.position)
 
     def test_detach_removes_graph(self) -> None:
         model = self.model()
