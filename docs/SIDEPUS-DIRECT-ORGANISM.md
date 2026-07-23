@@ -34,7 +34,7 @@ The multichannel arm preserves:
 - extraction interpretation;
 - action consequence when present.
 
-Matched controls use the same source selection under flattened, utterance-only, reset-state and static-language conditions.
+Matched controls use the same source selection under flattened and reset-state conditions, with world-only and plastic-only causal ablations.
 
 ## Campaign
 
@@ -45,7 +45,7 @@ complete 114M parent
   -> correct carried vs reset vs wrong-history state
   -> world-only and plastic-only ablations
   -> ordinary-language retention
-  -> flattened/reset/static controls
+  -> flattened/reset controls
   -> select Q8 or Q4 only if causal gates pass
   -> rebuild from the parent with a second seed
   -> repeat the frozen causal evaluation
