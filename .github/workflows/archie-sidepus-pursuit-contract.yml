@@ -1,0 +1,52 @@
+name: Archie Sidepus pursuit contract
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/sidepus_experience_compiler.py'
+      - 'foundry/archie-distill/sidepus_ephemeral_cache.py'
+      - 'foundry/archie-distill/sidepus_pursuit_plan.py'
+      - 'foundry/archie-distill/sidepus_pursuit_controller.py'
+      - 'foundry/archie-distill/sidepus_pursuit_stream.py'
+      - 'foundry/archie-distill/sidepus_pursuit_objectives.py'
+      - 'foundry/archie-distill/sidepus_pursuit_step.py'
+      - 'foundry/archie-distill/sidepus_pursuit_cli.py'
+      - 'foundry/archie-distill/train_archie_sidepus_pursuit.py'
+      - 'foundry/archie-distill/run_archie_sidepus_pursuit.sh'
+      - 'foundry/archie-distill/test_sidepus_pursuit.py'
+      - '.github/workflows/archie-sidepus-pursuit-contract.yml'
+  push:
+    branches:
+      - 'agent/sidepus-experience-compiler-feral-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU PyTorch
+        run: python -m pip install --upgrade pip torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile pursuit substrate
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/sidepus_experience_compiler.py \
+            foundry/archie-distill/sidepus_ephemeral_cache.py \
+            foundry/archie-distill/sidepus_pursuit_plan.py \
+            foundry/archie-distill/sidepus_pursuit_controller.py \
+            foundry/archie-distill/sidepus_pursuit_stream.py \
+            foundry/archie-distill/sidepus_pursuit_objectives.py \
+            foundry/archie-distill/sidepus_pursuit_step.py \
+            foundry/archie-distill/sidepus_pursuit_cli.py \
+            foundry/archie-distill/train_archie_sidepus_pursuit.py \
+            foundry/archie-distill/test_sidepus_pursuit.py
+          bash -n foundry/archie-distill/run_archie_sidepus_pursuit.sh
+      - name: Run pursuit contracts
+        working-directory: foundry/archie-distill
+        run: python test_sidepus_pursuit.py
