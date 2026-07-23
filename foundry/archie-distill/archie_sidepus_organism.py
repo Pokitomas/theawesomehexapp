@@ -158,14 +158,23 @@ class ArchieSidepusOrganism(nn.Module):
                 torch.cat((token_summary, world_summary, plastic_summary), dim=-1)
             )
         )
-        hidden = drive
+        hidden = torch.zeros_like(drive)
+        cumulative_thought = torch.zeros_like(drive)
         remaining = torch.ones(hidden.size(0), device=hidden.device, dtype=torch.float32)
         thought = torch.zeros_like(hidden, dtype=torch.float32)
         expected_steps = torch.zeros_like(remaining)
         halt_history: list[torch.Tensor] = []
         for index in range(self.cfg.deliberation_max_steps):
-            hidden = self.deliberation_cell(drive, hidden)
-            halt = torch.sigmoid(self.deliberation_halt(self.deliberation_norm(hidden))).squeeze(-1)
+            residual = drive - cumulative_thought
+            proposal = self.deliberation_cell(residual, hidden)
+            hidden = hidden + (proposal - hidden) / float(index + 1)
+            cumulative_thought = cumulative_thought + (
+                hidden - cumulative_thought
+            ) / float(index + 1)
+
+            halt = torch.sigmoid(
+                self.deliberation_halt(self.deliberation_norm(cumulative_thought))
+            ).squeeze(-1)
             halt = self.cfg.deliberation_min_halt + (
                 1.0 - self.cfg.deliberation_min_halt
             ) * halt
@@ -173,7 +182,7 @@ class ArchieSidepusOrganism(nn.Module):
                 weight = remaining
             else:
                 weight = remaining * halt
-            thought = thought + weight[:, None] * hidden.float()
+            thought = thought + weight[:, None] * cumulative_thought.float()
             expected_steps = expected_steps + weight * float(index + 1)
             remaining = (remaining - weight).clamp_min(0.0)
             halt_history.append(halt)

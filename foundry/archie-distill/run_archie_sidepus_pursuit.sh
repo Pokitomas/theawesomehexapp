@@ -139,8 +139,10 @@ run_arm() {
     --state-order-weight 0.5 \
     --deliberation-compute-cost 0.002 \
     --deliberation-policy-weight 0.05 \
-    --deliberation-trajectory-weight 0.05 \
-    --deliberation-floor-weight 0.02 \
+    --deliberation-trajectory-weight 0.20 \
+    --deliberation-improvement-margin 0.002 \
+    --deliberation-halt-warmup-steps 75 \
+    --deliberation-floor-weight 0.05 \
     --halt-entropy-weight 0.001 \
     --interference-every 8 \
     --interference-weight 0.1 \

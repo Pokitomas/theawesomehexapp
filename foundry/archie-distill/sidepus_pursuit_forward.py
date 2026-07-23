@@ -20,7 +20,8 @@ def _deliberation_trajectory(
     drive = torch.tanh(
         model.deliberation_input(torch.cat((token_summary, world_summary, plastic_summary), dim=-1))
     )
-    hidden = drive
+    hidden = torch.zeros_like(drive)
+    cumulative_thought = torch.zeros_like(drive)
     remaining = torch.ones(hidden.size(0), device=hidden.device, dtype=torch.float32)
     weighted_thought = torch.zeros_like(hidden, dtype=torch.float32)
     expected_steps = torch.zeros_like(remaining)
@@ -28,14 +29,25 @@ def _deliberation_trajectory(
     halt_steps: list[torch.Tensor] = []
     stop_weights: list[torch.Tensor] = []
     for index in range(model.cfg.deliberation_max_steps):
-        hidden = model.deliberation_cell(drive, hidden)
-        halt = torch.sigmoid(model.deliberation_halt(model.deliberation_norm(hidden))).squeeze(-1)
+        # Each recurrent step receives the unresolved residual rather than the
+        # identical drive. The exposed thought is the running mean of refinements,
+        # so later computation must improve an accumulated answer instead of
+        # replacing the first useful thought with an unrelated recurrent state.
+        residual = drive - cumulative_thought
+        proposal = model.deliberation_cell(residual, hidden)
+        hidden = hidden + (proposal - hidden) / float(index + 1)
+        cumulative_thought = cumulative_thought + (
+            hidden - cumulative_thought
+        ) / float(index + 1)
+
+        normalized = model.deliberation_norm(cumulative_thought)
+        halt = torch.sigmoid(model.deliberation_halt(normalized)).squeeze(-1)
         halt = model.cfg.deliberation_min_halt + (1.0 - model.cfg.deliberation_min_halt) * halt
         weight = remaining if index + 1 == model.cfg.deliberation_max_steps else remaining * halt
-        weighted_thought = weighted_thought + weight[:, None] * hidden.float()
+        weighted_thought = weighted_thought + weight[:, None] * cumulative_thought.float()
         expected_steps = expected_steps + weight * float(index + 1)
         remaining = (remaining - weight).clamp_min(0.0)
-        hidden_steps.append(hidden)
+        hidden_steps.append(cumulative_thought)
         halt_steps.append(halt)
         stop_weights.append(weight)
     return (
