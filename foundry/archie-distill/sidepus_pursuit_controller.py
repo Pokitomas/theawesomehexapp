@@ -9,7 +9,7 @@ from typing import Any
 
 from sidepus_pursuit_plan import deterministic_unit
 
-CONTROLLER_SCHEMA = "sidepus-pursuit-controller-state/v1"
+CONTROLLER_SCHEMA = "sidepus-pursuit-controller-state/v2"
 
 
 @dataclass
@@ -20,12 +20,21 @@ class Stat:
     state_utility_ema: float = 0.0
     surprise_ema: float = 0.0
     deliberation_ema: float = 1.0
+    interference_ema: float = 0.0
+    retention_cost_ema: float = 0.0
 
-    def update(self, *, loss: float, state_utility: float, deliberation: float, alpha: float) -> None:
+    def update(
+        self, *, loss: float, state_utility: float, deliberation: float,
+        interference: float, retention_cost: float | None, alpha: float,
+    ) -> None:
         previous = self.loss_ema if self.count else loss
         progress = previous - loss
         if not self.count:
-            self.loss_ema, self.state_utility_ema, self.deliberation_ema = loss, state_utility, deliberation
+            self.loss_ema = loss
+            self.state_utility_ema = state_utility
+            self.deliberation_ema = deliberation
+            self.interference_ema = interference
+            self.retention_cost_ema = max(0.0, float(retention_cost or 0.0))
         else:
             old_loss = self.loss_ema
             self.loss_ema = (1 - alpha) * self.loss_ema + alpha * loss
@@ -33,6 +42,12 @@ class Stat:
             self.state_utility_ema = (1 - alpha) * self.state_utility_ema + alpha * state_utility
             self.surprise_ema = (1 - alpha) * self.surprise_ema + alpha * (loss - old_loss)
             self.deliberation_ema = (1 - alpha) * self.deliberation_ema + alpha * deliberation
+            self.interference_ema = (1 - alpha) * self.interference_ema + alpha * interference
+            if retention_cost is not None:
+                self.retention_cost_ema = (
+                    (1 - alpha) * self.retention_cost_ema
+                    + alpha * max(0.0, float(retention_cost))
+                )
         self.count += 1
 
 
@@ -46,6 +61,7 @@ class PursuitController:
     state_utility_weight: float = 1.5
     difficulty_weight: float = 0.35
     fairness_weight: float = 0.15
+    interference_weight: float = 0.75
     retention_tax_weight: float = 2.0
     global_step: int = 0
     retention_tax: float = 0.0
@@ -65,12 +81,19 @@ class PursuitController:
         surprise = max(0.0, record.surprise_ema, domain_stat.surprise_ema)
         progress = max(0.0, record.progress_ema, domain_stat.progress_ema)
         utility = max(0.0, record.state_utility_ema, domain_stat.state_utility_ema)
+        interference = max(0.0, record.interference_ema, domain_stat.interference_ema)
+        retention_cost = max(0.0, record.retention_cost_ema, domain_stat.retention_cost_ema)
         jitter = deterministic_unit(self.seed, "pursuit", self.global_step, row["intent_id"]) * 1e-6
         return (
-            self.surprise_weight * surprise + self.progress_weight * progress
-            + self.novelty_weight * novelty + self.state_utility_weight * utility
+            self.surprise_weight * surprise
+            + self.progress_weight * progress
+            + self.novelty_weight * novelty
+            + self.state_utility_weight * utility
             + self.difficulty_weight * float(row.get("difficulty_prior", 0.25))
-            + self.fairness_weight * fairness - self.retention_tax_weight * self.retention_tax + jitter
+            + self.fairness_weight * fairness
+            - self.interference_weight * interference
+            - self.retention_tax_weight * retention_cost
+            + jitter
         )
 
     def choose(self, rows: Sequence[Mapping[str, Any]], count: int) -> list[int]:
@@ -80,15 +103,26 @@ class PursuitController:
 
     def feedback(
         self, rows: Sequence[Mapping[str, Any]], *, loss: float, state_utility: float,
-        deliberation: float, retention_tax: float | None = None,
+        deliberation: float, interference: float = 0.0,
+        retention_tax: float | None = None,
     ) -> None:
         for row in rows:
             record_id, domain = str(row["record_id"]), str(row.get("primary_domain", "unknown"))
             self._stat(self.records, record_id).update(
-                loss=loss, state_utility=state_utility, deliberation=deliberation, alpha=self.alpha
+                loss=loss,
+                state_utility=state_utility,
+                deliberation=deliberation,
+                interference=interference,
+                retention_cost=retention_tax,
+                alpha=self.alpha,
             )
             self._stat(self.domains, domain).update(
-                loss=loss, state_utility=state_utility, deliberation=deliberation, alpha=self.alpha
+                loss=loss,
+                state_utility=state_utility,
+                deliberation=deliberation,
+                interference=interference,
+                retention_cost=retention_tax,
+                alpha=self.alpha,
             )
         if retention_tax is not None:
             self.retention_tax = max(0.0, float(retention_tax))
@@ -103,8 +137,11 @@ class PursuitController:
 
     def state_dict(self) -> dict[str, Any]:
         return {
-            "schema": CONTROLLER_SCHEMA, "seed": self.seed, "alpha": self.alpha,
-            "global_step": self.global_step, "retention_tax": self.retention_tax,
+            "schema": CONTROLLER_SCHEMA,
+            "seed": self.seed,
+            "alpha": self.alpha,
+            "global_step": self.global_step,
+            "retention_tax": self.retention_tax,
             "records": {key: asdict(value) for key, value in self.records.items()},
             "domains": {key: asdict(value) for key, value in self.domains.items()},
         }
@@ -112,6 +149,7 @@ class PursuitController:
     def load_state_dict(self, state: Mapping[str, Any]) -> None:
         if state.get("schema") != CONTROLLER_SCHEMA or int(state.get("seed", -1)) != self.seed:
             raise ValueError("pursuit controller state mismatch")
-        self.global_step, self.retention_tax = int(state.get("global_step", 0)), float(state.get("retention_tax", 0))
+        self.global_step = int(state.get("global_step", 0))
+        self.retention_tax = float(state.get("retention_tax", 0))
         self.records = {str(k): Stat(**dict(v)) for k, v in dict(state.get("records", {})).items()}
         self.domains = {str(k): Stat(**dict(v)) for k, v in dict(state.get("domains", {})).items()}
