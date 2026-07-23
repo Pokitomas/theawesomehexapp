@@ -108,20 +108,16 @@ class PursuitExperienceStream:
         })
 
     def _render_episode(self, record: Mapping[str, Any]) -> list[int]:
+        """Render only source channels; compiler metadata remains controller-private."""
         objects = record.get("channel_objects") if isinstance(record.get("channel_objects"), Mapping) else {}
         values: dict[str, str] = {}
         for channel in CHANNELS:
             items = objects.get(channel, []) if isinstance(objects.get(channel, []), list) else []
             values[channel] = "\n".join(self._view(item) for item in items if isinstance(item, Mapping)).strip()
-        metadata = record.get("experience_metadata") if isinstance(record.get("experience_metadata"), Mapping) else {}
-        vector = metadata.get("curriculum_vector") if isinstance(metadata.get("curriculum_vector"), Mapping) else {}
         parts = [
             '<sidepus:experience schema="sidepus-pursuit-experience/v1">',
             f"<record_id>{record.get('record_id')}</record_id>",
-            f"<domain>{record.get('domain', 'unknown')}</domain>",
         ]
-        if vector:
-            parts.extend(("<affordance_hypotheses>", stable_json(vector), "</affordance_hypotheses>"))
         for channel in CHANNELS:
             if values[channel]:
                 parts.extend((f"<{channel}>", values[channel], f"</{channel}>"))
