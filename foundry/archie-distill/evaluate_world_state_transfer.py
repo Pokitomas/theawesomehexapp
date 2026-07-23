@@ -14,6 +14,7 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
+from archie_tokenizers import token_byte_lengths, tokenizer_from_metadata
 from archie_world_state_core import MODEL_SCHEMA, PAD_ID, ArchieWorldStateLM, WorldStateConfig
 
 SUITE_SCHEMA = "archie-world-state-transfer-suite/v1"
@@ -24,14 +25,10 @@ def sha256_file(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def encode(text: str, tokenizer: dict[str, Any]) -> list[int]:
-    if tokenizer.get("schema") != "archie-byte-tokenizer/v1":
-        raise ValueError("world-state transfer evaluator currently requires the byte tokenizer")
-    special = tokenizer["special_tokens"]
-    return [int(special["bos"]), *text.encode("utf-8", errors="replace"), int(special["eos"])]
-
-
-def score(model: ArchieWorldStateLM, tokens: torch.Tensor, state: torch.Tensor | None) -> tuple[float, int]:
+def score(
+    model: ArchieWorldStateLM, tokens: torch.Tensor, state: torch.Tensor | None,
+    byte_lengths: torch.Tensor,
+) -> tuple[float, int]:
     output = model(tokens, world_state=state)
     targets = tokens[:, 1:]
     losses = F.cross_entropy(
@@ -39,7 +36,8 @@ def score(model: ArchieWorldStateLM, tokens: torch.Tensor, state: torch.Tensor |
         targets.reshape(-1), ignore_index=PAD_ID, reduction="none",
     ).reshape_as(targets)
     valid = targets.ne(PAD_ID)
-    return float(losses[valid].sum().cpu()), int(valid.sum().cpu())
+    byte_count = int(byte_lengths[targets][valid].sum().cpu())
+    return float(losses[valid].sum().cpu()), byte_count
 
 
 @torch.no_grad()
@@ -64,36 +62,47 @@ def evaluate(
     model = ArchieWorldStateLM(WorldStateConfig(**payload["config"])).to(device)
     model.load_state_dict(payload["model"])
     model.eval()
-    tokenizer = payload["tokenizer"]
+    tokenizer_metadata = payload["tokenizer"]
+    tokenizer = tokenizer_from_metadata(tokenizer_metadata)
+    byte_lengths = torch.tensor(token_byte_lengths(tokenizer_metadata), device=device)
     results = []
     groups: dict[str, list[tuple[float, float]]] = defaultdict(list)
     for case in cases:
         for field in ("id", "repository_id", "mechanism_id", "task_family", "support", "wrong_support", "query"):
             if not str(case.get(field, "")).strip():
                 raise ValueError(f"case requires {field}")
-        support = torch.tensor([encode(str(case["support"]), tokenizer)], dtype=torch.long, device=device)
-        wrong_support = torch.tensor([encode(str(case["wrong_support"]), tokenizer)], dtype=torch.long, device=device)
-        query = torch.tensor([encode(str(case["query"]), tokenizer)], dtype=torch.long, device=device)
+        support = torch.tensor(
+            [tokenizer.encode(str(case["support"]), bos=True, eos=True)],
+            dtype=torch.long, device=device,
+        )
+        wrong_support = torch.tensor(
+            [tokenizer.encode(str(case["wrong_support"]), bos=True, eos=True)],
+            dtype=torch.long, device=device,
+        )
+        query = torch.tensor(
+            [tokenizer.encode(str(case["query"]), bos=True, eos=True)],
+            dtype=torch.long, device=device,
+        )
         if max(support.size(1), wrong_support.size(1), query.size(1)) > model.cfg.max_seq_len:
             raise ValueError(f"case {case['id']} exceeds model context")
         correct_state = model(support)["world_state"]
         wrong_state = model(wrong_support)["world_state"]
-        adapted_nats, count = score(model, query, correct_state)
-        reset_nats, reset_count = score(model, query, None)
-        wrong_nats, wrong_count = score(model, query, wrong_state)
+        adapted_nats, count = score(model, query, correct_state, byte_lengths)
+        reset_nats, reset_count = score(model, query, None, byte_lengths)
+        wrong_nats, wrong_count = score(model, query, wrong_state, byte_lengths)
         if count != reset_count or count != wrong_count:
             raise AssertionError("query accounting diverged")
         denominator = max(count * math.log(2.0), 1e-12)
-        adapted_bpt = adapted_nats / denominator
-        reset_bpt = reset_nats / denominator
-        wrong_bpt = wrong_nats / denominator
-        reset_gain = (reset_bpt - adapted_bpt) / max(reset_bpt, 1e-12)
-        wrong_gain = (wrong_bpt - adapted_bpt) / max(wrong_bpt, 1e-12)
+        adapted_bpb = adapted_nats / denominator
+        reset_bpb = reset_nats / denominator
+        wrong_bpb = wrong_nats / denominator
+        reset_gain = (reset_bpb - adapted_bpb) / max(reset_bpb, 1e-12)
+        wrong_gain = (wrong_bpb - adapted_bpb) / max(wrong_bpb, 1e-12)
         results.append({
             "id": case["id"], "repository_id": case["repository_id"],
             "mechanism_id": case["mechanism_id"], "task_family": case["task_family"],
-            "adapted_bits_per_token": adapted_bpt, "reset_bits_per_token": reset_bpt,
-            "wrong_bits_per_token": wrong_bpt, "gain_vs_reset": reset_gain,
+            "adapted_bits_per_byte": adapted_bpb, "reset_bits_per_byte": reset_bpb,
+            "wrong_bits_per_byte": wrong_bpb, "gain_vs_reset": reset_gain,
             "gain_vs_wrong": wrong_gain, "correct_state_l2": float(correct_state.norm().cpu()),
             "wrong_state_l2": float(wrong_state.norm().cpu()),
         })
