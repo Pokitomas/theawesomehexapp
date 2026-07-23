@@ -57,9 +57,18 @@ jobs:
             foundry/archie-distill/test_sidepus_foreign_state.py \
             foundry/archie-distill/test_sidepus_deliberation_value.py
           bash -n foundry/archie-distill/run_archie_sidepus_pursuit.sh
-      - name: Experience boundary contracts
+      - name: Metadata uncertainty contract
         working-directory: foundry/archie-distill
-        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest
+        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_uncertain_metadata_is_separate
+      - name: Inventory preservation contract
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_compile_inventory_preserves_record
+      - name: Hidden-channel nonleakage contract
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_compiler_and_hidden_truth_are_not_model_visible
+      - name: Raw sensory byte contract
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_raw_sensory_bytes_survive_without_text_conversion
       - name: Ephemeral cache contracts
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_pursuit.CacheTest
