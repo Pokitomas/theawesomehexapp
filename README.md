@@ -4,14 +4,14 @@ This repository has been retired to its empirically supported core.
 
 The previous live tree mixed model research, product surfaces, sample applications, compatibility layers, generated authority machinery, duplicate runtimes, and historical experiments. Those files remain recoverable in Git history and archival pull requests, but they no longer occupy the working repository.
 
-Deletion from the live tree is not deletion of evidence. The retirement commit preserves the exact three-PR stack as parents and replaces its working tree with one narrow research kernel.
+Deletion from the live tree is not deletion of evidence. The retirement ancestry joins the exact three-PR stack and replaces its working tree with one narrow research kernel.
 
 ## Authoritative stack
 
 | Lane | Pull request | Bound head | Authority | Merge state |
 |---|---:|---|---|---|
-| Exact baseline and fixed evaluation | #736 | `29146af157abecd7e1fc29cee9bf1b1377cd1654` | Exact historical source, tokenizer/corpus compatibility, lineage capsule, owner-local input attestation, sealed fixed evaluation | Blocked |
-| Exact-source linked recurrence | #738 | `1ecf72bbb9563ebf1bfc815674a3c1f414e670b5` | Checkpoint-compatible recurrent mechanics and owner-local full/incremental parity | Blocked |
+| Exact baseline and fixed evaluation | #736 | `29146af157abecd7e1fc29cee9bf1b1377cd1654` | Exact historical source, tokenizer/corpus compatibility, lineage capsule, owner-local input attestation command, and fixed-evaluation contract; manifests remain unsealed | Blocked |
+| Exact-source linked recurrence | #738 | `1ecf72bbb9563ebf1bfc815674a3c1f414e670b5` | Checkpoint-compatible recurrent mechanics and owner-local full/incremental parity command | Blocked |
 | Event Clock authorization | #740 | `b6950c35c41448a0ca50e0bd268302949113e546` | Preregistration and fail-closed authorization only | Gate-only |
 
 The bound baseline identities are:
@@ -29,7 +29,7 @@ model export sha256    e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd28495
 - An executable lineage capsule that verifies source identity, export identity, normalized configuration, and configuration digest.
 - Owner-local input attestation and fixed-window evaluation commands.
 - Checkpoint-compatible SSM and local-attention recurrence with explicit state, reset, transplant, shuffle, and TBPTT controls.
-- An owner-local real-checkpoint full-versus-incremental parity receipt.
+- An owner-local command that compares real-checkpoint full and incremental logits and emits a fail-closed parity receipt.
 - A preregistered 20M–30M Event Clock candidate gate.
 
 ## What does not exist
@@ -37,7 +37,7 @@ model export sha256    e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd28495
 - No admitted general Archie model.
 - No repository-bundled `e2b829c8…` checkpoint.
 - No sealed nine-domain fixed evaluation.
-- No real-checkpoint recurrence result.
+- No produced real-checkpoint recurrence parity receipt or positive recurrence result.
 - No Event Clock implementation or weights.
 - No 2B authorization.
 - No product-runtime capability claim.
