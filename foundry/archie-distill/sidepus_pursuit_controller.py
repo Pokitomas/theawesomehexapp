@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checkpointable active curriculum controller for Sidepus pursuit."""
+"""Checkpointable active developmental curriculum controller for Sidepus pursuit."""
 from __future__ import annotations
 
 import math
@@ -7,9 +7,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from sidepus_developmental_graph import developmental_drive, normalize_vector
 from sidepus_pursuit_plan import deterministic_unit
 
-CONTROLLER_SCHEMA = "sidepus-pursuit-controller-state/v3"
+CONTROLLER_SCHEMA = "sidepus-pursuit-controller-state/v4"
 
 
 @dataclass
@@ -22,11 +23,15 @@ class Stat:
     deliberation_ema: float = 1.0
     interference_ema: float = 0.0
     retention_cost_ema: float = 0.0
+    initial_loss: float = 0.0
+    best_loss: float = 0.0
+    mastery: float = 0.0
 
     def update(
         self, *, loss: float, state_utility: float, deliberation: float,
         interference: float, retention_cost: float | None, alpha: float,
     ) -> None:
+        alpha = max(1e-4, min(1.0, float(alpha)))
         previous = self.loss_ema if self.count else loss
         progress = previous - loss
         if not self.count:
@@ -35,6 +40,8 @@ class Stat:
             self.deliberation_ema = deliberation
             self.interference_ema = interference
             self.retention_cost_ema = max(0.0, float(retention_cost or 0.0))
+            self.initial_loss = loss
+            self.best_loss = loss
         else:
             old_loss = self.loss_ema
             self.loss_ema = (1 - alpha) * self.loss_ema + alpha * loss
@@ -48,6 +55,10 @@ class Stat:
                     (1 - alpha) * self.retention_cost_ema
                     + alpha * max(0.0, float(retention_cost))
                 )
+            self.best_loss = min(self.best_loss, self.loss_ema, loss)
+            denominator = max(abs(self.initial_loss), 1e-6)
+            measured = (self.initial_loss - self.best_loss) / denominator
+            self.mastery = max(self.mastery, max(0.0, min(1.0, measured)))
         self.count += 1
 
 
@@ -62,6 +73,7 @@ class PursuitController:
     difficulty_weight: float = 0.35
     fairness_weight: float = 0.15
     continuity_weight: float = 0.8
+    developmental_weight: float = 1.0
     interference_weight: float = 0.75
     retention_tax_weight: float = 2.0
     global_step: int = 0
@@ -71,6 +83,7 @@ class PursuitController:
     records: dict[str, Stat] = field(default_factory=dict)
     domains: dict[str, Stat] = field(default_factory=dict)
     threads: dict[str, Stat] = field(default_factory=dict)
+    affordances: dict[str, Stat] = field(default_factory=dict)
 
     @staticmethod
     def _stat(table: dict[str, Stat], key: str) -> Stat:
@@ -110,6 +123,7 @@ class PursuitController:
         same_thread = self.last_thread == thread
         continuity = 1.0 if exact_follow else 0.2 if same_thread else 0.0
         continuity *= 0.35 + min(1.0, max(0.0, thread_stat.state_utility_ema) * 4.0)
+        development, _ = developmental_drive(row.get("curriculum_vector"), self.affordances)
         jitter = deterministic_unit(self.seed, "pursuit", self.global_step, row["intent_id"]) * 1e-6
         return (
             self.surprise_weight * surprise
@@ -119,6 +133,7 @@ class PursuitController:
             + self.difficulty_weight * float(row.get("difficulty_prior", 0.25))
             + self.fairness_weight * fairness
             + self.continuity_weight * continuity
+            + self.developmental_weight * development
             - self.interference_weight * interference
             - self.retention_tax_weight * retention_cost
             + jitter
@@ -151,6 +166,17 @@ class PursuitController:
                     retention_cost=retention_tax,
                     alpha=self.alpha,
                 )
+            for name, exposure in normalize_vector(row.get("curriculum_vector")).items():
+                if exposure <= 0.0:
+                    continue
+                self._stat(self.affordances, name).update(
+                    loss=loss,
+                    state_utility=state_utility * exposure,
+                    deliberation=deliberation,
+                    interference=interference * exposure,
+                    retention_cost=(retention_tax * exposure if retention_tax is not None else None),
+                    alpha=self.alpha * max(0.2, exposure),
+                )
         if rows:
             last = rows[-1]
             self.last_thread = str(last.get("state_thread_id", last["intent_id"]))
@@ -178,6 +204,7 @@ class PursuitController:
             "records": {key: asdict(value) for key, value in self.records.items()},
             "domains": {key: asdict(value) for key, value in self.domains.items()},
             "threads": {key: asdict(value) for key, value in self.threads.items()},
+            "affordances": {key: asdict(value) for key, value in self.affordances.items()},
         }
 
     def load_state_dict(self, state: Mapping[str, Any]) -> None:
@@ -193,3 +220,4 @@ class PursuitController:
         self.records = {str(k): Stat(**dict(v)) for k, v in dict(state.get("records", {})).items()}
         self.domains = {str(k): Stat(**dict(v)) for k, v in dict(state.get("domains", {})).items()}
         self.threads = {str(k): Stat(**dict(v)) for k, v in dict(state.get("threads", {})).items()}
+        self.affordances = {str(k): Stat(**dict(v)) for k, v in dict(state.get("affordances", {})).items()}
