@@ -28,12 +28,13 @@ class StepOutput:
 def train_step(
     *, model: ArchieSidepusOrganism, optimizer: torch.optim.Optimizer,
     scaler: Any, inputs: torch.Tensor, world_input: torch.Tensor | None,
-    plastic_input: torch.Tensor | None, wrong_world: torch.Tensor | None,
-    wrong_plastic: torch.Tensor | None, rows: Sequence[Mapping[str, Any]],
+    plastic_input: torch.Tensor | None, rows: Sequence[Mapping[str, Any]],
     stream: Any, args: Any, step: int, device: torch.device,
     amp_dtype: torch.dtype | None,
 ) -> StepOutput:
     optimizer.zero_grad(set_to_none=True)
+    threads = [str(row.get("state_thread_id", row["intent_id"])) for row in rows]
+    wrong_world, wrong_plastic, foreign_threads = stream.foreign_state(threads, device)
     has_prior_state = world_input is not None or plastic_input is not None
     has_foreign_state = wrong_world is not None or wrong_plastic is not None
     counterfactual = has_prior_state and step % args.counterfactual_every == 0
@@ -98,8 +99,12 @@ def train_step(
         "causal_state_compared": float(counterfactual),
         "foreign_state_available": float(has_foreign_state),
         "foreign_state_compared": float(counterfactual and has_foreign_state),
+        "foreign_state_threads": foreign_threads or [],
     }
-    finite = math.isfinite(gradient_norm) and all(math.isfinite(value) for value in values.values())
+    finite_scalars = [value for value in values.values() if isinstance(value, float)]
+    finite = math.isfinite(gradient_norm) and all(math.isfinite(value) for value in finite_scalars)
+    if finite:
+        stream.remember_state(threads, result["world_state"], result.get("plastic_state"))
     return StepOutput(
         result=result, values=values, state_utility=state_utility,
         reset_lm_loss=reset_value, wrong_lm_loss=wrong_value,
