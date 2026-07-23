@@ -6,12 +6,17 @@ on:
     paths:
       - 'foundry/archie-distill/archie_hybrid_core.py'
       - 'foundry/archie-distill/archie_hybrid_corpus.py'
+      - 'foundry/archie-distill/archie_tokenizers.py'
       - 'foundry/archie-distill/train_archie_hybrid.py'
       - 'foundry/archie-distill/test_archie_hybrid_contract.py'
       - 'foundry/archie-distill/archie_world_state_core.py'
       - 'foundry/archie-distill/train_archie_world_state.py'
+      - 'foundry/archie-distill/train_archie_world_state_maximal.py'
+      - 'foundry/archie-distill/build_world_state_breakthrough_suite.py'
       - 'foundry/archie-distill/evaluate_world_state_transfer.py'
+      - 'foundry/archie-distill/evaluate_world_state_breakthrough.py'
       - 'foundry/archie-distill/test_archie_world_state_core.py'
+      - 'foundry/archie-distill/run_archie_breakthrough.sh'
       - 'foundry/sidepus/**'
       - '.github/workflows/archie-scratch-hybrid.yml'
       - 'docs/archie-scratch-hybrid.md'
@@ -21,15 +26,21 @@ on:
   push:
     branches:
       - 'agent/archie-scratch-hybrid-u16'
+      - 'agent/archie-world-state-core-20260722'
     paths:
       - 'foundry/archie-distill/archie_hybrid_core.py'
       - 'foundry/archie-distill/archie_hybrid_corpus.py'
+      - 'foundry/archie-distill/archie_tokenizers.py'
       - 'foundry/archie-distill/train_archie_hybrid.py'
       - 'foundry/archie-distill/test_archie_hybrid_contract.py'
       - 'foundry/archie-distill/archie_world_state_core.py'
       - 'foundry/archie-distill/train_archie_world_state.py'
+      - 'foundry/archie-distill/train_archie_world_state_maximal.py'
+      - 'foundry/archie-distill/build_world_state_breakthrough_suite.py'
       - 'foundry/archie-distill/evaluate_world_state_transfer.py'
+      - 'foundry/archie-distill/evaluate_world_state_breakthrough.py'
       - 'foundry/archie-distill/test_archie_world_state_core.py'
+      - 'foundry/archie-distill/run_archie_breakthrough.sh'
       - 'foundry/sidepus/**'
       - '.github/workflows/archie-scratch-hybrid.yml'
       - 'docs/archie-scratch-hybrid.md'
@@ -65,7 +76,7 @@ concurrency:
 jobs:
   contract:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       PYTHONHASHSEED: '0'
     steps:
@@ -97,15 +108,21 @@ jobs:
           python -m py_compile \
             foundry/archie-distill/archie_hybrid_core.py \
             foundry/archie-distill/archie_hybrid_corpus.py \
+            foundry/archie-distill/archie_tokenizers.py \
             foundry/archie-distill/train_archie_hybrid.py \
             foundry/archie-distill/test_archie_hybrid_contract.py \
             foundry/archie-distill/archie_world_state_core.py \
             foundry/archie-distill/train_archie_world_state.py \
+            foundry/archie-distill/train_archie_world_state_maximal.py \
+            foundry/archie-distill/build_world_state_breakthrough_suite.py \
             foundry/archie-distill/evaluate_world_state_transfer.py \
+            foundry/archie-distill/evaluate_world_state_breakthrough.py \
             foundry/archie-distill/test_archie_world_state_core.py
+          bash -n foundry/archie-distill/run_archie_breakthrough.sh
           PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_hybrid_contract.py
           PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_world_state_core.py
           PYTHONPATH=foundry/archie-distill python foundry/archie-distill/train_archie_world_state.py --selftest
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/train_archie_world_state_maximal.py --selftest
           PYTHONPATH=foundry/archie-distill python foundry/archie-distill/evaluate_world_state_transfer.py --selftest
           python foundry/archie-distill/train_archie_hybrid.py \
             --tiny-selftest \
