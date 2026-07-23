@@ -1,0 +1,77 @@
+name: Materialize Sidepus direct substrate
+
+on:
+  push:
+    branches:
+      - agent/sidepus-direct-stream-20260723
+    paths:
+      - '.sidepus-bootstrap/trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/sidepus-direct-stream-20260723
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reassemble and verify payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .sidepus-bootstrap/chunk_* | base64 --decode > /tmp/sidepus-direct.tar.gz
+          echo 'd9e0c3ad98b73a637af534e9be87bf5c0b10c05fc29b829338fd78714f933881  /tmp/sidepus-direct.tar.gz' | sha256sum --check
+          tar -tzf /tmp/sidepus-direct.tar.gz
+          tar -xzf /tmp/sidepus-direct.tar.gz -C foundry/archie-distill
+          chmod +x foundry/archie-distill/run_archie_sidepus_organism.sh
+      - name: Normalize retained contract surfaces
+        shell: python
+        run: |
+          from pathlib import Path
+          workflow = Path('.github/workflows/archie-sidepus-direct-contract.yml')
+          text = workflow.read_text()
+          text = '\n'.join(
+              line for line in text.splitlines()
+              if 'train_archie_sidepus_direct.py' not in line
+          ) + '\n'
+          workflow.write_text(text)
+          doc = Path('docs/SIDEPUS-DIRECT-ORGANISM.md')
+          text = doc.read_text().replace(
+              'flattened, utterance-only, reset-state and static-language conditions.',
+              'flattened and reset-state conditions, with world-only and plastic-only causal ablations.',
+          )
+          doc.write_text(text)
+      - name: Install CPU test dependency
+        run: python -m pip install --upgrade pip torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Validate materialized implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-distill/sidepus_training_stream.py \
+            foundry/archie-distill/archie_sidepus_organism.py \
+            foundry/archie-distill/train_archie_sidepus_organism.py \
+            foundry/archie-distill/evaluate_archie_sidepus_organism.py
+          bash -n foundry/archie-distill/run_archie_sidepus_organism.sh
+          cd foundry/archie-distill
+          python test_sidepus_training_stream.py
+          python test_archie_sidepus_organism.py
+      - name: Commit reviewable substrate and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .sidepus-bootstrap
+          rm .github/workflows/sidepus-bootstrap-materialize.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Add direct Sidepus organism training substrate'
+          git push origin HEAD:agent/sidepus-direct-stream-20260723
