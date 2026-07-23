@@ -1,7 +1,7 @@
 {
   "schema": "archie-model-registry/v1",
   "system_name": "Archie",
-  "updated_at": "2026-07-23T01:36:00Z",
+  "updated_at": "2026-07-23T03:45:00Z",
   "claim_boundary": "Archie names the complete system. Registry entries name distinct neural or symbolic artifacts. No artifact may inherit another entry's weights, metrics, admission state, or capability claims.",
   "artifacts": [
     {
@@ -44,9 +44,11 @@
       "status": "research-only-not-admitted",
       "promotion": "not-admitted",
       "source": {
-        "pull_request": 732,
+        "training_pull_request": 732,
+        "implementation_pull_request": 736,
         "head_sha": "75cad4277393ebe00a9dfc45202b2e52c826b6b3",
-        "code_status": "exact baseline subset requires extraction under issue 733"
+        "core_blob": "42bff377e4ff8d05fec7f0c4ef0ed579e2900b3c",
+        "code_status": "exact training core, v2 corpus compatibility, tokenizer compatibility and owner-local input attestation implemented; fixed manifests remain unsealed"
       },
       "predecessor_ids": [],
       "successor_ids": [
@@ -64,7 +66,8 @@
         "exist": true,
         "repository_committed": true,
         "location_class": "repository-admitted-component",
-        "sha256": null
+        "sha256": null,
+        "hash_blocker": "exact repository checkpoint path and byte identity have not been normalized"
       },
       "initialization": {
         "kind": "repository-native-narrow-model",
@@ -218,15 +221,15 @@
     {
       "artifact_id": "archie-lm-linked-state-v1",
       "display_name": "Archie LM Linked State v1",
-      "artifact_type": "planned-recurrent-language-model-experiment",
+      "artifact_type": "recurrent-language-model-experiment",
       "weights": {
         "exist": false,
         "repository_committed": false,
-        "location_class": "planned",
+        "location_class": "no-recurrent-checkpoint-produced",
         "sha256": null
       },
       "initialization": {
-        "kind": "planned-exact-warm-start",
+        "kind": "exact-warm-start-candidate",
         "source_artifact_id": "archie-lm-114m-v1",
         "source_sha256": "e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd284950378ded"
       },
@@ -240,12 +243,12 @@
         "corpus_tokens": null
       },
       "measured_capability": [],
-      "status": "planned-blocked",
+      "status": "mechanics-implemented-evidence-blocked",
       "promotion": "not-admitted",
       "source": {
-        "pull_request": null,
-        "head_sha": null,
-        "code_status": "blocked by fixed evaluation and exact baseline extraction"
+        "pull_request": 738,
+        "head_sha": "31caf19a5cbbbf0bf94d0f6f8a23737fb865d71c",
+        "code_status": "recurrent mechanics implemented; empirical execution remains blocked on sealed fixed evaluation and owner-local real-checkpoint evidence"
       },
       "predecessor_ids": [
         "archie-lm-114m-v1"
@@ -261,11 +264,11 @@
     {
       "artifact_id": "archie-event-clock-v0",
       "display_name": "Archie Event Clock v0",
-      "artifact_type": "planned-two-timescale-research-candidate",
+      "artifact_type": "preregistered-two-timescale-research-candidate",
       "weights": {
         "exist": false,
         "repository_committed": false,
-        "location_class": "planned",
+        "location_class": "implementation-forbidden",
         "sha256": null
       },
       "initialization": {
@@ -284,12 +287,12 @@
         "corpus_tokens": null
       },
       "measured_capability": [],
-      "status": "planned-blocked",
+      "status": "preregistered-implementation-forbidden",
       "promotion": "not-admitted",
       "source": {
-        "pull_request": null,
-        "head_sha": null,
-        "code_status": "forbidden until linked recurrence survives matched controls"
+        "pull_request": 740,
+        "head_sha": "55fd0adc9bb7de7b1d1e8ba01611a59947f6bf09",
+        "code_status": "gate-only preregistration; candidate implementation forbidden until verified recurrence clears every threshold"
       },
       "predecessor_ids": [
         "archie-lm-linked-state-v1"
