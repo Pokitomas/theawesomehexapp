@@ -34,6 +34,8 @@ def parser() -> argparse.ArgumentParser:
     cli.add_argument("--deliberation-compute-cost", type=float, default=0.002)
     cli.add_argument("--deliberation-policy-weight", type=float, default=0.05)
     cli.add_argument("--deliberation-trajectory-weight", type=float, default=0.05)
+    cli.add_argument("--deliberation-improvement-margin", type=float, default=0.002)
+    cli.add_argument("--deliberation-halt-warmup-steps", type=int, default=75)
     cli.add_argument("--deliberation-floor-weight", type=float, default=0.02); cli.add_argument("--halt-entropy-weight", type=float, default=0.001)
     cli.add_argument("--interference-every", type=int, default=8); cli.add_argument("--interference-weight", type=float, default=0.1)
     cli.add_argument("--retention-tax-weight", type=float, default=2.0)

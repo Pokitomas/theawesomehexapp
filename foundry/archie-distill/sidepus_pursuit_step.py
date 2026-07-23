@@ -76,13 +76,38 @@ def train_step(
         )
         oracle_scores = step_losses.detach() + args.deliberation_compute_cost * (step_numbers - 1.0)
         oracle_index = int(torch.argmin(oracle_scores).item())
-        target_steps = float(oracle_index + 1)
+
+        # Do not let the halt head erase later computation before the recurrent
+        # transition has learned to refine anything. The training floor decays
+        # from the maximum depth to one over the configured warmup.
+        warmup_fraction = min(1.0, float(step) / max(1.0, float(args.deliberation_halt_warmup_steps)))
+        curriculum_floor = 1 + int(round(
+            (step_losses.numel() - 1) * (1.0 - warmup_fraction)
+        ))
+        supervised_index = max(oracle_index, curriculum_floor - 1)
+        target_steps = float(supervised_index + 1)
+
         stop_distribution = result["halt_weights"].float().mean(dim=0).clamp_min(1e-8)
         stop_distribution = stop_distribution / stop_distribution.sum()
-        policy_loss = -torch.log(stop_distribution[oracle_index])
-        trajectory_loss = step_losses.mean()
-        marginal_gain = step_losses[0].detach() - step_losses[oracle_index].detach()
-        compute_floor = F.relu(correct_lm.new_tensor(target_steps) - result["expected_deliberation_steps"])
+        policy_loss = -torch.log(stop_distribution[supervised_index])
+
+        # Later thoughts are trained as refinements. Penalize any adjacent step
+        # that fails to improve by the declared margin instead of merely averaging
+        # all step losses, which previously rewarded four copies of a bad trajectory.
+        if step_losses.numel() > 1:
+            trajectory_loss = F.relu(
+                step_losses[1:] - step_losses[:-1]
+                + args.deliberation_improvement_margin
+            ).mean()
+        else:
+            trajectory_loss = step_losses.new_zeros(())
+
+        best_index = int(torch.argmin(step_losses.detach()).item())
+        marginal_gain = step_losses[0].detach() - step_losses[best_index].detach()
+        compute_floor = F.relu(
+            correct_lm.new_tensor(target_steps)
+            - result["expected_deliberation_steps"]
+        )
         entropy = halt_entropy(result)
 
         interference_loss = correct_lm.new_zeros(())
