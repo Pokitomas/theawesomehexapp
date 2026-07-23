@@ -2,9 +2,7 @@
 """Train Archie with active pursuit, causal-state pressure, and bounded Sidepus streaming."""
 from __future__ import annotations
 
-import argparse
 import json
-import math
 import pathlib
 import platform
 import random
@@ -29,8 +27,66 @@ from train_archie_sidepus_organism import (
     load_checkpoint, make_optimizer, reset_changed_domains, retention_evaluate, save_checkpoint,
 )
 
+BASELINE_SCHEMA = "archie-sidepus-pursuit-retention-baseline/v1"
 
-def run(args: argparse.Namespace) -> dict[str, Any]:
+
+def _write_json_atomic(path: pathlib.Path, value: dict[str, Any]) -> None:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def sealed_baseline_retention(
+    *, path: pathlib.Path, model: ArchieSidepusOrganism, retention_path: pathlib.Path,
+    args: Any, contract_digest_value: str, source_sha: str, device: torch.device,
+    amp_dtype: torch.dtype | None, byte_lengths: torch.Tensor,
+) -> dict[str, float]:
+    """Create once from the untouched initialized organism and never redefine on resume."""
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            payload.get("schema") != BASELINE_SCHEMA
+            or payload.get("contract_digest") != contract_digest_value
+            or payload.get("source_sha256") != source_sha
+        ):
+            raise SystemExit("sealed pursuit retention baseline does not match this contract")
+        metrics = payload.get("metrics")
+        if not isinstance(metrics, dict):
+            raise SystemExit("sealed pursuit retention baseline has no metrics")
+        return {str(key): float(value) for key, value in metrics.items()}
+
+    baseline_sampler = TokenSampler(
+        retention_path,
+        args.retention_seq_len,
+        args.retention_batch_size,
+        args.seed ^ 0x5A5A5A5A,
+    )
+    metrics = retention_evaluate(
+        model,
+        baseline_sampler,
+        batches=args.retention_batches,
+        device=device,
+        amp_dtype=amp_dtype,
+        byte_lengths=byte_lengths,
+    )
+    payload: dict[str, Any] = {
+        "schema": BASELINE_SCHEMA,
+        "contract_digest": contract_digest_value,
+        "source_sha256": source_sha,
+        "retention_corpus_sha256": sha256_file(retention_path),
+        "sampler_seed": args.seed ^ 0x5A5A5A5A,
+        "metrics": metrics,
+        "claim_boundary": (
+            "This baseline is measured once before pursuit updates and is immutable across resumes. "
+            "It prevents a damaged resumed model from redefining its own retention reference."
+        ),
+    }
+    payload["baseline_digest"] = digest_json(payload)
+    _write_json_atomic(path, payload)
+    return metrics
+
+
+def run(args: Any) -> dict[str, Any]:
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(args.seed)
     device = torch.device(args.device)
@@ -84,6 +140,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     output = pathlib.Path(args.output_dir).resolve(); output.mkdir(parents=True, exist_ok=True)
     checkpoint_path, model_path = output / "checkpoint.pt", output / "archie-sidepus-pursuit.pt"
     best_path = output / "best-archie-sidepus-pursuit.pt"
+    baseline_path = output / "retention-baseline.json"
     source_sha = sha256_file(source_path)
     contract = pursuit_contract(args, cfg, source_sha, plan_receipt, retention_metadata, device, amp_dtype)
     digest = contract_digest(contract)
@@ -106,15 +163,27 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             )
             resumed = True
         model.set_language_shell_trainable(state.step >= args.freeze_language_steps)
-        baseline_retention = retention_evaluate(
-            model, retention_sampler, batches=args.retention_batches,
-            device=device, amp_dtype=amp_dtype, byte_lengths=byte_lengths,
+        baseline_retention = sealed_baseline_retention(
+            path=baseline_path,
+            model=model,
+            retention_path=retention_path,
+            args=args,
+            contract_digest_value=digest,
+            source_sha=source_sha,
+            device=device,
+            amp_dtype=amp_dtype,
+            byte_lengths=byte_lengths,
         )
+        if resumed and not baseline_path.exists():
+            raise SystemExit("cannot resume pursuit training without its original sealed retention baseline")
         model.train()
         started = time.monotonic()
         deadline = started + args.deadline_minutes * 60 if args.deadline_minutes > 0 else float("inf")
         starting_tokens, stop_reason = state.tokens_seen, "maximum_steps"
         best_composite, latest_retention_tax = -float("inf"), 0.0
+        if history:
+            best_composite = max(float(row.get("composite", -float("inf"))) for row in history)
+            latest_retention_tax = float(history[-1].get("retention_tax", 0.0))
 
         while state.step < args.max_steps:
             if time.monotonic() >= deadline - args.deadline_buffer_seconds:
@@ -241,7 +310,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "training": {
             **asdict(state), "resumed": resumed, "stop_reason": stop_reason,
-            "baseline_retention": baseline_retention, "final_retention": final_retention,
+            "baseline_retention": baseline_retention,
+            "baseline_retention_path": str(baseline_path),
+            "baseline_retention_sha256": sha256_file(baseline_path),
+            "final_retention": final_retention,
             "history": history, "best_composite": best_composite,
         },
         "stream": stream_snapshot,
@@ -259,9 +331,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         ),
     }
     receipt["receipt_digest"] = digest_json(receipt)
-    (output / "training-receipt.json").write_text(
-        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    _write_json_atomic(output / "training-receipt.json", receipt)
     print(json.dumps(receipt, indent=2, sort_keys=True))
     return receipt
 
