@@ -8,6 +8,7 @@ on:
       - 'foundry/archie-distill/train_archie_sidepus_organism.py'
       - 'foundry/archie-distill/evaluate_archie_sidepus_organism.py'
       - 'foundry/archie-distill/run_archie_sidepus_organism.sh'
+      - 'foundry/archie-distill/run_archie_sidepus_organism_early_parent.sh'
       - 'foundry/archie-distill/test_sidepus_training_stream.py'
       - 'foundry/archie-distill/test_archie_sidepus_organism.py'
       - '.github/workflows/archie-sidepus-direct-contract.yml'
@@ -37,6 +38,7 @@ jobs:
             foundry/archie-distill/train_archie_sidepus_organism.py \
             foundry/archie-distill/evaluate_archie_sidepus_organism.py
           bash -n foundry/archie-distill/run_archie_sidepus_organism.sh
+          bash -n foundry/archie-distill/run_archie_sidepus_organism_early_parent.sh
       - name: Run direct-stream contracts
         working-directory: foundry/archie-distill
         run: |
