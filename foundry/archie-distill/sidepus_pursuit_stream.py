@@ -18,14 +18,18 @@ from archie_hybrid_core import BOS_ID, EOS_ID, SEP_ID, ByteTokenizer
 from sidepus_ephemeral_cache import EphemeralObjectCache
 from sidepus_pursuit_controller import PursuitController
 from sidepus_pursuit_plan import (
-    CHANNELS, INTENT_RECEIPT_SCHEMA, build_intent_plan, digest_json,
-    read_jsonl, sha256_file, stable_json, authorized,
+    INTENT_RECEIPT_SCHEMA, MODEL_VISIBLE_CHANNELS, build_intent_plan,
+    digest_json, read_jsonl, sha256_file, stable_json, authorized,
 )
 
 LEDGER_ROW_SCHEMA = "sidepus-pursuit-materialization/v1"
 TEXT_MEDIA_TYPES = {
     "application/json", "application/ld+json", "application/xml",
     "application/xhtml+xml", "application/javascript",
+}
+RAW_BYTE_REPRESENTATIONS = {
+    "raw-byte-tokens", "raw-byte-observation", "raster-u8",
+    "raster-time-u8", "pcm-u8", "action-u8", "delta-u8",
 }
 
 
@@ -48,6 +52,8 @@ class PursuitExperienceStream:
             raise ValueError("pursuit plan digest mismatch")
         if int(self.receipt.get("sequence_length", -1)) != sequence_length:
             raise ValueError("pursuit plan sequence length mismatch")
+        if tuple(self.receipt.get("model_visible_channels", [])) != MODEL_VISIBLE_CHANNELS:
+            raise ValueError("pursuit plan visible-channel contract mismatch")
         self.rows = read_jsonl(self.plan_path)
         self.inventory_path = pathlib.Path(self.receipt["inventory"])
         if sha256_file(self.inventory_path) != self.receipt.get("inventory_sha256"):
@@ -95,34 +101,50 @@ class PursuitExperienceStream:
         mime = media_type.split(";", 1)[0].strip().lower()
         return mime.startswith("text/") or mime in TEXT_MEDIA_TYPES
 
-    def _view(self, item: Mapping[str, Any]) -> str:
+    @staticmethod
+    def _target(item: Mapping[str, Any]) -> dict[str, Any]:
         training_view = item.get("training_view")
-        target = dict(training_view) if isinstance(training_view, Mapping) else dict(item)
+        return dict(training_view) if isinstance(training_view, Mapping) else dict(item)
+
+    def _item_tokens(self, item: Mapping[str, Any]) -> list[int]:
+        target = self._target(item)
         payload = self.cache.read(target)
         media_type = str(target.get("media_type", item.get("media_type", "application/octet-stream")))
+        representation = str(target.get("representation", "")).strip().lower()
+        if representation in RAW_BYTE_REPRESENTATIONS:
+            return list(payload)
         if self._is_text(media_type):
-            return payload.decode("utf-8", errors="replace").strip()
-        return stable_json({
-            "sha256": target.get("sha256"), "media_type": media_type, "bytes": len(payload),
-            "representation": "adapter-required-nontext-observation", "adapter": target.get("adapter"),
+            return ByteTokenizer.encode(payload.decode("utf-8", errors="replace").strip())
+        descriptor = stable_json({
+            "sha256": target.get("sha256"),
+            "media_type": media_type,
+            "bytes": len(payload),
+            "representation": "adapter-required-nontext-observation",
+            "adapter": target.get("adapter"),
         })
+        return ByteTokenizer.encode(descriptor)
 
     def _render_episode(self, record: Mapping[str, Any]) -> list[int]:
-        """Render only source channels; compiler metadata remains controller-private."""
+        """Render source channels only; compiler hypotheses and hidden truth never enter context."""
         objects = record.get("channel_objects") if isinstance(record.get("channel_objects"), Mapping) else {}
-        values: dict[str, str] = {}
-        for channel in CHANNELS:
+        tokens: list[int] = [BOS_ID]
+        tokens.extend(ByteTokenizer.encode('<sidepus:experience schema="sidepus-pursuit-experience/v2">'))
+        tokens.append(SEP_ID)
+        for channel in MODEL_VISIBLE_CHANNELS:
             items = objects.get(channel, []) if isinstance(objects.get(channel, []), list) else []
-            values[channel] = "\n".join(self._view(item) for item in items if isinstance(item, Mapping)).strip()
-        parts = [
-            '<sidepus:experience schema="sidepus-pursuit-experience/v1">',
-            f"<record_id>{record.get('record_id')}</record_id>",
-        ]
-        for channel in CHANNELS:
-            if values[channel]:
-                parts.extend((f"<{channel}>", values[channel], f"</{channel}>"))
-        parts.append("</sidepus:experience>")
-        return [BOS_ID, *ByteTokenizer.encode("\n".join(parts)), EOS_ID, SEP_ID]
+            visible_items = [item for item in items if isinstance(item, Mapping)]
+            if not visible_items:
+                continue
+            tokens.extend(ByteTokenizer.encode(f"<{channel}>"))
+            tokens.append(SEP_ID)
+            for item in visible_items:
+                tokens.extend(self._item_tokens(item))
+                tokens.append(SEP_ID)
+            tokens.extend(ByteTokenizer.encode(f"</{channel}>"))
+            tokens.append(SEP_ID)
+        tokens.extend(ByteTokenizer.encode("</sidepus:experience>"))
+        tokens.extend((EOS_ID, SEP_ID))
+        return tokens
 
     def _append_ledger(self, row: Mapping[str, Any]) -> None:
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
@@ -145,11 +167,17 @@ class PursuitExperienceStream:
         maximum = len(episode) - target
         start = int(row["window_seed"]) % (maximum + 1) if maximum else 0
         window = episode[start:start + target]
-        encode = lambda tokens: b"".join(int(token).to_bytes(2, "little") for token in tokens)
+        encode = lambda values: b"".join(int(token).to_bytes(2, "little") for token in values)
         sealed = {
-            "schema": LEDGER_ROW_SCHEMA, "intent_id": intent_id, "record_id": row["record_id"],
+            "schema": LEDGER_ROW_SCHEMA,
+            "intent_id": intent_id,
+            "record_id": row["record_id"],
+            "state_thread_id": row.get("state_thread_id"),
+            "sequence_index": row.get("sequence_index"),
             "episode_sha256": hashlib.sha256(encode(episode)).hexdigest(),
-            "episode_tokens": len(episode), "window_start": start, "window_tokens": target,
+            "episode_tokens": len(episode),
+            "window_start": start,
+            "window_tokens": target,
             "window_sha256": hashlib.sha256(encode(window)).hexdigest(),
         }
         existing = self.materialized.get(intent_id)
@@ -167,7 +195,8 @@ class PursuitExperienceStream:
         positions = sorted(self.controller.choose(candidates, self.batch_size), reverse=True)
         selected_indices = [self.reservoir.pop(position) for position in positions]
         selected = [dict(self.rows[index]) for index in reversed(selected_indices)]
-        windows = [future.result() for future in [self.executor.submit(self._materialize, row) for row in selected]]
+        futures = [self.executor.submit(self._materialize, row) for row in selected]
+        windows = [future.result() for future in futures]
         self.consumed += len(selected); self._fill()
         return torch.tensor(windows, dtype=torch.long, device=device), selected
 
@@ -190,22 +219,30 @@ class PursuitExperienceStream:
 
     def state_dict(self) -> dict[str, Any]:
         return {
-            "source_cursor": self.source_cursor, "consumed": self.consumed,
-            "reservoir": list(self.reservoir), "controller": self.controller.state_dict(),
+            "source_cursor": self.source_cursor,
+            "consumed": self.consumed,
+            "reservoir": list(self.reservoir),
+            "controller": self.controller.state_dict(),
         }
 
     def load_state_dict(self, state: Mapping[str, Any]) -> None:
-        cursor, reservoir = int(state.get("source_cursor", 0)), list(map(int, state.get("reservoir", [])))
+        cursor = int(state.get("source_cursor", 0))
+        reservoir = list(map(int, state.get("reservoir", [])))
         if not 0 <= cursor <= len(self.rows) or any(i < 0 or i >= len(self.rows) for i in reservoir):
             raise ValueError("pursuit stream state outside plan")
-        self.source_cursor, self.consumed, self.reservoir = cursor, int(state.get("consumed", 0)), reservoir
+        self.source_cursor = cursor
+        self.consumed = int(state.get("consumed", 0))
+        self.reservoir = reservoir
         self.controller.load_state_dict(dict(state.get("controller", {})))
 
     def snapshot(self) -> dict[str, Any]:
         return {
-            "cursor": self.cursor, "source_cursor": self.source_cursor,
-            "reservoir": len(self.reservoir), "controller_step": self.controller.global_step,
-            "retention_tax": self.controller.retention_tax, "cache": self.cache.snapshot(),
+            "cursor": self.cursor,
+            "source_cursor": self.source_cursor,
+            "reservoir": len(self.reservoir),
+            "controller_step": self.controller.global_step,
+            "retention_tax": self.controller.retention_tax,
+            "cache": self.cache.snapshot(),
             "materialized_intents": len(self.materialized),
         }
 
@@ -227,14 +264,22 @@ def main() -> None:
     plan.add_argument("--inventory", required=True); plan.add_argument("--output", required=True)
     plan.add_argument("--samples", type=int, required=True); plan.add_argument("--sequence-length", type=int, default=1024)
     plan.add_argument("--seed", type=int, default=20260723); plan.add_argument("--minimum-quality", type=float, default=0.25)
-    plan.add_argument("--require-channel", action="append", default=["utterance"])
-    plan.add_argument("--exclude-flag", action="append", default=["rights-blocked"]); plan.add_argument("--domain-targets")
+    plan.add_argument("--require-channel", action="append", default=["observation"])
+    plan.add_argument("--exclude-flag", action="append", default=["rights-blocked"])
+    plan.add_argument("--domain-targets")
+    plan.add_argument("--sequence-follow-probability", type=float, default=0.7)
     args = parser.parse_args()
     print(json.dumps(build_intent_plan(
-        inventory=pathlib.Path(args.inventory), output=pathlib.Path(args.output), samples=args.samples,
-        sequence_length=args.sequence_length, seed=args.seed, minimum_quality=args.minimum_quality,
-        required_channels=args.require_channel, excluded_flags=args.exclude_flag,
+        inventory=pathlib.Path(args.inventory),
+        output=pathlib.Path(args.output),
+        samples=args.samples,
+        sequence_length=args.sequence_length,
+        seed=args.seed,
+        minimum_quality=args.minimum_quality,
+        required_channels=args.require_channel,
+        excluded_flags=args.exclude_flag,
         domain_targets=_domain_targets(args.domain_targets),
+        sequence_follow_probability=args.sequence_follow_probability,
     ), indent=2, sort_keys=True))
 
 
