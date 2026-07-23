@@ -1,0 +1,14 @@
+{
+  "schema": "archie-sidepus-causal-deliberation-court/v1",
+  "required_paths": [
+    "integrated-reset",
+    "integrated-carried",
+    "pursuit-carried",
+    "forced-depth-trajectories",
+    "halt-weights"
+  ],
+  "comparison": "prefix-vs-adversarial-suffix",
+  "atol": 1e-5,
+  "rtol": 1e-4,
+  "promotion": "research-only-not-admitted"
+}
