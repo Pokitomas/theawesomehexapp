@@ -51,6 +51,15 @@ jobs:
             foundry/archie-distill/train_archie_sidepus_pursuit.py \
             foundry/archie-distill/test_sidepus_pursuit.py
           bash -n foundry/archie-distill/run_archie_sidepus_pursuit.sh
-      - name: Run pursuit contracts
+      - name: Experience boundary contracts
         working-directory: foundry/archie-distill
-        run: python test_sidepus_pursuit.py
+        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest
+      - name: Ephemeral cache contracts
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_pursuit.CacheTest
+      - name: Microphysics and union contracts
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_pursuit.MicrophysicsTest
+      - name: Pursuit controller and plan contracts
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_pursuit.PursuitTest
