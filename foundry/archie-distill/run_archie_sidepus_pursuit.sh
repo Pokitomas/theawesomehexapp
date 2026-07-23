@@ -10,6 +10,7 @@ BASE_MODEL="${ARCHIE_SIDEPUS_BASE_MODEL:-$REPO_ROOT/returns/generative-114m/arch
 RETENTION_CORPUS="${ARCHIE_SIDEPUS_RETENTION_CORPUS:-$BASE_STATE/corpus/development.u16}"
 SIDEPUS_STATE="${SIDEPUS_STATE:-$HOME/sidepus-archive-v2}"
 SOURCE_INVENTORY="${ARCHIE_SIDEPUS_INVENTORY:-$SIDEPUS_STATE/training-inventory.jsonl}"
+REMOTE_MANIFEST="${ARCHIE_SIDEPUS_REMOTE_MANIFEST:-}"
 
 STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v2}"
 EXPORT="${ARCHIE_SIDEPUS_PURSUIT_EXPORT:-$REPO_ROOT/returns/sidepus-pursuit-v2}"
@@ -34,10 +35,13 @@ for file in \
   sidepus_ephemeral_cache.py \
   sidepus_microphysics.py \
   sidepus_inventory_union.py \
+  sidepus_remote_experience.py \
+  sidepus_developmental_graph.py \
   sidepus_pursuit_plan.py \
   sidepus_pursuit_controller.py \
   sidepus_pursuit_stream.py \
   sidepus_pursuit_objectives.py \
+  sidepus_pursuit_forward.py \
   sidepus_pursuit_step.py \
   sidepus_pursuit_cli.py \
   train_archie_sidepus_pursuit.py; do
@@ -46,6 +50,9 @@ done
 require_file "$BASE_MODEL"
 require_file "$RETENTION_CORPUS"
 require_file "$SOURCE_INVENTORY"
+if [[ -n "$REMOTE_MANIFEST" ]]; then
+  require_file "$REMOTE_MANIFEST"
+fi
 if [[ ! -x "$PYTHON" ]]; then echo "Missing Archie Python: $PYTHON" >&2; exit 1; fi
 if ! "$PYTHON" -c 'import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)'; then
   echo "CUDA unavailable in $PYTHON" >&2; exit 1
@@ -59,6 +66,7 @@ fi
 
 mkdir -p "$STATE" "$EXPORT" "$CACHE"
 MICROPHYSICS_INVENTORY="$STATE/microphysics-inventory.jsonl"
+REMOTE_INVENTORY="$STATE/remote-experience-inventory.jsonl"
 COMBINED_INVENTORY="$STATE/combined-inventory.jsonl"
 EXPERIENCE_INVENTORY="$STATE/experience-inventory.jsonl"
 PLAN="$STATE/pursuit-intent-plan.jsonl"
@@ -74,9 +82,19 @@ PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_microphysics.py" \
   --frames 16 \
   --frames-per-record 2
 
+UNION_ARGS=(
+  --inventory "$SOURCE_INVENTORY"
+  --inventory "$MICROPHYSICS_INVENTORY"
+)
+if [[ -n "$REMOTE_MANIFEST" ]]; then
+  PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_remote_experience.py" \
+    --manifest "$REMOTE_MANIFEST" \
+    --output "$REMOTE_INVENTORY"
+  UNION_ARGS+=(--inventory "$REMOTE_INVENTORY")
+fi
+
 PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_inventory_union.py" \
-  --inventory "$SOURCE_INVENTORY" \
-  --inventory "$MICROPHYSICS_INVENTORY" \
+  "${UNION_ARGS[@]}" \
   --output "$COMBINED_INVENTORY"
 
 PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_experience_compiler.py" \
@@ -119,8 +137,11 @@ run_arm() {
     --state-carry-policy carry-with-domain-reset \
     --counterfactual-every 4 \
     --state-order-weight 0.5 \
-    --deliberation-floor-weight 0.05 \
-    --halt-entropy-weight 0.002 \
+    --deliberation-compute-cost 0.002 \
+    --deliberation-policy-weight 0.05 \
+    --deliberation-trajectory-weight 0.05 \
+    --deliberation-floor-weight 0.02 \
+    --halt-entropy-weight 0.001 \
     --interference-every 8 \
     --interference-weight 0.1 \
     --eval-every 100 \
@@ -144,12 +165,17 @@ echo "Archie Sidepus pursuit v2 campaign"
 echo "  base:         $BASE_MODEL"
 echo "  archive:      $SOURCE_INVENTORY"
 echo "  microphysics: $MICROPHYSICS_INVENTORY ($MICROPHYSICS_EPISODES episodes)"
+if [[ -n "$REMOTE_MANIFEST" ]]; then
+  echo "  remote:       $REMOTE_MANIFEST -> $REMOTE_INVENTORY (zero-download manifest)"
+else
+  echo "  remote:       none supplied"
+fi
 echo "  union:         $COMBINED_INVENTORY"
 echo "  experience:    $EXPERIENCE_INVENTORY"
 echo "  intent:        $PLAN"
 echo "  cache:         $CACHE ($CACHE_BYTES bytes per arm)"
-echo "  pursuit:       lookahead=$LOOKAHEAD; thread_follow=$SEQUENCE_FOLLOW"
-echo "  mechanisms:    causal state margin + anti-collapse compute + shell interference tax"
+echo "  pursuit:       lookahead=$LOOKAHEAD; thread_follow=$SEQUENCE_FOLLOW; learned prerequisite frontier"
+echo "  mechanisms:    foreign-history causal margin + value-of-computation + immutable retention/interference taxes"
 echo "  control:       sequential=$RUN_SEQUENTIAL_CONTROL"
 
 if ! complete "$STATE/pursuit/training-receipt.json"; then
@@ -174,6 +200,9 @@ mkdir -p "$EXPORT"
 cp -f "$STATE/pursuit/archie-sidepus-pursuit.pt" "$EXPORT/archie-sidepus-pursuit.pt"
 cp -f "$STATE/pursuit/training-receipt.json" "$EXPORT/training-receipt.json"
 cp -f "$MICROPHYSICS_INVENTORY.receipt.json" "$EXPORT/microphysics-receipt.json"
+if [[ -n "$REMOTE_MANIFEST" ]]; then
+  cp -f "$REMOTE_INVENTORY.receipt.json" "$EXPORT/remote-experience-receipt.json"
+fi
 cp -f "$COMBINED_INVENTORY.receipt.json" "$EXPORT/inventory-union-receipt.json"
 cp -f "$EXPERIENCE_INVENTORY.receipt.json" "$EXPORT/experience-inventory-receipt.json"
 cp -f "$PLAN.receipt.json" "$EXPORT/pursuit-intent-receipt.json"
