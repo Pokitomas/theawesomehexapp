@@ -44,10 +44,14 @@ def sealed_baseline_retention(
     """Create once from the untouched initialized organism and never redefine on resume."""
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
+        body = dict(payload)
+        expected_digest = body.pop("baseline_digest", None)
         if (
             payload.get("schema") != BASELINE_SCHEMA
+            or expected_digest != digest_json(body)
             or payload.get("contract_digest") != contract_digest_value
             or payload.get("source_sha256") != source_sha
+            or payload.get("retention_corpus_sha256") != sha256_file(retention_path)
         ):
             raise SystemExit("sealed pursuit retention baseline does not match this contract")
         metrics = payload.get("metrics")
@@ -163,6 +167,8 @@ def run(args: Any) -> dict[str, Any]:
             )
             resumed = True
         model.set_language_shell_trainable(state.step >= args.freeze_language_steps)
+        if resumed and not baseline_path.exists():
+            raise SystemExit("cannot resume pursuit training without its original sealed retention baseline")
         baseline_retention = sealed_baseline_retention(
             path=baseline_path,
             model=model,
@@ -174,8 +180,6 @@ def run(args: Any) -> dict[str, Any]:
             amp_dtype=amp_dtype,
             byte_lengths=byte_lengths,
         )
-        if resumed and not baseline_path.exists():
-            raise SystemExit("cannot resume pursuit training without its original sealed retention baseline")
         model.train()
         started = time.monotonic()
         deadline = started + args.deadline_minutes * 60 if args.deadline_minutes > 0 else float("inf")
@@ -229,8 +233,11 @@ def run(args: Any) -> dict[str, Any]:
                 )
                 model.train()
             stream.feedback(
-                rows, loss=values["lm_loss"], state_utility=step_output.state_utility,
+                rows,
+                loss=values["lm_loss"],
+                state_utility=step_output.state_utility,
                 deliberation=values["ponder_cost"],
+                interference=values["interference_kl"],
                 retention_tax=latest_retention_tax if should_eval else None,
             )
             composite = (
