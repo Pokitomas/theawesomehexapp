@@ -3,6 +3,7 @@ name: Archie Sidepus pursuit contract
 on:
   pull_request:
     paths:
+      - 'foundry/archie-distill/archie_sidepus_organism.py'
       - 'foundry/archie-distill/sidepus_experience_compiler.py'
       - 'foundry/archie-distill/sidepus_ephemeral_cache.py'
       - 'foundry/archie-distill/sidepus_microphysics.py'
@@ -23,6 +24,7 @@ on:
       - 'foundry/archie-distill/test_sidepus_pursuit.py'
       - 'foundry/archie-distill/test_sidepus_foreign_state.py'
       - 'foundry/archie-distill/test_sidepus_deliberation_value.py'
+      - 'foundry/archie-distill/test_sidepus_causality.py'
       - 'foundry/archie-distill/test_sidepus_developmental_graph.py'
       - 'foundry/archie-distill/test_sidepus_remote_experience.py'
       - 'foundry/archie-distill/test_sidepus_developmental_corpus.py'
@@ -30,6 +32,8 @@ on:
   push:
     branches:
       - 'agent/sidepus-experience-compiler-feral-20260723'
+      - 'agent/sidepus-deliberation-successor-20260723'
+      - 'agent/sidepus-causal-deliberation-court-20260723'
 
 permissions:
   contents: read
@@ -43,11 +47,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install CPU PyTorch
-        run: python -m pip install --upgrade pip torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install CPU dependencies
+        run: python -m pip install --upgrade pip numpy torch --index-url https://download.pytorch.org/whl/cpu
       - name: Compile pursuit substrate
         run: |
           python -m py_compile \
+            foundry/archie-distill/archie_sidepus_organism.py \
             foundry/archie-distill/sidepus_experience_compiler.py \
             foundry/archie-distill/sidepus_ephemeral_cache.py \
             foundry/archie-distill/sidepus_microphysics.py \
@@ -66,6 +71,7 @@ jobs:
             foundry/archie-distill/test_sidepus_pursuit.py \
             foundry/archie-distill/test_sidepus_foreign_state.py \
             foundry/archie-distill/test_sidepus_deliberation_value.py \
+            foundry/archie-distill/test_sidepus_causality.py \
             foundry/archie-distill/test_sidepus_developmental_graph.py \
             foundry/archie-distill/test_sidepus_remote_experience.py \
             foundry/archie-distill/test_sidepus_developmental_corpus.py
@@ -73,7 +79,10 @@ jobs:
           bash -n foundry/archie-distill/run_archie_sidepus_ready.sh
       - name: Import pursuit contracts
         working-directory: foundry/archie-distill
-        run: python -c 'import test_sidepus_pursuit, test_sidepus_foreign_state, test_sidepus_deliberation_value, test_sidepus_developmental_graph, test_sidepus_remote_experience, test_sidepus_developmental_corpus'
+        run: python -c 'import test_sidepus_pursuit, test_sidepus_foreign_state, test_sidepus_deliberation_value, test_sidepus_causality, test_sidepus_developmental_graph, test_sidepus_remote_experience, test_sidepus_developmental_corpus'
+      - name: Causal-prefix court
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_causality.SidepusCausalityCourt
       - name: Metadata uncertainty contract
         working-directory: foundry/archie-distill
         run: |
