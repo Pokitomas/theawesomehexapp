@@ -6,6 +6,12 @@ on:
       - agent/sidepus-direct-stream-20260723
     paths:
       - '.sidepus-bootstrap/trigger'
+  pull_request:
+    branches:
+      - agent/archie-world-state-core-20260722
+    paths:
+      - '.sidepus-bootstrap/**'
+      - '.github/workflows/sidepus-bootstrap-materialize.yml'
   workflow_dispatch:
 
 permissions:
@@ -13,6 +19,7 @@ permissions:
 
 jobs:
   materialize:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
