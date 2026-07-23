@@ -72,6 +72,22 @@ def authorized(record: Mapping[str, Any]) -> bool:
     return rights.get("allow_training") is True and "rights-blocked" not in flags
 
 
+def effective_object_ref(item: Mapping[str, Any]) -> dict[str, Any]:
+    """Use the exact object consumed by training, not merely its archival parent."""
+    training_view = item.get("training_view")
+    if isinstance(training_view, Mapping):
+        if not training_view.get("sha256"):
+            raise ValueError("training_view requires a SHA-256 object reference")
+        return {
+            **dict(training_view),
+            "source_object_sha256": str(item.get("sha256", "")),
+            "view_role": "training_view",
+        }
+    if not item.get("sha256"):
+        raise ValueError("channel object requires sha256")
+    return dict(item)
+
+
 def object_refs(record: Mapping[str, Any]) -> list[dict[str, Any]]:
     objects = record.get("channel_objects")
     if not isinstance(objects, Mapping):
@@ -82,8 +98,8 @@ def object_refs(record: Mapping[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(items, list):
             continue
         for item in items:
-            if isinstance(item, Mapping) and item.get("sha256"):
-                refs.append({"channel": channel, **dict(item)})
+            if isinstance(item, Mapping):
+                refs.append({"channel": channel, **effective_object_ref(item)})
     return refs
 
 
@@ -194,7 +210,7 @@ def build_intent_plan(
         "realized_domains": dict(sorted(domain_counts.items())),
         "selection_counts": dict(sorted(counts.items())), "two_phase_sealing": True,
         "claim_boundary": (
-            "Intent seals experience identities and object digests without requiring all payloads locally. "
+            "Intent seals experience identities and effective training-view object digests without requiring all payloads locally. "
             "Exact windows are sealed on first materialization."
         ),
     }
