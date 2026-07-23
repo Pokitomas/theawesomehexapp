@@ -19,7 +19,7 @@ from sidepus_ephemeral_cache import EphemeralObjectCache
 from sidepus_pursuit_controller import PursuitController
 from sidepus_pursuit_plan import (
     INTENT_RECEIPT_SCHEMA, MODEL_VISIBLE_CHANNELS, build_intent_plan,
-    digest_json, read_jsonl, sha256_file, stable_json, authorized,
+    deterministic_unit, digest_json, read_jsonl, sha256_file, stable_json, authorized,
 )
 
 LEDGER_ROW_SCHEMA = "sidepus-pursuit-materialization/v1"
@@ -34,14 +34,16 @@ RAW_BYTE_REPRESENTATIONS = {
 
 
 class PursuitExperienceStream:
-    """Select from a bounded lookahead, fetch only selected objects, and seal exact windows."""
+    """Select experiences, materialize them just in time, and retain foreign state controls."""
 
     def __init__(
         self, plan: pathlib.Path, receipt: pathlib.Path, *, state_dir: pathlib.Path,
         cache_dir: pathlib.Path, cache_bytes: int, batch_size: int, sequence_length: int,
         workers: int = 4, lookahead: int = 64, seed: int = 20260723,
-        ledger: pathlib.Path | None = None,
+        ledger: pathlib.Path | None = None, state_bank_capacity: int = 64,
     ) -> None:
+        if state_bank_capacity < 1:
+            raise ValueError("state_bank_capacity must be positive")
         self.plan_path, self.receipt_path = plan.expanduser().resolve(), receipt.expanduser().resolve()
         self.receipt = json.loads(self.receipt_path.read_text(encoding="utf-8"))
         body, expected = dict(self.receipt), self.receipt.get("receipt_digest")
@@ -65,6 +67,9 @@ class PursuitExperienceStream:
         self.lookahead, self.source_cursor, self.consumed = max(batch_size, lookahead), 0, 0
         self.reservoir: list[int] = []
         self.controller = PursuitController(seed=seed)
+        self.state_bank_capacity = int(state_bank_capacity)
+        self.state_bank: dict[str, dict[str, torch.Tensor | None]] = {}
+        self.state_bank_order: list[str] = []
         self.cache = EphemeralObjectCache(
             permanent_state_dir=state_dir, cache_dir=cache_dir, maximum_bytes=cache_bytes,
         )
@@ -217,12 +222,72 @@ class PursuitExperienceStream:
     def target_deliberation(self, rows: Sequence[Mapping[str, Any]]) -> float:
         return self.controller.target_deliberation(rows)
 
+    def remember_state(
+        self, threads: Sequence[str], world_state: torch.Tensor | None,
+        plastic_state: torch.Tensor | None,
+    ) -> None:
+        """Store detached end states by episode thread for real foreign-history controls."""
+        if world_state is None and plastic_state is None:
+            return
+        batch = world_state.size(0) if world_state is not None else plastic_state.size(0)  # type: ignore[union-attr]
+        if len(threads) != batch:
+            raise ValueError("state-bank thread count differs from batch")
+        for index, thread_raw in enumerate(threads):
+            thread = str(thread_raw)
+            entry = {
+                "world": (
+                    world_state[index:index + 1].detach().to(device="cpu", dtype=torch.float32).clone()
+                    if world_state is not None else None
+                ),
+                "plastic": (
+                    plastic_state[index:index + 1].detach().to(device="cpu", dtype=torch.float32).clone()
+                    if plastic_state is not None else None
+                ),
+            }
+            self.state_bank[thread] = entry
+            if thread in self.state_bank_order:
+                self.state_bank_order.remove(thread)
+            self.state_bank_order.append(thread)
+        while len(self.state_bank_order) > self.state_bank_capacity:
+            evicted = self.state_bank_order.pop(0)
+            self.state_bank.pop(evicted, None)
+
+    def foreign_state(
+        self, threads: Sequence[str], device: torch.device,
+    ) -> tuple[torch.Tensor | None, torch.Tensor | None, list[str] | None]:
+        """Return states from different episode threads; never fabricate wrongness by slot rotation."""
+        selected: list[tuple[str, dict[str, torch.Tensor | None]]] = []
+        for thread_raw in threads:
+            thread = str(thread_raw)
+            candidates = [key for key in self.state_bank_order if key != thread]
+            if not candidates:
+                return None, None, None
+            point = deterministic_unit(
+                self.controller.seed, "foreign-state", self.controller.global_step, thread
+            )
+            key = candidates[int(point * len(candidates)) % len(candidates)]
+            selected.append((key, self.state_bank[key]))
+        worlds = [entry["world"] for _, entry in selected]
+        plastics = [entry["plastic"] for _, entry in selected]
+        world = (
+            torch.cat([value for value in worlds if value is not None], dim=0).to(device)
+            if all(value is not None for value in worlds) else None
+        )
+        plastic = (
+            torch.cat([value for value in plastics if value is not None], dim=0).to(device)
+            if all(value is not None for value in plastics) else None
+        )
+        return world, plastic, [key for key, _ in selected]
+
     def state_dict(self) -> dict[str, Any]:
         return {
             "source_cursor": self.source_cursor,
             "consumed": self.consumed,
             "reservoir": list(self.reservoir),
             "controller": self.controller.state_dict(),
+            "state_bank_capacity": self.state_bank_capacity,
+            "state_bank_order": list(self.state_bank_order),
+            "state_bank": self.state_bank,
         }
 
     def load_state_dict(self, state: Mapping[str, Any]) -> None:
@@ -230,10 +295,33 @@ class PursuitExperienceStream:
         reservoir = list(map(int, state.get("reservoir", [])))
         if not 0 <= cursor <= len(self.rows) or any(i < 0 or i >= len(self.rows) for i in reservoir):
             raise ValueError("pursuit stream state outside plan")
+        if int(state.get("state_bank_capacity", self.state_bank_capacity)) != self.state_bank_capacity:
+            raise ValueError("pursuit state-bank capacity mismatch")
         self.source_cursor = cursor
         self.consumed = int(state.get("consumed", 0))
         self.reservoir = reservoir
         self.controller.load_state_dict(dict(state.get("controller", {})))
+        raw_bank = state.get("state_bank", {})
+        raw_order = list(map(str, state.get("state_bank_order", [])))
+        if not isinstance(raw_bank, Mapping) or any(key not in raw_bank for key in raw_order):
+            raise ValueError("invalid pursuit foreign-state bank")
+        restored: dict[str, dict[str, torch.Tensor | None]] = {}
+        for key in raw_order:
+            entry = raw_bank[key]
+            if not isinstance(entry, Mapping):
+                raise ValueError("invalid pursuit foreign-state entry")
+            world = entry.get("world")
+            plastic = entry.get("plastic")
+            if world is not None and not isinstance(world, torch.Tensor):
+                raise ValueError("foreign world state is not a tensor")
+            if plastic is not None and not isinstance(plastic, torch.Tensor):
+                raise ValueError("foreign plastic state is not a tensor")
+            restored[key] = {
+                "world": world.detach().cpu().float() if isinstance(world, torch.Tensor) else None,
+                "plastic": plastic.detach().cpu().float() if isinstance(plastic, torch.Tensor) else None,
+            }
+        self.state_bank_order = raw_order[-self.state_bank_capacity:]
+        self.state_bank = {key: restored[key] for key in self.state_bank_order}
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -244,6 +332,7 @@ class PursuitExperienceStream:
             "retention_tax": self.controller.retention_tax,
             "cache": self.cache.snapshot(),
             "materialized_intents": len(self.materialized),
+            "foreign_state_threads": len(self.state_bank),
         }
 
 
