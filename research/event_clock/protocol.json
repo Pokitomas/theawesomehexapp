@@ -1,0 +1,52 @@
+{
+  "architecture": {
+    "boundary": "learned-boundary-or-continue-decision",
+    "byte_clock": "local-byte-ssm",
+    "decoder": "event-conditioned-byte-decoder",
+    "event_clock": "slow-recurrent-world-state",
+    "event_vector": "variable-length-causally-tested"
+  },
+  "blocked_by": [
+    733,
+    734
+  ],
+  "controls": {
+    "A": "correct-state-and-event-vectors",
+    "B": "reset-slow-state",
+    "C": "other-source-slow-state",
+    "D": "replace-one-event-vector-with-raw-text-held-fixed",
+    "E": "matched-parameter-ordinary-byte-lm"
+  },
+  "hypothesis": "A lossless byte-native model can update a slower recurrent world state at learned, causally validated event boundaries while retaining exact byte prediction.",
+  "novelty_controls": [
+    "matched-attention-only",
+    "matched-ssm-only",
+    "fixed-rate-hierarchy",
+    "learned-tokenizer"
+  ],
+  "objectives": [
+    "ordinary-byte-prediction",
+    "future-segment-prediction",
+    "event-vector-reconstruction",
+    "bounded-event-rate",
+    "repository-state-delta-prediction",
+    "actual-vs-unrelated-successor-contrast",
+    "ordinary-domain-retention"
+  ],
+  "promotion": "blocked-until-linked-recurrence-verifies",
+  "protocol_digest": "e76367239a56eff778f080b30a8361f8efa8fa16cb0afbaa44def2042c9fcca4",
+  "recurrence_gate": {
+    "maximum_logit_parity_error": 0.0001,
+    "maximum_retention_regression_bpb": 0.02,
+    "minimum_carried_gain_bpb": 0.01,
+    "minimum_seed_count": 3,
+    "minimum_shuffle_penalty_bpb": 0.01,
+    "minimum_transplant_penalty_bpb": 0.01
+  },
+  "scale": {
+    "forbid_114m_or_2b_before_small_gate": true,
+    "maximum_parameters": 30000000,
+    "minimum_parameters": 20000000
+  },
+  "schema": "archie-event-clock-protocol/v1"
+}
