@@ -1,0 +1,10 @@
+{
+  "blocker": "Seal from an operator-reviewed archie-corpus-source-index/v1; do not invent offsets.",
+  "corpus_sha256": null,
+  "corpus_token_count": null,
+  "domain": "code-completion",
+  "promotion": "research-only-not-admitted",
+  "schema": "archie-fixed-eval-manifest/v1",
+  "sealed": false,
+  "windows": []
+}
