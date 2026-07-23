@@ -7,6 +7,8 @@ on:
       - 'foundry/archie-distill/sidepus_ephemeral_cache.py'
       - 'foundry/archie-distill/sidepus_microphysics.py'
       - 'foundry/archie-distill/sidepus_inventory_union.py'
+      - 'foundry/archie-distill/sidepus_remote_experience.py'
+      - 'foundry/archie-distill/sidepus_developmental_graph.py'
       - 'foundry/archie-distill/sidepus_pursuit_plan.py'
       - 'foundry/archie-distill/sidepus_pursuit_controller.py'
       - 'foundry/archie-distill/sidepus_pursuit_stream.py'
@@ -19,6 +21,8 @@ on:
       - 'foundry/archie-distill/test_sidepus_pursuit.py'
       - 'foundry/archie-distill/test_sidepus_foreign_state.py'
       - 'foundry/archie-distill/test_sidepus_deliberation_value.py'
+      - 'foundry/archie-distill/test_sidepus_developmental_graph.py'
+      - 'foundry/archie-distill/test_sidepus_remote_experience.py'
       - '.github/workflows/archie-sidepus-pursuit-contract.yml'
   push:
     branches:
@@ -45,6 +49,8 @@ jobs:
             foundry/archie-distill/sidepus_ephemeral_cache.py \
             foundry/archie-distill/sidepus_microphysics.py \
             foundry/archie-distill/sidepus_inventory_union.py \
+            foundry/archie-distill/sidepus_remote_experience.py \
+            foundry/archie-distill/sidepus_developmental_graph.py \
             foundry/archie-distill/sidepus_pursuit_plan.py \
             foundry/archie-distill/sidepus_pursuit_controller.py \
             foundry/archie-distill/sidepus_pursuit_stream.py \
@@ -55,11 +61,28 @@ jobs:
             foundry/archie-distill/train_archie_sidepus_pursuit.py \
             foundry/archie-distill/test_sidepus_pursuit.py \
             foundry/archie-distill/test_sidepus_foreign_state.py \
-            foundry/archie-distill/test_sidepus_deliberation_value.py
+            foundry/archie-distill/test_sidepus_deliberation_value.py \
+            foundry/archie-distill/test_sidepus_developmental_graph.py \
+            foundry/archie-distill/test_sidepus_remote_experience.py
           bash -n foundry/archie-distill/run_archie_sidepus_pursuit.sh
+      - name: Import pursuit contracts
+        working-directory: foundry/archie-distill
+        run: python -c 'import test_sidepus_pursuit, test_sidepus_foreign_state, test_sidepus_deliberation_value, test_sidepus_developmental_graph, test_sidepus_remote_experience'
       - name: Metadata uncertainty contract
         working-directory: foundry/archie-distill
-        run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_uncertain_metadata_is_separate
+        run: |
+          set +e
+          python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_uncertain_metadata_is_separate > /tmp/metadata-contract.log 2>&1
+          code=$?
+          cat /tmp/metadata-contract.log
+          exit "$code"
+      - name: Upload metadata diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pursuit-metadata-contract-log
+          path: /tmp/metadata-contract.log
+          if-no-files-found: ignore
       - name: Inventory preservation contract
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_pursuit.ExperienceCompilerTest.test_compile_inventory_preserves_record
@@ -75,6 +98,12 @@ jobs:
       - name: Microphysics and union contracts
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_pursuit.MicrophysicsTest
+      - name: Remote experience contracts
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_remote_experience.RemoteExperienceTest
+      - name: Developmental graph contracts
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_developmental_graph.DevelopmentalGraphTest
       - name: Pursuit controller and plan contracts
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_pursuit.PursuitTest
