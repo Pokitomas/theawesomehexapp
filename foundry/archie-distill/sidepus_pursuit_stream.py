@@ -18,7 +18,7 @@ from archie_hybrid_core import BOS_ID, EOS_ID, SEP_ID, ByteTokenizer
 from sidepus_ephemeral_cache import EphemeralObjectCache
 from sidepus_pursuit_controller import PursuitController
 from sidepus_pursuit_plan import (
-    CHANNELS, INTENT_RECEIPT_SCHEMA, build_intent_plan, digest_json, object_refs,
+    CHANNELS, INTENT_RECEIPT_SCHEMA, build_intent_plan, digest_json,
     read_jsonl, sha256_file, stable_json, authorized,
 )
 
@@ -134,8 +134,10 @@ class PursuitExperienceStream:
         record = self.records.get(str(row["record_id"]))
         if record is None:
             raise ValueError(f"pursuit record vanished: {row['record_id']}")
-        refs = object_refs(record)
-        with self.cache.pinned(refs):
+        refs = row.get("object_refs")
+        if not isinstance(refs, list) or not refs:
+            raise ValueError(f"pursuit intent has no sealed object refs: {intent_id}")
+        with self.cache.pinned(item for item in refs if isinstance(item, Mapping)):
             episode = self._render_episode(record)
         target = self.sequence_length + 1
         if len(episode) < target:
@@ -171,11 +173,16 @@ class PursuitExperienceStream:
 
     def feedback(
         self, rows: Sequence[Mapping[str, Any]], *, loss: float, state_utility: float,
-        deliberation: float, retention_tax: float | None = None,
+        deliberation: float, interference: float = 0.0,
+        retention_tax: float | None = None,
     ) -> None:
         self.controller.feedback(
-            rows, loss=loss, state_utility=state_utility,
-            deliberation=deliberation, retention_tax=retention_tax,
+            rows,
+            loss=loss,
+            state_utility=state_utility,
+            deliberation=deliberation,
+            interference=interference,
+            retention_tax=retention_tax,
         )
 
     def target_deliberation(self, rows: Sequence[Mapping[str, Any]]) -> float:
