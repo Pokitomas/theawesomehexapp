@@ -5,7 +5,6 @@ on:
     paths:
       - 'foundry/archie-distill/sidepus_training_stream.py'
       - 'foundry/archie-distill/archie_sidepus_organism.py'
-      - 'foundry/archie-distill/train_archie_sidepus_direct.py'
       - 'foundry/archie-distill/train_archie_sidepus_organism.py'
       - 'foundry/archie-distill/evaluate_archie_sidepus_organism.py'
       - 'foundry/archie-distill/run_archie_sidepus_organism.sh'
@@ -35,7 +34,6 @@ jobs:
           python -m py_compile \
             foundry/archie-distill/sidepus_training_stream.py \
             foundry/archie-distill/archie_sidepus_organism.py \
-            foundry/archie-distill/train_archie_sidepus_direct.py \
             foundry/archie-distill/train_archie_sidepus_organism.py \
             foundry/archie-distill/evaluate_archie_sidepus_organism.py
           bash -n foundry/archie-distill/run_archie_sidepus_organism.sh
