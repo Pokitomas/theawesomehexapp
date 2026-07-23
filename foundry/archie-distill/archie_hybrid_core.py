@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint
 
 PAD_ID = 256
 BOS_ID = 257
@@ -66,9 +67,17 @@ class ModelConfig:
     n_kv_heads: int = 2
     d_ff: int = 1024
     ssm_expand: int = 2
+    ssm_chunk_size: int = 128
     conv_kernel: int = 4
     attention_every: int = 4
     attention_window: int = 512
+    mixer_mode: str = "hybrid"
+    plastic_mode: str = "none"
+    plastic_rank: int = 16
+    plastic_retention_floor: float = 0.95
+    plastic_write_scale: float = 0.25
+    plastic_state_clip: float = 4.0
+    plastic_detach_every: int = 128
     dropout: float = 0.0
     max_seq_len: int = 1024
     rope_base: float = 10_000.0
@@ -180,6 +189,7 @@ class SelectiveStateSpace(nn.Module):
         rank = max(8, cfg.d_model // 16)
         self.inner = inner
         self.kernel = cfg.conv_kernel
+        self.chunk_size = cfg.ssm_chunk_size
         self.in_proj = nn.Linear(cfg.d_model, inner * 2, bias=False)
         self.depthwise = nn.Conv1d(inner, inner, self.kernel, groups=inner, bias=True)
         self.select_in = nn.Linear(inner, rank, bias=False)
@@ -201,15 +211,21 @@ class SelectiveStateSpace(nn.Module):
         proposal = torch.tanh(mixed + proposal_raw)
         read = torch.sigmoid(read_raw)
         rate = -torch.exp(self.A_log.float()).to(device=x.device)
-        decay = torch.exp(rate[None, None] * dt.float()).clamp_(min=1e-5, max=1.0)
+        decay = torch.exp(rate[None, None] * dt.float()).clamp(min=1e-5, max=1.0)
         drive = (1.0 - decay) * proposal.float()
         state = torch.zeros(x.size(0), self.inner, dtype=torch.float32, device=x.device)
         chunks: list[torch.Tensor] = []
-        for start in range(0, x.size(1), 64):
-            a = decay[:, start:start + 64]
-            b = drive[:, start:start + 64]
-            prefix = torch.cumprod(a, dim=1).clamp_min_(1e-20)
-            states = prefix * (state[:, None] + torch.cumsum(b / prefix, dim=1))
+        for start in range(0, x.size(1), self.chunk_size):
+            scan_a = decay[:, start:start + self.chunk_size]
+            scan_b = drive[:, start:start + self.chunk_size]
+            offset = 1
+            while offset < scan_a.size(1):
+                combined_a = scan_a[:, offset:] * scan_a[:, :-offset]
+                combined_b = scan_a[:, offset:] * scan_b[:, :-offset] + scan_b[:, offset:]
+                scan_a = torch.cat((scan_a[:, :offset], combined_a), dim=1)
+                scan_b = torch.cat((scan_b[:, :offset], combined_b), dim=1)
+                offset *= 2
+            states = scan_a * state[:, None] + scan_b
             state = states[:, -1]
             chunks.append(states)
         states = torch.cat(chunks, dim=1).to(dtype=x.dtype)
@@ -228,14 +244,79 @@ class SwiGLU(nn.Module):
         return self.down(value * F.silu(gate))
 
 
+class PlasticFastWeightMemory(nn.Module):
+    def __init__(self, cfg: ModelConfig) -> None:
+        super().__init__()
+        if cfg.plastic_rank < 2:
+            raise ValueError("plastic rank must be at least two")
+        if not 0.0 <= cfg.plastic_retention_floor < 1.0:
+            raise ValueError("plastic retention floor must be in [0, 1)")
+        self.width = cfg.d_model
+        self.rank = cfg.plastic_rank
+        self.retention_floor = cfg.plastic_retention_floor
+        self.write_scale = cfg.plastic_write_scale
+        self.state_clip = cfg.plastic_state_clip
+        self.detach_every = cfg.plastic_detach_every
+        self.query = nn.Linear(cfg.d_model, self.rank, bias=False)
+        self.key = nn.Linear(cfg.d_model, self.rank, bias=False)
+        self.value = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+        self.write_gate = nn.Linear(cfg.d_model, 1)
+        self.retention_gate = nn.Linear(cfg.d_model, 1)
+        self.output = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+
+    def initial_state(self, batch: int, device: torch.device) -> torch.Tensor:
+        return torch.zeros(batch, self.rank, self.width, dtype=torch.float32, device=device)
+
+    def forward(
+        self, x: torch.Tensor, state: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        batch, length, _ = x.shape
+        if state is None:
+            memory = self.initial_state(batch, x.device)
+        else:
+            expected = (batch, self.rank, self.width)
+            if tuple(state.shape) != expected:
+                raise ValueError(f"plastic state shape {tuple(state.shape)} does not match {expected}")
+            memory = state.to(device=x.device, dtype=torch.float32)
+        queries = F.softmax(self.query(x).float(), dim=-1)
+        keys = F.softmax(self.key(x).float(), dim=-1)
+        values = torch.tanh(self.value(x).float())
+        writes = torch.sigmoid(self.write_gate(x).float()) * self.write_scale
+        retention = self.retention_floor + (
+            1.0 - self.retention_floor
+        ) * torch.sigmoid(self.retention_gate(x).float())
+        reads: list[torch.Tensor] = []
+        for index in range(length):
+            query = queries[:, index]
+            key = keys[:, index]
+            prediction = torch.einsum("brd,br->bd", memory, query)
+            error = values[:, index] - prediction
+            memory = retention[:, index, :, None] * memory + (
+                writes[:, index, :, None] * key[:, :, None] * error[:, None]
+            )
+            memory = memory.clamp(min=-self.state_clip, max=self.state_clip)
+            reads.append(torch.einsum("brd,br->bd", memory, query))
+            if self.training and self.detach_every > 0 and (index + 1) % self.detach_every == 0:
+                memory = memory.detach()
+        readout = torch.stack(reads, dim=1).to(dtype=x.dtype)
+        return self.output(readout), memory
+
+
 class HybridBlock(nn.Module):
     def __init__(self, cfg: ModelConfig, index: int) -> None:
         super().__init__()
         self.norm1, self.norm2 = RMSNorm(cfg.d_model), RMSNorm(cfg.d_model)
-        self.mixer: nn.Module = (
-            LocalCausalAttention(cfg) if (index + 1) % cfg.attention_every == 0
-            else SelectiveStateSpace(cfg)
-        )
+        if cfg.mixer_mode == "attention":
+            self.mixer = LocalCausalAttention(cfg)
+        elif cfg.mixer_mode == "ssm":
+            self.mixer = SelectiveStateSpace(cfg)
+        elif cfg.mixer_mode == "hybrid":
+            self.mixer = (
+                LocalCausalAttention(cfg) if (index + 1) % cfg.attention_every == 0
+                else SelectiveStateSpace(cfg)
+            )
+        else:
+            raise ValueError(f"unsupported mixer mode: {cfg.mixer_mode}")
         self.ffn = SwiGLU(cfg)
         self.dropout = nn.Dropout(cfg.dropout)
 
@@ -251,6 +332,14 @@ class ArchieHybridLM(nn.Module):
         self.gradient_checkpointing = gradient_checkpointing
         self.token_embedding = nn.Embedding(cfg.vocab_size, cfg.d_model)
         self.blocks = nn.ModuleList(HybridBlock(cfg, index) for index in range(cfg.n_layers))
+        if cfg.plastic_mode == "delta":
+            self.plastic_norm: nn.Module | None = RMSNorm(cfg.d_model)
+            self.plastic_memory: PlasticFastWeightMemory | None = PlasticFastWeightMemory(cfg)
+        elif cfg.plastic_mode == "none":
+            self.plastic_norm = None
+            self.plastic_memory = None
+        else:
+            raise ValueError(f"unsupported plastic mode: {cfg.plastic_mode}")
         self.norm = RMSNorm(cfg.d_model)
         self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding.weight
@@ -265,7 +354,10 @@ class ArchieHybridLM(nn.Module):
         elif isinstance(module, nn.Embedding):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids: torch.Tensor, labels: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
+    def forward(
+        self, input_ids: torch.Tensor, labels: torch.Tensor | None = None,
+        plastic_state: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         if input_ids.size(1) > self.cfg.max_seq_len:
             raise ValueError("sequence exceeds max_seq_len")
         x = self.token_embedding(input_ids)
@@ -274,8 +366,18 @@ class ArchieHybridLM(nn.Module):
                 x = torch.utils.checkpoint.checkpoint(block, x, use_reentrant=False)
             else:
                 x = block(x)
+        next_plastic_state = None
+        if self.plastic_memory is not None and self.plastic_norm is not None:
+            plastic_output, next_plastic_state = self.plastic_memory(
+                self.plastic_norm(x), plastic_state
+            )
+            x = x + plastic_output
+        elif plastic_state is not None:
+            raise ValueError("plastic state was supplied to a non-plastic model")
         logits = self.lm_head(self.norm(x))
         result = {"logits": logits}
+        if next_plastic_state is not None:
+            result["plastic_state"] = next_plastic_state
         if labels is not None:
             result["loss"] = F.cross_entropy(
                 logits[:, :-1].contiguous().float().view(-1, logits.size(-1)),
@@ -286,10 +388,24 @@ class ArchieHybridLM(nn.Module):
     @torch.no_grad()
     def generate(self, prompt: torch.Tensor, max_new_tokens: int,
                  temperature: float = 0.8, top_k: int = 40) -> torch.Tensor:
+        tokens, _ = self.generate_with_plastic_state(
+            prompt, max_new_tokens, temperature=temperature, top_k=top_k
+        )
+        return tokens
+
+    @torch.no_grad()
+    def generate_with_plastic_state(
+        self, prompt: torch.Tensor, max_new_tokens: int,
+        temperature: float = 0.8, top_k: int = 40,
+        plastic_state: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         self.eval()
         tokens = prompt
         for _ in range(max_new_tokens):
-            logits = self(tokens[:, -self.cfg.max_seq_len:])["logits"][:, -1]
+            result = self(
+                tokens[:, -self.cfg.max_seq_len:], plastic_state=plastic_state
+            )
+            logits = result["logits"][:, -1]
             logits[:, PAD_ID] = -float("inf")
             logits[:, BOS_ID] = -float("inf")
             logits = logits / max(temperature, 1e-5)
@@ -300,7 +416,8 @@ class ArchieHybridLM(nn.Module):
             tokens = torch.cat((tokens, next_token), dim=1)
             if bool(torch.all(next_token.eq(EOS_ID))):
                 break
-        return tokens
+        final = self(tokens[:, -self.cfg.max_seq_len:], plastic_state=plastic_state)
+        return tokens, final.get("plastic_state")
 
 
 def parameter_count(model: nn.Module) -> int:

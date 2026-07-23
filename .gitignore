@@ -5,3 +5,17 @@ node_modules/
 .env.archied
 .archie/
 *.archie-backup.json
+__pycache__/
+*.py[cod]
+returns/
+repository-verification.json
+foundry/archie-distill/sidepus-public-diet.unsealed.json
+__pycache__/
+*.py[cod]
+*.pt
+*.pth
+*.ckpt
+*.u16
+returns/
+repository-verification.json
+foundry/archie-distill/sidepus-public-diet.unsealed.json

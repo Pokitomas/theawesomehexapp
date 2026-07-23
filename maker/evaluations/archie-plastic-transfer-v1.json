@@ -1,0 +1,103 @@
+{
+  "schema": "archie-plastic-transfer-suite/v1",
+  "frozen": true,
+  "training_excluded": true,
+  "cases": [
+    {
+      "id": "transfer-code-01",
+      "repository_id": "unseen-repository-amber",
+      "mechanism_id": "ephemeral-symbol-map",
+      "task_family": "code-state",
+      "support": "Temporary repository rule: VORIN maps to verifier opcode 4f2a. Never infer this mapping from spelling. Receipt: VORIN=4f2a.",
+      "query": "Temporary repository rule: VORIN maps to verifier opcode"
+    },
+    {
+      "id": "transfer-code-02",
+      "repository_id": "unseen-repository-cobalt",
+      "mechanism_id": "ephemeral-symbol-map",
+      "task_family": "code-state",
+      "support": "For this isolated mechanism only, function talvek returns status 731 when the guard is intact. Binding: talvek -> 731.",
+      "query": "For this isolated mechanism only, function talvek returns status"
+    },
+    {
+      "id": "transfer-code-03",
+      "repository_id": "unseen-repository-cedar",
+      "mechanism_id": "ephemeral-symbol-map",
+      "task_family": "code-state",
+      "support": "Local ABI note: channel zemba uses frame marker Q9X. This note overrides no global protocol. zemba=Q9X.",
+      "query": "Local ABI note: channel zemba uses frame marker"
+    },
+    {
+      "id": "transfer-code-04",
+      "repository_id": "unseen-repository-delta",
+      "mechanism_id": "ephemeral-symbol-map",
+      "task_family": "code-state",
+      "support": "Scratch compiler fact: token brindle lowers to instruction NOP7 in this invented target. bridle is unrelated. brindle=NOP7.",
+      "query": "Scratch compiler fact: token brindle lowers to instruction"
+    },
+    {
+      "id": "transfer-sensor-01",
+      "repository_id": "unseen-sensor-violet",
+      "mechanism_id": "ephemeral-sensor-calibration",
+      "task_family": "sensor-state",
+      "support": "Temporary ultraviolet calibration: band uvel-3 has center code 812. This is a synthetic calibration. uvel-3=812.",
+      "query": "Temporary ultraviolet calibration: band uvel-3 has center code"
+    },
+    {
+      "id": "transfer-sensor-02",
+      "repository_id": "unseen-sensor-infrared",
+      "mechanism_id": "ephemeral-sensor-calibration",
+      "task_family": "sensor-state",
+      "support": "Temporary infrared calibration: detector irden-5 uses offset -37. It is valid only in this case. irden-5=-37.",
+      "query": "Temporary infrared calibration: detector irden-5 uses offset"
+    },
+    {
+      "id": "transfer-sensor-03",
+      "repository_id": "unseen-sensor-audio",
+      "mechanism_id": "ephemeral-sensor-calibration",
+      "task_family": "sensor-state",
+      "support": "Synthetic acoustic label: partial kelnor denotes harmonic bin 26. The word has no outside meaning. kelnor=26.",
+      "query": "Synthetic acoustic label: partial kelnor denotes harmonic bin"
+    },
+    {
+      "id": "transfer-sensor-04",
+      "repository_id": "unseen-sensor-radio",
+      "mechanism_id": "ephemeral-sensor-calibration",
+      "task_family": "sensor-state",
+      "support": "Synthetic radio map: carrier xal-8 corresponds to slot 144. Treat the mapping as temporary. xal-8=144.",
+      "query": "Synthetic radio map: carrier xal-8 corresponds to slot"
+    },
+    {
+      "id": "transfer-graph-01",
+      "repository_id": "unseen-graph-fir",
+      "mechanism_id": "ephemeral-edge",
+      "task_family": "graph-state",
+      "support": "In this temporary graph, node aster points to node glim. No other edge is implied. Edge receipt: aster->glim.",
+      "query": "In this temporary graph, node aster points to node"
+    },
+    {
+      "id": "transfer-graph-02",
+      "repository_id": "unseen-graph-pine",
+      "mechanism_id": "ephemeral-edge",
+      "task_family": "graph-state",
+      "support": "In this temporary graph, node morra points to node kest. The mapping is invented. Edge receipt: morra->kest.",
+      "query": "In this temporary graph, node morra points to node"
+    },
+    {
+      "id": "transfer-graph-03",
+      "repository_id": "unseen-graph-oak",
+      "mechanism_id": "ephemeral-edge",
+      "task_family": "graph-state",
+      "support": "In this temporary graph, node velum points to node prax. Preserve only this edge. Edge receipt: velum->prax.",
+      "query": "In this temporary graph, node velum points to node"
+    },
+    {
+      "id": "transfer-graph-04",
+      "repository_id": "unseen-graph-elm",
+      "mechanism_id": "ephemeral-edge",
+      "task_family": "graph-state",
+      "support": "In this temporary graph, node thalen points to node oris. The labels are arbitrary. Edge receipt: thalen->oris.",
+      "query": "In this temporary graph, node thalen points to node"
+    }
+  ]
+}

@@ -11,9 +11,11 @@ from typing import Any
 
 import numpy as np
 
-from archie_hybrid_core import BOS_ID, EOS_ID, SEP_ID, VOCAB_SIZE, ByteTokenizer
+from archie_hybrid_core import BOS_ID, EOS_ID, SEP_ID, ByteTokenizer
+from archie_tokenizers import ArchieTokenizer, token_byte_lengths, tokenizer_from_metadata
 
-CORPUS_SCHEMA = "archie-u16-byte-corpus/v1"
+CORPUS_SCHEMA = "archie-u16-token-corpus/v2"
+LEGACY_CORPUS_SCHEMA = "archie-u16-byte-corpus/v1"
 TEXT_SUFFIXES = {
     ".txt", ".md", ".rst", ".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx",
     ".json", ".jsonl", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sh", ".bash",
@@ -96,14 +98,17 @@ def iter_hf_documents(specs: list[str], seed: int) -> Iterator[tuple[str, str]]:
 
 
 def build_u16_corpus(output: pathlib.Path, documents: Iterable[tuple[str, str]],
-                     *, max_tokens: int | None) -> dict[str, Any]:
+                     *, max_tokens: int | None,
+                     tokenizer: ArchieTokenizer | None = None) -> dict[str, Any]:
+    tokenizer = tokenizer or ByteTokenizer()
+    lengths = token_byte_lengths(tokenizer.metadata())
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(output.suffix + ".tmp")
     digest, source_digest = hashlib.sha256(), hashlib.sha256()
-    document_count = token_count = 0
+    document_count = token_count = original_byte_count = 0
     with temporary.open("wb") as handle:
         for source, text in documents:
-            encoded = [BOS_ID, *text.encode("utf-8", errors="replace"), EOS_ID, SEP_ID]
+            encoded = [BOS_ID, *tokenizer.encode(text), EOS_ID, SEP_ID]
             if max_tokens is not None:
                 encoded = encoded[:max(0, max_tokens - token_count)]
             if not encoded:
@@ -115,6 +120,7 @@ def build_u16_corpus(output: pathlib.Path, documents: Iterable[tuple[str, str]],
             source_digest.update(hashlib.sha256(text.encode("utf-8", errors="replace")).digest())
             document_count += 1
             token_count += len(encoded)
+            original_byte_count += sum(lengths[token] for token in encoded)
             if max_tokens is not None and token_count >= max_tokens:
                 break
         handle.flush()
@@ -126,8 +132,9 @@ def build_u16_corpus(output: pathlib.Path, documents: Iterable[tuple[str, str]],
     metadata = {
         "schema": CORPUS_SCHEMA, "path": str(output), "dtype": "<u2",
         "endianness": "little", "bytes_per_token": 2, "token_count": token_count,
-        "document_count": document_count, "sha256": digest.hexdigest(),
-        "source_digest": source_digest.hexdigest(), "tokenizer": ByteTokenizer.metadata(),
+        "document_count": document_count, "original_byte_count": original_byte_count,
+        "sha256": digest.hexdigest(), "source_digest": source_digest.hexdigest(),
+        "tokenizer": tokenizer.metadata(),
     }
     atomic_json(output.with_suffix(output.suffix + ".json"), metadata)
     return metadata
@@ -135,14 +142,15 @@ def build_u16_corpus(output: pathlib.Path, documents: Iterable[tuple[str, str]],
 
 def verify_u16_corpus(path: pathlib.Path) -> dict[str, Any]:
     metadata = json.loads(path.with_suffix(path.suffix + ".json").read_text(encoding="utf-8"))
-    if metadata.get("schema") != CORPUS_SCHEMA or metadata.get("dtype") != "<u2":
+    if metadata.get("schema") not in {CORPUS_SCHEMA, LEGACY_CORPUS_SCHEMA} or metadata.get("dtype") != "<u2":
         raise SystemExit("unsupported corpus metadata")
     if path.stat().st_size % 2 or path.stat().st_size // 2 != int(metadata.get("token_count", -1)):
         raise SystemExit("corpus byte length or token count is invalid")
     if sha256_file(path) != metadata.get("sha256"):
         raise SystemExit("corpus SHA-256 does not match metadata")
+    tokenizer = tokenizer_from_metadata(metadata.get("tokenizer") or ByteTokenizer.metadata())
     probe = np.memmap(path, dtype="<u2", mode="r")
-    if int(probe.max()) >= VOCAB_SIZE:
+    if int(probe.max()) >= tokenizer.vocab_size:
         raise SystemExit("corpus contains a token outside the vocabulary")
     if not np.any(probe > 255):
         raise SystemExit("corpus did not preserve special IDs above 255")

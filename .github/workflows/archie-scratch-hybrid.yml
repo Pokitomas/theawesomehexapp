@@ -6,21 +6,46 @@ on:
     paths:
       - 'foundry/archie-distill/archie_hybrid_core.py'
       - 'foundry/archie-distill/archie_hybrid_corpus.py'
+      - 'foundry/archie-distill/archie_tokenizers.py'
       - 'foundry/archie-distill/train_archie_hybrid.py'
       - 'foundry/archie-distill/test_archie_hybrid_contract.py'
+      - 'foundry/archie-distill/archie_world_state_core.py'
+      - 'foundry/archie-distill/train_archie_world_state.py'
+      - 'foundry/archie-distill/train_archie_world_state_maximal.py'
+      - 'foundry/archie-distill/build_world_state_breakthrough_suite.py'
+      - 'foundry/archie-distill/evaluate_world_state_transfer.py'
+      - 'foundry/archie-distill/evaluate_world_state_breakthrough.py'
+      - 'foundry/archie-distill/test_archie_world_state_core.py'
+      - 'foundry/archie-distill/run_archie_breakthrough.sh'
+      - 'foundry/sidepus/**'
       - '.github/workflows/archie-scratch-hybrid.yml'
       - 'docs/archie-scratch-hybrid.md'
+      - 'docs/SIDEPUS-WEB-ARCHIVE.md'
+      - 'docs/SIDEPUS-DEVELOPMENTAL-CORPUS.md'
       - 'audit/authority-manifest.workflow-projection.mjs'
   push:
     branches:
       - 'agent/archie-scratch-hybrid-u16'
+      - 'agent/archie-world-state-core-20260722'
     paths:
       - 'foundry/archie-distill/archie_hybrid_core.py'
       - 'foundry/archie-distill/archie_hybrid_corpus.py'
+      - 'foundry/archie-distill/archie_tokenizers.py'
       - 'foundry/archie-distill/train_archie_hybrid.py'
       - 'foundry/archie-distill/test_archie_hybrid_contract.py'
+      - 'foundry/archie-distill/archie_world_state_core.py'
+      - 'foundry/archie-distill/train_archie_world_state.py'
+      - 'foundry/archie-distill/train_archie_world_state_maximal.py'
+      - 'foundry/archie-distill/build_world_state_breakthrough_suite.py'
+      - 'foundry/archie-distill/evaluate_world_state_transfer.py'
+      - 'foundry/archie-distill/evaluate_world_state_breakthrough.py'
+      - 'foundry/archie-distill/test_archie_world_state_core.py'
+      - 'foundry/archie-distill/run_archie_breakthrough.sh'
+      - 'foundry/sidepus/**'
       - '.github/workflows/archie-scratch-hybrid.yml'
       - 'docs/archie-scratch-hybrid.md'
+      - 'docs/SIDEPUS-WEB-ARCHIVE.md'
+      - 'docs/SIDEPUS-DEVELOPMENTAL-CORPUS.md'
       - 'audit/authority-manifest.workflow-projection.mjs'
   workflow_dispatch:
     inputs:
@@ -51,7 +76,9 @@ concurrency:
 jobs:
   contract:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
+    env:
+      PYTHONHASHSEED: '0'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -59,19 +86,44 @@ jobs:
       - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: foundry/sidepus/requirements-parity.txt
       - name: Install CPU test dependencies
         run: |
+          python -m pip install --disable-pip-version-check -r foundry/sidepus/requirements-parity.txt
           python -m pip install --disable-pip-version-check numpy
           python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
-      - name: Verify uint16 corpus, gradients, checkpoint, resume, evaluation, and generation
+      - name: Verify developmental archive and model contracts
         run: |
           set -euo pipefail
+          python -m compileall -q foundry/sidepus
+          python -m foundry.sidepus.developmental_cli validate-program \
+            --program foundry/sidepus/plans/developmental-program-v1.json
+          python -m unittest -v \
+            foundry.sidepus.test_sidepus_archive \
+            foundry.sidepus.test_sidepus_governance \
+            foundry.sidepus.test_sidepus_extraction \
+            foundry.sidepus.test_sidepus_development
+          python -m foundry.sidepus.governed_cli doctor
           python -m py_compile \
             foundry/archie-distill/archie_hybrid_core.py \
             foundry/archie-distill/archie_hybrid_corpus.py \
+            foundry/archie-distill/archie_tokenizers.py \
             foundry/archie-distill/train_archie_hybrid.py \
-            foundry/archie-distill/test_archie_hybrid_contract.py
+            foundry/archie-distill/test_archie_hybrid_contract.py \
+            foundry/archie-distill/archie_world_state_core.py \
+            foundry/archie-distill/train_archie_world_state.py \
+            foundry/archie-distill/train_archie_world_state_maximal.py \
+            foundry/archie-distill/build_world_state_breakthrough_suite.py \
+            foundry/archie-distill/evaluate_world_state_transfer.py \
+            foundry/archie-distill/evaluate_world_state_breakthrough.py \
+            foundry/archie-distill/test_archie_world_state_core.py
+          bash -n foundry/archie-distill/run_archie_breakthrough.sh
           PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_hybrid_contract.py
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_world_state_core.py
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/train_archie_world_state.py --selftest
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/train_archie_world_state_maximal.py --selftest
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/evaluate_world_state_transfer.py --selftest
           python foundry/archie-distill/train_archie_hybrid.py \
             --tiny-selftest \
             --state-dir scratch-selftest

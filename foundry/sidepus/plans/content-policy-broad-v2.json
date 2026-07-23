@@ -1,0 +1,155 @@
+{
+  "approved_by_operator": true,
+  "claim_boundary": "Authorization covers broad governed acquisition and developmental compilation. It does not assert legal status, data quality, model improvement, or permission to redistribute source payloads.",
+  "execution_limits": {
+    "discovery_before_download": true,
+    "download_requires_verified_shard_receipt": true,
+    "maximum_single_host_archive_share": 0.001,
+    "maximum_single_object_bytes": 68719476736,
+    "minimum_free_space_reserve_bytes": 274877906944
+  },
+  "exclusions": [
+    "authentication-gated or access-controlled material",
+    "secrets, credentials, private keys, session tokens, and private configuration",
+    "direct personal identifiers not necessary for the research purpose",
+    "known non-consensual intimate material",
+    "child sexual abuse material",
+    "malware binaries and operational payloads",
+    "mass-generated exact or near-duplicate spam beyond the contamination quota",
+    "records whose source provenance cannot be retained",
+    "operator-maintained exclusion and takedown lists"
+  ],
+  "fresh_capture": {
+    "enabled": true,
+    "engines": [
+      "browsertrix",
+      "gnu-wget-warc",
+      "heritrix-or-external"
+    ],
+    "maximum_bytes": 549755813888,
+    "robots_and_opt_out": "respect applicable robots, opt-out, access, and operator exclusion lists",
+    "seed_policy": "explicit public HTTP(S) seeds with per-seed depth and rate limits"
+  },
+  "historical_sources": {
+    "commoncrawl": {
+      "adapter": "parquet-url-index-to-exact-ranged-warc",
+      "enabled": true,
+      "historical_expansion": {
+        "enabled": true,
+        "requires_resolution_receipt_before_discovery": true,
+        "selection": "one frozen midyear release per year resolved from collinfo.json",
+        "years": "2013-2025"
+      },
+      "initial_exact_release": "CC-MAIN-2026-25",
+      "initial_record_ceiling": 20000000
+    },
+    "internet_archive_items": {
+      "enabled": true,
+      "preferred_formats": [
+        "warc",
+        "warc.gz",
+        "arc",
+        "arc.gz",
+        "wacz"
+      ],
+      "selection": "explicit item-and-file manifests only"
+    },
+    "wayback": {
+      "derivative_warc_boundary_required": true,
+      "enabled": true,
+      "role": "temporal and disappeared-web counterfactuals",
+      "time_range": [
+        "1996-01-01",
+        "2026-07-22"
+      ]
+    }
+  },
+  "languages": {
+    "allocation_kind": "archive-intake-bands-not-training-ratios",
+    "bands": {
+      "en": {
+        "maximum": 0.65,
+        "minimum": 0.45,
+        "target": 0.56
+      },
+      "es": {
+        "maximum": 0.18,
+        "minimum": 0.08,
+        "target": 0.12
+      },
+      "other_high_resource": {
+        "maximum": 0.25,
+        "minimum": 0.12,
+        "target": 0.17
+      },
+      "other_low_resource": {
+        "maximum": 0.24,
+        "minimum": 0.08,
+        "target": 0.15
+      }
+    },
+    "unknown_language_maximum": 0.04
+  },
+  "maximum_archive_bytes": 8796093022208,
+  "operator_authorization": "2026-07-22 broad developmental corpus authorization",
+  "purposes": [
+    "general representation learning",
+    "developmental curriculum experiments",
+    "cross-domain transfer measurement",
+    "multimodal episode and temporal modeling",
+    "adversarial contamination resistance"
+  ],
+  "rights_constraints": {
+    "do_not_relabel_unknown_rights_as_public_domain": true,
+    "retain_access_timestamp": true,
+    "retain_declared_license_when_available": true,
+    "retain_source_provenance": true,
+    "support_source_and_domain_takedown_tombstones": true,
+    "training_export_requires_separate_rights_gate": true
+  },
+  "schema": "sidepus-content-policy/v2",
+  "subject_allocations": {
+    "allocation_kind": "archive-intake-targets-with-stage-specific-training-reallocation",
+    "maximum_single_subject_share": 0.3,
+    "minimum_distinct_source_hosts": 1000000,
+    "note": "These targets govern broad collection only. They do not dictate token order, objective visibility, repetition, or model personality.",
+    "targets": {
+      "adversarial_messy": 0.08,
+      "empirical_world": 0.22,
+      "formal_executable": 0.18,
+      "language_expression": 0.24,
+      "multimodal_episode": 0.1,
+      "social_institutional": 0.18
+    }
+  },
+  "time_ranges": {
+    "allocation_kind": "archive-intake-bands-not-training-ratios",
+    "bands": {
+      "1900_1989": {
+        "maximum": 0.22,
+        "minimum": 0.08,
+        "target": 0.14
+      },
+      "1990_2009": {
+        "maximum": 0.3,
+        "minimum": 0.16,
+        "target": 0.22
+      },
+      "2010_2019": {
+        "maximum": 0.34,
+        "minimum": 0.2,
+        "target": 0.26
+      },
+      "2020_2026": {
+        "maximum": 0.42,
+        "minimum": 0.24,
+        "target": 0.33
+      },
+      "pre_1900": {
+        "maximum": 0.1,
+        "minimum": 0.02,
+        "target": 0.05
+      }
+    }
+  }
+}

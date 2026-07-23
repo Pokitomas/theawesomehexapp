@@ -1,5 +1,7 @@
 # Archie student training compiler
 
+For the zero-generated-example repository-transition lane, see `docs/ARCHIE-REAL-GIT-EXPERIENCE.md`. It trains full weights on real parent blobs, human commit messages, committed patches, temporally held-out successors, and counterfactual patches drawn from other real commits.
+
 Archie’s training compiler joins the corpus, trajectory, state, and checkpoint contracts into one reproducible training workspace.
 
 It does **not** claim that training occurred, that a student is admitted, or that Archie is frontier-capable. It creates exact inputs for an explicit trainer and exact receipts that later admission can verify.
@@ -87,6 +89,8 @@ The compiler writes:
 - the four dataset lanes.
 
 Large Sidepus exports are not copied a second time. Their exact bytes are bound by the Sidepus export receipt and the source index, while the compiler emits the normalized training rows that the trainer consumes.
+
+The broad-diet producer and direct Archie Hybrid integration are documented in `docs/ARCHIE-SIDEPUS-BROAD-DIET.md`. That path freezes local, pinned GitHub, URL, and Internet Archive objects before deterministic filtering, exact/normalized/near deduplication, modality-metadata observation, curriculum negotiation, and token-corpus compilation.
 
 ## Training and checkpoint receipts
 
