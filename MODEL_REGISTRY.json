@@ -1,7 +1,7 @@
 {
   "schema": "archie-model-registry/v1",
   "system_name": "Archie",
-  "updated_at": "2026-07-23T03:45:00Z",
+  "updated_at": "2026-07-23T03:30:00Z",
   "claim_boundary": "Archie names the complete system. Registry entries name distinct neural or symbolic artifacts. No artifact may inherit another entry's weights, metrics, admission state, or capability claims.",
   "artifacts": [
     {
@@ -46,7 +46,8 @@
       "source": {
         "training_pull_request": 732,
         "implementation_pull_request": 736,
-        "head_sha": "75cad4277393ebe00a9dfc45202b2e52c826b6b3",
+        "implementation_branch": "agent/archie-model-registry-20260722",
+        "training_head_sha": "75cad4277393ebe00a9dfc45202b2e52c826b6b3",
         "core_blob": "42bff377e4ff8d05fec7f0c4ef0ed579e2900b3c",
         "code_status": "exact training core, v2 corpus compatibility, tokenizer compatibility and owner-local input attestation implemented; fixed manifests remain unsealed"
       },
@@ -247,8 +248,10 @@
       "promotion": "not-admitted",
       "source": {
         "pull_request": 738,
-        "head_sha": "31caf19a5cbbbf0bf94d0f6f8a23737fb865d71c",
-        "code_status": "recurrent mechanics implemented; empirical execution remains blocked on sealed fixed evaluation and owner-local real-checkpoint evidence"
+        "branch": "agent/archie-linked-recurrence-20260722",
+        "head_sha": null,
+        "head_resolution": "resolve from source pull request when an evidence receipt is produced",
+        "code_status": "exact-source recurrent mechanics and owner-local real-checkpoint parity receipt path implemented; empirical evidence remains blocked"
       },
       "predecessor_ids": [
         "archie-lm-114m-v1"
@@ -291,7 +294,9 @@
       "promotion": "not-admitted",
       "source": {
         "pull_request": 740,
-        "head_sha": "55fd0adc9bb7de7b1d1e8ba01611a59947f6bf09",
+        "branch": "agent/archie-timescale-gate-20260722",
+        "head_sha": null,
+        "head_resolution": "resolve from source pull request when authorization evidence is produced",
         "code_status": "gate-only preregistration; candidate implementation forbidden until verified recurrence clears every threshold"
       },
       "predecessor_ids": [
