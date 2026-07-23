@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import copy
 import pathlib
+import sys
 import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from gate import evaluate_recurrence_gate, read_json, validate_protocol
 
