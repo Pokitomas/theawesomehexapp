@@ -25,7 +25,8 @@ DEADLINE="${ARCHIE_SIDEPUS_DEADLINE_MINUTES:-330}"
 RUN_SEQUENTIAL_CONTROL="${ARCHIE_SIDEPUS_RUN_SEQUENTIAL_CONTROL:-1}"
 MICROPHYSICS_EPISODES="${ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES:-256}"
 SEQUENCE_FOLLOW="${ARCHIE_SIDEPUS_SEQUENCE_FOLLOW_PROBABILITY:-0.8}"
-DOMAIN_TARGETS="${ARCHIE_SIDEPUS_DOMAIN_TARGETS:-{\"multimodal_episode\":0.45,\"formal_executable\":0.20,\"empirical_world\":0.15,\"language_expression\":0.08,\"social_institutional\":0.07,\"adversarial_messy\":0.05}}"
+DEFAULT_DOMAIN_TARGETS='{"multimodal_episode":0.45,"formal_executable":0.20,"empirical_world":0.15,"language_expression":0.08,"social_institutional":0.07,"adversarial_messy":0.05}'
+DOMAIN_TARGETS="${ARCHIE_SIDEPUS_DOMAIN_TARGETS:-$DEFAULT_DOMAIN_TARGETS}"
 
 require_file() { [[ -f "$1" ]] || { echo "Missing required file: $1" >&2; exit 1; }; }
 for file in \
