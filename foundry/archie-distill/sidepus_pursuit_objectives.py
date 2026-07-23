@@ -16,11 +16,20 @@ from archie_sidepus_organism import ArchieSidepusOrganism, OrganismConfig
 METHOD = "archie-sidepus-pursuit-organism/v1"
 CONTRACT_SCHEMA = "archie-sidepus-pursuit-training-contract/v1"
 CODE_FILES = (
-    "train_archie_sidepus_pursuit.py", "sidepus_pursuit_objectives.py",
-    "sidepus_pursuit_step.py", "sidepus_pursuit_stream.py",
-    "sidepus_pursuit_plan.py", "sidepus_pursuit_controller.py",
-    "sidepus_ephemeral_cache.py", "sidepus_experience_compiler.py",
-    "archie_sidepus_organism.py", "archie_world_state_core.py",
+    "train_archie_sidepus_pursuit.py",
+    "sidepus_pursuit_cli.py",
+    "sidepus_pursuit_objectives.py",
+    "sidepus_pursuit_step.py",
+    "sidepus_pursuit_stream.py",
+    "sidepus_pursuit_plan.py",
+    "sidepus_pursuit_controller.py",
+    "sidepus_ephemeral_cache.py",
+    "sidepus_experience_compiler.py",
+    "sidepus_microphysics.py",
+    "sidepus_inventory_union.py",
+    "run_archie_sidepus_pursuit.sh",
+    "archie_sidepus_organism.py",
+    "archie_world_state_core.py",
 )
 
 
