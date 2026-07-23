@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import unittest
@@ -12,7 +11,7 @@ from sidepus_pursuit_forward import pursuit_forward
 
 
 class DeliberationValueTest(unittest.TestCase):
-    def test_each_thought_has_loss_and_stop_probability(self) -> None:
+    def test_each_token_thought_has_loss_and_stop_probability(self) -> None:
         values = asdict(PRESETS["micro"])
         values.update(
             plastic_mode="delta",
@@ -35,13 +34,15 @@ class DeliberationValueTest(unittest.TestCase):
         inputs = torch.randint(0, 256, (2, 32), dtype=torch.long)
         result = pursuit_forward(model, inputs, labels=inputs)
         self.assertEqual(tuple(result["deliberation_step_losses"].shape), (4,))
-        self.assertEqual(tuple(result["halt_weights"].shape), (2, 4))
+        self.assertEqual(tuple(result["deliberation_token_losses"].shape), (4, 2, 31))
+        self.assertEqual(tuple(result["halt_weights"].shape), (2, 32, 4))
         self.assertTrue(torch.allclose(
-            result["halt_weights"].sum(dim=1),
-            torch.ones(2),
+            result["halt_weights"].sum(dim=-1),
+            torch.ones(2, 32),
             atol=1e-5,
         ))
         self.assertTrue(torch.isfinite(result["deliberation_step_losses"]).all())
+        self.assertTrue(torch.isfinite(result["deliberation_token_losses"]).all())
         total = result["loss"] + 0.05 * result["deliberation_step_losses"].mean()
         total.backward()
         self.assertIsNotNone(model.deliberation_halt.weight.grad)
