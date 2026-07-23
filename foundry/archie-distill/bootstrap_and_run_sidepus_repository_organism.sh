@@ -16,6 +16,10 @@ if [[ ! -x "$PYTHON" ]]; then
 fi
 
 if ! "$PYTHON" -c 'import warcio' >/dev/null 2>&1; then
+  if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
+    echo "Bootstrapping pip inside Archie CUDA environment..."
+    "$PYTHON" -m ensurepip --upgrade
+  fi
   echo "Installing required warcio package into Archie CUDA environment..."
   "$PYTHON" -m pip install --disable-pip-version-check warcio
 fi
