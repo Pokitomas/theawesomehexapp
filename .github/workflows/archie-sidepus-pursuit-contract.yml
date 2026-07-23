@@ -5,6 +5,8 @@ on:
     paths:
       - 'foundry/archie-distill/sidepus_experience_compiler.py'
       - 'foundry/archie-distill/sidepus_ephemeral_cache.py'
+      - 'foundry/archie-distill/sidepus_microphysics.py'
+      - 'foundry/archie-distill/sidepus_inventory_union.py'
       - 'foundry/archie-distill/sidepus_pursuit_plan.py'
       - 'foundry/archie-distill/sidepus_pursuit_controller.py'
       - 'foundry/archie-distill/sidepus_pursuit_stream.py'
@@ -38,6 +40,8 @@ jobs:
           python -m py_compile \
             foundry/archie-distill/sidepus_experience_compiler.py \
             foundry/archie-distill/sidepus_ephemeral_cache.py \
+            foundry/archie-distill/sidepus_microphysics.py \
+            foundry/archie-distill/sidepus_inventory_union.py \
             foundry/archie-distill/sidepus_pursuit_plan.py \
             foundry/archie-distill/sidepus_pursuit_controller.py \
             foundry/archie-distill/sidepus_pursuit_stream.py \
