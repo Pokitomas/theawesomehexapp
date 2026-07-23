@@ -8,6 +8,10 @@ on:
       - 'foundry/archie-distill/archie_hybrid_corpus.py'
       - 'foundry/archie-distill/train_archie_hybrid.py'
       - 'foundry/archie-distill/test_archie_hybrid_contract.py'
+      - 'foundry/archie-distill/archie_world_state_core.py'
+      - 'foundry/archie-distill/train_archie_world_state.py'
+      - 'foundry/archie-distill/evaluate_world_state_transfer.py'
+      - 'foundry/archie-distill/test_archie_world_state_core.py'
       - '.github/workflows/archie-scratch-hybrid.yml'
       - 'docs/archie-scratch-hybrid.md'
       - 'audit/authority-manifest.workflow-projection.mjs'
@@ -19,6 +23,10 @@ on:
       - 'foundry/archie-distill/archie_hybrid_corpus.py'
       - 'foundry/archie-distill/train_archie_hybrid.py'
       - 'foundry/archie-distill/test_archie_hybrid_contract.py'
+      - 'foundry/archie-distill/archie_world_state_core.py'
+      - 'foundry/archie-distill/train_archie_world_state.py'
+      - 'foundry/archie-distill/evaluate_world_state_transfer.py'
+      - 'foundry/archie-distill/test_archie_world_state_core.py'
       - '.github/workflows/archie-scratch-hybrid.yml'
       - 'docs/archie-scratch-hybrid.md'
       - 'audit/authority-manifest.workflow-projection.mjs'
@@ -70,8 +78,15 @@ jobs:
             foundry/archie-distill/archie_hybrid_core.py \
             foundry/archie-distill/archie_hybrid_corpus.py \
             foundry/archie-distill/train_archie_hybrid.py \
-            foundry/archie-distill/test_archie_hybrid_contract.py
+            foundry/archie-distill/test_archie_hybrid_contract.py \
+            foundry/archie-distill/archie_world_state_core.py \
+            foundry/archie-distill/train_archie_world_state.py \
+            foundry/archie-distill/evaluate_world_state_transfer.py \
+            foundry/archie-distill/test_archie_world_state_core.py
           PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_hybrid_contract.py
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/test_archie_world_state_core.py
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/train_archie_world_state.py --selftest
+          PYTHONPATH=foundry/archie-distill python foundry/archie-distill/evaluate_world_state_transfer.py --selftest
           python foundry/archie-distill/train_archie_hybrid.py \
             --tiny-selftest \
             --state-dir scratch-selftest
