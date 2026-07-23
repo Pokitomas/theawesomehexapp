@@ -1,5 +1,0 @@
-torch>=2.2,<3
-sentencepiece>=0.2,<1
-scikit-learn>=1.4,<2
-numpy>=1.26,<3
-joblib>=1.3,<2

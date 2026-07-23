@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "archie-fixed-eval-manifest/v1",
+  "type": "object",
+  "required": ["schema", "sealed", "domain", "corpus_sha256", "corpus_token_count", "windows", "manifest_digest"],
+  "properties": {
+    "schema": {"const": "archie-fixed-eval-manifest/v1"},
+    "sealed": {"const": true},
+    "domain": {"type": "string"},
+    "corpus_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "corpus_token_count": {"type": "integer", "minimum": 2},
+    "windows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["source_id", "offset", "length", "split"],
+        "properties": {
+          "source_id": {"type": "string", "minLength": 1},
+          "offset": {"type": "integer", "minimum": 0},
+          "length": {"type": "integer", "minimum": 2},
+          "split": {"const": "eval"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "manifest_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "archie-linked-recurrence-evaluation/v1",
+  "artifact": "archie-lm-114m-v1",
+  "blocked_by": [733],
+  "controls": {
+    "A": "correct-carried-state",
+    "B": "reset-state",
+    "C": "other-document-state",
+    "D": "shuffled-state-channels"
+  },
+  "required_measurements": [
+    "bits-per-original-byte-by-segment-index",
+    "identifier-recall-across-boundaries",
+    "long-copy-recovery",
+    "delayed-code-consistency",
+    "state-transplant-penalty",
+    "full-vs-incremental-logit-parity",
+    "generation-bytes-per-second",
+    "ordinary-fixed-domain-retention"
+  ],
+  "stop_conditions": [
+    "carried-state-does-not-beat-reset",
+    "transplanted-state-not-distinguishable",
+    "gain-disappears-on-heldout-sources",
+    "incremental-parity-fails",
+    "ordinary-retention-damage"
+  ],
+  "promotion": "research-only-not-admitted"
+}

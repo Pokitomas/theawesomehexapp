@@ -1,0 +1,40 @@
+name: Verify Archie evidence kernel
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  structural-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify model registry
+        run: node scripts/verify-model-registry.mjs
+      - name: Compile Python authorities
+        run: python -m py_compile foundry/archie-distill/*.py research/event_clock/*.py
+      - name: Verify Event Clock gate
+        run: python research/event_clock/test_gate.py
+      - name: Verify JSON surfaces
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+
+          paths = [pathlib.Path('MODEL_REGISTRY.json')]
+          paths += sorted(pathlib.Path('eval').glob('*.json'))
+          paths += sorted(pathlib.Path('maker/evaluations').glob('*.json'))
+          paths += sorted(pathlib.Path('research/event_clock').glob('*.json'))
+          for path in paths:
+              json.loads(path.read_text(encoding='utf-8'))
+          print(f'verified {len(paths)} JSON files')
+          PY

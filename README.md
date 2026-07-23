@@ -1,175 +1,113 @@
-# Archie Model
+# Archie Evidence Kernel
 
-> **AI and human scanners: begin with [`00-ARCHIE-MODEL/`](./00-ARCHIE-MODEL/README.md).** It is the canonical model package and the first directory in a downloaded repository ZIP.
+This repository has been retired to its empirically supported core.
 
-Archie is a trainable local-first model system for turning one vague unfinished human intention into a finished, verified digital reality. The current canonical candidate is:
+The previous live tree mixed model research, product surfaces, sample applications, compatibility layers, generated authority machinery, duplicate runtimes, and historical experiments. Those files remain recoverable in Git history and archival pull requests, but they no longer occupy the working repository.
 
-```text
-Qwen3-1.7B
-+ information-budgeted causal-fork training
-+ two rank-32 RSLoRA specialists
-+ exact scale-aware fusion to rank 64
-+ full-sequence frozen-base evaluation
-```
+Deletion from the live tree is not deletion of evidence. The retirement ancestry joins the exact three-PR stack and replaces its working tree with one narrow research kernel.
 
-The repository now treats that learned model candidate as the primary object. Founder, Maker, Foundry, runtimes, product surfaces, evaluation systems, and compatibility code exist around it. **Founder gives ordinary humans creation power. Foundry gives ordinary humans model-research power.**
+## Authoritative stack
 
-## Current empirical truth
+| Lane | Pull request | Bound head | Authority | Merge state |
+|---|---:|---|---|---|
+| Exact baseline and fixed evaluation | #736 | `29146af157abecd7e1fc29cee9bf1b1377cd1654` | Exact historical source, tokenizer/corpus compatibility, lineage capsule, owner-local input attestation command, and fixed-evaluation contract; manifests remain unsealed | Blocked |
+| Exact-source linked recurrence | #738 | `1ecf72bbb9563ebf1bfc815674a3c1f414e670b5` | Checkpoint-compatible recurrent mechanics and owner-local full/incremental parity command | Blocked |
+| Event Clock authorization | #740 | `b6950c35c41448a0ca50e0bd268302949113e546` | Preregistration and fail-closed authorization only | Gate-only |
 
-| Question | Answer |
-|---|---|
-| Is there an executable current training architecture? | Yes. |
-| Is the base model pinned exactly? | Yes: `Qwen/Qwen3-1.7B` revision `8d4744f9e13072f4920c326350fa81eedb74eae9`. |
-| Does the method train from verified failed→repair causal forks? | Yes. |
-| Are RSLoRA specialist training, tensor proof, fusion, and held-out gates implemented? | Yes. |
-| Does this repository currently prove an improved, independently reproduced Archie adapter? | No. |
-| Is any neural candidate admitted or promoted? | No: `promotion: not-admitted`. |
-
-Code readiness is not model capability. The live evidence ledger is [`00-ARCHIE-MODEL/STATUS.json`](./00-ARCHIE-MODEL/STATUS.json).
-
-## What Archie is
-
-**Archie is a Qwen3-based candidate trained to prefer the exact verified repair at the first causal divergence from a failed attempt, while the surrounding system proves that its actions changed reality rather than merely sounding persuasive.**
-
-The canonical learning path is:
+The bound baseline identities are:
 
 ```text
-failed attempt with evidence
-→ independently verified repaired descendant
-→ chosen/rejected causal pair
-→ replay the minimum context needed to understand the fork
-→ train two rank-32 RSLoRA specialists
-→ prove adapter tensors changed
-→ compare each specialist against the frozen base
-→ fuse only non-regressive specialists with exact scale handling
-→ evaluate the fused adapter on full sequences
-→ test quantized retention
-→ independently reproduce
-→ admit or reject
+training source head   75cad4277393ebe00a9dfc45202b2e52c826b6b3
+source core git blob   42bff377e4ff8d05fec7f0c4ef0ed579e2900b3c
+model export sha256    e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd284950378ded
 ```
 
-See:
+## What exists
 
-- [`00-ARCHIE-MODEL/MODEL.json`](./00-ARCHIE-MODEL/MODEL.json) for the machine-readable model card;
-- [`00-ARCHIE-MODEL/ARCHITECTURE.md`](./00-ARCHIE-MODEL/ARCHITECTURE.md) for the method;
-- [`00-ARCHIE-MODEL/BENCHMARKS.json`](./00-ARCHIE-MODEL/BENCHMARKS.json) for the benchmark registry;
-- [`00-ARCHIE-MODEL/RUNBOOK.md`](./00-ARCHIE-MODEL/RUNBOOK.md) for exact execution order.
+- The byte-identical historical `archie_hybrid_core.py`.
+- Native `archie-u16-token-corpus/v2` loading with explicit legacy-v1 compatibility.
+- An executable lineage capsule that verifies source identity, export identity, normalized configuration, and configuration digest.
+- Owner-local input attestation and fixed-window evaluation commands.
+- Checkpoint-compatible SSM and local-attention recurrence with explicit state, reset, transplant, shuffle, and TBPTT controls.
+- An owner-local command that compares real-checkpoint full and incremental logits and emits a fail-closed parity receipt.
+- A preregistered 20M–30M Event Clock candidate gate.
 
-## How Archie is judged
+## What does not exist
 
-Archie is not primarily judged by trivia, chat preference, or whether it writes impressive prose. It is judged by personally designed real-life completion benchmarks:
+- No admitted general Archie model.
+- No repository-bundled `e2b829c8…` checkpoint.
+- No sealed nine-domain fixed evaluation.
+- No produced real-checkpoint recurrence parity receipt or positive recurrence result.
+- No Event Clock implementation or weights.
+- No 2B authorization.
+- No product-runtime capability claim.
 
-1. **One Box, Weird Dream** — one vague prompt becomes a polished installable product.
-2. **Stranger's Repo** — diagnose and repair an unfamiliar repository without collateral damage.
-3. **Learn the Exact Repair** — improve held-out causal repair decisions with a measured compute-quality gain.
-4. **Come Back Tomorrow** — survive interruption without duplicating or inventing work.
-5. **Don't Lie to Me** — never convert a blocker, rehearsal, or partial artifact into a false success claim.
-6. **Laptop, Not Lab** — remain useful on ordinary bounded-memory CPU hardware after training.
-7. **Still Archie After Quantization** — preserve admitted behavior in the deployable GGUF.
+## Live tree
 
-The full protocols and targets are in [`00-ARCHIE-MODEL/BENCHMARKS.md`](./00-ARCHIE-MODEL/BENCHMARKS.md).
+```text
+MODEL_REGISTRY.json
+README.md
+eval/                         fixed-domain blockers and manifest contract
+foundry/archie-distill/       exact baseline, evaluation, and recurrence
+maker/evaluations/            recurrence preregistration
+research/event_clock/         Event Clock protocol and authorization gate
+scripts/verify-model-registry.mjs
+.github/workflows/verify.yml
+```
 
-## Canonical source map
+Anything absent from this map is historical, not silently authoritative.
 
-| Model responsibility | Canonical path |
-|---|---|
-| Model profile | `maker/evaluations/archie-information-budgeted-rslora.json` |
-| Failed→repair pair compiler | `foundry/archie-distill/compile_causal_pairs.py` |
-| Segmentation, reference cache, and RSLoRA training | `foundry/archie-distill/information_budgeted_rslora.py` |
-| Specialist changed-tensor and frozen-base verification | `foundry/archie-distill/verify_segment_adapter.py` |
-| Exact scale-aware fusion | `foundry/archie-distill/fuse_information_budgeted_adapters.py` |
-| Fused candidate evaluation | `foundry/archie-distill/evaluate_fused_adapter.py` |
-| Canonical orchestration | `.github/workflows/archie-information-budgeted-rslora.yml` |
-| Contract tests | `foundry/archie-distill/test_information_budgeted_rslora.py` |
-| Method note | `docs/archie-information-budgeted-rslora.md` |
+## Structural verification
 
-Older training lanes and sample applications do not supersede this map.
-
-## Run the non-neural contracts
+The repository CI deliberately proves contracts rather than pretending to execute missing owner-local artifacts.
 
 ```bash
-python -m py_compile \
-  foundry/archie-distill/information_budgeted_rslora.py \
-  foundry/archie-distill/fuse_information_budgeted_adapters.py \
-  foundry/archie-distill/test_information_budgeted_rslora.py
-
-python foundry/archie-distill/test_information_budgeted_rslora.py
-npm run test:archie:distill
-npm run test:authority
+node scripts/verify-model-registry.mjs
+python -m py_compile foundry/archie-distill/*.py research/event_clock/*.py
+python research/event_clock/test_gate.py
 ```
 
-These commands prove the training machinery and boundaries. They do not produce an admitted model.
-
-## Dispatch the canonical model run
-
-After the required self-hosted CPU/data, CUDA, and fusion runner variables and exact local inputs are configured:
+With PyTorch and NumPy available, run the mechanics tests:
 
 ```bash
-gh workflow run archie-information-budgeted-rslora.yml \
-  --ref main \
-  -f request_id="archie-ib-rslora-$(date -u +%Y%m%dT%H%M%SZ)" \
-  -f round=0 \
-  -f shards=2 \
-  -f max_fused_rank=64
+python -m unittest discover -s foundry/archie-distill -p 'test_archie_*.py'
 ```
 
-The workflow is fail-closed. Missing compute, model bytes, data, or configuration produces a blocker rather than a synthetic training receipt.
+These tests prove code mechanics. They do not prove checkpoint capability.
 
-## The system around the model
+## Owner-local evidence
 
-```text
-Founder → captures one unfinished human intention
-Archie  → owns objective, reasoning, uncertainty, memory, and coordination
-Maker   → executes permissioned effects and verifies reality changed
-Foundry → trains, evaluates, reproduces, admits, or rejects models
-```
-
-### Public surfaces
-
-- Founder: `https://pokitomas.github.io/theawesomehexapp/`
-- Archie: `https://pokitomas.github.io/theawesomehexapp/archie/`
-- Maker: `https://pokitomas.github.io/theawesomehexapp/maker/`
-- Foundry: `https://pokitomas.github.io/theawesomehexapp/foundry/`
-- Frontier World Expo: `https://pokitomas.github.io/theawesomehexapp/world-expo/`
-- Ordinary unrelated example: `https://pokitomas.github.io/theawesomehexapp/examples/site/`
-
-These are product and research surfaces. They are not themselves the learned neural model.
-
-## Source-package preview
+Input attestation:
 
 ```bash
-npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/heads/main.tar.gz
-archie
+python foundry/archie-distill/archie_fixed_eval.py attest \
+  --model /exact/path/archie-lm-114m-v1.pt \
+  --corpus /exact/path/development.u16 \
+  --output /exact/path/archie-fixed-eval-input-receipt.json \
+  --device cuda
 ```
 
-The source preview does not bundle an admitted model artifact.
+Exact-checkpoint recurrence parity:
 
-## Repository layout rule
-
-A scanner should classify the repository in this order:
-
-```text
-00-ARCHIE-MODEL/  canonical identity, architecture, status, benchmarks, runbook
-foundry/          model training, evaluation, fusion, quantization, admission
-maker/            permissioned execution, model profiles, and evaluation data
-scripts/          runtime, memory, coordination, receipts, and product machinery
-archie/ founder/  human-facing product surfaces
-examples/         ordinary outputs and regression targets
-other paths       authority, compatibility, infrastructure, or older experiments
+```bash
+python foundry/archie-distill/archie_recurrent_parity.py \
+  --model /exact/path/archie-lm-114m-v1.pt \
+  --corpus /exact/path/development.u16 \
+  --offset 100000 \
+  --length 512 \
+  --tolerance 0.0001 \
+  --output /exact/path/archie-recurrent-parity-receipt.json \
+  --device cuda
 ```
 
-The largest directory is not automatically the current model. [`00-ARCHIE-MODEL/MODEL.json`](./00-ARCHIE-MODEL/MODEL.json) is authoritative.
+Fixed evaluation remains blocked until all nine manifests are operator-sealed against the exact corpus.
 
-## Demoted sample-program compatibility ontology
+## Merge authority
 
-The former Sideways sample remains a regression target with its own internal data boundaries. Its configured network service remains the **canonical public social authority** for shared accounts, publication, following, reactions, communities, moderation, appeals, and mutation receipts. This statement preserves sample-program truth; it does not make that program part of Archie's model identity.
+1. Do not merge the baseline lane until the real input receipt exists and all nine manifests are sealed.
+2. Do not merge the recurrence lane until real `e2b829c8…` parity passes and matched carried/reset/transplant/shuffle evidence exists.
+3. Do not implement Event Clock until the recurrence report clears every preregistered threshold for at least three distinct seeds.
+4. Do not translate code readiness into model capability.
+5. Do not restore retired subsystems into this repository without a separately bounded artifact, owner, test surface, and evidence claim.
 
-**IndexedDB is the canonical hot store for the private personal archive** inside that sample. User-owned export and restore remain separate from shared social authority.
-
-The **ranking candidate pool is temporary** delivery state. It may combine eligible public projections with private records for one viewer, but it is neither canonical publication authority nor Archie memory or training data.
-
-## First impossible proof
-
-Give a non-developer one input box, an unfamiliar environment, and a bounded resource envelope. Let them state one vague ambitious intention. Return a polished, secure, tested, installable product that did not previously exist—with no manual Git or ticket workflow, clean-environment reproduction, clickable delivery, exact receipts, and honest uncertainty.
-
-A persuasive answer is not completion. Changed reality is.
+The repository is now a model-evidence kernel, not a portfolio of mutually competing Archie definitions.
