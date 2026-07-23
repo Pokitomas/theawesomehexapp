@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and ingest a provenance-bound Sidepus WARC from the current tracked repository."""
+"""Build and ingest a provenance-bound Sidepus WARC from a tracked repository snapshot."""
 from __future__ import annotations
 
 import argparse
@@ -8,6 +8,7 @@ import io
 import json
 import mimetypes
 import pathlib
+import re
 import subprocess
 import sys
 import urllib.parse
@@ -20,7 +21,9 @@ from foundry.sidepus.governance import bind_pending_jobs, run_governed_worker
 CONTENT_POLICY_SCHEMA = "sidepus-content-policy/v2"
 RIGHTS_SCHEMA = "sidepus-rights-decision/v1"
 BOOTSTRAP_SCHEMA = "sidepus-repository-archive-bootstrap/v1"
+MANIFEST_SCHEMA = "sidepus-windows-git-manifest/v1"
 SYNTHETIC_HOST = "repository.archive.sidepus.invalid"
+HEX40 = re.compile(r"^[0-9a-f]{40}$")
 
 TEXT_SUFFIXES = {
     ".bash", ".c", ".cc", ".cfg", ".conf", ".cpp", ".css", ".csv", ".cxx",
@@ -55,6 +58,39 @@ def tracked_paths(repo: pathlib.Path) -> list[pathlib.Path]:
     return result
 
 
+def load_repository_manifest(
+    repo: pathlib.Path, manifest_path: pathlib.Path
+) -> tuple[str, str, list[pathlib.Path], str]:
+    manifest_path = manifest_path.expanduser().resolve()
+    value = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    if not isinstance(value, dict) or value.get("schema") != MANIFEST_SCHEMA:
+        raise ValueError(f"repository manifest must use {MANIFEST_SCHEMA}")
+    commit = str(value.get("commit", "")).lower()
+    tree = str(value.get("tree", "")).lower()
+    if not HEX40.fullmatch(commit) or not HEX40.fullmatch(tree):
+        raise ValueError("repository manifest commit/tree must be lowercase 40-hex Git IDs")
+    raw_paths = value.get("paths")
+    if not isinstance(raw_paths, list) or not raw_paths:
+        raise ValueError("repository manifest requires a nonempty paths list")
+    paths: list[pathlib.Path] = []
+    seen: set[str] = set()
+    for raw in raw_paths:
+        if not isinstance(raw, str) or not raw or "\x00" in raw:
+            raise ValueError("repository manifest paths must be nonempty strings")
+        relative = pathlib.PurePosixPath(raw)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"unsafe repository manifest path: {raw!r}")
+        normalized = relative.as_posix()
+        if normalized in seen:
+            raise ValueError(f"duplicate repository manifest path: {normalized}")
+        seen.add(normalized)
+        path = repo.joinpath(*relative.parts)
+        if not path.is_file():
+            raise ValueError(f"tracked repository file is missing: {normalized}")
+        paths.append(path)
+    return commit, tree, paths, sha256_file(manifest_path)
+
+
 def media_type(path: pathlib.Path) -> str:
     suffix = path.suffix.lower()
     if suffix in TEXT_SUFFIXES or path.name in {"Dockerfile", "Makefile", "LICENSE"}:
@@ -69,14 +105,18 @@ def media_type(path: pathlib.Path) -> str:
     return guessed or "application/octet-stream"
 
 
-def write_warc(repo: pathlib.Path, output: pathlib.Path, commit: str) -> dict[str, Any]:
+def write_warc(
+    repo: pathlib.Path,
+    output: pathlib.Path,
+    commit: str,
+    paths: list[pathlib.Path],
+) -> dict[str, Any]:
     try:
         from warcio.statusandheaders import StatusAndHeaders  # type: ignore
         from warcio.warcwriter import WARCWriter  # type: ignore
     except ImportError as error:
         raise RuntimeError("warcio is required; install it into ARCHIE_PYTHON first") from error
 
-    paths = tracked_paths(repo)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(output.suffix + ".tmp")
     temporary.unlink(missing_ok=True)
@@ -140,17 +180,33 @@ def main() -> None:
     parser.add_argument("--state-dir", required=True)
     parser.add_argument("--rights-manifest", required=True)
     parser.add_argument("--receipt", required=True)
+    parser.add_argument("--repository-manifest")
     args = parser.parse_args()
 
     repo = pathlib.Path(args.repo).expanduser().resolve()
     state = pathlib.Path(args.state_dir).expanduser().resolve()
     rights_path = pathlib.Path(args.rights_manifest).expanduser().resolve()
     receipt_path = pathlib.Path(args.receipt).expanduser().resolve()
-    commit = str(run(repo, "rev-parse", "HEAD"))
-    tree = str(run(repo, "rev-parse", "HEAD^{tree}"))
-    dirty = str(run(repo, "status", "--porcelain=v1", "--untracked-files=no"))
-    if dirty:
-        raise SystemExit("tracked repository worktree is dirty; refusing ambiguous WARC snapshot")
+
+    repository_manifest: str | None = None
+    repository_manifest_sha256: str | None = None
+    if args.repository_manifest:
+        manifest_path = pathlib.Path(args.repository_manifest)
+        if not manifest_path.is_absolute():
+            manifest_path = repo / manifest_path
+        commit, tree, paths, repository_manifest_sha256 = load_repository_manifest(
+            repo, manifest_path
+        )
+        repository_manifest = str(manifest_path.resolve())
+        identity_source = "windows-git-manifest"
+    else:
+        commit = str(run(repo, "rev-parse", "HEAD"))
+        tree = str(run(repo, "rev-parse", "HEAD^{tree}"))
+        dirty = str(run(repo, "status", "--porcelain=v1", "--untracked-files=no"))
+        if dirty:
+            raise SystemExit("tracked repository worktree is dirty; refusing ambiguous WARC snapshot")
+        paths = tracked_paths(repo)
+        identity_source = "native-git"
 
     archive = state / "source-archives" / f"theawesomehexapp-{commit}.warc.gz"
     if archive.exists():
@@ -160,7 +216,10 @@ def main() -> None:
             "reused": True,
         }
     else:
-        archive_metrics = {**write_warc(repo, archive, commit), "reused": False}
+        archive_metrics = {
+            **write_warc(repo, archive, commit, paths),
+            "reused": False,
+        }
 
     policy = {
         "schema": CONTENT_POLICY_SCHEMA,
@@ -227,8 +286,12 @@ def main() -> None:
         "schema": BOOTSTRAP_SCHEMA,
         "repository": str(repo),
         "repository_identity": "Pokitomas/theawesomehexapp",
+        "repository_identity_source": identity_source,
+        "repository_manifest": repository_manifest,
+        "repository_manifest_sha256": repository_manifest_sha256,
         "commit": commit,
         "tree": tree,
+        "tracked_files": len(paths),
         "archive": str(archive),
         "archive_metrics": archive_metrics,
         "content_policy_digest": policy_digest,
