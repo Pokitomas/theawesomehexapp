@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One pursuit optimization step with causal and compute counterfactuals."""
+"""One pursuit optimization step with causal, retention, and value-of-computation pressure."""
 from __future__ import annotations
 
 import math
@@ -10,13 +10,14 @@ import torch
 import torch.nn.functional as F
 
 from archie_sidepus_organism import ArchieSidepusOrganism
+from sidepus_pursuit_forward import pursuit_forward
 from sidepus_pursuit_objectives import halt_entropy, kl_to_shell, shell_logits
 
 
 @dataclass
 class StepOutput:
     result: dict[str, torch.Tensor]
-    values: dict[str, float]
+    values: dict[str, Any]
     state_utility: float
     reset_lm_loss: float
     wrong_lm_loss: float
@@ -40,9 +41,12 @@ def train_step(
     counterfactual = has_prior_state and step % args.counterfactual_every == 0
     interference = step % args.interference_every == 0
     with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
-        result = model(
-            inputs, labels=inputs, world_state=world_input,
-            plastic_state=plastic_input, return_diagnostics=True,
+        result = pursuit_forward(
+            model,
+            inputs,
+            labels=inputs,
+            world_state=world_input,
+            plastic_state=plastic_input,
         )
         correct_lm = result["lm_loss"]
         state_order = correct_lm.new_zeros(())
@@ -65,9 +69,22 @@ def train_step(
                     wrong_value = float(wrong_lm.float().cpu())
             state_order = F.relu(args.state_margin + correct_lm - reference)
             state_utility = float((reference - correct_lm.detach()).float().cpu())
-        target_steps = stream.target_deliberation(rows)
+
+        step_losses = result["deliberation_step_losses"]
+        step_numbers = torch.arange(
+            1, step_losses.numel() + 1, device=step_losses.device, dtype=step_losses.dtype
+        )
+        oracle_scores = step_losses.detach() + args.deliberation_compute_cost * (step_numbers - 1.0)
+        oracle_index = int(torch.argmin(oracle_scores).item())
+        target_steps = float(oracle_index + 1)
+        stop_distribution = result["halt_weights"].float().mean(dim=0).clamp_min(1e-8)
+        stop_distribution = stop_distribution / stop_distribution.sum()
+        policy_loss = -torch.log(stop_distribution[oracle_index])
+        trajectory_loss = step_losses.mean()
+        marginal_gain = step_losses[0].detach() - step_losses[oracle_index].detach()
         compute_floor = F.relu(correct_lm.new_tensor(target_steps) - result["expected_deliberation_steps"])
         entropy = halt_entropy(result)
+
         interference_loss = correct_lm.new_zeros(())
         if interference:
             with torch.no_grad():
@@ -76,6 +93,8 @@ def train_step(
         loss = (
             result["loss"]
             + args.state_order_weight * state_order
+            + args.deliberation_policy_weight * policy_loss
+            + args.deliberation_trajectory_weight * trajectory_loss
             + args.deliberation_floor_weight * compute_floor
             + args.interference_weight * interference_loss
             - args.halt_entropy_weight * entropy
@@ -85,14 +104,24 @@ def train_step(
     gradient_norm = float(
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip).detach().float().cpu()
     )
-    values = {
+    values: dict[str, Any] = {
         "loss": float(loss.detach().float().cpu()),
         "base_loss": float(result["loss"].detach().float().cpu()),
         "lm_loss": float(correct_lm.detach().float().cpu()),
         "state_loss": float(result["state_loss"].detach().float().cpu()),
         "ponder_cost": float(result["ponder_cost"].detach().float().cpu()),
         "state_order_loss": float(state_order.detach().float().cpu()),
+        "deliberation_policy_loss": float(policy_loss.detach().float().cpu()),
+        "deliberation_trajectory_loss": float(trajectory_loss.detach().float().cpu()),
         "deliberation_floor_loss": float(compute_floor.detach().float().cpu()),
+        "deliberation_marginal_gain": float(marginal_gain.float().cpu()),
+        "oracle_deliberation_steps": target_steps,
+        "deliberation_step_losses": [
+            float(value.detach().float().cpu()) for value in step_losses
+        ],
+        "halt_stop_weights": [
+            float(value.detach().float().cpu()) for value in stop_distribution
+        ],
         "halt_entropy": float(entropy.detach().float().cpu()),
         "interference_kl": float(interference_loss.detach().float().cpu()),
         "causal_state_available": float(has_prior_state),
