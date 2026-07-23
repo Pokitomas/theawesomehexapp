@@ -148,7 +148,7 @@ def run(args: Any) -> dict[str, Any]:
     source_sha = sha256_file(source_path)
     contract = pursuit_contract(args, cfg, source_sha, plan_receipt, retention_metadata, device, amp_dtype)
     digest = contract_digest(contract)
-    state, world_state, plastic_state, previous_domains = TrainState(), None, None, None
+    state, world_state, plastic_state, previous_threads = TrainState(), None, None, None
     history: list[dict[str, Any]] = []
     resumed = False
 
@@ -160,7 +160,7 @@ def run(args: Any) -> dict[str, Any]:
         seed=args.seed, ledger=output / "materialization-ledger.jsonl",
     ) as stream:
         if checkpoint_path.exists() and not args.no_resume:
-            state, world_state, plastic_state, previous_domains, history = load_checkpoint(
+            state, world_state, plastic_state, previous_threads, history = load_checkpoint(
                 checkpoint_path, model=model, optimizer=optimizer, scheduler=scheduler,
                 scaler=scaler, stream=stream, retention_sampler=retention_sampler,
                 digest=digest, device=device,
@@ -199,8 +199,13 @@ def run(args: Any) -> dict[str, Any]:
             except StopIteration:
                 stop_reason = "plan_exhausted"; break
             domains = [str(row.get("primary_domain", "unknown")) for row in rows]
-            world_input = reset_changed_domains(world_state, domains, previous_domains, args.state_carry_policy)
-            plastic_input = reset_changed_domains(plastic_state, domains, previous_domains, args.state_carry_policy)
+            threads = [str(row.get("state_thread_id", row["intent_id"])) for row in rows]
+            world_input = reset_changed_domains(
+                world_state, threads, previous_threads, args.state_carry_policy
+            )
+            plastic_input = reset_changed_domains(
+                plastic_state, threads, previous_threads, args.state_carry_policy
+            )
             inputs = batch[:, :-1]
             state.attempts += 1
             step_output = train_step(
@@ -214,7 +219,7 @@ def run(args: Any) -> dict[str, Any]:
                 world_state = result["world_state"].detach()
                 plastic_output = result.get("plastic_state")
                 plastic_state = plastic_output.detach() if plastic_output is not None else None
-                previous_domains = domains
+                previous_threads = threads
             else:
                 scaler.update(); state.skipped_steps += 1; state.consecutive_skips += 1
             scheduler.step(); state.step += 1; state.tokens_seen += int(inputs.numel())
@@ -258,8 +263,11 @@ def run(args: Any) -> dict[str, Any]:
                 "tokens_seen": state.tokens_seen, "bytes_seen": state.bytes_seen,
                 "plan_cursor": stream.cursor,
                 "learning_rates": [float(group["lr"]) for group in optimizer.param_groups],
-                "language_shell_trainable": state.step > args.freeze_language_steps,
-                "domains": domains, "intent_ids": [row["intent_id"] for row in rows],
+                "language_shell_trainable": state.step >= args.freeze_language_steps,
+                "domains": domains,
+                "state_threads": threads,
+                "sequence_indices": [row.get("sequence_index") for row in rows],
+                "intent_ids": [row["intent_id"] for row in rows],
                 "state_utility": step_output.state_utility,
                 "reset_lm_loss": step_output.reset_lm_loss,
                 "wrong_lm_loss": step_output.wrong_lm_loss,
@@ -283,7 +291,7 @@ def run(args: Any) -> dict[str, Any]:
                     checkpoint_path, model=model, optimizer=optimizer, scheduler=scheduler,
                     scaler=scaler, state=state, stream=stream, retention_sampler=retention_sampler,
                     world_state=world_state, plastic_state=plastic_state,
-                    previous_domains=previous_domains, history=history,
+                    previous_domains=previous_threads, history=history,
                     contract=contract, digest=digest,
                 )
             if state.consecutive_skips >= args.max_consecutive_skips:
@@ -297,7 +305,7 @@ def run(args: Any) -> dict[str, Any]:
             checkpoint_path, model=model, optimizer=optimizer, scheduler=scheduler,
             scaler=scaler, state=state, stream=stream, retention_sampler=retention_sampler,
             world_state=world_state, plastic_state=plastic_state,
-            previous_domains=previous_domains, history=history,
+            previous_domains=previous_threads, history=history,
             contract=contract, digest=digest,
         )
         export_model(model_path, model, cfg, retention_metadata["tokenizer"], {
