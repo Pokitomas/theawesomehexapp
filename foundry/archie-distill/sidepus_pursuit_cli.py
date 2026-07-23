@@ -15,7 +15,6 @@ def parser() -> argparse.ArgumentParser:
     cli.add_argument("--output-dir", required=True); cli.add_argument("--seq-len", type=int, default=1024)
     cli.add_argument("--batch-size", type=int, default=1); cli.add_argument("--prefetch-workers", type=int, default=4)
     cli.add_argument("--pursuit-lookahead", type=int, default=64); cli.add_argument("--max-steps", type=int, default=2500)
-    cli.add_argument("--wrong-state-bank-capacity", type=int, default=64)
     cli.add_argument("--learning-rate", type=float, default=2e-4); cli.add_argument("--language-lr-scale", type=float, default=0.02)
     cli.add_argument("--freeze-language-steps", type=int, default=1000); cli.add_argument("--min-lr-ratio", type=float, default=0.1)
     cli.add_argument("--warmup-steps", type=int, default=200); cli.add_argument("--weight-decay", type=float, default=0.1)
