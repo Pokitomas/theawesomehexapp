@@ -1,0 +1,46 @@
+name: Archie Sidepus direct contract
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/sidepus_training_stream.py'
+      - 'foundry/archie-distill/archie_sidepus_organism.py'
+      - 'foundry/archie-distill/train_archie_sidepus_direct.py'
+      - 'foundry/archie-distill/train_archie_sidepus_organism.py'
+      - 'foundry/archie-distill/evaluate_archie_sidepus_organism.py'
+      - 'foundry/archie-distill/run_archie_sidepus_organism.sh'
+      - 'foundry/archie-distill/test_sidepus_training_stream.py'
+      - 'foundry/archie-distill/test_archie_sidepus_organism.py'
+      - '.github/workflows/archie-sidepus-direct-contract.yml'
+  push:
+    branches:
+      - 'agent/sidepus-direct-stream-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU PyTorch
+        run: python -m pip install --upgrade pip torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile direct Sidepus authority
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/sidepus_training_stream.py \
+            foundry/archie-distill/archie_sidepus_organism.py \
+            foundry/archie-distill/train_archie_sidepus_direct.py \
+            foundry/archie-distill/train_archie_sidepus_organism.py \
+            foundry/archie-distill/evaluate_archie_sidepus_organism.py
+          bash -n foundry/archie-distill/run_archie_sidepus_organism.sh
+      - name: Run direct-stream contracts
+        working-directory: foundry/archie-distill
+        run: |
+          python test_sidepus_training_stream.py
+          python test_archie_sidepus_organism.py
