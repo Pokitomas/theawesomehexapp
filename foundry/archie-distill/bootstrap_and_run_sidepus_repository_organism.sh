@@ -9,6 +9,7 @@ RIGHTS_MANIFEST="${ARCHIE_SIDEPUS_RIGHTS_MANIFEST:-$SIDEPUS_STATE/training-right
 BOOTSTRAP_RECEIPT="$SIDEPUS_STATE/repository-bootstrap-receipt.json"
 INVENTORY="${ARCHIE_SIDEPUS_INVENTORY:-$SIDEPUS_STATE/training-inventory.jsonl}"
 INVENTORY_RECEIPT="${ARCHIE_SIDEPUS_INVENTORY_RECEIPT:-$INVENTORY.receipt.json}"
+REPOSITORY_MANIFEST="${ARCHIE_SIDEPUS_REPO_MANIFEST:-$REPO_ROOT/.sidepus-bootstrap-manifest.json}"
 
 if [[ ! -x "$PYTHON" ]]; then
   echo "Missing Archie Python: $PYTHON" >&2
@@ -26,11 +27,18 @@ fi
 
 mkdir -p "$SIDEPUS_STATE"
 if [[ ! -f "$BOOTSTRAP_RECEIPT" ]]; then
-  PYTHONPATH="$REPO_ROOT" "$PYTHON" "$HERE/bootstrap_sidepus_repository_archive.py" \
-    --repo "$REPO_ROOT" \
-    --state-dir "$SIDEPUS_STATE" \
-    --rights-manifest "$RIGHTS_MANIFEST" \
+  BOOTSTRAP_ARGS=(
+    --repo "$REPO_ROOT"
+    --state-dir "$SIDEPUS_STATE"
+    --rights-manifest "$RIGHTS_MANIFEST"
     --receipt "$BOOTSTRAP_RECEIPT"
+  )
+  if [[ -f "$REPOSITORY_MANIFEST" ]]; then
+    echo "Using sealed repository manifest: $REPOSITORY_MANIFEST"
+    BOOTSTRAP_ARGS+=(--repository-manifest "$REPOSITORY_MANIFEST")
+  fi
+  PYTHONPATH="$REPO_ROOT" "$PYTHON" "$HERE/bootstrap_sidepus_repository_archive.py" \
+    "${BOOTSTRAP_ARGS[@]}"
 fi
 
 if [[ ! -f "$INVENTORY" ]]; then
