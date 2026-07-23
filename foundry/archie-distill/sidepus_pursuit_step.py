@@ -9,6 +9,7 @@ from typing import Any, Mapping, Sequence
 import torch
 import torch.nn.functional as F
 
+from archie_hybrid_core import PAD_ID
 from archie_sidepus_organism import ArchieSidepusOrganism
 from sidepus_pursuit_forward import pursuit_forward
 from sidepus_pursuit_objectives import halt_entropy, kl_to_shell, shell_logits
@@ -24,6 +25,10 @@ class StepOutput:
     target_deliberation: float
     gradient_norm: float
     finite: bool
+
+
+def _masked_mean(value: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    return value.masked_select(mask).mean() if bool(mask.any()) else value.new_zeros(())
 
 
 def train_step(
@@ -76,24 +81,28 @@ def train_step(
         )
         oracle_scores = step_losses.detach() + args.deliberation_compute_cost * (step_numbers - 1.0)
         oracle_index = int(torch.argmin(oracle_scores).item())
+        oracle_steps = float(oracle_index + 1)
 
-        # Do not let the halt head erase later computation before the recurrent
-        # transition has learned to refine anything. The training floor decays
-        # from the maximum depth to one over the configured warmup.
-        warmup_fraction = min(1.0, float(step) / max(1.0, float(args.deliberation_halt_warmup_steps)))
+        # Keep later computation alive briefly, but never report this curriculum target
+        # as the actual loss-plus-compute oracle.
+        warmup_fraction = min(
+            1.0,
+            float(step) / max(1.0, float(args.deliberation_halt_warmup_steps)),
+        )
         curriculum_floor = 1 + int(round(
             (step_losses.numel() - 1) * (1.0 - warmup_fraction)
         ))
         supervised_index = max(oracle_index, curriculum_floor - 1)
-        target_steps = float(supervised_index + 1)
+        supervised_steps = float(supervised_index + 1)
 
-        stop_distribution = result["halt_weights"].float().mean(dim=0).clamp_min(1e-8)
+        valid = inputs[:, 1:].ne(PAD_ID)
+        target_halt_weights = result["halt_weights"][:, :-1].float()
+        stop_distribution = (
+            target_halt_weights * valid[..., None].float()
+        ).sum(dim=(0, 1)).clamp_min(1e-8)
         stop_distribution = stop_distribution / stop_distribution.sum()
         policy_loss = -torch.log(stop_distribution[supervised_index])
 
-        # Later thoughts are trained as refinements. Penalize any adjacent step
-        # that fails to improve by the declared margin instead of merely averaging
-        # all step losses, which previously rewarded four copies of a bad trajectory.
         if step_losses.numel() > 1:
             trajectory_loss = F.relu(
                 step_losses[1:] - step_losses[:-1]
@@ -105,10 +114,29 @@ def train_step(
         best_index = int(torch.argmin(step_losses.detach()).item())
         marginal_gain = step_losses[0].detach() - step_losses[best_index].detach()
         compute_floor = F.relu(
-            correct_lm.new_tensor(target_steps)
+            correct_lm.new_tensor(supervised_steps)
             - result["expected_deliberation_steps"]
         )
         entropy = halt_entropy(result)
+
+        # Token-level court: distinguish real useful extra depth from a batch-average artifact.
+        token_losses = result["deliberation_token_losses"].float()
+        token_numbers = torch.arange(
+            token_losses.size(0), device=token_losses.device, dtype=token_losses.dtype
+        )[:, None, None]
+        token_scores = token_losses.detach() + args.deliberation_compute_cost * token_numbers
+        token_oracle = token_scores.argmin(dim=0)
+        oracle_extra_fraction = _masked_mean(token_oracle.gt(0).float(), valid)
+        token_gain = _masked_mean(
+            token_losses[0].detach() - token_losses.detach().amin(dim=0),
+            valid,
+        )
+        halt_choice = result["halt_weights"][:, :-1].float().argmax(dim=-1)
+        halt_extra_fraction = _masked_mean(halt_choice.gt(0).float(), valid)
+        halt_agreement = _masked_mean(halt_choice.eq(token_oracle).float(), valid)
+        selected_score = token_scores.gather(0, halt_choice.unsqueeze(0)).squeeze(0)
+        oracle_score = token_scores.amin(dim=0)
+        halt_regret = _masked_mean(selected_score - oracle_score, valid)
 
         interference_loss = correct_lm.new_zeros(())
         if interference:
@@ -140,7 +168,13 @@ def train_step(
         "deliberation_trajectory_loss": float(trajectory_loss.detach().float().cpu()),
         "deliberation_floor_loss": float(compute_floor.detach().float().cpu()),
         "deliberation_marginal_gain": float(marginal_gain.float().cpu()),
-        "oracle_deliberation_steps": target_steps,
+        "deliberation_token_marginal_gain": float(token_gain.detach().float().cpu()),
+        "oracle_deliberation_steps": oracle_steps,
+        "supervised_deliberation_steps": supervised_steps,
+        "oracle_extra_step_fraction": float(oracle_extra_fraction.detach().float().cpu()),
+        "halt_extra_step_fraction": float(halt_extra_fraction.detach().float().cpu()),
+        "halt_oracle_agreement": float(halt_agreement.detach().float().cpu()),
+        "halt_regret": float(halt_regret.detach().float().cpu()),
         "deliberation_step_losses": [
             float(value.detach().float().cpu()) for value in step_losses
         ],
@@ -162,5 +196,5 @@ def train_step(
     return StepOutput(
         result=result, values=values, state_utility=state_utility,
         reset_lm_loss=reset_value, wrong_lm_loss=wrong_value,
-        target_deliberation=target_steps, gradient_norm=gradient_norm, finite=finite,
+        target_deliberation=oracle_steps, gradient_norm=gradient_norm, finite=finite,
     )
