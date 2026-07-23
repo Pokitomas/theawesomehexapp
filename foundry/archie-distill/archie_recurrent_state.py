@@ -380,11 +380,14 @@ def linked_cross_entropy(
         if segment.ndim != 2 or segment.size(1) < 2:
             raise ValueError("linked segments must have shape [batch, length>=2]")
         logits, ssm, kv = model.step(
-            segment[:, :-1],
+            segment,
             None if state is None else state.ssm,
             None if state is None else state.kv,
         )
-        loss = F.cross_entropy(logits.float().reshape(-1, logits.size(-1)), segment[:, 1:].reshape(-1))
+        loss = F.cross_entropy(
+            logits[:, :-1].float().reshape(-1, logits.size(-1)),
+            segment[:, 1:].reshape(-1),
+        )
         losses.append(loss)
         state = state_from_lists(ssm, kv)
         if detach_between_segments:
