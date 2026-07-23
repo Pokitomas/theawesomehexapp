@@ -1,0 +1,60 @@
+{
+  "schema": "archie-event-clock-experiment/v0",
+  "artifact_id": "archie-event-clock-v0",
+  "status": "blocked-pending-recurrence-evidence",
+  "promotion": "research-only-not-admitted",
+  "required_predecessor": {
+    "artifact_id": "archie-lm-linked-state-v1",
+    "receipt_schema": "archie-linked-state-verdict/v1",
+    "verdict": "recurrence-supported",
+    "event_clock_unblocked": true,
+    "minimum_seeds": 2,
+    "minimum_heldout_sources": 4
+  },
+  "model": {
+    "parameter_floor": 20000000,
+    "parameter_ceiling": 30000000,
+    "default_parameters": 23516741,
+    "initialization": "random",
+    "byte_clock": "seven selective-SSM byte blocks",
+    "event_clock": "learned straight-through boundary gate plus recurrent slow-state cell",
+    "tokenizer": "raw UTF-8 bytes plus existing special tokens"
+  },
+  "objectives": [
+    "ordinary next-byte prediction",
+    "future-byte prediction from slow state",
+    "event-state reconstruction of byte-clock representations",
+    "event-rate regularization toward 0.125 events per byte",
+    "repository or environment state-delta prediction when labeled deltas exist"
+  ],
+  "fixed_controls": [
+    "matched-parameter ordinary byte LM",
+    "SSM-only byte LM",
+    "fixed-rate hierarchical recurrent model",
+    "learned-tokenizer hierarchy",
+    "correct slow state",
+    "reset slow state",
+    "cross-source transplanted slow state",
+    "single-event-vector replacement while raw bytes remain fixed"
+  ],
+  "required_measurements": [
+    "later-segment bits per original byte",
+    "ordinary prose, code and JSON retention",
+    "identifier and entity recall across segments",
+    "long-copy exactness",
+    "next-diff and test-outcome prediction",
+    "event rate and event-length distribution",
+    "state transplant and event replacement penalties",
+    "three-seed confidence intervals",
+    "checkpoint, optimizer, corpus, split and recurrence-receipt digests"
+  ],
+  "stop_conditions": [
+    "correct slow state does not beat reset and matched ordinary controls",
+    "transplanted state or replaced events do not cause a directed penalty",
+    "event rate collapses to one event per byte or effectively zero events",
+    "gains disappear on fixed held-out sources",
+    "ordinary-domain compression regresses materially",
+    "any execution lacks a verified recurrence receipt"
+  ],
+  "claim_boundary": "This file preregisters a gated experiment. It is not training evidence, a novelty result, or an admitted model."
+}
