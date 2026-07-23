@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Immutable-window evaluation for the Archie scratch byte language model.
+"""Immutable-window evaluation for the exact Archie 114M baseline.
 
-The module deliberately refuses advancing/random evaluation windows. A manifest is
-usable only after it is sealed to one corpus digest and contains explicit offsets.
+The module refuses advancing/random windows and verifies the historical source
+core before loading any checkpoint. Fixed evaluation remains blocked until all
+nine manifests are sealed to one exact corpus.
 """
 from __future__ import annotations
 
@@ -19,10 +20,21 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from archie_hybrid_core import ArchieHybridLM, ModelConfig
+from archie_baseline_identity import (
+    BASELINE_EXPORT_SHA256,
+    CORPUS_SCHEMAS,
+    SOURCE_CORE_BLOB,
+    load_baseline_export,
+    sha256_file,
+    stable_json,
+    verify_source_core,
+)
+from archie_hybrid_core import ArchieHybridLM, ByteTokenizer
+from archie_tokenizers import token_byte_lengths, tokenizer_from_metadata
 
 MANIFEST_SCHEMA = "archie-fixed-eval-manifest/v1"
 RECEIPT_SCHEMA = "archie-fixed-eval-receipt/v1"
+INPUT_RECEIPT_SCHEMA = "archie-fixed-eval-input-receipt/v1"
 SOURCE_INDEX_SCHEMA = "archie-corpus-source-index/v1"
 DOMAINS = (
     "general-prose",
@@ -45,20 +57,8 @@ class EvalWindow:
     split: str = "eval"
 
 
-def stable_json(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
 def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
-
-
-def sha256_file(path: pathlib.Path, chunk_size: int = 1 << 20) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while chunk := handle.read(chunk_size):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def atomic_json(path: pathlib.Path, value: Any) -> None:
@@ -78,7 +78,7 @@ def _read_json(path: pathlib.Path) -> dict[str, Any]:
 def corpus_metadata(corpus_path: pathlib.Path) -> dict[str, Any]:
     metadata_path = corpus_path.with_suffix(corpus_path.suffix + ".json")
     metadata = _read_json(metadata_path)
-    if metadata.get("schema") != "archie-u16-byte-corpus/v1":
+    if metadata.get("schema") not in CORPUS_SCHEMAS:
         raise ValueError("unsupported corpus metadata schema")
     if metadata.get("dtype") != "<u2":
         raise ValueError("fixed evaluation requires little-endian uint16 corpus")
@@ -88,7 +88,18 @@ def corpus_metadata(corpus_path: pathlib.Path) -> dict[str, Any]:
     digest = sha256_file(corpus_path)
     if digest != metadata.get("sha256"):
         raise ValueError("corpus digest does not match metadata")
-    return metadata
+    tokenizer_metadata = metadata.get("tokenizer") or ByteTokenizer.metadata()
+    tokenizer = tokenizer_from_metadata(tokenizer_metadata)
+    corpus = np.memmap(corpus_path, dtype="<u2", mode="r")
+    if int(corpus.max()) >= tokenizer.vocab_size:
+        raise ValueError("corpus contains a token outside the declared tokenizer vocabulary")
+    normalized = dict(metadata)
+    normalized["tokenizer"] = tokenizer_metadata
+    normalized["tokenizer_digest"] = sha256_bytes(stable_json(tokenizer_metadata).encode("utf-8"))
+    normalized["original_byte_count"] = int(
+        metadata.get("original_byte_count", sum(token_byte_lengths(tokenizer_metadata)[int(token)] for token in corpus))
+    )
+    return normalized
 
 
 def validate_manifest(path: pathlib.Path, corpus_path: pathlib.Path) -> dict[str, Any]:
@@ -180,35 +191,75 @@ def seal_manifests(source_index_path: pathlib.Path, output_dir: pathlib.Path) ->
     return output
 
 
-def load_model(export_path: pathlib.Path, device: torch.device) -> tuple[ArchieHybridLM, str]:
-    export_digest = sha256_file(export_path)
-    payload = torch.load(export_path, map_location=device, weights_only=False)
-    if payload.get("schema") != "archie-scratch-hybrid-model/v1":
-        raise ValueError("unsupported Archie model export")
-    cfg = ModelConfig(**payload["config"])
-    model = ArchieHybridLM(cfg).to(device)
-    model.load_state_dict(payload["model"], strict=True)
-    model.eval()
-    return model, export_digest
+def load_model(
+    export_path: pathlib.Path,
+    device: torch.device,
+    *,
+    expected_sha256: str | None = BASELINE_EXPORT_SHA256,
+) -> tuple[ArchieHybridLM, dict[str, Any]]:
+    return load_baseline_export(export_path, device=device, expected_sha256=expected_sha256)
 
 
 @torch.no_grad()
-def score_window(model: ArchieHybridLM, tokens: np.ndarray, device: torch.device) -> dict[str, Any]:
+def score_window(
+    model: ArchieHybridLM,
+    tokens: np.ndarray,
+    device: torch.device,
+    byte_lengths: np.ndarray | None = None,
+) -> dict[str, Any]:
     row = torch.from_numpy(np.asarray(tokens, dtype=np.int64)).to(device)[None]
     inputs, targets = row[:, :-1], row[:, 1:]
     logits = model(inputs)["logits"].float()
     log_probs = F.log_softmax(logits, dim=-1)
     selected = log_probs.gather(-1, targets[..., None]).squeeze(-1)
-    byte_mask = targets.lt(256)
-    byte_targets = int(byte_mask.sum().item())
-    if byte_targets == 0:
+    if byte_lengths is None:
+        lengths = targets.lt(256).to(dtype=torch.float32)
+    else:
+        table = torch.from_numpy(np.asarray(byte_lengths, dtype=np.float32)).to(device)
+        lengths = table[targets]
+    original_bytes = int(lengths.sum().item())
+    token_mask = lengths.gt(0)
+    if original_bytes == 0 or not bool(token_mask.any()):
         raise ValueError("window has no original-byte targets")
-    nll_nats = float((-selected[byte_mask]).sum().cpu())
+    nll_nats = float((-selected[token_mask]).sum().cpu())
     return {
-        "byte_targets": byte_targets,
+        "scored_tokens": int(token_mask.sum().item()),
+        "original_bytes": original_bytes,
         "nll_nats": nll_nats,
-        "bits_per_original_byte": nll_nats / math.log(2.0) / byte_targets,
+        "bits_per_original_byte": nll_nats / math.log(2.0) / original_bytes,
     }
+
+
+def attest_inputs(
+    model_path: pathlib.Path,
+    corpus_path: pathlib.Path,
+    output_path: pathlib.Path,
+    device_name: str,
+    expected_model_sha256: str | None = BASELINE_EXPORT_SHA256,
+) -> dict[str, Any]:
+    device = torch.device(device_name)
+    metadata = corpus_metadata(corpus_path)
+    model, identity = load_model(model_path, device, expected_sha256=expected_model_sha256)
+    tokenizer = tokenizer_from_metadata(metadata["tokenizer"])
+    if model.cfg.vocab_size != tokenizer.vocab_size:
+        raise ValueError("model vocabulary does not match corpus tokenizer")
+    receipt: dict[str, Any] = {
+        "schema": INPUT_RECEIPT_SCHEMA,
+        "model": identity,
+        "corpus": {
+            "schema": metadata["schema"],
+            "sha256": metadata["sha256"],
+            "token_count": int(metadata["token_count"]),
+            "original_byte_count": int(metadata["original_byte_count"]),
+            "tokenizer_digest": metadata["tokenizer_digest"],
+        },
+        "source_core_blob": verify_source_core(),
+        "status": "inputs-loaded-fixed-evaluation-still-requires-sealed-manifests",
+        "promotion": "research-only-not-admitted",
+    }
+    receipt["receipt_digest"] = sha256_bytes(stable_json(receipt).encode("utf-8"))
+    atomic_json(output_path, receipt)
+    return receipt
 
 
 def evaluate(
@@ -217,10 +268,15 @@ def evaluate(
     manifest_paths: Iterable[pathlib.Path],
     output_path: pathlib.Path,
     device_name: str,
+    expected_model_sha256: str | None = BASELINE_EXPORT_SHA256,
 ) -> dict[str, Any]:
     device = torch.device(device_name)
     metadata = corpus_metadata(corpus_path)
-    model, model_digest = load_model(model_path, device)
+    model, identity = load_model(model_path, device, expected_sha256=expected_model_sha256)
+    tokenizer = tokenizer_from_metadata(metadata["tokenizer"])
+    if model.cfg.vocab_size != tokenizer.vocab_size:
+        raise ValueError("model vocabulary does not match corpus tokenizer")
+    lengths = np.asarray(token_byte_lengths(metadata["tokenizer"]), dtype=np.float32)
     corpus = np.memmap(corpus_path, dtype="<u2", mode="r")
     domains: dict[str, Any] = {}
     total_nll = 0.0
@@ -235,14 +291,13 @@ def evaluate(
         for raw in manifest["windows"]:
             start = int(raw["offset"])
             stop = start + int(raw["length"])
-            score = score_window(model, corpus[start:stop], device)
-            record = {**raw, **score}
-            records.append(record)
+            score = score_window(model, corpus[start:stop], device, lengths)
+            records.append({**raw, **score})
             domain_nll += float(score["nll_nats"])
-            domain_bytes += int(score["byte_targets"])
+            domain_bytes += int(score["original_bytes"])
         domains[domain] = {
             "bits_per_original_byte": domain_nll / math.log(2.0) / domain_bytes,
-            "byte_targets": domain_bytes,
+            "original_bytes": domain_bytes,
             "windows": records,
         }
         total_nll += domain_nll
@@ -253,11 +308,15 @@ def evaluate(
         raise ValueError(f"fixed evaluation is incomplete; missing domains: {missing}")
     receipt: dict[str, Any] = {
         "schema": RECEIPT_SCHEMA,
-        "model_sha256": model_digest,
+        "model": identity,
+        "model_sha256": identity["export_sha256"],
+        "source_core_blob": SOURCE_CORE_BLOB,
         "corpus_sha256": metadata["sha256"],
+        "corpus_schema": metadata["schema"],
+        "tokenizer_digest": metadata["tokenizer_digest"],
         "manifest_digests": manifest_digests,
         "aggregate_bits_per_original_byte": total_nll / math.log(2.0) / total_bytes,
-        "byte_targets": total_bytes,
+        "original_bytes": total_bytes,
         "domains": domains,
         "sampling": {"mode": "none", "evaluation": "teacher-forced-fixed-windows"},
         "promotion": "research-only-not-admitted",
@@ -276,6 +335,11 @@ def parser() -> argparse.ArgumentParser:
     verify = sub.add_parser("verify")
     verify.add_argument("--corpus", required=True)
     verify.add_argument("manifests", nargs="+")
+    attest = sub.add_parser("attest")
+    attest.add_argument("--model", required=True)
+    attest.add_argument("--corpus", required=True)
+    attest.add_argument("--output", required=True)
+    attest.add_argument("--device", default="cpu")
     run = sub.add_parser("evaluate")
     run.add_argument("--model", required=True)
     run.add_argument("--corpus", required=True)
@@ -294,6 +358,12 @@ def main() -> None:
         corpus = pathlib.Path(args.corpus)
         result = [validate_manifest(pathlib.Path(item), corpus) for item in args.manifests]
         print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.command == "attest":
+        receipt = attest_inputs(
+            pathlib.Path(args.model), pathlib.Path(args.corpus),
+            pathlib.Path(args.output), args.device,
+        )
+        print(json.dumps(receipt, indent=2, sort_keys=True))
     else:
         receipt = evaluate(
             pathlib.Path(args.model), pathlib.Path(args.corpus),
