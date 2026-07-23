@@ -16,6 +16,7 @@ on:
       - 'foundry/archie-distill/train_archie_sidepus_pursuit.py'
       - 'foundry/archie-distill/run_archie_sidepus_pursuit.sh'
       - 'foundry/archie-distill/test_sidepus_pursuit.py'
+      - 'foundry/archie-distill/test_sidepus_foreign_state.py'
       - '.github/workflows/archie-sidepus-pursuit-contract.yml'
   push:
     branches:
@@ -49,7 +50,8 @@ jobs:
             foundry/archie-distill/sidepus_pursuit_step.py \
             foundry/archie-distill/sidepus_pursuit_cli.py \
             foundry/archie-distill/train_archie_sidepus_pursuit.py \
-            foundry/archie-distill/test_sidepus_pursuit.py
+            foundry/archie-distill/test_sidepus_pursuit.py \
+            foundry/archie-distill/test_sidepus_foreign_state.py
           bash -n foundry/archie-distill/run_archie_sidepus_pursuit.sh
       - name: Experience boundary contracts
         working-directory: foundry/archie-distill
@@ -63,3 +65,6 @@ jobs:
       - name: Pursuit controller and plan contracts
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_pursuit.PursuitTest
+      - name: Foreign episode-state contracts
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_foreign_state.ForeignStateBankTest
