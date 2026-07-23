@@ -67,8 +67,19 @@ for (const artifact of registry.artifacts) {
       fail(`${id}.weights.repository_committed must be boolean`);
     }
     if (!isSha256OrNull(artifact.weights.sha256)) fail(`${id}.weights.sha256 must be null or lowercase SHA-256`);
+    const hashBlocker = artifact.weights.hash_blocker;
+    const hasHashBlocker = typeof hashBlocker === "string" && hashBlocker.trim().length >= 12;
     if (artifact.weights.exist === false && artifact.weights.sha256 !== null) {
       fail(`${id} cannot name a weight digest when weights.exist is false`);
+    }
+    if (artifact.weights.exist === true && artifact.weights.sha256 === null && !hasHashBlocker) {
+      fail(`${id} has existing weights without sha256 or an explicit weights.hash_blocker`);
+    }
+    if (artifact.weights.sha256 !== null && hashBlocker != null) {
+      fail(`${id} cannot retain weights.hash_blocker after a sha256 is known`);
+    }
+    if (artifact.weights.exist === false && hashBlocker != null) {
+      fail(`${id} cannot use weights.hash_blocker when no weights exist`);
     }
   }
 
@@ -130,6 +141,7 @@ console.log(JSON.stringify({
   schema: registry.schema,
   artifacts: registry.artifacts.length,
   existing_weight_artifacts: registry.artifacts.filter((item) => item.weights.exist).length,
+  unresolved_weight_hashes: registry.artifacts.filter((item) => item.weights.exist && item.weights.sha256 === null).length,
   admitted_artifacts: registry.artifacts.filter((item) => item.promotion.startsWith("admitted")).length,
   status: "valid"
 }, null, 2));
