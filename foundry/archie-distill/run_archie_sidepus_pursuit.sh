@@ -11,9 +11,9 @@ RETENTION_CORPUS="${ARCHIE_SIDEPUS_RETENTION_CORPUS:-$BASE_STATE/corpus/developm
 SIDEPUS_STATE="${SIDEPUS_STATE:-$HOME/sidepus-archive-v2}"
 SOURCE_INVENTORY="${ARCHIE_SIDEPUS_INVENTORY:-$SIDEPUS_STATE/training-inventory.jsonl}"
 
-STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v1}"
-EXPORT="${ARCHIE_SIDEPUS_PURSUIT_EXPORT:-$REPO_ROOT/returns/sidepus-pursuit}"
-CACHE="${ARCHIE_SIDEPUS_CACHE_DIR:-$HOME/sidepus-ephemeral-cache-v1}"
+STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v2}"
+EXPORT="${ARCHIE_SIDEPUS_PURSUIT_EXPORT:-$REPO_ROOT/returns/sidepus-pursuit-v2}"
+CACHE="${ARCHIE_SIDEPUS_CACHE_DIR:-$HOME/sidepus-ephemeral-cache-v2}"
 CACHE_BYTES="${ARCHIE_SIDEPUS_CACHE_BYTES:-8589934592}"
 SEQUENCE_LENGTH="${ARCHIE_SIDEPUS_SEQUENCE_LENGTH:-1024}"
 BATCH_SIZE="${ARCHIE_SIDEPUS_BATCH_SIZE:-1}"
@@ -23,11 +23,16 @@ PREFETCH="${ARCHIE_SIDEPUS_PREFETCH_WORKERS:-4}"
 SEED="${ARCHIE_SIDEPUS_SEED:-20260725}"
 DEADLINE="${ARCHIE_SIDEPUS_DEADLINE_MINUTES:-330}"
 RUN_SEQUENTIAL_CONTROL="${ARCHIE_SIDEPUS_RUN_SEQUENTIAL_CONTROL:-1}"
+MICROPHYSICS_EPISODES="${ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES:-256}"
+SEQUENCE_FOLLOW="${ARCHIE_SIDEPUS_SEQUENCE_FOLLOW_PROBABILITY:-0.8}"
+DOMAIN_TARGETS="${ARCHIE_SIDEPUS_DOMAIN_TARGETS:-{\"multimodal_episode\":0.45,\"formal_executable\":0.20,\"empirical_world\":0.15,\"language_expression\":0.08,\"social_institutional\":0.07,\"adversarial_messy\":0.05}}"
 
 require_file() { [[ -f "$1" ]] || { echo "Missing required file: $1" >&2; exit 1; }; }
 for file in \
   sidepus_experience_compiler.py \
   sidepus_ephemeral_cache.py \
+  sidepus_microphysics.py \
+  sidepus_inventory_union.py \
   sidepus_pursuit_plan.py \
   sidepus_pursuit_controller.py \
   sidepus_pursuit_stream.py \
@@ -52,26 +57,42 @@ if [[ -n "$ACTIVE" && "${ARCHIE_ALLOW_CONCURRENT_GPU:-0}" != "1" ]]; then
 fi
 
 mkdir -p "$STATE" "$EXPORT" "$CACHE"
+MICROPHYSICS_INVENTORY="$STATE/microphysics-inventory.jsonl"
+COMBINED_INVENTORY="$STATE/combined-inventory.jsonl"
 EXPERIENCE_INVENTORY="$STATE/experience-inventory.jsonl"
-if [[ ! -f "$EXPERIENCE_INVENTORY" ]]; then
-  PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_experience_compiler.py" \
-    --inventory "$SOURCE_INVENTORY" \
-    --output "$EXPERIENCE_INVENTORY"
-fi
-
 PLAN="$STATE/pursuit-intent-plan.jsonl"
 SAMPLES=$(( STEPS * BATCH_SIZE + LOOKAHEAD + 128 ))
-if [[ ! -f "$PLAN" ]]; then
-  PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_pursuit_stream.py" plan \
-    --inventory "$EXPERIENCE_INVENTORY" \
-    --output "$PLAN" \
-    --samples "$SAMPLES" \
-    --sequence-length "$SEQUENCE_LENGTH" \
-    --seed "$SEED" \
-    --minimum-quality 0.25 \
-    --require-channel utterance \
-    --exclude-flag rights-blocked
-fi
+
+PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_microphysics.py" \
+  --state-dir "$SIDEPUS_STATE" \
+  --output "$MICROPHYSICS_INVENTORY" \
+  --episodes "$MICROPHYSICS_EPISODES" \
+  --seed "$SEED" \
+  --size 16 \
+  --body-count 3 \
+  --frames 16 \
+  --frames-per-record 2
+
+PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_inventory_union.py" \
+  --inventory "$SOURCE_INVENTORY" \
+  --inventory "$MICROPHYSICS_INVENTORY" \
+  --output "$COMBINED_INVENTORY"
+
+PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_experience_compiler.py" \
+  --inventory "$COMBINED_INVENTORY" \
+  --output "$EXPERIENCE_INVENTORY"
+
+PYTHONPATH="$HERE" "$PYTHON" "$HERE/sidepus_pursuit_stream.py" plan \
+  --inventory "$EXPERIENCE_INVENTORY" \
+  --output "$PLAN" \
+  --samples "$SAMPLES" \
+  --sequence-length "$SEQUENCE_LENGTH" \
+  --seed "$SEED" \
+  --minimum-quality 0.25 \
+  --require-channel observation \
+  --exclude-flag rights-blocked \
+  --domain-targets "$DOMAIN_TARGETS" \
+  --sequence-follow-probability "$SEQUENCE_FOLLOW"
 
 run_arm() {
   local name="$1"
@@ -93,8 +114,8 @@ run_arm() {
     --prefetch-workers "$PREFETCH" \
     --pursuit-lookahead "$lookahead" \
     --max-steps "$STEPS" \
-    --freeze-language-steps 1000 \
-    --state-carry-policy carry-detached \
+    --freeze-language-steps 1200 \
+    --state-carry-policy carry-with-domain-reset \
     --counterfactual-every 4 \
     --state-order-weight 0.5 \
     --deliberation-floor-weight 0.05 \
@@ -118,13 +139,17 @@ raise SystemExit(0 if int(value.get("training",{}).get("step",-1)) >= int(sys.ar
 PY
 }
 
-echo "Archie Sidepus pursuit campaign"
-echo "  base:       $BASE_MODEL"
-echo "  inventory:  $EXPERIENCE_INVENTORY"
-echo "  intent:     $PLAN"
-echo "  cache:      $CACHE ($CACHE_BYTES bytes per arm)"
-echo "  pursuit:    lookahead=$LOOKAHEAD; causal state pressure; compute anti-collapse"
-echo "  control:    sequential=$RUN_SEQUENTIAL_CONTROL"
+echo "Archie Sidepus pursuit v2 campaign"
+echo "  base:         $BASE_MODEL"
+echo "  archive:      $SOURCE_INVENTORY"
+echo "  microphysics: $MICROPHYSICS_INVENTORY ($MICROPHYSICS_EPISODES episodes)"
+echo "  union:         $COMBINED_INVENTORY"
+echo "  experience:    $EXPERIENCE_INVENTORY"
+echo "  intent:        $PLAN"
+echo "  cache:         $CACHE ($CACHE_BYTES bytes per arm)"
+echo "  pursuit:       lookahead=$LOOKAHEAD; thread_follow=$SEQUENCE_FOLLOW"
+echo "  mechanisms:    causal state margin + anti-collapse compute + shell interference tax"
+echo "  control:       sequential=$RUN_SEQUENTIAL_CONTROL"
 
 if ! complete "$STATE/pursuit/training-receipt.json"; then
   run_arm pursuit "$LOOKAHEAD"
@@ -147,6 +172,8 @@ fi
 mkdir -p "$EXPORT"
 cp -f "$STATE/pursuit/archie-sidepus-pursuit.pt" "$EXPORT/archie-sidepus-pursuit.pt"
 cp -f "$STATE/pursuit/training-receipt.json" "$EXPORT/training-receipt.json"
+cp -f "$MICROPHYSICS_INVENTORY.receipt.json" "$EXPORT/microphysics-receipt.json"
+cp -f "$COMBINED_INVENTORY.receipt.json" "$EXPORT/inventory-union-receipt.json"
 cp -f "$EXPERIENCE_INVENTORY.receipt.json" "$EXPORT/experience-inventory-receipt.json"
 cp -f "$PLAN.receipt.json" "$EXPORT/pursuit-intent-receipt.json"
 echo "Pursuit campaign complete: $EXPORT"
