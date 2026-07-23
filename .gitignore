@@ -1,7 +1,0 @@
-# Local dependencies
-node_modules/
-
-# Private hosted configuration and local Archie data
-.env.archied
-.archie/
-*.archie-backup.json
