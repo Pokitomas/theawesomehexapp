@@ -37,7 +37,7 @@ jobs:
           cat .sidepus-bootstrap/chunk_* | base64 --decode > /tmp/sidepus-direct.tar.gz
           echo 'd9e0c3ad98b73a637af534e9be87bf5c0b10c05fc29b829338fd78714f933881  /tmp/sidepus-direct.tar.gz' | sha256sum --check
           tar -tzf /tmp/sidepus-direct.tar.gz
-          tar -xzf /tmp/sidepus-direct.tar.gz -C foundry/archie-distill
+          tar -xzf /tmp/sidepus-direct.tar.gz -C .
           chmod +x foundry/archie-distill/run_archie_sidepus_organism.sh
       - name: Normalize retained contract surfaces
         shell: python
