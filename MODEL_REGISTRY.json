@@ -1,0 +1,305 @@
+{
+  "schema": "archie-model-registry/v1",
+  "system_name": "Archie",
+  "updated_at": "2026-07-23T01:36:00Z",
+  "claim_boundary": "Archie names the complete system. Registry entries name distinct neural or symbolic artifacts. No artifact may inherit another entry's weights, metrics, admission state, or capability claims.",
+  "artifacts": [
+    {
+      "artifact_id": "archie-lm-114m-v1",
+      "display_name": "Archie LM 114M v1",
+      "artifact_type": "byte-autoregressive-language-model",
+      "weights": {
+        "exist": true,
+        "repository_committed": false,
+        "location_class": "owner-local-export",
+        "sha256": "e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd284950378ded"
+      },
+      "initialization": {
+        "kind": "random",
+        "source_artifact_id": null,
+        "source_sha256": null
+      },
+      "architecture": {
+        "parameters": 114048640,
+        "layers": 20,
+        "selective_ssm_layers": 15,
+        "local_attention_layers": 5,
+        "d_model": 640,
+        "d_ff": 1792,
+        "tokenizer": "utf-8-bytes-plus-four-special-tokens"
+      },
+      "objective": "raw UTF-8 byte next-token prediction",
+      "training": {
+        "optimizer_steps": 10446,
+        "tokens_seen": 128360448,
+        "corpus_tokens": 1302628964,
+        "tokens_per_parameter": 1.12549,
+        "corpus_pass_fraction": 0.09854
+      },
+      "measured_capability": [
+        "held-out byte prediction loss on a source-separated development corpus",
+        "local technical-prose, code, JSON, and formatting continuation texture",
+        "direct generation currently exhibits semantic collapse and repetition"
+      ],
+      "status": "research-only-not-admitted",
+      "promotion": "not-admitted",
+      "source": {
+        "pull_request": 732,
+        "head_sha": "75cad4277393ebe00a9dfc45202b2e52c826b6b3",
+        "code_status": "exact baseline subset requires extraction under issue 733"
+      },
+      "predecessor_ids": [],
+      "successor_ids": [
+        "archie-lm-linked-state-v1"
+      ],
+      "blocking_issues": [
+        733
+      ]
+    },
+    {
+      "artifact_id": "archie-register-v4",
+      "display_name": "Archie Register v4",
+      "artifact_type": "narrow-routing-component",
+      "weights": {
+        "exist": true,
+        "repository_committed": true,
+        "location_class": "repository-admitted-component",
+        "sha256": null
+      },
+      "initialization": {
+        "kind": "repository-native-narrow-model",
+        "source_artifact_id": null,
+        "source_sha256": null
+      },
+      "architecture": {
+        "parameters": null
+      },
+      "objective": "narrow admitted routing and register behavior",
+      "training": {
+        "optimizer_steps": null,
+        "tokens_seen": null,
+        "corpus_tokens": null
+      },
+      "measured_capability": [
+        "narrow register behavior only"
+      ],
+      "status": "admitted-narrow-component",
+      "promotion": "admitted-for-declared-narrow-role",
+      "source": {
+        "pull_request": null,
+        "head_sha": null,
+        "code_status": "exact checkpoint and parameter metadata still require normalization"
+      },
+      "predecessor_ids": [],
+      "successor_ids": [],
+      "blocking_issues": [
+        733
+      ]
+    },
+    {
+      "artifact_id": "archie-world-executor-v1",
+      "display_name": "Archie World Executor v1",
+      "artifact_type": "symbolic-world-research-executor",
+      "weights": {
+        "exist": true,
+        "repository_committed": false,
+        "location_class": "github-actions-research-artifact",
+        "sha256": "6b52bfb903730c19f33c2e19df1db18ec37e7c15bf4eaa8c2d6497d7489cad1e"
+      },
+      "initialization": {
+        "kind": "scratch-research-campaign",
+        "source_artifact_id": null,
+        "source_sha256": null
+      },
+      "architecture": {
+        "parameters": null
+      },
+      "objective": "execute synthetic symbolic worlds and preserve terminal state",
+      "training": {
+        "optimizer_steps": null,
+        "tokens_seen": null,
+        "corpus_tokens": null
+      },
+      "measured_capability": [
+        "research-only terminal-state and slot-cell metrics on executable symbolic worlds",
+        "continued checkpoint remained terminal-inexact and not admitted"
+      ],
+      "status": "archival-research-only",
+      "promotion": "shadow-product-not-admitted",
+      "source": {
+        "pull_request": 697,
+        "head_sha": "d4084d50a55dabe6cf34f24e74bf48d42bf63f63",
+        "code_status": "immutable historical research branch"
+      },
+      "predecessor_ids": [],
+      "successor_ids": [],
+      "blocking_issues": []
+    },
+    {
+      "artifact_id": "archie-qwen-rslora-v1",
+      "display_name": "Archie Qwen RSLoRA v1",
+      "artifact_type": "pretrained-model-adaptation-candidate",
+      "weights": {
+        "exist": false,
+        "repository_committed": false,
+        "location_class": "no-archie-adapter-produced",
+        "sha256": null
+      },
+      "initialization": {
+        "kind": "planned-adaptation-of-pretrained-qwen3-1.7b",
+        "source_artifact_id": "external-qwen3-1.7b",
+        "source_sha256": null
+      },
+      "architecture": {
+        "parameters": 1700000000
+      },
+      "objective": "information-budgeted RSLoRA preference and supervised adaptation",
+      "training": {
+        "optimizer_steps": 0,
+        "tokens_seen": 0,
+        "corpus_tokens": null
+      },
+      "measured_capability": [
+        "canonical preflight and blocker evidence only",
+        "no Archie adapter capability result"
+      ],
+      "status": "executable-experiment-preflight-blocked",
+      "promotion": "not-admitted",
+      "source": {
+        "pull_request": 727,
+        "head_sha": "67443048130053a2efea87a3270a5ce8c0591ca1",
+        "code_status": "transport and normalization infrastructure held as draft"
+      },
+      "predecessor_ids": [
+        "external-qwen3-1.7b"
+      ],
+      "successor_ids": [],
+      "blocking_issues": []
+    },
+    {
+      "artifact_id": "archie-repo-policy-v1",
+      "display_name": "Archie Repository Policy v1",
+      "artifact_type": "compact-action-policy-experiment",
+      "weights": {
+        "exist": false,
+        "repository_committed": false,
+        "location_class": "no-canonical-frozen-checkpoint",
+        "sha256": null
+      },
+      "initialization": {
+        "kind": "random",
+        "source_artifact_id": null,
+        "source_sha256": null
+      },
+      "architecture": {
+        "parameters": null
+      },
+      "objective": "accepted-action prediction, value prediction, rejected-action margin, and next-observation prediction",
+      "training": {
+        "optimizer_steps": null,
+        "tokens_seen": null,
+        "corpus_tokens": null
+      },
+      "measured_capability": [
+        "trainer and checkpoint-continuation mechanics on self-referential or procedural bootstrap curricula",
+        "no demonstrated general repository competence"
+      ],
+      "status": "superseded-research-only",
+      "promotion": "not-admitted",
+      "source": {
+        "pull_request": 730,
+        "head_sha": "3a51a634b8d2fc9b41ffdfd02db12fe125651084",
+        "code_status": "closed historical branch; reusable objectives may return on real executed transitions"
+      },
+      "predecessor_ids": [],
+      "successor_ids": [],
+      "blocking_issues": []
+    },
+    {
+      "artifact_id": "archie-lm-linked-state-v1",
+      "display_name": "Archie LM Linked State v1",
+      "artifact_type": "planned-recurrent-language-model-experiment",
+      "weights": {
+        "exist": false,
+        "repository_committed": false,
+        "location_class": "planned",
+        "sha256": null
+      },
+      "initialization": {
+        "kind": "planned-exact-warm-start",
+        "source_artifact_id": "archie-lm-114m-v1",
+        "source_sha256": "e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd284950378ded"
+      },
+      "architecture": {
+        "parameters": 114048640
+      },
+      "objective": "linked-segment next-byte prediction with carried SSM state and cached local attention",
+      "training": {
+        "optimizer_steps": 0,
+        "tokens_seen": 0,
+        "corpus_tokens": null
+      },
+      "measured_capability": [],
+      "status": "planned-blocked",
+      "promotion": "not-admitted",
+      "source": {
+        "pull_request": null,
+        "head_sha": null,
+        "code_status": "blocked by fixed evaluation and exact baseline extraction"
+      },
+      "predecessor_ids": [
+        "archie-lm-114m-v1"
+      ],
+      "successor_ids": [
+        "archie-event-clock-v0"
+      ],
+      "blocking_issues": [
+        733,
+        734
+      ]
+    },
+    {
+      "artifact_id": "archie-event-clock-v0",
+      "display_name": "Archie Event Clock v0",
+      "artifact_type": "planned-two-timescale-research-candidate",
+      "weights": {
+        "exist": false,
+        "repository_committed": false,
+        "location_class": "planned",
+        "sha256": null
+      },
+      "initialization": {
+        "kind": "new-small-control-lineage",
+        "source_artifact_id": null,
+        "source_sha256": null
+      },
+      "architecture": {
+        "parameters": null,
+        "target_parameter_range": "20000000-30000000"
+      },
+      "objective": "byte prediction, event reconstruction, future-segment prediction, event-rate regularization, and causal state-delta prediction",
+      "training": {
+        "optimizer_steps": 0,
+        "tokens_seen": 0,
+        "corpus_tokens": null
+      },
+      "measured_capability": [],
+      "status": "planned-blocked",
+      "promotion": "not-admitted",
+      "source": {
+        "pull_request": null,
+        "head_sha": null,
+        "code_status": "forbidden until linked recurrence survives matched controls"
+      },
+      "predecessor_ids": [
+        "archie-lm-linked-state-v1"
+      ],
+      "successor_ids": [],
+      "blocking_issues": [
+        733,
+        734,
+        735
+      ]
+    }
+  ]
+}
