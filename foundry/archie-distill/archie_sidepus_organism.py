@@ -34,7 +34,7 @@ from archie_world_state_core import (
     fake_quantize_state,
 )
 
-METHOD = "archie-sidepus-integrated-organism/v1"
+METHOD = "archie-sidepus-integrated-organism/v2-causal-deliberation"
 MODEL_SCHEMA = "archie-sidepus-organism-model/v1"
 ORGANISM_STATE_SCHEMA = "archie-sidepus-organism-state/v1"
 
@@ -74,7 +74,7 @@ ORGAN_PREFIXES = (
 
 
 class ArchieSidepusOrganism(nn.Module):
-    """One model exposing three state timescales plus adaptive internal computation."""
+    """One model exposing three state timescales plus causal adaptive computation."""
 
     def __init__(self, cfg: OrganismConfig) -> None:
         super().__init__()
@@ -149,19 +149,31 @@ class ArchieSidepusOrganism(nn.Module):
 
     def _deliberate(
         self,
-        token_summary: torch.Tensor,
-        world_summary: torch.Tensor,
-        plastic_summary: torch.Tensor,
+        token_features: torch.Tensor,
+        world_features: torch.Tensor,
+        plastic_features: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Refine one thought per causal token position.
+
+        Every input tensor is [batch, length, width] and is already prefix-causal.
+        Flattening batch and position lets the depth recurrence remain vectorized without
+        allowing any position to summarize or receive information from a later token.
+        """
+        if not (
+            token_features.shape == world_features.shape == plastic_features.shape
+            and token_features.ndim == 3
+        ):
+            raise ValueError("deliberation features must share [batch,length,width]")
+        batch, length, width = token_features.shape
         drive = torch.tanh(
             self.deliberation_input(
-                torch.cat((token_summary, world_summary, plastic_summary), dim=-1)
+                torch.cat((token_features, world_features, plastic_features), dim=-1)
             )
-        )
+        ).reshape(batch * length, width)
         hidden = torch.zeros_like(drive)
         cumulative_thought = torch.zeros_like(drive)
-        remaining = torch.ones(hidden.size(0), device=hidden.device, dtype=torch.float32)
-        thought = torch.zeros_like(hidden, dtype=torch.float32)
+        remaining = torch.ones(drive.size(0), device=drive.device, dtype=torch.float32)
+        thought = torch.zeros_like(drive, dtype=torch.float32)
         expected_steps = torch.zeros_like(remaining)
         halt_history: list[torch.Tensor] = []
         for index in range(self.cfg.deliberation_max_steps):
@@ -185,8 +197,12 @@ class ArchieSidepusOrganism(nn.Module):
             thought = thought + weight[:, None] * cumulative_thought.float()
             expected_steps = expected_steps + weight * float(index + 1)
             remaining = (remaining - weight).clamp_min(0.0)
-            halt_history.append(halt)
-        return thought.to(token_summary.dtype), expected_steps.mean(), torch.stack(halt_history, dim=1)
+            halt_history.append(halt.reshape(batch, length))
+        return (
+            thought.reshape(batch, length, width).to(token_features.dtype),
+            expected_steps.reshape(batch, length).mean(),
+            torch.stack(halt_history, dim=-1),
+        )
 
     def forward(
         self,
@@ -198,7 +214,7 @@ class ArchieSidepusOrganism(nn.Module):
         return_diagnostics: bool = False,
     ) -> dict[str, torch.Tensor]:
         if input_ids.ndim != 2:
-            raise ValueError("input_ids must have shape [batch, length]")
+            raise ValueError("input_ids must have shape [batch,length]")
         if input_ids.size(1) > self.cfg.max_seq_len:
             raise ValueError("sequence exceeds max_seq_len")
         batch, length = input_ids.shape
@@ -240,25 +256,22 @@ class ArchieSidepusOrganism(nn.Module):
 
         state_mix_gate = torch.sigmoid(self.state_gate(torch.cat((x, state_read), dim=-1)))
         mixed = x + state_mix_gate * state_read
-        token_summary = mixed.mean(dim=1)
-        world_summary = state.mean(dim=1).to(mixed.dtype)
-        plastic_summary = (
-            plastic_read.mean(dim=1)
-            if next_plastic_state is not None
-            else torch.zeros_like(token_summary)
+        thought_sequence, ponder_cost, halt_history = self._deliberate(
+            mixed,
+            state_read,
+            plastic_read if next_plastic_state is not None else torch.zeros_like(mixed),
         )
-        thought, ponder_cost, halt_history = self._deliberate(
-            token_summary, world_summary, plastic_summary
+        thought_gate = torch.sigmoid(
+            self.thought_gate(torch.cat((mixed, thought_sequence), dim=-1))
         )
-        thought_expanded = thought[:, None, :].expand(-1, length, -1)
-        thought_gate = torch.sigmoid(self.thought_gate(torch.cat((mixed, thought_expanded), dim=-1)))
-        logits = self.lm_head(self.norm(mixed + thought_gate * thought_expanded))
+        logits = self.lm_head(self.norm(mixed + thought_gate * thought_sequence))
+        final_thought = thought_sequence[:, -1]
 
         result: dict[str, torch.Tensor] = {
             "logits": logits,
             "world_state": state,
             "ponder_cost": ponder_cost,
-            "thought": thought,
+            "thought": final_thought,
         }
         if next_plastic_state is not None:
             result["plastic_state"] = next_plastic_state
@@ -293,7 +306,7 @@ class ArchieSidepusOrganism(nn.Module):
                 state_loss=state_loss,
             )
 
-        pooled = world_summary + thought
+        pooled = state.mean(dim=1).to(mixed.dtype) + final_thought
         if self.action_head is not None and self.value_head is not None and self.stop_head is not None:
             result["action_logits"] = self.action_head(pooled)
             result["value"] = self.value_head(pooled).squeeze(-1)
@@ -315,6 +328,7 @@ class ArchieSidepusOrganism(nn.Module):
                 active_slot_fraction=routes.gt(0).float().mean(),
                 halt_probabilities=halt_history,
                 expected_deliberation_steps=ponder_cost,
+                thought_sequence=thought_sequence,
             )
         return result
 
