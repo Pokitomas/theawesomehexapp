@@ -33,7 +33,8 @@ def train_step(
     amp_dtype: torch.dtype | None,
 ) -> StepOutput:
     optimizer.zero_grad(set_to_none=True)
-    counterfactual = step % args.counterfactual_every == 0
+    has_prior_state = world_input is not None or plastic_input is not None
+    counterfactual = has_prior_state and step % args.counterfactual_every == 0
     interference = step % args.interference_every == 0
     with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
         result = model(
@@ -64,7 +65,8 @@ def train_step(
                 teacher = shell_logits(model, inputs)
             interference_loss = kl_to_shell(result["logits"], teacher)
         loss = (
-            result["loss"] + args.state_order_weight * state_order
+            result["loss"]
+            + args.state_order_weight * state_order
             + args.deliberation_floor_weight * compute_floor
             + args.interference_weight * interference_loss
             - args.halt_entropy_weight * entropy
@@ -84,6 +86,8 @@ def train_step(
         "deliberation_floor_loss": float(compute_floor.detach().float().cpu()),
         "halt_entropy": float(entropy.detach().float().cpu()),
         "interference_kl": float(interference_loss.detach().float().cpu()),
+        "causal_state_available": float(has_prior_state),
+        "causal_state_compared": float(counterfactual),
     }
     finite = math.isfinite(gradient_norm) and all(math.isfinite(value) for value in values.values())
     return StepOutput(
