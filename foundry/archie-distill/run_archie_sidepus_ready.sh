@@ -4,7 +4,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${ARCHIE_PYTHON:-/home/awesomekai/.venv-archie-cuda/bin/python}"
 SIDEPUS_STATE="${SIDEPUS_STATE:-$HOME/sidepus-archive-v2}"
-STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v2}"
+STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v3-causal}"
 SOURCE_INVENTORY="${ARCHIE_SIDEPUS_INVENTORY:-$SIDEPUS_STATE/training-inventory.jsonl}"
 SEED="${ARCHIE_SIDEPUS_SEED:-20260725}"
 PROFILE="${ARCHIE_SIDEPUS_PROFILE:-full}"
@@ -37,6 +37,7 @@ esac
 
 DEV_EPISODES="${ARCHIE_SIDEPUS_DEVELOPMENTAL_EPISODES_PER_DOMAIN:-$DEFAULT_DEV_EPISODES}"
 DEV_STEPS="${ARCHIE_SIDEPUS_DEVELOPMENTAL_STEPS:-$DEFAULT_DEV_STEPS}"
+export ARCHIE_SIDEPUS_PURSUIT_STATE="$STATE"
 export ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES="${ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES:-$DEFAULT_MICROPHYSICS}"
 export ARCHIE_SIDEPUS_PURSUIT_STEPS="${ARCHIE_SIDEPUS_PURSUIT_STEPS:-$DEFAULT_TRAINING_STEPS}"
 export ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD="${ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD:-$DEFAULT_LOOKAHEAD}"
@@ -53,6 +54,9 @@ if [[ "$FREE_KIB" -lt "$MIN_FREE_KIB" && "${ARCHIE_ALLOW_LOW_DISK:-0}" != "1" ]]
   echo "Insufficient free disk for $PROFILE profile: ${FREE_KIB} KiB available; ${MIN_FREE_KIB} KiB required" >&2
   exit 1
 fi
+
+# Fail before corpus work if token-local thought has regressed into suffix dependence.
+PYTHONPATH="$HERE" "$PYTHON" -m unittest -q test_sidepus_causality.SidepusCausalityCourt
 
 mkdir -p "$STATE/corpus"
 DEV_INVENTORY="$STATE/corpus/developmental-inventory-$PROFILE.jsonl"
@@ -106,5 +110,5 @@ print(json.dumps(summary, indent=2))
 PY
 
 export ARCHIE_SIDEPUS_INVENTORY="$PREPARED_INVENTORY"
-echo "Launching Sidepus profile=$PROFILE steps=$ARCHIE_SIDEPUS_PURSUIT_STEPS lookahead=$ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD microphysics=$ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES"
+echo "Launching Sidepus causal profile=$PROFILE steps=$ARCHIE_SIDEPUS_PURSUIT_STEPS lookahead=$ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD microphysics=$ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES"
 exec "$HERE/run_archie_sidepus_pursuit.sh"
