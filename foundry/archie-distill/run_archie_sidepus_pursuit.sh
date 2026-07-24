@@ -12,9 +12,9 @@ SIDEPUS_STATE="${SIDEPUS_STATE:-$HOME/sidepus-archive-v2}"
 SOURCE_INVENTORY="${ARCHIE_SIDEPUS_INVENTORY:-$SIDEPUS_STATE/training-inventory.jsonl}"
 REMOTE_MANIFEST="${ARCHIE_SIDEPUS_REMOTE_MANIFEST:-}"
 
-STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v2}"
-EXPORT="${ARCHIE_SIDEPUS_PURSUIT_EXPORT:-$REPO_ROOT/returns/sidepus-pursuit-v2}"
-CACHE="${ARCHIE_SIDEPUS_CACHE_DIR:-$HOME/sidepus-ephemeral-cache-v2}"
+STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v3-causal}"
+EXPORT="${ARCHIE_SIDEPUS_PURSUIT_EXPORT:-$REPO_ROOT/returns/sidepus-pursuit-v3-causal}"
+CACHE="${ARCHIE_SIDEPUS_CACHE_DIR:-$HOME/sidepus-ephemeral-cache-v3-causal}"
 CACHE_BYTES="${ARCHIE_SIDEPUS_CACHE_BYTES:-8589934592}"
 SEQUENCE_LENGTH="${ARCHIE_SIDEPUS_SEQUENCE_LENGTH:-1024}"
 BATCH_SIZE="${ARCHIE_SIDEPUS_BATCH_SIZE:-1}"
@@ -44,7 +44,8 @@ for file in \
   sidepus_pursuit_forward.py \
   sidepus_pursuit_step.py \
   sidepus_pursuit_cli.py \
-  train_archie_sidepus_pursuit.py; do
+  train_archie_sidepus_pursuit.py \
+  test_sidepus_causality.py; do
   require_file "$HERE/$file"
 done
 require_file "$BASE_MODEL"
@@ -57,6 +58,11 @@ if [[ ! -x "$PYTHON" ]]; then echo "Missing Archie Python: $PYTHON" >&2; exit 1;
 if ! "$PYTHON" -c 'import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)'; then
   echo "CUDA unavailable in $PYTHON" >&2; exit 1
 fi
+
+# Structural stop gate: no GPU work is authorized unless both integrated and pursuit
+# forward paths are invariant to adversarial suffixes under reset and carried state.
+PYTHONPATH="$HERE" "$PYTHON" -m unittest -q test_sidepus_causality.SidepusCausalityCourt
+
 ACTIVE="$(pgrep -af '([t]rain_archie|[r]esearch_archie|[n]p_transformer|[t]rain_causal)' || true)"
 if [[ -n "$ACTIVE" && "${ARCHIE_ALLOW_CONCURRENT_GPU:-0}" != "1" ]]; then
   echo "Another Archie training process is active; refusing to split the GPU:" >&2
@@ -163,7 +169,7 @@ raise SystemExit(0 if int(value.get("training",{}).get("step",-1)) >= int(sys.ar
 PY
 }
 
-echo "Archie Sidepus pursuit v2 campaign"
+echo "Archie Sidepus pursuit v3 causal campaign"
 echo "  base:         $BASE_MODEL"
 echo "  archive:      $SOURCE_INVENTORY"
 echo "  microphysics: $MICROPHYSICS_INVENTORY ($MICROPHYSICS_EPISODES episodes)"
@@ -177,7 +183,7 @@ echo "  experience:    $EXPERIENCE_INVENTORY"
 echo "  intent:        $PLAN"
 echo "  cache:         $CACHE ($CACHE_BYTES bytes per arm)"
 echo "  pursuit:       lookahead=$LOOKAHEAD; thread_follow=$SEQUENCE_FOLLOW; learned prerequisite frontier"
-echo "  mechanisms:    foreign-history causal margin + value-of-computation + immutable retention/interference taxes"
+echo "  mechanisms:    causal token-local thought + foreign-history margin + value-of-computation + immutable retention/interference taxes"
 echo "  control:       sequential=$RUN_SEQUENTIAL_CONTROL"
 
 if ! complete "$STATE/pursuit/training-receipt.json"; then

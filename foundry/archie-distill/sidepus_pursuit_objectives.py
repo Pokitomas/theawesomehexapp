@@ -13,8 +13,8 @@ import torch.nn.functional as F
 from archie_hybrid_corpus import sha256_file, stable_json
 from archie_sidepus_organism import ArchieSidepusOrganism, OrganismConfig
 
-METHOD = "archie-sidepus-pursuit-organism/v2"
-CONTRACT_SCHEMA = "archie-sidepus-pursuit-training-contract/v2"
+METHOD = "archie-sidepus-pursuit-organism/v3-causal-deliberation"
+CONTRACT_SCHEMA = "archie-sidepus-pursuit-training-contract/v3"
 CODE_FILES = (
     "train_archie_sidepus_pursuit.py",
     "sidepus_pursuit_cli.py",
@@ -97,6 +97,8 @@ def pursuit_contract(
             "deliberation_compute_cost": args.deliberation_compute_cost,
             "deliberation_policy_weight": args.deliberation_policy_weight,
             "deliberation_trajectory_weight": args.deliberation_trajectory_weight,
+            "deliberation_improvement_margin": args.deliberation_improvement_margin,
+            "deliberation_halt_warmup_steps": args.deliberation_halt_warmup_steps,
             "deliberation_floor_weight": args.deliberation_floor_weight,
             "halt_entropy_weight": args.halt_entropy_weight,
             "interference_every": args.interference_every,
