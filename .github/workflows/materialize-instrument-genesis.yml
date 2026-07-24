@@ -1,6 +1,10 @@
 name: Materialize instrument genesis implementation
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/materialize-instrument-genesis.yml'
+      - '.github/instrument-genesis-payload/**'
   push:
     branches:
       - 'agent/archie-instrument-genesis-v2-20260723'
@@ -12,6 +16,7 @@ permissions:
 
 jobs:
   materialize:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
