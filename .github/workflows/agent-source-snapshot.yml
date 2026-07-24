@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - 'agent/archie-instrument-genesis-v2-20260723'
+  pull_request:
+    branches:
+      - 'agent/archie-endogenous-hypothesis-engine-20260723'
 
 permissions:
   contents: write
