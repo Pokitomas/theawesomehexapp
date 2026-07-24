@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'foundry/archie-distill/archie_counterfactual_state_probe.py'
+      - 'foundry/archie-distill/archie_counterfactual_observed_world.py'
       - 'foundry/archie-distill/test_archie_counterfactual_state_probe.py'
       - 'foundry/archie-distill/run_archie_counterfactual_state_probe.sh'
       - '.github/workflows/archie-counterfactual-state-probe.yml'
@@ -31,6 +32,7 @@ jobs:
         run: |
           python -m py_compile \
             foundry/archie-distill/archie_counterfactual_state_probe.py \
+            foundry/archie-distill/archie_counterfactual_observed_world.py \
             foundry/archie-distill/test_archie_counterfactual_state_probe.py
           bash -n foundry/archie-distill/run_archie_counterfactual_state_probe.sh
       - name: Structural counterfactual court
@@ -39,7 +41,7 @@ jobs:
       - name: CPU smoke
         working-directory: foundry/archie-distill
         run: |
-          python archie_counterfactual_state_probe.py \
+          python archie_counterfactual_observed_world.py \
             --profile smoke \
             --device cpu \
             --steps 4 \
