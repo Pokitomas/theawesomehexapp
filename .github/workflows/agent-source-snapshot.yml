@@ -40,13 +40,17 @@ jobs:
               handle.extractall('.')
           for path in [Path('foundry/archie-distill/archie_instrument_genesis.py'), Path('foundry/archie-distill/test_archie_instrument_genesis.py')]:
               raw=path.read_bytes(); cleaned=raw.replace(b'\x00',b'')
-              lines=cleaned.decode('utf-8').splitlines()
-              if path.name == 'archie_instrument_genesis.py' and len(lines) >= 1401:
-                  print({'removed_line_1401':lines[1400]},flush=True)
-                  del lines[1400]
+              path.write_bytes(cleaned)
               print({'path':str(path),'nul_bytes_removed':len(raw)-len(cleaned)},flush=True)
-              path.write_text('\n'.join(lines)+'\n',encoding='utf-8')
           PY
+      - name: Upload reconstructed source
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrument-repair-reconstructed-source
+          path: |
+            foundry/archie-distill/archie_instrument_genesis.py
+            foundry/archie-distill/test_archie_instrument_genesis.py
+          if-no-files-found: error
       - name: Validate repair
         id: validate
         shell: bash
