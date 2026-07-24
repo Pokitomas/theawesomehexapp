@@ -11,10 +11,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: verified-instrument-genesis-repair
-  cancel-in-progress: false
-
 jobs:
   apply:
     if: github.actor != 'github-actions[bot]'
