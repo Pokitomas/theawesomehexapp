@@ -40,8 +40,10 @@ jobs:
               handle.extractall('.')
           for path in [Path('foundry/archie-distill/archie_instrument_genesis.py'), Path('foundry/archie-distill/test_archie_instrument_genesis.py')]:
               raw=path.read_bytes(); cleaned=raw.replace(b'\x00',b'')
+              text=cleaned.decode('utf-8')
+              text='\n'.join(line for line in text.splitlines() if line.strip() != 'parameter_actions)') + '\n'
               print({'path':str(path),'nul_bytes_removed':len(raw)-len(cleaned)},flush=True)
-              path.write_bytes(cleaned)
+              path.write_text(text,encoding='utf-8')
           PY
       - name: Validate repair
         id: validate
