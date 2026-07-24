@@ -1,0 +1,47 @@
+name: Archie executable residual cortex
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/archie_executable_residual_cortex.py'
+      - 'foundry/archie-distill/test_archie_executable_residual_cortex.py'
+      - 'foundry/archie-distill/run_archie_executable_residual_cortex.sh'
+      - '.github/workflows/archie-executable-residual-cortex.yml'
+  push:
+    branches:
+      - 'agent/archie-executable-residual-cortex-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile and shell-check
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/archie_executable_residual_cortex.py \
+            foundry/archie-distill/test_archie_executable_residual_cortex.py
+          bash -n foundry/archie-distill/run_archie_executable_residual_cortex.sh
+      - name: Executable admission court
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_executable_residual_cortex.ExecutableResidualCortexTest
+      - name: CPU end-to-end smoke
+        working-directory: foundry/archie-distill
+        run: |
+          python archie_executable_residual_cortex.py \
+            --profile smoke \
+            --device cpu \
+            --steps 4 \
+            --output-dir /tmp/archie-executable-cortex
+          test -s /tmp/archie-executable-cortex/executable-residual-cortex.json
