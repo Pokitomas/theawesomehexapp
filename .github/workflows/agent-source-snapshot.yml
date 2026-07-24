@@ -20,45 +20,53 @@ jobs:
         with:
           ref: agent/archie-instrument-genesis-v2-20260723
           fetch-depth: 1
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+          show-progress: false
       - name: Reconstruct repair payload
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          git hash-object .github/repair-payload/part-*
+          python3 - <<'PY'
           import base64
           import hashlib
           import tarfile
           from pathlib import Path
 
+          expected_blobs = [
+              'd7973042e59909fdd9df5a7f0a11eae40c988766',
+              '741e3c3082c582629cb670533597f47b3707ff52',
+              '5e6b3d56578d26226bcdf2d42a12dc0d67e2b188',
+              '79d754727e3af2aadbb3a72d2682ab2178d50384',
+              '528e44df900ee6acb32341c4b7cd8e1653480bda',
+              'e36c575e1a2572edc605770b2b77b717c094ccd0',
+              '28f3591746dd7e0ae87ec2fc3117b5387c96013a',
+              '7a80881fa5d74e65685f5439d7e51a4b4365b301',
+          ]
           parts = sorted(Path('.github/repair-payload').glob('part-[0-9][0-9]'))
           assert len(parts) == 8, [str(path) for path in parts]
           encoded = ''.join(path.read_text(encoding='utf-8').strip() for path in parts)
-          print({'parts': [(path.name, path.stat().st_size) for path in parts], 'encoded_bytes': len(encoded)})
+          print({'parts': [(path.name, path.stat().st_size) for path in parts], 'encoded_bytes': len(encoded)}, flush=True)
           payload = base64.b64decode(encoded, validate=True)
           digest = hashlib.sha256(payload).hexdigest()
-          print({'decoded_bytes': len(payload), 'sha256': digest})
+          print({'decoded_bytes': len(payload), 'sha256': digest}, flush=True)
           assert digest == '0d431ca084fa59dac5ce3a42ca59a966686913ae478b6848bdd89b5358b501c9'
           archive = Path('/tmp/instrument-genesis-repair.tar.gz')
           archive.write_bytes(payload)
           with tarfile.open(archive, 'r:gz') as handle:
               names = handle.getnames()
-              print({'members': names})
+              print({'members': names}, flush=True)
               handle.extractall('.')
           PY
       - name: Validate repair
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install numpy
-          python -m py_compile \
+          python3 -m pip install numpy
+          python3 -m py_compile \
             foundry/archie-distill/archie_instrument_genesis.py \
             foundry/archie-distill/test_archie_instrument_genesis.py
           cd foundry/archie-distill
-          python -m unittest -v test_archie_instrument_genesis
+          python3 -m unittest -v test_archie_instrument_genesis
       - name: Commit repaired engine
         shell: bash
         run: |
