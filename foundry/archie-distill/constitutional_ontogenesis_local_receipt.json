@@ -1,0 +1,67 @@
+{
+  "checks": {
+    "behavioral_ablation": false,
+    "consolidates_without_episodes": true,
+    "fecund_descendant_exists": true,
+    "invented_state_beats_raw_purity": true,
+    "observable_changes_experiments": false,
+    "revises_after_counterevidence": false,
+    "surface_transport": true
+  },
+  "claim_boundary": "Pass would establish only an auditable predictive-state observable that changes intervention, reconstructs under surface remapping, consolidates, yields a returnability descendant, and revises in this microecology. It would not establish constitutional ontogenesis or an open-ended organism.",
+  "config": {
+    "bootstrap_steps": 6000,
+    "episode_horizon": 30,
+    "eval_episodes": 240,
+    "history_depth": 3,
+    "min_history_count": 5,
+    "revision_steps": 3500,
+    "seeds": [17, 29, 43]
+  },
+  "passed_kernel": false,
+  "runs": [
+    {
+      "action_divergence": 0.4634146341463415,
+      "concept_count": 8,
+      "concept_policy": {"hidden_coverage": 3, "return_rate": 1.0, "trap_rate": 0.0},
+      "consolidation_agreement": 1.0,
+      "genealogy_depth": 2,
+      "old_after_shift": {"hidden_coverage": 3, "return_rate": 1.0, "trap_rate": 0.0},
+      "purity_world1": 1.0,
+      "purity_world2": 1.0,
+      "raw_ablation": {"hidden_coverage": 1, "return_rate": 1.0, "trap_rate": 0.0},
+      "revised_after_shift": {"hidden_coverage": 1, "return_rate": 1.0, "trap_rate": 0.0},
+      "revision_genealogy_depth": 4,
+      "seed": 17
+    },
+    {
+      "action_divergence": 0.0,
+      "concept_count": 8,
+      "concept_policy": {"hidden_coverage": 2, "return_rate": 1.0, "trap_rate": 0.0},
+      "consolidation_agreement": 1.0,
+      "genealogy_depth": 2,
+      "old_after_shift": {"hidden_coverage": 2, "return_rate": 1.0, "trap_rate": 0.0},
+      "purity_world1": 1.0,
+      "purity_world2": 1.0,
+      "raw_ablation": {"hidden_coverage": 2, "return_rate": 1.0, "trap_rate": 0.0},
+      "revised_after_shift": {"hidden_coverage": 2, "return_rate": 1.0, "trap_rate": 0.0},
+      "revision_genealogy_depth": 4,
+      "seed": 29
+    },
+    {
+      "action_divergence": 0.27439024390243905,
+      "concept_count": 10,
+      "concept_policy": {"hidden_coverage": 4, "return_rate": 0.0, "trap_rate": 0.0},
+      "consolidation_agreement": 1.0,
+      "genealogy_depth": 2,
+      "old_after_shift": {"hidden_coverage": 4, "return_rate": 0.0, "trap_rate": 0.0},
+      "purity_world1": 1.0,
+      "purity_world2": 1.0,
+      "raw_ablation": {"hidden_coverage": 4, "return_rate": 0.0, "trap_rate": 0.0},
+      "revised_after_shift": {"hidden_coverage": 2, "return_rate": 1.0, "trap_rate": 0.0},
+      "revision_genealogy_depth": 4,
+      "seed": 43
+    }
+  ],
+  "schema": "archie-causal-state-ontogenesis/v1-local-consternation"
+}
