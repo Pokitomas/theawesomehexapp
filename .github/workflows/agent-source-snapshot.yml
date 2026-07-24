@@ -35,7 +35,6 @@ jobs:
           parts = sorted(Path('.github/repair-payload').glob('part-[0-9][0-9]'))
           assert len(parts) == 8, [str(path) for path in parts]
           encoded = ''.join(path.read_text(encoding='utf-8').strip() for path in parts)
-          print({'parts': [(path.name, path.stat().st_size) for path in parts], 'encoded_bytes': len(encoded)}, flush=True)
           payload = base64.b64decode(encoded)
           print({'decoded_bytes': len(payload), 'sha256': hashlib.sha256(payload).hexdigest()}, flush=True)
           archive = Path('/tmp/instrument-genesis-repair.tar.gz')
@@ -48,7 +47,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m pip install --upgrade pip
           python3 -m pip install numpy
+          python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python3 -m py_compile \
             foundry/archie-distill/archie_instrument_genesis.py \
             foundry/archie-distill/test_archie_instrument_genesis.py
