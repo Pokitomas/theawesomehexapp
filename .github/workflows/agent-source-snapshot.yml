@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: agent/archie-instrument-genesis-v2-20260723
-          fetch-depth: 0
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -27,9 +27,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/repair-payload/part-* | base64 --decode > /tmp/instrument-genesis-repair.tar.gz
-          echo '0d431ca084fa59dac5ce3a42ca59a966686913ae478b6848bdd89b5358b501c9  /tmp/instrument-genesis-repair.tar.gz' | sha256sum --check
-          tar --extract --gzip --file /tmp/instrument-genesis-repair.tar.gz
+          python - <<'PY'
+          import base64
+          import hashlib
+          import tarfile
+          from pathlib import Path
+
+          parts = sorted(Path('.github/repair-payload').glob('part-[0-9][0-9]'))
+          assert len(parts) == 8, [str(path) for path in parts]
+          encoded = ''.join(path.read_text(encoding='utf-8').strip() for path in parts)
+          print({'parts': [(path.name, path.stat().st_size) for path in parts], 'encoded_bytes': len(encoded)})
+          payload = base64.b64decode(encoded, validate=True)
+          digest = hashlib.sha256(payload).hexdigest()
+          print({'decoded_bytes': len(payload), 'sha256': digest})
+          assert digest == '0d431ca084fa59dac5ce3a42ca59a966686913ae478b6848bdd89b5358b501c9'
+          archive = Path('/tmp/instrument-genesis-repair.tar.gz')
+          archive.write_bytes(payload)
+          with tarfile.open(archive, 'r:gz') as handle:
+              names = handle.getnames()
+              print({'members': names})
+              handle.extractall('.')
+          PY
       - name: Validate repair
         shell: bash
         run: |
