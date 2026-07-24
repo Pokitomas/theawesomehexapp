@@ -61,15 +61,14 @@ jobs:
             foundry/archie-distill/test_archie_instrument_genesis.py
           cd foundry/archie-distill
           python -m unittest -v test_archie_instrument_genesis
-      - name: Atomically publish repaired engine
+      - name: Atomically publish validated source
         shell: bash
         run: |
           set -euo pipefail
           branch='agent/archie-instrument-genesis-v2-20260723'
-          mkdir -p /tmp/validated/foundry/archie-distill /tmp/validated/.github/workflows
+          mkdir -p /tmp/validated/foundry/archie-distill
           cp foundry/archie-distill/archie_instrument_genesis.py /tmp/validated/foundry/archie-distill/
           cp foundry/archie-distill/test_archie_instrument_genesis.py /tmp/validated/foundry/archie-distill/
-          cp .github/workflows/archie-instrument-genesis.yml /tmp/validated/.github/workflows/
           git config user.name 'archie-research-bot'
           git config user.email 'actions@users.noreply.github.com'
           for attempt in 1 2 3 4 5; do
@@ -78,12 +77,9 @@ jobs:
             git reset --hard "$remote_sha"
             cp /tmp/validated/foundry/archie-distill/archie_instrument_genesis.py foundry/archie-distill/
             cp /tmp/validated/foundry/archie-distill/test_archie_instrument_genesis.py foundry/archie-distill/
-            cp /tmp/validated/.github/workflows/archie-instrument-genesis.yml .github/workflows/
-            rm -rf .github/repair-payload
-            rm -f .github/workflows/agent-source-snapshot.yml
-            rm -f .github/workflows/agent-apply-instrument-repair.yml
-            rm -f .github/workflows/z-verified-instrument-repair-20260724.yml
-            git add -A
+            git add \
+              foundry/archie-distill/archie_instrument_genesis.py \
+              foundry/archie-distill/test_archie_instrument_genesis.py
             git commit -m 'fix(research): make instrument causal court executable'
             if git push --force-with-lease="refs/heads/$branch:$remote_sha" origin "HEAD:refs/heads/$branch"; then
               exit 0
