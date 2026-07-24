@@ -1,0 +1,59 @@
+name: Archie instrument genesis
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/archie_instrument_core.py'
+      - 'foundry/archie-distill/archie_instrument_metrics.py'
+      - 'foundry/archie-distill/archie_instrument_genesis.py'
+      - 'foundry/archie-distill/archie_instrument_runtime.py'
+      - 'foundry/archie-distill/test_archie_instrument_genesis.py'
+      - 'foundry/archie-distill/run_archie_instrument_genesis.sh'
+      - '.github/workflows/archie-instrument-genesis.yml'
+  push:
+    branches:
+      - 'agent/archie-instrument-genesis-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install NumPy
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+      - name: Compile and shell-check
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/archie_instrument_core.py \
+            foundry/archie-distill/archie_instrument_metrics.py \
+            foundry/archie-distill/archie_instrument_genesis.py \
+            foundry/archie-distill/archie_instrument_runtime.py \
+            foundry/archie-distill/test_archie_instrument_genesis.py
+          bash -n foundry/archie-distill/run_archie_instrument_genesis.sh
+      - name: Structural instrument court
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest
+      - name: One-execution architecture smoke
+        working-directory: foundry/archie-distill
+        run: |
+          python archie_instrument_genesis.py \
+            --profile smoke \
+            --output-dir /tmp/archie-instrument-genesis \
+            > /tmp/instrument-genesis.stdout.json
+          python - <<'PY'
+          import json
+          receipt = json.load(open('/tmp/archie-instrument-genesis/instrument-genesis.json'))
+          assert receipt['passed_architecture_gate'] is True, receipt
+          assert receipt['larp_scale'] == 0.0, receipt
+          assert receipt['full_teacher_entry'] == 'prohibited', receipt
+          PY
+          test -s /tmp/archie-instrument-genesis/instrument-pack-17.json
