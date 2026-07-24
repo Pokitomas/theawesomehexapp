@@ -1,1 +1,1 @@
-execute verified repair with PR-visible run
+execute race-safe verified repair
