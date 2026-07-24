@@ -1,1 +1,1 @@
-trigger integrity-diagnostic repair workflow
+trigger diagnostic-artifact repair workflow
