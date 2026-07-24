@@ -1,0 +1,75 @@
+name: Archie instrument genesis
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/archie_instrument_genesis.py'
+      - 'foundry/archie-distill/test_archie_instrument_genesis.py'
+      - 'foundry/archie-distill/run_archie_instrument_genesis.sh'
+      - 'foundry/archie-distill/receipts/archie-instrument-genesis-full.json'
+      - 'foundry/archie-distill/INSTRUMENT_GENESIS_PROVENANCE.md'
+      - '.github/workflows/archie-instrument-genesis.yml'
+  push:
+    branches:
+      - 'agent/archie-instrument-genesis-v2-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install CPU torch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile and shell-check
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/archie_instrument_genesis.py \
+            foundry/archie-distill/test_archie_instrument_genesis.py
+          bash -n foundry/archie-distill/run_archie_instrument_genesis.sh
+      - name: Structural instrument court
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest
+      - name: Exact-source CPU smoke
+        working-directory: foundry/archie-distill
+        run: |
+          python archie_instrument_genesis.py \
+            --profile smoke \
+            --device cpu \
+            --output-dir /tmp/archie-instrument-genesis-smoke
+          test -s /tmp/archie-instrument-genesis-smoke/instrument-genesis-receipt.json
+      - name: Smoke cannot unlock teacher entry
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path('/tmp/archie-instrument-genesis-smoke/instrument-genesis-receipt.json').read_text())
+          assert receipt['passed_architecture_gate'] is False
+          assert receipt['full_teacher_entry'] == 'prohibited'
+          assert receipt['checks']['full_declared_budget'] is False
+          PY
+      - name: Validate retained full research receipt
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('foundry/archie-distill/receipts/archie-instrument-genesis-full.json')
+          receipt = json.loads(path.read_text())
+          assert receipt['schema'] == 'archie-instrument-genesis/v3'
+          assert receipt['passed_architecture_gate'] is True
+          assert receipt['full_teacher_entry'] == 'unlocked'
+          assert receipt['checks']['all_seeds_pass'] is True
+          assert receipt['checks']['three_independent_seeds'] is True
+          assert receipt['checks']['full_declared_budget'] is True
+          assert receipt['checks']['sealed_worlds_never_used_in_evolution'] is True
+          assert len(receipt['runs']) == 3
+          assert all(run['passed'] and run['sealed_is_disjoint'] for run in receipt['runs'])
+          PY
