@@ -1,0 +1,108 @@
+name: Archie instrument genesis plumbing
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/archie_instrument_genesis.py'
+      - 'foundry/archie-distill/test_archie_instrument_genesis.py'
+      - 'foundry/archie-distill/run_archie_instrument_genesis.sh'
+      - '.github/workflows/archie-instrument-genesis.yml'
+  push:
+    branches:
+      - 'agent/archie-instrument-genesis-v2-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  plumbing:
+    name: Structural tests and CPU smoke only
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile and shellcheck
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/archie_instrument_genesis.py \
+            foundry/archie-distill/test_archie_instrument_genesis.py
+          shellcheck foundry/archie-distill/run_archie_instrument_genesis.sh
+      - name: Test parse and serialization
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_parse_and_serialization_round_trip
+      - name: Test deterministic bounded execution
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_deterministic_execution_and_finite_bounds
+      - name: Test mutations and crossover
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_mutations_and_crossovers_remain_valid
+      - name: Test cost bounds
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_cost_bound_rejects_oversized_program
+      - name: Test raw interface restrictions
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_raw_interface_and_arbitrary_execution_restrictions
+      - name: Test channel remapping
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_channel_remapping_preserves_execution
+      - name: Test mechanism-family construction
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_family_worlds_share_mechanism_but_not_incidental_conditions
+      - name: Test pure transport world
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_transport_world_changes_only_exposed_sensor_order
+      - name: Test delayed intervention reach
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_intervention_horizon_reaches_delayed_action_effect
+      - name: Test parentage serialization
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_parentage_survives_serialization
+      - name: Test ablation wiring
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_ablation_wiring_contains_exact_conditions
+      - name: Test teacher lock
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_teacher_lock_semantics
+      - name: Test sealed world timing
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_sealed_world_declared_post_selection_and_smoke_cannot_unlock
+      - name: Test reduced causal court closure
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_declared_reduced_court_closes_mechanism_gates
+      - name: Minimal CPU smoke
+        working-directory: foundry/archie-distill
+        env:
+          ARCHIE_OUTPUT_DIR: /tmp/archie-instrument-genesis-smoke
+          PYTHON_BIN: python
+        run: |
+          ./run_archie_instrument_genesis.sh smoke
+          test -s /tmp/archie-instrument-genesis-smoke/instrument-genesis.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path('/tmp/archie-instrument-genesis-smoke/instrument-genesis.json').read_text())
+          assert receipt['verdict']['structural_implementation'] == 'passed'
+          assert receipt['verdict']['teacher_free_proof_bundle'] == 'failed'
+          assert receipt['teacher_lock']['full_teacher_entry'] == 'prohibited'
+          assert receipt['multi_seed_summary']['seed_pairs'] == [{'search_seed': 17, 'court_seed': 101}]
+          seed_receipt = json.loads(Path(receipt['multi_seed_summary']['seed_receipt_paths'][0]).read_text())
+          assert all(seed_receipt['sealed_heldout_metrics']['checks'].values())
+          PY
+      - name: Upload smoke receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrument-genesis-smoke-receipt
+          path: /tmp/archie-instrument-genesis-smoke/instrument-genesis.json
+          if-no-files-found: ignore
