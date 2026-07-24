@@ -1,0 +1,38 @@
+name: Materialize instrument genesis implementation
+
+on:
+  push:
+    branches:
+      - 'agent/archie-instrument-genesis-v2-20260723'
+    paths:
+      - '.github/workflows/materialize-instrument-genesis.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/archie-instrument-genesis-v2-20260723
+          fetch-depth: 0
+      - name: Verify and extract implementation
+        run: |
+          cat .github/instrument-genesis-payload/part-* | base64 --decode > /tmp/instrument-genesis.tar.gz
+          echo '1150d0dffd9c44e501316c6cfed1db775ea080576ae6bbf1e060bac3bc1cbf5b  /tmp/instrument-genesis.tar.gz' | sha256sum --check --strict
+          tar -xzf /tmp/instrument-genesis.tar.gz
+          chmod +x foundry/archie-distill/run_archie_instrument_genesis.sh
+          rm -f foundry/archie-distill/receipts/archie-instrument-genesis-full.json
+          rm -rf .github/instrument-genesis-payload
+          rm -f .github/workflows/materialize-instrument-genesis.yml
+      - name: Commit implementation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Build executable instrument discovery court'
+          git push origin HEAD:agent/archie-instrument-genesis-v2-20260723
