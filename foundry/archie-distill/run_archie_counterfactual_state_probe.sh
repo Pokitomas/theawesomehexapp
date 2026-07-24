@@ -17,7 +17,7 @@ fi
 
 PYTHONPATH="$HERE" "$PYTHON" -m unittest -q test_archie_counterfactual_state_probe.CounterfactualStateProbeTest
 mkdir -p "$ROOT"
-exec env PYTHONPATH="$HERE" "$PYTHON" "$HERE/archie_counterfactual_state_probe.py" \
+exec env PYTHONPATH="$HERE" "$PYTHON" "$HERE/archie_counterfactual_observed_world.py" \
   --profile "$PROFILE" \
   --device "$DEVICE" \
   --output-dir "$ROOT"
