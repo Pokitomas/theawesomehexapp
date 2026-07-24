@@ -1,0 +1,23 @@
+name: Agent source snapshot
+
+on:
+  push:
+    branches:
+      - 'agent/archie-instrument-genesis-v2-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-instrument-genesis-source
+          path: |
+            foundry/archie-distill/archie_instrument_genesis.py
+            foundry/archie-distill/test_archie_instrument_genesis.py
+            foundry/archie-distill/run_archie_instrument_genesis.sh
+          if-no-files-found: error
