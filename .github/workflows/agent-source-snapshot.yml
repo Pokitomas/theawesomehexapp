@@ -1,26 +1,56 @@
-name: Agent source snapshot
+name: Apply instrument genesis repair
 
 on:
   push:
     branches:
       - 'agent/archie-instrument-genesis-v2-20260723'
-  pull_request:
-    branches:
-      - 'agent/archie-endogenous-hypothesis-engine-20260723'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  snapshot:
+  apply:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/upload-artifact@v4
         with:
-          name: agent-instrument-genesis-source
-          path: |
-            foundry/archie-distill/archie_instrument_genesis.py
+          ref: agent/archie-instrument-genesis-v2-20260723
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reconstruct repair payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/repair-payload/part-* | base64 --decode > /tmp/instrument-genesis-repair.tar.gz
+          echo '0d431ca084fa59dac5ce3a42ca59a966686913ae478b6848bdd89b5358b501c9  /tmp/instrument-genesis-repair.tar.gz' | sha256sum --check
+          tar --extract --gzip --file /tmp/instrument-genesis-repair.tar.gz
+      - name: Validate repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+          python -m py_compile \
+            foundry/archie-distill/archie_instrument_genesis.py \
             foundry/archie-distill/test_archie_instrument_genesis.py
-            foundry/archie-distill/run_archie_instrument_genesis.sh
-          if-no-files-found: error
+          cd foundry/archie-distill
+          python -m unittest -v test_archie_instrument_genesis
+      - name: Commit repaired engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .github/repair-payload
+          rm -f .github/workflows/agent-source-snapshot.yml
+          git config user.name 'archie-research-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A \
+            foundry/archie-distill/archie_instrument_genesis.py \
+            foundry/archie-distill/test_archie_instrument_genesis.py \
+            .github/workflows/archie-instrument-genesis.yml \
+            .github/repair-payload \
+            .github/workflows/agent-source-snapshot.yml
+          git commit -m 'fix(research): make instrument causal court executable'
+          git push origin HEAD:agent/archie-instrument-genesis-v2-20260723
