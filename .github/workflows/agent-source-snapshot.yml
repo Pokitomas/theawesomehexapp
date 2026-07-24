@@ -1,12 +1,12 @@
-name: Apply instrument genesis repair payload
+name: Apply instrument genesis repair
 
 on:
-  push:
-    branches:
-      - 'agent/archie-instrument-genesis-v2-20260723'
   pull_request:
     branches:
       - 'agent/archie-endogenous-hypothesis-engine-20260723'
+  push:
+    branches:
+      - 'agent/archie-instrument-genesis-v2-20260723'
 
 permissions:
   contents: write
@@ -29,14 +29,38 @@ jobs:
           python3 - <<'PY'
           import base64
           import hashlib
+          import subprocess
           import tarfile
           from pathlib import Path
 
-          parts = sorted(Path('.github/repair-payload').glob('part-[0-9][0-9]'))
-          assert len(parts) == 8, [str(path) for path in parts]
-          encoded = ''.join(path.read_text(encoding='utf-8').strip() for path in parts)
-          payload = base64.b64decode(encoded)
-          print({'decoded_bytes': len(payload), 'sha256': hashlib.sha256(payload).hexdigest()}, flush=True)
+          ordered = [
+              ('part-00', 'd7973042e59909fdd9df5a7f0a11eae40c988766'),
+              ('part-01', '741e3c3082c582629cb670533597f47b3707ff52'),
+              ('part-02-00', 'c4d78138e55a8126593a60032905a44be1e71e4b'),
+              ('part-02-01', 'ec340056b5e69cb44f5ee1a7c99c0eb00017e3cd'),
+              ('part-02-02', 'a6ac8cb0567e05760baedaab158cf82fe64a437e'),
+              ('part-02-03', 'a17d0f6de4160a990b34232133e6225721499c8f'),
+              ('part-02-04', '4841db9dfe806849145bc3318e224870f0ff0fc8'),
+              ('part-02-05', '0aa1bd9b8ad61dd67e060b0b1408fdf56e7d8b64'),
+              ('part-03', '79d754727e3af2aadbb3a72d2682ab2178d50384'),
+              ('part-04', '528e44df900ee6acb32341c4b7cd8e1653480bda'),
+              ('part-05', 'e36c575e1a2572edc605770b2b77b717c094ccd0'),
+              ('part-06', '28f3591746dd7e0ae87ec2fc3117b5387c96013a'),
+              ('part-07', '7a80881fa5d74e65685f5439d7e51a4b4365b301'),
+          ]
+          root = Path('.github/repair-payload')
+          pieces = []
+          for name, expected_blob in ordered:
+              path = root / name
+              actual_blob = subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()
+              print({'part': name, 'bytes': path.stat().st_size, 'blob': actual_blob}, flush=True)
+              assert actual_blob == expected_blob, (name, actual_blob, expected_blob)
+              pieces.append(path.read_text(encoding='utf-8').strip())
+          encoded = ''.join(pieces)
+          payload = base64.b64decode(encoded, validate=True)
+          digest = hashlib.sha256(payload).hexdigest()
+          print({'encoded_bytes': len(encoded), 'decoded_bytes': len(payload), 'sha256': digest}, flush=True)
+          assert digest == '0d431ca084fa59dac5ce3a42ca59a966686913ae478b6848bdd89b5358b501c9'
           archive = Path('/tmp/instrument-genesis-repair.tar.gz')
           archive.write_bytes(payload)
           with tarfile.open(archive, 'r:gz') as handle:
@@ -47,9 +71,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --upgrade pip
           python3 -m pip install numpy
-          python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python3 -m py_compile \
             foundry/archie-distill/archie_instrument_genesis.py \
             foundry/archie-distill/test_archie_instrument_genesis.py
@@ -61,7 +83,6 @@ jobs:
           set -euo pipefail
           rm -rf .github/repair-payload
           rm -f .github/workflows/agent-source-snapshot.yml
-          rm -f .github/workflows/agent-apply-instrument-repair.yml
           git config user.name 'archie-research-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A \
@@ -69,7 +90,6 @@ jobs:
             foundry/archie-distill/test_archie_instrument_genesis.py \
             .github/workflows/archie-instrument-genesis.yml \
             .github/repair-payload \
-            .github/workflows/agent-source-snapshot.yml \
-            .github/workflows/agent-apply-instrument-repair.yml
+            .github/workflows/agent-source-snapshot.yml
           git commit -m 'fix(research): make instrument causal court executable'
           git push origin HEAD:agent/archie-instrument-genesis-v2-20260723
