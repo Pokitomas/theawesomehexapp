@@ -37,9 +37,36 @@ jobs:
             foundry/archie-distill/archie_instrument_genesis.py \
             foundry/archie-distill/test_archie_instrument_genesis.py
           shellcheck foundry/archie-distill/run_archie_instrument_genesis.sh
-      - name: Unit tests
+      - name: Test parse and serialization
         working-directory: foundry/archie-distill
-        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_parse_and_serialization_round_trip
+      - name: Test deterministic bounded execution
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_deterministic_execution_and_finite_bounds
+      - name: Test mutations and crossover
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_mutations_and_crossovers_remain_valid
+      - name: Test cost bounds
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_cost_bound_rejects_oversized_program
+      - name: Test raw interface restrictions
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_raw_interface_and_arbitrary_execution_restrictions
+      - name: Test channel remapping
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_channel_remapping_preserves_execution
+      - name: Test parentage serialization
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_parentage_survives_serialization
+      - name: Test ablation wiring
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_ablation_wiring_contains_exact_conditions
+      - name: Test teacher lock
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_teacher_lock_semantics
+      - name: Test sealed world timing
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_instrument_genesis.InstrumentGenesisTest.test_sealed_world_declared_post_selection_and_smoke_cannot_unlock
       - name: Minimal CPU smoke
         working-directory: foundry/archie-distill
         env:
@@ -58,7 +85,9 @@ jobs:
           assert receipt['teacher_lock']['full_teacher_entry'] == 'prohibited'
           PY
       - name: Upload smoke receipt
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: instrument-genesis-smoke-receipt
           path: /tmp/archie-instrument-genesis-smoke/instrument-genesis.json
+          if-no-files-found: ignore
