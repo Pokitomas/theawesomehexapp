@@ -1,6 +1,9 @@
 name: Apply instrument genesis repair
 
 on:
+  pull_request:
+    branches:
+      - 'agent/archie-endogenous-hypothesis-engine-20260723'
   push:
     branches:
       - 'agent/archie-instrument-genesis-v2-20260723'
