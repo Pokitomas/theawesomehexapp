@@ -18,6 +18,10 @@ on:
       - 'foundry/archie-distill/sidepus_pursuit_forward.py'
       - 'foundry/archie-distill/sidepus_pursuit_step.py'
       - 'foundry/archie-distill/sidepus_pursuit_cli.py'
+      - 'foundry/archie-distill/sidepus_evidence_split.py'
+      - 'foundry/archie-distill/evaluate_archie_sidepus_pursuit.py'
+      - 'foundry/archie-distill/sidepus_campaign_verdict.py'
+      - 'foundry/archie-distill/sidepus_select_candidate.py'
       - 'foundry/archie-distill/train_archie_sidepus_pursuit.py'
       - 'foundry/archie-distill/run_archie_sidepus_pursuit.sh'
       - 'foundry/archie-distill/run_archie_sidepus_ready.sh'
@@ -26,15 +30,18 @@ on:
       - 'foundry/archie-distill/test_sidepus_deliberation_value.py'
       - 'foundry/archie-distill/test_sidepus_causality.py'
       - 'foundry/archie-distill/test_sidepus_contract_identity.py'
+      - 'foundry/archie-distill/test_sidepus_evidence_islands.py'
       - 'foundry/archie-distill/test_sidepus_developmental_graph.py'
       - 'foundry/archie-distill/test_sidepus_remote_experience.py'
       - 'foundry/archie-distill/test_sidepus_developmental_corpus.py'
+      - 'docs/SIDEPUS-EVIDENCE-ISLANDS.md'
       - '.github/workflows/archie-sidepus-pursuit-contract.yml'
   push:
     branches:
       - 'agent/sidepus-experience-compiler-feral-20260723'
       - 'agent/sidepus-deliberation-successor-20260723'
       - 'agent/sidepus-causal-deliberation-court-20260723'
+      - 'agent/sidepus-evidence-islands-20260723'
 
 permissions:
   contents: read
@@ -70,12 +77,17 @@ jobs:
             foundry/archie-distill/sidepus_pursuit_forward.py \
             foundry/archie-distill/sidepus_pursuit_step.py \
             foundry/archie-distill/sidepus_pursuit_cli.py \
+            foundry/archie-distill/sidepus_evidence_split.py \
+            foundry/archie-distill/evaluate_archie_sidepus_pursuit.py \
+            foundry/archie-distill/sidepus_campaign_verdict.py \
+            foundry/archie-distill/sidepus_select_candidate.py \
             foundry/archie-distill/train_archie_sidepus_pursuit.py \
             foundry/archie-distill/test_sidepus_pursuit.py \
             foundry/archie-distill/test_sidepus_foreign_state.py \
             foundry/archie-distill/test_sidepus_deliberation_value.py \
             foundry/archie-distill/test_sidepus_causality.py \
             foundry/archie-distill/test_sidepus_contract_identity.py \
+            foundry/archie-distill/test_sidepus_evidence_islands.py \
             foundry/archie-distill/test_sidepus_developmental_graph.py \
             foundry/archie-distill/test_sidepus_remote_experience.py \
             foundry/archie-distill/test_sidepus_developmental_corpus.py
@@ -83,10 +95,13 @@ jobs:
           bash -n foundry/archie-distill/run_archie_sidepus_ready.sh
       - name: Import pursuit contracts
         working-directory: foundry/archie-distill
-        run: python -c 'import test_sidepus_pursuit, test_sidepus_foreign_state, test_sidepus_deliberation_value, test_sidepus_causality, test_sidepus_contract_identity, test_sidepus_developmental_graph, test_sidepus_remote_experience, test_sidepus_developmental_corpus'
+        run: python -c 'import test_sidepus_pursuit, test_sidepus_foreign_state, test_sidepus_deliberation_value, test_sidepus_causality, test_sidepus_contract_identity, test_sidepus_evidence_islands, test_sidepus_developmental_graph, test_sidepus_remote_experience, test_sidepus_developmental_corpus'
       - name: Causal-prefix court
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_causality.SidepusCausalityCourt
+      - name: Evidence-island and compute court
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_sidepus_evidence_islands.SidepusEvidenceIslandTest
       - name: Pursuit contract identity
         working-directory: foundry/archie-distill
         run: python -m unittest -v test_sidepus_contract_identity.PursuitContractIdentityTest

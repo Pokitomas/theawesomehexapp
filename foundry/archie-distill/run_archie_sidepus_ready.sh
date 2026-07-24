@@ -2,12 +2,13 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 PYTHON="${ARCHIE_PYTHON:-/home/awesomekai/.venv-archie-cuda/bin/python}"
 SIDEPUS_STATE="${SIDEPUS_STATE:-$HOME/sidepus-archive-v2}"
-STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v3-causal}"
 SOURCE_INVENTORY="${ARCHIE_SIDEPUS_INVENTORY:-$SIDEPUS_STATE/training-inventory.jsonl}"
 SEED="${ARCHIE_SIDEPUS_SEED:-20260725}"
 PROFILE="${ARCHIE_SIDEPUS_PROFILE:-full}"
+STATE="${ARCHIE_SIDEPUS_PURSUIT_STATE:-$HOME/archie-sidepus-pursuit-v4-evidence-islands-$PROFILE}"
 
 case "$PROFILE" in
   smoke)
@@ -17,7 +18,11 @@ case "$PROFILE" in
     DEFAULT_TRAINING_STEPS=100
     DEFAULT_LOOKAHEAD=16
     DEFAULT_CACHE_BYTES=1073741824
-    MIN_FREE_KIB=2097152
+    DEFAULT_DEV_EVAL_BATCHES=6
+    DEFAULT_ADMISSION_EVAL_BATCHES=12
+    DEFAULT_DEV_WRONG_OFFSET=9
+    DEFAULT_ADMISSION_WRONG_OFFSET=17
+    MIN_FREE_KIB=3145728
     ;;
   full)
     # 81,920 deterministic non-microphysics records before inherited and remote inventory.
@@ -27,7 +32,11 @@ case "$PROFILE" in
     DEFAULT_TRAINING_STEPS=30000
     DEFAULT_LOOKAHEAD=256
     DEFAULT_CACHE_BYTES=17179869184
-    MIN_FREE_KIB=20971520
+    DEFAULT_DEV_EVAL_BATCHES=16
+    DEFAULT_ADMISSION_EVAL_BATCHES=48
+    DEFAULT_DEV_WRONG_OFFSET=21
+    DEFAULT_ADMISSION_WRONG_OFFSET=53
+    MIN_FREE_KIB=23068672
     ;;
   *)
     echo "Unknown ARCHIE_SIDEPUS_PROFILE=$PROFILE (expected smoke or full)" >&2
@@ -38,10 +47,16 @@ esac
 DEV_EPISODES="${ARCHIE_SIDEPUS_DEVELOPMENTAL_EPISODES_PER_DOMAIN:-$DEFAULT_DEV_EPISODES}"
 DEV_STEPS="${ARCHIE_SIDEPUS_DEVELOPMENTAL_STEPS:-$DEFAULT_DEV_STEPS}"
 export ARCHIE_SIDEPUS_PURSUIT_STATE="$STATE"
+export ARCHIE_SIDEPUS_PURSUIT_EXPORT="${ARCHIE_SIDEPUS_PURSUIT_EXPORT:-$REPO_ROOT/returns/sidepus-pursuit-v4-evidence-islands-$PROFILE}"
+export ARCHIE_SIDEPUS_CACHE_DIR="${ARCHIE_SIDEPUS_CACHE_DIR:-$HOME/sidepus-ephemeral-cache-v4-evidence-islands-$PROFILE}"
 export ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES="${ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES:-$DEFAULT_MICROPHYSICS}"
 export ARCHIE_SIDEPUS_PURSUIT_STEPS="${ARCHIE_SIDEPUS_PURSUIT_STEPS:-$DEFAULT_TRAINING_STEPS}"
 export ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD="${ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD:-$DEFAULT_LOOKAHEAD}"
 export ARCHIE_SIDEPUS_CACHE_BYTES="${ARCHIE_SIDEPUS_CACHE_BYTES:-$DEFAULT_CACHE_BYTES}"
+export ARCHIE_SIDEPUS_DEV_EVAL_BATCHES="${ARCHIE_SIDEPUS_DEV_EVAL_BATCHES:-$DEFAULT_DEV_EVAL_BATCHES}"
+export ARCHIE_SIDEPUS_ADMISSION_EVAL_BATCHES="${ARCHIE_SIDEPUS_ADMISSION_EVAL_BATCHES:-$DEFAULT_ADMISSION_EVAL_BATCHES}"
+export ARCHIE_SIDEPUS_DEV_WRONG_OFFSET="${ARCHIE_SIDEPUS_DEV_WRONG_OFFSET:-$DEFAULT_DEV_WRONG_OFFSET}"
+export ARCHIE_SIDEPUS_ADMISSION_WRONG_OFFSET="${ARCHIE_SIDEPUS_ADMISSION_WRONG_OFFSET:-$DEFAULT_ADMISSION_WRONG_OFFSET}"
 
 [[ -x "$PYTHON" ]] || { echo "Missing Archie Python: $PYTHON" >&2; exit 1; }
 [[ -f "$SOURCE_INVENTORY" ]] || { echo "Missing source inventory: $SOURCE_INVENTORY" >&2; exit 1; }
@@ -55,8 +70,10 @@ if [[ "$FREE_KIB" -lt "$MIN_FREE_KIB" && "${ARCHIE_ALLOW_LOW_DISK:-0}" != "1" ]]
   exit 1
 fi
 
-# Fail before corpus work if token-local thought has regressed into suffix dependence.
-PYTHONPATH="$HERE" "$PYTHON" -m unittest -q test_sidepus_causality.SidepusCausalityCourt
+# Fail before corpus work if token-local thought or evidence splitting has regressed.
+PYTHONPATH="$HERE" "$PYTHON" -m unittest -q \
+  test_sidepus_causality.SidepusCausalityCourt \
+  test_sidepus_evidence_islands.SidepusEvidenceIslandTest
 
 mkdir -p "$STATE/corpus"
 DEV_INVENTORY="$STATE/corpus/developmental-inventory-$PROFILE.jsonl"
@@ -110,5 +127,5 @@ print(json.dumps(summary, indent=2))
 PY
 
 export ARCHIE_SIDEPUS_INVENTORY="$PREPARED_INVENTORY"
-echo "Launching Sidepus causal profile=$PROFILE steps=$ARCHIE_SIDEPUS_PURSUIT_STEPS lookahead=$ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD microphysics=$ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES"
+echo "Launching Sidepus evidence-island profile=$PROFILE steps=$ARCHIE_SIDEPUS_PURSUIT_STEPS lookahead=$ARCHIE_SIDEPUS_PURSUIT_LOOKAHEAD microphysics=$ARCHIE_SIDEPUS_MICROPHYSICS_EPISODES"
 exec "$HERE/run_archie_sidepus_pursuit.sh"
