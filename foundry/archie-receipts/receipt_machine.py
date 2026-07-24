@@ -132,6 +132,15 @@ def _freeze(value: Any) -> Any:
     return value
 
 
+def _receipt_key(receipt: Receipt) -> Any:
+    return (
+        receipt.op,
+        tuple((write.path, _freeze(write.value)) for write in receipt.writes),
+        tuple((guard.path, _freeze(guard.expected)) for guard in receipt.guards),
+        _freeze(receipt.metadata),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Hypothesis:
     ledger: Ledger
@@ -188,7 +197,10 @@ class Beam:
 def _merge_equivalent(hypotheses: Iterable[Hypothesis]) -> tuple[Hypothesis, ...]:
     merged: dict[Any, Hypothesis] = {}
     for hypothesis in hypotheses:
-        key = (_freeze(hypothesis.ledger.state), tuple(commit.forward for commit in hypothesis.ledger.commits))
+        key = (
+            _freeze(hypothesis.ledger.state),
+            tuple(_receipt_key(commit.forward) for commit in hypothesis.ledger.commits),
+        )
         prior = merged.get(key)
         if prior is None:
             merged[key] = hypothesis
