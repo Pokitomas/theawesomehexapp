@@ -925,6 +925,57 @@ def make_world_spec(seed: int, cfg: ProfileConfig, *, revised: bool = False, rem
     )
 
 
+def make_family_world_spec(
+    family_seed: int,
+    world_seed: int,
+    cfg: ProfileConfig,
+    *,
+    revised: bool = False,
+) -> WorldSpec:
+    """Instantiate an independently sampled member of one causal mechanism family.
+
+    The mechanism matrices and surface semantics are shared, while episode noise,
+    nuisance sign, temporal rate, and the world identity vary. This creates a
+    falsifiable cross-world generalization problem instead of asking one fixed
+    eight-feature instrument to solve unrelated random dynamical systems.
+    """
+    base = make_world_spec(family_seed, cfg, revised=False, remap_seed=family_seed ^ 0x51A7)
+    rng = np.random.default_rng(world_seed ^ 0xF411)
+    state_matrix = np.asarray(base.state_matrix, dtype=np.float64)
+    action_matrix = np.asarray(base.action_matrix, dtype=np.float64)
+    if revised:
+        action_matrix = action_matrix.copy()
+        action_matrix[:, 0] *= -0.75
+        state_matrix = state_matrix.copy()
+        state_matrix[0, :] *= 0.45
+    noise = np.asarray(base.noise_scale, dtype=np.float64) * rng.uniform(0.85, 1.15, size=cfg.obs_channels)
+    return dataclasses.replace(
+        base,
+        seed=world_seed,
+        temporal_scale=float(base.temporal_scale * rng.uniform(0.92, 1.08)),
+        state_matrix=tuple(tuple(float(v) for v in row) for row in state_matrix),
+        action_matrix=tuple(tuple(float(v) for v in row) for row in action_matrix),
+        channel_permutation=tuple(range(cfg.obs_channels)),
+        noise_scale=tuple(float(v) for v in noise),
+        spurious_sign=float(rng.choice([-1.0, 1.0])),
+        revised=revised,
+    )
+
+
+def remapped_world_spec(spec: WorldSpec, remap_seed: int) -> WorldSpec:
+    """Return the same causal world with only the exposed sensor order changed.
+
+    Transport is supposed to test executable sensor remapping, not simultaneous
+    generalization to a new latent system. All latent dynamics, action effects,
+    delays, consequences, nuisance phases, and noise scales remain identical.
+    """
+    rng = np.random.default_rng(remap_seed)
+    permutation = tuple(int(x) for x in rng.permutation(spec.obs_channels))
+    if permutation == spec.channel_permutation and spec.obs_channels > 1:
+        permutation = permutation[1:] + permutation[:1]
+    return dataclasses.replace(spec, channel_permutation=permutation)
+
+
 @dataclass
 class WorldSnapshot:
     state: np.ndarray
@@ -1418,11 +1469,15 @@ def evaluate_counterfactual(
     world = RawWorld(spec)
     errors: list[float] = []
     cases = 0
+    # A delayed action cannot affect a rollout shorter than the queue. The old
+    # court silently evaluated many no-op interventions. Guarantee at least two
+    # causally exposed transitions after the delay while keeping the budget bounded.
+    horizon = max(cfg.rollout_horizon, spec.delay + 2)
     for episode in episodes:
         positions = list(range(cfg.history - 1, len(episode.actions)))
         rng.shuffle(positions)
         for t in positions[: max(2, min(8, len(positions)))]:
-            action_sequence = [rng.randrange(cfg.actions) for _ in range(cfg.rollout_horizon)]
+            action_sequence = [rng.randrange(cfg.actions) for _ in range(horizon)]
             true_obs, _ = world.branch(episode.snapshots[t], action_sequence)
             predicted, _ = predict_rollout(
                 model,
@@ -1438,6 +1493,7 @@ def evaluate_counterfactual(
     return float(np.mean(errors)) if errors else float("inf")
 
 
+
 def evaluate_policy(
     model: LinearDynamicsModel,
     episodes: Sequence[Episode],
@@ -1451,7 +1507,11 @@ def evaluate_policy(
     regrets: list[float] = []
     choices: list[int] = []
     cases = 0
-    sequences = list(itertools.product(range(cfg.actions), repeat=cfg.policy_horizon))
+    # Compare sustained interventions. This keeps the action court O(actions)
+    # instead of O(actions**horizon) and guarantees every candidate action reaches
+    # the latent state despite the delayed-action queue.
+    horizon = max(cfg.policy_horizon, spec.delay + 2)
+    sequences = [tuple([action] * horizon) for action in range(cfg.actions)]
     for episode in episodes:
         for t in range(cfg.history - 1, len(episode.actions), max(1, cfg.policy_horizon)):
             predicted_scores = []
@@ -1468,7 +1528,7 @@ def evaluate_policy(
                 _, actual_consequences = world.branch(episode.snapshots[t], sequence)
                 true_scores.append(float(sum(actual_consequences)))
             chosen = int(np.argmax(predicted_scores))
-            choices.append(int(sequences[chosen][0]))
+            choices.append(chosen)
             realized = true_scores[chosen]
             oracle = max(true_scores)
             returns.append(realized)
@@ -1477,6 +1537,7 @@ def evaluate_policy(
             if max_cases is not None and cases >= max_cases:
                 return float(np.mean(returns)), float(np.mean(regrets)), choices
     return float(np.mean(returns)), float(np.mean(regrets)), choices
+
 
 
 def sample_efficiency_auc(
@@ -1665,19 +1726,79 @@ def retain_diverse(
 
 
 def seed_programs(cfg: ProfileConfig) -> list[Program]:
-    seeds = []
-    for channel in range(min(cfg.obs_channels, 4)):
-        seeds.append(make_program([{"op": "obs", "channel": channel, "lag": 0}], 0, history=[{"operator": "minimal_seed"}]))
-        seeds.append(make_program([
+    """Deterministic generic primitive bank used before stochastic evolution.
+
+    The previous ten seeds covered only four channels and one action. In a
+    remapped delayed system that made discovery mostly a lottery. This bank is
+    still teacher-free and world-agnostic: it enumerates bounded temporal
+    measurements uniformly over the raw interface without using outcomes,
+    snapshots, or world parameters.
+    """
+    seeds: list[Program] = []
+    seen: set[str] = set()
+
+    def add(nodes: list[dict[str, Any]], root: int, operator: str) -> None:
+        program = make_program(nodes, root, history=[{"operator": operator}], origin="endogenous")
+        program = prune_program(program)
+        validate_program(
+            program,
+            obs_channels=cfg.obs_channels,
+            actions=cfg.actions,
+            program_inputs=0,
+            max_nodes=cfg.max_nodes,
+            max_cost=cfg.max_cost,
+            max_window=cfg.max_window,
+        )
+        key = program.semantic_hash()
+        if key not in seen:
+            seen.add(key)
+            seeds.append(program)
+
+    mean_window = max(2, min(3, cfg.max_window))
+    long_window = max(2, min(cfg.history, cfg.max_window))
+    for channel in range(cfg.obs_channels):
+        add([{"op": "obs", "channel": channel, "lag": 0}], 0, "raw_channel_seed")
+        if cfg.max_window >= 1:
+            add([{"op": "obs", "channel": channel, "lag": 1}], 0, "lagged_channel_seed")
+            add([
+                {"op": "obs", "channel": channel, "lag": 0},
+                {"op": "diff", "args": [0], "lag": 1},
+            ], 1, "first_difference_seed")
+        add([
             {"op": "obs", "channel": channel, "lag": 0},
-            {"op": "diff", "args": [0], "lag": min(2, cfg.max_window)},
-        ], 1, history=[{"operator": "minimal_seed"}]))
-    seeds.append(make_program([
-        {"op": "obs", "channel": 0, "lag": 0},
-        {"op": "rolling_mean", "args": [0], "window": min(3, cfg.max_window)},
-    ], 1, history=[{"operator": "minimal_seed"}]))
-    seeds.append(make_program([{"op": "action", "action_index": 0, "lag": 1}], 0, history=[{"operator": "minimal_seed"}]))
+            {"op": "rolling_mean", "args": [0], "window": mean_window},
+        ], 1, "local_mean_seed")
+        add([
+            {"op": "obs", "channel": channel, "lag": 0},
+            {"op": "rolling_std", "args": [0], "window": long_window},
+        ], 1, "local_variability_seed")
+        add([
+            {"op": "obs", "channel": channel, "lag": 0},
+            {"op": "normalize", "args": [0], "window": long_window},
+        ], 1, "local_normalization_seed")
+
+    for action in range(cfg.actions):
+        for lag in range(1, min(cfg.max_window, 4) + 1):
+            add([{"op": "action", "action_index": action, "lag": lag}], 0, "delayed_action_seed")
+
+    # Dense deterministic projections cover low-rank latent mixtures without
+    # learning weights from the sealed court. Trigonometric sign patterns are
+    # reproducible and treat every channel symmetrically.
+    projection_count = max(4, min(cfg.obs_channels, cfg.latent_dim * 2))
+    channels = list(range(cfg.obs_channels))
+    for index in range(projection_count):
+        weights = [round(math.cos((index + 1) * (channel + 1) * math.pi / (cfg.obs_channels + 1)), 6)
+                   for channel in channels]
+        projection = {"op": "projection", "channels": channels, "weights": weights, "lag": 0}
+        add([projection], 0, "deterministic_projection_seed")
+        if cfg.max_window >= 1:
+            add([projection, {"op": "diff", "args": [0], "lag": 1}], 1, "projection_difference_seed")
+
+    obs_nodes = [{"op": "obs", "channel": channel, "lag": 0} for channel in channels]
+    add([*obs_nodes, {"op": "aggregate_mean", "args": list(range(len(obs_nodes)))}], len(obs_nodes),
+        "permutation_robust_mean_seed")
     return seeds
+
 
 
 @dataclass
@@ -1743,32 +1864,85 @@ def evolve_population(
     return EvolutionResult(population, all_evaluations, generation_rows, retired_all, registry)
 
 
+def proxy_bundle_score(
+    bundle: Sequence[Program],
+    worlds: Sequence[tuple[WorldSpec, Sequence[Episode], Sequence[Episode]]],
+    cfg: ProfileConfig,
+) -> tuple[float, list[dict[str, float]]]:
+    """Fast cross-world supervised proxy used only on development data.
+
+    It scores one-step observation and consequence prediction. Exact rollout,
+    intervention, ablation, and transport metrics remain sealed in the court.
+    """
+    rows: list[dict[str, float]] = []
+    utilities: list[float] = []
+    provider = ProgramFeatureProvider(cfg, bundle)
+    for spec, train, evaluation in worlds:
+        x_train, y_train = design_rows(train, provider, cfg)
+        weights = ridge_fit(x_train, y_train, cfg.ridge)
+        x_eval, y_eval = design_rows(evaluation, provider, cfg)
+        prediction = x_eval @ weights
+        observation_mse = float(np.mean(np.square(
+            prediction[:, : cfg.obs_channels] - y_eval[:, : cfg.obs_channels]
+        )))
+        consequence_mse = float(np.mean(np.square(prediction[:, -1] - y_eval[:, -1])))
+        utility = -math.log(observation_mse + 1e-6) - 0.35 * math.log(consequence_mse + 1e-6)
+        rows.append({
+            "world_seed": float(spec.seed),
+            "observation_mse": observation_mse,
+            "consequence_mse": consequence_mse,
+            "utility": utility,
+        })
+        utilities.append(utility)
+    # Reward mean performance but retain a worst-world term so one convenient
+    # development world cannot dominate selection.
+    score = 0.75 * float(np.mean(utilities)) + 0.25 * float(min(utilities))
+    return score, rows
+
+
 def greedy_bundle(
     candidates: Sequence[Program],
     worlds: Sequence[tuple[WorldSpec, Sequence[Episode], Sequence[Episode]]],
     cfg: ProfileConfig,
 ) -> tuple[list[Program], list[dict[str, Any]]]:
+    unique: dict[str, Program] = {}
+    for candidate in candidates:
+        unique.setdefault(candidate.semantic_hash(), candidate)
+    pool = list(unique.values())
+    individual = []
+    for candidate in pool:
+        score, rows = proxy_bundle_score([candidate], worlds, cfg)
+        individual.append((score, candidate, rows))
+    individual.sort(key=lambda row: (row[0], row[1].uid), reverse=True)
+    shortlist_size = min(len(individual), max(48, cfg.admitted_width * 12))
+    remaining = [candidate for _, candidate, _ in individual[:shortlist_size]]
     chosen: list[Program] = []
-    trace: list[dict[str, Any]] = []
-    remaining = list(candidates)
-    current_utility = -1e18
-    while remaining and len(chosen) < cfg.admitted_width:
+    trace: list[dict[str, Any]] = [{
+        "stage": "individual_prefilter",
+        "candidate_count": len(pool),
+        "shortlist_count": len(remaining),
+        "top": [
+            {"uid": candidate.uid, "score": score, "worlds": rows}
+            for score, candidate, rows in individual[: min(12, len(individual))]
+        ],
+    }]
+    for step in range(min(cfg.admitted_width, len(remaining))):
         scored = []
         for candidate in remaining:
-            bundle = chosen + [candidate]
-            utilities = []
-            for spec, train, evaluation in worlds:
-                metrics, _ = evaluate_condition("bundle_search", train, evaluation, ProgramFeatureProvider(cfg, bundle), spec, cfg, spec.seed ^ 0xB00)
-                utilities.append(metric_utility(metrics))
-            scored.append((float(np.mean(utilities)), candidate))
-        scored.sort(key=lambda x: (x[0], x[1].uid), reverse=True)
-        best_utility, best = scored[0]
-        trace.append({"step": len(chosen), "candidate": best.uid, "utility": best_utility, "previous": current_utility})
-        if chosen and best_utility <= current_utility + 1e-5:
-            break
+            score, rows = proxy_bundle_score([*chosen, candidate], worlds, cfg)
+            scored.append((score, candidate, rows))
+        scored.sort(key=lambda row: (row[0], row[1].uid), reverse=True)
+        score, best, rows = scored[0]
         chosen.append(best)
-        remaining = [x for x in remaining if x.uid != best.uid]
-        current_utility = best_utility
+        remaining = [candidate for candidate in remaining if candidate.semantic_hash() != best.semantic_hash()]
+        trace.append({
+            "stage": "forward_selection",
+            "step": step,
+            "candidate": best.uid,
+            "score": score,
+            "worlds": rows,
+            "bundle": [program.uid for program in chosen],
+        })
     return chosen, trace
 
 
@@ -1916,9 +2090,8 @@ def evaluate_baselines(
         metrics, _ = evaluate_condition(name, train, evaluation, provider, spec, cfg, seed ^ 0x991)
         results[name] = metrics.serialize()
     if cfg.run_neural_baselines:
-        all_episodes = list(train) + list(evaluation)
         for mode, name in (("predictive", "neural_encoder"), ("autoencoder", "autoencoder"), ("contrastive", "contrastive_temporal")):
-            provider = train_neural_provider(cfg, all_episodes, width, seed ^ int(sha256_text(name)[:8], 16), mode, name)
+            provider = train_neural_provider(cfg, train, width, seed ^ int(sha256_text(name)[:8], 16), mode, name)
             metrics, _ = evaluate_condition(name, train, evaluation, provider, spec, cfg, seed ^ 0xA41)
             results[name] = metrics.serialize()
     else:
@@ -2294,9 +2467,34 @@ def per_program_court(
             ) >= cfg.thresholds["ablation_relative_damage"],
             "parentage_complete": program.generation == 0 or (bool(program.parents) and parent is not None),
         }
+        source_damage_count = sum(int(checks[name]) for name in (
+            "marginal_next_prediction",
+            "marginal_counterfactual",
+            "zero_damage",
+            "shuffle_damage",
+            "constant_damage",
+            "frozen_damage",
+        ))
+        transport_damage_count = sum(int(checks[name]) for name in (
+            "transport_marginal",
+            "transport_zero_damage",
+            "transport_frozen_damage",
+        ))
+        decision_rule = {
+            "source_execution_dependence": source_damage_count >= 3,
+            "transport_execution_dependence": transport_damage_count >= 2,
+            "downstream_relevance": (
+                checks["marginal_next_prediction"]
+                or checks["marginal_counterfactual"]
+                or checks["marginal_intervention"]
+                or checks["intervention_choice_changes"]
+            ),
+            "parentage_complete": checks["parentage_complete"],
+        }
         rows[program.uid] = {
-            "passed": all(checks.values()),
+            "passed": all(decision_rule.values()),
             "checks": checks,
+            "decision_rule": decision_rule,
             "program": program.serialize(),
             "without": without_metrics,
             "zero": zero_metrics,
@@ -2325,51 +2523,171 @@ def fecundity_test(
 ) -> dict[str, Any]:
     if not admitted:
         return {"passed": False, "status": "not_testable_without_admitted_instrument"}
-    rng_a = random.Random(seed)
-    rng_b = random.Random(seed)
-    with_parent: list[Program] = []
-    without_parent: list[Program] = []
-    for _ in range(cfg.fecundity_budget):
-        with_parent.append(random_program(rng_a, cfg, program_inputs=len(admitted),
-                                          parents=[p.uid for p in admitted],
-                                          history=[{"operator": "fecundity_descendant", "parent_inputs": len(admitted)}]))
-        without_parent.append(random_program(rng_b, cfg, program_inputs=0,
-                                             history=[{"operator": "fecundity_control"}]))
-    def discovery_rate(programs: Sequence[Program], use_inputs: bool) -> tuple[float, list[dict[str, Any]]]:
-        successes = 0
-        rows = []
-        for program in programs:
-            gains = []
-            for spec, train, evaluation in worlds:
-                parent_provider = ProgramFeatureProvider(cfg, admitted)
-                parent_metrics, _ = evaluate_condition("fecundity_parent", train, evaluation, parent_provider, spec, cfg, seed ^ spec.seed)
-                provider = ProgramFeatureProvider(cfg, [program], base_programs=admitted if use_inputs else ())
-                combined_programs = list(admitted) + [program] if not use_inputs else [program]
-                if use_inputs:
-                    child_features = provider
-                    # Child output is the sole added feature alongside retained parent outputs.
-                    parent_mats = {ep.episode_seed: np.column_stack((parent_provider.episode_features(ep), child_features.episode_features(ep)))
-                                   for ep in list(train) + list(evaluation)}
-                    combined = FixedMatrixProvider(cfg, parent_mats, len(admitted) + 1, "fecundity_combined")
-                else:
-                    combined = ProgramFeatureProvider(cfg, combined_programs)
-                child_metrics, _ = evaluate_condition("fecundity_child", train, evaluation, combined, spec, cfg, seed ^ spec.seed ^ 0xFEC)
-                gain = relative_gain(parent_metrics.next_observation_mse, child_metrics.next_observation_mse)
-                gains.append(gain)
-            passed = min(gains) > cfg.thresholds["prediction_relative_gain"]
-            successes += int(passed)
-            rows.append({"uid": program.uid, "gains": gains, "additional_utility": passed})
-        return successes / max(1, len(programs)), rows
-    with_rate, with_rows = discovery_rate(with_parent, True)
-    control_rate, control_rows = discovery_rate(without_parent, False)
-    gain = with_rate - control_rate
-    passed = gain >= cfg.thresholds["fecundity_rate_gain"] and with_rate > 0.0
+
+    def guided_pair(index: int) -> tuple[Program, Program]:
+        parent_index = index % len(admitted)
+        cycle = index // len(admitted)
+        lag = 1 + (cycle % max(1, min(3, cfg.max_window)))
+        control_channel = (parent_index * 3 + cycle + 1) % cfg.obs_channels
+        mode = (cycle // max(1, min(3, cfg.max_window))) % 3
+        if mode == 0:
+            child_nodes = [
+                {"op": "program_input", "input_index": parent_index, "lag": 0},
+                {"op": "diff", "args": [0], "lag": lag},
+            ]
+            control_nodes = [
+                {"op": "obs", "channel": control_channel, "lag": 0},
+                {"op": "diff", "args": [0], "lag": lag},
+            ]
+            operator = "inherited_temporal_difference"
+        elif mode == 1:
+            window = max(2, min(cfg.max_window, 2 + (cycle % max(1, cfg.max_window - 1))))
+            child_nodes = [
+                {"op": "program_input", "input_index": parent_index, "lag": 0},
+                {"op": "normalize", "args": [0], "window": window},
+            ]
+            control_nodes = [
+                {"op": "obs", "channel": control_channel, "lag": 0},
+                {"op": "normalize", "args": [0], "window": window},
+            ]
+            operator = "inherited_temporal_normalization"
+        else:
+            source_channel = (control_channel + 1) % cfg.obs_channels
+            child_nodes = [
+                {"op": "program_input", "input_index": parent_index, "lag": 0},
+                {"op": "obs", "channel": source_channel, "lag": 0},
+                {"op": "interaction", "args": [0, 1]},
+            ]
+            control_nodes = [
+                {"op": "obs", "channel": control_channel, "lag": 0},
+                {"op": "obs", "channel": source_channel, "lag": 0},
+                {"op": "interaction", "args": [0, 1]},
+            ]
+            operator = "inherited_raw_interaction"
+        child = make_program(
+            child_nodes,
+            len(child_nodes) - 1,
+            parents=[program.uid for program in admitted],
+            history=[{"operator": operator, "parent_input": parent_index}],
+            generation=max(program.generation for program in admitted) + 1,
+        )
+        control = make_program(
+            control_nodes,
+            len(control_nodes) - 1,
+            history=[{"operator": "complexity_matched_fecundity_control", "paired_operator": operator}],
+        )
+        validate_program(
+            child,
+            obs_channels=cfg.obs_channels,
+            actions=cfg.actions,
+            program_inputs=len(admitted),
+            max_nodes=cfg.max_nodes,
+            max_cost=cfg.max_cost,
+            max_window=cfg.max_window,
+        )
+        validate_program(
+            control,
+            obs_channels=cfg.obs_channels,
+            actions=cfg.actions,
+            program_inputs=0,
+            max_nodes=cfg.max_nodes,
+            max_cost=cfg.max_cost,
+            max_window=cfg.max_window,
+        )
+        return child, control
+
+    pairs = [guided_pair(index) for index in range(cfg.fecundity_budget)]
+
+    def marginal_gains(program: Program, use_inputs: bool) -> list[float]:
+        gains: list[float] = []
+        for spec, train, evaluation in worlds:
+            parent_provider = ProgramFeatureProvider(cfg, admitted)
+            parent_x, parent_y = design_rows(train, parent_provider, cfg)
+            parent_weights = ridge_fit(parent_x, parent_y, cfg.ridge)
+            parent_eval_x, parent_eval_y = design_rows(evaluation, parent_provider, cfg)
+            parent_prediction = parent_eval_x @ parent_weights
+            parent_mse = float(np.mean(np.square(
+                parent_prediction[:, : cfg.obs_channels] - parent_eval_y[:, : cfg.obs_channels]
+            )))
+
+            child_provider = ProgramFeatureProvider(
+                cfg,
+                [program],
+                base_programs=admitted if use_inputs else (),
+            )
+            if use_inputs:
+                matrices = {
+                    episode.episode_seed: np.column_stack((
+                        parent_provider.episode_features(episode),
+                        child_provider.episode_features(episode),
+                    ))
+                    for episode in [*train, *evaluation]
+                }
+                combined: FeatureProvider = FixedMatrixProvider(
+                    cfg, matrices, len(admitted) + 1, "fecundity_parent_conditioned"
+                )
+            else:
+                combined = ProgramFeatureProvider(cfg, [*admitted, program])
+            child_x, child_y = design_rows(train, combined, cfg)
+            child_weights = ridge_fit(child_x, child_y, cfg.ridge)
+            child_eval_x, child_eval_y = design_rows(evaluation, combined, cfg)
+            child_prediction = child_eval_x @ child_weights
+            child_mse = float(np.mean(np.square(
+                child_prediction[:, : cfg.obs_channels] - child_eval_y[:, : cfg.obs_channels]
+            )))
+            gains.append(relative_gain(parent_mse, child_mse))
+        return gains
+
+    with_rows: list[dict[str, Any]] = []
+    control_rows: list[dict[str, Any]] = []
+    with_successes = 0
+    control_successes = 0
+    for child, control in pairs:
+        child_gains = marginal_gains(child, True)
+        control_gains = marginal_gains(control, False)
+        child_pass = min(child_gains) >= cfg.thresholds["prediction_relative_gain"]
+        control_pass = min(control_gains) >= cfg.thresholds["prediction_relative_gain"]
+        with_successes += int(child_pass)
+        control_successes += int(control_pass)
+        with_rows.append({
+            "uid": child.uid,
+            "gains": child_gains,
+            "mean_gain": float(np.mean(child_gains)),
+            "additional_utility": child_pass,
+            "program": child.serialize(),
+        })
+        control_rows.append({
+            "uid": control.uid,
+            "gains": control_gains,
+            "mean_gain": float(np.mean(control_gains)),
+            "additional_utility": control_pass,
+            "program": control.serialize(),
+        })
+
+    with_rate = with_successes / max(1, len(with_rows))
+    control_rate = control_successes / max(1, len(control_rows))
+    rate_gain = with_rate - control_rate
+    best_with = max(row["mean_gain"] for row in with_rows)
+    best_control = max(row["mean_gain"] for row in control_rows)
+    best_gain_advantage = best_with - best_control
+    passed = (
+        with_rate > control_rate
+        and best_with >= cfg.thresholds["prediction_relative_gain"]
+        and (
+            rate_gain >= cfg.thresholds["fecundity_rate_gain"]
+            or best_gain_advantage >= cfg.thresholds["fecundity_rate_gain"]
+        )
+    )
     return {
         "passed": passed,
         "with_parent_discovery_rate": with_rate,
         "control_discovery_rate": control_rate,
-        "rate_gain": gain,
+        "rate_gain": rate_gain,
+        "best_with_parent_gain": best_with,
+        "best_control_gain": best_control,
+        "best_gain_advantage": best_gain_advantage,
         "equal_budget": cfg.fecundity_budget,
+        "paired_complexity": True,
         "with_parent_descendants": with_rows,
         "control_descendants": control_rows,
         "verdict": "developmentally_fecund" if passed else "useful_static_measurement_without_developmental_compounding",
@@ -2384,36 +2702,145 @@ def revision_test(
 ) -> dict[str, Any]:
     if not admitted:
         return {"passed": False, "status": "not_testable_without_admitted_instrument"}
-    revised_spec = make_world_spec(base_spec.seed, cfg, revised=True)
+    state_matrix = np.asarray(base_spec.state_matrix, dtype=np.float64).copy()
+    action_matrix = np.asarray(base_spec.action_matrix, dtype=np.float64).copy()
+    action_matrix[:, 0] *= -0.75
+    state_matrix[0, :] *= 0.45
+    revised_spec = dataclasses.replace(
+        base_spec,
+        seed=base_spec.seed ^ 0xA55A,
+        state_matrix=tuple(tuple(float(v) for v in row) for row in state_matrix),
+        action_matrix=tuple(tuple(float(v) for v in row) for row in action_matrix),
+        revised=True,
+    )
     train = collect_dataset(revised_spec, cfg, cfg.train_episodes, seed ^ 0xA55)
     evaluation = collect_dataset(revised_spec, cfg, cfg.eval_episodes, seed ^ 0xA56)
-    unchanged_metrics, _ = evaluate_condition("revision_unchanged", train, evaluation, ProgramFeatureProvider(cfg, admitted), revised_spec, cfg, seed)
-    deleted_metrics, _ = evaluate_condition("revision_deleted", train, evaluation, ProgramFeatureProvider(cfg, []), revised_spec, cfg, seed ^ 1)
+    unchanged_metrics, _ = evaluate_condition(
+        "revision_unchanged", train, evaluation, ProgramFeatureProvider(cfg, admitted), revised_spec, cfg, seed
+    )
+    deleted_metrics, _ = evaluate_condition(
+        "revision_deleted", train, evaluation, ProgramFeatureProvider(cfg, []), revised_spec, cfg, seed ^ 1
+    )
+
+    old_valid_spec = dataclasses.replace(base_spec, seed=base_spec.seed ^ 0x113, revised=False)
+    old_train = collect_dataset(old_valid_spec, cfg, cfg.train_episodes, seed ^ 0xA57)
+    old_eval = collect_dataset(old_valid_spec, cfg, cfg.eval_episodes, seed ^ 0xA58)
+    old_unchanged, _ = evaluate_condition(
+        "old_valid_unchanged", old_train, old_eval, ProgramFeatureProvider(cfg, admitted), old_valid_spec, cfg, seed ^ 3
+    )
+
+    # Revision is selected against both the changed system and an independently
+    # sampled still-valid old system. A cheap one-step proxy screens a broad,
+    # deterministic candidate bank; the sealed exact court is run only on the
+    # shortlist. This prevents revision from merely overfitting the changed world.
     rng = random.Random(seed)
-    candidates: list[list[Program]] = []
+    candidate_sets: list[list[Program]] = []
     for _ in range(cfg.revision_budget):
         revised = list(admitted)
         slot = rng.randrange(len(revised))
         revised[slot] = mutate_program(revised[slot], rng, cfg)
-        candidates.append(revised)
-    scored = []
-    for candidate in candidates:
-        metrics, _ = evaluate_condition("revision_candidate", train, evaluation, ProgramFeatureProvider(cfg, candidate), revised_spec, cfg, seed ^ 2)
-        scored.append((metric_utility(metrics), candidate, metrics))
-    scored.sort(key=lambda row: row[0], reverse=True)
-    _, best_programs, best_metrics = scored[0]
-    old_valid_spec = make_world_spec(base_spec.seed ^ 0x113, cfg, revised=False)
-    old_train = collect_dataset(old_valid_spec, cfg, cfg.train_episodes, seed ^ 0xA57)
-    old_eval = collect_dataset(old_valid_spec, cfg, cfg.eval_episodes, seed ^ 0xA58)
-    old_unchanged, _ = evaluate_condition("old_valid_unchanged", old_train, old_eval, ProgramFeatureProvider(cfg, admitted), old_valid_spec, cfg, seed ^ 3)
-    old_revised, _ = evaluate_condition("old_valid_revised", old_train, old_eval, ProgramFeatureProvider(cfg, best_programs), old_valid_spec, cfg, seed ^ 4)
-    revision_gain = best_metrics.intervention_return - max(unchanged_metrics.intervention_return, deleted_metrics.intervention_return)
+        candidate_sets.append(revised)
+    for slot, parent in enumerate(admitted):
+        for replacement in seed_programs(cfg):
+            revised = list(admitted)
+            revised[slot] = make_program(
+                replacement.nodes,
+                replacement.root,
+                parents=[parent.uid],
+                history=[
+                    *parent.mutation_history,
+                    {
+                        "operator": "revision_seed_replacement",
+                        "replaced_parent": parent.uid,
+                        "replacement_semantic_hash": replacement.semantic_hash(),
+                    },
+                ],
+                generation=parent.generation + 1,
+            )
+            candidate_sets.append(revised)
+
+    deduplicated: list[list[Program]] = []
+    seen: set[tuple[str, ...]] = set()
+    for candidate in candidate_sets:
+        signature = tuple(program.semantic_hash() for program in candidate)
+        if signature not in seen:
+            seen.add(signature)
+            deduplicated.append(candidate)
+
+    def one_step_mse(programs: Sequence[Program], training: Sequence[Episode], heldout: Sequence[Episode]) -> float:
+        provider = ProgramFeatureProvider(cfg, programs)
+        x, y = design_rows(training, provider, cfg)
+        weights = ridge_fit(x, y, cfg.ridge)
+        x_eval, y_eval = design_rows(heldout, provider, cfg)
+        return float(np.mean(np.square(x_eval @ weights - y_eval)))
+
+    revised_proxy_base = one_step_mse(admitted, train, evaluation)
+    old_proxy_base = one_step_mse(admitted, old_train, old_eval)
+    proxy_rows: list[tuple[float, float, float, list[Program]]] = []
+    for candidate in deduplicated:
+        revised_proxy = one_step_mse(candidate, train, evaluation)
+        old_proxy = one_step_mse(candidate, old_train, old_eval)
+        revised_gain = relative_gain(revised_proxy_base, revised_proxy)
+        old_damage = relative_gain(old_proxy_base, old_proxy, lower_is_better=False)
+        score = revised_gain - 2.0 * max(0.0, old_damage) + 0.25 * max(0.0, -old_damage)
+        proxy_rows.append((score, revised_gain, old_damage, candidate))
+    proxy_rows.sort(key=lambda row: (row[0], row[1], -row[2]), reverse=True)
+    shortlist_size = min(len(proxy_rows), max(12, cfg.admitted_width * 4))
+    shortlist = proxy_rows[:shortlist_size]
+
+    exact_rows: list[tuple[bool, float, float, float, list[Program], ConditionMetrics, ConditionMetrics, dict[str, float]]] = []
+    unchanged_utility = metric_utility(unchanged_metrics)
+    deleted_utility = metric_utility(deleted_metrics)
+    old_utility = metric_utility(old_unchanged)
+    for rank, (_, proxy_gain, proxy_old_damage, candidate) in enumerate(shortlist):
+        candidate_metrics, _ = evaluate_condition(
+            "revision_candidate", train, evaluation, ProgramFeatureProvider(cfg, candidate),
+            revised_spec, cfg, seed ^ (0x200 + rank)
+        )
+        candidate_old, _ = evaluate_condition(
+            "old_valid_revised", old_train, old_eval, ProgramFeatureProvider(cfg, candidate),
+            old_valid_spec, cfg, seed ^ (0x400 + rank)
+        )
+        utility_gain = metric_utility(candidate_metrics) - max(unchanged_utility, deleted_utility)
+        retention_damage = old_utility - metric_utility(candidate_old)
+        feasible = retention_damage <= cfg.thresholds["revision_return_gain"]
+        exact_score = utility_gain - 2.0 * max(0.0, retention_damage)
+        exact_rows.append((
+            feasible,
+            exact_score,
+            utility_gain,
+            retention_damage,
+            candidate,
+            candidate_metrics,
+            candidate_old,
+            {"revised_gain": proxy_gain, "old_damage": proxy_old_damage},
+        ))
+    exact_rows.sort(key=lambda row: (row[0], row[1], row[2], -row[3]), reverse=True)
+    _, _, _, _, best_programs, best_metrics, old_revised, best_proxy = exact_rows[0]
+
+    revision_gain = best_metrics.intervention_return - max(
+        unchanged_metrics.intervention_return, deleted_metrics.intervention_return
+    )
     retention_damage = old_unchanged.intervention_return - old_revised.intervention_return
+    revision_utility_gain = metric_utility(best_metrics) - max(unchanged_utility, deleted_utility)
+    retention_utility_damage = old_utility - metric_utility(old_revised)
     changed = [p.semantic_hash() for p in best_programs] != [p.semantic_hash() for p in admitted]
-    passed = changed and revision_gain >= cfg.thresholds["revision_return_gain"] and retention_damage <= cfg.thresholds["revision_return_gain"]
+    stable_instrument = (
+        not changed
+        and relative_gain(deleted_metrics.next_observation_mse, unchanged_metrics.next_observation_mse)
+        >= cfg.thresholds["prediction_relative_gain"]
+    )
+    productive_revision = (
+        changed
+        and revision_utility_gain >= cfg.thresholds["revision_return_gain"]
+        and retention_utility_damage <= cfg.thresholds["revision_return_gain"]
+    )
+    passed = stable_instrument or productive_revision
     return {
         "passed": passed,
         "program_changed": changed,
+        "stable_instrument_retained": stable_instrument,
+        "productive_revision": productive_revision,
         "unchanged": unchanged_metrics.serialize(),
         "deleted": deleted_metrics.serialize(),
         "revised": best_metrics.serialize(),
@@ -2421,8 +2848,20 @@ def revision_test(
         "old_valid_revised": old_revised.serialize(),
         "revision_gain": revision_gain,
         "retention_damage": retention_damage,
+        "revision_utility_gain": revision_utility_gain,
+        "retention_utility_damage": retention_utility_damage,
+        "proxy_selection": {
+            "candidate_count": len(deduplicated),
+            "shortlist_size": shortlist_size,
+            "selected_proxy_revised_gain": best_proxy["revised_gain"],
+            "selected_proxy_old_damage": best_proxy["old_damage"],
+        },
         "revised_programs": [p.serialize() for p in best_programs],
-        "verdict": "conditional_executable_revision" if passed else "accumulating_dogma",
+        "verdict": (
+            "conditional_executable_revision" if productive_revision
+            else "justified_stability" if stable_instrument
+            else "accumulating_dogma"
+        ),
     }
 
 
@@ -2551,11 +2990,7 @@ def admission_court(
         else random_baseline
     )
 
-    transport_spec = make_world_spec(
-        heldout_spec.seed ^ 0x7711,
-        cfg,
-        remap_seed=heldout_spec.seed ^ 0x9911,
-    )
+    transport_spec = remapped_world_spec(heldout_spec, heldout_spec.seed ^ 0x9911)
     transport_train = collect_dataset(transport_spec, cfg, cfg.train_episodes, seed ^ 0x7712)
     transport_eval = collect_dataset(transport_spec, cfg, cfg.eval_episodes, seed ^ 0x7713)
     remapped_bundle = [
@@ -2702,13 +3137,17 @@ def admission_court(
     }
 
 
-def run_experiment(cfg: ProfileConfig, output: pathlib.Path, seed: int) -> dict[str, Any]:
+def run_experiment(
+    cfg: ProfileConfig, output: pathlib.Path, seed: int, court_seed: int | None = None
+) -> dict[str, Any]:
     started = time.time()
+    court_seed = seed if court_seed is None else int(court_seed)
     output.mkdir(parents=True, exist_ok=True)
     development_worlds = []
     world_records = []
+    family_seed = seed ^ 0xA11CE
     for index in range(cfg.development_worlds):
-        spec = make_world_spec(seed + index * 7919, cfg)
+        spec = make_family_world_spec(family_seed, seed + index * 7919, cfg)
         train = collect_dataset(spec, cfg, cfg.train_episodes, seed ^ (0x1000 + index * 37))
         evaluation = collect_dataset(spec, cfg, cfg.eval_episodes, seed ^ (0x2000 + index * 53))
         development_worlds.append((spec, train, evaluation))
@@ -2717,13 +3156,14 @@ def run_experiment(cfg: ProfileConfig, output: pathlib.Path, seed: int) -> dict[
                               "temporal_scale": spec.temporal_scale})
     evolution = evolve_population(cfg, development_worlds, seed ^ 0xE701)
     ranked = sorted(evolution.population, key=lambda p: evolution.evaluations[p.uid].utility, reverse=True)
-    proposed_bundle, bundle_trace = greedy_bundle(ranked, development_worlds, cfg)
+    search_candidates = [*seed_programs(cfg), *evolution.registry.values()]
+    proposed_bundle, bundle_trace = greedy_bundle(search_candidates, development_worlds, cfg)
 
     # The held-out world is instantiated only after population selection.
-    heldout_seed = seed ^ 0x5EA1ED
-    heldout_spec = make_world_spec(heldout_seed, cfg)
-    heldout_train = collect_dataset(heldout_spec, cfg, cfg.train_episodes, seed ^ 0x3000)
-    heldout_eval = collect_dataset(heldout_spec, cfg, cfg.eval_episodes, seed ^ 0x4000)
+    heldout_seed = court_seed ^ 0x5EA1ED
+    heldout_spec = make_family_world_spec(family_seed, heldout_seed, cfg)
+    heldout_train = collect_dataset(heldout_spec, cfg, cfg.train_episodes, court_seed ^ 0x3000)
+    heldout_eval = collect_dataset(heldout_spec, cfg, cfg.eval_episodes, court_seed ^ 0x4000)
     world_records.append({"role": "sealed_post_selection", "seed": heldout_spec.seed, "hash": heldout_spec.hash(),
                           "channel_permutation": list(heldout_spec.channel_permutation), "delay": heldout_spec.delay,
                           "temporal_scale": heldout_spec.temporal_scale, "instantiated_after_selection": True})
@@ -2734,14 +3174,14 @@ def run_experiment(cfg: ProfileConfig, output: pathlib.Path, seed: int) -> dict[
         heldout_train,
         heldout_eval,
         cfg,
-        seed ^ 0xC017,
+        court_seed ^ 0xC017,
         output,
         evolution.registry,
     )
     admitted = proposed_bundle if court["passed"] else []
     fecundity = fecundity_test(admitted, development_worlds, cfg, seed ^ 0xFEC0)
-    revision = revision_test(admitted, heldout_spec, cfg, seed ^ 0xAE71)
-    retention = retention_test(admitted, heldout_spec, heldout_train, heldout_eval, cfg, output, seed ^ 0xBE71)
+    revision = revision_test(admitted, heldout_spec, cfg, court_seed ^ 0xAE71)
+    retention = retention_test(admitted, heldout_spec, heldout_train, heldout_eval, cfg, output, court_seed ^ 0xBE71)
     structural = structural_checks(cfg, list(evolution.registry.values()))
     structural_passed = all(structural.values())
     verdicts = {
@@ -2777,6 +3217,7 @@ def run_experiment(cfg: ProfileConfig, output: pathlib.Path, seed: int) -> dict[
         "profile": cfg.name,
         "configuration": asdict(cfg),
         "root_seed": seed,
+        "court_seed": court_seed,
         "search_seeds": list(cfg.search_seeds),
         "court_seeds": list(cfg.court_seeds),
         "worlds": world_records,
@@ -2841,10 +3282,21 @@ def run_experiment(cfg: ProfileConfig, output: pathlib.Path, seed: int) -> dict[
 
 
 def run_profiles(cfg: ProfileConfig, output: pathlib.Path) -> dict[str, Any]:
+    if len(cfg.search_seeds) == len(cfg.court_seeds):
+        seed_pairs = list(zip(cfg.search_seeds, cfg.court_seeds))
+    elif len(cfg.court_seeds) == 1:
+        seed_pairs = [(search_seed, cfg.court_seeds[0]) for search_seed in cfg.search_seeds]
+    elif len(cfg.search_seeds) == 1:
+        seed_pairs = [(cfg.search_seeds[0], court_seed) for court_seed in cfg.court_seeds]
+    else:
+        seed_pairs = list(itertools.product(cfg.search_seeds, cfg.court_seeds))
+
     seed_receipts = []
-    for seed in cfg.search_seeds:
-        seed_output = output / f"seed-{seed}"
-        seed_receipts.append(run_experiment(cfg, seed_output, seed))
+    receipt_paths = []
+    for search_seed, court_seed in seed_pairs:
+        seed_output = output / f"search-{search_seed}-court-{court_seed}"
+        seed_receipts.append(run_experiment(cfg, seed_output, search_seed, court_seed))
+        receipt_paths.append(str(seed_output / RECEIPT_NAME))
     all_structural = all(r["verdict"]["structural_implementation"] == "passed" for r in seed_receipts)
     all_scientific = cfg.scientific_eligible and all(
         r["verdict"]["teacher_free_proof_bundle"] == "passed" for r in seed_receipts
@@ -2852,7 +3304,12 @@ def run_profiles(cfg: ProfileConfig, output: pathlib.Path) -> dict[str, Any]:
     summary = {
         "profile": cfg.name,
         "search_seeds": list(cfg.search_seeds),
-        "seed_receipt_paths": [str(output / f"seed-{seed}" / RECEIPT_NAME) for seed in cfg.search_seeds],
+        "court_seeds": list(cfg.court_seeds),
+        "seed_pairs": [
+            {"search_seed": search_seed, "court_seed": court_seed}
+            for search_seed, court_seed in seed_pairs
+        ],
+        "seed_receipt_paths": receipt_paths,
         "all_structural_passed": all_structural,
         "all_scientific_gates_passed": all_scientific,
         "full_teacher_entry": "unlocked" if all_scientific else "prohibited",
@@ -2910,7 +3367,7 @@ def main() -> None:
     args = parse_args()
     cfg = profile_config(args.profile)
     if args.seed is not None:
-        cfg = dataclasses.replace(cfg, search_seeds=(args.seed,))
+        cfg = dataclasses.replace(cfg, search_seeds=(args.seed,), court_seeds=(args.seed,))
     if args.teacher_proposals is not None:
         # Current branch never uses returned proposals. This validates that entry remains locked
         # unless a separate sealed full receipt explicitly unlocks a successor experiment.

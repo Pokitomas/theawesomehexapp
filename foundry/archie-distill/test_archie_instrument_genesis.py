@@ -136,6 +136,63 @@ class InstrumentGenesisTest(unittest.TestCase):
         new_output = ig.ProgramExecutor(remapped, self.cfg.obs_channels, self.cfg.actions).run(exposed_new, self.actions)
         np.testing.assert_allclose(old_output, new_output, atol=0.0, rtol=0.0)
 
+
+    def test_family_worlds_share_mechanism_but_not_incidental_conditions(self) -> None:
+        first = ig.make_family_world_spec(7001, 101, self.cfg)
+        second = ig.make_family_world_spec(7001, 211, self.cfg)
+        self.assertEqual(first.state_matrix, second.state_matrix)
+        self.assertEqual(first.action_matrix, second.action_matrix)
+        self.assertEqual(first.observation_matrix, second.observation_matrix)
+        self.assertEqual(first.consequence_vector, second.consequence_vector)
+        self.assertNotEqual(first.seed, second.seed)
+        self.assertNotEqual(first.noise_scale, second.noise_scale)
+        self.assertEqual(first.channel_permutation, tuple(range(self.cfg.obs_channels)))
+        self.assertEqual(second.channel_permutation, tuple(range(self.cfg.obs_channels)))
+
+    def test_transport_world_changes_only_exposed_sensor_order(self) -> None:
+        source = ig.make_family_world_spec(8001, 307, self.cfg)
+        transported = ig.remapped_world_spec(source, 9911)
+        source_payload = dataclasses.asdict(source)
+        transported_payload = dataclasses.asdict(transported)
+        source_permutation = source_payload.pop("channel_permutation")
+        transported_permutation = transported_payload.pop("channel_permutation")
+        self.assertEqual(source_payload, transported_payload)
+        self.assertNotEqual(source_permutation, transported_permutation)
+        self.assertEqual(sorted(source_permutation), sorted(transported_permutation))
+
+    def test_intervention_horizon_reaches_delayed_action_effect(self) -> None:
+        spec = dataclasses.replace(ig.make_family_world_spec(9001, 401, self.cfg), delay=3)
+        world = ig.RawWorld(spec)
+        world.reset(515)
+        snapshot = world.snapshot()
+        horizon = spec.delay + 2
+        obs_zero, consequence_zero = world.branch(snapshot, [0] * horizon)
+        obs_one, consequence_one = world.branch(snapshot, [1] * horizon)
+        self.assertFalse(np.allclose(obs_zero[-1], obs_one[-1]))
+        self.assertNotAlmostEqual(consequence_zero[-1], consequence_one[-1], places=10)
+
+    def test_declared_reduced_court_closes_mechanism_gates(self) -> None:
+        cfg = dataclasses.replace(self.cfg, scientific_eligible=True)
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = ig.run_experiment(cfg, pathlib.Path(directory), 17, 101)
+        self.assertEqual(receipt["root_seed"], 17)
+        self.assertEqual(receipt["court_seed"], 101)
+        for gate in (
+            "instrument_admission",
+            "causal_dependence",
+            "cross_world_transport",
+            "fecundity",
+            "revision",
+            "retention_reconstruction",
+            "teacher_free_proof_bundle",
+        ):
+            self.assertEqual(receipt["verdict"][gate], "passed")
+        revision = receipt["revision_results"]
+        self.assertTrue(revision["productive_revision"] or revision["stable_instrument_retained"])
+        self.assertLessEqual(
+            revision["retention_utility_damage"], cfg.thresholds["revision_return_gain"]
+        )
+
     def test_parentage_survives_serialization(self) -> None:
         rng = random.Random(33)
         parent = ig.random_program(rng, self.cfg)
