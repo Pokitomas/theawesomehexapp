@@ -1,0 +1,48 @@
+name: Archie teacher escape
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/archie_developmental_teacher_escape.py'
+      - 'foundry/archie-distill/archie_developmental_teacher_escape_run.py'
+      - 'foundry/archie-distill/test_archie_developmental_teacher_escape.py'
+      - 'foundry/archie-distill/run_archie_teacher_escape.sh'
+      - '.github/workflows/archie-teacher-escape.yml'
+  push:
+    branches:
+      - 'agent/archie-teacher-escape-20260723'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU torch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile and shell-check
+        run: |
+          python -m py_compile \
+            foundry/archie-distill/archie_developmental_teacher_escape.py \
+            foundry/archie-distill/archie_developmental_teacher_escape_run.py \
+            foundry/archie-distill/test_archie_developmental_teacher_escape.py
+          bash -n foundry/archie-distill/run_archie_teacher_escape.sh
+      - name: Structural developmental court
+        working-directory: foundry/archie-distill
+        run: python -m unittest -v test_archie_developmental_teacher_escape.DevelopmentalTeacherEscapeTest
+      - name: CPU end-to-end smoke
+        working-directory: foundry/archie-distill
+        run: |
+          python archie_developmental_teacher_escape_run.py \
+            --profile smoke \
+            --device cpu \
+            --output-dir /tmp/archie-teacher-escape
+          test -s /tmp/archie-teacher-escape/developmental-teacher-escape.json
