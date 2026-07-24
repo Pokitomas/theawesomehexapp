@@ -38,6 +38,10 @@ jobs:
           with tarfile.open(archive,'r:gz') as handle:
               print({'members':handle.getnames()},flush=True)
               handle.extractall('.')
+          for path in [Path('foundry/archie-distill/archie_instrument_genesis.py'), Path('foundry/archie-distill/test_archie_instrument_genesis.py')]:
+              raw=path.read_bytes(); cleaned=raw.replace(b'\x00',b'')
+              print({'path':str(path),'nul_bytes_removed':len(raw)-len(cleaned)},flush=True)
+              path.write_bytes(cleaned)
           PY
       - name: Validate repair
         id: validate
