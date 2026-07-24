@@ -1,0 +1,30 @@
+name: Archie receipt machine
+
+on:
+  push:
+    branches: [archie-receipt-machine]
+    paths:
+      - 'foundry/archie-receipts/**'
+      - '.github/workflows/archie-receipt-machine.yml'
+  pull_request:
+    paths:
+      - 'foundry/archie-receipts/**'
+      - '.github/workflows/archie-receipt-machine.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  exactness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: foundry/archie-receipts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest -v
+      - run: python run_exact.py
