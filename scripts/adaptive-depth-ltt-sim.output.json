@@ -129,5 +129,35 @@
       "mean_skip_rate": 0.0,
       "conditional_violation_rate": 0.0
     }
+  },
+  "part_g_design_effect_explains_the_naive_pooling_violation_trend": {
+    "n_sequences": 2000,
+    "note": "corrected_estimate_over_true_n_ratio -> 1 as rho -> 1 confirms the mechanism: naive pooling's claimed n*T degrees of freedom are, after the standard design-effect correction, worth barely more than the n sequences Section 3.1 says to use, and the gap between naive and corrected shrinks as correlation strengthens -- matching Part A's violation-rate trend without needing to re-derive it from scratch.",
+    "by_correlation_strength": {
+      "seq_offset_sd_0.05": {
+        "intraclass_correlation_rho": 0.35959768862943997,
+        "design_effect_1_plus_T_minus_1_rho": 15.02430985654816,
+        "n_eff_naive_pooling_assumes": 80000,
+        "n_eff_design_effect_corrected": 5324.703814274237,
+        "n_true_sequence_count": 2000,
+        "corrected_estimate_over_true_n_ratio": 2.6623519071371184
+      },
+      "seq_offset_sd_0.15": {
+        "intraclass_correlation_rho": 0.828195566365974,
+        "design_effect_1_plus_T_minus_1_rho": 33.299627088272985,
+        "n_eff_naive_pooling_assumes": 80000,
+        "n_eff_design_effect_corrected": 2402.4293061279755,
+        "n_true_sequence_count": 2000,
+        "corrected_estimate_over_true_n_ratio": 1.2012146530639878
+      },
+      "seq_offset_sd_0.3": {
+        "intraclass_correlation_rho": 0.9526491986206165,
+        "design_effect_1_plus_T_minus_1_rho": 38.15331874620404,
+        "n_eff_naive_pooling_assumes": 80000,
+        "n_eff_design_effect_corrected": 2096.803178044882,
+        "n_true_sequence_count": 2000,
+        "corrected_estimate_over_true_n_ratio": 1.048401589022441
+      }
+    }
   }
 }

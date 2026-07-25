@@ -1,8 +1,10 @@
 # Adaptive-depth layer skipping: closing the FLOP Trap and the Over-Pessimism Trap
 
-This document is a design and a proof, backed by a synthetic simulation (Section 6), not a
-shipped feature. No inference code in this repository currently skips layers. Nothing here
-is admitted evidence under the `archie-candidate-completion-manifest/v1` process in
+This document is a design and a proof, backed by a synthetic simulation (Section 6) and
+compiled into a labeled set of theorems, propositions, findings, and one open problem
+(Section 7), not a shipped feature. No inference code in this repository currently skips
+layers. Nothing here is admitted evidence under the `archie-candidate-completion-manifest/v1`
+process in
 `ARCHIE_ARCHITECTURE_EXPERIMENTS.md` — the simulation validates the calibration math against
 a statistical model of the problem, not Archie's real weights. It exists so that if
 adaptive-depth decoding is built for Archie, it is built on a scheme whose failure modes
@@ -538,7 +540,100 @@ conditional-rate estimates are much higher-variance than the joint estimator's p
 loss, and Hoeffding's range-only bound pays heavily for that. This is the genuinely open
 problem this investigation surfaces, not a solved one.
 
-## 7. References
+**Part G — is there an actual formula behind Part A's violation-rate trend, or just a
+direction?** Kish's design effect (Kish, 1965): pooling `T` intra-cluster-correlated
+observations as if independent overstates the effective sample size by a factor
+`DEFF = 1 + (T-1)*rho`, `rho` the intraclass correlation. Measured directly (one-way ANOVA
+ICC estimator) at the same three correlation levels as Part A, `n=2000` sequences each:
+
+| `seq_offset_sd` | measured `rho` | `DEFF` | naive assumes `n*T` | design-effect-corrected `n_eff` | true `n` |
+|---|---|---|---|---|---|
+| 0.05 | 0.360 | 15.0 | 80,000 | 5,325 (2.66x true `n`) | 2,000 |
+| 0.15 | 0.828 | 33.3 | 80,000 | 2,402 (1.20x true `n`) | 2,000 |
+| 0.30 | 0.953 | 38.2 | 80,000 | 2,097 (1.05x true `n`) | 2,000 |
+
+The design-effect-corrected effective sample size converges toward the true sequence count as
+correlation strengthens — the same mechanism, not just the same direction, as Part A's
+naive-pooling violation-rate trend. This is a cited, standard result from clustered-sampling
+theory, not derived from scratch here; it explains Part A's trend rather than independently
+re-proving it, and was not carried through the Hoeffding-Bentkus argument itself to produce an
+exact violation-probability formula for this specific calibrator (Section 7, Proposition 2,
+states precisely what is and is not established by this).
+
+## 7. Unified theorem statements
+
+Everything above compiled into one place, each claim labeled by what it actually is —
+proven, proven-and-verified, empirical-only, or open — because collapsing these into
+undifferentiated "theorems" is the exact failure this document already had to correct once
+(Section 3.2). Read the status line before the guarantee line.
+
+**Theorem 1 (Sequence-level joint-risk calibration).** *Status: proven (Section 3.2), and
+empirically observed to hold across every configuration tested in Section 6 — several
+hundred independent calibration draws across Parts A/B/C, zero violations.*
+
+Let `s_t` be any `[0,1]`-valued statistic computed from the shallow forward pass that need
+only be monotonically thresholdable against `TV(q_t, p_t)`, not accurate. Draw `n` i.i.d.
+calibration sequences under teacher forcing, each of length `T`, and select `lambda_hat` via
+the sequence-averaged Learn-Then-Test procedure of Sections 3.1-3.2 (grid walk, Hoeffding-
+Bentkus upper confidence bound, monotone fixed-sequence stopping at level `delta`). Then
+
+```
+with probability >= 1 - delta over the calibration draw:
+    Pr_{t ~ D}[ TV(q_t, p_t) > tau  AND  skip_{lambda_hat}(t) ] <= alpha
+```
+
+This is the corrected form of the guarantee this entire document is built on. It is *not*
+`Pr[TV > tau | skip] <= alpha` — see Theorem/Open Problem 4 for that quantity.
+
+**Proposition 2 (Token-level pooling's failure has a name and a formula).** *Status: the
+underlying design-effect result is a proven, standard fact from clustered-sampling theory
+(Kish, 1965); its application to explain this specific calibrator's failure is a derivation
+verified empirically (Section 6, Part G), not an independently re-proven bound.*
+
+If calibration instead pools `n*T` per-token samples as independent, and tokens within a
+sequence have intraclass correlation `rho` (Section 6, Part G's ANOVA estimator) on the loss,
+the Hoeffding-Bentkus slack computed with those `n*T` claimed degrees of freedom understates
+the slack the true effective sample size `n*T / DEFF` would justify, where
+`DEFF = 1 + (T-1)*rho`. The resulting threshold's true violation probability is therefore not
+controlled at level `delta`, worsening as `rho` grows — confirmed directly (Section 6, Parts A
+and G together): naive-pooling's real violation rate climbed `0% -> 0% -> 10%` as `rho`
+(measured, not assumed) rose `0.36 -> 0.83 -> 0.95`, exactly tracking `DEFF`'s prediction that
+naive pooling's *effective* sample size approaches the valid procedure's `n` — not its own
+assumed `n*T` — as correlation strengthens.
+
+**Empirical Finding 3 (Compounding: the proven guarantee holds, the wanted one does not).**
+*Status: simulation-only, one synthetic generative model, one compounding mechanism, not a
+theorem.*
+
+Under an absorbing compounding model (Section 3.5) where a bad skip decision persistently
+raises the difficulty of every later token in the sequence, deploying a teacher-forced
+`lambda_hat` live left Theorem 1's guarantee intact — `0/60` joint-risk violations, mean
+`0.031` against a `0.10` budget — while the conditional risk `Pr[TV > tau | skip]`, never
+covered by Theorem 1, rose to a mean of `0.141` and exceeded the same nominal budget in
+`60/60` trials. Section 3.5's Lipschitz-based worst-case bound (`~= T * beta * tau`, growing
+with `T`) remains the only attempted *formal* treatment of long-horizon compounding, with
+`beta` unmeasured and the bound unverified for tightness.
+
+**Theorem/Open Problem 4 (Conditional-risk calibration).** *Status: open. Two candidate
+solutions were tried and both fail; failure of two specific constructions is not a proof that
+none exists.*
+
+Does a computationally cheap, distribution-free procedure exist achieving
+`Pr[TV > tau | skip] <= alpha` with probability `>= 1 - delta`, at a calibration budget
+comparable to Theorem 1's (`n_cal` on the order of 300 sequences, in this document's
+parameter regime)? Two natural constructions were tested (Section 6, Part F) and both
+collapse to a near-zero skip rate at that budget: a per-sequence ratio estimator (high
+per-sequence variance when few tokens are skipped — a sequence with one skip contributes a
+`{0, 1}` outcome, not a smoothly-averaged one) and a ratio-of-sums bounded via two
+range-scaled Hoeffding bounds (worse still, since the count range `[0, T]` is far looser than
+the values the sums actually take). Both failures are consistent with, but do not prove, a
+genuine statistical hardness separation between calibrating the joint risk and calibrating
+the conditional risk. An empirical-Bernstein-style variance-aware bound (Maurer & Pontil,
+2009) was identified as the natural next attempt and was not tried. This document closes
+here — with a compiled, correctly-labeled set of results and one clearly open problem —
+rather than past it.
+
+## 8. References
 
 - Schuster, Fisch, Gupta, Chan, Berant, Metzler, et al., "Confident Adaptive Language
   Modeling" (CALM), NeurIPS 2022 — early exit via a free per-token confidence measure
@@ -559,3 +654,9 @@ problem this investigation surfaces, not a solved one.
   variance-aware concentration bound, untried here, that Section 3.6 identifies as the
   natural next thing to test against the conditional-risk calibration collapse (Hoeffding's
   range-only bound is the likely reason both attempts in Part F failed as badly as they did).
+- Kish, L., "Survey Sampling," 1965 — source of the design effect (`DEFF = 1 + (m-1)*rho`)
+  underlying Section 6 Part G / Section 7 Proposition 2's explanation of why naive per-token
+  pooling's real violation rate scales with intra-sequence correlation strength.
+- Shrout, Fleiss, "Intraclass Correlations: Uses in Assessing Rater Reliability," 1979 — the
+  one-way random-effects ANOVA intraclass-correlation estimator used to measure `rho` directly
+  in Section 6, Part G, rather than assuming a value.
