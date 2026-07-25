@@ -5,20 +5,55 @@
   "delta": 0.05,
   "tokens_per_sequence": 40,
   "part_a_sequence_vs_naive_calibration": {
-    "n_trials": 250,
+    "n_trials_per_correlation_level": 80,
     "n_cal_per_trial": 300,
     "n_holdout": 4000,
     "target_delta": 0.05,
     "target_alpha": 0.1,
-    "sequence_level": {
-      "violation_rate": 0.0,
-      "mean_skip_rate": 0.31279867499999997,
-      "mean_lambda_hat": 0.7803800000000001
-    },
-    "naive_token_pooled": {
-      "violation_rate": 1.0,
-      "mean_skip_rate": 0.553726225,
-      "mean_lambda_hat": 0.51786
+    "violation_criterion": "joint_risk > alpha (the quantity actually calibrated)",
+    "by_correlation_strength": {
+      "seq_offset_sd_0.05": {
+        "sequence_level": {
+          "violation_rate": 0.0,
+          "mean_skip_rate": 0.31205265625,
+          "mean_lambda_hat": 0.7810625,
+          "mean_conditional_risk_fyi": 0.09015631176724627
+        },
+        "naive_token_pooled": {
+          "violation_rate": 0.0,
+          "mean_skip_rate": 0.553091484375,
+          "mean_lambda_hat": 0.5186875,
+          "mean_conditional_risk_fyi": 0.15871271622011662
+        }
+      },
+      "seq_offset_sd_0.15": {
+        "sequence_level": {
+          "violation_rate": 0.0,
+          "mean_skip_rate": 0.356686640625,
+          "mean_lambda_hat": 0.7103125,
+          "mean_conditional_risk_fyi": 0.07805132596815545
+        },
+        "naive_token_pooled": {
+          "violation_rate": 0.0,
+          "mean_skip_rate": 0.551693828125,
+          "mean_lambda_hat": 0.40968750000000004,
+          "mean_conditional_risk_fyi": 0.15612220598621393
+        }
+      },
+      "seq_offset_sd_0.3": {
+        "sequence_level": {
+          "violation_rate": 0.0,
+          "mean_skip_rate": 0.430093515625,
+          "mean_lambda_hat": 0.5705,
+          "mean_conditional_risk_fyi": 0.06726664491515003
+        },
+        "naive_token_pooled": {
+          "violation_rate": 0.1,
+          "mean_skip_rate": 0.58461171875,
+          "mean_lambda_hat": 0.2208125,
+          "mean_conditional_risk_fyi": 0.1501710422594566
+        }
+      }
     }
   },
   "part_b_teacher_forced_vs_onpolicy": {
@@ -27,17 +62,21 @@
     "n_holdout_per_trial": 4000,
     "compounding_shift": 0.1,
     "target_alpha": 0.1,
-    "lambda_hat_teacher_forced": 0.78,
+    "lambda_hat_teacher_forced": 0.79,
     "teacher_forced_threshold_deployed_live": {
-      "mean_realized_risk": 0.15003416457235624,
-      "violation_rate": 1.0,
-      "mean_skip_rate": 0.226771875
+      "mean_joint_risk": 0.0312953125,
+      "joint_violation_rate": 0.0,
+      "mean_conditional_risk": 0.1407548105017442,
+      "conditional_violation_rate": 1.0,
+      "mean_skip_rate": 0.22236479166666667
     },
     "single_round_onpolicy_recalibration": {
-      "mean_lambda_hat": 0.8056666666666666,
-      "mean_realized_risk": 0.12713520457586103,
-      "violation_rate": 1.0,
-      "mean_skip_rate": 0.21440677083333334
+      "mean_lambda_hat": 0.8019166666666667,
+      "mean_joint_risk": 0.028238020833333335,
+      "joint_violation_rate": 0.0,
+      "mean_conditional_risk": 0.13043963484433796,
+      "conditional_violation_rate": 1.0,
+      "mean_skip_rate": 0.2162528125
     }
   },
   "part_c_does_iterating_onpolicy_recalibration_converge": {
@@ -47,26 +86,48 @@
     "n_holdout_per_round": 1500,
     "compounding_shift": 0.1,
     "target_alpha": 0.1,
-    "lambda_hat_round0": 0.86,
+    "violation_criterion": "joint_risk > alpha (the quantity actually calibrated)",
+    "lambda_hat_round0": 0.87,
     "discard_history_each_round": {
-      "violation_rate_per_round": [
+      "joint_violation_rate_per_round": [
         0.0,
         0.0,
         0.0,
         0.0,
         0.0
       ],
-      "mean_final_risk": 0.07544349519588765
+      "mean_final_joint_risk": 0.013265277777777779,
+      "mean_final_conditional_risk_fyi": 0.07751579514122414
     },
     "dagger_style_aggregate_each_round": {
-      "violation_rate_per_round": [
+      "joint_violation_rate_per_round": [
         0.0,
         0.0,
-        1.0,
-        1.0,
-        1.0
+        0.0,
+        0.0,
+        0.0
       ],
-      "mean_final_risk": 0.2617523990418772
+      "mean_final_joint_risk": 0.06750833333333334,
+      "mean_final_conditional_risk_fyi": 0.25676709540712045
+    }
+  },
+  "part_f_does_calibrating_the_conditional_risk_directly_work": {
+    "n_trials": 60,
+    "n_cal_per_trial": 300,
+    "n_holdout": 4000,
+    "target_alpha": 0.1,
+    "note": "violation here is checked against conditional_risk, the quantity these calibrators are actually trying to control (unlike Parts A-C's joint check)",
+    "joint_calibrate_evaluated_against_conditional": {
+      "mean_skip_rate": 0.3150805208333333,
+      "conditional_violation_rate": 0.0
+    },
+    "calibrate_conditional_per_sequence_ratio": {
+      "mean_skip_rate": 0.0,
+      "conditional_violation_rate": 0.0
+    },
+    "calibrate_ratio_of_sums_range_scaled": {
+      "mean_skip_rate": 0.0,
+      "conditional_violation_rate": 0.0
     }
   }
 }

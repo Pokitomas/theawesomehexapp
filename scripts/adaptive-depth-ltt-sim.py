@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
 """Empirical stress test for ARCHIE_ADAPTIVE_DEPTH_VERIFIER.md.
 
-Synthetic (no real Qwen3 weights involved) validation of three claims made
-in that document:
+Synthetic (no real Qwen3 weights involved) simulation of the (s_t, TV_t)
+relationship the document assumes. Two rounds of findings live here, in order:
 
-1. Sequence-level Learn-Then-Test achieves the promised
-   Pr[TV > tau | skip] <= alpha coverage at rate >= 1 - delta across
-   independent calibration draws (Sections 3.1-3.2).
-2. The naive per-token-pooled calibration that an earlier draft of the
-   document used (and that Section 3.1 now explicitly rejects) violates
-   that coverage more often than delta -- it is not a strawman, it visibly
-   breaks.
-3. The Section 3.5 "honest gap" is real: a threshold calibrated on
-   teacher-forced data measurably fails to control risk once skip
-   decisions compound live, and a single round of on-policy recalibration
-   measurably recovers it.
+Round 1 (Parts A-C): validated the Section 3.1 fix against the naive per-token
+calibration it replaced, and investigated a claimed compounding gap under live
+rollout with on-policy recalibration.
 
-Everything here is a statistical simulation of the TV/s_t relationship the
-document assumes, not a run of the actual model. It validates the math, not
-Archie's empirical skip rate -- see Section 5 of the document for that
-distinction.
+Round 2 (Part F, and the corrections now baked into Parts A-C): re-examining
+round 1 found calibrate() only ever controls joint_risk = Pr[bad AND skip], not
+conditional_risk = Pr[bad | skip] -- the quantity the document's Theorem in
+Section 3.2 actually claims, and the one operationally meaningful to a user
+("given we skipped, how likely were we wrong"). Round 1's compounding-gap and
+aggregation-divergence numbers were computed by checking conditional_risk
+against a calibrator that only ever targeted joint_risk -- a real bug in this
+file, not a real divergence in the calibrated guarantee. Round 2 fixes that
+(Parts A-C now check joint_risk, and separately report conditional_risk without
+conflating the two), and Part F then tries the "obvious" fix -- calibrate
+conditional_risk directly -- and finds it collapses to near-zero skip rate at
+the same calibration budget: conditional-risk calibration is a substantially
+harder, higher-variance statistical problem than joint-risk calibration, and
+that gap is not resolved by this file. See the document's Section 6.
 """
 from __future__ import annotations
 
@@ -121,6 +123,69 @@ def calibrate(sequences, grid, delta: float):
     return lambda_hat
 
 
+def seq_conditional_lookup(seq: Sequence):
+    """Per-lambda (bad_and_skip_count, skip_count) for one sequence, via the same
+    sort-once-then-bisect trick as seq_loss_lookup, but keeping counts unnormalized
+    so the caller can form a genuine conditional rate (not a joint one)."""
+    pairs = sorted(zip(seq.s, seq.bad))
+    s_sorted = [p[0] for p in pairs]
+    bad_sorted = [p[1] for p in pairs]
+    n = len(bad_sorted)
+    suffix_bad = [0.0] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        suffix_bad[i] = suffix_bad[i + 1] + bad_sorted[i]
+
+    def counts(lam: float):
+        idx = bisect.bisect_left(s_sorted, lam)
+        skip_count = n - idx
+        bad_and_skip_count = suffix_bad[idx]
+        return bad_and_skip_count, skip_count
+
+    return counts
+
+
+def calibrate_conditional(sequences, grid, delta: float):
+    """Correctly targets Pr[bad | skip] <= alpha (what Section 3.2's theorem actually
+    claims), instead of calibrate()'s Pr[bad AND skip] <= alpha (what calibrate()
+    actually controls -- these coincide only when skip rate is near 1, and diverge
+    badly otherwise: see the joint-vs-conditional gap this function exists to close).
+
+    Per sequence i, if it has at least one skipped token at threshold lambda, its
+    loss is that sequence's OWN conditional bad-rate among its skipped tokens:
+    ell_i(lambda) = (bad-and-skip count in i) / (skip count in i). Sequences with
+    zero skipped tokens at this lambda contribute no information about the
+    conditional risk and are excluded from both the mean and the sample size used
+    in the Hoeffding bound -- using the wrong n here (e.g. all n sequences instead
+    of the n_eff that actually skipped) would silently reintroduce a version of the
+    same joint/conditional confusion this function is meant to fix.
+
+    This gives a valid distribution-free bound on the SEQUENCE-averaged conditional
+    rate among sequences that skip at least once -- not exactly the TOKEN-level
+    population ratio Pr[bad|skip] (a ratio of sums, not a mean of ratios), which can
+    differ from this when skip counts vary a lot between sequences. Close enough to
+    be the right target to calibrate against; not claimed to be identical.
+    """
+    lookups = [seq_conditional_lookup(s) for s in sequences]
+    lambda_hat = grid[0]
+    for lam in grid:
+        rates = []
+        for counts in lookups:
+            bad_and_skip, skip_count = counts(lam)
+            if skip_count > 0:
+                rates.append(bad_and_skip / skip_count)
+        n_eff = len(rates)
+        if n_eff == 0:
+            lambda_hat = lam  # nobody skipped at this lambda: vacuously within budget
+            continue
+        r_hat = sum(rates) / n_eff
+        r_plus = hoeffding_ucb(r_hat, n_eff, delta)
+        if r_plus <= ALPHA:
+            lambda_hat = lam
+        else:
+            break
+    return lambda_hat
+
+
 def calibrate_naive_token_pooled(sequences, grid, delta: float):
     """The rejected earlier-draft approach: treat every token as an independent sample,
     using n*T as the effective sample size instead of n."""
@@ -138,63 +203,107 @@ def calibrate_naive_token_pooled(sequences, grid, delta: float):
     return lambda_hat
 
 
-def true_risk_and_skip_rate(lam: float, population):
+def risk_breakdown(lam: float, population):
+    """Returns (joint_risk, conditional_risk, skip_rate) at threshold `lam`.
+
+    joint_risk = Pr[bad AND skip] -- this is what calibrate() and
+    calibrate_naive_token_pooled() actually control (it is exactly R_hat(lambda)
+    evaluated on `population`), and is the correct quantity to check when asking
+    "did the calibration guarantee hold." conditional_risk = Pr[bad | skip] -- the
+    quantity a user actually cares about ("given we skipped, how likely were we
+    wrong"), which calibrate() does NOT target. These were conflated in an earlier
+    version of this file: violations were checked against conditional_risk while
+    the calibrators only ever controlled joint_risk. That bug made Section 3.5's
+    compounding gap look far more severe than the proven guarantee's actual
+    behavior under compounding (see the module docstring and Section 6 of the
+    document). Both are returned here, deliberately, so callers cannot repeat that
+    mistake by only having access to one of them.
+    """
     lookups = [seq_loss_lookup(s) for s in population]
     ells = [ell(lam) for ell, _ in lookups]
     skips = [sk(lam) for _, sk in lookups]
+    joint_risk = statistics.mean(ells)
     total_bad_tokens = sum(e * T for e in ells)
     total_skip_tokens = sum(sk * T for sk in skips)
-    r_cond = (total_bad_tokens / total_skip_tokens) if total_skip_tokens > 0 else 0.0
-    return r_cond, statistics.mean(skips)
+    conditional_risk = (total_bad_tokens / total_skip_tokens) if total_skip_tokens > 0 else 0.0
+    return joint_risk, conditional_risk, statistics.mean(skips)
 
 
 def part_a(rng: random.Random):
+    """Violations are checked against joint_risk -- the quantity calibrate() and
+    calibrate_naive_token_pooled() actually target -- not conditional_risk, which
+    neither calibrator controls (conditional_risk is still reported, descriptively).
+
+    Swept over intra-sequence correlation strength (seq_offset_sd) rather than one
+    fixed value. An earlier version of this function fixed seq_offset_sd=0.05 and,
+    checked against joint_risk, found the naive per-token-pooled calibrator did NOT
+    violate its budget in 250/250 trials -- the opposite of the intended
+    demonstration. That was not a wrong result, it was an unfair test: naive
+    pooling's invalidity is a statement about how much it understates variance
+    from intra-sequence dependence, and 0.05 was too weak a correlation to expose
+    it against the correct criterion (it only looked like it broke when checked,
+    incorrectly, against conditional_risk in that earlier version). Sweeping
+    correlation strength shows the actual mechanism -- naive pooling's violation
+    rate should climb with correlation strength while the valid calibrator's does
+    not -- instead of relying on one number that happened to look dramatic for the
+    wrong reason.
+    """
     n_cal = 300
-    n_trials = 250
+    n_trials = 80
     n_holdout = 4000
-    seq_offset_sd = 0.05
+    seq_offset_sds = [0.05, 0.15, 0.30]
 
-    holdout = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_holdout)]
+    results = {}
+    for seq_offset_sd in seq_offset_sds:
+        holdout = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_holdout)]
 
-    seq_violations = 0
-    naive_violations = 0
-    seq_skip_rates = []
-    naive_skip_rates = []
-    seq_lambdas = []
-    naive_lambdas = []
+        seq_violations = 0
+        naive_violations = 0
+        seq_skip_rates, naive_skip_rates = [], []
+        seq_lambdas, naive_lambdas = [], []
+        seq_conditional_risks, naive_conditional_risks = [], []
 
-    for _ in range(n_trials):
-        cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
-        lam_seq = calibrate(cal, GRID, DELTA)
-        lam_naive = calibrate_naive_token_pooled(cal, GRID, DELTA)
-        seq_lambdas.append(lam_seq)
-        naive_lambdas.append(lam_naive)
+        for _ in range(n_trials):
+            cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
+            lam_seq = calibrate(cal, GRID, DELTA)
+            lam_naive = calibrate_naive_token_pooled(cal, GRID, DELTA)
+            seq_lambdas.append(lam_seq)
+            naive_lambdas.append(lam_naive)
 
-        r_seq, sk_seq = true_risk_and_skip_rate(lam_seq, holdout)
-        r_naive, sk_naive = true_risk_and_skip_rate(lam_naive, holdout)
-        seq_skip_rates.append(sk_seq)
-        naive_skip_rates.append(sk_naive)
-        if r_seq > ALPHA:
-            seq_violations += 1
-        if r_naive > ALPHA:
-            naive_violations += 1
+            joint_seq, cond_seq, sk_seq = risk_breakdown(lam_seq, holdout)
+            joint_naive, cond_naive, sk_naive = risk_breakdown(lam_naive, holdout)
+            seq_skip_rates.append(sk_seq)
+            naive_skip_rates.append(sk_naive)
+            seq_conditional_risks.append(cond_seq)
+            naive_conditional_risks.append(cond_naive)
+            if joint_seq > ALPHA:
+                seq_violations += 1
+            if joint_naive > ALPHA:
+                naive_violations += 1
+
+        results[f"seq_offset_sd_{seq_offset_sd}"] = {
+            "sequence_level": {
+                "violation_rate": seq_violations / n_trials,
+                "mean_skip_rate": statistics.mean(seq_skip_rates),
+                "mean_lambda_hat": statistics.mean(seq_lambdas),
+                "mean_conditional_risk_fyi": statistics.mean(seq_conditional_risks),
+            },
+            "naive_token_pooled": {
+                "violation_rate": naive_violations / n_trials,
+                "mean_skip_rate": statistics.mean(naive_skip_rates),
+                "mean_lambda_hat": statistics.mean(naive_lambdas),
+                "mean_conditional_risk_fyi": statistics.mean(naive_conditional_risks),
+            },
+        }
 
     return {
-        "n_trials": n_trials,
+        "n_trials_per_correlation_level": n_trials,
         "n_cal_per_trial": n_cal,
         "n_holdout": n_holdout,
         "target_delta": DELTA,
         "target_alpha": ALPHA,
-        "sequence_level": {
-            "violation_rate": seq_violations / n_trials,
-            "mean_skip_rate": statistics.mean(seq_skip_rates),
-            "mean_lambda_hat": statistics.mean(seq_lambdas),
-        },
-        "naive_token_pooled": {
-            "violation_rate": naive_violations / n_trials,
-            "mean_skip_rate": statistics.mean(naive_skip_rates),
-            "mean_lambda_hat": statistics.mean(naive_lambdas),
-        },
+        "violation_criterion": "joint_risk > alpha (the quantity actually calibrated)",
+        "by_correlation_strength": results,
     }
 
 
@@ -226,6 +335,14 @@ def make_compounding_rollout(rng: random.Random, lam: float, compounding_shift: 
 
 
 def part_b(rng: random.Random):
+    """Reports joint_risk (the actual calibration target -- expect it to mostly hold)
+    and conditional_risk (the intuitive "given we skipped, were we wrong" quantity --
+    NOT what was calibrated, and the one that drifts visibly under compounding) side
+    by side, with separate violation counts for each. Collapsing these into one
+    number, as an earlier version of this file did, is exactly the bug Part A's
+    docstring warns about, and it manufactured a false "the proof breaks under
+    compounding" conclusion: the proof (joint_risk <= alpha) mostly held; a
+    quantity that was never proved (conditional_risk <= alpha) did not."""
     n_cal = 300
     n_holdout = 4000
     n_trials = 60
@@ -235,26 +352,22 @@ def part_b(rng: random.Random):
     tf_cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
     lam_tf = calibrate(tf_cal, GRID, DELTA)
 
-    live_risks_tf = []
-    live_skip_rates_tf = []
-    live_risks_onpolicy = []
-    live_skip_rates_onpolicy = []
+    joint_tf, cond_tf, skip_tf = [], [], []
+    joint_on, cond_on, skip_on = [], [], []
     onpolicy_lambdas = []
 
     for _ in range(n_trials):
         live_pop_tf_lambda = [make_compounding_rollout(rng, lam_tf, compounding_shift) for _ in range(n_holdout)]
-        r_live_tf, sk_live_tf = true_risk_and_skip_rate(lam_tf, live_pop_tf_lambda)
-        live_risks_tf.append(r_live_tf)
-        live_skip_rates_tf.append(sk_live_tf)
+        j, c, sk = risk_breakdown(lam_tf, live_pop_tf_lambda)
+        joint_tf.append(j); cond_tf.append(c); skip_tf.append(sk)
 
         onpolicy_cal = [make_compounding_rollout(rng, lam_tf, compounding_shift) for _ in range(n_cal)]
         lam_onpolicy = calibrate(onpolicy_cal, GRID, DELTA)
         onpolicy_lambdas.append(lam_onpolicy)
 
         live_pop_onpolicy = [make_compounding_rollout(rng, lam_onpolicy, compounding_shift) for _ in range(n_holdout)]
-        r_live_onpolicy, sk_live_onpolicy = true_risk_and_skip_rate(lam_onpolicy, live_pop_onpolicy)
-        live_risks_onpolicy.append(r_live_onpolicy)
-        live_skip_rates_onpolicy.append(sk_live_onpolicy)
+        j2, c2, sk2 = risk_breakdown(lam_onpolicy, live_pop_onpolicy)
+        joint_on.append(j2); cond_on.append(c2); skip_on.append(sk2)
 
     return {
         "n_trials": n_trials,
@@ -264,27 +377,33 @@ def part_b(rng: random.Random):
         "target_alpha": ALPHA,
         "lambda_hat_teacher_forced": lam_tf,
         "teacher_forced_threshold_deployed_live": {
-            "mean_realized_risk": statistics.mean(live_risks_tf),
-            "violation_rate": sum(1 for r in live_risks_tf if r > ALPHA) / n_trials,
-            "mean_skip_rate": statistics.mean(live_skip_rates_tf),
+            "mean_joint_risk": statistics.mean(joint_tf),
+            "joint_violation_rate": sum(1 for r in joint_tf if r > ALPHA) / n_trials,
+            "mean_conditional_risk": statistics.mean(cond_tf),
+            "conditional_violation_rate": sum(1 for r in cond_tf if r > ALPHA) / n_trials,
+            "mean_skip_rate": statistics.mean(skip_tf),
         },
         "single_round_onpolicy_recalibration": {
             "mean_lambda_hat": statistics.mean(onpolicy_lambdas),
-            "mean_realized_risk": statistics.mean(live_risks_onpolicy),
-            "violation_rate": sum(1 for r in live_risks_onpolicy if r > ALPHA) / n_trials,
-            "mean_skip_rate": statistics.mean(live_skip_rates_onpolicy),
+            "mean_joint_risk": statistics.mean(joint_on),
+            "joint_violation_rate": sum(1 for r in joint_on if r > ALPHA) / n_trials,
+            "mean_conditional_risk": statistics.mean(cond_on),
+            "conditional_violation_rate": sum(1 for r in cond_on if r > ALPHA) / n_trials,
+            "mean_skip_rate": statistics.mean(skip_on),
         },
     }
 
 
 def part_c(rng: random.Random):
-    """Does iterating the Section 3.5 on-policy fix actually converge to safety?
-    Tested two ways, both starting from the teacher-forced lambda_hat: (i) each
-    round recalibrates on fresh data from only the latest round's rollouts
-    (discard history), (ii) each round recalibrates on the union of every
-    round's rollouts so far, matching the textbook DAgger aggregation strategy.
-    Run as `n_chains` independent chains of `n_rounds` rounds each so the
-    reported convergence-or-not is a statistic, not one anecdote."""
+    """Does iterating on-policy recalibration converge, and does discarding stale
+    rounds vs. aggregating them (textbook DAgger) matter? Violations are checked
+    against joint_risk, the quantity actually calibrated (an earlier version of
+    this function checked conditional_risk instead, and reported both strategies
+    catastrophically diverging under compounding -- that was the same joint/
+    conditional bug as Part B, not a real divergence: see part_f for what actually
+    remains hard here). mean_conditional_risk is still reported per strategy,
+    descriptively, since it is the quantity a deployer would actually care about
+    even though it is not what is being controlled."""
     n_chains = 12
     n_rounds = 5
     n_cal = 200
@@ -295,8 +414,8 @@ def part_c(rng: random.Random):
     tf_cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
     lam0 = calibrate(tf_cal, GRID, DELTA)
 
-    discard_final_risks = []
-    aggregate_final_risks = []
+    discard_final_joint, discard_final_cond = [], []
+    aggregate_final_joint, aggregate_final_cond = [], []
     discard_violation_at_round = [0] * n_rounds
     aggregate_violation_at_round = [0] * n_rounds
 
@@ -304,27 +423,29 @@ def part_c(rng: random.Random):
         lam_discard = lam0
         for r in range(n_rounds):
             pop = [make_compounding_rollout(rng, lam_discard, compounding_shift) for _ in range(n_holdout)]
-            risk, _ = true_risk_and_skip_rate(lam_discard, pop)
-            if risk > ALPHA:
+            joint, _, _ = risk_breakdown(lam_discard, pop)
+            if joint > ALPHA:
                 discard_violation_at_round[r] += 1
             cal = [make_compounding_rollout(rng, lam_discard, compounding_shift) for _ in range(n_cal)]
             lam_discard = calibrate(cal, GRID, DELTA)
         final_pop = [make_compounding_rollout(rng, lam_discard, compounding_shift) for _ in range(n_holdout)]
-        final_risk, _ = true_risk_and_skip_rate(lam_discard, final_pop)
-        discard_final_risks.append(final_risk)
+        joint_f, cond_f, _ = risk_breakdown(lam_discard, final_pop)
+        discard_final_joint.append(joint_f)
+        discard_final_cond.append(cond_f)
 
         lam_agg = lam0
         aggregated = []
         for r in range(n_rounds):
             pop = [make_compounding_rollout(rng, lam_agg, compounding_shift) for _ in range(n_holdout)]
-            risk, _ = true_risk_and_skip_rate(lam_agg, pop)
-            if risk > ALPHA:
+            joint, _, _ = risk_breakdown(lam_agg, pop)
+            if joint > ALPHA:
                 aggregate_violation_at_round[r] += 1
             aggregated.extend(make_compounding_rollout(rng, lam_agg, compounding_shift) for _ in range(n_cal))
             lam_agg = calibrate(aggregated, GRID, DELTA)
         final_pop_agg = [make_compounding_rollout(rng, lam_agg, compounding_shift) for _ in range(n_holdout)]
-        final_risk_agg, _ = true_risk_and_skip_rate(lam_agg, final_pop_agg)
-        aggregate_final_risks.append(final_risk_agg)
+        joint_fa, cond_fa, _ = risk_breakdown(lam_agg, final_pop_agg)
+        aggregate_final_joint.append(joint_fa)
+        aggregate_final_cond.append(cond_fa)
 
     return {
         "n_chains": n_chains,
@@ -333,14 +454,108 @@ def part_c(rng: random.Random):
         "n_holdout_per_round": n_holdout,
         "compounding_shift": compounding_shift,
         "target_alpha": ALPHA,
+        "violation_criterion": "joint_risk > alpha (the quantity actually calibrated)",
         "lambda_hat_round0": lam0,
         "discard_history_each_round": {
-            "violation_rate_per_round": [v / n_chains for v in discard_violation_at_round],
-            "mean_final_risk": statistics.mean(discard_final_risks),
+            "joint_violation_rate_per_round": [v / n_chains for v in discard_violation_at_round],
+            "mean_final_joint_risk": statistics.mean(discard_final_joint),
+            "mean_final_conditional_risk_fyi": statistics.mean(discard_final_cond),
         },
         "dagger_style_aggregate_each_round": {
-            "violation_rate_per_round": [v / n_chains for v in aggregate_violation_at_round],
-            "mean_final_risk": statistics.mean(aggregate_final_risks),
+            "joint_violation_rate_per_round": [v / n_chains for v in aggregate_violation_at_round],
+            "mean_final_joint_risk": statistics.mean(aggregate_final_joint),
+            "mean_final_conditional_risk_fyi": statistics.mean(aggregate_final_cond),
+        },
+    }
+
+
+def part_f(rng: random.Random):
+    """The real fix for the Part A/B/C joint-vs-conditional gap would be to just
+    calibrate the conditional risk directly -- calibrate_conditional() does exactly
+    that, correctly (per-sequence ratio among sequences that skip at least once,
+    Hoeffding on that). This tests whether that "obvious fix" is actually usable:
+    same teacher-forced setup as Part A, same n_cal budget, compare the two
+    calibrators' skip rate and achieved conditional risk across repeated trials.
+
+    Two variants of conditional calibration are checked at the same n_cal=300
+    budget calibrate() uses successfully: calibrate_conditional (per-sequence
+    ratio) and a second, worse attempt tried during this investigation --
+    ratio-of-sums via a range-scaled (0..T) Hoeffding bound on the numerator and
+    denominator separately -- included to show it is not merely "the wrong
+    formula," a structurally different construction fails even harder."""
+    n_cal = 300
+    n_trials = 60
+    n_holdout = 4000
+    seq_offset_sd = 0.05
+
+    def calibrate_ratio_of_sums(sequences, grid, delta):
+        lookups = [seq_conditional_lookup(s) for s in sequences]
+        n = len(sequences)
+        lambda_hat = grid[0]
+        for lam in grid:
+            us, vs = [], []
+            for counts in lookups:
+                u, v = counts(lam)
+                us.append(u)
+                vs.append(v)
+            u_mean = sum(us) / n
+            v_mean = sum(vs) / n
+            slack = T * math.sqrt(math.log(2.0 / delta) / (2 * n))
+            u_plus = u_mean + slack
+            v_minus = v_mean - slack
+            if v_minus <= 0:
+                break
+            if u_plus / v_minus <= ALPHA:
+                lambda_hat = lam
+            else:
+                break
+        return lambda_hat
+
+    holdout = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_holdout)]
+
+    joint_skip, joint_cond_violation = [], 0
+    cond_skip, cond_cond_violation = [], 0
+    ratio_skip, ratio_cond_violation = [], 0
+
+    for _ in range(n_trials):
+        cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
+
+        lam_joint = calibrate(cal, GRID, DELTA)
+        _, cond_j, sk_j = risk_breakdown(lam_joint, holdout)
+        joint_skip.append(sk_j)
+        if cond_j > ALPHA:
+            joint_cond_violation += 1
+
+        lam_cond = calibrate_conditional(cal, GRID, DELTA)
+        _, cond_c, sk_c = risk_breakdown(lam_cond, holdout)
+        cond_skip.append(sk_c)
+        if cond_c > ALPHA:
+            cond_cond_violation += 1
+
+        lam_ratio = calibrate_ratio_of_sums(cal, GRID, DELTA)
+        _, cond_r, sk_r = risk_breakdown(lam_ratio, holdout)
+        ratio_skip.append(sk_r)
+        if cond_r > ALPHA:
+            ratio_cond_violation += 1
+
+    return {
+        "n_trials": n_trials,
+        "n_cal_per_trial": n_cal,
+        "n_holdout": n_holdout,
+        "target_alpha": ALPHA,
+        "note": "violation here is checked against conditional_risk, the quantity these "
+                "calibrators are actually trying to control (unlike Parts A-C's joint check)",
+        "joint_calibrate_evaluated_against_conditional": {
+            "mean_skip_rate": statistics.mean(joint_skip),
+            "conditional_violation_rate": joint_cond_violation / n_trials,
+        },
+        "calibrate_conditional_per_sequence_ratio": {
+            "mean_skip_rate": statistics.mean(cond_skip),
+            "conditional_violation_rate": cond_cond_violation / n_trials,
+        },
+        "calibrate_ratio_of_sums_range_scaled": {
+            "mean_skip_rate": statistics.mean(ratio_skip),
+            "conditional_violation_rate": ratio_cond_violation / n_trials,
         },
     }
 
@@ -356,6 +571,7 @@ def main():
         "part_a_sequence_vs_naive_calibration": part_a(rng),
         "part_b_teacher_forced_vs_onpolicy": part_b(rng),
         "part_c_does_iterating_onpolicy_recalibration_converge": part_c(rng),
+        "part_f_does_calibrating_the_conditional_risk_directly_work": part_f(rng),
     }
     print(json.dumps(result, indent=2))
 

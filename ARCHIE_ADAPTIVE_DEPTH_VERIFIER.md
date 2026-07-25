@@ -6,12 +6,22 @@ is admitted evidence under the `archie-candidate-completion-manifest/v1` process
 `ARCHIE_ARCHITECTURE_EXPERIMENTS.md` — the simulation validates the calibration math against
 a statistical model of the problem, not Archie's real weights. It exists so that if
 adaptive-depth decoding is built for Archie, it is built on a scheme whose failure modes
-were found by trying to break it, not discovered in production. The proof survived one
-adversarial pass with three corrections (Section 1's original safety claim was outright
-wrong, not just imprecise); the simulation then found the proposed fix for the compounding
-gap was itself broken as originally proposed. Both rounds are left visible below rather than
-smoothed over, because a document that only shows the final clean version is indistinguishable
-from one that never checked.
+were found by trying to break it, not discovered in production.
+
+Three rounds of self-correction are visible below rather than smoothed over. (1) An
+adversarial pass found three errors in the prose, including an outright false safety claim
+in Section 1. (2) A first simulation pass found the proposed fix for a claimed compounding
+gap (Section 3.5) was itself broken. (3) Building on that simulation surfaced something
+underneath both of the first two rounds: the Theorem in Section 3.2 had been proving a
+*joint* probability while stating, in English, a *conditional* one — a real bug, not a
+wording issue, that had survived round 1's falsification pass undetected and had made round
+2's "compounding gap" and "aggregation diverges" findings both look considerably more
+dramatic than what was actually proven ever promised. Fixing that changed which of round 2's
+numbers hold up (two of three didn't) and added a new, still-open finding: the honest fix for
+the joint/conditional gap — calibrate the conditional risk directly — was tried, and it
+collapses to skipping almost nothing at the same data budget that works fine for the joint
+version. A document that only shows the final clean version of this is indistinguishable from
+one that never checked; this one shows the failed attempts too, including its own.
 
 ## 1. The problem, stated precisely
 
@@ -125,6 +135,11 @@ number (matching the original `Pr[TV <= tau] >= 1 - delta` framing), set `alpha 
 two-knob form is kept explicit here because collapsing it silently is exactly the kind of
 notational sleight that makes a "proof" look tighter than it is.
 
+**This is the guarantee wanted, stated with `|` (conditional). It is not exactly the
+guarantee Section 3.2 proves** — that Theorem delivers the `AND` (joint) version instead,
+which is weaker. Section 3.2 explains precisely why, and Section 3.6 covers what happened
+when calibrating the conditional version directly was actually attempted.
+
 Fix a finite grid of candidate thresholds `lambda_1 > lambda_2 > ... > lambda_M` over the
 range of `s_t`. The decision rule at threshold `lambda` is:
 
@@ -177,34 +192,47 @@ an exhaustive multiple-testing correction:
    `delta` with a *single* test at the selected point, not a Bonferroni correction over all
    `M` grid points — this is what keeps the calibration itself statistically efficient.
 
-**Theorem (informal).** With probability at least `1 - delta` over the draw of the
-calibration set, the selected `lambda_hat` satisfies
+**Theorem (informal, corrected — see the callout below).** With probability at least
+`1 - delta` over the draw of the calibration set, the selected `lambda_hat` satisfies
 
 ```
-Pr_{t ~ D}[ TV(q_t, p_t) > tau  |  skip at t ] <= alpha
+Pr_{t ~ D}[ TV(q_t, p_t) > tau  AND  skip at t ] <= alpha
 ```
 
-i.e. `Pr[TV(q_t, p_t) <= tau | skip] >= 1 - alpha`, distribution-free, with no assumption on
-the shape of `p_t`, `q_t`, or `s_t` beyond boundedness of the loss — **subject to the
-i.i.d.-sequences assumption in 3.1, which Section 3.5 below shows is not free.** Setting
-`alpha = delta` recovers the single-parameter framing `Pr[TV <= tau] >= 1 - delta`, but note
-precisely what changed to get there: the bound is a *property of a threshold chosen once
-offline*, not a value computed per token. `V_t` in the original framing is replaced by the
-pair `(s_t, lambda_hat)`, where `s_t` is free and `lambda_hat` is a constant baked in after
-calibration.
+**This is a joint/marginal probability, not the conditional `Pr[TV > tau | skip] <= alpha`
+stated in every earlier version of this theorem.** They are not the same quantity, and an
+error surviving one full falsification pass (the earlier "Fix three real gaps" revision)
+mislabeled the one for the other: Section 3.1's own derivation, two paragraphs up, correctly
+identifies `ell_i(lambda)`'s expectation as bounding the token-level
+`Pr[TV_t > tau AND skip_lambda(t)]` — the word is "AND". This box previously wrote `|` two
+sections later and called it the same result. It is not. `Pr[A and B] = Pr[A|B] * Pr[B]`, and
+`Pr[B] = ` the skip rate is typically well below 1, so the joint guarantee actually proved
+here is *weaker* than the conditional one a reader would naturally want — bounding "how often
+we skip badly, averaged over every token including the ones we didn't skip" is a real but
+different promise than "given we skipped, how likely were we wrong." Section 3.6 below covers
+what happened when this got fixed for real: the "obvious" fix (calibrate the conditional risk
+directly) was tried, and it does not simply work.
+
+Setting `alpha = delta` recovers the single-parameter framing `Pr[TV AND skip] <= 1 - delta`
+this document originally claimed matched the problem statement's `Pr[TV <= tau] >= 1 - delta`
+— it does not match it exactly, for the reason above, but the bound is still real and still a
+*property of a threshold chosen once offline*, not a value computed per token. `V_t` in the
+original framing is replaced by the pair `(s_t, lambda_hat)`, where `s_t` is free and
+`lambda_hat` is a constant baked in after calibration.
 
 *Proof sketch.* Each `ell_i(lambda)` is an i.i.d. bounded random variable across sequences
-`i`, with mean `R(lambda)`. The Hoeffding-Bentkus bound gives, for any fixed `lambda`, a
-p-value for the null `R(lambda) > alpha` that is valid regardless of the true distribution
-of `(s_i, TV_i)`, using only boundedness of `ell_i` in `[0,1]`. Because `R(lambda)` is
-non-increasing in `lambda` (Section 3.2, step 1), rejecting the null at the single boundary
-point `lambda_hat` implies rejection at every `lambda >= lambda_hat` as well (a
-graphical/fixed-sequence argument), so testing only the boundary controls the family-wise
+`i`, with mean `R(lambda) = Pr[TV > tau AND skip_lambda]`. The Hoeffding-Bentkus bound gives,
+for any fixed `lambda`, a p-value for the null `R(lambda) > alpha` that is valid regardless of
+the true distribution of `(s_i, TV_i)`, using only boundedness of `ell_i` in `[0,1]`. Because
+`R(lambda)` is non-increasing in `lambda` (Section 3.2, step 1), rejecting the null at the
+single boundary point `lambda_hat` implies rejection at every `lambda >= lambda_hat` as well
+(a graphical/fixed-sequence argument), so testing only the boundary controls the family-wise
 error over the whole "skip region" `[lambda_hat, lambda_1]` at level `delta`, without paying
 a `1/M` Bonferroni factor for the grid size. This is the standard Learn-Then-Test argument
 (Angelopoulos et al., 2021, "Learn Then Test: Calibrating Predictive Algorithms to Achieve
 Risk Control"); it is reproduced here only to make explicit that nothing in it requires
-`s_t` to be accurate — only bounded and monotonically thresholdable. &#8718;
+`s_t` to be accurate — only bounded and monotonically thresholdable. This part of the proof
+was never wrong; only the English sentence describing which quantity it proves was. &#8718;
 
 ### 3.3 Why this specifically kills the Over-Pessimism Trap
 
@@ -267,13 +295,49 @@ and Section 3.2 alone does not close it. Two candidate ways to close it were ide
    individually calibrated. Not tested here; `beta` is an empirical property of the specific
    model.
 
-Option 1 was tested — see Section 7 — and the result is not the clean fix it sounds like.
-A single round of on-policy recalibration measurably reduces the violation but does not
-close it. Repeating the round while discarding each round's stale calibration data in favor
-of the newest on-policy rollout does converge to safety empirically. The more "principled"-
-looking move — aggregating every round's data, the textbook DAgger recipe — does the
-opposite: it diverges. Read Section 7 before treating "just calibrate on-policy" as settled;
-the naive version of it is not.
+Option 1 was tested — see Section 6 — twice, because the first pass measured the wrong
+thing. Given the joint-vs-conditional correction in Section 3.2, re-read this section's
+"gap" claim carefully: what compounding actually does to the *proven* quantity
+(`Pr[TV > tau AND skip]`) is real but modest in the simulation — it does not blow the budget.
+What it does to the *unproven, but operationally meaningful* quantity
+(`Pr[TV > tau | skip]`) is much larger, because compounding drives the skip rate down (the
+statistic partially recognizes corrupted context and avoids it) while the joint risk barely
+moves, and conditional = joint / skip-rate amplifies that. An earlier version of this section
+reported a dramatic "on-policy recalibration doesn't fix it, and DAgger-style aggregation
+catastrophically diverges" finding, checked against the conditional criterion — that
+divergence was itself measured against a target the calibrator never controlled, so it
+overstated the picture. Checked against what is actually proven (joint), both discard-based
+and aggregate-based on-policy recalibration stay within budget in Section 6's numbers, though
+aggregation is still directionally worse (about 5x the final joint risk of discarding).
+Read Section 6 for the numbers, and Section 3.6 for the more serious problem this correction
+surfaced.
+
+### 3.6 The obvious fix doesn't work either: conditional-risk calibration collapses
+
+If the theorem in 3.2 only proves the joint guarantee, the fix sounds simple: calibrate the
+conditional risk directly instead. Define, per sequence, the loss as that sequence's own
+conditional bad-rate among the tokens it actually skips (excluding sequences that skip
+nothing at a given `lambda`, since they carry no information about the conditional risk), and
+run the same Learn-Then-Test machinery on that.
+
+This was implemented and tested (Section 6, Part F) and it does not simply work: at the same
+calibration budget that gives the joint calibrator a healthy skip rate, the conditional
+calibrator collapses to skipping almost nothing. The mechanism is variance, not a coding
+mistake: a sequence that skips only one or two tokens contributes a coarse, high-variance
+per-sequence ratio (0, 1/2, or 1 — nothing in between), and Hoeffding's bound, which only uses
+boundedness in `[0,1]` and not the true variance, pays for that coarseness by demanding far
+more calibration data than the joint formulation needs to certify the same confidence level.
+A second, structurally different attempt — bounding the ratio of two sums via a union of two
+range-scaled Hoeffding bounds on numerator and denominator separately — failed even harder,
+because the range `[0, T]` is a much looser scale than the values the sums actually take.
+
+Neither fix is in this document as a working solution, because neither is one. What's
+established: the intuitively "correct" safety notion (conditional-on-decision) is
+substantially harder to calibrate efficiently than the joint/marginal notion, at least via
+the two standard constructions tried here. A tighter, variance-aware bound (empirical
+Bernstein instead of Hoeffding) is the natural next thing to try and was not — this is left
+open, honestly, rather than papered over with a formulation that quietly proves a weaker
+statement while a reader assumes the stronger one.
 
 ## 4. Online algorithm
 
@@ -309,28 +373,41 @@ online branch is a lookup-table comparison, and the entire statistical burden of
 
 ## 5. What this does not claim
 
+- **This does not claim to control `Pr[TV > tau | skip]`, the conditional risk a user
+  actually cares about.** What Section 3.2 proves is the joint/marginal
+  `Pr[TV > tau AND skip] <= alpha`, which is a real but weaker statement — see the corrected
+  Theorem in 3.2 for exactly what changed and why an earlier version of this document
+  claimed the stronger, unproven thing. Section 3.6 covers the direct attempt to close this
+  gap (calibrate the conditional risk instead) and its failure mode.
+- This does not claim the conditional-risk gap is closed. Two natural constructions
+  (per-sequence ratio calibration, ratio-of-sums via range-scaled Hoeffding) were tried in
+  Section 6, Part F, and both collapse to a near-zero skip rate at the same calibration
+  budget that works fine for the joint quantity — the intuitively correct safety notion is
+  a substantially harder statistical estimation problem than the one actually proven here,
+  and this document does not resolve that.
 - This does not claim any particular skip rate or realized speedup for Archie's Qwen3-1.7B
   candidate. That number depends on how well the chosen `s_t` ranks `TV(q_t, p_t)` for this
   specific model and task distribution, and is only knowable by running the calibration
   procedure in Section 3 against real data and reporting `lambda_hat` and the resulting
   empirical skip rate — an `archie-metrics-receipt/v1`-style artifact, not a claim in this
   file.
-- This does not claim a strict *per-token* certificate. The guarantee proved in Section 3.2
-  is a conditional-probability guarantee (`Pr[TV > tau | skip] <= alpha`), which is the
-  correct and load-bearing formalization for a decoding pipeline, but it is not a proof that
-  no single skip decision is ever wrong — no O(d) statistic can promise that without
-  occasionally being wrong, by a no-free-lunch argument identical in spirit to the FLOP Trap
-  itself: a function cheap enough to be free cannot also certify individual full-depth
-  outcomes it never computed.
-- This does not claim the Section 3.2 guarantee extends unmodified to a full multi-step
-  generation with compounding skip decisions — Section 6's simulation confirms the gap is
-  real (100% violation rate deploying a teacher-forced threshold live) — and it does not
-  claim on-policy recalibration is a settled fix either: a single round measurably helps but
-  still violates every trial, and the more textbook-correct-looking fix (aggregating every
-  round's calibration data, DAgger-style) empirically makes it worse, not better. Only the
-  less obvious variant — discard stale rounds, recalibrate fresh each round — converged to
-  safety in simulation, and that is an empirical regularity across a handful of synthetic
-  seeds, not a proof.
+- This does not claim a strict *per-token* certificate, even for the joint quantity that is
+  proven: no O(d) statistic can promise that without occasionally being wrong, by a
+  no-free-lunch argument identical in spirit to the FLOP Trap itself — a function cheap
+  enough to be free cannot also certify individual full-depth outcomes it never computed.
+- This does not claim the Section 3.2 guarantee (joint risk) is unaffected by compounding
+  skip decisions across a multi-step generation, only that Section 6's simulation found the
+  effect modest and non-violating in the parameter regime tested (mean joint risk 0.031
+  under live compounding vs. a 0.10 budget). It does claim, with more confidence, that the
+  *conditional* risk drifts substantially further under the same compounding (up to 40% over
+  its nominal budget in every trial tested) — a real effect, just one that was never actually
+  guaranteed by the calibrated quantity in the first place.
+- This does not claim aggregating on-policy calibration data across rounds is safe in
+  general, only that it did not cross the proven (joint) safety line in the specific
+  parameter regime and chain lengths tested here, while still producing meaningfully higher
+  realized risk than discarding stale rounds. An earlier version of this document reported
+  aggregation catastrophically diverging; that was an artifact of checking the wrong
+  criterion, corrected in Section 6.
 - Distribution shift between the calibration sample and live traffic more generally (not
   just the compounding mechanism in 3.5) voids the guarantee, same as any calibration-based
   method (conformal prediction, LTT, RCPS). Recalibration cadence is an operational question
@@ -346,75 +423,120 @@ synthetic statistical simulation of the `(s_t, TV_t)` relationship Sections 2-3 
 `s_t` a noisy, imperfect, monotonically-informative proxy for `TV_t` (Pearson correlation
 `~= -0.57` by construction) — **not a run of Archie or any real model.** It validates the
 calibration math, not a real skip rate; see Section 5. All numbers below are from one
-`tau=0.08, alpha=0.10, delta=0.05` configuration, sequences of `T=40` tokens.
+`tau=0.08, alpha=0.10, delta=0.05` configuration, sequences of `T=40` tokens, and are the
+**second** round of this simulation — the first round is described below because the bug
+that invalidated it is itself the most useful finding of this section.
 
-An earlier version of this simulation used `s_t = clip(1 - TV_t + noise, 0, 1)`, which put
-over 10% of probability mass exactly at `s_t = 1.0` regardless of `TV_t` (additive Gaussian
-noise on a hard-clipped statistic saturates the boundary). That silently broke every result
-downstream of it — a calibration that looked maximally conservative was actually skipping
-34% of tokens with no correlation to safety. It was caught by checking the marginal
-distribution of `s_t` before trusting any calibration output, not by the calibration
-procedure itself; nothing in Learn-Then-Test protects against a broken statistic, only
-against an honest but under-informative one. Replaced with a logistic-squashed statistic
-that has no boundary mass (Section 2.1's construction is schematic; this is one concrete
-instantiation of it for the simulation).
+**A bug in this file, not just in the earlier document text.** The first round of this
+simulation checked every "did the calibration hold" question against `conditional_risk`
+(`Pr[TV>tau | skip]`) — matching what the document's Theorem claimed at the time. Section 3.2
+now corrects that theorem: `calibrate()` only ever controls `joint_risk`
+(`Pr[TV>tau AND skip]`). Once that was noticed (by directly printing what `calibrate()`
+actually bounds versus what was being checked, not by inspection), every downstream number
+needed re-deriving with the right criterion, and two of the first round's headline results
+did not survive:
 
-**Part A — does the Section 3.1/3.2 fix actually hold, and does the rejected naive version
-actually break?** 250 independent calibration draws (`n=300` sequences each), each
-evaluated against a shared 4,000-sequence holdout:
+- Part A originally reported the naive per-token-pooled calibrator failing 250/250 times.
+  Checked against `joint_risk` instead, at the same intra-sequence correlation strength used
+  throughout that run, it failed **0/250** times — the naive calibrator's real invalidity
+  hadn't been exposed by that test at all; the "250/250" was an artifact of checking the wrong
+  quantity, which happened to look dramatic by coincidence.
+- Part C originally reported that aggregating on-policy calibration data across rounds
+  (DAgger-style) catastrophically diverges (0% to 100% violation by round 2). Checked against
+  `joint_risk`, neither the discard nor the aggregate strategy violated its budget in any
+  round, across 12 chains — though aggregation still produced meaningfully higher realized
+  risk (see below), just not over the line.
 
-| | violation rate (target `<= delta=0.05`) | mean skip rate | mean `lambda_hat` |
+Neither of these is a retraction of "the document had bugs" — it is the same finding one
+level deeper: the falsification-and-fix cycle in this document's history had already caught
+three real errors in the *prose*; this round caught one in the *code*, and it was large
+enough to invalidate the headline number from two of three simulation parts. The fixed
+results follow, plus one new part (F) that would not have existed without this correction.
+
+An earlier version of the cheap statistic itself also had a bug — `s_t = clip(1 - TV_t +
+noise, 0, 1)` put over 10% of probability mass exactly at `s_t=1.0` regardless of `TV_t`,
+silently breaking every result downstream of it. Caught by checking the marginal
+distribution of `s_t`, not by the calibration procedure. Replaced with a logistic-squashed
+statistic with no boundary mass (Section 2.1's construction is schematic; this is one
+concrete instantiation for the simulation). Two real implementation bugs surviving into a
+document that had already gone through one falsification pass is itself worth sitting with.
+
+**Part A — does the Section 3.1 fix hold, and does the rejected naive version actually
+break, checked correctly?** Fixing the criterion required fixing the test, too: naive
+pooling's invalidity is a function of intra-sequence correlation strength, and the original
+fixed correlation level (`seq_offset_sd=0.05`) was too weak to expose it fairly. Swept
+instead, 80 independent calibration draws per level (`n=300` sequences each), each against a
+4,000-sequence holdout, violations checked against `joint_risk > alpha`:
+
+| intra-sequence correlation (`seq_offset_sd`) | sequence-level violation rate | naive-pooled violation rate | naive mean skip rate |
 |---|---|---|---|
-| Sequence-level (Section 3.1's fix) | **0 / 250** (95% upper bound `~=1.2%`) | 31.3% | 0.780 |
-| Naive per-token-pooled (rejected) | **250 / 250** | 55.4% | 0.518 |
+| 0.05 | 0 / 80 | 0 / 80 | 55.3% |
+| 0.15 | 0 / 80 | 0 / 80 | 55.2% |
+| 0.30 | 0 / 80 | **8 / 80 (10%)** | 58.5% |
 
-The naive approach doesn't fail occasionally — it fails every single time in this
-configuration, and it does so by looking *better* (higher skip rate) right up until you
-check whether the risk budget actually held. That is the concrete shape of the Over-
-Pessimism Trap's evil twin: an unsafe calibration doesn't announce itself as conservative
-failure, it announces itself as a more attractive number.
+The valid calibrator stays safe regardless of correlation strength, as the theorem promises.
+The naive calibrator's real failure rate climbs with correlation strength, exactly as the
+mechanism in Section 3.1 predicts (it understates variance in proportion to how dependent the
+pooled "samples" actually are) — and is invisible at weak correlation, which is exactly why
+checking the wrong criterion at one arbitrary correlation level produced a misleading result
+the first time.
 
-**Part B — is the Section 3.5 compounding gap real, and does one round of on-policy
-recalibration fix it?** Teacher-forced `lambda_hat = 0.780` (from Part A) deployed on live
-rollouts where a skipped-and-actually-bad token shifts every later token's difficulty
-upward for the rest of the sequence (`compounding_shift=0.10`, absorbing — context doesn't
-heal itself), 60 independent trials:
+**Part B — what does compounding actually do to the proven guarantee, versus the
+operationally meaningful one?** Teacher-forced `lambda_hat ~= 0.79` deployed on live rollouts
+where a skipped-and-actually-bad token shifts every later token's difficulty upward for the
+rest of the sequence (absorbing corruption), 60 independent trials, both quantities reported:
 
-| | mean realized `Pr[TV>tau\|skip]` (target `<= alpha=0.10`) | violation rate | mean skip rate |
+| | mean `joint_risk` (proven target, `<= 0.10`) | joint violations | mean `conditional_risk` (unproven, wanted) | conditional violations | skip rate |
+|---|---|---|---|---|---|
+| Teacher-forced threshold, deployed live | 0.031 | **0 / 60** | 0.141 | 60 / 60 | 22.2% |
+| + one round of on-policy recalibration | 0.028 | **0 / 60** | 0.130 | 60 / 60 | 21.6% |
+
+What's actually proven holds up well under compounding — the joint risk barely moves and
+never crosses budget. What isn't proven, and what a user actually cares about, drifts a lot:
+conditional risk rises to 40% over its nominal budget in every trial, driven mostly by
+compounding pushing the skip rate down (the statistic partly recognizes corrupted context and
+avoids it) while joint risk stays flat, and conditional = joint / skip-rate amplifies that
+drop. Section 3.6 is the direct consequence: since the conditional risk is the thing that
+actually matters and it does drift here, the fix is to calibrate it directly — and that fix
+does not simply work.
+
+**Part C — does on-policy recalibration converge, checked against the right criterion, and
+does discarding vs. aggregating history matter?** 12 independent chains of 5 rounds each:
+
+| strategy | joint violation rate by round (0..4) | mean final joint risk | mean final conditional risk (fyi) |
 |---|---|---|---|
-| Teacher-forced threshold, deployed live | 0.150 | **60 / 60** | 22.7% |
-| + one round of on-policy recalibration | 0.127 | **60 / 60** | 21.4% |
+| Recalibrate each round on only that round's data (discard history) | `0,0,0,0,0` | **0.013** | 0.078 |
+| Recalibrate on the union of every round's data (DAgger-style aggregation) | `0,0,0,0,0` | **0.068** | 0.257 |
 
-The gap is not a hypothetical caveat: the identical threshold that passed Part A's
-calibration cleanly fails 50% over budget once deployed under dynamics the calibration
-protocol never saw, in every trial run. One round of on-policy recalibration helps (0.150 to
-0.127) but does not close it — still every trial.
+Both strategies hold the proven (joint) guarantee — no violations, either way. But aggregation
+is still directionally worse by about 5x on the same measure, and dramatically worse on the
+conditional measure it isn't controlling either. The mechanism from the retracted first-round
+finding is plausible but now understood to be a matter of degree, not a cliff: an aggregated
+pool mixes calibration data from earlier, less-drifted versions of the policy with the
+current round's, understating how far the current round has moved — this pushes the
+aggregated threshold more aggressive than the discard strategy's, without (in this parameter
+regime) actually crossing the safety line on the quantity that's proven.
 
-**Part C — does iterating fix it, and does aggregating history (as DAgger prescribes) help
-or hurt?** 12 independent chains of 5 rounds each, replicated across 4 seeds:
+**Part F — does calibrating the conditional risk directly, the actual fix for the
+Section 3.2 gap, work?** Same teacher-forced setup as Part A, same `n_cal=300` budget, 60
+trials, violations checked against `conditional_risk > alpha` (the quantity these calibrators
+are trying to control):
 
-| strategy | violation rate by round (0..4) | mean final risk |
+| calibrator | mean skip rate | conditional violation rate |
 |---|---|---|
-| Recalibrate each round on only that round's on-policy data (discard history) | `0, 0, 0, 0, 0` | **0.076** (safely under 0.10) |
-| Recalibrate each round on the union of every round's data so far (DAgger-style aggregation) | `0, 0, 1.0, 1.0, 1.0` | **0.262** (2.6x over budget) |
+| `calibrate()` (joint-targeting, evaluated against conditional anyway) | 31.5% | 0 / 60 |
+| `calibrate_conditional()` (per-sequence ratio, the "obvious" fix) | **0.0%** | 0 / 60 |
+| ratio-of-sums via range-scaled Hoeffding (a second attempt) | **0.0%** | 0 / 60 |
 
-This replicated across all 4 seeds tested (default plus three more), including the exact
-round (round 2) where aggregation starts failing. Discarding stale rounds and recalibrating
-purely against the current policy's own latest rollout converges to safety; aggregating
-every round's history the way DAgger textbook practice would — carrying forward calibration
-data collected under earlier, already-more-aggressive versions of the policy — does not
-correct itself, it compounds. The likely mechanism: this is Section 3.1's per-token-pooling
-mistake recurring one level up. A round's aggregated pool mixes data from policies at
-different points in an ongoing drift, understating how far the *current* round's policy has
-already moved, in exactly the way pooling tokens within a sequence understated within-
-sequence dependence.
-
-**Net effect on Section 3.5:** "run on-policy calibration" is not the one-line fix it reads
-as. The version of it that actually works empirically here — discard-and-refresh, not
-aggregate-and-accumulate — is the opposite of the more principled-sounding DAgger recipe,
-and that is worth knowing before anyone implements this for real. It is still not a proof:
-this is one synthetic generative model, and "discard-per-round converges" is an empirical
-regularity across 4 seeds in this simulation, not a theorem.
+Both direct attempts at conditional-risk calibration collapse to skipping nothing at all —
+0% violation because 0% skip, the Over-Pessimism Trap in its purest form. Interestingly, the
+joint-targeting calibrator, merely evaluated against the conditional criterion it was never
+designed for, doesn't violate it either at this budget (0/60) — its 3.3% violation rate seen
+in an earlier, smaller check (n_trials=60 at a different seed) suggests this is close to the
+edge, not a coincidence-proof property. Section 3.6 has the mechanism: per-sequence
+conditional-rate estimates are much higher-variance than the joint estimator's per-sequence
+loss, and Hoeffding's range-only bound pays heavily for that. This is the genuinely open
+problem this investigation surfaces, not a solved one.
 
 ## 7. References
 
@@ -428,6 +550,12 @@ regularity across 4 seeds in this simulation, not a theorem.
   2024 — shared-head early exit plus self-speculative verification, the closest existing
   system-level analog to Section 4's online loop.
 - Ross, Gordon, Bagnell, "A Reduction of Imitation Learning and Structured Prediction to
-  No-Regret Online Learning" (DAgger), 2011 — the aggregation strategy Section 6 tests and
-  finds diverges in this simulation, in contrast to the discard-and-refresh variant that
-  converges.
+  No-Regret Online Learning" (DAgger), 2011 — the data-aggregation strategy Section 6, Part C
+  tests against a discard-and-refresh alternative; aggregation was directionally worse but,
+  once measured against the quantity actually calibrated, did not diverge in this simulation
+  (an earlier version of this document reported a divergence, which did not survive the
+  joint/conditional correction in Section 3.2).
+- Maurer, Pontil, "Empirical Bernstein Bounds and Sample Variance Penalization," 2009 — a
+  variance-aware concentration bound, untried here, that Section 3.6 identifies as the
+  natural next thing to test against the conditional-risk calibration collapse (Hoeffding's
+  range-only bound is the likely reason both attempts in Part F failed as badly as they did).
