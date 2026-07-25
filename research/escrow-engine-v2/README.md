@@ -13,9 +13,9 @@ reference step: z' <= delta(reference)*z
 
 The engine executes real kernels, recomputes debt and cost transitions, arrests on mutation or malformed plans, and records exact/statistical authority in its ledger. Full credal trajectory sets are never propagated at runtime.
 
-## Real Archie checkpoint result
+## Real Archie checkpoint result: quantized microbatch cut
 
-The branch was tested against a real 114,215,040-parameter, 20-layer Archie checkpoint on 288 repository contexts drawn from code, documentation, JSON/data, and GitHub workflows.
+The first real cut tested a 114,215,040-parameter, 20-layer Archie checkpoint on 288 repository contexts drawn from code, documentation, JSON/data, and GitHub workflows.
 
 The hard neural claim failed:
 
@@ -40,12 +40,38 @@ factor-envelope violations:     0
 aggregate FP32 baseline:        68.7577 s
 aggregate controller runtime:   66.6676 s
 aggregate speedup:              1.0314x
-fold speedup range:             0.907x–1.171x
+fold speedup range:             0.907x-1.171x
 ```
 
-This is real but weak. One fold slowed down, paired calibration/setup dominates a single run, and the statistical guarantee is neither worst-case nor time-uniform. **New science and robust total-cost superiority are not established.**
+This is real but weak. One fold slowed down, paired calibration/setup dominates a single run, and the statistical guarantee is neither worst-case nor time-uniform. See `REAL_ARCHIE_VERDICT.md` and `real_archie_results.json`.
 
-See `REAL_ARCHIE_VERDICT.md` and `real_archie_results.json` for the complete boundary.
+## Integrated persistent-state audit
+
+A second, stricter experiment executed the integrated 123,265,923-parameter Sidepus pursuit checkpoint while carrying its 12-slot world state and rank-16 plastic memory between 32-byte chunks. The custom 20-layer reference path matched the shipped model exactly.
+
+Raw early exits failed economically. A 16-layer executor plus a 165,760-parameter residual MLP improved mean next-token TV from 0.441 to 0.187 at measured cost ratio 0.736, but maximum TV remained 0.890.
+
+The first finite factor then produced an apparent 26.4% certified saving by reporting zero artifact/reference debt. Actual artifact execution still had:
+
+```text
+mean next-token TV:                 0.194
+maximum next-token TV:              0.890
+final persistent-state relative L2: 0.111
+```
+
+The factor had erased the protected observable. A sweep from one to 32 output-derived states found no factor with both full transition support and a useful decoder residual.
+
+The repaired runtime obligation is therefore:
+
+```text
+observable error <= artifact decoder residual
+                  + factor debt
+                  + reference decoder residual
+```
+
+`observable_gate.py` implements this fail-closed lift and rejects unsupported factor rows. `PERSISTENT_STATE_AUDIT.md` records the complete negative result.
+
+**New science and robust total-cost superiority are not established.** The strongest surviving claim is that transition-debt and observable-decoder certificates are jointly necessary; either alone can be vacuous.
 
 ## Run the standalone engine
 
@@ -61,5 +87,6 @@ pytest -q
 - A singleton credal family can contain an exceptional row with width zero.
 - Explicit credal trajectory propagation grows exponentially; the runtime uses a scalar envelope instead.
 - Affine composition prices already-certified transitions; it does not establish interface composability.
-- Neural readout error requires a separate certificate.
-- The current real result is checkpoint-, workload-, hardware-, batching-, and exchangeability-dependent.
+- Factor debt does not protect a neural readout without a common decoder certificate.
+- Pseudocount smoothing does not establish support for an unobserved action-state row.
+- Current real results are checkpoint-, workload-, hardware-, batching-, and statistical-assumption-dependent.
