@@ -1,11 +1,17 @@
 # Adaptive-depth layer skipping: closing the FLOP Trap and the Over-Pessimism Trap
 
-This document is a design and a proof, not a shipped feature. No inference code in this
-repository currently skips layers. Nothing here is admitted evidence under the
-`archie-candidate-completion-manifest/v1` process in `ARCHIE_ARCHITECTURE_EXPERIMENTS.md`.
-It exists so that if adaptive-depth decoding is built for Archie, it is built on a scheme
-that cannot fail in either of the two ways below, instead of being discovered to fail
-after the fact.
+This document is a design and a proof, backed by a synthetic simulation (Section 6), not a
+shipped feature. No inference code in this repository currently skips layers. Nothing here
+is admitted evidence under the `archie-candidate-completion-manifest/v1` process in
+`ARCHIE_ARCHITECTURE_EXPERIMENTS.md` — the simulation validates the calibration math against
+a statistical model of the problem, not Archie's real weights. It exists so that if
+adaptive-depth decoding is built for Archie, it is built on a scheme whose failure modes
+were found by trying to break it, not discovered in production. The proof survived one
+adversarial pass with three corrections (Section 1's original safety claim was outright
+wrong, not just imprecise); the simulation then found the proposed fix for the compounding
+gap was itself broken as originally proposed. Both rounds are left visible below rather than
+smoothed over, because a document that only shows the final clean version is indistinguishable
+from one that never checked.
 
 ## 1. The problem, stated precisely
 
@@ -245,25 +251,29 @@ distribution once skip decisions compound, so the i.i.d.-sequences assumption in
 violated by construction for any sequence containing more than one skip.
 
 This is precisely the "across long horizons" clause in the original FLOP Trap statement,
-and Section 3.2 alone does not close it. Two ways to close it, neither implemented here:
+and Section 3.2 alone does not close it. Two candidate ways to close it were identified:
 
 1. **On-policy calibration.** Collect the calibration set by running the *adaptive* policy
-   itself (starting from some initial conservative `lambda`), not the teacher-forced full
-   model, so `(s_i, TV_i)` are drawn from the actual rollout distribution the final policy
-   will produce. This is a fixed-point / DAgger-style procedure: calibrate, deploy, verify
-   the resulting rollout distribution matches what was calibrated against (or iterate).
+   itself, not the teacher-forced full model, so `(s_i, TV_i)` are drawn from the actual
+   rollout distribution the final policy will produce. This is a fixed-point / DAgger-style
+   idea: calibrate, deploy, verify the resulting rollout distribution matches what was
+   calibrated against, or iterate.
 2. **An explicit stability assumption.** Assume the full model is `beta`-Lipschitz from
-   hidden-state perturbation to output TV: `TV(p_t(h), p_t(h')) <= beta * ||h - h'||`. Then a
-   per-step skip error bounded by `tau` induces a bounded perturbation to the next context,
-   and a triangle-inequality/telescoping argument bounds the *accumulated* divergence after
-   `T` steps by something like `T * beta * tau` in the worst case — which, notably, grows
-   with `T`, so it does **not** automatically make long-horizon generation safe just because
-   each step is individually calibrated. Whether that accumulated bound is usable depends on
-   `beta`, which is an empirical property of the specific model and is not derived here.
+   hidden-state perturbation to output TV: `TV(p_t(h), p_t(h')) <= beta * ||h - h'||`. A
+   per-step skip error bounded by `tau` then induces a bounded perturbation to the next
+   context, and a triangle-inequality/telescoping argument bounds the *accumulated*
+   divergence after `T` steps by something like `T * beta * tau` — which grows with `T`, so
+   it does **not** automatically make long-horizon generation safe just because each step is
+   individually calibrated. Not tested here; `beta` is an empirical property of the specific
+   model.
 
-Until one of these is actually done, treat the Section 3.2 guarantee as certifying "the next
-single decision, given the context so far was produced under the calibration protocol" —
-not "an arbitrarily long generation with many compounding skips."
+Option 1 was tested — see Section 7 — and the result is not the clean fix it sounds like.
+A single round of on-policy recalibration measurably reduces the violation but does not
+close it. Repeating the round while discarding each round's stale calibration data in favor
+of the newest on-policy rollout does converge to safety empirically. The more "principled"-
+looking move — aggregating every round's data, the textbook DAgger recipe — does the
+opposite: it diverges. Read Section 7 before treating "just calibrate on-policy" as settled;
+the naive version of it is not.
 
 ## 4. Online algorithm
 
@@ -313,9 +323,14 @@ online branch is a lookup-table comparison, and the entire statistical burden of
   itself: a function cheap enough to be free cannot also certify individual full-depth
   outcomes it never computed.
 - This does not claim the Section 3.2 guarantee extends unmodified to a full multi-step
-  generation with compounding skip decisions. Section 3.5 names the specific mechanism
-  (teacher-forced calibration vs. on-policy rollout context) and states what closing it
-  would require; that work is not done here.
+  generation with compounding skip decisions — Section 6's simulation confirms the gap is
+  real (100% violation rate deploying a teacher-forced threshold live) — and it does not
+  claim on-policy recalibration is a settled fix either: a single round measurably helps but
+  still violates every trial, and the more textbook-correct-looking fix (aggregating every
+  round's calibration data, DAgger-style) empirically makes it worse, not better. Only the
+  less obvious variant — discard stale rounds, recalibrate fresh each round — converged to
+  safety in simulation, and that is an empirical regularity across a handful of synthetic
+  seeds, not a proof.
 - Distribution shift between the calibration sample and live traffic more generally (not
   just the compounding mechanism in 3.5) voids the guarantee, same as any calibration-based
   method (conformal prediction, LTT, RCPS). Recalibration cadence is an operational question
@@ -323,7 +338,85 @@ online branch is a lookup-table comparison, and the entire statistical burden of
 - This does not claim small `TV` certifies greedy-argmax agreement near a tie (Section 1) —
   only that it bounds the probability shift of any fixed downstream event.
 
-## 6. References
+## 6. Simulated validation
+
+Reproducible via `scripts/adaptive-depth-ltt-sim.py` (stdlib-only Python; raw output
+committed alongside it as `scripts/adaptive-depth-ltt-sim.output.json`). This is a
+synthetic statistical simulation of the `(s_t, TV_t)` relationship Sections 2-3 assume —
+`s_t` a noisy, imperfect, monotonically-informative proxy for `TV_t` (Pearson correlation
+`~= -0.57` by construction) — **not a run of Archie or any real model.** It validates the
+calibration math, not a real skip rate; see Section 5. All numbers below are from one
+`tau=0.08, alpha=0.10, delta=0.05` configuration, sequences of `T=40` tokens.
+
+An earlier version of this simulation used `s_t = clip(1 - TV_t + noise, 0, 1)`, which put
+over 10% of probability mass exactly at `s_t = 1.0` regardless of `TV_t` (additive Gaussian
+noise on a hard-clipped statistic saturates the boundary). That silently broke every result
+downstream of it — a calibration that looked maximally conservative was actually skipping
+34% of tokens with no correlation to safety. It was caught by checking the marginal
+distribution of `s_t` before trusting any calibration output, not by the calibration
+procedure itself; nothing in Learn-Then-Test protects against a broken statistic, only
+against an honest but under-informative one. Replaced with a logistic-squashed statistic
+that has no boundary mass (Section 2.1's construction is schematic; this is one concrete
+instantiation of it for the simulation).
+
+**Part A — does the Section 3.1/3.2 fix actually hold, and does the rejected naive version
+actually break?** 250 independent calibration draws (`n=300` sequences each), each
+evaluated against a shared 4,000-sequence holdout:
+
+| | violation rate (target `<= delta=0.05`) | mean skip rate | mean `lambda_hat` |
+|---|---|---|---|
+| Sequence-level (Section 3.1's fix) | **0 / 250** (95% upper bound `~=1.2%`) | 31.3% | 0.780 |
+| Naive per-token-pooled (rejected) | **250 / 250** | 55.4% | 0.518 |
+
+The naive approach doesn't fail occasionally — it fails every single time in this
+configuration, and it does so by looking *better* (higher skip rate) right up until you
+check whether the risk budget actually held. That is the concrete shape of the Over-
+Pessimism Trap's evil twin: an unsafe calibration doesn't announce itself as conservative
+failure, it announces itself as a more attractive number.
+
+**Part B — is the Section 3.5 compounding gap real, and does one round of on-policy
+recalibration fix it?** Teacher-forced `lambda_hat = 0.780` (from Part A) deployed on live
+rollouts where a skipped-and-actually-bad token shifts every later token's difficulty
+upward for the rest of the sequence (`compounding_shift=0.10`, absorbing — context doesn't
+heal itself), 60 independent trials:
+
+| | mean realized `Pr[TV>tau\|skip]` (target `<= alpha=0.10`) | violation rate | mean skip rate |
+|---|---|---|---|
+| Teacher-forced threshold, deployed live | 0.150 | **60 / 60** | 22.7% |
+| + one round of on-policy recalibration | 0.127 | **60 / 60** | 21.4% |
+
+The gap is not a hypothetical caveat: the identical threshold that passed Part A's
+calibration cleanly fails 50% over budget once deployed under dynamics the calibration
+protocol never saw, in every trial run. One round of on-policy recalibration helps (0.150 to
+0.127) but does not close it — still every trial.
+
+**Part C — does iterating fix it, and does aggregating history (as DAgger prescribes) help
+or hurt?** 12 independent chains of 5 rounds each, replicated across 4 seeds:
+
+| strategy | violation rate by round (0..4) | mean final risk |
+|---|---|---|
+| Recalibrate each round on only that round's on-policy data (discard history) | `0, 0, 0, 0, 0` | **0.076** (safely under 0.10) |
+| Recalibrate each round on the union of every round's data so far (DAgger-style aggregation) | `0, 0, 1.0, 1.0, 1.0` | **0.262** (2.6x over budget) |
+
+This replicated across all 4 seeds tested (default plus three more), including the exact
+round (round 2) where aggregation starts failing. Discarding stale rounds and recalibrating
+purely against the current policy's own latest rollout converges to safety; aggregating
+every round's history the way DAgger textbook practice would — carrying forward calibration
+data collected under earlier, already-more-aggressive versions of the policy — does not
+correct itself, it compounds. The likely mechanism: this is Section 3.1's per-token-pooling
+mistake recurring one level up. A round's aggregated pool mixes data from policies at
+different points in an ongoing drift, understating how far the *current* round's policy has
+already moved, in exactly the way pooling tokens within a sequence understated within-
+sequence dependence.
+
+**Net effect on Section 3.5:** "run on-policy calibration" is not the one-line fix it reads
+as. The version of it that actually works empirically here — discard-and-refresh, not
+aggregate-and-accumulate — is the opposite of the more principled-sounding DAgger recipe,
+and that is worth knowing before anyone implements this for real. It is still not a proof:
+this is one synthetic generative model, and "discard-per-round converges" is an empirical
+regularity across 4 seeds in this simulation, not a theorem.
+
+## 7. References
 
 - Schuster, Fisch, Gupta, Chan, Berant, Metzler, et al., "Confident Adaptive Language
   Modeling" (CALM), NeurIPS 2022 — early exit via a free per-token confidence measure
@@ -334,3 +427,7 @@ online branch is a lookup-table comparison, and the entire statistical burden of
 - Elhoushi et al., "LayerSkip: Enabling Early Exit Inference and Self-Speculative Decoding,"
   2024 — shared-head early exit plus self-speculative verification, the closest existing
   system-level analog to Section 4's online loop.
+- Ross, Gordon, Bagnell, "A Reduction of Imitation Learning and Structured Prediction to
+  No-Regret Online Learning" (DAgger), 2011 — the aggregation strategy Section 6 tests and
+  finds diverges in this simulation, in contrast to the discard-and-refresh variant that
+  converges.
