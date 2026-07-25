@@ -186,6 +186,49 @@ def calibrate_conditional(sequences, grid, delta: float):
     return lambda_hat
 
 
+def empirical_bernstein_ucb(values, delta: float) -> float:
+    """Maurer & Pontil (2009): for i.i.d. X_i in [0,1], a tighter alternative to Hoeffding
+    that uses the *sample* variance instead of only the range. Section 3.6/7 flagged this
+    as the untried next step for the conditional-risk calibration collapse -- Hoeffding's
+    range-only bound treats a per-sequence ratio the same whether its true variance is
+    tiny or close to the Bernoulli worst case of 1/4, and per-sequence ratios here are
+    often close to that worst case (a sequence with one skipped token contributes a
+    {0,1} outcome). Needs n>=2 to estimate a variance at all."""
+    n = len(values)
+    if n <= 1:
+        return 1.0
+    mean = sum(values) / n
+    var = sum((x - mean) ** 2 for x in values) / (n - 1)
+    term1 = math.sqrt(2.0 * var * math.log(2.0 / delta) / n)
+    term2 = 7.0 * math.log(2.0 / delta) / (3.0 * (n - 1))
+    return min(1.0, mean + term1 + term2)
+
+
+def calibrate_conditional_bernstein(sequences, grid, delta: float):
+    """Same target and same per-sequence-ratio construction as calibrate_conditional(),
+    with the Hoeffding UCB swapped for the empirical-Bernstein one above -- isolates
+    whether the concentration inequality was the bottleneck, holding everything else
+    (including the sequence-averaged-ratio formulation's own bias-vs-the-true-ratio-
+    of-sums, noted in calibrate_conditional's docstring) fixed."""
+    lookups = [seq_conditional_lookup(s) for s in sequences]
+    lambda_hat = grid[0]
+    for lam in grid:
+        rates = []
+        for counts in lookups:
+            bad_and_skip, skip_count = counts(lam)
+            if skip_count > 0:
+                rates.append(bad_and_skip / skip_count)
+        n_eff = len(rates)
+        if n_eff == 0:
+            lambda_hat = lam
+            continue
+        if empirical_bernstein_ucb(rates, delta) <= ALPHA:
+            lambda_hat = lam
+        else:
+            break
+    return lambda_hat
+
+
 def calibrate_naive_token_pooled(sequences, grid, delta: float):
     """The rejected earlier-draft approach: treat every token as an independent sample,
     using n*T as the effective sample size instead of n."""
@@ -615,6 +658,50 @@ def part_g(rng: random.Random):
     }
 
 
+def part_h(rng: random.Random):
+    """Open Problem 4 flagged empirical-Bernstein as the untried next attempt at fixing
+    conditional-risk calibration's collapse. This tries it -- swap Hoeffding for
+    empirical-Bernstein in calibrate_conditional, holding the per-sequence-ratio
+    construction fixed, and sweep the calibration budget to see whether it closes the
+    gap to calibrate()'s n_cal=300 joint-risk performance, narrows it, or does neither."""
+    n_trials = 20
+    n_holdout = 4000
+    seq_offset_sd = 0.05
+    n_cals = [300, 1000, 3000, 10000]
+
+    results = {}
+    for n_cal in n_cals:
+        holdout = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_holdout)]
+        hoeffding_skip, hoeffding_cond = [], []
+        bernstein_skip, bernstein_cond = [], []
+        for _ in range(n_trials):
+            cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
+            lam_h = calibrate_conditional(cal, GRID, DELTA)
+            lam_b = calibrate_conditional_bernstein(cal, GRID, DELTA)
+            _, cond_h, sk_h = risk_breakdown(lam_h, holdout)
+            _, cond_b, sk_b = risk_breakdown(lam_b, holdout)
+            hoeffding_skip.append(sk_h); hoeffding_cond.append(cond_h)
+            bernstein_skip.append(sk_b); bernstein_cond.append(cond_b)
+        results[f"n_cal_{n_cal}"] = {
+            "hoeffding_conditional": {
+                "mean_skip_rate": statistics.mean(hoeffding_skip),
+                "mean_conditional_risk": statistics.mean(hoeffding_cond),
+            },
+            "bernstein_conditional": {
+                "mean_skip_rate": statistics.mean(bernstein_skip),
+                "mean_conditional_risk": statistics.mean(bernstein_cond),
+            },
+        }
+
+    return {
+        "n_trials_per_budget": n_trials,
+        "n_holdout_per_budget": n_holdout,
+        "target_alpha": ALPHA,
+        "for_reference_joint_calibrate_at_n_cal_300_skip_rate": 0.313,  # Part A, seq_offset_sd=0.05
+        "by_calibration_budget": results,
+    }
+
+
 def main():
     rng = random.Random(SEED)
     result = {
@@ -628,6 +715,7 @@ def main():
         "part_c_does_iterating_onpolicy_recalibration_converge": part_c(rng),
         "part_f_does_calibrating_the_conditional_risk_directly_work": part_f(rng),
         "part_g_design_effect_explains_the_naive_pooling_violation_trend": part_g(rng),
+        "part_h_does_empirical_bernstein_fix_conditional_calibration": part_h(rng),
     }
     print(json.dumps(result, indent=2))
 

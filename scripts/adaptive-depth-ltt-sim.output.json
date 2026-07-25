@@ -159,5 +159,53 @@
         "corrected_estimate_over_true_n_ratio": 1.048401589022441
       }
     }
+  },
+  "part_h_does_empirical_bernstein_fix_conditional_calibration": {
+    "n_trials_per_budget": 20,
+    "n_holdout_per_budget": 4000,
+    "target_alpha": 0.1,
+    "for_reference_joint_calibrate_at_n_cal_300_skip_rate": 0.313,
+    "by_calibration_budget": {
+      "n_cal_300": {
+        "hoeffding_conditional": {
+          "mean_skip_rate": 0.0,
+          "mean_conditional_risk": 0.0
+        },
+        "bernstein_conditional": {
+          "mean_skip_rate": 0.0,
+          "mean_conditional_risk": 0.0
+        }
+      },
+      "n_cal_1000": {
+        "hoeffding_conditional": {
+          "mean_skip_rate": 0.0,
+          "mean_conditional_risk": 0.0
+        },
+        "bernstein_conditional": {
+          "mean_skip_rate": 0.0105765625,
+          "mean_conditional_risk": 0.004940727899052539
+        }
+      },
+      "n_cal_3000": {
+        "hoeffding_conditional": {
+          "mean_skip_rate": 0.069814375,
+          "mean_conditional_risk": 0.03231526247250752
+        },
+        "bernstein_conditional": {
+          "mean_skip_rate": 0.0846496875,
+          "mean_conditional_risk": 0.038030805852498704
+        }
+      },
+      "n_cal_10000": {
+        "hoeffding_conditional": {
+          "mean_skip_rate": 0.1016621875,
+          "mean_conditional_risk": 0.03781968726353694
+        },
+        "bernstein_conditional": {
+          "mean_skip_rate": 0.1086521875,
+          "mean_conditional_risk": 0.03955613840811685
+        }
+      }
+    }
   }
 }

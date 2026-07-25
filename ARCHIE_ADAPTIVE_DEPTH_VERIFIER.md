@@ -337,9 +337,13 @@ Neither fix is in this document as a working solution, because neither is one. W
 established: the intuitively "correct" safety notion (conditional-on-decision) is
 substantially harder to calibrate efficiently than the joint/marginal notion, at least via
 the two standard constructions tried here. A tighter, variance-aware bound (empirical
-Bernstein instead of Hoeffding) is the natural next thing to try and was not — this is left
-open, honestly, rather than papered over with a formulation that quietly proves a weaker
-statement while a reader assumes the stronger one.
+Bernstein instead of Hoeffding) was tried next (Section 6, Part H) — genuinely tighter, not
+a null result, and still nowhere near enough: still 0% skip at the same `n_cal=300` budget,
+and even at 33x the data still only a third of joint calibration's skip rate. The bottleneck
+is the per-sequence-ratio construction itself, not primarily the choice of concentration
+inequality — left open, honestly, in Section 7's Open Problem 4, rather than papered over
+with a formulation that quietly proves a weaker statement while a reader assumes the stronger
+one.
 
 ## 4. Online algorithm
 
@@ -560,6 +564,31 @@ re-proving it, and was not carried through the Hoeffding-Bentkus argument itself
 exact violation-probability formula for this specific calibrator (Section 7, Proposition 2,
 states precisely what is and is not established by this).
 
+**Part H — does empirical-Bernstein actually fix conditional-risk calibration, the way
+Open Problem 4 speculated it might?** Tried, not just flagged. Swapped `calibrate_conditional`'s
+Hoeffding UCB for the empirical-Bernstein bound (Maurer & Pontil, 2009), which uses the
+per-sequence ratios' *sample variance* instead of only their `[0,1]` range, holding everything
+else fixed. Swept the calibration budget, 20 trials per budget, against a shared 4,000-sequence
+holdout:
+
+| `n_cal` | Hoeffding-conditional skip rate | Bernstein-conditional skip rate | for reference: joint `calibrate()` at `n_cal=300` |
+|---|---|---|---|
+| 300 | 0.0% | 0.0% | 31.3% |
+| 1,000 | 0.0% | **1.1%** | — |
+| 3,000 | 7.0% | **8.5%** | — |
+| 10,000 | 10.2% | **10.9%** | — |
+
+Bernstein is genuinely, measurably tighter than Hoeffding at every budget where either gives a
+nonzero answer — real, not noise, and directionally exactly what the variance-aware argument in
+Section 3.6 predicted. It does not fix the `n_cal=300` collapse (still 0% skip), and by
+`n_cal=10,000` — 33x the data joint calibration needed for 31.3% — the Bernstein/Hoeffding gap
+has narrowed to roughly the width of run-to-run noise, while conditional calibration's skip
+rate is still a third of what joint calibration got with a fraction of the data. The
+per-sequence-ratio construction's coarseness (Section 3.6: a sequence with one skipped token
+contributes a `{0,1}` outcome, not a continuum) is enough to swallow most of what a tighter
+concentration inequality can offer. This is Open Problem 4's answer to "was Bernstein the
+missing piece": no — real help, wrong order of magnitude.
+
 ## 7. Unified theorem statements
 
 Everything above compiled into one place, each claim labeled by what it actually is —
@@ -614,24 +643,40 @@ covered by Theorem 1, rose to a mean of `0.141` and exceeded the same nominal bu
 with `T`) remains the only attempted *formal* treatment of long-horizon compounding, with
 `beta` unmeasured and the bound unverified for tightness.
 
-**Theorem/Open Problem 4 (Conditional-risk calibration).** *Status: open. Two candidate
-solutions were tried and both fail; failure of two specific constructions is not a proof that
-none exists.*
+**Theorem/Open Problem 4 (Conditional-risk calibration).** *Status: open. Three candidate
+fixes were tried and none closes the gap at Theorem 1's budget; failure of three specific
+constructions is not a proof that none exists.*
 
 Does a computationally cheap, distribution-free procedure exist achieving
 `Pr[TV > tau | skip] <= alpha` with probability `>= 1 - delta`, at a calibration budget
 comparable to Theorem 1's (`n_cal` on the order of 300 sequences, in this document's
-parameter regime)? Two natural constructions were tested (Section 6, Part F) and both
-collapse to a near-zero skip rate at that budget: a per-sequence ratio estimator (high
-per-sequence variance when few tokens are skipped — a sequence with one skip contributes a
-`{0, 1}` outcome, not a smoothly-averaged one) and a ratio-of-sums bounded via two
-range-scaled Hoeffding bounds (worse still, since the count range `[0, T]` is far looser than
-the values the sums actually take). Both failures are consistent with, but do not prove, a
-genuine statistical hardness separation between calibrating the joint risk and calibrating
-the conditional risk. An empirical-Bernstein-style variance-aware bound (Maurer & Pontil,
-2009) was identified as the natural next attempt and was not tried. This document closes
-here — with a compiled, correctly-labeled set of results and one clearly open problem —
-rather than past it.
+parameter regime)? Three natural constructions were tested and none gets there:
+
+1. A per-sequence ratio estimator with a Hoeffding bound (Section 6, Part F) — collapses to
+   a near-zero skip rate at `n_cal=300` (high per-sequence variance when few tokens are
+   skipped: a sequence with one skip contributes a `{0,1}` outcome, not a smoothly-averaged
+   one).
+2. A ratio-of-sums bounded via two range-scaled Hoeffding bounds (Section 6, Part F) — worse
+   still, since the count range `[0, T]` is far looser than the values the sums actually
+   take.
+3. The same per-sequence ratio estimator with an empirical-Bernstein bound instead of
+   Hoeffding (Section 6, Part H) — genuinely, measurably tighter (not a null result), and
+   still nowhere close: still 0% skip at `n_cal=300`, and even at `n_cal=10,000` (33x the
+   budget) reaches only a third of joint calibration's skip rate at 1/33rd the data, with
+   Bernstein's advantage over plain Hoeffding narrowing as `n_cal` grows rather than opening
+   up. The bottleneck is not primarily which concentration inequality is used — it's the
+   per-sequence-ratio construction's coarseness itself, which a tighter inequality can only
+   partially compensate for.
+
+All three failures are consistent with, but do not prove, a genuine statistical hardness
+separation between calibrating the joint risk and calibrating the conditional risk. What
+would actually close this: either a construction that doesn't discard information the way a
+per-sequence ratio does (some form of token-level pooling for the ratio specifically, without
+reintroducing Section 3.1's original i.i.d. violation — not obviously possible), or accepting
+that the conditional guarantee costs meaningfully more calibration data than the joint one at
+any fixed concentration inequality, and budgeting for that rather than expecting parity. This
+document closes here — with a compiled, correctly-labeled set of results, one attempted and
+unsuccessful fix beyond the first two, and one still-open problem — rather than past it.
 
 ## 8. References
 
@@ -651,9 +696,9 @@ rather than past it.
   (an earlier version of this document reported a divergence, which did not survive the
   joint/conditional correction in Section 3.2).
 - Maurer, Pontil, "Empirical Bernstein Bounds and Sample Variance Penalization," 2009 — a
-  variance-aware concentration bound, untried here, that Section 3.6 identifies as the
-  natural next thing to test against the conditional-risk calibration collapse (Hoeffding's
-  range-only bound is the likely reason both attempts in Part F failed as badly as they did).
+  variance-aware concentration bound, tried in Section 6, Part H against the conditional-risk
+  calibration collapse from Part F: measurably tighter than Hoeffding, not enough to close
+  the gap to joint calibration's sample efficiency.
 - Kish, L., "Survey Sampling," 1965 — source of the design effect (`DEFF = 1 + (m-1)*rho`)
   underlying Section 6 Part G / Section 7 Proposition 2's explanation of why naive per-token
   pooling's real violation rate scales with intra-sequence correlation strength.
