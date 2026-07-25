@@ -1,0 +1,47 @@
+{
+  "schema": "escrow-engine-v2/results-v1",
+  "artifact_horizon_steps": 1,
+  "gate_tau": 0.3,
+  "artifact_transition": {
+    "delta_bar": 0.6,
+    "width": 0.2
+  },
+  "reference_transition": {
+    "delta": 0.2
+  },
+  "finite_plan": {
+    "steps": 20,
+    "artifact_steps": 10,
+    "reference_steps": 10,
+    "runtime_cost": 10.5,
+    "reference_only_cost": 20.0,
+    "peak_certified_debt": 0.22727272713200602,
+    "observed_reference_error": 3.09581638102685e-10,
+    "bound_validated": true
+  },
+  "periodic_policy": {
+    "artifact_steps": 1,
+    "reference_steps": 1,
+    "cycle_fixed_debt": 0.045454545454545456,
+    "cycle_peak_debt": 0.22727272727272732,
+    "average_cost": 0.525,
+    "reference_only_average_cost": 1.0,
+    "speedup": 1.9047619047619047
+  },
+  "total_cost": {
+    "setup_reference_step_equivalents": 6.0,
+    "first_run_total": 16.5,
+    "first_run_reference_only": 20.0,
+    "breakeven_runs": 1
+  },
+  "verification": {
+    "full_sealed_bundle_tests": 21,
+    "standalone_github_cut_tests": 6,
+    "standalone_github_cut_status": "passed"
+  },
+  "claim_boundary": {
+    "finite_explicit_synthetic_engine": true,
+    "real_neural_deployment": false,
+    "literature_complete_novelty": false
+  }
+}
