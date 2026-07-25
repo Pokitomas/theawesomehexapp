@@ -1,47 +1,53 @@
 # ESCROW Engine v2
 
-This branch contains the first executable cut of **Expiring Substitution with Certified Residual Operator Width**.
-
-The previous bundle had a valid affine propagation theorem but no engine: its runtime returned an artifact label instead of executing a substitute. This cut replaces that shell with a proof-carrying stochastic-kernel scheduler.
+This branch contains an executable proof-carrying scheduler for finite stochastic artifacts. The original toy construction remains a mechanism test, not a neural breakthrough.
 
 ## Engine contract
 
-For each action, both the installed artifact kernel and the declared reference kernel must be exact members of one finite credal family. The certificate records family, artifact, and reference digests plus
+For every installed action, the artifact and reference kernels must both be declared members of one credal family. Runtime retains a point distribution and one scalar debt bound:
 
 ```text
-artifact step: z' <= dbar*z + width
+artifact step:  z' <= dbar*z + width
 reference step: z' <= delta(reference)*z
 ```
 
-The runtime:
+The engine executes real kernels, recomputes debt and cost transitions, arrests on mutation or malformed plans, and records exact/statistical authority in its ledger. Full credal trajectory sets are never propagated at runtime.
 
-- executes actual point distributions through actual kernels;
-- plans the cheapest safe artifact/reference sequence under `z <= tau`;
-- recomputes every debt and cost transition at execution time;
-- arrests on changed kernels, malformed plans, missing membership, or gate violation;
-- emits an oracle ledger and optional exact-reference audit.
+## Real Archie checkpoint result
 
-No full credal set is propagated at runtime. The retained state is one point distribution plus one scalar debt bound.
+The branch was tested against a real 114,215,040-parameter, 20-layer Archie checkpoint on 288 repository contexts drawn from code, documentation, JSON/data, and GitHub workflows.
 
-## Phase change
+The hard neural claim failed:
 
-The included artifact has standalone safe horizon 1 at `tau=0.30`:
+- early exits were too destructive;
+- bfloat16 was slower than FP32 on the target CPU;
+- exact-tail int8 produced tiny gains and prompt-level violations;
+- the factor-level affine envelope did not imply a per-prompt output certificate.
+
+The narrow surviving integration is a batch-8 statistical controller:
+
+1. identify factor-admissible int8 positions;
+2. execute dynamic int8;
+3. apply a calibration-only conformal residual gate;
+4. execute FP32 on rejected positions;
+5. update debt using the operator actually returned.
+
+Five file-disjoint folds covered all 288 contexts exactly once. At `tau=0.10` and requested conformal alpha `0.01`:
 
 ```text
-artifact envelope: z' <= 0.6z + 0.2
+unsafe accepted int8 outputs:   0 / 126
+factor-envelope violations:     0
+aggregate FP32 baseline:        68.7577 s
+aggregate controller runtime:   66.6676 s
+aggregate speedup:              1.0314x
+fold speedup range:             0.907x–1.171x
 ```
 
-The exact reference contracts debt:
+This is real but weak. One fold slowed down, paired calibration/setup dominates a single run, and the statistical guarantee is neither worst-case nor time-uniform. **New science and robust total-cost superiority are not established.**
 
-```text
-reference envelope: z' <= 0.2z
-```
+See `REAL_ARCHIE_VERDICT.md` and `real_archie_results.json` for the complete boundary.
 
-The periodic scheduler finds `A R A R ...`. Its invariant peak debt is `0.2272727273`, below the gate forever. Average execution cost is `0.525` reference-step equivalents, a `1.9047619x` speedup over reference-only execution. A 20-step plan uses 10 artifact and 10 reference steps and costs `10.5` instead of `20.0`.
-
-This is the actual integration result: neither the expiring artifact nor the expensive reference gives indefinite cheap execution alone; their certified switched schedule does.
-
-## Run
+## Run the standalone engine
 
 ```bash
 cd research/escrow-engine-v2
@@ -53,8 +59,7 @@ pytest -q
 
 - Diameter is not automatically artifact error; joint artifact/reference membership is mandatory.
 - A singleton credal family can contain an exceptional row with width zero.
-- Explicit credal trajectory propagation doubles every step; the test reaches `2^14 = 16384` paths.
+- Explicit credal trajectory propagation grows exponentially; the runtime uses a scalar envelope instead.
 - Affine composition prices already-certified transitions; it does not establish interface composability.
-- The neural deployment and literature novelty remain unsealed.
-
-The complete sealed research bundle, including the long schizonote, theorem paper, claims ledger, manifest, and 21-test suite, is delivered separately as `ESCROW_ENGINE_V2_SEALED.zip`.
+- Neural readout error requires a separate certificate.
+- The current real result is checkpoint-, workload-, hardware-, batching-, and exchangeability-dependent.
