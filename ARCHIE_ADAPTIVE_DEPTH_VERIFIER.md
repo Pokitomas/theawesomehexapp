@@ -1,16 +1,15 @@
 # Adaptive-depth layer skipping: closing the FLOP Trap and the Over-Pessimism Trap
 
 This document is a design and a proof, backed by a synthetic simulation (Section 6) and
-compiled into a labeled set of theorems, propositions, findings, and one open problem
-(Section 7), not a shipped feature. No inference code in this repository currently skips
-layers. Nothing here is admitted evidence under the `archie-candidate-completion-manifest/v1`
-process in
+compiled into a labeled set of theorems, propositions, and findings (Section 7), not a
+shipped feature. No inference code in this repository currently skips layers. Nothing here
+is admitted evidence under the `archie-candidate-completion-manifest/v1` process in
 `ARCHIE_ARCHITECTURE_EXPERIMENTS.md` — the simulation validates the calibration math against
 a statistical model of the problem, not Archie's real weights. It exists so that if
 adaptive-depth decoding is built for Archie, it is built on a scheme whose failure modes
 were found by trying to break it, not discovered in production.
 
-Three rounds of self-correction are visible below rather than smoothed over. (1) An
+Four rounds of self-correction are visible below rather than smoothed over. (1) An
 adversarial pass found three errors in the prose, including an outright false safety claim
 in Section 1. (2) A first simulation pass found the proposed fix for a claimed compounding
 gap (Section 3.5) was itself broken. (3) Building on that simulation surfaced something
@@ -19,11 +18,14 @@ underneath both of the first two rounds: the Theorem in Section 3.2 had been pro
 wording issue, that had survived round 1's falsification pass undetected and had made round
 2's "compounding gap" and "aggregation diverges" findings both look considerably more
 dramatic than what was actually proven ever promised. Fixing that changed which of round 2's
-numbers hold up (two of three didn't) and added a new, still-open finding: the honest fix for
-the joint/conditional gap — calibrate the conditional risk directly — was tried, and it
-collapses to skipping almost nothing at the same data budget that works fine for the joint
-version. A document that only shows the final clean version of this is indistinguishable from
-one that never checked; this one shows the failed attempts too, including its own.
+numbers hold up (two of three didn't). (4) The honest fix for the joint/conditional gap —
+calibrate the conditional risk directly — was tried three ways and collapsed every time, at
+first; pushed further, a fourth construction (a better-suited estimator, a tighter
+concentration inequality, and a corrected search procedure that turned out to matter
+independently of both) actually works, at roughly 100x the calibration data — turning what
+looked like a dead end into a quantified, working answer (Theorem 4). A document that only
+shows the final clean version of this is indistinguishable from one that never checked; this
+one shows the failed attempts too, including its own, and what it took to get past them.
 
 ## 1. The problem, stated precisely
 
@@ -314,7 +316,7 @@ aggregation is still directionally worse (about 5x the final joint risk of disca
 Read Section 6 for the numbers, and Section 3.6 for the more serious problem this correction
 surfaced.
 
-### 3.6 The obvious fix doesn't work either: conditional-risk calibration collapses
+### 3.6 The obvious fix doesn't work — the fourth attempt does, at a quantified cost
 
 If the theorem in 3.2 only proves the joint guarantee, the fix sounds simple: calibrate the
 conditional risk directly instead. Define, per sequence, the loss as that sequence's own
@@ -323,27 +325,49 @@ nothing at a given `lambda`, since they carry no information about the condition
 run the same Learn-Then-Test machinery on that.
 
 This was implemented and tested (Section 6, Part F) and it does not simply work: at the same
-calibration budget that gives the joint calibrator a healthy skip rate, the conditional
-calibrator collapses to skipping almost nothing. The mechanism is variance, not a coding
-mistake: a sequence that skips only one or two tokens contributes a coarse, high-variance
-per-sequence ratio (0, 1/2, or 1 — nothing in between), and Hoeffding's bound, which only uses
-boundedness in `[0,1]` and not the true variance, pays for that coarseness by demanding far
-more calibration data than the joint formulation needs to certify the same confidence level.
-A second, structurally different attempt — bounding the ratio of two sums via a union of two
-range-scaled Hoeffding bounds on numerator and denominator separately — failed even harder,
-because the range `[0, T]` is a much looser scale than the values the sums actually take.
+calibration budget that gives the joint calibrator a healthy skip rate, this "separate ratio
+estimator" (Cochran, 1977, calls the per-sequence-averaged ratio this; the alternative below
+is what Cochran calls the "combined ratio estimator") collapses to skipping almost nothing.
+The mechanism is variance, not a coding mistake: a sequence that skips only one or two tokens
+contributes a coarse, high-variance per-sequence ratio (0, 1/2, or 1 — nothing in between), and
+Hoeffding's bound, which only uses boundedness in `[0,1]` and not the true variance, pays for
+that coarseness by demanding far more calibration data than the joint formulation needs. A
+second attempt — bounding the ratio of the numerator and denominator *sums* (not per-sequence
+ratios) via range-scaled Hoeffding — failed even harder, because the range `[0, T]` is a much
+looser scale than the values the sums actually take. Swapping in empirical-Bernstein for the
+per-sequence-ratio construction (Section 6, Part H) is genuinely tighter, not a null result,
+but still nowhere near enough at realistic budgets — a third failure.
 
-Neither fix is in this document as a working solution, because neither is one. What's
-established: the intuitively "correct" safety notion (conditional-on-decision) is
-substantially harder to calibrate efficiently than the joint/marginal notion, at least via
-the two standard constructions tried here. A tighter, variance-aware bound (empirical
-Bernstein instead of Hoeffding) was tried next (Section 6, Part H) — genuinely tighter, not
-a null result, and still nowhere near enough: still 0% skip at the same `n_cal=300` budget,
-and even at 33x the data still only a third of joint calibration's skip rate. The bottleneck
-is the per-sequence-ratio construction itself, not primarily the choice of concentration
-inequality — left open, honestly, in Section 7's Open Problem 4, rather than papered over
-with a formulation that quietly proves a weaker statement while a reader assumes the stronger
-one.
+**A fourth attempt works.** Two things were wrong with the ratio-of-sums attempt, not one.
+First, it used range-scaled Hoeffding, which — as just noted — is much looser than the values
+involved warrant; swapping in empirical-Bernstein on the raw per-sequence *counts* (not
+ratios) fixes that, and also switches to the more sample-efficient estimator in the first
+place (the combined ratio estimator is standardly more efficient than the separate one when
+unit sizes — here, skip counts per sequence — vary a lot, which they do). Second, and less
+obviously: the grid search itself was invalid for a Bernstein-based ratio-of-sums construction.
+`calibrate()` and `calibrate_conditional()` can walk the grid and stop at the first failure
+because their UCB's slack term does not depend on `lambda`, which is what makes `R_plus`
+provably monotone (Section 3.2) and licenses skipping a multiple-testing correction. Empirical-
+Bernstein's slack depends on `lambda` through the empirical variance, which is not monotone as
+small-denominator sequences enter and leave the qualifying set — checked directly, "stop at
+first failure" *does* stop at a transient bad point and silently discards genuinely safe
+lambdas further down (an actual observed instance: a spurious failure at `lambda=0.99` masked
+25 valid passing points down to `lambda=0.835`, out of a naive-search result that reported
+total collapse). The valid fix without assuming monotonicity: Bonferroni across all `M` grid
+points — test each at `delta/(2M)`, scan the whole grid, keep the most aggressive lambda that
+passes its own test. This is a validity requirement, not an optimization; the non-Bonferroni
+version of this same construction reported much better numbers that were not actually valid.
+
+Combining both fixes (Section 6, Part I) closes most of the gap: at `n_cal=30,000` — 100x
+Theorem 1's budget, not 33x — the combined-ratio-estimator, Bernstein-bounded,
+Bonferroni-corrected calibrator reaches **31.5% skip rate at 0.092 mean conditional risk**,
+matching (and technically exceeding) joint calibration's 31.3% at `n_cal=300`, while actually
+delivering the stronger, previously-unproven guarantee. It still collapses to 0% at
+`n_cal=300/1,000/3,000` — the fix has a real, steep data cost, not a free lunch — but the
+practical version of Open Problem 4 ("does *any* efficient-enough construction exist, or is
+the conditional guarantee simply out of reach") has an answer, and it's yes, at roughly 100x
+the joint guarantee's calibration budget in this parameter regime. Section 7 states this
+precisely, including what is and is not established by it.
 
 ## 4. Online algorithm
 
@@ -379,18 +403,17 @@ online branch is a lookup-table comparison, and the entire statistical burden of
 
 ## 5. What this does not claim
 
-- **This does not claim to control `Pr[TV > tau | skip]`, the conditional risk a user
-  actually cares about.** What Section 3.2 proves is the joint/marginal
-  `Pr[TV > tau AND skip] <= alpha`, which is a real but weaker statement — see the corrected
-  Theorem in 3.2 for exactly what changed and why an earlier version of this document
-  claimed the stronger, unproven thing. Section 3.6 covers the direct attempt to close this
-  gap (calibrate the conditional risk instead) and its failure mode.
-- This does not claim the conditional-risk gap is closed. Two natural constructions
-  (per-sequence ratio calibration, ratio-of-sums via range-scaled Hoeffding) were tried in
-  Section 6, Part F, and both collapse to a near-zero skip rate at the same calibration
-  budget that works fine for the joint quantity — the intuitively correct safety notion is
-  a substantially harder statistical estimation problem than the one actually proven here,
-  and this document does not resolve that.
+- **`calibrate()` (Theorem 1) does not control `Pr[TV > tau | skip]`, the conditional risk a
+  user actually cares about.** It controls the joint/marginal `Pr[TV > tau AND skip] <= alpha`
+  instead, which is a real but weaker statement — see the corrected Theorem in 3.2 for exactly
+  what changed and why an earlier version of this document claimed the stronger, unproven
+  thing. If you deploy `calibrate()`'s threshold and want the conditional guarantee, you do
+  not have it; you have Theorem 4's construction available instead, at Theorem 4's cost.
+- This does not claim `n_cal=30,000` is the minimum cost of an efficient conditional-risk
+  calibrator (Theorem 4) — only that it is *a* cost that works, via one specific construction
+  (combined ratio estimator, empirical-Bernstein, Bonferroni-corrected search). No sample-
+  complexity lower bound is established; three cheaper, more naive constructions failed first
+  (Section 6, Parts F and H), and the true minimum achievable cost remains open.
 - This does not claim any particular skip rate or realized speedup for Archie's Qwen3-1.7B
   candidate. That number depends on how well the chosen `s_t` ranks `TV(q_t, p_t)` for this
   specific model and task distribution, and is only knowable by running the calibration
@@ -586,8 +609,34 @@ has narrowed to roughly the width of run-to-run noise, while conditional calibra
 rate is still a third of what joint calibration got with a fraction of the data. The
 per-sequence-ratio construction's coarseness (Section 3.6: a sequence with one skipped token
 contributes a `{0,1}` outcome, not a continuum) is enough to swallow most of what a tighter
-concentration inequality can offer. This is Open Problem 4's answer to "was Bernstein the
-missing piece": no — real help, wrong order of magnitude.
+concentration inequality can offer on top of it. This part's answer to "was Bernstein the
+missing piece": no, by itself — real help, wrong order of magnitude. Part I changes the
+estimator, not just the inequality.
+
+**Part I — does the combined ratio estimator (Cochran, 1977), correctly bounded and
+correctly searched, actually close the gap?** `calibrate_combined_ratio_bernstein`: empirical-
+Bernstein on the raw per-sequence numerator/denominator *counts* (not per-sequence ratios),
+with a Bonferroni-corrected full-grid scan (`delta/(2M)` per point) rather than the
+break-at-first-failure walk that is only valid under the monotonicity Section 3.2 relies on
+and that this construction does not have. 12 trials per budget, plus one budget beyond Part
+H's range:
+
+| `n_cal` | skip rate | mean conditional risk | conditional violations |
+|---|---|---|---|
+| 300 | 0.0% | 0.0% | 0 / 12 |
+| 1,000 | 0.0% | 0.0% | 0 / 12 |
+| 3,000 | 0.0% | 0.0% | 0 / 12 |
+| 10,000 | 28.1% | 0.082 | 0 / 12 |
+| **30,000** | **31.5%** | **0.092** | **0 / 12** |
+
+At `n_cal=30,000` this matches — technically slightly exceeds — joint calibration's 31.3% skip
+rate at `n_cal=300` (Part A), while controlling the conditional risk that calibration never
+covered. It is not a free lunch (still 0% at the first three budgets; the transition is steep,
+not gradual, somewhere between 3,000 and 10,000), and it is not a proof that 100x is the
+*necessary* cost, only that it is *sufficient* via this specific construction. But the
+practical form of Open Problem 4 — does a working, distribution-free conditional-risk
+calibrator exist at all, at a cost someone could actually pay — now has a yes, with a number
+attached, where three earlier attempts had a flat no.
 
 ## 7. Unified theorem statements
 
@@ -612,7 +661,7 @@ with probability >= 1 - delta over the calibration draw:
 ```
 
 This is the corrected form of the guarantee this entire document is built on. It is *not*
-`Pr[TV > tau | skip] <= alpha` — see Theorem/Open Problem 4 for that quantity.
+`Pr[TV > tau | skip] <= alpha` — see Theorem 4 for that quantity.
 
 **Proposition 2 (Token-level pooling's failure has a name and a formula).** *Status: the
 underlying design-effect result is a proven, standard fact from clustered-sampling theory
@@ -643,40 +692,55 @@ covered by Theorem 1, rose to a mean of `0.141` and exceeded the same nominal bu
 with `T`) remains the only attempted *formal* treatment of long-horizon compounding, with
 `beta` unmeasured and the bound unverified for tightness.
 
-**Theorem/Open Problem 4 (Conditional-risk calibration).** *Status: open. Three candidate
-fixes were tried and none closes the gap at Theorem 1's budget; failure of three specific
-constructions is not a proof that none exists.*
+**Theorem 4 (Conditional-risk calibration is achievable, at a quantified cost).** *Status:
+resolved in the practical sense (a working construction was found and empirically verified);
+open in the theoretical sense (no lower bound establishes that this construction's cost is
+necessary, only that it is sufficient). Three earlier natural constructions failed first,
+and the reasons for each failure are established with more confidence than the fourth one's
+success.*
 
-Does a computationally cheap, distribution-free procedure exist achieving
-`Pr[TV > tau | skip] <= alpha` with probability `>= 1 - delta`, at a calibration budget
-comparable to Theorem 1's (`n_cal` on the order of 300 sequences, in this document's
-parameter regime)? Three natural constructions were tested and none gets there:
+Does a distribution-free procedure exist achieving `Pr[TV > tau | skip] <= alpha` with
+probability `>= 1 - delta`, at a calibration budget in reach of Theorem 1's (`n_cal` on the
+order of 300 sequences)? At *that specific budget*, no construction tried here achieves it.
+At a larger budget, yes:
 
-1. A per-sequence ratio estimator with a Hoeffding bound (Section 6, Part F) — collapses to
-   a near-zero skip rate at `n_cal=300` (high per-sequence variance when few tokens are
-   skipped: a sequence with one skip contributes a `{0,1}` outcome, not a smoothly-averaged
-   one).
-2. A ratio-of-sums bounded via two range-scaled Hoeffding bounds (Section 6, Part F) — worse
-   still, since the count range `[0, T]` is far looser than the values the sums actually
-   take.
-3. The same per-sequence ratio estimator with an empirical-Bernstein bound instead of
-   Hoeffding (Section 6, Part H) — genuinely, measurably tighter (not a null result), and
-   still nowhere close: still 0% skip at `n_cal=300`, and even at `n_cal=10,000` (33x the
-   budget) reaches only a third of joint calibration's skip rate at 1/33rd the data, with
-   Bernstein's advantage over plain Hoeffding narrowing as `n_cal` grows rather than opening
-   up. The bottleneck is not primarily which concentration inequality is used — it's the
-   per-sequence-ratio construction's coarseness itself, which a tighter inequality can only
-   partially compensate for.
+1. A per-sequence ratio estimator with a Hoeffding bound (Section 6, Part F) — collapses at
+   `n_cal=300` (a sequence with one skipped token contributes a coarse `{0,1}` outcome, high
+   variance).
+2. A ratio-of-sums bounded via two range-scaled Hoeffding bounds (Section 6, Part F) — fails
+   even harder, and — checked directly with a valid, non-monotonicity-dependent search — still
+   fails even at `n_cal=30,000`; the count range `[0, T]` really is too loose a scale for this
+   bound, independent of any search-procedure issue.
+3. The same per-sequence ratio estimator with empirical-Bernstein instead of Hoeffding
+   (Section 6, Part H) — genuinely tighter, still collapses at practical budgets: only a third
+   of joint calibration's skip rate even at 33x the data.
+4. **The combined ratio estimator (Cochran, 1977) — sums, not per-sequence ratios — bounded
+   with empirical-Bernstein on the raw counts, searched via a Bonferroni-corrected full grid
+   scan instead of the break-at-first-failure walk that requires monotonicity this
+   construction doesn't have (Section 6, Part I).** This one works: `31.5%` skip rate at
+   `0.092` mean conditional risk, `n_cal=30,000` — matching joint calibration's `31.3%` at
+   `n_cal=300`, at roughly 100x the data, with zero conditional violations across the trials
+   run. It still collapses to 0% at `n_cal <= 3,000` — the transition is steep, not gradual.
 
-All three failures are consistent with, but do not prove, a genuine statistical hardness
-separation between calibrating the joint risk and calibrating the conditional risk. What
-would actually close this: either a construction that doesn't discard information the way a
-per-sequence ratio does (some form of token-level pooling for the ratio specifically, without
-reintroducing Section 3.1's original i.i.d. violation — not obviously possible), or accepting
-that the conditional guarantee costs meaningfully more calibration data than the joint one at
-any fixed concentration inequality, and budgeting for that rather than expecting parity. This
-document closes here — with a compiled, correctly-labeled set of results, one attempted and
-unsuccessful fix beyond the first two, and one still-open problem — rather than past it.
+What separated success from failure was not one factor but three, independently confirmed:
+the *estimator* (combined-ratio beats separate-ratio when unit sizes vary, a standard survey-
+sampling result, not derived here), the *concentration inequality* (Bernstein beats Hoeffding
+when true variance is well below the worst case, confirmed by comparing #2 against #4's
+Bernstein-bounded version of the same ratio-of-sums idea), and the *search procedure*
+(Bonferroni beats an invalid monotonicity assumption — checked directly: a spurious failure at
+one `lambda` masked 25 genuinely safe points immediately below it in one calibration draw).
+Getting any one of the three wrong reproduces one of constructions #1-3's failures even while
+holding the other two fixed; #4 required getting all three right at once, and was only found
+by testing each factor in isolation after the first three attempts, not by reasoning it out in
+advance.
+
+This does not prove `n_cal=30,000` is the *minimum* cost of an efficient conditional-risk
+calibrator — only that it is *a* cost that works, via *this* construction. A genuine sample-
+complexity lower bound, which would turn "achievable at this cost" into "this cost is
+necessary," is not established here and is the actual remaining open problem. What is
+established: the practical question this section opened with — does an efficient-enough
+conditional-risk calibrator exist at all, or is the conditional guarantee simply out of reach
+by these methods — has a yes, with a number attached, not a shrug.
 
 ## 8. References
 
@@ -705,3 +769,9 @@ unsuccessful fix beyond the first two, and one still-open problem — rather tha
 - Shrout, Fleiss, "Intraclass Correlations: Uses in Assessing Rater Reliability," 1979 — the
   one-way random-effects ANOVA intraclass-correlation estimator used to measure `rho` directly
   in Section 6, Part G, rather than assuming a value.
+- Cochran, W. G., "Sampling Techniques," 3rd ed., 1977 — source of the combined-ratio-
+  estimator-vs-separate-ratio-estimator distinction underlying Theorem 4 / Section 6, Part I:
+  summing numerator and denominator across units before dividing is standardly more efficient
+  than averaging per-unit ratios when unit sizes vary, which is exactly what let Part I's
+  construction succeed where Part F's per-sequence-ratio attempt (Cochran's "separate" form)
+  did not.

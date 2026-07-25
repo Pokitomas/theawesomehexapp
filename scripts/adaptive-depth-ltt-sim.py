@@ -229,6 +229,78 @@ def calibrate_conditional_bernstein(sequences, grid, delta: float):
     return lambda_hat
 
 
+def bernstein_ucb_raw(values, b: float, delta: float) -> float:
+    """Empirical-Bernstein UCB for values bounded in [0, b] (not normalized to [0,1] --
+    used for raw per-sequence counts, which live in [0, T])."""
+    n = len(values)
+    if n <= 1:
+        return b
+    mean = sum(values) / n
+    var = sum((x - mean) ** 2 for x in values) / (n - 1)
+    term1 = math.sqrt(2.0 * var * math.log(2.0 / delta) / n)
+    term2 = 7.0 * b * math.log(2.0 / delta) / (3.0 * (n - 1))
+    return mean + term1 + term2
+
+
+def bernstein_lcb_raw(values, b: float, delta: float) -> float:
+    n = len(values)
+    if n <= 1:
+        return 0.0
+    mean = sum(values) / n
+    var = sum((x - mean) ** 2 for x in values) / (n - 1)
+    term1 = math.sqrt(2.0 * var * math.log(2.0 / delta) / n)
+    term2 = 7.0 * b * math.log(2.0 / delta) / (3.0 * (n - 1))
+    return max(0.0, mean - term1 - term2)
+
+
+def calibrate_combined_ratio_bernstein(sequences, grid, delta: float):
+    """A fourth attempt at conditional-risk calibration, found only after the first
+    "ratio-of-sums" attempt (calibrate_ratio_of_sums_range_scaled, tested in Part F) was
+    dismissed as a dead end. Two things were wrong with that dismissal, not one:
+
+    1. It bounded numerator and denominator sums with plain (range-scaled) Hoeffding,
+       which is loose the same way calibrate_conditional's per-sequence-Hoeffding was
+       loose -- fixed here by using empirical-Bernstein (the raw, unnormalized version
+       above) on the per-sequence COUNTS instead of ratios. This also isolates the
+       actual known-better estimator: survey sampling calls U_sum/V_sum the "combined
+       ratio estimator" and the per-sequence mean-of-ratios the "separate ratio
+       estimator" (Cochran, 1977); the combined estimator is standardly more efficient
+       when unit sizes (here, skip counts per sequence) vary, which they do heavily.
+    2. The grid search itself was invalid for this construction. calibrate() and
+       calibrate_conditional() can walk the grid and stop at the first failure because
+       their UCB's slack term does not depend on lambda, which makes R_plus provably
+       monotone (Section 3.2) -- the empirical-Bernstein slack DOES depend on lambda
+       (through the empirical variance, which is not monotone as small-denominator
+       sequences enter and leave the qualifying set), so "stop at first failure" can
+       -- and, checked directly, does -- stop at a transient bad point and silently
+       discard genuinely safe lambdas further down. The valid fix without assuming
+       monotonicity: Bonferroni across all M grid points (test each at delta/(2M), the
+       extra factor of 2 for the two one-sided U/V bounds), scan the WHOLE grid, keep
+       the most aggressive (smallest) lambda that passes its own test. This is a
+       genuine validity requirement, not an optimization -- the non-Bonferroni version
+       of this exact function scored much better numbers that were not actually valid.
+    """
+    lookups = [seq_conditional_lookup(s) for s in sequences]
+    M = len(grid)
+    per_point_delta = delta / (2.0 * M)
+    lambda_hat = grid[0]
+    for lam in grid:
+        us, vs = [], []
+        for counts in lookups:
+            u, v = counts(lam)
+            us.append(u)
+            vs.append(v)
+        if sum(vs) == 0:
+            continue  # vacuous (nobody skips): grid[0] already covers this case
+        u_plus = bernstein_ucb_raw(us, T, per_point_delta)
+        v_minus = bernstein_lcb_raw(vs, T, per_point_delta)
+        if v_minus <= 0:
+            continue  # denominator not yet certifiable at this lambda; keep scanning
+        if u_plus / v_minus <= ALPHA:
+            lambda_hat = lam  # scan the whole grid; take the most aggressive pass
+    return lambda_hat
+
+
 def calibrate_naive_token_pooled(sequences, grid, delta: float):
     """The rejected earlier-draft approach: treat every token as an independent sample,
     using n*T as the effective sample size instead of n."""
@@ -702,6 +774,47 @@ def part_h(rng: random.Random):
     }
 
 
+def part_i(rng: random.Random):
+    """Part H's Hoeffding/Bernstein comparison both used the per-sequence-ratio
+    construction ("separate ratio estimator"). This checks calibrate_combined_ratio_
+    bernstein -- the combined-ratio-estimator + Bernstein + Bonferroni-corrected-grid
+    construction found while investigating Part F/H further -- across the same budget
+    sweep, plus one larger budget, to see whether picking a better-suited estimator
+    (not just a better inequality on top of the same estimator) actually closes more
+    of the gap to calibrate()'s joint-risk efficiency."""
+    n_trials = 12
+    n_holdout = 4000
+    seq_offset_sd = 0.05
+    n_cals = [300, 1000, 3000, 10000, 30000]
+
+    results = {}
+    for n_cal in n_cals:
+        holdout = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_holdout)]
+        skip, cond, violations = [], [], 0
+        for _ in range(n_trials):
+            cal = [make_teacher_forced_sequence(rng, seq_offset_sd) for _ in range(n_cal)]
+            lam = calibrate_combined_ratio_bernstein(cal, GRID, DELTA)
+            _, c, s = risk_breakdown(lam, holdout)
+            skip.append(s)
+            cond.append(c)
+            if c > ALPHA:
+                violations += 1
+        results[f"n_cal_{n_cal}"] = {
+            "mean_skip_rate": statistics.mean(skip),
+            "mean_conditional_risk": statistics.mean(cond),
+            "conditional_violation_rate": violations / n_trials,
+        }
+
+    return {
+        "n_trials_per_budget": n_trials,
+        "n_holdout_per_budget": n_holdout,
+        "target_alpha": ALPHA,
+        "for_reference_joint_calibrate_at_n_cal_300_skip_rate": 0.313,
+        "for_reference_part_h_bernstein_per_sequence_ratio_at_n_cal_10000_skip_rate": 0.109,
+        "by_calibration_budget": results,
+    }
+
+
 def main():
     rng = random.Random(SEED)
     result = {
@@ -716,6 +829,7 @@ def main():
         "part_f_does_calibrating_the_conditional_risk_directly_work": part_f(rng),
         "part_g_design_effect_explains_the_naive_pooling_violation_trend": part_g(rng),
         "part_h_does_empirical_bernstein_fix_conditional_calibration": part_h(rng),
+        "part_i_does_the_combined_ratio_estimator_do_better": part_i(rng),
     }
     print(json.dumps(result, indent=2))
 
