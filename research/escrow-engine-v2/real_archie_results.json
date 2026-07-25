@@ -1,0 +1,80 @@
+{
+  "schema": "escrow-real-archie-verdict/v1",
+  "model": {
+    "sha256": "e2b829c86b1be730b8aef7617edd3b62dd819fe5bad41673e6dd284950378ded",
+    "parameters": 114215040,
+    "layers": 20,
+    "d_model": 640,
+    "checkpoint_bytes": 456266815
+  },
+  "data": {
+    "contexts": 288,
+    "context_bytes": 96,
+    "genres": 4,
+    "byte_classes": 6,
+    "file_disjoint_folds": 5
+  },
+  "rejected": {
+    "early_exit": {
+      "reason": "No nonvacuous artifact use through TV tau=0.30; tau=0.40 produced only 0.23% nominal gain and a context-level failure."
+    },
+    "bfloat16": {
+      "cost_ratio": 1.411491637324225,
+      "reason": "Slower than FP32 on target CPU."
+    },
+    "exact_tail_int8": {
+      "cost_ratio": 0.9452710865220073,
+      "median_speedup": 1.0247311312821743,
+      "context_violations": 37,
+      "reason": "Tiny gain and context violations in every evaluated split."
+    },
+    "hard_per_context_int8": {
+      "reason": "Factor-level envelope held, but raw int8 had prompt-level TV spikes up to 0.2252."
+    }
+  },
+  "surviving": {
+    "controller": "batch-8 dynamic-int8 probe + conformal residual gate + FP32 subset fallback + factor debt gate",
+    "tau": 0.1,
+    "conservative_alpha_requested": 0.01,
+    "conservative_file_cv": {
+      "test_contexts": 288,
+      "total_accepted": 126,
+      "total_fallbacks": 119,
+      "total_unsafe": 0,
+      "factor_violations": 0
+    },
+    "conservative_microbatch": {
+      "aggregate_speedup": 1.0313504605172574,
+      "aggregate_cost_s": 66.66763372900002,
+      "aggregate_baseline_s": 68.757694748,
+      "fold_speedups": [0.9071153196614774, 1.0390961743288563, 1.0028339890057059, 1.1711434078362215, 1.0650516302271902]
+    },
+    "less_conservative_alpha_requested": 0.05,
+    "less_conservative_file_cv": {
+      "test_contexts": 288,
+      "total_accepted": 159,
+      "total_fallbacks": 26,
+      "total_unsafe": 1,
+      "factor_violations": 0
+    },
+    "less_conservative_microbatch": {
+      "aggregate_speedup": 1.190115949494441,
+      "aggregate_cost_s": 57.77394612450001,
+      "aggregate_baseline_s": 68.757694748,
+      "fold_speedups": [0.9990779002370448, 1.148402637262883, 1.3699529787154725, 1.223823191769813, 1.3582632146552882]
+    }
+  },
+  "costs": {
+    "fp32_batch8_seconds": 1.8961427589993036,
+    "int8_batch8_seconds": 0.5857571074998305,
+    "int8_batch8_ratio": 0.308920163061,
+    "observed_quantization_compile_seconds_approx": 10.284,
+    "conservative_setup_seconds_range": [79.777196262, 89.704795728],
+    "note": "One-run total-cost advantage is not established."
+  },
+  "verdict": {
+    "new_science": "not established",
+    "real_result": "A proof-carrying statistical microbatch integration is executable and shows a small aggregate runtime gain under a conservative gate, while hard per-context certification and robust total-cost superiority fail.",
+    "next_required": "Replicate on independent checkpoints and hardware; replace post-int8 fallback with a pre-execution risk signal or fused exact residual."
+  }
+}
