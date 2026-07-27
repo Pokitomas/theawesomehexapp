@@ -1,0 +1,61 @@
+{
+  "boundary": "This is a complete receipt-bound CPU campaign, not a production-scale or independent external-teacher admission run.",
+  "branch": "agent/archie-generalized-program-v1-20260721",
+  "budget": {
+    "all_budget_accounted": true,
+    "completed_optimizer_steps": 1008,
+    "planned_candidates": 42,
+    "planned_optimizer_steps": 1008,
+    "total_estimated_training_flops": 42689327616,
+    "total_event_tokens": 145152
+  },
+  "campaign_complete": true,
+  "canonical_decision": "not-admitted",
+  "evidence_digests": {
+    "campaign_manifest_sha256": "5244e2c31b3bcbf8779e5017fd8b9c6dcf7680bfeded8a3a396b000d59093240",
+    "checkpoint_manifest_sha256": "5c1ebaac2fb23ce8925f8d7d72bad7ccdc4033058b95859df38539464d469e70",
+    "decision": "not-admitted",
+    "falsification_report_sha256": "41f10c2cac0dc6e22b4bdddf3c86ef191035d309f05783577cd4556cb4be1eb8",
+    "ledger_sha256": "35a9250367220eb1355b068eeb56590fc4c5d5277d011c5bd67b729f99e4fb62",
+    "manifest_sha256": "0e858f547159ec19e4636d9b751c66533075975fb2ce4fc5aad33d740137f180",
+    "result_cube_sha256": "644d6241f4966730069c3aad442dd401a0b5512b709288e21c42059b3fb14166",
+    "schema": "archie-causal-mechanism-campaign/v2"
+  },
+  "executed_at": "2026-07-21T13:19:28Z",
+  "falsification": {
+    "baseline": "attention_baseline",
+    "eliminated_hypotheses": [],
+    "interpretation": "Survival requires a positive conservative confidence delta over the matched attention baseline; unresolved is not promotion.",
+    "promotion_margin": 0.015,
+    "surviving_mechanisms": [
+      "dynamic_transport",
+      "graph_routing",
+      "reversible_state",
+      "sparse_event_memory",
+      "object_recurrent",
+      "neural_interpreter"
+    ],
+    "unresolved_mechanisms": []
+  },
+  "family_mechanism_scores": {
+    "attention_baseline": {"ci95_high": 0.2947804480341453, "ci95_low": 0.24609752716292016, "mean": 0.27043898759853274, "n": 6, "sem": 0.012419112467149284, "std": 0.030420488602752857},
+    "dynamic_transport": {"ci95_high": 0.5008687681932202, "ci95_low": 0.4465940324060596, "mean": 0.47373140029963995, "n": 6, "sem": 0.013845595864071605, "std": 0.033914645051764586},
+    "graph_routing": {"ci95_high": 0.5114522450164679, "ci95_low": 0.42943193057742274, "mean": 0.47044208779694535, "n": 6, "sem": 0.020923549601797247, "std": 0.0512520201322174},
+    "neural_interpreter": {"ci95_high": 0.49398850246138626, "ci95_low": 0.430988555076949, "mean": 0.46248852876916763, "n": 6, "sem": 0.01607141514909114, "std": 0.03936676655970893},
+    "object_recurrent": {"ci95_high": 0.5129863936345391, "ci95_low": 0.4344832244210164, "mean": 0.47373480902777776, "n": 6, "sem": 0.02002631867691908, "std": 0.04905426218482047},
+    "reversible_state": {"ci95_high": 0.5316474710511314, "ci95_low": 0.4703062720017297, "mean": 0.5009768715264306, "n": 6, "sem": 0.015648265063622883, "std": 0.038330264765696606},
+    "sparse_event_memory": {"ci95_high": 0.4799685330829817, "ci95_low": 0.42902886374376237, "mean": 0.45449869841337204, "n": 6, "sem": 0.012994813606943717, "std": 0.031830662639587906}
+  },
+  "head_sha": "255e1110bf6e5db90733e30efcfb660677677951",
+  "pull_request": 697,
+  "repository": "Pokitomas/theawesomehexapp",
+  "schema": "archie-causal-mechanism-full-budget-receipt/v1",
+  "shared_failure": "terminal_exactness_failure=1.0 for every family observation",
+  "workflow_artifact": {
+    "id": 8496456365,
+    "name": "archie-causal-mechanism-full-budget-29833720111",
+    "retention_expires_at": "2026-08-20T13:19:26Z",
+    "sha256": "b7da700e4f9a9c6b9cba11706a5668d16a55a1007aad38ccb972f6fd265e87ff"
+  },
+  "workflow_run_id": 29833720111
+}

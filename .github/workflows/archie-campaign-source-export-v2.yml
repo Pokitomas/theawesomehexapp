@@ -1,0 +1,55 @@
+name: Archie causal campaign source export v2
+
+on:
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-campaign-source-export-v2.yml
+      - foundry/archie-protocol/latent_world_benchmark/materialize.py
+      - foundry/archie-protocol/latent_world_benchmark/payload.part*
+      - foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+      - foundry/archie-protocol/latent_world_benchmark/campaign_v2/payload.part*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-campaign-source-export-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Materialize and export exact campaign source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+
+      - name: Materialize digest-bound sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 foundry/archie-protocol/latent_world_benchmark/materialize.py
+          python3 foundry/archie-protocol/latent_world_benchmark/campaign_v2/materialize.py
+          cd foundry/archie-protocol/latent_world_benchmark
+          python3 -m py_compile latent_world_benchmark.py full_budget_campaign.py test_benchmark.py test_full_budget_campaign.py
+          mkdir -p source-export
+          cp latent_world_benchmark.py full_budget_campaign.py full_budget_profile.json \
+             test_benchmark.py test_full_budget_campaign.py FULL_BUDGET_CAMPAIGN.md README.md \
+             source-export/
+          find source-export -type f -print0 | sort -z | xargs -0 sha256sum > source-export/SHA256SUMS
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-campaign-source-${{ github.run_id }}
+          path: foundry/archie-protocol/latent_world_benchmark/source-export
+          if-no-files-found: error
+          retention-days: 7

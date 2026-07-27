@@ -1,0 +1,140 @@
+name: Archie terminal run observer
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+    paths:
+      - .github/workflows/archie-terminal-run-observer.yml
+      - foundry/archie-protocol/latent_world_benchmark/research/training-intent-*.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: archie-terminal-run-observer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observe:
+    name: Observe terminal tournament to completion
+    runs-on: ubuntu-24.04
+    timeout-minutes: 190
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_WORKFLOW_NAME: Archie terminal efficiency v3
+    steps:
+      - name: Resolve latest explicit terminal dispatch
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            target_sha="$(
+              gh api --paginate --slurp \
+                "/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/commits?per_page=100" \
+              | jq -r '[.[][] | select(.commit.message | contains("[run-terminal-v3]"))][-1].sha'
+            )"
+          else
+            target_sha="$(
+              gh api --paginate --slurp \
+                "/repos/${GITHUB_REPOSITORY}/commits?sha=agent/archie-generalized-program-v1-20260721&per_page=100" \
+              | jq -r '[.[][] | select(.commit.message | contains("[run-terminal-v3]"))][0].sha'
+            )"
+          fi
+          test -n "$target_sha" && test "$target_sha" != "null"
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "Resolved terminal dispatch: $target_sha"
+
+      - name: Poll push-triggered tournament
+        id: poll
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_sha="${{ steps.resolve.outputs.target_sha }}"
+          mkdir -p artifacts/terminal-run-observer
+          run_id=""
+          state=""
+          conclusion=""
+
+          for attempt in $(seq 1 185); do
+            run_json="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${target_sha}&event=push&per_page=100" \
+              | jq -c --arg name "$TARGET_WORKFLOW_NAME" \
+                  '[.workflow_runs[] | select(.name == $name)] | sort_by(.created_at) | last'
+            )"
+            if [[ -n "$run_json" && "$run_json" != "null" ]]; then
+              run_id="$(jq -r '.id' <<<"$run_json")"
+              state="$(jq -r '.status' <<<"$run_json")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
+              printf 'attempt=%s run=%s status=%s conclusion=%s\n' "$attempt" "$run_id" "$state" "${conclusion:-pending}"
+              jq -S . <<<"$run_json" > artifacts/terminal-run-observer/workflow-run.json
+              if [[ "$state" == "completed" ]]; then
+                break
+              fi
+            else
+              printf 'attempt=%s run=not-yet-visible\n' "$attempt"
+            fi
+            sleep 60
+          done
+
+          test -n "$run_id"
+          test "$state" = "completed"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+
+          gh api --paginate --slurp \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
+          | jq '{jobs: [.[][].jobs[] | {id, name, status, conclusion, started_at, completed_at, steps}]}' \
+          > artifacts/terminal-run-observer/jobs.json
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
+            --jq '{artifacts: [.artifacts[] | {id, name, size_in_bytes, expired, created_at, expires_at}]}' \
+            > artifacts/terminal-run-observer/artifacts.json
+
+          jq -n -S \
+            --arg schema "archie-terminal-run-observer/v1" \
+            --arg target_sha "$target_sha" \
+            --argjson run_id "$run_id" \
+            --arg status "$state" \
+            --arg conclusion "$conclusion" \
+            --slurpfile jobs artifacts/terminal-run-observer/jobs.json \
+            --slurpfile artifacts artifacts/terminal-run-observer/artifacts.json \
+            '{schema:$schema,target_sha:$target_sha,run_id:$run_id,status:$status,conclusion:$conclusion,jobs:$jobs[0].jobs,artifacts:$artifacts[0].artifacts}' \
+            > artifacts/terminal-run-observer/receipt.json
+          find artifacts/terminal-run-observer -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            > artifacts/terminal-run-observer/SHA256SUMS
+
+      - name: Publish bounded completion summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Archie terminal tournament observer"
+            echo
+            echo "- Dispatch SHA: \`${{ steps.resolve.outputs.target_sha }}\`"
+            echo "- Run: \`${{ steps.poll.outputs.run_id || 'unresolved' }}\`"
+            echo "- Conclusion: \`${{ steps.poll.outputs.conclusion || 'unresolved' }}\`"
+            if [[ -f artifacts/terminal-run-observer/jobs.json ]]; then
+              jq -r '.jobs[] | "- Job `\(.name)`: `\(.conclusion // .status)`"' artifacts/terminal-run-observer/jobs.json
+            fi
+            if [[ -f artifacts/terminal-run-observer/artifacts.json ]]; then
+              jq -r '.artifacts[] | "- Artifact `\(.name)`: \(.size_in_bytes) bytes; expires \(.expires_at)"' artifacts/terminal-run-observer/artifacts.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: archie-terminal-run-observer-${{ github.run_id }}
+          path: artifacts/terminal-run-observer
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Enforce observed completion
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.poll.outputs.conclusion }}" = "success"

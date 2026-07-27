@@ -1,0 +1,43 @@
+name: Archie generalized source export
+
+on:
+  pull_request:
+    branches:
+      - agent/archie-register-v4-admission-20260720
+  push:
+    branches:
+      - agent/archie-generalized-program-v1-20260721
+    paths:
+      - .github/workflows/archie-generalized-source-export.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Materialize typed-program sources
+        run: python3 foundry/archie-protocol/typed_program/materialize.py
+      - name: Package exact research sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/generalized-source
+          cp foundry/archie-protocol/typed_program/typed_program_student.py artifacts/generalized-source/
+          cp foundry/archie-protocol/typed_program/typed_program_blind_pack.py artifacts/generalized-source/
+          cp foundry/archie-protocol/typed_program/test_typed_program_student.py artifacts/generalized-source/
+          cp foundry/archie-protocol/typed_program/README.md artifacts/generalized-source/
+          cp .github/workflows/archie-typed-program-student.yml artifacts/generalized-source/
+          find artifacts/generalized-source -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > artifacts/generalized-source/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: archie-generalized-source-${{ github.run_id }}
+          path: artifacts/generalized-source
+          if-no-files-found: error
+          retention-days: 7

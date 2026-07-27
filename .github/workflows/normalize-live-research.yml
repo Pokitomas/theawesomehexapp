@@ -1,0 +1,66 @@
+name: Normalize live research sources
+
+on:
+  push:
+    paths:
+      - scripts/normalize-live-research.py
+      - .github/workflows/normalize-live-research.yml
+  pull_request:
+    paths:
+      - scripts/normalize-live-research.py
+      - .github/workflows/normalize-live-research.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: normalize-live-research-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.x"
+      - name: Rewrite research surfaces around live sources
+        run: python3 scripts/normalize-live-research.py
+      - name: Package normalized tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/live-normalized
+          git rev-parse HEAD > /tmp/live-normalized/parent-commit.txt
+          git rev-parse 'HEAD^{tree}' > /tmp/live-normalized/base-tree.txt
+          git diff --binary > /tmp/live-normalized/normalized.patch
+          git status --porcelain=v1 -z > /tmp/live-normalized/status.z
+          python3 - <<'PY'
+          import subprocess
+          import tarfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          raw = subprocess.check_output([
+              "git", "diff", "--name-only", "--diff-filter=ACMRTUXB", "-z"
+          ])
+          paths = [Path(item.decode()) for item in raw.split(b"\0") if item]
+          with tarfile.open("/tmp/live-normalized/files.tar.gz", "w:gz") as archive:
+              for relative in paths:
+                  path = root / relative
+                  if path.is_file():
+                      archive.add(path, arcname=str(relative))
+          (Path("/tmp/live-normalized") / "paths.txt").write_text(
+              "\n".join(str(path) for path in paths) + "\n"
+          )
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: live-research-normalized
+          path: /tmp/live-normalized
+          if-no-files-found: error
