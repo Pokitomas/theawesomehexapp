@@ -342,6 +342,33 @@ long-range redundancy it structurally cannot see.
   Triton and reports loss agreement of **exactly 0.0**. E1 found ≤ 2.7e-15 across
   three parenthesizations in float64; the GPU implementation is exact here.
 
+### The transport ablation does not answer the question
+
+Two smoke checkpoints exist at matched config, `transport_cap` 0.0 against 0.2.
+They are **inconclusive**, and should not be cited either way:
+
+| | BPB | 95% CI |
+|---|---:|---|
+| cap-zero (`transport_cap=0.0`) | 5.2683 | [5.1060, 5.4306] |
+| full (`transport_cap=0.2`) | 5.1626 | [4.9978, 5.3274] |
+
+Difference 0.1057 BPB in favour of transport, standard error **0.1180 BPB**,
+t = 0.896. The 95% interval on the difference is **[−0.126, +0.337]** — it spans
+zero comfortably.
+
+Worse than merely underpowered: both models sit at 5.16–5.27 BPB against an
+order-0 byte-frequency floor of **5.4439**, so each has learned only 0.18–0.28
+BPB beyond raw byte statistics, on 129 windows. Neither has begun to use its
+recurrent state at all, which is the exact faculty the ablation is meant to
+test. They are 4.2× worse than the real run and do not probe the regime the
+question is about.
+
+Court IV expected the measured relative central commutator of 0.6716 to imply a
+visible ablation gap. At smoke scale it does not appear. **That expectation is
+untested, not confirmed.** Answering it needs one 30,000-step run at
+`transport_cap=0.0` matching `full-triton-seed-113` in every other respect,
+scored on the same digest-bound suite — about 6.4 hours on the same RTX 2060.
+
 ### One caveat on the harness
 
 The contamination check passes with reason *"corpora have distinct SHA-256
