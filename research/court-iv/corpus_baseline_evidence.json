@@ -1,0 +1,40 @@
+{
+  "schema": "archie-court-iv-baseline/v1",
+  "measured": "2026-08-01",
+  "corpus": "archie-sidepus-public-pursuit-v2/corpus/development.u16",
+  "corpus_bytes_on_disk": 167324624,
+  "corpus_tokens_total": 83662312,
+  "sample": {
+    "tokens_read": 64000000,
+    "literal_bytes": 63989322,
+    "special_tokens_dropped": 10678
+  },
+  "floors_bits_per_byte": {
+    "uniform_over_256": 8.0,
+    "order_0_byte_frequencies": 5.4439,
+    "gzip_-9": 1.4337,
+    "bzip2_-9": 1.2369,
+    "xz_-9e": 0.9794,
+    "zstd_-19": null
+  },
+  "context_available_bytes": {
+    "gzip_-9": 32768,
+    "bzip2_-9": 900000,
+    "xz_-9e": 67108864,
+    "archie_event_semidirect": 512
+  },
+  "model_reference_point": {
+    "value_bits_per_byte": 1.21,
+    "source": "windowed mean of TRAINING loss, steps 21000-26000, run full-triton-seed-113",
+    "projected_at_step_30000": 1.178,
+    "is_held_out": false,
+    "claim_boundary": "Training loss used as a provisional stand-in for held-out BPB. The training run consumes 307,200,000 of 1,563,218,387 available train.u16 tokens (19.6% of one epoch) with no byte repeated, so memorization pressure is low and the two should be close -- but this is an argument, not a measurement. Replace with a real development.u16 evaluation before drawing conclusions."
+  },
+  "reading": {
+    "beats": ["gzip_-9", "bzip2_-9"],
+    "loses_to": ["xz_-9e"],
+    "context_ratio_vs_bzip2": 1758,
+    "context_ratio_vs_xz": 131072,
+    "interpretation": "The model reaches bzip2-class compression using roughly 1758x less context, and gzip-class using 64x less. It loses only to the compressor whose advantage is precisely long-range reuse. This is the signature ARCHIE_COURT_IV.md section 5 predicts: strong local modeling, structurally capped long-range reach."
+  }
+}

@@ -241,6 +241,41 @@ Triton `associative_scan` kernel is untouched.
 
 ---
 
+## 5b. First measured corpus baseline (added 2026-08-01)
+
+Measured on 64,000,000 tokens of `development.u16` — the real held-out split,
+not synthetic data. Evidence: `corpus_baseline_evidence.json`.
+
+| what | context available | BPB |
+|---|---:|---:|
+| uniform over 256 | none | 8.0000 |
+| order-0 byte frequencies | none | 5.4439 |
+| gzip -9 | 32 KB | 1.4337 |
+| **ARCHIE (training loss, ~step 26k)** | **512 B** | **~1.21** |
+| bzip2 -9 | 900 KB | 1.2369 |
+| xz -9e | 64 MB | 0.9794 |
+
+The model reaches **bzip2-class compression with ~1758× less context** and
+gzip-class with 64× less. It loses only to `xz`, whose entire advantage is
+long-range reuse across a 64 MB dictionary.
+
+That is exactly the signature §5 predicts. Linux kernel source is enormously
+redundant *at long range* — repeated license headers, near-identical driver
+scaffolding, identifiers recurring across files — and that is precisely the
+redundancy a 512-byte window cannot reach and a 64 MB dictionary harvests for
+free. The model is not losing because its local modeling is weak; per byte of
+context it is the strongest thing in the table.
+
+**Caveat, load-bearing:** the model row is *training* loss standing in for
+held-out BPB. The run consumes 307,200,000 of 1,563,218,387 available training
+tokens (19.6% of one epoch, no byte repeated), so memorization pressure is low
+and the two should be close — but that is an argument, not a measurement.
+Replace it with a real `development.u16` evaluation before concluding anything.
+
+If the §5 hyperparameter ladder works, this table is where it should show up:
+a model that can actually hold 512 tokens, rather than ~50, should close most of
+the 0.23 BPB gap to `xz` without any change to the composition law.
+
 ## 6. What Court IV does **not** establish
 
 This harness measures the transition algebra and its hyperparameters. It does
