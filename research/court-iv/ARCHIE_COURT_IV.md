@@ -84,6 +84,15 @@ numerically safe.
 if the depthwise convolution carries no bias term. That closes the audit's
 count and recovers a detail the audit did not state. Distribution:
 
+> **Confirmed against the real checkpoint (2026-08-01).** The step-30,000 state
+> dict of `full-triton-seed-113` holds 21 tensors totalling **45,698,560**
+> values — the audited 45,697,024 trainable parameters plus the 1,536-value
+> non-trainable `retention_ceiling` buffer. The tensor list runs
+> `local_depthwise.weight (2048, 1, 7)` directly into `local_projection.weight`
+> with **no `local_depthwise.bias`**, which is exactly the missing-bias
+> condition this reconciliation predicted. `initial_state` is `(1536, 3)` and
+> `retention_ceiling` is `(1536,)`, both as assumed.
+
 | component | parameters | share |
 |---|---:|---:|
 | coefficient output head (2048 → 10752) | 22,030,848 | 48.2 % |
