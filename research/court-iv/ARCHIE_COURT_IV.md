@@ -285,6 +285,74 @@ If the §5 hyperparameter ladder works, this table is where it should show up:
 a model that can actually hold 512 tokens, rather than ~50, should close most of
 the 0.23 BPB gap to `xz` without any change to the composition law.
 
+## 5c. Held-out result and §5 confirmation (added 2026-08-01)
+
+The 30,000-step run finished and its own `fixed_eval` harness produced a
+receipted held-out number. Evidence: `heldout_result_evidence.json`.
+
+**Held-out: 1.2282 BPB**, 95% CI [1.2042, 1.2523], over 3,914 non-overlapping
+512-token windows and 2,000,054 target positions.
+
+| | BPB | vs model |
+|---|---:|---|
+| gzip -9 (32 KB) | 1.4337 | model better by 14.3% |
+| **ARCHIE held-out (512 B)** | **1.2282** | — |
+| bzip2 -9 (900 KB) | 1.2369 | **statistical tie** — floor sits inside the CI |
+| xz -9e (64 MB) | 0.9794 | model worse by 25.4% |
+
+Generalization gap against the windowed training mean of 1.218 is **+0.0102
+BPB**. §5b predicted this would be small because the run sees 19.6% of one epoch
+with no byte repeated. Confirmed.
+
+### The trade is real, and worse than §5 predicted
+
+The run also emits per-token transition diagnostics measured on held-out data.
+They are decisive:
+
+| measured | value | consequence |
+|---|---:|---|
+| mean retention `q` | 0.5594 | decay 0.5808 nats/token |
+| | | **1/e horizon 1.72 tokens** |
+| | | **half-life 1.19 tokens** |
+| mean \|transport\| coordinate | 0.07591 | 38.0% of the 0.2 cap |
+| implied denominator | 1.2277 | toll 0.2052 nats/token |
+| | | **35.3% of all forgetting** |
+| mean relative central commutator | 0.6716 | noncommutativity is live |
+
+§5 projected a 2.1-token horizon at *full* transport. The trained model runs
+**38%** of the transport cap and still averages a **1.72-token** horizon. The
+`(1 + |x| + |y| + |z|)` denominator alone causes **35.3% of all forgetting**.
+
+The relative central commutator of 0.67 settles the other open question: the
+Heisenberg term is not decorative. The model is genuinely using noncommutative
+transport — and paying for it in memory at exactly the exchange rate §5 derived.
+It chose transport over retention. The architecture made it choose.
+
+That is the whole story of this checkpoint. It reaches bzip2-class compression
+on a **1.7-token average memory**, which is a remarkable local model and an
+almost unused 4,608-number recurrent state. The 0.25 BPB it gives up to `xz` is
+long-range redundancy it structurally cannot see.
+
+### Two Court IV claims confirmed against the real run
+
+- **Contraction certificate (E1).** Observed `maximum_linear_infinity_norm` is
+  0.9980019927 against `exp(-0.002)` = 0.9980019987 — agreement to 9 decimals.
+  The analytic bound is tight and actually reached.
+- **Scan parity (E1).** The run's own preflight compares serial, reference and
+  Triton and reports loss agreement of **exactly 0.0**. E1 found ≤ 2.7e-15 across
+  three parenthesizations in float64; the GPU implementation is exact here.
+
+### One caveat on the harness
+
+The contamination check passes with reason *"corpora have distinct SHA-256
+digests."* That is weak: distinct digests prove only that the two files are not
+byte-identical, not that no held-out document also appears in training. The
+corpus metadata separately claims a by-source-document split, which if true is
+the real guarantee — but this check does not verify it. A document-level hash
+intersection over the 257/258 delimiters would. This does not materially
+threaten the headline number; it just should not be cited as proof of
+non-overlap.
+
 ## 6. What Court IV does **not** establish
 
 This harness measures the transition algebra and its hyperparameters. It does
