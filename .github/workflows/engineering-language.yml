@@ -4,24 +4,18 @@ on:
   pull_request:
     paths:
       - 'README.md'
-      - 'AGENTS.md'
-      - 'HANDOFF.md'
-      - 'ARCHIE_RUNTIME.md'
+      - 'EVIDENCE.md'
       - 'ENGINEERING_LANGUAGE.md'
       - '00-ARCHIE-MODEL/BENCHMARKS.json'
-      - 'archie-operator/index.html'
       - 'scripts/check-engineering-language.mjs'
       - '.github/workflows/engineering-language.yml'
   push:
     branches: [main]
     paths:
       - 'README.md'
-      - 'AGENTS.md'
-      - 'HANDOFF.md'
-      - 'ARCHIE_RUNTIME.md'
+      - 'EVIDENCE.md'
       - 'ENGINEERING_LANGUAGE.md'
       - '00-ARCHIE-MODEL/BENCHMARKS.json'
-      - 'archie-operator/index.html'
       - 'scripts/check-engineering-language.mjs'
       - '.github/workflows/engineering-language.yml'
   workflow_dispatch:
@@ -40,5 +34,5 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: '22'
-      - name: Check active engineering language
+      - name: Check retained engineering language
         run: node scripts/check-engineering-language.mjs
