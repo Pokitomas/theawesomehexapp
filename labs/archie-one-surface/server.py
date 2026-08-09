@@ -7,12 +7,24 @@ HOME = pathlib.Path(os.environ.get('ARCHIE_OBSERVED_HOME', '/home/awesomekai')).
 REMOTE = HOME / 'archie-remote'
 TRAIN_ROOTS = (HOME / 'runs', HOME / 'archie-quaternion-heisenberg-autoscale-v1', HOME / 'archie-lab-observer-v2')
 ROOM_TAIL_BYTES = 256 * 1024
-SECRET_FLAGS = ('token', 'password', 'passwd', 'secret', 'api-key', 'api_key', 'authorization', 'cookie', 'credential', 'private_key')
-SECRET_PATTERNS = (
-    re.compile(r'(?i)(bearer\s+)[A-Za-z0-9._~+\-/=]+'),
-    re.compile(r'(?i)\b(sk-[A-Za-z0-9_-]{12,})\b'),
-    re.compile(r'(?i)\b(gh[opsu]_[A-Za-z0-9]{12,})\b'),
-)
+SECRET_NAMES = {
+    'token', 'access_token', 'auth_token', 'bearer_token', 'api_key', 'apikey',
+    'password', 'passwd', 'secret', 'client_secret', 'authorization', 'cookie',
+    'private_key', 'signing_key', 'session_key', 'encryption_key',
+}
+
+
+def sensitive_name(value):
+    name = str(value or '').strip().lower().lstrip('-').replace('-', '_')
+    return (
+        name in SECRET_NAMES
+        or name.endswith('_access_token')
+        or name.endswith('_auth_token')
+        or name.endswith('_api_key')
+        or name.endswith('_client_secret')
+        or name.endswith('_password')
+        or name.endswith('_private_key')
+    )
 
 
 def read_json(path):
@@ -36,13 +48,18 @@ def tail_text(path, lines=14, max_bytes=128 * 1024):
 
 def redact_text(value):
     text = str(value or '')
-    for pattern in SECRET_PATTERNS:
-        text = pattern.sub(lambda match: f'{match.group(1) if match.lastindex else ""}[REDACTED]', text)
+    text = re.sub(r'(?i)(bearer\s+)[A-Za-z0-9._~+\-/=]+', r'\1[REDACTED]', text)
+    text = re.sub(r'(?i)\bsk-[A-Za-z0-9_-]{12,}\b', '[REDACTED]', text)
+    text = re.sub(r'(?i)\bgh[opsu]_[A-Za-z0-9]{12,}\b', '[REDACTED]', text)
+    text = re.sub(
+        r'(?i)([?&](?:access_token|auth_token|api_key|apikey|client_secret|password|secret)=)[^&#\s]+',
+        r'\1[REDACTED]', text
+    )
     return text
 
 
 def redact_value(value, key=''):
-    if any(flag in str(key).lower() for flag in SECRET_FLAGS):
+    if sensitive_name(key):
         return None if value is None else '[REDACTED]'
     if isinstance(value, dict):
         return {str(child_key): redact_value(child, str(child_key)) for child_key, child in value.items()}
@@ -60,17 +77,16 @@ def redact_argv(argv):
         tokens = str(argv or '').split()
     out, redact_next = [], False
     for token in tokens:
-        lower = token.lower()
         if redact_next:
             out.append('[REDACTED]')
             redact_next = False
             continue
         if token.startswith('--') and '=' in token:
             name, _value = token.split('=', 1)
-            out.append(f'{name}=[REDACTED]' if any(flag in name.lower() for flag in SECRET_FLAGS) else redact_text(token))
+            out.append(f'{name}=[REDACTED]' if sensitive_name(name) else redact_text(token))
             continue
         out.append(redact_text(token))
-        if token.startswith('--') and any(flag in lower for flag in SECRET_FLAGS):
+        if token.startswith('--') and sensitive_name(token):
             redact_next = True
     return ' '.join(shlex.quote(token) for token in out)
 
@@ -233,6 +249,7 @@ def state():
             'personal_media_scanned': False,
             'sensitive_text_redaction': True,
             'runtime_truth_recursively_redacted': True,
+            'token_metrics_preserved': True,
         },
     }
 
