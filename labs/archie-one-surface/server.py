@@ -1,119 +1,278 @@
 #!/usr/bin/env python3
 import json, os, pathlib, subprocess, time, re, shlex
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-ROOT=pathlib.Path(__file__).resolve().parent
-HOME=pathlib.Path('/home/awesomekai')
-REMOTE=HOME/'archie-remote'
-RUNS=HOME/'runs'
-TRAIN_ROOTS=(RUNS, HOME/'archie-quaternion-heisenberg-autoscale-v1', HOME/'archie-lab-observer-v2')
-ROOM_TAIL_BYTES=256*1024
+
+ROOT = pathlib.Path(__file__).resolve().parent
+HOME = pathlib.Path('/home/awesomekai')
+REMOTE = HOME / 'archie-remote'
+RUNS = HOME / 'runs'
+TRAIN_ROOTS = (RUNS, HOME / 'archie-quaternion-heisenberg-autoscale-v1', HOME / 'archie-lab-observer-v2')
+ROOM_TAIL_BYTES = 256 * 1024
+SECRET_FLAGS = ('token', 'password', 'passwd', 'secret', 'api-key', 'api_key', 'authorization', 'cookie')
+SECRET_PATTERNS = (
+    re.compile(r'(?i)(bearer\s+)[A-Za-z0-9._~+\-/=]+'),
+    re.compile(r'(?i)\b(sk-[A-Za-z0-9_-]{12,})\b'),
+    re.compile(r'(?i)\b(gh[opsu]_[A-Za-z0-9]{12,})\b'),
+)
 
 
 def read_json(p):
-    try:return json.loads(pathlib.Path(p).read_text(errors='replace'))
-    except Exception:return None
+    try:
+        return json.loads(pathlib.Path(p).read_text(errors='replace'))
+    except Exception:
+        return None
 
 
-def tail_text(p, lines=14, max_bytes=128*1024):
+def tail_text(p, lines=14, max_bytes=128 * 1024):
     try:
         with pathlib.Path(p).open('rb') as f:
-            f.seek(0,2); size=f.tell(); f.seek(max(0,size-max_bytes))
-            data=f.read().decode('utf-8','replace')
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(0, size - max_bytes))
+            data = f.read().decode('utf-8', 'replace')
         return '\n'.join(data.splitlines()[-lines:])
-    except Exception:return ''
+    except Exception:
+        return ''
+
+
+def redact_text(value):
+    text = str(value or '')
+    for pattern in SECRET_PATTERNS:
+        text = pattern.sub(lambda m: f'{m.group(1) if m.lastindex else ""}[REDACTED]', text)
+    return text
+
+
+def redact_argv(argv):
+    try:
+        tokens = shlex.split(str(argv or ''))
+    except Exception:
+        tokens = str(argv or '').split()
+    out = []
+    redact_next = False
+    for token in tokens:
+        lower = token.lower()
+        if redact_next:
+            out.append('[REDACTED]')
+            redact_next = False
+            continue
+        if token.startswith('--') and '=' in token:
+            key, value = token.split('=', 1)
+            if any(flag in key.lower() for flag in SECRET_FLAGS):
+                out.append(f'{key}=[REDACTED]')
+            else:
+                out.append(redact_text(token))
+            continue
+        out.append(redact_text(token))
+        if token.startswith('--') and any(flag in lower for flag in SECRET_FLAGS):
+            redact_next = True
+    return ' '.join(shlex.quote(token) for token in out)
 
 
 def proc_rows():
-    rows=[]
+    rows = []
     try:
-        out=subprocess.run(['ps','-eo','pid=,ppid=,etimes=,args='],capture_output=True,text=True,timeout=2).stdout
-        for ln in out.splitlines():
-            m=re.match(r'\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)',ln)
-            if m: rows.append({'pid':int(m[1]),'ppid':int(m[2]),'etimes':int(m[3]),'argv':m[4]})
-    except Exception:pass
+        out = subprocess.run(
+            ['ps', '-eo', 'pid=,ppid=,etimes=,args='],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        ).stdout
+        for line in out.splitlines():
+            match = re.match(r'\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)', line)
+            if match:
+                rows.append({
+                    'pid': int(match[1]),
+                    'ppid': int(match[2]),
+                    'etimes': int(match[3]),
+                    'argv': match[4],
+                })
+    except Exception:
+        pass
     return rows
 
 
 def gpu_rows(procs):
-    by={p['pid']:p for p in procs}; out=[]
+    by_pid = {p['pid']: p for p in procs}
+    rows = []
     try:
-        r=subprocess.run(['nvidia-smi','--query-compute-apps=pid,process_name,used_memory','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=2)
-        for ln in r.stdout.splitlines():
-            parts=[x.strip() for x in ln.split(',')]
+        result = subprocess.run(
+            ['nvidia-smi', '--query-compute-apps=pid,process_name,used_memory', '--format=csv,noheader,nounits'],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        for line in result.stdout.splitlines():
+            parts = [item.strip() for item in line.split(',')]
             if parts and parts[0].isdigit():
-                pid=int(parts[0]); q=by.get(pid,{})
-                out.append({'pid':pid,'name':parts[1] if len(parts)>1 else '', 'memory_mib':parts[2] if len(parts)>2 else '', 'argv':q.get('argv','')})
-    except Exception:pass
-    return out
+                pid = int(parts[0])
+                process = by_pid.get(pid, {})
+                rows.append({
+                    'pid': pid,
+                    'name': parts[1] if len(parts) > 1 else '',
+                    'memory_mib': parts[2] if len(parts) > 2 else '',
+                    'argv': redact_argv(process.get('argv', '')),
+                })
+    except Exception:
+        pass
+    return rows
 
 
 def flag(tokens, name):
     try:
-        i=tokens.index(name)
-        return tokens[i+1] if i+1<len(tokens) else None
-    except ValueError:return None
+        index = tokens.index(name)
+        return tokens[index + 1] if index + 1 < len(tokens) else None
+    except ValueError:
+        return None
 
 
-def active_trainer(procs):
-    markers=('archie_lab_train.py','train_archie','train_typed_delta','typed_delta_train')
-    candidates=[p for p in procs if any(m in p['argv'].lower() for m in markers) and 'observer' not in p['argv'].lower()]
-    if not candidates:return None
-    p=min(candidates,key=lambda x:x['pid'])
-    try:tokens=shlex.split(p['argv'])
-    except Exception:tokens=p['argv'].split()
-    fields={key:flag(tokens,key) for key in ('--scale','--arm','--seed','--preset','--model-size','--max-steps')}
-    return {'pid':p['pid'],'elapsed_seconds':p['etimes'],'argv':p['argv'],'scale':fields['--scale'] or fields['--model-size'],'arm':fields['--arm'] or fields['--preset'],'seed':fields['--seed'],'max_steps':fields['--max-steps']}
+def active_trainer(procs, gpu_pids):
+    markers = ('archie_lab_train.py', 'train_archie', 'train_typed_delta', 'typed_delta_train')
+    candidates = [
+        process for process in procs
+        if any(marker in process['argv'].lower() for marker in markers)
+        and 'observer' not in process['argv'].lower()
+    ]
+    if not candidates:
+        return None
+
+    # Prefer the process that actually owns GPU compute. If none does, prefer the
+    # newest matching process rather than an old low-PID survivor.
+    process = min(
+        candidates,
+        key=lambda item: (0 if item['pid'] in gpu_pids else 1, item['etimes'], -item['pid']),
+    )
+    try:
+        tokens = shlex.split(process['argv'])
+    except Exception:
+        tokens = process['argv'].split()
+    fields = {key: flag(tokens, key) for key in ('--scale', '--arm', '--seed', '--preset', '--model-size', '--max-steps')}
+    return {
+        'pid': process['pid'],
+        'elapsed_seconds': process['etimes'],
+        'argv': redact_argv(process['argv']),
+        'on_gpu': process['pid'] in gpu_pids,
+        'scale': fields['--scale'] or fields['--model-size'],
+        'arm': fields['--arm'] or fields['--preset'],
+        'seed': fields['--seed'],
+        'max_steps': fields['--max-steps'],
+    }
 
 
 def latest_training():
-    candidates=[]; cutoff=time.time()-7*86400
+    candidates = []
+    cutoff = time.time() - 7 * 86400
     for base in TRAIN_ROOTS:
-        if not base.exists(): continue
+        if not base.exists():
+            continue
         try:
-            for p in base.rglob('train.log'):
+            for path in base.rglob('train.log'):
                 try:
-                    st=p.stat()
-                    if st.st_size and st.st_mtime>cutoff:candidates.append((st.st_mtime,p,st.st_size))
-                except Exception:pass
-        except Exception:pass
-    if not candidates:return None
-    mtime,p,size=max(candidates,key=lambda x:x[0])
-    return {'name':str(p).replace(str(HOME)+'/','~/'),'mtime':mtime,'bytes':size,'tail':tail_text(p)}
+                    stat = path.stat()
+                    if stat.st_size and stat.st_mtime > cutoff:
+                        candidates.append((stat.st_mtime, path, stat.st_size))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    if not candidates:
+        return None
+    mtime, path, size = max(candidates, key=lambda item: item[0])
+    return {
+        'name': str(path).replace(str(HOME) + '/', '~/'),
+        'mtime': mtime,
+        'bytes': size,
+        'tail': redact_text(tail_text(path)),
+    }
 
 
 def recent_events(n=14):
-    p=REMOTE/'roast.jsonl'
+    path = REMOTE / 'roast.jsonl'
     try:
-        with p.open('rb') as f:
-            f.seek(0,2); size=f.tell(); f.seek(max(0,size-ROOM_TAIL_BYTES))
-            lines=f.read().decode('utf-8','replace').splitlines()[-220:]
-    except Exception:return []
-    out=[]
-    for ln in lines:
+        with path.open('rb') as f:
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(0, size - ROOM_TAIL_BYTES))
+            lines = f.read().decode('utf-8', 'replace').splitlines()[-220:]
+    except Exception:
+        return []
+    events = []
+    for line in lines:
         try:
-            x=json.loads(ln); txt=str(x.get('text',''))
-            if txt and x.get('from')!='kai':out.append({'t':x.get('t',''),'from':x.get('from','?'),'text':txt[:500]})
-        except Exception:pass
-    return out[-n:]
+            value = json.loads(line)
+            text = str(value.get('text', ''))
+            if text and value.get('from') != 'kai':
+                events.append({
+                    't': value.get('t', ''),
+                    'from': value.get('from', '?'),
+                    'text': redact_text(text[:500]),
+                })
+        except Exception:
+            pass
+    return events[-n:]
 
 
 def state():
-    procs=proc_rows()
-    pats={'runtime truth':'runtime_truth.py','observer':'archie-lab-observer-v2/observer.py','reading visual':'deconditioning-20260808/visual/server.py','gate':'archie-remote/gate.py','live exec':'archie-remote/live_exec.py','shell sidecar':'archie-shell-sidecar.py','resident':'archie-resident-gpt56/resident.py'}
-    services=[{'name':name,'live':any(pat in p['argv'] for p in procs)} for name,pat in pats.items()]
-    workers=[p for p in procs if any(k in p['argv'] for k in ('agent_worker.py','codex_room_bridge.py','resident.py'))]
-    return {'generated_unix':time.time(),'runtime':read_json(REMOTE/'runtime_truth.json') or {},'gpu':gpu_rows(procs),'services':services,'agents':[{'pid':p['pid'],'argv':p['argv'],'live':True} for p in workers],'active_trainer':active_trainer(procs),'training':latest_training(),'events':recent_events(),'representation':{'schema':'archie-one-surface/v1','read_only':True,'sources':'runtime truth + bounded process/log observations','personal_media_scanned':False}}
+    procs = proc_rows()
+    gpu = gpu_rows(procs)
+    gpu_pids = {row['pid'] for row in gpu}
+    service_patterns = {
+        'runtime truth': 'runtime_truth.py',
+        'observer': 'archie-lab-observer-v2/observer.py',
+        'gate': 'archie-remote/gate.py',
+        'live exec': 'archie-remote/live_exec.py',
+        'shell sidecar': 'archie-shell-sidecar.py',
+        'resident': 'archie-resident-gpt56/resident.py',
+    }
+    services = [
+        {'name': name, 'live': any(pattern in process['argv'] for process in procs)}
+        for name, pattern in service_patterns.items()
+    ]
+    workers = [
+        process for process in procs
+        if any(marker in process['argv'] for marker in ('agent_worker.py', 'codex_room_bridge.py', 'resident.py'))
+    ]
+    return {
+        'generated_unix': time.time(),
+        'runtime': read_json(REMOTE / 'runtime_truth.json') or {},
+        'gpu': gpu,
+        'services': services,
+        'agents': [
+            {'pid': process['pid'], 'argv': redact_argv(process['argv']), 'live': True}
+            for process in workers
+        ],
+        'active_trainer': active_trainer(procs, gpu_pids),
+        'training': latest_training(),
+        'events': recent_events(),
+        'representation': {
+            'schema': 'archie-one-surface/v1',
+            'read_only': True,
+            'sources': 'runtime truth + bounded process/log observations',
+            'personal_media_scanned': False,
+            'sensitive_text_redaction': True,
+        },
+    }
 
 
-class H(SimpleHTTPRequestHandler):
+class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path.split('?',1)[0]=='/api/state':
-            b=json.dumps(state(),indent=2).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
+        if self.path.split('?', 1)[0] == '/api/state':
+            body = json.dumps(state(), indent=2).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         return super().do_GET()
-    def log_message(self,fmt,*args):pass
+
+    def log_message(self, fmt, *args):
+        pass
 
 
-if __name__=='__main__':
-    os.chdir(ROOT);host=os.environ.get('ARCHIE_ONE_HOST','127.0.0.1');port=int(os.environ.get('ARCHIE_ONE_PORT','8890'))
-    print(f'ARCHIE ONE SURFACE http://{host}:{port}',flush=True)
-    ThreadingHTTPServer((host,port),H).serve_forever()
+if __name__ == '__main__':
+    os.chdir(ROOT)
+    host = os.environ.get('ARCHIE_ONE_HOST', '127.0.0.1')
+    port = int(os.environ.get('ARCHIE_ONE_PORT', '8890'))
+    print(f'ARCHIE ONE SURFACE http://{host}:{port}', flush=True)
+    ThreadingHTTPServer((host, port), Handler).serve_forever()
