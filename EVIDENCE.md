@@ -35,11 +35,30 @@ Useful residue:
 - The trainer explicitly disabled TF32 and required deterministic CUDA QLoRA. That strict-precision behavior is worth retaining as a court design principle, not as a current model dependency.
 - The committed truth boundary states: method implemented, CUDA training by that change `false`, adapter artifact `false`, capability evaluation `false`, candidate promotion `false`.
 - The Linux digital twin deliberately executed zero gradient and zero optimizer steps and could only prove fail-closed CPU refusal.
-- The lane has an internal stale-contract contradiction: `test_cuda_causal_workflow_contract.py` expects request `baseline_commit = 8bb6fac2809afcc55f91f900bc6bf16f84dfb788`, while the current `.github/training/archie-cuda-request.json` contains `04001f6bf13277b27ac55f6d4d60ab1952da56a5`.
+- The lane had an internal stale-contract contradiction: `test_cuda_causal_workflow_contract.py` expected request `baseline_commit = 8bb6fac2809afcc55f91f900bc6bf16f84dfb788`, while `.github/training/archie-cuda-request.json` contained `04001f6bf13277b27ac55f6d4d60ab1952da56a5`.
 
-This lane is not in the Aug-8 typed-Delta forward graph and carries no admitted model artifact, so its executable scaffolding is being retired rather than allowed to remain as apparent current machinery.
+This lane is not in the Aug-8 typed-Delta forward graph and carried no admitted model artifact, so its executable scaffolding was retired rather than allowed to remain as apparent current machinery.
 
-## Naming collision explicitly retained
+## Retired RSLoRA / segmented-tokenized distillation lane
+
+Scraped before removal on 2026-08-08. Repository search found the information-budgeted receipt schema only in its implementation, not in a committed completed training receipt.
+
+Useful residue retained as design knowledge:
+- Causal-fork replay concentrated supervised compute after the first chosen/rejected divergence while preserving bounded prompt and shared-prefix witnesses.
+- Shards preserved repair-lineage atomicity and balanced estimated attention area instead of raw pair count.
+- Frozen-reference chosen/rejected log probabilities could be cached when bound to exact checkpoint, tokenizer, pair bytes and replay policy.
+- Exact LoRA fusion must combine deltas, not average factors. For source adapters, concatenate A rank blocks and concatenate weighted/scaled B rank blocks so `B* A* = sum_i w_i scale_i B_i A_i`.
+- When RSLoRA source scaling has already been absorbed into B, the fused adapter must use unit ordinary-LoRA scaling (`use_rslora=false`, `lora_alpha=fused_rank`) or it scales the delta twice.
+- Elastic resume receipts bound complete model/adapter, optimizer, scheduler, RNG, scaler and Trainer state plus exact input/cache/software identities. This is a useful checkpoint-integrity pattern.
+- Recursive rounds were gated on concrete evaluator failures rather than synthetic failure invention.
+
+Why removed:
+- The family is not in the current typed-Delta model path.
+- Its current workflows depended on the retired causal-divergence trainer/profile and were therefore already severed as a live execution graph.
+- Every lane kept `promotion: not-admitted`; no committed information-budgeted completed receipt was found by repository search.
+- The included Linux CPU corpus is a small hand-authored contract corpus about the old workflow itself, not current model data.
+
+## Naming collisions explicitly retained
 
 `scripts/archie-hybrid-runner.mjs`, `scripts/archie-hybrid-queue.mjs`, `scripts/archie-enrolled-hybrid-runner.mjs`, `scripts/archie-hybrid-protocol.mjs`, and `scripts/archie-hybrid-hosted.mjs` were scraped before deletion consideration and are **not** the retired LM hybrid. They implement outbound runner / lease / fencing / event-chain / hosted transport mechanics and are retained pending the current Vercel transport repair audit.
 
@@ -49,6 +68,8 @@ Supporting transport objects already scraped and provisionally retained:
 - `scripts/archie-workspace-file-provider.mjs`: bounded file provider wrapper.
 
 `scripts/archie-standalone-journey.mjs` was also scraped. It is a deterministic synthetic product fixture, not current model logic; it is not automatically protected merely because an old runner imports it.
+
+`.github/workflows/archie-linux-distilling-chamber.yml` was scraped after a name collision. It is a JS chamber verifier and is not the RSLoRA Linux CPU trainer workflow, so it was left for its own later audit.
 
 ## Current source boundary
 
