@@ -69,6 +69,29 @@ Observed runs:
 
 The evidence file's own boundary is correct: these prove bounded hosted-CPU RSLoRA updates and held-out movement, including one exact-checkpoint 1.7B step; they do not establish CUDA/NF4 parity, canonical rank-32 training, fused-candidate gain, quantization retention, broad capability, independent reproduction, or admission.
 
+## Retired JS distilling-chamber island
+
+Scraped before removal on 2026-08-08.
+
+Removed family:
+- `scripts/archie-distilling-chamber.mjs`
+- `scripts/archie-distilling-cli.mjs`
+- `scripts/tests/archie-distilling-chamber.test.mjs`
+- `maker/contracts/archie-distilling-chamber.schema.json`
+- `maker/evaluations/archie-recursion-curriculum.json`
+- `.github/workflows/archie-linux-distilling-chamber.yml`
+
+Why removed: repository search found `createDistillingChamber` only in its own module, CLI, and tests. The workflow only smoke-tested this island, the curriculum contained five deterministic toy tasks, and no current trainer/core/typed-Delta path imported it. Its event/checkpoint mechanics also overlapped the retained workspace/event infrastructure.
+
+Useful residue:
+- bounded recursion depth/children/episodes/wall-time;
+- exact repeated-state rejection via task digest;
+- retaining failed attempts as negative lessons;
+- causal parent edges between recursive episodes;
+- digest-bound serialized checkpoints.
+
+Those are engineering patterns, not evidence that the chamber trained or improved a model.
+
 ## Naming collisions explicitly retained
 
 `scripts/archie-hybrid-runner.mjs`, `scripts/archie-hybrid-queue.mjs`, `scripts/archie-enrolled-hybrid-runner.mjs`, `scripts/archie-hybrid-protocol.mjs`, and `scripts/archie-hybrid-hosted.mjs` were scraped before deletion consideration and are **not** the retired LM hybrid. They implement outbound runner / lease / fencing / event-chain / hosted transport mechanics and are retained pending the current Vercel transport repair audit.
@@ -79,8 +102,6 @@ Supporting transport objects already scraped and provisionally retained:
 - `scripts/archie-workspace-file-provider.mjs`: bounded file provider wrapper.
 
 `scripts/archie-standalone-journey.mjs` was also scraped. It is a deterministic synthetic product fixture, not current model logic; it is not automatically protected merely because an old runner imports it.
-
-`.github/workflows/archie-linux-distilling-chamber.yml` was scraped after a name collision. It is a JS chamber verifier and is not the RSLoRA Linux CPU trainer workflow, so it was left for its own later audit.
 
 ## Current source boundary
 
