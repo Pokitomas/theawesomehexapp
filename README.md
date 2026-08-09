@@ -26,7 +26,7 @@ The exact recorded source hashes and retained numerical/training history are in 
 - `scripts/archie-hybrid-runner.mjs` — thin compatibility alias for the enrolled worker.
 - `scripts/archie-workspace-*.mjs` — digest-bound workspace/event/artifact substrate.
 - `scripts/archie-hybrid-protocol.mjs` — enrolled transport protocol.
-- `tools/archie_one_body.py` + `labs/archie-one-surface/index.html` — unified read-only representation of live machine truth and retained project state.
+- `labs/archie-one-surface/index.html` + `labs/archie-one-surface/server.py` — the single read-only representation of live machine truth and retained project state.
 - `00-ARCHIE-MODEL/BENCHMARKS.json` — architecture-independent evaluation targets.
 - `ARCHIE_HISTORY_COMPACT.md` — the single compact historical record: positive results, failed branches, hashes, numerical defects, formal findings, and claim boundaries.
 - `ENGINEERING_LANGUAGE.md` — mechanism-first vocabulary for active engineering prose.
