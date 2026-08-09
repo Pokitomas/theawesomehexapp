@@ -1,5 +1,7 @@
 # Archie local artifact runtime
 
+Active explanatory prose follows `ENGINEERING_LANGUAGE.md`. Compatibility fields such as `authority`, `promotion`, or `write_authority` remain unchanged on the wire until an explicit migration exists.
+
 ## Install and first launch
 
 With Node.js 20 or newer, the current source-package preview installs a global `archie` command without a repository clone:
@@ -9,7 +11,7 @@ npm install --global https://github.com/Pokitomas/theawesomehexapp/archive/refs/
 archie
 ```
 
-The empty launch is a capability-aware first-run screen. It reports the package and Node versions, platform, Archie home, installed artifact count, local runner discovery, and exact next commands. `archie setup --json` emits the same state as `archie-first-run/v1` for installers and automation. `archie help` retains the full operator command reference.
+The empty launch is a capability-aware first-run screen. It reports the package and Node versions, platform, Archie home, installed artifact count, local runner discovery, and exact next commands. `archie setup --json` emits the same state as `archie-first-run/v1` for installers and automation. `archie help` retains the full command reference.
 
 This preview URL follows mutable `main`; replace `refs/heads/main` with an exact commit SHA when reproducibility matters. It is not a signed native installer. No model or `llama-cli` binary is bundled. `runtime_ready` means the verified artifact runtime is installed, while `execution_ready` requires both an installed artifact and a discoverable local runner. Neither state is an empirical model-capability claim.
 
@@ -44,7 +46,7 @@ npm run archie -- remove <id@version>
 npm run archie -- list
 ```
 
-The operator experience is intentionally small. It is not an Ollama clone and it does not make Ollama the canonical artifact format.
+The CLI experience is intentionally small. It is not an Ollama clone and it does not make Ollama the canonical artifact format.
 
 ## Signed manifest and nested envelope
 
@@ -74,7 +76,7 @@ Each artifact version receives a random 256-bit data key. Each chunk receives a 
 
 `pull` verifies the outer publisher signature before transport, unwraps only to a matching device or recovery private key, supports resumable HTTP range or local-file ciphertext chunks, verifies each ciphertext digest, authenticates and decrypts each chunk independently, verifies each plaintext digest, verifies exact assembled bytes and artifact digest, installs by content address, and emits `archie-encrypted-model-pull-receipt/v1`.
 
-The installed directory retains the signed outer manifest, encrypted pull receipt, and a locally signed installation projection used by the existing local run/inspect path. The installation projection never replaces the outer manifest as distribution authority.
+The installed directory retains the signed outer manifest, encrypted pull receipt, and a locally signed installation projection used by the existing local run/inspect path. The installation projection never replaces the outer manifest as the canonical distribution trust source.
 
 The earlier `archie-model-manifest/v1` direct-artifact path remains supported for bounded development fixtures. Production Archie checkpoints should use the encrypted manifest.
 
@@ -95,8 +97,10 @@ The candidate must declare:
 - a changed mutable-state digest;
 - a fresh benchmark report digest;
 - exact parent model, manifest, artifact, and mutable-state expectations;
-- training-data, trajectory, training-config, optimizer, authority, and evaluation receipt digests;
+- training-data, trajectory, training-config, optimizer, permission-scope, and evaluation receipt digests;
 - the training seed, teacher IDs, and rejected checkpoint digests.
+
+Existing receipt fields that use `authority` remain compatibility identifiers; this text describes their semantics as permission-scope evidence.
 
 The transition metadata is embedded into the signed encrypted manifest as `provenance.checkpoint_lineage`, while the separate transition receipt binds parent and candidate manifests, artifacts, state digests, exact sizes, and every enforced constraint.
 
@@ -113,14 +117,14 @@ This contract does not train weights and cannot independently prove that declare
 `self-host-sample` executes a bounded end-to-end reference task without giving Archie a privileged modification path:
 
 1. Sideways generates a deterministic seeded app objective, exact permitted scope, expected file digests, and replay identity.
-2. Archie expresses the task as AIL with `write_authority: false`, a Maker local-write capability, an exact target grant, ordered write steps, verification, learning classification, and halt.
+2. Archie expresses the task as AIL with compatibility field `write_authority: false`, a Maker local-write capability, an exact target grant, ordered write steps, verification, learning classification, and halt.
 3. `MakerEngine` acquires a one-writer lease limited to the target prefix, writes the three sample files, creates an event checkpoint, and runs only the allowlisted deterministic verifier.
 4. A successful terminal Maker receipt becomes an `archie-self-hosting-trajectory/v1` positive trajectory. A verification failure is preserved as a negative trajectory.
-5. Merge, deployment, production-data, and training-spend authority remain human gates.
+5. Merge, deployment, production-data, and training-spend permissions remain human-controlled gates.
 
 The verifier checks exact aggregate bytes plus the app landmark, accessible button label, polite live status, visible run counter, deterministic click behavior, and bound state schema. Maker state and the trajectory are kept outside the target app path.
 
-The built-in plan and generated app are deterministic fixtures. This proves the Sideways → AIL → Maker authority/verification/trajectory plumbing, not that a trained Archie model independently designed the app.
+The built-in plan and generated app are deterministic fixtures. This proves the Sideways → AIL → Maker permission/verification/trajectory plumbing, not that a trained Archie model independently designed the app.
 
 ## Trust and key separation
 
@@ -132,6 +136,6 @@ All model-artifact keys are unrelated to PR #397's short-lived execution HMAC. T
 
 ## Deliberate boundary
 
-This is real encrypted artifact packaging, transport, checkpoint-transition admission, deterministic self-hosting through Maker, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or promoted.
+This is real encrypted artifact packaging, transport, checkpoint-transition admission, deterministic self-hosting through Maker, local process execution, inspection, removal, and benchmark receipt plumbing. It does **not** claim that a trained Archie neural checkpoint has been produced or admitted.
 
 The default `npm run maker` path is unchanged by this tranche. Sideways remains deterministic state, Maker remains the only permissioned effect executor, and Archie model artifacts receive no privileged repository modification path.
