@@ -33,12 +33,12 @@ For the container path, copy `.env.archied.example` to `.env.archied`, replace e
 
 - `scripts/archied.mjs` — local workspace service.
 - `scripts/archied-hosted.mjs` — hosted wrapper plus enrolled outbound-runner service.
-- `scripts/archie-enrolled-hybrid-runner.mjs` — bounded enrolled worker.
-- `scripts/archie-hybrid-runner.mjs` — thin compatibility alias for the enrolled worker.
+- `scripts/archie-enrolled-hybrid-runner.mjs` — bounded enrolled worker. Both `archie-enrolled-hybrid-runner` and the legacy `archie-hybrid-runner` package bin names map directly here.
 - `scripts/archie-workspace-*.mjs` — digest-bound workspace/event/artifact substrate.
 - `scripts/archie-hybrid-protocol.mjs` — enrolled transport protocol.
 - `labs/archie-one-surface/index.html` + `labs/archie-one-surface/server.py` — the single read-only representation of live machine truth and retained project state.
 - `00-ARCHIE-MODEL/BENCHMARKS.json` — architecture-independent evaluation targets.
+- `00-ARCHIE-MODEL/evidence/HOSTED-LINUX-CPU-RSLORA.json` — exact historical CPU training receipt provenance retained separately because it contains artifact/run/config digests not duplicated in the compact narrative.
 - `ARCHIE_HISTORY_COMPACT.md` — the single compact historical record: positive results, failed branches, hashes, numerical defects, formal findings, and claim boundaries.
 - `ENGINEERING_LANGUAGE.md` — mechanism-first vocabulary for active engineering prose.
 
