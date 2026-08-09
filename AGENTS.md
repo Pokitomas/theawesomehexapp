@@ -2,6 +2,8 @@
 
 This repository is operated from evidence, not from issue activity or optimistic product claims.
 
+Terminology follows `ENGINEERING_LANGUAGE.md`: describe mechanisms and bounded effects in active prose. Existing schema names, environment variables, paths, and serialized compatibility fields remain unchanged unless an explicit migration changes them safely.
+
 ## Default Maker entrypoint
 
 For broad implementation work, run:
@@ -18,12 +20,12 @@ Before editing, inspect the current default-branch commit, repository architectu
 
 The standard non-overlapping assessment wave is:
 
-1. root reader to private archive product journey and frontend UX;
-2. social authority to visible consumer reachability;
-3. Maker, Codex, and coding-agent runtime ergonomics;
-4. hostile security, testing, storage, network, and operations review.
+1. root reader: private archive product journey and frontend UX;
+2. public-state assessment: visible consumer reachability;
+3. Maker, Codex, and coding-worker runtime ergonomics;
+4. security robustness, testing, storage, network, and operations review.
 
-Assessment agents are read-only. They do not create branches, edit files, or mutate GitHub.
+Assessment workers are read-only. They do not create branches, edit files, or mutate GitHub.
 
 ## Collision discipline
 
@@ -32,8 +34,8 @@ Assessment agents are read-only. They do not create branches, edit files, or mut
 - The draft PR body contains a machine-readable `sideways-maker-lease/v1` marker.
 - Open Maker PR leases must not overlap by exact path or directory prefix.
 - `**` is a repository-wide exclusive lock and should be used only when narrower ownership is impossible.
-- Shared files such as `package.json`, repository verification manifests, authority projections, workflows, and generated kernel sources must be included in the lease when changed.
-- Never permit two agents to edit the same worktree.
+- Shared files such as `package.json`, repository verification manifests, permission projections, workflows, and generated kernel sources must be included in the lease when changed.
+- Never permit two workers to edit the same worktree.
 
 ## Verification and receipts
 
@@ -47,18 +49,20 @@ npm run verify:repository
 
 The final receipt names the exact head SHA, changed files, tests, remaining blockers, rollback notes, and draft PR. Do not describe a model claim as a passing test.
 
-## Product and authority invariants
+## Product and permission/state invariants
 
 Preserve these distinct realities:
 
 - the root reader and ranking laboratory;
 - the user-owned private archive under `/manual/`;
-- canonical public social authority only on a configured function deployment;
+- canonical public state only on a configured function deployment;
 - rebuildable public projections and ranking candidate pools;
 - repository coordination and Maker surfaces, which are not ordinary consumer product paths.
 
-Do not silently copy public authority into private archives, treat caches as canonical state, claim static Pages can perform server mutations, or infer external runtime configuration from source code.
+Do not silently copy canonical public state into private archives, treat caches as canonical state, claim static Pages can perform server mutations, or infer external runtime configuration from source code.
 
-## Human-only authority
+Compatibility identifiers containing `authority` may remain in existing APIs, schemas, migrations, or file names; in active explanatory prose they mean a specific permission scope or canonical-state responsibility, not autonomous power.
 
-Coding agents may inspect and modify repository files inside their branch and worktree. They may not merge, deploy, force-push, alter secrets, register runners, mutate production data, change repository settings, or claim production readiness. Credentials never belong in prompts, issues, commits, artifacts, screenshots, or receipts.
+## Human-only permissions
+
+Coding workers may inspect and modify repository files inside their branch and worktree. They may not merge, deploy, force-push, alter secrets, register runners, mutate production data, change repository settings, or claim production readiness. Credentials never belong in prompts, issues, commits, artifacts, screenshots, or receipts.
