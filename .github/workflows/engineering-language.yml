@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'README.md'
-      - 'EVIDENCE.md'
+      - 'ARCHIE_HISTORY_COMPACT.md'
       - 'ENGINEERING_LANGUAGE.md'
       - '00-ARCHIE-MODEL/BENCHMARKS.json'
       - 'scripts/check-engineering-language.mjs'
@@ -13,7 +13,7 @@ on:
     branches: [main]
     paths:
       - 'README.md'
-      - 'EVIDENCE.md'
+      - 'ARCHIE_HISTORY_COMPACT.md'
       - 'ENGINEERING_LANGUAGE.md'
       - '00-ARCHIE-MODEL/BENCHMARKS.json'
       - 'scripts/check-engineering-language.mjs'
