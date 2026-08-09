@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, os, pathlib, subprocess, time, re
+import json, os, pathlib, subprocess, time, re, shlex
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 ROOT=pathlib.Path(__file__).resolve().parent
 HOME=pathlib.Path('/home/awesomekai')
@@ -47,6 +47,24 @@ def gpu_rows(procs):
     return out
 
 
+def flag(tokens, name):
+    try:
+        i=tokens.index(name)
+        return tokens[i+1] if i+1<len(tokens) else None
+    except ValueError:return None
+
+
+def active_trainer(procs):
+    markers=('archie_lab_train.py','train_archie','train_typed_delta','typed_delta_train')
+    candidates=[p for p in procs if any(m in p['argv'].lower() for m in markers) and 'observer' not in p['argv'].lower()]
+    if not candidates:return None
+    p=min(candidates,key=lambda x:x['pid'])
+    try:tokens=shlex.split(p['argv'])
+    except Exception:tokens=p['argv'].split()
+    fields={key:flag(tokens,key) for key in ('--scale','--arm','--seed','--preset','--model-size','--max-steps')}
+    return {'pid':p['pid'],'elapsed_seconds':p['etimes'],'argv':p['argv'],'scale':fields['--scale'] or fields['--model-size'],'arm':fields['--arm'] or fields['--preset'],'seed':fields['--seed'],'max_steps':fields['--max-steps']}
+
+
 def latest_training():
     candidates=[]; cutoff=time.time()-7*86400
     for base in TRAIN_ROOTS:
@@ -84,7 +102,7 @@ def state():
     pats={'runtime truth':'runtime_truth.py','observer':'archie-lab-observer-v2/observer.py','reading visual':'deconditioning-20260808/visual/server.py','gate':'archie-remote/gate.py','live exec':'archie-remote/live_exec.py','shell sidecar':'archie-shell-sidecar.py','resident':'archie-resident-gpt56/resident.py'}
     services=[{'name':name,'live':any(pat in p['argv'] for p in procs)} for name,pat in pats.items()]
     workers=[p for p in procs if any(k in p['argv'] for k in ('agent_worker.py','codex_room_bridge.py','resident.py'))]
-    return {'generated_unix':time.time(),'runtime':read_json(REMOTE/'runtime_truth.json') or {},'gpu':gpu_rows(procs),'services':services,'agents':[{'pid':p['pid'],'argv':p['argv'],'live':True} for p in workers],'training':latest_training(),'events':recent_events(),'representation':{'schema':'archie-one-surface/v1','read_only':True,'sources':'runtime truth + bounded process/log observations','personal_media_scanned':False}}
+    return {'generated_unix':time.time(),'runtime':read_json(REMOTE/'runtime_truth.json') or {},'gpu':gpu_rows(procs),'services':services,'agents':[{'pid':p['pid'],'argv':p['argv'],'live':True} for p in workers],'active_trainer':active_trainer(procs),'training':latest_training(),'events':recent_events(),'representation':{'schema':'archie-one-surface/v1','read_only':True,'sources':'runtime truth + bounded process/log observations','personal_media_scanned':False}}
 
 
 class H(SimpleHTTPRequestHandler):
