@@ -1,6 +1,6 @@
 {
   "name": "archie-transport",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Minimal ARCHIE workspace and enrolled-runner transport. Current typed-Delta model source is tracked separately until exact live files are imported.",
   "private": true,
   "type": "module",
@@ -16,6 +16,8 @@
     "scripts/archie-hybrid-runner.mjs",
     "scripts/archie-enrolled-hybrid-runner.mjs",
     "scripts/archie-hybrid-protocol.mjs",
+    "scripts/archie-hosted-backup.mjs",
+    "scripts/archie-hosted-security.mjs",
     "scripts/archie-workspace-core.mjs",
     "scripts/archie-workspace-portable.mjs",
     "scripts/archie-workspace-file-provider.mjs",
