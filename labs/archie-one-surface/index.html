@@ -3,152 +3,59 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ARCHIE // one surface</title>
+<title>ARCHIE // live engineering view</title>
 <style>
-:root{
-  --bg:#efe7d2; --paper:#fbf7ea; --ink:#11130f; --muted:#696455;
-  --red:#e34824; --green:#176c50; --amber:#ae7c1f; --blue:#345ad5;
-  --night:#0a0d12; --mint:#7bf2cf; --violet:#a792ff;
-  --line:rgba(17,19,15,.22); --mono:"Cascadia Code","SFMono-Regular",Consolas,monospace;
-  --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;background:var(--bg)}
-body{margin:0;color:var(--ink);font-family:var(--sans);background:
- linear-gradient(rgba(17,19,15,.055) 1px,transparent 1px),
- linear-gradient(90deg,rgba(17,19,15,.055) 1px,transparent 1px),var(--bg);
- background-size:22px 22px}
-a{color:inherit}.mono{font-family:var(--mono)}
-.top{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;gap:12px;align-items:center;
- padding:10px 16px;background:rgba(10,13,18,.96);color:#f7f4e9;border-bottom:3px solid var(--red);backdrop-filter:blur(14px)}
-.brand{font-weight:950;letter-spacing:-.045em;font-size:20px}.brand b{color:var(--mint)}
-.topright{display:flex;gap:8px;align-items:center;font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.09em;color:#aeb8b5}
-.pulse{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 18px rgba(174,124,31,.45)}
-.pulse.live{background:var(--mint);box-shadow:0 0 18px rgba(123,242,207,.65)}
-.shell{width:min(1480px,100%);margin:auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:0}
-.rail{position:sticky;top:51px;height:calc(100vh - 51px);padding:22px 15px;border-right:1px solid var(--line);background:rgba(239,231,210,.88);backdrop-filter:blur(10px)}
-.rail .kicker{font:900 10px var(--mono);color:var(--red);letter-spacing:.12em;text-transform:uppercase}
-.rail nav{display:grid;gap:4px;margin-top:16px}.rail a{text-decoration:none;padding:9px 10px;border:1px solid transparent;font-size:13px}
-.rail a:hover{border-color:var(--ink);background:var(--paper)}
-.rail .law{position:absolute;left:15px;right:15px;bottom:18px;font:650 10px/1.5 var(--mono);color:var(--muted)}
-main{padding:30px 28px 100px;min-width:0}
-.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr);gap:20px;align-items:end;margin-bottom:28px}
-.eyebrow{font:900 10px var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--red)}
-h1{font-size:clamp(52px,8vw,116px);line-height:.82;letter-spacing:-.08em;margin:8px 0 14px;max-width:980px}
-.hero p{font-size:18px;line-height:1.5;max-width:880px;margin:0}
-.hero-card{background:var(--night);color:#f1f6f3;border:1px solid #293039;padding:18px;box-shadow:8px 8px 0 var(--ink)}
-.hero-card strong{display:block;color:var(--mint);font:900 11px var(--mono);text-transform:uppercase;letter-spacing:.11em;margin-bottom:10px}
-.hero-card p{font:12px/1.55 var(--mono);color:#b5c0bc}
-.section{margin:34px 0 0;scroll-margin-top:72px}
-.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:12px}
-.section-head h2{font-size:clamp(24px,3vw,40px);letter-spacing:-.045em;margin:0}.section-head span{font:800 10px var(--mono);color:var(--muted);text-transform:uppercase}
-.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
-.card{grid-column:span 4;background:rgba(251,247,234,.93);border:1.5px solid var(--ink);padding:14px;min-height:130px}
-.card.wide{grid-column:span 8}.card.full{grid-column:1/-1}.card.dark{background:var(--night);color:#ecf4f0;border-color:#343c45}
-.label{font:900 9px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.dark .label{color:#81908a}
-.metric{font-size:clamp(26px,4vw,54px);font-weight:950;letter-spacing:-.06em;line-height:.9;margin:14px 0 8px}
-.card p{font-size:13px;line-height:1.45;color:#514e44;margin:7px 0}.dark p{color:#aeb9b5}
-.good{color:var(--green)!important}.bad{color:var(--red)!important}.warn{color:var(--amber)!important}.mint{color:var(--mint)!important}
-.statebar{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.pill{border:1px solid currentColor;padding:5px 7px;font:800 9px var(--mono);text-transform:uppercase;letter-spacing:.07em}
-.diagram{background:var(--night);border:1.5px solid var(--ink);padding:16px;overflow:hidden}
-svg{max-width:100%;height:auto}.node{fill:#111821;stroke:#52616a;stroke-width:1}.node.live{stroke:#7bf2cf}.node.dead{stroke:#e34824}.edge{stroke:#43515a;stroke-width:1.25;fill:none}.edge.hot{stroke:#7bf2cf}.svgt{fill:#eaf1ee;font:700 11px var(--mono)}.svgs{fill:#8ea09a;font:9px var(--mono)}
-.court{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)}
-.court:last-child{border-bottom:0}.verdict{font:950 10px var(--mono);letter-spacing:.08em;text-transform:uppercase}.court h3{margin:0 0 4px;font-size:15px}.court p{margin:0;font-size:12px;color:var(--muted);line-height:1.45}.court .num{font:800 11px var(--mono);text-align:right;white-space:nowrap}
-.established{color:var(--green)}.failed{color:var(--red)}.open{color:var(--amber)}
-.timeline{display:grid;gap:0}.event{display:grid;grid-template-columns:120px 12px minmax(0,1fr);gap:12px;padding:8px 0}.event .t{font:700 10px var(--mono);color:var(--muted)}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--ink);margin-top:4px}.event .txt{font-size:12px;line-height:1.45}
-pre{margin:0;white-space:pre-wrap;word-break:break-word;font:11px/1.55 var(--mono)}
-.foot{margin-top:40px;padding:18px;background:var(--ink);color:#eee8d8;font:11px/1.55 var(--mono)}
-#raw-state{max-height:380px;overflow:auto}
-@media(max-width:980px){.shell{grid-template-columns:1fr}.rail{display:none}main{padding:20px 12px 70px}.hero{grid-template-columns:1fr}.card,.card.wide{grid-column:1/-1}.topright span:nth-child(2){display:none}.court{grid-template-columns:72px 1fr}.court .num{grid-column:2;text-align:left}}
+:root{--paper:#efe7d2;--panel:#fbf7ea;--ink:#151713;--muted:#686456;--line:#9e9178;--ok:#176c50;--bad:#a43d2d;--warn:#9b6b16;--dark:#0d1114;--light:#edf5f1;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--sans:Inter,ui-sans-serif,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans)}header{position:sticky;top:0;z-index:5;background:var(--dark);color:var(--light);padding:12px 18px;display:flex;justify-content:space-between;gap:16px;border-bottom:3px solid var(--ok)}header strong{letter-spacing:-.03em}header span{font:11px var(--mono);color:#aebbb5}.shell{width:min(1200px,100%);margin:auto;padding:30px 18px 70px}h1{font-size:clamp(44px,8vw,92px);letter-spacing:-.065em;line-height:.88;margin:8px 0 18px}.lede{max-width:840px;font-size:17px;line-height:1.55;color:#48463f}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;margin-top:24px}.card{grid-column:span 4;background:var(--panel);border:1px solid var(--line);padding:15px;min-width:0}.wide{grid-column:span 8}.full{grid-column:1/-1}.label{font:800 10px var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}.metric{font-size:clamp(26px,4vw,48px);font-weight:900;letter-spacing:-.05em;margin:10px 0}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}pre{white-space:pre-wrap;word-break:break-word;font:11px/1.5 var(--mono);max-height:360px;overflow:auto;background:var(--dark);color:var(--light);padding:13px;margin:10px 0 0}.row{display:grid;grid-template-columns:130px 1fr auto;gap:12px;padding:12px 0;border-top:1px solid #c7baa0;align-items:start}.row:first-child{border-top:0}.status{font:800 10px var(--mono);text-transform:uppercase}.num{font:700 11px var(--mono);text-align:right}.small{font-size:12px;line-height:1.45;color:var(--muted)}code{font-family:var(--mono)}a{color:inherit}@media(max-width:800px){.card,.wide{grid-column:1/-1}.row{grid-template-columns:90px 1fr}.num{grid-column:2;text-align:left}}
 </style>
 </head>
 <body>
-<header class="top"><div class="brand">ARCHIE <b>// ONE SURFACE</b></div><div class="topright"><span id="live-dot" class="pulse"></span><span id="heartbeat">reading local machine</span><span id="clock"></span></div></header>
-<div class="shell">
-<aside class="rail"><div class="kicker">one representation</div><nav>
-<a href="#organism">Organism</a><a href="#body">Body</a><a href="#math">Math + courts</a><a href="#training">Training</a><a href="#world">World / corpus</a><a href="#history">Now</a><a href="#raw">Raw truth</a>
-</nav><div class="law">Default stance: try to kill the claim.<br><br><b>PASS → working mathematics.</b><br>FAIL → dead branch.<br>Unknown → visible unknown.<br><br>No product-mode tabs. No provider theater. No stale status pretending to be life.</div></aside>
-<main>
-<section class="hero"><div><div class="eyebrow">collapsed from operator · desktop · maker · founder · foundry · expo · observer · museum · reading visual</div><h1>One organism.<br>Many proofs.</h1><p>This page is not another ARCHIE product. It is the representation layer: what is alive, what the model is made of, what mathematics has earned the right to be treated as true inside the project, what died, what is training, and what the corpus/world machinery is doing.</p></div><aside class="hero-card"><strong>epistemic switch</strong><p>Passed executable mathematics is promoted here instead of being permanently described as “speculative.” A proof/court can establish a result even if it is not textbook mathematics. Experimental claims still require their own empirical court.</p></aside></section>
+<header><strong>ARCHIE // LIVE ENGINEERING VIEW</strong><span id="stamp">loading machine state</span></header>
+<main class="shell">
+<div class="label">one representation · read only</div>
+<h1>Current state,<br>without the sprawl.</h1>
+<p class="lede">This page presents observable runtime state, the recorded current model boundary, quantitative evaluation results, and recent training evidence. Processes are described as processes; evaluation results are not upgraded into capability claims.</p>
 
-<section id="organism" class="section"><div class="section-head"><h2>The organism</h2><span>live machine > labels</span></div><div class="grid">
-<div class="card"><div class="label">canonical runtime</div><div id="canonical" class="metric">…</div><p id="canonical-note">Reading runtime_truth.json.</p></div>
-<div class="card"><div class="label">compute</div><div id="compute" class="metric">…</div><p id="gpu-note">GPU membership and active trainer identity.</p></div>
-<div class="card"><div class="label">controller</div><div id="controller" class="metric">…</div><p id="controller-note">Fail-closed queue state.</p></div>
-<div class="card wide dark"><div class="label">service constellation</div><div id="services" class="statebar"></div><p>These are processes, not personalities. Presence is derived from live argv/process identity where available.</p></div>
-<div class="card dark"><div class="label">agent substrate</div><div id="agents" class="metric mint">…</div><p id="agent-note">Quota-blocked workers are not counted as active reasoning.</p></div>
-</div></section>
+<section class="grid">
+<div class="card"><div class="label">compute</div><div class="metric" id="compute">—</div><div class="small" id="gpu-note">reading GPU process state</div></div>
+<div class="card"><div class="label">controller</div><div class="metric" id="controller">—</div><div class="small">Derived from runtime truth when available.</div></div>
+<div class="card"><div class="label">workers</div><div class="metric" id="workers">—</div><div class="small">Only observed local worker processes are counted.</div></div>
 
-<section id="body" class="section"><div class="section-head"><h2>The body</h2><span>what information can physically do</span></div>
-<div class="diagram">
-<svg viewBox="0 0 1180 370" role="img" aria-label="ARCHIE model anatomy">
-<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#52616a"/></marker></defs>
-<path class="edge hot" marker-end="url(#arrow)" d="M135 184 C205 184 205 74 278 74"/>
-<path class="edge hot" marker-end="url(#arrow)" d="M135 184 C205 184 205 294 278 294"/>
-<path class="edge" marker-end="url(#arrow)" d="M448 74 C520 74 520 184 592 184"/>
-<path class="edge" marker-end="url(#arrow)" d="M448 294 C520 294 520 184 592 184"/>
-<path class="edge hot" marker-end="url(#arrow)" d="M762 184 C840 184 840 184 920 184"/>
-<rect class="node live" x="20" y="135" rx="14" width="115" height="98"/><text class="svgt" x="42" y="175">BYTE TOKENS</text><text class="svgs" x="42" y="196">vocab 260</text>
-<rect class="node live" x="278" y="24" rx="14" width="170" height="100"/><text class="svgt" x="304" y="61">6 × DELTA</text><text class="svgs" x="304" y="82">recurrent KV state</text><text class="svgs" x="304" y="98">+ causal conv</text>
-<rect class="node" x="278" y="244" rx="14" width="170" height="100"/><text class="svgt" x="304" y="281">2 × ATTENTION</text><text class="svgs" x="304" y="302">local window 256</text><text class="svgs" x="304" y="318">exact local access</text>
-<rect class="node live" x="592" y="134" rx="14" width="170" height="100"/><text class="svgt" x="614" y="170">RESIDUAL BODY</text><text class="svgs" x="614" y="192">d_model 192</text><text class="svgs" x="614" y="208">8 layers</text>
-<rect class="node live" x="920" y="134" rx="14" width="205" height="100"/><text class="svgt" x="946" y="170">TIED LM HEAD</text><text class="svgs" x="946" y="192">3,770,796 params</text><text class="svgs" x="946" y="208">context 1024 survivor</text>
-<text class="svgs" x="26" y="350">Nonrecurrent amputated reach = 6×3 + 2×255 = 528 tokens. Recurrence can transmit farther; usefulness must be separately proven.</text>
-</svg></div></section>
+<div class="card full"><div class="label">recorded current neural boundary</div><div class="metric" style="font-size:clamp(20px,3vw,34px)"><code>archie_lab_train.py → archie_lab_core.py → typed_delta_memory.py</code></div><div class="small">The exact live files remain outside this repository until imported and hash-checked. Historical repository model families are not treated as current architecture.</div></div>
 
-<section id="math" class="section"><div class="section-head"><h2>Math + courts</h2><span>pass upgrades status; fail kills branch</span></div><div class="card full">
-<div class="court"><div class="verdict established">ESTABLISHED</div><div><h3>Contextual survivor</h3><p>s4 tiny-contextual-v2 survives the paired court. This is the active empirical reference line, not “maybe architecture.”</p></div><div class="num">2.170272405 BPB<br>Δ −0.103890631</div></div>
-<div class="court"><div class="verdict established">ESTABLISHED</div><div><h3>Far-state transmission exists</h3><p>Recurrence-amputation control is exact zero while full recurrence changes outputs beyond the local reach. Information transmission is real.</p></div><div class="num">reach &gt; 528</div></div>
-<div class="court"><div class="verdict failed">DEAD</div><div><h3>Useful natural far-prefix dependency</h3><p>The ≥645-lag swap court did not establish useful dependence. Transmission ≠ benefit.</p></div><div class="num">CI crosses 0</div></div>
-<div class="court"><div class="verdict failed">DEAD</div><div><h3>Directed-edge v4</h3><p>Preregistered promotion gate failed. No rescue by amplitude scaling; 32× still failed utility and added clean-window cost.</p></div><div class="num">Δ −0.00000358 BPB</div></div>
-<div class="court"><div class="verdict open">ENGINEERING</div><div><h3>Triton serial delta</h3><p>The kernel matches explicit serial algebra on random FP32, but trained activations diverge numerically from the block-triangular reference. Speed is real; semantic substitution is not admitted.</p></div><div class="num">8.90× speed<br>L∞ .015625 logits</div></div>
-<div class="court"><div class="verdict established">ESTABLISHED</div><div><h3>Fail-closed controller requirement</h3><p>Nonzero stage exit cannot be rescued by stale PASS; stage receipts must postdate launch; immutable per-run authorization receipts are part of the machine semantics.</p></div><div class="num">stale test PASS</div></div>
-</div></section>
+<div class="card full"><div class="label">evaluation results retained</div>
+<div class="row"><div class="status warn">not admitted</div><div><strong>Triton typed-Delta backend</strong><div class="small">Clean-idle recourt retained the performance result and forward/unit parity, but the stricter gradient tolerance failed.</div></div><div class="num">39.31× mean speedup<br>2.405 vs 94.513 ms<br>max grad error 0.00061035</div></div>
+<div class="row"><div class="status bad">rejected</div><div><strong>tiny-directed-edge-v4 / seed 52</strong><div class="small">Far-repeat causal utility did not clear the preregistered lower-bound requirement.</div></div><div class="num">Δ +0.0000285 BPB<br>95% CI [−0.0001046,+0.0001616]<br>required lower bound +0.001</div></div>
+<div class="row"><div class="status ok">retained</div><div><strong>Strict numerical reference policy</strong><div class="small">For near-singular, cancellation-sensitive, quaternion/Heisenberg/HRT-adjacent checks: use strict FP32 and FP64 where practical, disable TF32 in the reference lane, and report singular values/condition numbers when relevant.</div></div><div class="num">numerical-analysis rule</div></div>
+</div>
 
-<section id="training" class="section"><div class="section-head"><h2>Training</h2><span>whatever is actually freshest on disk</span></div><div class="grid">
-<div class="card wide"><div class="label">latest detected training trace</div><div id="train-title" class="metric">scanning…</div><pre id="train-log">No trace read yet.</pre></div>
-<div class="card"><div class="label">survivor baseline</div><div class="metric">3.77M</div><p>d192 · L8 · seq1024 · six Delta mixers + two local-attention layers.</p><div class="statebar"><span class="pill good">survivor</span><span class="pill">seed 47 court</span></div></div>
-<div class="card"><div class="label">next principle</div><div class="metric">scale only earned axes</div><p>Capacity growth is allowed after clean corpus + matched baseline + multi-seed evidence. Weird axes—state rank, key width, depth reuse, factorized edges—compete with dense scaling.</p></div>
-<div class="card"><div class="label">kernel branch</div><div class="metric">train under new semantics</div><p>One legitimate fast path is to train a fresh branch under serial/Triton numerical semantics instead of pretending it is checkpoint-equivalent to the block-solve survivor.</p></div>
-</div></section>
+<div class="card wide"><div class="label">active training trace</div><pre id="training">No recent trace found.</pre></div>
+<div class="card"><div class="label">GPU processes</div><pre id="gpu">No compute process observed.</pre></div>
+<div class="card wide"><div class="label">runtime services</div><pre id="services">loading</pre></div>
+<div class="card"><div class="label">recent room evidence</div><pre id="events">loading</pre></div>
+<div class="card full"><div class="label">raw machine state</div><pre id="raw">loading</pre></div>
+</section>
 
-<section id="world" class="section"><div class="section-head"><h2>World / corpus</h2><span>representation is not just text</span></div><div class="grid">
-<div class="card dark wide"><div class="label">deconditioning / reading visual</div><div class="metric mint">world before interface</div><p>Keep the encyclopedia instinct, but do not let layout conventions become epistemology. Corpus views are allowed to be maps, specimens, fields, timelines, geometry, sound, or books; no default “dashboard = truth.”</p></div>
-<div class="card dark"><div class="label">anti-prior rule</div><div class="metric mint">name the prior</div><p>Terminal=serious, dense=power, monospace=honest, dark=machine-native, grid=organized. Any one can be banned for a court.</p></div>
-<div class="card"><div class="label">source feeds</div><div id="source-feeds" class="statebar"><span class="pill">runtime truth</span><span class="pill">training logs</span><span class="pill">room events</span><span class="pill">court receipts</span><span class="pill">reading visual</span></div><p>ASMR/personal media is intentionally outside this scanner. Representation sources are project surfaces and research artifacts only.</p></div>
-</div></section>
-
-<section id="history" class="section"><div class="section-head"><h2>Now</h2><span>recent durable events</span></div><div class="card full"><div id="timeline" class="timeline"><div class="event"><div class="t">loading</div><div class="dot"></div><div class="txt">Reading recent room events.</div></div></div></div></section>
-
-<section id="raw" class="section"><div class="section-head"><h2>Raw truth</h2><span>machine readable underneath the drawing</span></div><div class="card full dark"><pre id="raw-state">loading…</pre></div></section>
-
-<div class="foot">ARCHIE one-surface / read-only representation. Existing research artifacts stay intact. This page does not control training, kill processes, promote a model, or rewrite a court. It collapses the *view*, not the evidence.</div>
-</main></div>
+<p class="small" style="margin-top:24px">Historical quantitative evidence and retired-branch findings are consolidated in <code>ARCHIE_HISTORY_COMPACT.md</code>. Architecture-independent evaluation targets are in <code>00-ARCHIE-MODEL/BENCHMARKS.json</code>.</p>
+</main>
 <script>
-const $=x=>document.getElementById(x);
-function pill(text, cls=''){return `<span class="pill ${cls}">${String(text).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</span>`}
-function safe(v,f='unknown'){return v===undefined||v===null||v===''?f:v}
-function render(d){
- const s=d.runtime?.summary||{};
- $('canonical').textContent=safe(s.canonical_state,'unknown').replaceAll('_',' ');
- $('canonical').className='metric '+(String(s.canonical_state).includes('explicit')?'warn':'good');
- $('canonical-note').textContent=`schema ${safe(d.runtime?.schema)} · history conflicts ${safe(s.history_conflict_count,0)}`;
- $('compute').textContent=safe(s.compute,'unknown'); $('compute').className='metric '+(s.compute==='idle'?'warn':'good');
- $('gpu-note').textContent=(d.gpu?.length?d.gpu.map(x=>`PID ${x.pid}: ${x.name||x.argv||'compute'}`).join(' · '):'No active NVIDIA compute PID detected by this page.');
- $('controller').textContent=safe(s.controller,'unknown').replaceAll('_',' '); $('controller-note').textContent=`controllers ${safe(s.controller_count,0)} · trainers ${safe(s.trainer_count,0)}`;
- const sv=d.services||[]; $('services').innerHTML=sv.map(x=>pill(`${x.live?'●':'○'} ${x.name}`,x.live?'good':'')).join('');
- $('agents').textContent=safe(s.agents,'unknown').replaceAll('_',' ');
- $('agent-note').textContent=`live agent-service records: ${(d.agents||[]).filter(x=>x.live).length}; reasoning is not inferred from a sleeping process.`;
- if(d.training){$('train-title').textContent=d.training.name||'detected';$('train-log').textContent=d.training.tail||'No log text';}
- const ev=d.events||[];$('timeline').innerHTML=ev.length?ev.map(e=>`<div class="event"><div class="t">${safe(e.t,'').slice(11,19)}</div><div class="dot"></div><div class="txt"><b>${safe(e.from,'?')}</b> ${String(safe(e.text,'')).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div></div>`).join(''):'<div class="event"><div class="t">none</div><div class="dot"></div><div class="txt">No recent events readable.</div></div>';
- $('raw-state').textContent=JSON.stringify(d,null,2);
- $('live-dot').classList.add('live'); $('heartbeat').textContent='local machine live · read-only';
+const text=(id,value)=>document.getElementById(id).textContent=value;
+async function refresh(){
+  try{
+    const state=await fetch('/api/state',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('state '+r.status);return r.json()});
+    const runtime=state.runtime?.summary||state.runtime||{};
+    text('stamp','updated '+new Date((state.generated_unix||Date.now()/1000)*1000).toLocaleTimeString());
+    text('compute',String(runtime.compute||state.gpu?.length&&'active'||'idle').toUpperCase());
+    text('controller',String(runtime.controller||'unknown').toUpperCase());
+    text('workers',String(state.agents?.length??0));
+    text('gpu-note',state.gpu?.length?'observed compute process':'no GPU compute process observed');
+    text('gpu',(state.gpu||[]).map(x=>`${x.pid}  ${x.memory_mib||'?'} MiB  ${x.argv||x.name||''}`).join('\n')||'No compute process observed.');
+    text('services',(state.services||[]).map(x=>`${x.live?'UP  ':'DOWN'} ${x.name}`).join('\n')||'No service inventory.');
+    text('training',state.training?.tail||'No recent trace found.');
+    text('events',(state.events||[]).map(x=>`[${x.from||'?'}] ${x.text||''}`).join('\n\n')||'No recent room evidence.');
+    text('raw',JSON.stringify(state,null,2));
+  }catch(error){text('stamp','state unavailable');text('raw',String(error));}
 }
-async function tick(){
- $('clock').textContent=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
- try{const r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw new Error(r.status);render(await r.json())}catch(e){$('heartbeat').textContent='representation server alive · state read failed';$('live-dot').classList.remove('live')}
-}
-tick();setInterval(tick,5000);
+refresh();setInterval(refresh,3000);
 </script>
-</body></html>
+</body>
+</html>
