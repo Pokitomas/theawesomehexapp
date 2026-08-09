@@ -70,6 +70,32 @@ test('archied persists a private workspace across restart with no GitHub identit
   assert.equal(JSON.stringify(state).toLowerCase().includes('github'), false);
 });
 
+test('archied does not advertise browser cross-origin mutation', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'archied-cors-home-'));
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const runtime = await startArchied({ home, host: '127.0.0.1', port: 0 });
+  t.after(() => runtime.close().catch(() => {}));
+
+  const preflight = await fetch(new URL('v1/workspaces', runtime.url), {
+    method: 'OPTIONS',
+    headers: {
+      origin: 'https://unrelated.example',
+      'access-control-request-method': 'POST',
+      'access-control-request-headers': 'content-type,x-archie-principal'
+    }
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), null);
+  assert.equal(preflight.headers.get('access-control-allow-methods'), null);
+  assert.equal(preflight.headers.get('access-control-allow-headers'), null);
+
+  const publicRead = await fetch(new URL('v1/workspaces', runtime.url), {
+    headers: { origin: 'https://unrelated.example' }
+  });
+  assert.equal(publicRead.status, 200);
+  assert.equal(publicRead.headers.get('access-control-allow-origin'), '*');
+});
+
 test('archied rejects invalid ports before opening a service', () => {
   assert.throws(
     () => resolveArchiedConfig({ argv: ['--port', '70000'], env: {} }),
