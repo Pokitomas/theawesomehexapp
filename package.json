@@ -1,6 +1,6 @@
 {
   "name": "archie-transport",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Minimal ARCHIE host/relay transport and workspace runtime retained while current typed-Delta model source lives outside this repository.",
   "private": true,
   "type": "module",
@@ -17,6 +17,7 @@
     "scripts/archie-hosted-*.mjs",
     "scripts/archie-workspace-*.mjs",
     "scripts/archie-standalone-*.mjs",
+    "scripts/maker-engine.mjs",
     "scripts/check-engineering-language.mjs",
     "README.md",
     "EVIDENCE.md",
@@ -33,12 +34,5 @@
     "archie:runner:enrolled": "node scripts/archie-enrolled-hybrid-runner.mjs",
     "test:transport": "node --test scripts/tests/archie-workspace-substrate.test.mjs scripts/tests/archied-service.test.mjs scripts/tests/archie-standalone-journey.test.mjs scripts/tests/archied-hosted.test.mjs scripts/tests/archied-hosted-authority.test.mjs scripts/tests/archie-hybrid-runner.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs",
     "check:language": "node scripts/check-engineering-language.mjs"
-  },
-  "dependencies": {
-    "@netlify/blobs": "^9.1.2",
-    "pg": "^8.13.1"
-  },
-  "devDependencies": {
-    "playwright-core": "1.55.0"
   }
 }
