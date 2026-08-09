@@ -10,6 +10,7 @@ const activeProse = [
   'HANDOFF.md',
   'ARCHIE_RUNTIME.md',
   'ARCHIE_TRAINING.md',
+  '00-ARCHIE-MODEL/BENCHMARKS.json',
 ];
 const activeUi = [
   'archie-operator/index.html',
@@ -73,7 +74,8 @@ const findings = [];
 for (const relative of activeProse) {
   const absolute = path.join(root, relative);
   if (!fs.existsSync(absolute)) continue;
-  const source = stripMarkdownCode(fs.readFileSync(absolute, 'utf8'));
+  const raw = fs.readFileSync(absolute, 'utf8');
+  const source = relative.endsWith('.md') ? stripMarkdownCode(raw) : raw;
   findings.push(...check(relative, source, [...rules, ...proseRules]));
 }
 for (const relative of activeUi) {
