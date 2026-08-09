@@ -4,11 +4,10 @@ import path from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
-const activeProse = [
-  'README.md',
-  'ARCHIE_HISTORY_COMPACT.md',
-  'ENGINEERING_LANGUAGE.md',
-  '00-ARCHIE-MODEL/BENCHMARKS.json'
+const active = [
+  ['README.md', 'markdown'],
+  ['00-ARCHIE-MODEL/BENCHMARKS.json', 'text'],
+  ['labs/archie-one-surface/index.html', 'html']
 ];
 
 const rules = [
@@ -27,19 +26,21 @@ const rules = [
   { pattern: /\bhostile\b/gi, replacement: 'invalid / incompatible / robustness, depending on mechanism' }
 ];
 
-function stripMarkdownCode(input) {
-  return input.replace(/```[\s\S]*?```/g, '').replace(/~~~[\s\S]*?~~~/g, '').replace(/`[^`\n]+`/g, '');
+function visible(source, kind) {
+  if (kind === 'markdown') return source.replace(/```[\s\S]*?```/g, '').replace(/~~~[\s\S]*?~~~/g, '').replace(/`[^`\n]+`/g, '');
+  if (kind === 'html') return source.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<!--([\s\S]*?)-->/g, '').replace(/<[^>]+>/g, ' ');
+  return source;
 }
 function locate(source, index) {
   const before = source.slice(0, index);
   return { line: before.split('\n').length, column: index - before.lastIndexOf('\n') };
 }
+
 const findings = [];
-for (const relative of activeProse) {
+for (const [relative, kind] of active) {
   const absolute = path.join(root, relative);
-  if (!fs.existsSync(absolute)) continue;
-  const raw = fs.readFileSync(absolute, 'utf8');
-  const source = relative.endsWith('.md') ? stripMarkdownCode(raw) : raw;
+  if (!fs.existsSync(absolute)) throw new Error(`Active surface missing: ${relative}`);
+  const source = visible(fs.readFileSync(absolute, 'utf8'), kind);
   for (const rule of rules) {
     rule.pattern.lastIndex = 0;
     for (let match = rule.pattern.exec(source); match; match = rule.pattern.exec(source)) {
@@ -53,4 +54,4 @@ if (findings.length) {
   for (const item of findings) console.error(`${item.relative}:${item.line}:${item.column} ${JSON.stringify(item.text)} -> ${item.replacement}`);
   process.exit(1);
 }
-console.log(`engineering-language: ok (${activeProse.length} retained surfaces checked)`);
+console.log(`engineering-language: ok (${active.length} active surfaces checked)`);
