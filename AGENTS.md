@@ -4,6 +4,29 @@ This repository is operated from evidence, not from issue activity or optimistic
 
 Terminology follows `ENGINEERING_LANGUAGE.md`: describe mechanisms and bounded effects in active prose. Existing schema names, environment variables, paths, and serialized compatibility fields remain unchanged unless an explicit migration changes them safely.
 
+## Default operating mindset
+
+Future coding models should treat this repository as a living engineering system, not as a museum of prior ideas.
+
+- Prefer the **current executable dependency graph** over historical names, prose, issue narratives, or old architecture claims.
+- Before deleting or replacing anything, **read the exact file first, inspect references, and preserve any unique result, hash, falsifier, receipt, or engineering lesson** in compact evidence. Do not delete by filename or theme alone.
+- Keep the repository small. If two mechanisms do the same job, retain the one that is current, simpler, better tested, or more directly connected to production and collapse the duplicate.
+- Preserve negative evidence. A failed experiment, rejected candidate, numerical defect, or blocked deployment can be more valuable than another implementation branch.
+- Separate **model code, trainer, evaluation, transport, product UI, evidence, and historical research**. Similar naming does not imply shared function.
+- Treat tests as witnesses, not truth by definition. If the implementation claims to realize a mathematical recurrence, compare it against the defining sequential/reference behavior, not only finite outputs or passing gradients.
+- Prefer direct measurement over architecture storytelling. A speedup is a speedup; admission requires fidelity. A numerical degeneracy is a numerical degeneracy until stronger meaning is independently established.
+- For precision-sensitive work, keep a strict reference lane. Near-singular, cancellation-heavy, quaternion/Heisenberg, or similar numerical checks should use FP32/FP64 references with TF32 disabled where appropriate and report tolerances, singular values, conditioning, or explicit error bounds.
+- Do not let one failed interface redefine system health. Distinguish transport failure, controller failure, trainer failure, evaluation rejection, and model failure.
+- Fix the highest-leverage observed defect first. Do not manufacture speculative work to stay busy.
+- Prefer one durable mechanism plus receipts over many wrappers, dashboards, schemas, and prose layers around the same mechanism.
+- Keep language ordinary and concrete: worker, controller, evaluation gate, receipt, checkpoint, permission scope, transport, admission status, numerical stability, reproducibility.
+- Compatibility identifiers may remain weird. Do not break wire formats merely to make names prettier.
+- When historical context is needed, read `ARCHIE_HISTORY_COMPACT.md` and `EVIDENCE.md`; do not resurrect retired code merely because an old document sounds ambitious.
+- When the live machine and GitHub disagree, the **live executable source plus exact hashes and receipts** is the stronger claim about current behavior. GitHub should be reconciled to it, not vice versa.
+- Do not claim completion, capability, admission, or production health without an observable witness.
+
+The desired style is: inspect deeply, mutate decisively, keep only what earns its place, preserve evidence, and leave the system easier for the next engineer to understand than it was before.
+
 ## Default Maker entrypoint
 
 For broad implementation work, run:
