@@ -4,12 +4,14 @@ Archie’s training compiler joins the corpus, trajectory, state, and checkpoint
 
 It does **not** claim that training occurred, that a student is admitted, or that Archie is frontier-capable. It creates exact inputs for an explicit trainer and exact receipts that later admission can verify.
 
+Active prose follows `ENGINEERING_LANGUAGE.md`. Compatibility identifiers such as `promotion` or historical `authority` fields remain unchanged when they are part of a schema or stored receipt.
+
 ## Inputs
 
 A compiler config references:
 
 - an exact `archie-distill-profile/v1` with a 40-character student revision;
-- an `archie-state-contract/v1` separating immutable architecture/authority from mutable learned state;
+- an `archie-state-contract/v1` separating immutable architecture/permission policy from mutable learned state;
 - zero or more Sidepus diet manifests, export receipts, and exported JSONL files;
 - zero or more admitted `archie-trajectory-batch/v1` files;
 - zero or more reviewed `archie-distillation-example/v1` JSONL files;
@@ -50,7 +52,7 @@ The command refuses to overwrite an existing workspace.
 
 ## Evidence checks
 
-Compilation fails closed when:
+Compilation stops with an explicit error when:
 
 - the profile does not pin an exact student revision;
 - a state-contract digest is invalid;
@@ -62,7 +64,7 @@ Compilation fails closed when:
 - duplicate sample identities contain conflicting content;
 - a checkpoint later names different code, datasets, trajectory batches, runtime ABI, or immutable state.
 
-Sidepus’s Python-generated semantic manifest digest is retained as authority, while the compiler also records the raw manifest file SHA-256. This avoids silently reinterpreting cross-language number serialization while still binding the exact file consumed.
+Sidepus’s Python-generated semantic manifest digest remains the canonical semantic identity, while the compiler also records the raw manifest file SHA-256. This avoids silently reinterpreting cross-language number serialization while still binding the exact file consumed.
 
 ## Dataset lanes
 
@@ -73,7 +75,7 @@ The workspace contains four digest-addressed JSONL datasets:
 - `datasets/negative.train.jsonl` — evidenced failures and reviewed negative examples for suppression/verifier training;
 - `datasets/development-holdout.jsonl` — deterministic group-wise development holdout.
 
-Source and trajectory groups are split atomically. One source group cannot appear in both training and development data. Development holdout results are explicitly **not promotion-eligible**; independent hidden evaluation remains mandatory.
+Source and trajectory groups are split atomically. One source group cannot appear in both training and development data. Development holdout results are explicitly **not admission-eligible**; independent hidden evaluation remains mandatory.
 
 ## Workspace artifacts
 
@@ -101,10 +103,10 @@ After an explicit trainer produces model bytes, `createStudentTrainingReceipt` b
 - artifact path, SHA-256, size, format, model ID, and checkpoint ID;
 - tokenizer, trainer identity, metrics, and run timestamps.
 
-The receipt always states `promotion: not-admitted`. A checkpoint still requires the trusted signed runtime manifest, independent held-out evaluation, authority review, reproduction, resource/device evidence, and the existing student-admission and launch-frontier gates.
+The serialized receipt currently states `promotion: not-admitted`; in active prose this means **admission status: not admitted**. A checkpoint still requires the trusted signed runtime manifest, independent held-out evaluation, permission-policy review, reproduction, resource/device evidence, and the existing student-admission and launch-frontier gates.
 
 ## Relationship to existing training
 
 The existing `foundry/archie-distill/train.py` can consume `datasets/sft.train.jsonl` for supervised fine-tuning. Continued pretraining and negative/verifier training remain explicit separate stages and must not be silently collapsed into SFT.
 
-The compiler can also emit the artifact/evidence input expected by the persistent Archie Trainer brain-package flow. The Trainer may assemble and evaluate candidates, but it cannot bypass checkpoint compatibility or admission.
+The compiler can also emit the artifact/evidence input expected by the persistent Archie Trainer package flow. The Trainer may assemble and evaluate candidates, but it cannot bypass checkpoint compatibility or admission.
