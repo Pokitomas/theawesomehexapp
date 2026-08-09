@@ -1,5 +1,7 @@
 # Engineering handoff
 
+Active prose follows `ENGINEERING_LANGUAGE.md`. Historical identifiers and serialized compatibility fields are left unchanged when renaming would alter behavior or evidence lineage.
+
 ## Active work
 
 Continue PR #535 on branch `agent/iphone-first-quantization-research`.
@@ -7,9 +9,9 @@ Continue PR #535 on branch `agent/iphone-first-quantization-research`.
 - PR: `https://github.com/Pokitomas/theawesomehexapp/pull/535`
 - Base: `main` at `0bc98d8fd5ac5d1876713063af512954a8da188a`
 - State: open, draft, mergeable
-- Authority: execute normal architecture, implementation, tests, CI repair, and issue/PR updates. **Merge remains a human decision for this task.** Stop for missing credentials, irreversible spending, legal acceptance, destructive external actions, or a genuinely unresolved product choice.
+- Permission scope: execute normal architecture, implementation, tests, CI repair, and issue/PR updates. **Merge remains a human decision for this task.** Stop for missing credentials, irreversible spending, legal acceptance, destructive external actions, or a genuinely unresolved product choice.
 
-Always resolve the current branch head before reporting exact-head evidence because multiple co-agents have contributed to this branch.
+Always resolve the current branch head before reporting exact-head evidence because multiple coding workers have contributed to this branch.
 
 ## Product decision
 
@@ -25,9 +27,11 @@ The A15 / 4 GB requirement belongs to Archie’s runtime, admission, and product
 - exact binding of model revision/artifact, runtime executable/build/dependencies/compiler receipt, benchmark corpus, hidden split, grader, workload set, campaign, and candidate binding file;
 - fresh nonce-bound execution only through `archie:device:evidence`;
 - exact iOS version and build identity;
-- independent Ed25519 measurement-authority requirement;
-- intentionally empty authority registry, so no candidate can currently be selected;
-- adversarial tests for weakened plans, self-attestation, mutation, replay, and incomplete device identity.
+- independent Ed25519 measurement-signer requirement;
+- intentionally empty signer registry, so no candidate can currently be selected;
+- robustness tests for weakened plans, self-attestation, mutation, replay, and incomplete device identity.
+
+Compatibility identifiers that still contain `authority` retain their original wire meaning; user-facing prose calls the concrete mechanism a signer, permission scope, or canonical-state responsibility.
 
 ### Intelligence proof contract
 
@@ -40,7 +44,7 @@ The immutable six-arm campaign compares:
 5. distilled student;
 6. teacher-only.
 
-Terminal correctness and alternate valid solutions are primary. Teacher-trace imitation is secondary diagnostics. Promotion also requires unseen-domain derivation, recovery, calibration, structured output, authority safety, contamination control, statistical support, and clean reproduction.
+Terminal correctness and alternate valid solutions are primary. Teacher-trace imitation is secondary diagnostics. Admission also requires unseen-domain derivation, recovery, calibration, structured output, permission safety, contamination control, statistical support, and clean reproduction.
 
 ### Native iPhone runtime
 
@@ -50,7 +54,7 @@ Terminal correctness and alternate valid solutions are primary. Teacher-trace im
 - iOS file protection;
 - Core ML local generation for an explicitly compatible admitted model;
 - cancellation, memory-warning unload, thermal pause, and Low Power Mode limits;
-- MLX and GGUF fail closed until their exact Xcode-built runtimes are admitted;
+- MLX and GGUF stop with explicit compatibility errors until their exact Xcode-built runtimes are admitted;
 - macOS/Xcode CI generation, build, and unit tests.
 
 This is runtime infrastructure, not proof that a model is intelligent or iPhone-ready.
@@ -84,7 +88,7 @@ The architecture evaluator is **diagnostic only**:
 ## Linear execution
 
 - POK-114: truthful iPhone admission and native runtime
-- POK-115: physical A15 lab and independent measurement authority
+- POK-115: physical A15 lab and independent measurement signing
 - POK-116: first serious distilled Archie candidate and six-arm evaluation
 - POK-117: complete native backend and model lifecycle
 - POK-118: inspectable and reversible on-device learning
@@ -92,12 +96,12 @@ The architecture evaluator is **diagnostic only**:
 
 ## Remaining empirical blockers
 
-No model can be promoted until all of the following exist:
+No model can be admitted until all of the following exist:
 
 - a reviewed positive/negative training corpus and trained candidate;
 - untouched hidden-split results against all six arms;
-- statistically supported gains without authority or safety regression;
-- independently controlled measurement authority;
+- statistically supported gains without permission or safety regression;
+- independently controlled measurement signing;
 - physical A15 / 4 GB evidence for the exact model/runtime/build;
 - second clean-environment reproduction;
 - native lifecycle evidence for activation, interruption, memory pressure, thermal behavior, offline first launch, corruption, update interruption, rollback, and removal.
@@ -114,4 +118,4 @@ No model can be promoted until all of the following exist:
 
 ## Truth boundary
 
-The repository now has legitimate training, architecture-search, intelligence-evaluation, physical-device-admission, and native-runtime infrastructure. It still has no empirically winning distilled candidate, independently signed physical A15 matrix, or promoted iPhone model.
+The repository has training, architecture-search, intelligence-evaluation, physical-device-admission, and native-runtime infrastructure. It still has no empirically winning distilled candidate, independently signed physical A15 matrix, or admitted iPhone model.
