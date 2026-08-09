@@ -21,7 +21,7 @@ const rules = [
   { pattern: /\bkill switch\b/gi, replacement: 'disable control' },
   { pattern: /\battack surface\b/gi, replacement: 'exposed interface (unless literal security analysis)' },
   { pattern: /\bautocourt\b/gi, replacement: 'automated evaluation' },
-  { pattern: /\bcourt(?:s)?\b/gi, replacement: 'evaluation gate' },
+  { pattern: /\b(?:re)?court(?:s)?\b/gi, replacement: 'evaluation gate / evaluation rerun' },
   { pattern: /\bpromotion\b/gi, replacement: 'admission / admission status' },
   { pattern: /\bhostile\b/gi, replacement: 'invalid / incompatible / robustness, depending on mechanism' }
 ];
