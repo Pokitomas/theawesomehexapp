@@ -22,10 +22,8 @@ async function temporary(t, prefix) {
 function hostedOptions(home) {
   return {
     home, host: '127.0.0.1', port: 0, publicUrl: 'http://archie.test/',
-    founderTokenSha256: tokenSha256(founderToken),
-    developerTokenSha256: tokenSha256(developerToken),
-    sessionKey: crypto.randomBytes(32).toString('base64'),
-    secretKey: crypto.randomBytes(32).toString('base64'),
+    founderTokenSha256: tokenSha256(founderToken), developerTokenSha256: tokenSha256(developerToken),
+    sessionKey: crypto.randomBytes(32).toString('base64'), secretKey: crypto.randomBytes(32).toString('base64'),
     allowInsecure: true, env: {}
   };
 }
@@ -34,8 +32,7 @@ async function request(runtime, pathname, { method = 'GET', body = null, token =
   const response = await fetch(new URL(pathname, runtime.url), {
     method,
     headers: {
-      authorization: `Bearer ${token}`,
-      accept: 'application/json',
+      authorization: `Bearer ${token}`, accept: 'application/json',
       ...(body === null ? {} : { 'content-type': 'application/json' })
     },
     body: body === null ? undefined : JSON.stringify(body)
@@ -70,9 +67,16 @@ async function seedWorkspace(runtime) {
   await engine.execute('workspace_hybrid', 'owner_local', 'task_graph.create', {
     objective_id: 'objective_hybrid', tasks: [
       { task_id: 'task_complete', title: 'Complete', description: 'Complete one bounded result.', depends_on: [] },
-      { task_id: 'task_failure', title: 'Fail', description: 'Record one bounded failure.', depends_on: [] }
+      { task_id: 'task_failure', title: 'Fail', description: 'Record one bounded failure.', depends_on: [] },
+      { task_id: 'task_local_file', title: 'Local file boundary', description: 'Do not upload unassigned local bytes.', depends_on: [] }
     ]
   });
+}
+
+async function enrollment(runtime) {
+  return (await request(runtime, '/v1/hybrid/founder/enrollments', {
+    method: 'POST', body: { expires_in_seconds: 600, required_protocol_version: '1.0.0', required_capabilities: capabilities }
+  })).value;
 }
 
 test('enrolled runner resumes fenced outbound work and emits digest-bound terminal evidence', async t => {
@@ -87,23 +91,17 @@ test('enrolled runner resumes fenced outbound work and emits digest-bound termin
     body: { expires_in_seconds: 600, required_protocol_version: '1.0.0', required_capabilities: capabilities }
   });
   assert.equal(developerEnrollment.response.status, 403);
-
   const forbidden = await request(runtime, '/v1/hybrid/founder/offers', {
     method: 'POST', body: { ...offer('task_complete', 'forbidden.json', '{"ok":false}\n'), required_capabilities: ['deploy'] }
   });
   assert.equal(forbidden.response.status, 403);
 
-  const enrollmentResult = await request(runtime, '/v1/hybrid/founder/enrollments', {
-    method: 'POST', body: { expires_in_seconds: 600, required_protocol_version: '1.0.0', required_capabilities: capabilities }
-  });
-  assert.equal(enrollmentResult.response.status, 201);
-  const enrollment = enrollmentResult.value;
-  assert.equal(enrollment.token_disclosed_once, true);
-
+  const enrolled = await enrollment(runtime);
+  assert.equal(enrolled.token_disclosed_once, true);
   const content = '{"schema":"hybrid-result/v1","ok":true}\n';
   assert.equal((await request(runtime, '/v1/hybrid/founder/offers', { method: 'POST', body: offer('task_complete', 'result.json', content) })).response.status, 201);
 
-  const interrupted = await runHybridRunnerOnce({ baseUrl: runtime.url, enrollmentToken: enrollment.enrollment_token, root: runnerRoot, stopAfter: 'claimed' });
+  const interrupted = await runHybridRunnerOnce({ baseUrl: runtime.url, enrollmentToken: enrolled.enrollment_token, root: runnerRoot, stopAfter: 'claimed' });
   assert.equal(interrupted.status, 'interrupted_after_claim');
   const statePath = path.join(runnerRoot, '.archie-runner', 'state.json');
   const local = JSON.parse(await fs.readFile(statePath, 'utf8'));
@@ -134,13 +132,13 @@ test('enrolled runner resumes fenced outbound work and emits digest-bound termin
   assert.equal(JSON.stringify(terminal).includes(runnerRoot), false);
 
   const registry = await fs.readFile(path.join(home, 'standalone', 'hosted', 'enrolled-hybrid', 'registry.json'), 'utf8');
-  assert.equal(registry.includes(enrollment.enrollment_token), false);
+  assert.equal(registry.includes(enrolled.enrollment_token), false);
   assert.equal(registry.includes(local.runner_token), false);
   assert.equal(registry.includes(local.fence_token), false);
 
   const reuse = await fetch(new URL('/v1/hybrid/runner/enroll', runtime.url), {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ enrollment_token: enrollment.enrollment_token, advertisement: await defaultRunnerAdvertisement(runnerRoot) })
+    body: JSON.stringify({ enrollment_token: enrolled.enrollment_token, advertisement: await defaultRunnerAdvertisement(runnerRoot) })
   });
   assert.notEqual(reuse.status, 201);
 });
@@ -152,26 +150,54 @@ test('enrolled runner records bounded failure and opens no inbound listener', as
   t.after(() => runtime.close().catch(() => {}));
   await seedWorkspace(runtime);
 
-  const enrollment = (await request(runtime, '/v1/hybrid/founder/enrollments', {
-    method: 'POST', body: { expires_in_seconds: 600, required_protocol_version: '1.0.0', required_capabilities: capabilities }
-  })).value;
+  const enrolled = await enrollment(runtime);
   assert.equal((await request(runtime, '/v1/hybrid/founder/offers', {
     method: 'POST', body: offer('task_failure', 'failure.json', '{"should_not_exist":true}\n')
   })).response.status, 201);
 
-  const failed = await runHybridRunnerOnce({ baseUrl: runtime.url, enrollmentToken: enrollment.enrollment_token, root: runnerRoot, injectFailure: true });
+  const failed = await runHybridRunnerOnce({ baseUrl: runtime.url, enrollmentToken: enrolled.enrollment_token, root: runnerRoot, injectFailure: true });
   assert.equal(failed.status, 'failed');
   assert.match(failed.failure_receipt_digest, /^[a-f0-9]{64}$/);
   assert.equal(await fs.stat(path.join(runnerRoot, 'output', 'failure.json')).then(() => true, () => false), false);
-
   const state = (await runtime.internal.engine.readState('workspace_hybrid')).state;
   assert.equal(state.tasks.task_failure.status, 'blocked');
+
   const source = await fs.readFile(new URL('../archie-enrolled-hybrid-runner.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /createServer\s*\(|\.listen\s*\(|node:http/);
+  assert.doesNotMatch(source, /MakerEngine|maker-engine/);
   assert.match(source, /inbound_access:\s*false/);
 
   const packageJson = JSON.parse(await fs.readFile(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.equal(packageJson.bin['archie-enrolled-hybrid-runner'], 'scripts/archie-enrolled-hybrid-runner.mjs');
   assert.equal(packageJson.bin['archie-hybrid-runner'], 'scripts/archie-enrolled-hybrid-runner.mjs');
   assert.equal(packageJson.scripts['runner:enrolled'], 'node scripts/archie-enrolled-hybrid-runner.mjs');
+});
+
+test('artifact admission cannot exfiltrate a preexisting local file outside the current assignment', async t => {
+  const home = await temporary(t, 'archie-runner-boundary-hosted-');
+  const runnerRoot = await temporary(t, 'archie-runner-boundary-local-');
+  const runtime = await startHostedArchied(hostedOptions(home));
+  t.after(() => runtime.close().catch(() => {}));
+  await seedWorkspace(runtime);
+  await fs.mkdir(path.join(runnerRoot, 'output'), { recursive: true });
+  const localBytes = Buffer.from('{"private":"local-only"}\n');
+  await fs.writeFile(path.join(runnerRoot, 'output', 'preexisting.json'), localBytes);
+
+  const malicious = offer('task_local_file', 'assigned.json', '{"assigned":true}\n');
+  malicious.artifact_admission[0] = {
+    ...malicious.artifact_admission[0],
+    path: 'output/preexisting.json',
+    name: 'preexisting.json',
+    sha256: sha256(localBytes)
+  };
+  assert.equal((await request(runtime, '/v1/hybrid/founder/offers', { method: 'POST', body: malicious })).response.status, 201);
+  const enrolled = await enrollment(runtime);
+  const result = await runHybridRunnerOnce({ baseUrl: runtime.url, enrollmentToken: enrolled.enrollment_token, root: runnerRoot });
+  assert.equal(result.status, 'failed');
+  assert.match(result.failure_receipt_digest, /^[a-f0-9]{64}$/);
+
+  const state = (await runtime.internal.engine.readState('workspace_hybrid')).state;
+  assert.equal(state.tasks.task_local_file.status, 'blocked');
+  assert.equal(Object.values(state.artifacts).some(artifact => artifact.name === 'preexisting.json'), false);
+  assert.equal(await fs.readFile(path.join(runnerRoot, 'output', 'preexisting.json'), 'utf8'), localBytes.toString('utf8'));
 });
