@@ -18,6 +18,17 @@ Observed Aug-8 live source boundary:
 
 The exact recorded source hashes and retained numerical/training history are in `ARCHIE_HISTORY_COMPACT.md`. Do not synthesize current typed-Delta code from retired repository implementations.
 
+## Run what remains
+
+```bash
+npm run archied          # local workspace service
+npm run archied:hosted   # private hosted wrapper + enrolled runner transport
+npm run view             # read-only live engineering view on localhost:8890
+npm run verify           # syntax + active-language + transport contract tests
+```
+
+For the container path, copy `.env.archied.example` to `.env.archied`, replace every placeholder with real local values, then run `docker compose -f compose.hosted.yaml up --build`.
+
 ## What remains here
 
 - `scripts/archied.mjs` — local workspace service.
