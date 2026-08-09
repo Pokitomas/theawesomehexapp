@@ -1,10 +1,12 @@
-# Archie’s mind: current reality and Generation One target
+# Archie model system: current reality and Generation One target
 
 Archie is already a model system, but it is not yet a frontier generative model.
 
 That distinction matters. Calling the current backend “just a cache” is inaccurate; calling it frontier-equivalent would also be inaccurate. The current system learns and generalizes over plans, relations, confidence, failures, and execution evidence. It does not yet learn a broad probability model of language and the world from a substantive pretraining corpus.
 
-## What thinks today
+Active explanatory prose follows `ENGINEERING_LANGUAGE.md`: describe the implemented inference, evaluation, permission, and execution mechanisms directly rather than assigning extra agency to the system.
+
+## Current inference path
 
 The active cognition path is an evidence-gated ensemble.
 
@@ -18,13 +20,13 @@ This is learned statistical inference. It is not exact string matching, but its 
 
 Archie learns reusable tool/action transitions from prior trajectories and composes candidate plans. Positive outcomes raise support; failed, rejected, unsafe, denied, and cancelled outcomes become negative knowledge. Calibration determines whether a proposed route is strong enough to be considered locally.
 
-### 3. Proof-carrying relational derivation
+### 3. Evidence-carrying relational derivation
 
 A separate model abstracts entities, clauses, operators, dependencies, and control language. It can derive a plan from relations rather than requiring one previously observed sentence. The resulting plan carries grounding and derivation evidence.
 
 ### 4. Consensus and uncertainty controller
 
-The sparse model, calibrated planner, and relational derivation model do not receive unrestricted authority. Archie compares their outputs and executes locally only when agreement, grounding, instruction control, and calibrated confidence clear declared gates. Otherwise it escalates.
+The sparse model, calibrated planner, and relational derivation model do not receive unrestricted permissions. Archie compares their outputs and allows local execution only when agreement, grounding, instruction control, and calibrated confidence clear declared gates. Otherwise it escalates.
 
 ### 5. Teacher distillation
 
@@ -32,9 +34,9 @@ Unresolved tasks can route to a stronger teacher under a budget controller. The 
 
 ### 6. Evidence-bound execution
 
-Planning authority and effect authority remain separate. Maker is the permissioned effect executor. Exact verified recurrences can receive stronger automation; novel actions remain bounded by grants, verification, and launch policy.
+Planning permissions and effect permissions remain separate. Maker is the permissioned effect executor. Exact verified recurrences can receive stronger automation; novel actions remain bounded by grants, verification, and launch policy.
 
-## The honest current description
+## Current description
 
 > Archie is an evidence-gated, teacher-distilled local planning model with sparse retrieval, calibrated action composition, relational derivation, negative memory, uncertainty control, and verified execution recurrence.
 
@@ -50,11 +52,11 @@ Archie does not yet have enough evidence to claim any of the following:
 - a trained local neural student admitted on held-out capability gates;
 - reliable long-horizon latent state across arbitrary domains;
 - autonomous architecture superiority;
-- safe general external-write authority.
+- safe general external-write permission.
 
 The runtime, trajectory recorder, distillation pipeline, student admission gates, device evidence, and launch frontier are infrastructure for those claims. They are not substitutes for the trained checkpoint and its evaluations.
 
-## Generation One mind
+## Generation One model target
 
 The strongest target preserves the current symbolic/statistical system and adds a neural student rather than deleting what already works.
 
@@ -72,11 +74,11 @@ Immutable receipts, evidence graphs, owned skills, and prior outcomes provide re
 
 ### Verifier and value model
 
-A separate learned component predicts plan validity, expected capability gain, risk, uncertainty, and whether escalation is preferable. Held-out verification receipts—not the student’s own confidence—control promotion.
+A separate learned component predicts plan validity, expected capability gain, risk, uncertainty, and whether escalation is preferable. Held-out verification receipts—not the student’s own confidence—control admission.
 
 ### Existing symbolic control layer
 
-Archie Language, the evidence compiler, sparse skill mixture, calibrated planner, relational derivation, authority grants, and Maker execution remain interpretable constraints and fallbacks. The neural model proposes; the control layer decomposes and constrains; the verifier judges; Maker acts; receipts determine what may be learned.
+Archie Language, the evidence compiler, sparse skill mixture, calibrated planner, relational derivation, permission grants, and Maker execution remain interpretable constraints and fallbacks. The neural model proposes; the control layer decomposes and constrains; the verifier evaluates; Maker performs permitted effects; receipts determine what may be learned.
 
 ## New hard contracts
 
@@ -86,13 +88,15 @@ A positive trajectory is not admitted merely because a run says “completed.”
 
 `foundry/archie-neural/archie-model-contract.mjs` composes with the existing signed `archie-model-manifest/v1` runtime.
 
-It separates immutable architecture, axioms, authority, state schema, and allowed learning operations from mutable parameters, sparse state, graph state, routing weights, action transitions, uncertainty calibration, negative lessons, episodic memory, and retrieval indexes. A checkpoint can load only when:
+It separates immutable architecture, axioms, permission policy, state schema, and allowed learning operations from mutable parameters, sparse state, graph state, routing weights, action transitions, uncertainty calibration, negative lessons, episodic memory, and retrieval indexes. A checkpoint can load only when:
 
 - the existing runtime has verified and trusted the signed manifest;
 - model identity, version, runtime ABI, and manifest digest match;
 - immutable and mutable state digests match the manifest;
 - held-out benchmark receipts exist;
 - the checkpoint has not been rejected.
+
+Existing serialized identifiers containing `authority` remain compatibility fields where required; this document describes their concrete semantics as permission policy.
 
 ## What “frontier” means here
 
@@ -106,7 +110,7 @@ The next decisive tranche is not another planner wrapper. It is:
 2. train or continue-pretrain the first local neural student;
 3. emit a checkpoint bound to the existing signed runtime manifest and the new state contract;
 4. run hidden held-out capability, procedural, safety, retention, adaptation, cost, latency, and device evaluations;
-5. admit or reject the checkpoint without moving the goalposts;
-6. route admitted neural proposals through the existing symbolic control and Maker authority layers.
+5. admit or reject the checkpoint without changing the declared criteria after seeing the result;
+6. route admitted neural proposals through the existing symbolic control and Maker permission layers.
 
-Until that checkpoint exists and passes, Archie should be described proudly and precisely as a learned evidence-gated planning model—not dismissed as a cache and not marketed as a frontier model.
+Until that checkpoint exists and passes, describe Archie precisely as a learned evidence-gated planning model—not as a cache and not as a frontier model.
