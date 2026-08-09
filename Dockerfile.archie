@@ -18,7 +18,6 @@ COPY scripts/archie-workspace-core.mjs scripts/archie-workspace-core.mjs
 COPY scripts/archie-workspace-portable.mjs scripts/archie-workspace-portable.mjs
 COPY scripts/archie-workspace-file-provider.mjs scripts/archie-workspace-file-provider.mjs
 COPY scripts/archie-workspace-service.mjs scripts/archie-workspace-service.mjs
-COPY scripts/maker-engine.mjs scripts/maker-engine.mjs
 
 RUN mkdir -p /data && chown -R node:node /app /data
 
