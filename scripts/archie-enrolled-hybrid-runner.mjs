@@ -4,7 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { MakerEngine, digest as makerDigest } from './maker-engine.mjs';
 import { WorkspaceError, sha256, stableJSONStringify } from './archie-workspace-core.mjs';
 
 export const ARCHIE_HYBRID_RUNNER_VERSION = '1.0.0';
@@ -29,7 +28,11 @@ function relativeFile(value, label) {
   if (!raw || raw.startsWith('/') || /^[A-Za-z]:\//.test(raw)) throw new WorkspaceError(`${label} must be relative.`);
   const segments = raw.split('/').filter(Boolean);
   if (!segments.length || segments.some(segment => segment === '..' || segment === '.')) throw new WorkspaceError(`${label} contains an unsafe path.`);
-  return segments.join('/');
+  const normalized = segments.join('/');
+  if (normalized === CONTROL_DIRECTORY || normalized.startsWith(`${CONTROL_DIRECTORY}/`)) {
+    throw new WorkspaceError(`${label} may not overwrite runner control state.`);
+  }
+  return normalized;
 }
 
 function pathAllowed(filename, allowedPaths) {
@@ -53,7 +56,7 @@ function pathInside(root, filename) {
 
 async function writePrivateJson(filename, value) {
   await fs.mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
-  const temporary = `${filename}.tmp-${process.pid}-${Date.now()}`;
+  const temporary = `${filename}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   await fs.writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
   await fs.rename(temporary, filename);
   await fs.chmod(filename, 0o600).catch(() => {});
@@ -111,13 +114,8 @@ export async function defaultRunnerAdvertisement(root) {
 }
 
 async function requestJson(url, {
-  method = 'GET',
-  runnerToken = null,
-  fenceToken = null,
-  body = null,
-  bytes = null,
-  mediaType = 'application/json',
-  allowNoContent = false
+  method = 'GET', runnerToken = null, fenceToken = null,
+  body = null, bytes = null, mediaType = 'application/json', allowNoContent = false
 } = {}) {
   const response = await fetch(url, {
     method,
@@ -136,11 +134,9 @@ async function requestJson(url, {
   try { value = text ? JSON.parse(text) : null; }
   catch { value = { message: text }; }
   if (!response.ok) {
-    const error = new WorkspaceError(value?.message || `Hosted Archie returned HTTP ${response.status}.`, {
-      code: value?.error || 'hybrid_runner_http_error',
-      status: response.status
+    throw new WorkspaceError(value?.message || `Hosted Archie returned HTTP ${response.status}.`, {
+      code: value?.error || 'hybrid_runner_http_error', status: response.status
     });
-    throw error;
   }
   return value;
 }
@@ -148,14 +144,9 @@ async function requestJson(url, {
 function buildRunEvent({ state, leaseId, kind, summary, payload = {} }) {
   const sequence = state.event_sequence + 1;
   const body = {
-    schema: 'archie-hybrid-run-event/v1',
-    lease_id: leaseId,
-    sequence,
-    kind: clean(kind, 100),
-    summary: clean(summary, 2_000),
-    occurred_at: new Date().toISOString(),
-    previous_digest: state.event_head,
-    payload_digest: sha256(stableJSONStringify(payload))
+    schema: 'archie-hybrid-run-event/v1', lease_id: leaseId, sequence,
+    kind: clean(kind, 100), summary: clean(summary, 2_000), occurred_at: new Date().toISOString(),
+    previous_digest: state.event_head, payload_digest: sha256(stableJSONStringify(payload))
   };
   return Object.freeze({ ...body, digest: sha256(stableJSONStringify(body)) });
 }
@@ -163,88 +154,47 @@ function buildRunEvent({ state, leaseId, kind, summary, payload = {} }) {
 async function sendEvent({ serviceUrl, state, leaseId, kind, summary, payload = {} }) {
   const event = buildRunEvent({ state, leaseId, kind, summary, payload });
   const result = await requestJson(new URL(`/v1/hybrid/runner/leases/${leaseId}/events`, serviceUrl), {
-    method: 'POST',
-    runnerToken: state.runner_token,
-    fenceToken: state.fence_token,
-    body: event
+    method: 'POST', runnerToken: state.runner_token, fenceToken: state.fence_token, body: event
   });
   state.event_sequence = result.sequence;
   state.event_head = result.event_head;
   return result;
 }
 
-async function ensureVerifier(controlRoot) {
-  const filename = path.join(controlRoot, 'verify.mjs');
-  const source = `import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import crypto from 'node:crypto';
-const manifest = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));
-const root = path.resolve(process.argv[3]);
-for (const entry of manifest.files) {
-  const bytes = await fs.readFile(path.join(root, entry.path));
-  const digest = crypto.createHash('sha256').update(bytes).digest('hex');
-  assert.equal(digest, entry.sha256, entry.path);
-  assert.equal(bytes.length, entry.size_bytes, entry.path);
-}
-process.stdout.write(JSON.stringify({ ok: true, files: manifest.files.length }));
-`;
-  await fs.mkdir(controlRoot, { recursive: true, mode: 0o700 });
-  await fs.writeFile(filename, source, { encoding: 'utf8', mode: 0o600 });
-  return filename;
-}
-
-async function executeAssignment({ root, assignment, leaseId }) {
-  const controlRoot = path.join(root, CONTROL_DIRECTORY);
+async function materializeAssignment({ root, assignment, leaseId }) {
   const allowedPaths = assignment.allowed_paths;
-  const files = assignment.execution.files.map((entry, index) => {
+  const files = [];
+  for (let index = 0; index < assignment.execution.files.length; index += 1) {
+    const entry = assignment.execution.files[index];
     const filename = relativeFile(entry.path, `execution.files[${index}].path`);
     if (!pathAllowed(filename, allowedPaths)) throw new WorkspaceError(`Runner refused path outside the lease fence: ${filename}.`);
     const bytes = Buffer.from(entry.content_base64, 'base64');
     if (sha256(bytes) !== entry.sha256) throw new WorkspaceError(`Runner refused invalid assigned bytes for ${filename}.`);
-    return { ...entry, path: filename, bytes };
-  });
-  await ensureVerifier(controlRoot);
-  const manifestPath = path.join(controlRoot, `assignment-${leaseId}.json`);
-  await writePrivateJson(manifestPath, { schema: assignment.execution.schema, files: files.map(({ bytes: _bytes, ...entry }) => entry) });
-  const relativeManifest = path.relative(root, manifestPath).replaceAll('\\', '/');
-  const command = { program: 'node', args: [`${CONTROL_DIRECTORY}/verify.mjs`, relativeManifest, '.'] };
-  const maker = await MakerEngine.create({
-    root,
-    state_path: path.join(controlRoot, `maker-${leaseId}.json`),
-    task: {
-      repository: 'local/archie-hybrid-local',
-      base_sha: makerDigest({ leaseId, assignment }).slice(0, 40),
-      branch: `hybrid/${leaseId}`,
-      request: assignment.execution.request,
-      protect: `Write only ${allowedPaths.join(', ')}. No network, contact, spending, deployment, publishing, credentials, or writes outside the bounded root.`,
-      proof: 'Exact assigned digests, allowlisted local verification, Maker receipt, explicit artifact admission, and terminal hybrid receipt.'
-    },
-    lease: {
-      base_sha: makerDigest({ leaseId, assignment }).slice(0, 40),
-      branch: `hybrid/${leaseId}`,
-      writer_count: 1,
-      owned_paths: allowedPaths,
-      authority: { merge: 'human', deploy: 'human' }
-    },
-    command_policy: [command]
-  });
-  for (const entry of files) await maker.write(entry.path, entry.bytes);
-  await maker.checkpoint('hybrid-assignment-materialized');
-  const verification = await maker.verify([command]);
-  if (!verification.ok) throw new WorkspaceError('Hybrid Maker verification failed.');
-  const receipt = await maker.receipt();
-  if (JSON.stringify(receipt).includes(path.resolve(root))) throw new WorkspaceError('Maker receipt leaked the bounded local root.');
-  return Object.freeze({ makerReceipt: receipt, files });
+    const target = pathInside(root, filename);
+    await fs.mkdir(path.dirname(target.absolute), { recursive: true });
+    const temporary = `${target.absolute}.tmp-${process.pid}-${Date.now()}-${index}`;
+    await fs.writeFile(temporary, bytes, { mode: 0o600 });
+    await fs.rename(temporary, target.absolute);
+    const observed = await fs.readFile(target.absolute);
+    const observedDigest = sha256(observed);
+    if (observed.length !== bytes.length || observedDigest !== entry.sha256) {
+      throw new WorkspaceError(`Runner verification failed for ${filename}.`);
+    }
+    files.push({ path: filename, sha256: observedDigest, size_bytes: observed.length });
+  }
+  const body = {
+    schema: 'archie-bounded-materialization-receipt/v1',
+    lease_id: leaseId,
+    assignment_digest: sha256(stableJSONStringify(assignment)),
+    changed_paths: files.map(file => file.path),
+    files
+  };
+  return Object.freeze({ ...body, receipt_digest: sha256(stableJSONStringify(body)) });
 }
 
 export async function runHybridRunnerOnce({
-  baseUrl,
-  enrollmentToken = null,
-  root,
-  advertisement = null,
-  stopAfter = null,
-  injectFailure = false
+  baseUrl, enrollmentToken = null, root, advertisement = null,
+  stopAfter = null, injectFailure = false
 } = {}) {
   const serviceUrl = new URL(baseUrl).href;
   const boundedRoot = path.resolve(root);
@@ -260,16 +210,10 @@ export async function runHybridRunnerOnce({
       body: { enrollment_token: enrollmentToken, advertisement: advertisement || await defaultRunnerAdvertisement(boundedRoot) }
     });
     state = {
-      schema: ARCHIE_HYBRID_RUNNER_STATE_SCHEMA,
-      service_url: serviceUrl,
-      runner_id: identity.runner_id,
-      runner_token: identity.runner_token,
-      runner_expires_at: identity.expires_at,
-      lease_id: null,
-      fence_token: null,
-      event_sequence: 0,
-      event_head: null,
-      phase: 'enrolled'
+      schema: ARCHIE_HYBRID_RUNNER_STATE_SCHEMA, service_url: serviceUrl,
+      runner_id: identity.runner_id, runner_token: identity.runner_token,
+      runner_expires_at: identity.expires_at, lease_id: null, fence_token: null,
+      event_sequence: 0, event_head: null, phase: 'enrolled'
     };
     await writePrivateJson(stateFile, state);
   }
@@ -278,14 +222,11 @@ export async function runHybridRunnerOnce({
   let claim;
   if (state.lease_id && state.fence_token) {
     claim = await requestJson(new URL(`/v1/hybrid/runner/leases/${state.lease_id}`, serviceUrl), {
-      runnerToken: state.runner_token,
-      fenceToken: state.fence_token
+      runnerToken: state.runner_token, fenceToken: state.fence_token
     });
   } else {
     claim = await requestJson(new URL('/v1/hybrid/runner/claim', serviceUrl), {
-      method: 'POST',
-      runnerToken: state.runner_token,
-      allowNoContent: true
+      method: 'POST', runnerToken: state.runner_token, allowNoContent: true
     });
     if (!claim) return Object.freeze({ schema: 'archie-hybrid-runner-cycle/v1', runner_id: state.runner_id, status: 'idle' });
     state.lease_id = claim.lease.lease_id;
@@ -293,18 +234,12 @@ export async function runHybridRunnerOnce({
     state.event_sequence = claim.lease.event_sequence;
     state.event_head = claim.lease.event_head;
     state.phase = 'claimed';
-    await sendEvent({
-      serviceUrl,
-      state,
-      leaseId: claim.lease.lease_id,
-      kind: 'claimed',
-      summary: 'Local runner claimed the fenced lease.'
-    });
+    await sendEvent({ serviceUrl, state, leaseId: claim.lease.lease_id, kind: 'claimed', summary: 'Local runner claimed the fenced lease.' });
     await writePrivateJson(stateFile, state);
   }
+
   const lease = claim.lease;
   const assignment = claim.assignment;
-
   if (stopAfter === 'claimed') {
     return Object.freeze({ schema: 'archie-hybrid-runner-cycle/v1', runner_id: state.runner_id, lease_id: lease.lease_id, status: 'interrupted_after_claim' });
   }
@@ -314,14 +249,11 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
     if (injectFailure) throw new WorkspaceError('Injected local runner failure for terminal-receipt proof.');
 
-    const executed = await executeAssignment({ root: boundedRoot, assignment, leaseId: lease.lease_id });
+    const executionReceipt = await materializeAssignment({ root: boundedRoot, assignment, leaseId: lease.lease_id });
     await sendEvent({
-      serviceUrl,
-      state,
-      leaseId: lease.lease_id,
-      kind: 'maker_verified',
-      summary: `Maker verified ${executed.files.length} bounded files.`,
-      payload: { maker_receipt_digest: executed.makerReceipt.receipt_digest, changed_paths: executed.makerReceipt.changed_paths }
+      serviceUrl, state, leaseId: lease.lease_id, kind: 'materialization_verified',
+      summary: `Verified ${executionReceipt.files.length} bounded file${executionReceipt.files.length === 1 ? '' : 's'}.`,
+      payload: { execution_receipt_digest: executionReceipt.receipt_digest, changed_paths: executionReceipt.changed_paths }
     });
     await writePrivateJson(stateFile, state);
 
@@ -331,50 +263,35 @@ export async function runHybridRunnerOnce({
       const bytes = await fs.readFile(target.absolute);
       if (bytes.length > artifact.max_bytes || sha256(bytes) !== artifact.sha256) throw new WorkspaceError(`Runner artifact failed admission: ${artifact.artifact_id}.`);
       await requestJson(new URL(`/v1/hybrid/runner/leases/${lease.lease_id}/artifacts/${artifact.artifact_id}`, serviceUrl), {
-        method: 'PUT',
-        runnerToken: state.runner_token,
-        fenceToken: state.fence_token,
-        bytes,
-        mediaType: artifact.media_type
+        method: 'PUT', runnerToken: state.runner_token, fenceToken: state.fence_token,
+        bytes, mediaType: artifact.media_type
       });
       uploaded.push({ artifact_id: artifact.artifact_id, sha256: artifact.sha256, size_bytes: bytes.length });
       await sendEvent({
-        serviceUrl,
-        state,
-        leaseId: lease.lease_id,
-        kind: 'artifact_uploaded',
-        summary: `Uploaded admitted artifact ${artifact.artifact_id}.`,
-        payload: uploaded.at(-1)
+        serviceUrl, state, leaseId: lease.lease_id, kind: 'artifact_uploaded',
+        summary: `Uploaded admitted artifact ${artifact.artifact_id}.`, payload: uploaded.at(-1)
       });
       await writePrivateJson(stateFile, state);
     }
 
     const terminal = await requestJson(new URL(`/v1/hybrid/runner/leases/${lease.lease_id}/complete`, serviceUrl), {
-      method: 'POST',
-      runnerToken: state.runner_token,
-      fenceToken: state.fence_token,
+      method: 'POST', runnerToken: state.runner_token, fenceToken: state.fence_token,
       body: {
         schema: 'archie-hybrid-terminal-receipt/v1',
         summary: `Completed bounded local work with ${uploaded.length} admitted artifact${uploaded.length === 1 ? '' : 's'}.`,
-        maker_receipt: executed.makerReceipt
+        maker_receipt: executionReceipt
       }
     });
     await resetLeaseState(stateFile, state, 'completed');
     return Object.freeze({
-      schema: 'archie-hybrid-runner-cycle/v1',
-      runner_id: state.runner_id,
-      lease_id: lease.lease_id,
-      status: 'completed',
-      terminal_receipt_digest: terminal.receipt_digest
+      schema: 'archie-hybrid-runner-cycle/v1', runner_id: state.runner_id,
+      lease_id: lease.lease_id, status: 'completed', terminal_receipt_digest: terminal.receipt_digest
     });
   } catch (error) {
     const failure = await requestJson(new URL(`/v1/hybrid/runner/leases/${lease.lease_id}/fail`, serviceUrl), {
-      method: 'POST',
-      runnerToken: state.runner_token,
-      fenceToken: state.fence_token,
+      method: 'POST', runnerToken: state.runner_token, fenceToken: state.fence_token,
       body: {
-        schema: 'archie-hybrid-failure-receipt/v1',
-        summary: 'Bounded local runner execution failed.',
+        schema: 'archie-hybrid-failure-receipt/v1', summary: 'Bounded local runner execution failed.',
         failure: {
           phase: clean(state.phase || 'execution', 80),
           error_class: clean(error?.name || error?.code || 'Error', 160),
@@ -385,11 +302,8 @@ export async function runHybridRunnerOnce({
     if (failure) await resetLeaseState(stateFile, state, 'failed');
     else await writePrivateJson(stateFile, state);
     return Object.freeze({
-      schema: 'archie-hybrid-runner-cycle/v1',
-      runner_id: state.runner_id,
-      lease_id: lease.lease_id,
-      status: 'failed',
-      failure_receipt_digest: failure?.receipt_digest || null,
+      schema: 'archie-hybrid-runner-cycle/v1', runner_id: state.runner_id,
+      lease_id: lease.lease_id, status: 'failed', failure_receipt_digest: failure?.receipt_digest || null,
       message: clean(error?.message || 'Local runner failed.', 2_000)
     });
   }
@@ -412,9 +326,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const root = argument(argv, '--root', env.ARCHIED_RUNNER_ROOT);
   if (!baseUrl || !root) throw new WorkspaceError('--url and --root are required.');
   const result = await runHybridRunnerOnce({
-    baseUrl,
-    root,
-    enrollmentToken: argument(argv, '--enrollment-token', env.ARCHIED_ENROLLMENT_TOKEN)
+    baseUrl, root, enrollmentToken: argument(argv, '--enrollment-token', env.ARCHIED_ENROLLMENT_TOKEN)
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   return result;
