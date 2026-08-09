@@ -5,8 +5,6 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { renderStandaloneClient } from './archie-standalone-client.mjs';
-import { executeStandaloneJourney } from './archie-standalone-journey.mjs';
 import { exportWorkspaceBundle } from './archie-workspace-portable.mjs';
 import {
   WorkspaceAuthorityError,
@@ -17,9 +15,8 @@ import { SafeFileWorkspaceProvider } from './archie-workspace-file-provider.mjs'
 import { createWorkspaceRequestHandler } from './archie-workspace-service.mjs';
 
 export const ARCHIED_RUNTIME_SCHEMA = 'archied-runtime/v1';
-export const ARCHIED_SERVICE_VERSION = '0.1.0';
-export const ARCHIED_MIGRATION_LEVEL = 1;
-const MAX_BODY_BYTES = 2 * 1024 * 1024;
+export const ARCHIED_SERVICE_VERSION = '0.2.0';
+export const ARCHIED_MIGRATION_LEVEL = 2;
 
 function flagValue(argv, name, fallback = null) {
   const index = argv.lastIndexOf(name);
@@ -57,35 +54,6 @@ function jsonResponse(response, status, value, headers = {}) {
   response.end(body);
 }
 
-function htmlResponse(response, html) {
-  response.writeHead(200, {
-    'content-type': 'text/html; charset=utf-8',
-    'content-length': Buffer.byteLength(html),
-    'cache-control': 'no-store',
-    'content-security-policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
-    'referrer-policy': 'no-referrer',
-    'x-content-type-options': 'nosniff',
-    'x-frame-options': 'DENY'
-  });
-  response.end(html);
-}
-
-async function readJsonBody(request) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw new WorkspaceError('Request body exceeds 2 MiB.', { code: 'body_too_large', status: 413 });
-    chunks.push(chunk);
-  }
-  if (!chunks.length) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    throw new WorkspaceError('Request body must be valid JSON.');
-  }
-}
-
 export function resolveArchiedConfig({ argv = [], env = process.env, home = null } = {}) {
   const selectedHome = path.resolve(flagValue(argv, '--home', home || env.ARCHIE_HOME || path.join(os.homedir(), '.archie')));
   const root = path.resolve(flagValue(argv, '--root', env.ARCHIE_DATA_ROOT || path.join(selectedHome, 'standalone', 'workspaces')));
@@ -104,8 +72,7 @@ function descriptor({ baseUrl, root, mode }) {
     mode,
     base_url: baseUrl,
     canonical_state: 'archie-native-workspace-store',
-    product_surface: baseUrl,
-    local_journey_endpoint: new URL('v1/standalone/journeys', baseUrl).href,
+    workspace_api: new URL('v1/workspaces/', baseUrl).href,
     storage: {
       events: 'append-only-digest-chained-jsonl/v1',
       artifacts: 'content-addressed-sha256/v1',
@@ -114,9 +81,8 @@ function descriptor({ baseUrl, root, mode }) {
     source_host_required: false,
     github_required: false,
     network_required_after_install: false,
-    anonymous_public_read: true,
     mutation_identity: 'loopback principal or injected authenticator',
-    claim_boundary: 'This service records exact local work, authority, artifacts, evidence, review, promotion, rollback, and portable export. It does not claim trained-model quality, native-device admission, external deployment, or customer superiority without their independent receipts.'
+    claim_boundary: 'This service exposes the canonical workspace store, integrity-checked artifacts, and portable export. Model quality and admission are established only by separate receipts.'
   });
 }
 
@@ -165,49 +131,24 @@ export async function startArchied({
       const pathname = requestUrl.pathname;
       const parts = pathname.split('/').filter(Boolean);
 
-      if (request.method === 'GET' && pathname === '/') {
-        htmlResponse(response, renderStandaloneClient());
-        return;
-      }
-
-      if (request.method === 'GET' && (pathname === '/health' || pathname === '/.well-known/archied.json')) {
+      if (request.method === 'GET' && (pathname === '/' || pathname === '/health' || pathname === '/.well-known/archied.json')) {
         jsonResponse(response, 200, serviceDescriptor);
-        return;
-      }
-
-      if (request.method === 'POST' && pathname === '/v1/standalone/journeys') {
-        const principalId = await resolvePrincipal(request, { mutation: true });
-        if (principalId !== 'owner_local') {
-          throw new WorkspaceAuthorityError('The first local journey requires the loopback owner_local principal.');
-        }
-        const body = await readJsonBody(request);
-        const result = await executeStandaloneJourney({
-          engine: selectedEngine,
-          dataRoot: standaloneRoot,
-          objective: body.objective,
-          requestedChange: body.requested_change,
-          approve: body.approve === true,
-          visibility: body.visibility || 'private'
-        });
-        const { bundle_path: _privateBundlePath, ...publicResult } = result;
-        jsonResponse(response, 201, publicResult);
         return;
       }
 
       if (
         request.method === 'GET'
         && parts[0] === 'v1'
-        && parts[1] === 'standalone'
-        && parts[2] === 'workspaces'
-        && parts[3]
-        && parts[4] === 'export'
-        && parts.length === 5
+        && parts[1] === 'workspaces'
+        && parts[2]
+        && parts[3] === 'export'
+        && parts.length === 4
       ) {
         const principalId = await resolvePrincipal(request);
         if (!principalId) throw new WorkspaceAuthorityError('Workspace export requires a principal identity.');
-        const bundle = await exportWorkspaceBundle({ engine: selectedEngine, workspaceId: parts[3], principalId });
+        const bundle = await exportWorkspaceBundle({ engine: selectedEngine, workspaceId: parts[2], principalId });
         jsonResponse(response, 200, bundle, {
-          'content-disposition': `attachment; filename="${parts[3]}.archie.json"`,
+          'content-disposition': `attachment; filename="${parts[2]}.archie.json"`,
           'x-archie-bundle-digest': bundle.bundle_digest
         });
         return;
@@ -245,7 +186,7 @@ export async function startArchied({
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   if (argv.includes('--help') || argv.includes('-h')) {
-    process.stdout.write(`archied\n\nUsage:\n  archied [--dev] [--home <path>] [--root <path>] [--host 127.0.0.1] [--port 8787]\n\nThe canonical data root defaults to ARCHIE_HOME/standalone/workspaces and does not require GitHub, a remote, credentials, or network access.\n`);
+    process.stdout.write('archied\n\nUsage:\n  archied [--dev] [--home <path>] [--root <path>] [--host 127.0.0.1] [--port 8787]\n');
     return null;
   }
   const config = resolveArchiedConfig({ argv, env });
