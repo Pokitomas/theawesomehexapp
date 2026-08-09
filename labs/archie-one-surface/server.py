@@ -3,12 +3,11 @@ import json, os, pathlib, subprocess, time, re, shlex
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 ROOT = pathlib.Path(__file__).resolve().parent
-HOME = pathlib.Path('/home/awesomekai')
+HOME = pathlib.Path(os.environ.get('ARCHIE_OBSERVED_HOME', '/home/awesomekai')).resolve()
 REMOTE = HOME / 'archie-remote'
-RUNS = HOME / 'runs'
-TRAIN_ROOTS = (RUNS, HOME / 'archie-quaternion-heisenberg-autoscale-v1', HOME / 'archie-lab-observer-v2')
+TRAIN_ROOTS = (HOME / 'runs', HOME / 'archie-quaternion-heisenberg-autoscale-v1', HOME / 'archie-lab-observer-v2')
 ROOM_TAIL_BYTES = 256 * 1024
-SECRET_FLAGS = ('token', 'password', 'passwd', 'secret', 'api-key', 'api_key', 'authorization', 'cookie')
+SECRET_FLAGS = ('token', 'password', 'passwd', 'secret', 'api-key', 'api_key', 'authorization', 'cookie', 'credential', 'private_key')
 SECRET_PATTERNS = (
     re.compile(r'(?i)(bearer\s+)[A-Za-z0-9._~+\-/=]+'),
     re.compile(r'(?i)\b(sk-[A-Za-z0-9_-]{12,})\b'),
@@ -16,20 +15,20 @@ SECRET_PATTERNS = (
 )
 
 
-def read_json(p):
+def read_json(path):
     try:
-        return json.loads(pathlib.Path(p).read_text(errors='replace'))
+        return json.loads(pathlib.Path(path).read_text(errors='replace'))
     except Exception:
         return None
 
 
-def tail_text(p, lines=14, max_bytes=128 * 1024):
+def tail_text(path, lines=14, max_bytes=128 * 1024):
     try:
-        with pathlib.Path(p).open('rb') as f:
-            f.seek(0, 2)
-            size = f.tell()
-            f.seek(max(0, size - max_bytes))
-            data = f.read().decode('utf-8', 'replace')
+        with pathlib.Path(path).open('rb') as handle:
+            handle.seek(0, 2)
+            size = handle.tell()
+            handle.seek(max(0, size - max_bytes))
+            data = handle.read().decode('utf-8', 'replace')
         return '\n'.join(data.splitlines()[-lines:])
     except Exception:
         return ''
@@ -38,8 +37,20 @@ def tail_text(p, lines=14, max_bytes=128 * 1024):
 def redact_text(value):
     text = str(value or '')
     for pattern in SECRET_PATTERNS:
-        text = pattern.sub(lambda m: f'{m.group(1) if m.lastindex else ""}[REDACTED]', text)
+        text = pattern.sub(lambda match: f'{match.group(1) if match.lastindex else ""}[REDACTED]', text)
     return text
+
+
+def redact_value(value, key=''):
+    if any(flag in str(key).lower() for flag in SECRET_FLAGS):
+        return None if value is None else '[REDACTED]'
+    if isinstance(value, dict):
+        return {str(child_key): redact_value(child, str(child_key)) for child_key, child in value.items()}
+    if isinstance(value, list):
+        return [redact_value(child) for child in value]
+    if isinstance(value, str):
+        return redact_text(value)
+    return value
 
 
 def redact_argv(argv):
@@ -47,8 +58,7 @@ def redact_argv(argv):
         tokens = shlex.split(str(argv or ''))
     except Exception:
         tokens = str(argv or '').split()
-    out = []
-    redact_next = False
+    out, redact_next = [], False
     for token in tokens:
         lower = token.lower()
         if redact_next:
@@ -56,11 +66,8 @@ def redact_argv(argv):
             redact_next = False
             continue
         if token.startswith('--') and '=' in token:
-            key, value = token.split('=', 1)
-            if any(flag in key.lower() for flag in SECRET_FLAGS):
-                out.append(f'{key}=[REDACTED]')
-            else:
-                out.append(redact_text(token))
+            name, _value = token.split('=', 1)
+            out.append(f'{name}=[REDACTED]' if any(flag in name.lower() for flag in SECRET_FLAGS) else redact_text(token))
             continue
         out.append(redact_text(token))
         if token.startswith('--') and any(flag in lower for flag in SECRET_FLAGS):
@@ -71,37 +78,27 @@ def redact_argv(argv):
 def proc_rows():
     rows = []
     try:
-        out = subprocess.run(
-            ['ps', '-eo', 'pid=,ppid=,etimes=,args='],
-            capture_output=True,
-            text=True,
-            timeout=2,
+        output = subprocess.run(
+            ['ps', '-eo', 'pid=,ppid=,etimes=,args='], capture_output=True, text=True, timeout=2
         ).stdout
-        for line in out.splitlines():
+        for line in output.splitlines():
             match = re.match(r'\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)', line)
             if match:
-                rows.append({
-                    'pid': int(match[1]),
-                    'ppid': int(match[2]),
-                    'etimes': int(match[3]),
-                    'argv': match[4],
-                })
+                rows.append({'pid': int(match[1]), 'ppid': int(match[2]), 'etimes': int(match[3]), 'argv': match[4]})
     except Exception:
         pass
     return rows
 
 
 def gpu_rows(procs):
-    by_pid = {p['pid']: p for p in procs}
+    by_pid = {process['pid']: process for process in procs}
     rows = []
     try:
-        result = subprocess.run(
+        output = subprocess.run(
             ['nvidia-smi', '--query-compute-apps=pid,process_name,used_memory', '--format=csv,noheader,nounits'],
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        for line in result.stdout.splitlines():
+            capture_output=True, text=True, timeout=2
+        ).stdout
+        for line in output.splitlines():
             parts = [item.strip() for item in line.split(',')]
             if parts and parts[0].isdigit():
                 pid = int(parts[0])
@@ -134,18 +131,12 @@ def active_trainer(procs, gpu_pids):
     ]
     if not candidates:
         return None
-
-    # Prefer the process that actually owns GPU compute. If none does, prefer the
-    # newest matching process rather than an old low-PID survivor.
-    process = min(
-        candidates,
-        key=lambda item: (0 if item['pid'] in gpu_pids else 1, item['etimes'], -item['pid']),
-    )
+    process = min(candidates, key=lambda item: (0 if item['pid'] in gpu_pids else 1, item['etimes'], -item['pid']))
     try:
         tokens = shlex.split(process['argv'])
     except Exception:
         tokens = process['argv'].split()
-    fields = {key: flag(tokens, key) for key in ('--scale', '--arm', '--seed', '--preset', '--model-size', '--max-steps')}
+    fields = {name: flag(tokens, name) for name in ('--scale', '--arm', '--seed', '--preset', '--model-size', '--max-steps')}
     return {
         'pid': process['pid'],
         'elapsed_seconds': process['etimes'],
@@ -159,8 +150,7 @@ def active_trainer(procs, gpu_pids):
 
 
 def latest_training():
-    candidates = []
-    cutoff = time.time() - 7 * 86400
+    candidates, cutoff = [], time.time() - 7 * 86400
     for base in TRAIN_ROOTS:
         if not base.exists():
             continue
@@ -185,14 +175,14 @@ def latest_training():
     }
 
 
-def recent_events(n=14):
+def recent_events(limit=14):
     path = REMOTE / 'roast.jsonl'
     try:
-        with path.open('rb') as f:
-            f.seek(0, 2)
-            size = f.tell()
-            f.seek(max(0, size - ROOM_TAIL_BYTES))
-            lines = f.read().decode('utf-8', 'replace').splitlines()[-220:]
+        with path.open('rb') as handle:
+            handle.seek(0, 2)
+            size = handle.tell()
+            handle.seek(max(0, size - ROOM_TAIL_BYTES))
+            lines = handle.read().decode('utf-8', 'replace').splitlines()[-220:]
     except Exception:
         return []
     events = []
@@ -201,14 +191,10 @@ def recent_events(n=14):
             value = json.loads(line)
             text = str(value.get('text', ''))
             if text and value.get('from') != 'kai':
-                events.append({
-                    't': value.get('t', ''),
-                    'from': value.get('from', '?'),
-                    'text': redact_text(text[:500]),
-                })
+                events.append({'t': value.get('t', ''), 'from': value.get('from', '?'), 'text': redact_text(text[:500])})
         except Exception:
             pass
-    return events[-n:]
+    return events[-limit:]
 
 
 def state():
@@ -233,13 +219,10 @@ def state():
     ]
     return {
         'generated_unix': time.time(),
-        'runtime': read_json(REMOTE / 'runtime_truth.json') or {},
+        'runtime': redact_value(read_json(REMOTE / 'runtime_truth.json') or {}),
         'gpu': gpu,
         'services': services,
-        'agents': [
-            {'pid': process['pid'], 'argv': redact_argv(process['argv']), 'live': True}
-            for process in workers
-        ],
+        'agents': [{'pid': process['pid'], 'argv': redact_argv(process['argv']), 'live': True} for process in workers],
         'active_trainer': active_trainer(procs, gpu_pids),
         'training': latest_training(),
         'events': recent_events(),
@@ -249,6 +232,7 @@ def state():
             'sources': 'runtime truth + bounded process/log observations',
             'personal_media_scanned': False,
             'sensitive_text_redaction': True,
+            'runtime_truth_recursively_redacted': True,
         },
     }
 
