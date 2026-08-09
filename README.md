@@ -39,11 +39,12 @@ For the container path, copy `.env.archied.example` to `.env.archied`, replace e
 - `labs/archie-one-surface/index.html` + `labs/archie-one-surface/server.py` — the single read-only representation of live machine truth and retained project state.
 - `00-ARCHIE-MODEL/BENCHMARKS.json` — architecture-independent evaluation targets.
 - `00-ARCHIE-MODEL/evidence/HOSTED-LINUX-CPU-RSLORA.json` — exact historical CPU training receipt provenance retained separately because it contains artifact/run/config digests not duplicated in the compact narrative.
-- `ARCHIE_HISTORY_COMPACT.md` — the single compact historical record: positive results, failed branches, hashes, numerical defects, formal findings, and claim boundaries.
-- `ENGINEERING_LANGUAGE.md` — mechanism-first vocabulary for active engineering prose.
+- `ARCHIE_HISTORY_COMPACT.md` — the single compact historical record: positive results, failed branches, hashes, numerical defects, formal findings, language policy, and claim boundaries.
 
-## Rule
+## Rules
 
 Treat model code, evaluation fixtures, transport/runtime infrastructure, UI, and historical experiments as separate categories. A component belongs to the current neural model only when the live trainer dependency graph imports and executes it.
 
 Preserve exact negative evidence and measured receipts. Remove stale scaffolding that exists only to describe other stale scaffolding.
+
+Use mechanism-first language in active prose: evaluation gate, admission status, worker/process, permission scope, explicit failure, monitoring, cancellation, singular value, condition number, and precision sensitivity. Keep historical or serialized compatibility identifiers such as `promotion`, `authority`, or `court` unchanged when renaming them would break schemas, receipts, APIs, paths, or stored evidence; migrate those only explicitly and with compatibility tests.
