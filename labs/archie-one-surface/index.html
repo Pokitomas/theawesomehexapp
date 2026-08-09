@@ -20,6 +20,8 @@
 <div class="card"><div class="label">controller</div><div class="metric" id="controller">—</div><div class="small">Derived from runtime truth when available.</div></div>
 <div class="card"><div class="label">workers</div><div class="metric" id="workers">—</div><div class="small">Only observed local worker processes are counted.</div></div>
 
+<div class="card full"><div class="label">active trainer</div><div class="metric" id="trainer-id" style="font-size:clamp(20px,3vw,34px)">none observed</div><div class="small" id="trainer-meta">Exact scale / arm / seed appears here when the active process exposes those flags.</div><pre id="trainer-argv">No active trainer argv observed.</pre></div>
+
 <div class="card full"><div class="label">recorded current neural boundary</div><div class="metric" style="font-size:clamp(20px,3vw,34px)"><code>archie_lab_train.py → archie_lab_core.py → typed_delta_memory.py</code></div><div class="small">The exact live files remain outside this repository until imported and hash-checked. Historical repository model families are not treated as current architecture.</div></div>
 
 <div class="card full"><div class="label">evaluation results retained</div>
@@ -43,11 +45,18 @@ async function refresh(){
   try{
     const state=await fetch('/api/state',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('state '+r.status);return r.json()});
     const runtime=state.runtime?.summary||state.runtime||{};
+    const trainer=state.active_trainer;
     text('stamp','updated '+new Date((state.generated_unix||Date.now()/1000)*1000).toLocaleTimeString());
     text('compute',String(runtime.compute||state.gpu?.length&&'active'||'idle').toUpperCase());
     text('controller',String(runtime.controller||'unknown').toUpperCase());
     text('workers',String(state.agents?.length??0));
     text('gpu-note',state.gpu?.length?'observed compute process':'no GPU compute process observed');
+    if(trainer){
+      const parts=[trainer.scale&&`scale ${trainer.scale}`,trainer.arm&&`arm ${trainer.arm}`,trainer.seed&&`seed ${trainer.seed}`].filter(Boolean);
+      text('trainer-id',parts.join(' · ')||`pid ${trainer.pid}`);
+      text('trainer-meta',`pid ${trainer.pid} · elapsed ${trainer.elapsed_seconds}s${trainer.max_steps?` · max steps ${trainer.max_steps}`:''}`);
+      text('trainer-argv',trainer.argv||'');
+    }else{text('trainer-id','none observed');text('trainer-meta','No active trainer process matched the current trainer markers.');text('trainer-argv','No active trainer argv observed.');}
     text('gpu',(state.gpu||[]).map(x=>`${x.pid}  ${x.memory_mib||'?'} MiB  ${x.argv||x.name||''}`).join('\n')||'No compute process observed.');
     text('services',(state.services||[]).map(x=>`${x.live?'UP  ':'DOWN'} ${x.name}`).join('\n')||'No service inventory.');
     text('training',state.training?.tail||'No recent trace found.');
