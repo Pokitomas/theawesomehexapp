@@ -8,10 +8,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 COPY package.json ./
-COPY scripts/archie-hybrid-hosted.mjs scripts/archie-hybrid-hosted.mjs
 COPY scripts/archie-hybrid-runner.mjs scripts/archie-hybrid-runner.mjs
 COPY scripts/archie-enrolled-hybrid-runner.mjs scripts/archie-enrolled-hybrid-runner.mjs
-COPY scripts/archie-hybrid-queue.mjs scripts/archie-hybrid-queue.mjs
 COPY scripts/archie-hybrid-protocol.mjs scripts/archie-hybrid-protocol.mjs
 COPY scripts/archied-hosted.mjs scripts/archied-hosted.mjs
 COPY scripts/archied.mjs scripts/archied.mjs
@@ -33,4 +31,4 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
 
-CMD ["node", "scripts/archie-hybrid-hosted.mjs"]
+CMD ["node", "scripts/archied-hosted.mjs"]
