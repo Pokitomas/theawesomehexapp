@@ -1,39 +1,42 @@
 {
   "name": "archie-transport",
-  "version": "0.3.0",
-  "description": "Minimal ARCHIE host/relay transport and workspace runtime retained while current typed-Delta model source lives outside this repository.",
+  "version": "0.4.0",
+  "description": "Minimal ARCHIE workspace and enrolled-runner transport. Current typed-Delta model source is tracked separately until exact live files are imported.",
   "private": true,
   "type": "module",
   "bin": {
     "archied": "scripts/archied.mjs",
-    "archied-hosted": "scripts/archie-hybrid-hosted.mjs",
+    "archied-hosted": "scripts/archied-hosted.mjs",
     "archie-hybrid-runner": "scripts/archie-hybrid-runner.mjs",
     "archie-enrolled-hybrid-runner": "scripts/archie-enrolled-hybrid-runner.mjs"
   },
   "files": [
-    "scripts/archie-hybrid-*.mjs",
+    "scripts/archied.mjs",
+    "scripts/archied-hosted.mjs",
+    "scripts/archie-hybrid-runner.mjs",
     "scripts/archie-enrolled-hybrid-runner.mjs",
-    "scripts/archied*.mjs",
-    "scripts/archie-hosted-*.mjs",
-    "scripts/archie-workspace-*.mjs",
+    "scripts/archie-hybrid-protocol.mjs",
+    "scripts/archie-workspace-core.mjs",
+    "scripts/archie-workspace-portable.mjs",
+    "scripts/archie-workspace-file-provider.mjs",
+    "scripts/archie-workspace-service.mjs",
     "scripts/maker-engine.mjs",
     "scripts/check-engineering-language.mjs",
-    "tools/archie_one_body.py",
     "README.md",
+    "ENGINEERING_LANGUAGE.md",
     "EVIDENCE.md",
-    "ENGINEERING_LANGUAGE.md"
+    "00-ARCHIE-MODEL/BENCHMARKS.json"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "archie:local": "node scripts/archied.mjs",
-    "archie:hosted": "node scripts/archie-hybrid-hosted.mjs",
-    "archie:hosted:base": "node scripts/archied-hosted.mjs",
-    "archie:runner": "node scripts/archie-hybrid-runner.mjs",
-    "archie:runner:enrolled": "node scripts/archie-enrolled-hybrid-runner.mjs",
-    "archie:view": "python3 tools/archie_one_body.py",
-    "test:transport": "node --test scripts/tests/archie-workspace-substrate.test.mjs scripts/tests/archied-service.test.mjs scripts/tests/archied-hosted.test.mjs scripts/tests/archied-hosted-authority.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs",
+    "archied": "node scripts/archied.mjs",
+    "archied:hosted": "node scripts/archied-hosted.mjs",
+    "runner": "node scripts/archie-hybrid-runner.mjs",
+    "runner:enrolled": "node scripts/archie-enrolled-hybrid-runner.mjs",
+    "test:workspace": "node --test scripts/tests/archie-workspace-substrate.test.mjs",
+    "test:hosted": "node --test scripts/tests/archied-hosted.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs",
     "check:language": "node scripts/check-engineering-language.mjs"
   }
 }
