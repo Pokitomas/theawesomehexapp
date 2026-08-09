@@ -26,9 +26,29 @@ The old trainer also reset elapsed runtime and `skipped_nonfinite_steps` on resu
 
 Do not infer these defects apply to the current typed-Delta path; the bad clamp/cumprod implementation was localized to this older hybrid SSM line.
 
+## Retired verifier-anchored causal-divergence QLoRA lane
+
+Scraped before removal on 2026-08-08.
+
+Useful residue:
+- The pair compiler bound a negative trajectory to an independently verified positive descendant only when request bytes matched, then supervised the verified repair and applied a frozen-reference preference loss only after the first divergent target token.
+- The trainer explicitly disabled TF32 and required deterministic CUDA QLoRA. That strict-precision behavior is worth retaining as a court design principle, not as a current model dependency.
+- The committed truth boundary states: method implemented, CUDA training by that change `false`, adapter artifact `false`, capability evaluation `false`, candidate promotion `false`.
+- The Linux digital twin deliberately executed zero gradient and zero optimizer steps and could only prove fail-closed CPU refusal.
+- The lane has an internal stale-contract contradiction: `test_cuda_causal_workflow_contract.py` expects request `baseline_commit = 8bb6fac2809afcc55f91f900bc6bf16f84dfb788`, while the current `.github/training/archie-cuda-request.json` contains `04001f6bf13277b27ac55f6d4d60ab1952da56a5`.
+
+This lane is not in the Aug-8 typed-Delta forward graph and carries no admitted model artifact, so its executable scaffolding is being retired rather than allowed to remain as apparent current machinery.
+
 ## Naming collision explicitly retained
 
 `scripts/archie-hybrid-runner.mjs`, `scripts/archie-hybrid-queue.mjs`, `scripts/archie-enrolled-hybrid-runner.mjs`, `scripts/archie-hybrid-protocol.mjs`, and `scripts/archie-hybrid-hosted.mjs` were scraped before deletion consideration and are **not** the retired LM hybrid. They implement outbound runner / lease / fencing / event-chain / hosted transport mechanics and are retained pending the current Vercel transport repair audit.
+
+Supporting transport objects already scraped and provisionally retained:
+- `scripts/archie-workspace-core.mjs`: digest-bound append-only workspace event state.
+- `scripts/archie-workspace-portable.mjs`: verifies/imports/exports exact event and artifact bundles.
+- `scripts/archie-workspace-file-provider.mjs`: bounded file provider wrapper.
+
+`scripts/archie-standalone-journey.mjs` was also scraped. It is a deterministic synthetic product fixture, not current model logic; it is not automatically protected merely because an old runner imports it.
 
 ## Current source boundary
 
