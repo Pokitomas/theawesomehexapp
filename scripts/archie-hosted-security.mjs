@@ -51,7 +51,7 @@ function bearer(request) {
 
 async function atomicWrite(filename, value) {
   await fs.mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
-  const temporary = `${filename}.tmp-${process.pid}-${Date.now()}`;
+  const temporary = `${filename}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   await fs.writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
   await fs.rename(temporary, filename);
   await fs.chmod(filename, 0o600).catch(() => {});
@@ -63,6 +63,12 @@ async function readJson(filename, fallback) {
     if (error?.code === 'ENOENT') return structuredClone(fallback);
     throw error;
   }
+}
+
+function serializeMutation(owner, operation) {
+  const run = owner._mutation.then(operation, operation);
+  owner._mutation = run.then(() => undefined, () => undefined);
+  return run;
 }
 
 export function tokenSha256(token) {
@@ -160,6 +166,7 @@ export function createHostedSecurity({
 export class HostedShareRegistry {
   constructor(root) {
     this.filename = path.join(path.resolve(root), 'hosted', 'shares.json');
+    this._mutation = Promise.resolve();
   }
 
   async read() {
@@ -169,28 +176,30 @@ export class HostedShareRegistry {
   }
 
   async issue({ workspaceId, principalId, grantId, createdBy, expiresInMs = 24 * 60 * 60 * 1000 }) {
-    const duration = Number(expiresInMs);
-    if (!Number.isInteger(duration) || duration < 60_000 || duration > 30 * 24 * 60 * 60 * 1000) {
-      throw new WorkspaceError('Share expiry must be from one minute through 30 days.');
-    }
-    const token = crypto.randomBytes(32).toString('base64url');
-    const digest = tokenSha256(token);
-    const createdAt = new Date().toISOString();
-    const record = {
-      share_id: `share_${digest.slice(0, 24)}`,
-      workspace_id: String(workspaceId),
-      principal_id: String(principalId),
-      grant_id: String(grantId),
-      token_sha256: digest,
-      created_by: String(createdBy),
-      created_at: createdAt,
-      expires_at: new Date(Date.parse(createdAt) + duration).toISOString(),
-      revoked_at: null
-    };
-    const registry = await this.read();
-    await atomicWrite(this.filename, { schema: ARCHIE_HOSTED_SHARE_SCHEMA, shares: [...registry.shares, record] });
-    const { token_sha256: _tokenDigest, ...publicRecord } = record;
-    return Object.freeze({ token, record: publicRecord });
+    return serializeMutation(this, async () => {
+      const duration = Number(expiresInMs);
+      if (!Number.isInteger(duration) || duration < 60_000 || duration > 30 * 24 * 60 * 60 * 1000) {
+        throw new WorkspaceError('Share expiry must be from one minute through 30 days.');
+      }
+      const token = crypto.randomBytes(32).toString('base64url');
+      const digest = tokenSha256(token);
+      const createdAt = new Date().toISOString();
+      const record = {
+        share_id: `share_${digest.slice(0, 24)}`,
+        workspace_id: String(workspaceId),
+        principal_id: String(principalId),
+        grant_id: String(grantId),
+        token_sha256: digest,
+        created_by: String(createdBy),
+        created_at: createdAt,
+        expires_at: new Date(Date.parse(createdAt) + duration).toISOString(),
+        revoked_at: null
+      };
+      const registry = await this.read();
+      await atomicWrite(this.filename, { schema: ARCHIE_HOSTED_SHARE_SCHEMA, shares: [...registry.shares, record] });
+      const { token_sha256: _tokenDigest, ...publicRecord } = record;
+      return Object.freeze({ token, record: publicRecord });
+    });
   }
 
   async authenticate(token, now = Date.now()) {
@@ -218,13 +227,17 @@ export class HostedShareRegistry {
   }
 
   async revoke(shareId, revokedAt = new Date().toISOString()) {
-    const registry = await this.read();
-    const index = registry.shares.findIndex(item => item.share_id === shareId);
-    if (index < 0) throw new WorkspaceError('Hosted share was not found.', { code: 'not_found', status: 404 });
-    const shares = registry.shares.map((item, itemIndex) => itemIndex === index ? { ...item, revoked_at: item.revoked_at || new Date(revokedAt).toISOString() } : item);
-    await atomicWrite(this.filename, { schema: ARCHIE_HOSTED_SHARE_SCHEMA, shares });
-    const { token_sha256: _tokenDigest, ...publicRecord } = shares[index];
-    return Object.freeze(publicRecord);
+    return serializeMutation(this, async () => {
+      const registry = await this.read();
+      const index = registry.shares.findIndex(item => item.share_id === shareId);
+      if (index < 0) throw new WorkspaceError('Hosted share was not found.', { code: 'not_found', status: 404 });
+      const shares = registry.shares.map((item, itemIndex) => itemIndex === index
+        ? { ...item, revoked_at: item.revoked_at || new Date(revokedAt).toISOString() }
+        : item);
+      await atomicWrite(this.filename, { schema: ARCHIE_HOSTED_SHARE_SCHEMA, shares });
+      const { token_sha256: _tokenDigest, ...publicRecord } = shares[index];
+      return Object.freeze(publicRecord);
+    });
   }
 
   async status() {
@@ -248,6 +261,7 @@ export class EncryptedSecretStore {
     this.filename = path.resolve(filename);
     this.key = keyBytes(key, 'ARCHIED_SECRET_KEY');
     this.keyId = sha256(this.key).slice(0, 16);
+    this._mutation = Promise.resolve();
   }
 
   async envelope() {
@@ -259,24 +273,26 @@ export class EncryptedSecretStore {
   }
 
   async set(name, value) {
-    const secretName = String(name || '').trim();
-    if (!NAME_PATTERN.test(secretName)) throw new WorkspaceError(`Secret name must match ${NAME_PATTERN}.`);
-    const plaintext = String(value ?? '');
-    if (!plaintext || plaintext.length > 256_000) throw new WorkspaceError('Secret value must contain 1-256000 characters.');
-    const envelope = await this.envelope();
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', this.key, iv);
-    cipher.setAAD(Buffer.from(`${ARCHIE_SECRET_STORE_SCHEMA}:${secretName}`));
-    const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-    envelope.entries[secretName] = {
-      cipher: 'aes-256-gcm',
-      iv: iv.toString('base64'),
-      tag: cipher.getAuthTag().toString('base64'),
-      ciphertext: ciphertext.toString('base64'),
-      updated_at: new Date().toISOString()
-    };
-    await atomicWrite(this.filename, envelope);
-    return Object.freeze({ name: secretName, key_id: this.keyId, updated_at: envelope.entries[secretName].updated_at });
+    return serializeMutation(this, async () => {
+      const secretName = String(name || '').trim();
+      if (!NAME_PATTERN.test(secretName)) throw new WorkspaceError(`Secret name must match ${NAME_PATTERN}.`);
+      const plaintext = String(value ?? '');
+      if (!plaintext || plaintext.length > 256_000) throw new WorkspaceError('Secret value must contain 1-256000 characters.');
+      const envelope = await this.envelope();
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', this.key, iv);
+      cipher.setAAD(Buffer.from(`${ARCHIE_SECRET_STORE_SCHEMA}:${secretName}`));
+      const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+      envelope.entries[secretName] = {
+        cipher: 'aes-256-gcm',
+        iv: iv.toString('base64'),
+        tag: cipher.getAuthTag().toString('base64'),
+        ciphertext: ciphertext.toString('base64'),
+        updated_at: new Date().toISOString()
+      };
+      await atomicWrite(this.filename, envelope);
+      return Object.freeze({ name: secretName, key_id: this.keyId, updated_at: envelope.entries[secretName].updated_at });
+    });
   }
 
   async status({ includeNames = false } = {}) {
@@ -296,6 +312,6 @@ export class EncryptedSecretStore {
 }
 
 export function requireRole(identity, roles) {
-  if (!identity || !roles.includes(identity.role)) throw new WorkspaceAuthorityError('Private hosted Archie authority is required.');
+  if (!identity || !roles.includes(identity.role)) throw new WorkspaceAuthorityError('Private hosted Archie permission scope is required.');
   return identity;
 }
