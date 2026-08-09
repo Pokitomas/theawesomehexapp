@@ -8,7 +8,6 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 COPY package.json ./
-COPY scripts/archie-hybrid-runner.mjs scripts/archie-hybrid-runner.mjs
 COPY scripts/archie-enrolled-hybrid-runner.mjs scripts/archie-enrolled-hybrid-runner.mjs
 COPY scripts/archie-hybrid-protocol.mjs scripts/archie-hybrid-protocol.mjs
 COPY scripts/archied-hosted.mjs scripts/archied-hosted.mjs
