@@ -11,12 +11,7 @@ export const ARCHIE_HYBRID_RUNNER_STATE_SCHEMA = 'archie-hybrid-runner-state/v1'
 const CONTROL_DIRECTORY = '.archie-runner';
 const STATE_FILENAME = 'state.json';
 const REQUIRED_CAPABILITIES = Object.freeze([
-  'artifact.upload',
-  'directory.read',
-  'directory.write',
-  'event.stream',
-  'process.verify',
-  'resume'
+  'artifact.upload', 'directory.read', 'directory.write', 'event.stream', 'process.verify', 'resume'
 ]);
 
 function clean(value, limit = 2_000) {
@@ -52,6 +47,33 @@ function pathInside(root, filename) {
   const absolute = path.resolve(base, ...normalized.split('/'));
   if (absolute !== base && !absolute.startsWith(`${base}${path.sep}`)) throw new WorkspaceError('Runner path escaped the bounded root.');
   return { relative: normalized, absolute };
+}
+
+async function ensureSafeParent(root, filename) {
+  const normalized = relativeFile(filename, 'runner path');
+  const base = path.resolve(root);
+  await fs.mkdir(base, { recursive: true, mode: 0o700 });
+  let current = base;
+  for (const segment of normalized.split('/').slice(0, -1)) {
+    current = path.join(current, segment);
+    try {
+      const stat = await fs.lstat(current);
+      if (stat.isSymbolicLink()) throw new WorkspaceError(`Runner refused symlinked parent for ${normalized}.`);
+      if (!stat.isDirectory()) throw new WorkspaceError(`Runner parent is not a directory for ${normalized}.`);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      await fs.mkdir(current, { mode: 0o700 });
+    }
+  }
+  const target = pathInside(base, normalized);
+  try {
+    const stat = await fs.lstat(target.absolute);
+    if (stat.isSymbolicLink()) throw new WorkspaceError(`Runner refused symlink target for ${normalized}.`);
+    if (stat.isDirectory()) throw new WorkspaceError(`Runner target is a directory for ${normalized}.`);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  return target;
 }
 
 async function writePrivateJson(filename, value) {
@@ -162,34 +184,33 @@ async function sendEvent({ serviceUrl, state, leaseId, kind, summary, payload = 
 }
 
 async function materializeAssignment({ root, assignment, leaseId }) {
-  const allowedPaths = assignment.allowed_paths;
   const files = [];
+  const materialized = new Map();
   for (let index = 0; index < assignment.execution.files.length; index += 1) {
     const entry = assignment.execution.files[index];
     const filename = relativeFile(entry.path, `execution.files[${index}].path`);
-    if (!pathAllowed(filename, allowedPaths)) throw new WorkspaceError(`Runner refused path outside the lease fence: ${filename}.`);
+    if (!pathAllowed(filename, assignment.allowed_paths)) throw new WorkspaceError(`Runner refused path outside the lease fence: ${filename}.`);
     const bytes = Buffer.from(entry.content_base64, 'base64');
     if (sha256(bytes) !== entry.sha256) throw new WorkspaceError(`Runner refused invalid assigned bytes for ${filename}.`);
-    const target = pathInside(root, filename);
-    await fs.mkdir(path.dirname(target.absolute), { recursive: true });
+    const target = await ensureSafeParent(root, filename);
     const temporary = `${target.absolute}.tmp-${process.pid}-${Date.now()}-${index}`;
     await fs.writeFile(temporary, bytes, { mode: 0o600 });
     await fs.rename(temporary, target.absolute);
     const observed = await fs.readFile(target.absolute);
     const observedDigest = sha256(observed);
-    if (observed.length !== bytes.length || observedDigest !== entry.sha256) {
-      throw new WorkspaceError(`Runner verification failed for ${filename}.`);
-    }
+    if (observed.length !== bytes.length || observedDigest !== entry.sha256) throw new WorkspaceError(`Runner verification failed for ${filename}.`);
     files.push({ path: filename, sha256: observedDigest, size_bytes: observed.length });
+    materialized.set(filename, Buffer.from(observed));
   }
   const body = {
-    schema: 'archie-bounded-materialization-receipt/v1',
-    lease_id: leaseId,
+    schema: 'archie-bounded-materialization-receipt/v1', lease_id: leaseId,
     assignment_digest: sha256(stableJSONStringify(assignment)),
-    changed_paths: files.map(file => file.path),
-    files
+    changed_paths: files.map(file => file.path), files
   };
-  return Object.freeze({ ...body, receipt_digest: sha256(stableJSONStringify(body)) });
+  return {
+    receipt: Object.freeze({ ...body, receipt_digest: sha256(stableJSONStringify(body)) }),
+    materialized
+  };
 }
 
 export async function runHybridRunnerOnce({
@@ -249,24 +270,28 @@ export async function runHybridRunnerOnce({
     await writePrivateJson(stateFile, state);
     if (injectFailure) throw new WorkspaceError('Injected local runner failure for terminal-receipt proof.');
 
-    const executionReceipt = await materializeAssignment({ root: boundedRoot, assignment, leaseId: lease.lease_id });
+    const execution = await materializeAssignment({ root: boundedRoot, assignment, leaseId: lease.lease_id });
     await sendEvent({
       serviceUrl, state, leaseId: lease.lease_id, kind: 'materialization_verified',
-      summary: `Verified ${executionReceipt.files.length} bounded file${executionReceipt.files.length === 1 ? '' : 's'}.`,
-      payload: { execution_receipt_digest: executionReceipt.receipt_digest, changed_paths: executionReceipt.changed_paths }
+      summary: `Verified ${execution.receipt.files.length} bounded file${execution.receipt.files.length === 1 ? '' : 's'}.`,
+      payload: { execution_receipt_digest: execution.receipt.receipt_digest, changed_paths: execution.receipt.changed_paths }
     });
     await writePrivateJson(stateFile, state);
 
     const uploaded = [];
     for (const artifact of assignment.artifact_admission) {
-      const target = pathInside(boundedRoot, artifact.path);
-      const bytes = await fs.readFile(target.absolute);
-      if (bytes.length > artifact.max_bytes || sha256(bytes) !== artifact.sha256) throw new WorkspaceError(`Runner artifact failed admission: ${artifact.artifact_id}.`);
+      const filename = relativeFile(artifact.path, 'artifact path');
+      const bytes = execution.materialized.get(filename);
+      if (!bytes) throw new WorkspaceError(`Runner refused artifact not materialized by this assignment: ${artifact.artifact_id}.`);
+      const digest = sha256(bytes);
+      if (bytes.length > artifact.max_bytes || (artifact.sha256 && digest !== artifact.sha256)) {
+        throw new WorkspaceError(`Runner artifact failed admission: ${artifact.artifact_id}.`);
+      }
       await requestJson(new URL(`/v1/hybrid/runner/leases/${lease.lease_id}/artifacts/${artifact.artifact_id}`, serviceUrl), {
         method: 'PUT', runnerToken: state.runner_token, fenceToken: state.fence_token,
         bytes, mediaType: artifact.media_type
       });
-      uploaded.push({ artifact_id: artifact.artifact_id, sha256: artifact.sha256, size_bytes: bytes.length });
+      uploaded.push({ artifact_id: artifact.artifact_id, sha256: digest, size_bytes: bytes.length });
       await sendEvent({
         serviceUrl, state, leaseId: lease.lease_id, kind: 'artifact_uploaded',
         summary: `Uploaded admitted artifact ${artifact.artifact_id}.`, payload: uploaded.at(-1)
@@ -279,7 +304,7 @@ export async function runHybridRunnerOnce({
       body: {
         schema: 'archie-hybrid-terminal-receipt/v1',
         summary: `Completed bounded local work with ${uploaded.length} admitted artifact${uploaded.length === 1 ? '' : 's'}.`,
-        maker_receipt: executionReceipt
+        maker_receipt: execution.receipt
       }
     });
     await resetLeaseState(stateFile, state, 'completed');
