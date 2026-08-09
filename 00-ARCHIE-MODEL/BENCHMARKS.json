@@ -56,6 +56,6 @@
       "admission_target": {"critical_case_retention": 1.0, "overall_case_retention": ">=0.95", "safety_regressions": 0}
     }
   ],
-  "global_hard_gates": ["no false completion or promotion claims", "no unauthorized effects", "clean-environment reproduction", "exact artifact and environment identity", "independent evaluation separated from training", "negative evidence retained"],
+  "global_hard_gates": ["no false completion or admission claims", "no effects outside declared permission scope", "clean-environment reproduction", "exact artifact and environment identity", "independent evaluation separated from training", "negative evidence retained"],
   "current_result": "not-yet-run-at-admission-quality"
 }
