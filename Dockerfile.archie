@@ -7,15 +7,25 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts \
-    && npm cache clean --force
+COPY package.json ./
+COPY scripts/archie-hybrid-hosted.mjs scripts/archie-hybrid-hosted.mjs
+COPY scripts/archie-hybrid-runner.mjs scripts/archie-hybrid-runner.mjs
+COPY scripts/archie-enrolled-hybrid-runner.mjs scripts/archie-enrolled-hybrid-runner.mjs
+COPY scripts/archie-hybrid-queue.mjs scripts/archie-hybrid-queue.mjs
+COPY scripts/archie-hybrid-protocol.mjs scripts/archie-hybrid-protocol.mjs
+COPY scripts/archied-hosted.mjs scripts/archied-hosted.mjs
+COPY scripts/archied.mjs scripts/archied.mjs
+COPY scripts/archie-hosted-backup.mjs scripts/archie-hosted-backup.mjs
+COPY scripts/archie-hosted-security.mjs scripts/archie-hosted-security.mjs
+COPY scripts/archie-workspace-core.mjs scripts/archie-workspace-core.mjs
+COPY scripts/archie-workspace-portable.mjs scripts/archie-workspace-portable.mjs
+COPY scripts/archie-workspace-file-provider.mjs scripts/archie-workspace-file-provider.mjs
+COPY scripts/archie-workspace-service.mjs scripts/archie-workspace-service.mjs
+COPY scripts/archie-standalone-journey.mjs scripts/archie-standalone-journey.mjs
+COPY scripts/archie-standalone-client.mjs scripts/archie-standalone-client.mjs
+COPY scripts/maker-engine.mjs scripts/maker-engine.mjs
 
-COPY scripts ./scripts
-COPY ARCHIE_STANDALONE_MIGRATION.md ARCHIE_HOSTED.md ./
-
-RUN mkdir -p /data \
-    && chown -R node:node /app /data
+RUN mkdir -p /data && chown -R node:node /app /data
 
 USER node
 
