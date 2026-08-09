@@ -1,5 +1,0 @@
-{
-  "schema": "archie-iphone-measurement-authorities/v1",
-  "authorities": [],
-  "claim_boundary": "No measurement authority is enrolled. Physical-device campaigns may produce evidence packages, but no candidate may be selected or promoted until an independently controlled Ed25519 public key is reviewed and pinned here."
-}
