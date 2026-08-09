@@ -1,6 +1,6 @@
 {
   "name": "archie-transport",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Minimal ARCHIE workspace and enrolled-runner transport. Current typed-Delta model source is tracked separately until exact live files are imported.",
   "private": true,
   "type": "module",
@@ -22,9 +22,11 @@
     "scripts/archie-workspace-service.mjs",
     "scripts/maker-engine.mjs",
     "scripts/check-engineering-language.mjs",
+    "tools/archie_one_body.py",
+    "labs/archie-one-surface/index.html",
     "README.md",
     "ENGINEERING_LANGUAGE.md",
-    "EVIDENCE.md",
+    "ARCHIE_HISTORY_COMPACT.md",
     "00-ARCHIE-MODEL/BENCHMARKS.json"
   ],
   "engines": {
@@ -35,6 +37,7 @@
     "archied:hosted": "node scripts/archied-hosted.mjs",
     "runner": "node scripts/archie-hybrid-runner.mjs",
     "runner:enrolled": "node scripts/archie-enrolled-hybrid-runner.mjs",
+    "view": "python3 tools/archie_one_body.py",
     "test:workspace": "node --test scripts/tests/archie-workspace-substrate.test.mjs",
     "test:hosted": "node --test scripts/tests/archied-hosted.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs",
     "check:language": "node scripts/check-engineering-language.mjs"
