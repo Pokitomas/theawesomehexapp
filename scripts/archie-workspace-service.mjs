@@ -54,9 +54,10 @@ function serviceDescriptor(baseUrl) {
     base_url: baseUrl,
     provider: 'provider-neutral-local-adapter',
     anonymous_public_read: true,
+    browser_cross_origin_mutation: false,
     mutation_identity: 'x-archie-principal on loopback or an injected authenticator',
     canonical_objects: ['workspace', 'objective', 'task', 'agent', 'grant', 'lease', 'run', 'event', 'artifact', 'evidence', 'review', 'requested_change', 'approval', 'promotion', 'rollback'],
-    claim_boundary: 'The bundled service is a local provider adapter, not an internet authentication system. Anonymous reads are allowed only for public workspaces; non-loopback mutations require an injected authenticator.'
+    claim_boundary: 'The bundled service is a local provider adapter, not an internet authentication system. Anonymous reads are allowed only for public workspaces; browser cross-origin mutation is not advertised; non-loopback mutations require an injected authenticator.'
   };
 }
 
@@ -73,11 +74,12 @@ export function createWorkspaceRequestHandler({ engine, authenticate = null, bas
   }
 
   return async function handle(request, response) {
-    response.setHeader('access-control-allow-origin', '*');
-    response.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-    response.setHeader('access-control-allow-headers', 'content-type, x-archie-principal');
+    // Simple anonymous GETs may be read cross-origin. Mutation requires the
+    // x-archie-principal header, which triggers a browser preflight; OPTIONS
+    // intentionally advertises no mutation CORS capability.
+    if (request.method === 'GET') response.setHeader('access-control-allow-origin', '*');
     if (request.method === 'OPTIONS') {
-      response.writeHead(204);
+      response.writeHead(204, { 'cache-control': 'no-store' });
       response.end();
       return;
     }
