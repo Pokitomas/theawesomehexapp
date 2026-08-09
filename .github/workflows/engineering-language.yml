@@ -1,0 +1,44 @@
+name: Check engineering language
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'HANDOFF.md'
+      - 'ARCHIE_RUNTIME.md'
+      - 'ARCHIE_TRAINING.md'
+      - 'ENGINEERING_LANGUAGE.md'
+      - 'archie-operator/index.html'
+      - 'scripts/check-engineering-language.mjs'
+      - '.github/workflows/engineering-language.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'HANDOFF.md'
+      - 'ARCHIE_RUNTIME.md'
+      - 'ARCHIE_TRAINING.md'
+      - 'ENGINEERING_LANGUAGE.md'
+      - 'archie-operator/index.html'
+      - 'scripts/check-engineering-language.mjs'
+      - '.github/workflows/engineering-language.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  language:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+      - name: Check active engineering language
+        run: node scripts/check-engineering-language.mjs
