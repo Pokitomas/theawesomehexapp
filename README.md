@@ -1,10 +1,10 @@
 # Archie
 
-Archie is an experimental local-first model and execution system for turning unfinished human intentions into verified digital outcomes.
+Archie is an experimental local-first model and execution system. This repository now intentionally contains only the small workspace/transport runtime, one representation surface, architecture-independent evaluation targets, and compact historical evidence.
 
 ## Current empirical state
 
-The repository does **not** currently establish a canonical neural architecture or admitted checkpoint. Historical model lanes are evidence, not current identity. Reconstruct any current model claim from the live trainer, its direct dependency graph, exact configuration, and run receipts.
+The repository does **not** establish the current neural architecture or an admitted checkpoint. Reconstruct current model identity from the live trainer, its direct dependency graph, exact configuration, and run receipts.
 
 ```text
 admission status: not admitted
@@ -12,19 +12,27 @@ admitted checkpoint: none established in repository
 current neural identity: resolve from live executable source + receipts
 ```
 
-The serialized field `promotion` may still appear in historical or compatibility receipts. In user-facing prose it means **admission status**; do not rename the wire field without an explicit migration.
+Observed Aug-8 live source boundary:
 
-The retained model package is intentionally small:
+`archie_lab_train.py -> archie_lab_core.py -> typed_delta_memory.py`
 
-- `00-ARCHIE-MODEL/BENCHMARKS.json` — architecture-independent admission targets.
-- `00-ARCHIE-MODEL/evidence/HOSTED-LINUX-CPU-RSLORA.json` — bounded historical CPU RSLoRA receipts; real optimizer evidence, explicitly noncanonical.
-- `EVIDENCE.md` — compact residue from retired implementation lanes and cleanup audits.
-- `ENGINEERING_LANGUAGE.md` — mechanism-first vocabulary for active docs, dashboards, logs, and new comments.
+The exact recorded source hashes and retained numerical/training history are in `ARCHIE_HISTORY_COMPACT.md`. Do not synthesize current typed-Delta code from retired repository implementations.
 
-## Interpretation rule
+## What remains here
 
-Treat neural model code, executable evaluation fixtures, product/runtime infrastructure, transport, UI, and historical experiments as different categories. A component belongs to the neural model only when the current trainer dependency graph imports and executes it. File count, naming, package prose, and historical workflow success do not establish architecture or capability.
+- `scripts/archied.mjs` — local workspace service.
+- `scripts/archied-hosted.mjs` — hosted wrapper plus enrolled outbound-runner service.
+- `scripts/archie-enrolled-hybrid-runner.mjs` — bounded enrolled worker.
+- `scripts/archie-hybrid-runner.mjs` — thin compatibility alias for the enrolled worker.
+- `scripts/archie-workspace-*.mjs` — digest-bound workspace/event/artifact substrate.
+- `scripts/archie-hybrid-protocol.mjs` — enrolled transport protocol.
+- `tools/archie_one_body.py` + `labs/archie-one-surface/index.html` — unified read-only representation of live machine truth and retained project state.
+- `00-ARCHIE-MODEL/BENCHMARKS.json` — architecture-independent evaluation targets.
+- `ARCHIE_HISTORY_COMPACT.md` — the single compact historical record: positive results, failed branches, hashes, numerical defects, formal findings, and claim boundaries.
+- `ENGINEERING_LANGUAGE.md` — mechanism-first vocabulary for active engineering prose.
 
-Preserve exact negative evidence and real receipts. Remove stale scaffolding that exists only to describe other stale scaffolding.
+## Rule
 
-Describe observable mechanisms and bounded effects. Prefer `evaluation gate`, `worker`, `permission scope`, `stop`, `monitoring`, and `exposed interface` over metaphorical language when those terms describe the same implementation. Keep compatibility identifiers unchanged when renaming them would alter schemas, APIs, receipts, paths, or stored data.
+Treat model code, evaluation fixtures, transport/runtime infrastructure, UI, and historical experiments as separate categories. A component belongs to the current neural model only when the live trainer dependency graph imports and executes it.
+
+Preserve exact negative evidence and measured receipts. Remove stale scaffolding that exists only to describe other stale scaffolding.
