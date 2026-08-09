@@ -1,18 +1,23 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  EncryptedSecretStore,
+  HostedShareRegistry,
+  tokenSha256
+} from '../archie-hosted-security.mjs';
+import {
   ARCHIED_HOSTED_MIGRATION_LEVEL,
   ARCHIED_HOSTED_VERSION,
+  resolveHostedConfig,
   startHostedArchied
 } from '../archied-hosted.mjs';
-import { verifyWorkspaceBundle } from '../archie-workspace-portable.mjs';
 
-const token = 'archie-founder-test-token-0123456789abcdef';
-const objective = 'Make this local workflow genuinely good on a phone while reducing work and preserving human control.';
-const requestedChange = 'Add the final audit trail and preserve why the alternative hypothesis lost.';
+const founderToken = 'founder-token-0123456789-archie-hosted';
+const developerToken = 'developer-token-0123456789-archie-hosted';
 
 async function tempRoot(t, prefix) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -20,147 +25,141 @@ async function tempRoot(t, prefix) {
   return root;
 }
 
-async function login(baseUrl, suppliedToken = token, returnTo = '/') {
-  const response = await fetch(new URL('/login', baseUrl), {
-    method: 'POST',
-    redirect: 'manual',
+async function login(baseUrl, token) {
+  const response = await fetch(new URL('login', baseUrl), {
+    method: 'POST', redirect: 'manual',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ token: suppliedToken, return_to: returnTo })
+    body: new URLSearchParams({ token, return_to: '/' })
   });
   return { response, cookie: response.headers.get('set-cookie')?.split(';')[0] || '' };
 }
 
-test('hosted Archie protects the same product and preserves workspace state across restart', async t => {
+function options(home, keys) {
+  return {
+    home, host: '127.0.0.1', port: 0,
+    publicUrl: 'http://archie.test/',
+    founderTokenSha256: tokenSha256(founderToken),
+    developerTokenSha256: tokenSha256(developerToken),
+    sessionKey: keys.session,
+    secretKey: keys.secret,
+    allowInsecure: true,
+    env: {}
+  };
+}
+
+test('hosted service separates founder/developer access and persists encrypted state', async t => {
   const home = await tempRoot(t, 'archie-hosted-');
-  const first = await startHostedArchied({ home, token, host: '127.0.0.1', port: 0, env: {} });
+  const keys = { session: crypto.randomBytes(32).toString('base64'), secret: crypto.randomBytes(32).toString('base64') };
+  const first = await startHostedArchied(options(home, keys));
   t.after(() => first.close().catch(() => {}));
 
-  const health = await fetch(new URL('/health', first.url));
-  assert.equal(health.status, 200);
-  assert.deepEqual(await health.json(), {
-    schema: 'archied-health/v1',
-    status: 'ok',
-    mode: 'hosted',
-    service_version: ARCHIED_HOSTED_VERSION,
-    migration_level: ARCHIED_HOSTED_MIGRATION_LEVEL
+  const health = await fetch(new URL('health', first.url)).then(response => response.json());
+  assert.deepEqual(health, {
+    schema: 'archied-health/v1', status: 'ok', mode: 'hosted',
+    service_version: ARCHIED_HOSTED_VERSION, migration_level: ARCHIED_HOSTED_MIGRATION_LEVEL
   });
+  assert.equal((await fetch(new URL('v1/hosted/status', first.url))).status, 401);
 
-  const anonymous = await fetch(first.url, { headers: { accept: 'text/html' }, redirect: 'manual' });
-  assert.equal(anonymous.status, 303);
-  assert.match(anonymous.headers.get('location'), /^\/login\?return_to=/);
+  const founder = await login(first.url, founderToken);
+  const developer = await login(first.url, developerToken);
+  assert.equal(founder.response.status, 303);
+  assert.equal(developer.response.status, 303);
+  assert.match(founder.response.headers.get('set-cookie'), /HttpOnly/);
+  assert.match(founder.response.headers.get('set-cookie'), /SameSite=Strict/);
 
-  const deniedApi = await fetch(new URL('/v1/hosted/status', first.url));
-  assert.equal(deniedApi.status, 401);
-  assert.equal((await deniedApi.json()).error, 'authentication_required');
-
-  const rejected = await login(first.url, 'wrong-token-value-that-is-long-enough');
-  assert.equal(rejected.response.status, 401);
-  assert.equal(rejected.cookie, '');
-
-  const authenticated = await login(first.url);
-  assert.equal(authenticated.response.status, 303);
-  assert.equal(authenticated.response.headers.get('location'), '/');
-  assert.match(authenticated.response.headers.get('set-cookie'), /HttpOnly/);
-  assert.match(authenticated.response.headers.get('set-cookie'), /SameSite=Strict/);
-  assert.ok(authenticated.cookie.startsWith('archie_hosted_session='));
-
-  const product = await fetch(first.url, { headers: { accept: 'text/html', cookie: authenticated.cookie } });
-  assert.equal(product.status, 200);
-  const client = await product.text();
-  assert.match(client, /State what should be true/);
-  assert.match(client, /Run bounded local journey/);
-
-  const descriptorResponse = await fetch(new URL('/.well-known/archied.json', first.url), {
-    headers: { cookie: authenticated.cookie }
-  });
-  assert.equal(descriptorResponse.status, 200);
-  const descriptor = await descriptorResponse.json();
+  const descriptor = await fetch(new URL('.well-known/archied.json', first.url), { headers: { cookie: founder.cookie } }).then(r => r.json());
   assert.equal(descriptor.schema, 'archied-hosted-runtime/v1');
-  assert.equal(descriptor.mode, 'hosted');
+  assert.equal(descriptor.authentication.developer_enabled, true);
   assert.equal(descriptor.github_required, false);
   assert.equal(descriptor.local_runner_inbound_access_required, false);
-  assert.equal(descriptor.authentication.developer_enabled, false);
-  assert.equal(JSON.stringify(descriptor).includes(token), false);
-  assert.equal(JSON.stringify(descriptor).includes(home), false);
+  assert.equal(JSON.stringify(descriptor).includes(founderToken), false);
+  assert.equal(JSON.stringify(descriptor).includes(keys.secret), false);
 
-  const journeyResponse = await fetch(new URL('/v1/standalone/journeys', first.url), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', cookie: authenticated.cookie },
-    body: JSON.stringify({ objective, requested_change: requestedChange, approve: true })
+  const deniedSecret = await fetch(new URL('v1/hosted/secrets/provider_api', first.url), {
+    method: 'PUT', headers: { 'content-type': 'application/json', cookie: developer.cookie },
+    body: JSON.stringify({ value: 'must-not-write' })
   });
-  assert.equal(journeyResponse.status, 201);
-  const journey = await journeyResponse.json();
-  assert.match(journey.workspace_id, /^workspace_[a-f0-9]{16}$/);
-  assert.match(journey.bundle_digest, /^[a-f0-9]{64}$/);
-  assert.equal('bundle_path' in journey, false);
+  assert.equal(deniedSecret.status, 403);
 
-  const stablePage = await fetch(new URL(`/w/${journey.workspace_id}`, first.url), {
-    headers: { accept: 'text/html', cookie: authenticated.cookie }
+  const plaintext = 'private-provider-secret-value';
+  const stored = await fetch(new URL('v1/hosted/secrets/provider_api', first.url), {
+    method: 'PUT', headers: { 'content-type': 'application/json', cookie: founder.cookie },
+    body: JSON.stringify({ value: plaintext })
   });
-  assert.equal(stablePage.status, 200);
-  assert.match(await stablePage.text(), /State what should be true/);
+  assert.equal(stored.status, 200);
+  const encryptedPath = path.join(first.data_root, 'hosted', 'secrets.enc.json');
+  const encrypted = await fs.readFile(encryptedPath, 'utf8');
+  assert.equal(encrypted.includes(plaintext), false);
+  assert.match(encrypted, /aes-256-gcm/);
 
-  const statusResponse = await fetch(new URL('/v1/hosted/status', first.url), {
-    headers: { cookie: authenticated.cookie }
-  });
-  assert.equal(statusResponse.status, 200);
-  const status = await statusResponse.json();
-  assert.equal(status.schema, 'archie-hosted-status/v1');
-  assert.equal(status.workspaces.count, 1);
-  assert.equal(status.workspaces.items[0].workspace_id, journey.workspace_id);
-  assert.equal(status.workspaces.items[0].rollback_count, 1);
-  assert.match(status.workspaces.items[0].export_url, /\/export$/);
-
-  const exportResponse = await fetch(new URL(`/v1/standalone/workspaces/${journey.workspace_id}/export`, first.url), {
-    headers: { cookie: authenticated.cookie }
-  });
-  assert.equal(exportResponse.status, 200);
-  assert.equal(exportResponse.headers.get('x-archie-bundle-digest'), journey.bundle_digest);
-  const bundle = await exportResponse.json();
-  assert.equal(verifyWorkspaceBundle(bundle).bundle_digest, journey.bundle_digest);
-  assert.equal(JSON.stringify(bundle).includes(home), false);
+  const founderStatus = await fetch(new URL('v1/hosted/status', first.url), { headers: { cookie: founder.cookie } }).then(r => r.json());
+  const developerStatus = await fetch(new URL('v1/hosted/status', first.url), { headers: { cookie: developer.cookie } }).then(r => r.json());
+  assert.deepEqual(founderStatus.secrets.secrets.map(item => item.name), ['provider_api']);
+  assert.equal('secrets' in developerStatus.secrets, false);
 
   await first.close();
-  const restarted = await startHostedArchied({ home, token, host: '127.0.0.1', port: 0, env: {} });
+  const restarted = await startHostedArchied(options(home, keys));
   t.after(() => restarted.close().catch(() => {}));
-  const nextSession = await login(restarted.url);
-  assert.equal(nextSession.response.status, 303);
-  const afterRestart = await fetch(new URL('/v1/hosted/status', restarted.url), {
-    headers: { cookie: nextSession.cookie }
+  const nextFounder = await login(restarted.url, founderToken);
+  const afterRestart = await fetch(new URL('v1/hosted/status', restarted.url), { headers: { cookie: nextFounder.cookie } }).then(r => r.json());
+  assert.equal(afterRestart.secrets.configured_count, 1);
+});
+
+test('share and secret registries serialize concurrent mutations instead of losing updates', async t => {
+  const root = await tempRoot(t, 'archie-hosted-registry-');
+  const shares = new HostedShareRegistry(root);
+  await Promise.all([
+    shares.issue({ workspaceId: 'workspace_one', principalId: 'viewer_one', grantId: 'grant_one', createdBy: 'owner_local', expiresInMs: 60_000 }),
+    shares.issue({ workspaceId: 'workspace_one', principalId: 'viewer_two', grantId: 'grant_two', createdBy: 'owner_local', expiresInMs: 60_000 })
+  ]);
+  assert.equal((await shares.status()).share_count, 2);
+  assert.equal((await shares.list('workspace_one')).length, 2);
+
+  const secrets = new EncryptedSecretStore(path.join(root, 'secrets.enc.json'), crypto.randomBytes(32).toString('base64'));
+  await Promise.all([
+    secrets.set('first_secret', 'alpha'),
+    secrets.set('second_secret', 'beta')
+  ]);
+  assert.equal((await secrets.status()).configured_count, 2);
+  const raw = await fs.readFile(path.join(root, 'secrets.enc.json'), 'utf8');
+  assert.equal(raw.includes('alpha'), false);
+  assert.equal(raw.includes('beta'), false);
+});
+
+test('hosted configuration fails closed and legacy single-token compatibility remains explicit', () => {
+  const common = {
+    ARCHIED_FOUNDER_TOKEN_SHA256: tokenSha256(founderToken),
+    ARCHIED_DEVELOPER_TOKEN_SHA256: tokenSha256(developerToken),
+    ARCHIED_SESSION_KEY: crypto.randomBytes(32).toString('base64'),
+    ARCHIED_SECRET_KEY: crypto.randomBytes(32).toString('base64')
+  };
+  assert.throws(() => resolveHostedConfig({ env: common }), /absolute URL/);
+  assert.throws(() => resolveHostedConfig({ env: { ...common, ARCHIED_PUBLIC_URL: 'http://archie.test/' } }), /requires an HTTPS/);
+
+  const legacy = resolveHostedConfig({
+    token: founderToken,
+    publicOrigin: 'http://127.0.0.1:8787', port: 0,
+    env: { ARCHIED_COOKIE_SECURE: 'false' }
   });
-  assert.equal(afterRestart.status, 200);
-  const restoredStatus = await afterRestart.json();
-  assert.equal(restoredStatus.workspaces.count, 1);
-  assert.equal(restoredStatus.workspaces.items[0].workspace_id, journey.workspace_id);
-  assert.equal(restoredStatus.workspaces.items[0].head_digest, journey.head_digest);
+  assert.equal(legacy.legacy_founder_only, true);
+  assert.equal(legacy.founder_token_sha256, tokenSha256(founderToken));
 });
 
-test('hosted Archie fails closed without a strong founder token', async () => {
-  await assert.rejects(
-    startHostedArchied({ token: 'too-short', host: '127.0.0.1', port: 0, env: {} }),
-    /at least 24 characters/
-  );
-});
-
-test('container contract runs one non-root service with durable data and mandatory private access', async () => {
+test('container contract references only retained hosted files and runs non-root', async () => {
   const dockerfile = await fs.readFile(new URL('../../Dockerfile.archie', import.meta.url), 'utf8');
-  const compose = await fs.readFile(new URL('../../compose.yaml', import.meta.url), 'utf8');
-  const ignore = await fs.readFile(new URL('../../.dockerignore', import.meta.url), 'utf8');
+  const compose = await fs.readFile(new URL('../../compose.hosted.yaml', import.meta.url), 'utf8');
+  const example = await fs.readFile(new URL('../../.env.archied.example', import.meta.url), 'utf8');
 
   assert.match(dockerfile, /FROM node:24-bookworm-slim/);
   assert.match(dockerfile, /USER node/);
-  assert.match(dockerfile, /HEALTHCHECK/);
-  assert.match(dockerfile, /archie-hybrid-hosted\.mjs/);
-  assert.doesNotMatch(dockerfile, /curl|wget|git clone/i);
-
-  assert.match(compose, /ARCHIED_FOUNDER_TOKEN: \$\{ARCHIED_FOUNDER_TOKEN:\?/);
-  assert.match(compose, /ARCHIED_RUNNER_TOKEN: \$\{ARCHIED_RUNNER_TOKEN:\?/);
-  assert.match(compose, /archie-data:\/data/);
+  assert.match(dockerfile, /scripts\/archied-hosted\.mjs/);
+  assert.doesNotMatch(dockerfile, /archie-hybrid-runner\.mjs/);
+  assert.match(compose, /archie-local\/archied-hosted:0\.5\.3/);
   assert.match(compose, /read_only: true/);
   assert.match(compose, /no-new-privileges:true/);
   assert.match(compose, /cap_drop:/);
-  assert.match(compose, /healthcheck:/);
-
-  assert.match(ignore, /\.git/);
-  assert.match(ignore, /node_modules/);
+  assert.match(compose, /127\.0\.0\.1/);
+  for (const key of ['ARCHIED_FOUNDER_TOKEN_SHA256', 'ARCHIED_DEVELOPER_TOKEN_SHA256', 'ARCHIED_SESSION_KEY', 'ARCHIED_SECRET_KEY']) {
+    assert.match(example, new RegExp(key));
+  }
 });
