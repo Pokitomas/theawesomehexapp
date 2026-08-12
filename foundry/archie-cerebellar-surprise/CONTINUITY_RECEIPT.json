@@ -1,0 +1,35 @@
+{
+  "schema": "archie/resident-operator-continuity-reference-receipt-v1",
+  "validated_head_sha": "97d381b2ea4f9e4586c85f5f6a2ebc6c11168581",
+  "github_actions": {
+    "run_id": 31570224391,
+    "job_id": 94030416927,
+    "unit_tests_total": 17,
+    "unit_test_result": "success",
+    "semantic_collapse_receipt_court": "success"
+  },
+  "verdict": {
+    "pass": true,
+    "promotion": "developmental-integration-only"
+  },
+  "renderer_collapse": {
+    "generic_operator_trajectory": ["sense", "transform", "verify", "consolidate"],
+    "durable_snapshots_equal": true
+  },
+  "stagnation": {
+    "first_decision": "retry_once",
+    "second_decision": "motor_babble_alternative",
+    "second_novelty_gate": 0.0
+  },
+  "productive_repeat": "continue_objective",
+  "unexpected_consequence": {
+    "decision": "inspect_or_learn_consequence",
+    "novelty_gate": 0.9523809523800453
+  },
+  "state_reuse": {
+    "existing_memory_schema": "archie/homeostatic-surprise-memory-v1",
+    "added_dynamic_trace_count": 0
+  },
+  "architectural_consequence": "durable objective/operator state, not renderer prose, owns resident continuity; surprise schedules learning/exploration but does not replace value or progress",
+  "claim_boundary": "deterministic synthetic developmental court only; no claim of general agency or learned identity"
+}
