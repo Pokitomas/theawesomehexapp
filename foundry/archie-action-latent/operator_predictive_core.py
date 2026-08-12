@@ -24,6 +24,7 @@ import importlib.util
 import json
 import math
 import random
+import sys
 import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -45,6 +46,10 @@ def load_motor_module():
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load {path}")
     module = importlib.util.module_from_spec(spec)
+    # dataclasses and other module-aware machinery resolve annotations through
+    # sys.modules while exec_module is running. Register first so the standalone
+    # --steps path is a real court rather than a py_compile-only artifact.
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
