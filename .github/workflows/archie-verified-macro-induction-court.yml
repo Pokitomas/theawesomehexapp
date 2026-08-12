@@ -1,0 +1,52 @@
+name: ARCHIE verified macro induction court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/verified_macro_induction.py'
+      - 'foundry/archie-action-latent/residual_grammar_production_search.py'
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-verified-macro-induction-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/verified_macro_induction.py
+      - name: Verified repeated structure to reusable primitive
+        run: |
+          python3 foundry/archie-action-latent/verified_macro_induction.py \
+            --max-cost 6 --output /tmp/archie-verified-macro.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-verified-macro.json'))
+          assert p['pass'] is True
+          assert p['mdl_savings_four_occurrences'] > 0
+          assert p['single_occurrence_savings'] <= 0
+          assert p['heldout_exact'] is True
+          assert p['promotion_event']['result'] == 'stable'
+          print(json.dumps({
+            'pass':p['pass'],
+            'source_expressions':p['source_expressions'],
+            'induced_template':p['induced_template'],
+            'baseline_nodes_four_occurrences':p['baseline_nodes_four_occurrences'],
+            'compiled_nodes_four_occurrences':p['compiled_nodes_four_occurrences'],
+            'mdl_savings_four_occurrences':p['mdl_savings_four_occurrences'],
+            'single_occurrence_savings':p['single_occurrence_savings'],
+            'heldout_instantiation':p['heldout_instantiation'],
+            'heldout_exact':p['heldout_exact'],
+            'promotion':p['promotion_event']['result'],
+          }, indent=2, sort_keys=True))
+          PY
