@@ -50,6 +50,12 @@ jobs:
           python3 -m py_compile foundry/archie-distill/test_packed_stream_train.py
       - name: Action-latent motor-babbling court
         run: python3 foundry/archie-action-latent/test_motor_babble.py
+      - name: Learned consequence-operator court
+        run: |
+          python3 foundry/archie-action-latent/operator_predictive_core.py \
+            --steps 600 --codes 8 --epochs 120 --device cpu \
+            --output /tmp/archie-operator-core-court.json
+          cat /tmp/archie-operator-core-court.json
       - name: Packed-stream AMP overflow recovery court
         run: python3 foundry/archie-distill/test_packed_stream_train.py
       - name: Capability-proof fail-closed court
