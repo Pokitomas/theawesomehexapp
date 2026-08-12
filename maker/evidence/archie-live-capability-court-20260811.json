@@ -1,0 +1,160 @@
+{
+  "schema": "archie/live-capability-court-v1",
+  "observed_local_window": "2026-08-11T21:03:14-07:00/2026-08-11T21:17:17-07:00",
+  "principle": "A capability is promoted only when its current backend and an observable effect were re-derived. Historical existence is not current capability proof.",
+  "capabilities": {
+    "authenticated_remote_host_exec": {
+      "status": "proven_then_transport_degraded",
+      "backend": "Vercel relay v4 authenticated route=cmd -> workstation shell sidecar execution/audit",
+      "proof": {
+        "probe_stdout": "ARCHIE_CMD_ROUTE_PROBE_2040",
+        "probe_returncode": 0,
+        "probe_seconds": 0.017,
+        "shell_audit_recorded_recent_route_commands": true,
+        "later_relay_result": "HTTP 502 TypeError fetch failed at about 21:16-21:17 PDT"
+      },
+      "interpretation": "Host execution was directly proven in this observation window. The later 502 means current remote reachability must be re-proved before another host mutation; it does not retroactively invalidate the earlier executions."
+    },
+    "local_shell_sidecar": {
+      "status": "proven",
+      "backend": "/home/awesomekai/archie-shell-sidecar.py",
+      "proof": {
+        "systemd_unit": "archie-shell-sidecar.service",
+        "pid": 822153,
+        "active": true,
+        "listener": "127.0.0.1:8789",
+        "source_sha256": "cefcc44a8491286fb783971ebb65e484376e21e295084526ad1f269ca42af72d",
+        "secret_file_mode": "0600",
+        "secret_value_recorded": false
+      }
+    },
+    "bounded_exec": {
+      "status": "proven",
+      "backend": "/home/awesomekai/archie-remote/live_exec.py",
+      "proof": {
+        "systemd_unit": "archie-live-exec.service",
+        "pid": 822154,
+        "active": true,
+        "listener": "127.0.0.1:8788",
+        "source_sha256": "4d1185018ec0df95c2ba394a62a85ca2bee8f904fa567df6ac395c8d686aef3c"
+      }
+    },
+    "presence_reactor": {
+      "status": "proven_process_not_systemd",
+      "backend": "/home/awesomekai/archie-remote/presence_reactor.py",
+      "proof": {
+        "pid": 783569,
+        "command": "/usr/bin/python3 /home/awesomekai/archie-remote/presence_reactor.py --tick-ms 20 --quiet-ms 25",
+        "socket": "/home/awesomekai/archie-remote/presence/presence.sock",
+        "socket_owner_pid": 783569,
+        "systemd_unit_archie_presence_service": "not-found"
+      }
+    },
+    "presence_terminal": {
+      "status": "proven",
+      "backend": "/home/awesomekai/archie-remote/presence_terminal.py",
+      "proof": {
+        "pid": 824429,
+        "tty": "/dev/pts/0",
+        "fd0": "/dev/pts/0",
+        "fd1": "/dev/pts/0",
+        "fd2": "/dev/pts/0",
+        "source_sha256": "bc86055745154a8c3593787475d92b68f20d82f5056fffd9669dee473d9815f9"
+      }
+    },
+    "durable_terminal_wire": {
+      "status": "proven_and_hardened",
+      "backend": "/home/awesomekai/archie-remote/gpt56_terminal_wire.py",
+      "proof": {
+        "systemd_unit": "archie-gpt56-terminal-wire.service",
+        "old_pid": 847861,
+        "post_hardening_pid": 868325,
+        "post_hardening_source_sha256": "7848a8c69f8a6fdbc6beed403c8f1120ff5d35cef89acf2b84247354ce2708c8",
+        "observed_user_to_wire_ms_range_recent": [38.225, 128.439],
+        "observed_wire_to_user_ms_range_recent": [1.145, 4.213],
+        "hardening": [
+          "all leading-@ control-plane messages are suppressed from terminal output",
+          "terminal_echo_suppressed semantic events are suppressed to avoid duplicate completed replies"
+        ]
+      }
+    },
+    "local_semantic_model": {
+      "status": "proven",
+      "backend": "llama.cpp Vulkan server on Windows",
+      "proof": {
+        "windows_pid": 26500,
+        "executable": "C:\\Users\\AwesomeKai\\.archie\\distill\\qwen3-quality-local-v1\\llama-bin\\vulkan\\llama-server.exe",
+        "listener": "172.22.64.1:18767",
+        "health": {"status": "ok"},
+        "model_file": "C:\\Users\\AwesomeKai\\.archie\\distill\\qwen3-quality-local-v1\\models\\student-base-q8_0.gguf",
+        "model_file_bytes": 2165039328,
+        "reported_parameters": 2031739904,
+        "reported_context": 1024,
+        "reported_training_context": 40960,
+        "reported_embedding_dim": 2048,
+        "gpu_offload_argument": "-ngl 99",
+        "reasoning_argument": "--reasoning off",
+        "warm_stream_benchmark": [
+          {"run": 1, "first_delta_ms": 853.1, "done_ms": 882.7},
+          {"run": 2, "first_delta_ms": 26.2, "done_ms": 54.0},
+          {"run": 3, "first_delta_ms": 25.7, "done_ms": 54.1}
+        ]
+      },
+      "interpretation": "This is working local semantic scaffolding, not the proposed non-classical ARCHIE core and not the browser GPT-5.6 Sol process."
+    },
+    "resident_local_semantic_broker": {
+      "status": "installed_and_unit_proven_real_user_e2e_pending",
+      "backend": "/home/awesomekai/archie-remote/local_semantic_broker.py",
+      "proof": {
+        "systemd_unit": "archie-local-semantic-broker.service",
+        "pid": 869374,
+        "active": true,
+        "installed_source_sha256": "343a656ea6de255b96ececd96ffa1ee54a40dfee84bb5e61422e047397677182",
+        "endpoint": "http://172.22.64.1:18767",
+        "pty": "/dev/pts/0",
+        "isolated_broker_court": {
+          "output": "LOCAL_SEMANTIC_COURT_OK",
+          "input_to_first_delta_ms": 4150.023,
+          "dispatch_to_first_delta_ms": 4142.903,
+          "dispatch_to_done_ms": 4270.724
+        }
+      },
+      "pending": "A real next YOU> event must prove production input -> broker -> first semantic delta -> same PTY, followed by a barge-in cancellation court."
+    },
+    "local_openai_cloud_sidecar": {
+      "status": "not_proven_currently_absent",
+      "proof": {
+        "archie-openai-sidecar.service": "not-found",
+        "OPENAI_API_KEY_name_in_checked_process_or_manager_env": false
+      },
+      "interpretation": "Do not install or claim the cloud Responses broker from this host state without separately establishing a credential/backend."
+    },
+    "edge_gui_launch": {
+      "status": "proven",
+      "backend": "authenticated host exec -> powershell.exe -> msedge.exe",
+      "proof": {
+        "isolated_profile_window_pid": 11436,
+        "observed_title": "ARCHIE_EDGE_COURT_A_2115 - Profile 1 - Microsoft Edge"
+      }
+    },
+    "edge_gui_keyboard_drive": {
+      "status": "failed_not_promoted",
+      "attempt": "AppActivate + Windows SendKeys navigation from isolated A page to isolated B page",
+      "result": "No B-title window was observed; A remained visible.",
+      "interpretation": "Launching Edge is not evidence of interactive GUI control. The drive capability remains unproven until a harmless observable mutation and reversal succeeds."
+    }
+  },
+  "gpu_snapshot": {
+    "device": "NVIDIA GeForce RTX 2060",
+    "memory_used_mib": 2853,
+    "memory_total_mib": 6144,
+    "utilization_percent": 21,
+    "temperature_c": 40,
+    "power_w": 13.9,
+    "interpretation": "The local semantic model is already VRAM-resident while leaving substantial headroom for small action/world-model courts."
+  },
+  "secrets": {
+    "credential_values_in_artifact": false,
+    "relay_capability_token_in_artifact": false
+  }
+}
