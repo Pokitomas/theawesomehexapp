@@ -1,0 +1,49 @@
+name: ARCHIE representation compiler court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/representation_grammar_compiler.py'
+      - 'foundry/archie-action-latent/operator_delta_ablation.py'
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - '.github/workflows/archie-representation-compiler-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install torch
+        run: python3 -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/representation_grammar_compiler.py
+      - name: Counterexample-guided representation compilation
+        run: |
+          python3 foundry/archie-action-latent/representation_grammar_compiler.py \
+            --seeds 11001,11002,11003 --pairs 280 --codes 4 --epochs 140 \
+            --output /tmp/archie-representation-compiler.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-representation-compiler.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'grammar_size':p['grammar_size'],
+            'selected_expressions':p['selected_expressions'],
+            'median_compiled_over_delta_forward_mse':p['median_compiled_over_delta_forward_mse'],
+            'median_compiled_over_endpoint_forward_mse':p['median_compiled_over_endpoint_forward_mse'],
+            'median_effect_nmi_grading_only':p['median_effect_nmi_grading_only'],
+            'compiled_selector_width':p['compiled_selector_width'],
+            'endpoint_selector_width':p['endpoint_selector_width'],
+          }, indent=2, sort_keys=True))
+          assert p['pass'] is True
+          PY
