@@ -28,10 +28,12 @@ jobs:
         run: |
           python3 -m py_compile foundry/archie-cerebellar-surprise/cerebellar_surprise.py
           python3 -m py_compile foundry/archie-cerebellar-surprise/test_cerebellar_surprise.py
-      - name: Falsification unit court
+          python3 -m py_compile foundry/archie-cerebellar-surprise/resident_operator_continuity.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/test_resident_operator_continuity.py
+      - name: Falsification and continuity unit courts
         working-directory: foundry/archie-cerebellar-surprise
-        run: python3 -m unittest -v test_cerebellar_surprise.py
-      - name: Frozen strict receipt court
+        run: python3 -m unittest -v test_cerebellar_surprise.py test_resident_operator_continuity.py
+      - name: Frozen strict surprise receipt court
         run: |
           python3 foundry/archie-cerebellar-surprise/cerebellar_surprise.py --output /tmp/cerebellar-surprise.json >/tmp/cerebellar-surprise.stdout
           python3 - <<'PY'
@@ -50,11 +52,30 @@ jobs:
           for name, expected in frozen['expected_metrics'].items():
               observed = actual['metrics'][name]
               assert math.isclose(observed, expected, rel_tol=0.0, abs_tol=1e-15), (name, observed, expected)
+          print(json.dumps({'pass': actual['pass'], 'promotion': actual['promotion'], 'metrics': actual['metrics']}, sort_keys=True))
+          PY
+      - name: Semantic-collapse continuity receipt court
+        run: |
+          python3 foundry/archie-cerebellar-surprise/resident_operator_continuity.py --output /tmp/resident-continuity.json >/tmp/resident-continuity.stdout
+          python3 - <<'PY'
+          import json
+          p = json.load(open('/tmp/resident-continuity.json', encoding='utf-8'))
+          assert p['schema'] == 'archie/resident-operator-continuity-court-v1'
+          assert p['pass'] is True
+          assert p['checks']['renderer_fallback_cannot_change_operator_trajectory'] is True
+          assert p['checks']['stagnant_repeat_breaks_by_second_repeat'] is True
+          assert p['checks']['productive_repetition_preserved'] is True
+          assert p['checks']['surprising_no_progress_is_inspected_not_randomized'] is True
+          assert p['checks']['restart_preserves_objective_and_memory'] is True
+          assert p['checks']['no_added_ei_dynamic_traces'] is True
+          assert p['renderer_collapse']['durable_snapshots_equal'] is True
+          assert p['state_reuse']['added_dynamic_trace_count'] == 0
           print(json.dumps({
-              'pass': actual['pass'],
-              'promotion': actual['promotion'],
-              'metrics': actual['metrics'],
-              'falsified_claims': actual['falsified_claims'],
-              'frozen_receipt_validated_head': frozen['validated_head_sha'],
+              'pass': p['pass'],
+              'renderer_trajectory': p['renderer_collapse']['generic_operator_trajectory'],
+              'stagnation': p['stagnation'],
+              'productive_repeat': p['productive_repeat'],
+              'unexpected_consequence': p['unexpected_consequence'],
+              'state_reuse': p['state_reuse'],
           }, sort_keys=True))
           PY
