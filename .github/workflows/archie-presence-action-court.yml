@@ -58,6 +58,7 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/operator_delta_ablation.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_multiseed.py
           python3 -m py_compile foundry/archie-action-latent/information_budget_court.py
+          python3 -m py_compile foundry/archie-action-latent/surprise_residual_memory.py
           python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-action-latent/test_homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-distill/packed_stream_train.py
@@ -85,6 +86,20 @@ jobs:
             'resident_recall':p['two_tier_memory_control']['resident_exact_recall_rate'],
             'exterior_recall':p['two_tier_memory_control']['exterior_exact_recall_rate'],
           }, indent=2, sort_keys=True))
+          PY
+      - name: Exact surprise-residual memory court
+        run: |
+          python3 foundry/archie-action-latent/surprise_residual_memory.py \
+            --length 100000 --alphabet 16 --output /tmp/archie-surprise-residual.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-surprise-residual.json'))
+          assert p['pass'] is True
+          cases={x['name']:x for x in p['cases']}
+          assert all(x['exact_replay'] for x in p['cases'])
+          assert cases['structured_sparse_noise']['residual_rate'] < cases['uniform_random']['residual_rate']
+          assert cases['mostly_deterministic_markov']['residual_rate'] < cases['uniform_random']['residual_rate']
+          print(json.dumps(cases, indent=2, sort_keys=True))
           PY
       - name: Action-latent motor-babbling court
         run: python3 foundry/archie-action-latent/test_motor_babble.py
