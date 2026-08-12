@@ -28,19 +28,41 @@ def load_ablation():
 A = load_ablation()
 
 
+def motor_court_passed(court: dict[str, Any]) -> bool:
+    """Accept the actual motor-court contract instead of inventing a `pass` key."""
+    return bool(
+        not court.get("inverse_failures")
+        and not court.get("continuity_failures")
+        and float(court.get("inverse_pass_rate", 0.0)) == 1.0
+        and float(court.get("continuity_pass_rate", 0.0)) == 1.0
+        and int(court.get("steps", 0)) > 0
+        and int(court.get("latent_code_count", 0)) > 1
+        and bool(court.get("ledger_sha256"))
+    )
+
+
 def run_multiseed(
     seeds: list[int], *, steps: int, codes: int, epochs: int, lr: float, device: str
 ) -> dict[str, Any]:
     if len(set(seeds)) != len(seeds) or not seeds:
         raise ValueError("seeds must be a non-empty unique list")
     runs: list[dict[str, Any]] = []
+    motor_courts: list[dict[str, Any]] = []
     for seed in seeds:
         with tempfile.TemporaryDirectory(prefix=f"archie-delta-seed-{seed}-") as tmp:
             root = Path(tmp)
             ledger = root / "motor.jsonl"
             motor = A.CORE.load_motor_module()
             court = motor.run_court(root / "world", ledger, steps, seed)
-            if not court.get("pass"):
+            motor_courts.append({
+                "seed": seed,
+                "passed": motor_court_passed(court),
+                "inverse_pass_rate": court.get("inverse_pass_rate"),
+                "continuity_pass_rate": court.get("continuity_pass_rate"),
+                "latent_code_count": court.get("latent_code_count"),
+                "ledger_sha256": court.get("ledger_sha256"),
+            })
+            if not motor_court_passed(court):
                 raise RuntimeError(f"motor court failed for seed {seed}: {court}")
             run = A.run_ablation(
                 ledger, codes=codes, epochs=epochs, lr=lr, seed=seed, device=device
@@ -74,6 +96,7 @@ def run_multiseed(
         "steps_per_seed": steps,
         "epochs": epochs,
         "codes": codes,
+        "motor_courts": motor_courts,
         "runs": runs,
         "forward_mse_ratios_delta_over_endpoint": forward_ratios,
         "inverse_mse_ratios_delta_over_endpoint": inverse_ratios,
@@ -84,9 +107,9 @@ def run_multiseed(
         "median_inverse_mse_ratio": median_inverse,
         "median_effect_nmi_gain": median_nmi_gain,
         "promotion_candidate": promotion_candidate,
-        "pass": all_valid,
+        "pass": all_valid and all(item["passed"] for item in motor_courts),
         "claim_boundary": (
-            "PASS establishes only that every matched seed produced a valid comparison. "
+            "PASS establishes only that every matched seed produced a valid comparison after an exact motor court. "
             "promotion_candidate means displacement-only replicated within this isolated filesystem motor ecology; "
             "it is not yet promotion into the resident or packed-stream model."
         ),
