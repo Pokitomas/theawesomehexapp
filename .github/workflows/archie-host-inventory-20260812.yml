@@ -1,0 +1,68 @@
+name: ARCHIE host inventory 20260812
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-host-inventory-20260812.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-host-inventory-20260812
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 10
+    steps:
+      - name: Fresh host evidence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          O="$RUNNER_TEMP/archie-host-inventory"
+          mkdir -p "$O"
+          {
+            echo "=== TIME/HOST ==="; date -Iseconds; hostname; id
+            echo; echo "=== SIDECAR ==="
+            systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager || true
+            echo; echo "=== LIVE EXEC ==="
+            systemctl --user show archie-live-exec.service -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager || true
+            echo; echo "=== TRAINER ==="
+            systemctl --user show archie-gpt56-packed-stream-v1.service -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager || true
+            echo; echo "=== GPU ==="
+            (/usr/lib/wsl/lib/nvidia-smi || nvidia-smi) || true
+            echo; echo "=== GPU COMPUTE APPS ==="
+            (/usr/lib/wsl/lib/nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader,nounits || true)
+            echo; echo "=== DXG OWNERS ==="
+            fuser -v /dev/dxg 2>&1 || true
+            for p in $(fuser /dev/dxg 2>/dev/null || true); do echo "--- PID $p ---"; tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null || true; echo; cat /proc/$p/cgroup 2>/dev/null || true; done
+            echo; echo "=== LOCK/LEASE/HALT ==="
+            ls -l /home/awesomekai/archie-bench/GPU.lock 2>/dev/null || echo GPU_LOCK_MISSING
+            if [ -e /home/awesomekai/archie-bench/GPU.lock ]; then flock -n /home/awesomekai/archie-bench/GPU.lock -c 'echo GPU_LOCK_FREE' || echo GPU_LOCK_HELD; fi
+            cat /home/awesomekai/maximal/ACTIVE_GPU_LEASE.json 2>/dev/null || echo LEASE_MISSING
+            cat /home/awesomekai/maximal/scratch/packed-stream-v1/HALT.json 2>/dev/null || echo HALT_MISSING
+            echo; echo "=== TARGET FILES ==="
+            for n in gpu_owner_audit.py gpu_owner_audit_v1.py archie_gpu_owner_probe_v1.sh archie_delta_control_dependency_probe_v1.py archie_durable_stream.py patch_live_exec_durable_v3.py origin_v3_query_v2.py archie_research_crawler_v2.py resident_commitment_gate_v1.py controlled_future_law_compiler.py dynamic_fission_v1_fail_closed.py witness_saturated_72to8_court.py structured_delta_fragment.py transition_fragment_atlas_v1.py representation_compiler_adapter_v1.py archie_tensor_microscope.py run_real_packed_microscope_v4.sh; do
+              find /home/awesomekai -type f -name "$n" -printf '%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n' 2>/dev/null | head -20 || true
+            done
+            echo; echo "=== LIVE EXEC SHA/MARKERS ==="
+            sha256sum /home/awesomekai/archie-remote/live_exec.py 2>/dev/null || true
+            grep -nE 'ARCHIE_DURABLE_STREAM|DurableReceiptStore|def drain|/drain|job.priority' /home/awesomekai/archie-remote/live_exec.py 2>/dev/null | head -120 || true
+            echo; echo "=== ORIGIN DB ==="
+            ls -lh /home/awesomekai/postchat-origin-v3-state/corpus_v2.sqlite3 2>/dev/null || true
+          } | tee "$O/inventory.txt"
+          cp /home/awesomekai/archie-remote/runtime_truth.json "$O/" 2>/dev/null || true
+          cp /home/awesomekai/archie-remote/GPU_OWNER_PROBE_20260812.json "$O/" 2>/dev/null || true
+          sha256sum "$O"/* > "$O/SHA256SUMS.txt" 2>/dev/null || true
+
+      - name: Upload host inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-host-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archie-host-inventory
+          if-no-files-found: warn
+          retention-days: 7
