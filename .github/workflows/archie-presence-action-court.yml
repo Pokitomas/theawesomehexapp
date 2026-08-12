@@ -119,7 +119,7 @@ jobs:
           python3 - <<'PY'
           import json
           p = json.load(open('/tmp/archie-capability-proof.json'))
-          assert p['schema'] == 'archie/capability-proof-v1'
+          assert p['schema'] == 'archie/capability-proof-v2'
           assert p['receipt_sha256']
           assert 'shell_secret_file' in p and 'content' not in p['shell_secret_file']
           assert p['git']['is_git'] is True
