@@ -1,0 +1,55 @@
+name: ARCHIE distributional operator carrier court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+    paths:
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - 'foundry/archie-action-latent/operator_distributional_carrier_court.py'
+      - '.github/workflows/archie-operator-distributional-carrier-court.yml'
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - 'foundry/archie-action-latent/operator_distributional_carrier_court.py'
+      - '.github/workflows/archie-operator-distributional-carrier-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  distributional-carrier-court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PyTorch CPU
+        run: python3 -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Compile court
+        run: |
+          python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
+          python3 -m py_compile foundry/archie-action-latent/operator_distributional_carrier_court.py
+      - name: Preserve support-axis semantics
+        run: |
+          python3 foundry/archie-action-latent/operator_distributional_carrier_court.py \
+            --device cpu --output /tmp/archie-distributional-carrier.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-distributional-carrier.json'))
+          assert p['pass'] is True
+          assert p['branchwise_roundtrip_max_abs_error'] < 1e-5
+          assert p['two_step_composition_roundtrip_max_abs_error'] < 1e-5
+          assert p['expected_state_roundtrip_max_abs_error'] > 1e-3
+          assert p['min_support_total_variance'] > 1e-3
+          print(json.dumps({
+            'pass':p['pass'],
+            'tensor_shapes':p['tensor_shapes'],
+            'branchwise_roundtrip':p['branchwise_roundtrip_max_abs_error'],
+            'two_step_roundtrip':p['two_step_composition_roundtrip_max_abs_error'],
+            'expected_state_roundtrip':p['expected_state_roundtrip_max_abs_error'],
+            'min_support_variance':p['min_support_total_variance'],
+          }, indent=2, sort_keys=True))
+          PY
