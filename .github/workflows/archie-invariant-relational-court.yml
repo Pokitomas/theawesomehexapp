@@ -1,0 +1,51 @@
+name: ARCHIE invariant relational court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/counterexample_guided_relational_lift.py'
+      - 'foundry/archie-action-latent/invariant_relational_synthesis.py'
+      - 'foundry/archie-action-latent/operator_delta_ablation.py'
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - '.github/workflows/archie-invariant-relational-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install torch CPU
+        run: python3 -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Syntax
+        run: |
+          python3 -m py_compile foundry/archie-action-latent/invariant_relational_synthesis.py
+      - name: Random-frame invariant synthesis court
+        run: |
+          python3 foundry/archie-action-latent/invariant_relational_synthesis.py \
+            --seeds 10101,10102,10103 --pairs 360 --codes 4 \
+            --search-epochs 90 --final-epochs 140 --device cpu \
+            --output /tmp/archie-invariant-relational.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-invariant-relational.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'invariant_feature_wins':p['invariant_feature_wins'],
+            'cross_feature_wins':p['cross_feature_wins'],
+            'median_lift_over_delta_forward_mse':p['median_lift_over_delta_forward_mse'],
+            'median_lift_over_endpoint_forward_mse':p['median_lift_over_endpoint_forward_mse'],
+            'median_effect_nmi_grading_only':p['median_effect_nmi_grading_only'],
+            'selected':[r['selected_features'] for r in p['runs']],
+          }, indent=2, sort_keys=True))
+          assert p['pass'] is True
+          PY
