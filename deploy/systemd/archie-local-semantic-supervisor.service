@@ -1,0 +1,13 @@
+[Unit]
+Description=ARCHIE reconnect-safe resident local semantic supervisor
+After=default.target archie-gpt56-terminal-wire.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/awesomekai/archie-remote/local_semantic_supervisor.py --broker /home/awesomekai/archie-remote/local_semantic_broker.py --host 172.22.64.1 --port 18767 --model local --turns 5 --burst-ms 15 --max-tokens 160 --poll-ms 250
+Restart=always
+RestartSec=0.25
+Nice=-2
+
+[Install]
+WantedBy=default.target
