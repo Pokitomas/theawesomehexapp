@@ -1,0 +1,47 @@
+name: ARCHIE active operator identification court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/active_operator_identification_court.py'
+      - 'foundry/archie-action-latent/identifiability_horizon_ladder.py'
+      - '.github/workflows/archie-active-identification-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/active_operator_identification_court.py
+      - name: Active intervention information court
+        run: |
+          python3 foundry/archie-action-latent/active_operator_identification_court.py \
+            --max-horizon 128 --output /tmp/archie-active-identification.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-active-identification.json'))
+          assert p['pass'] is True
+          assert p['max_horizon'] == 128
+          assert all(x['active_applications_to_identify'] == 1 for x in p['rows'])
+          assert all(abs(x['best_active_information_gain_bits'] - 1.0) <= 1e-12 for x in p['rows'])
+          print(json.dumps({
+            'pass':p['pass'],
+            'max_horizon':p['max_horizon'],
+            'median_passive_over_active_observation_ratio':p['median_passive_over_active_observation_ratio'],
+            'max_passive_over_active_observation_ratio':p['max_passive_over_active_observation_ratio'],
+            'last_best_probe_states':p['rows'][-1]['best_probe_states'],
+            'last_passive_applications':p['rows'][-1]['passive_applications_to_identify'],
+            'last_active_applications':p['rows'][-1]['active_applications_to_identify'],
+          }, indent=2, sort_keys=True))
+          PY
