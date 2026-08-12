@@ -1,0 +1,46 @@
+name: ARCHIE evidence consolidation court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-evidence-consolidation-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/evidence_gated_consolidation.py
+      - name: Evidence-gated durable truth court
+        run: |
+          python3 foundry/archie-action-latent/evidence_gated_consolidation.py --output /tmp/archie-evidence-gate.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-evidence-gate.json'))
+          assert p['pass'] is True
+          assert p['unsupported_result'] == 'volatile'
+          assert p['stale_operational_result'] == 'volatile'
+          assert p['fresh_operational_result'] == 'stable'
+          assert p['durable_executable_result'] == 'stable'
+          assert p['mismatched_receipt_result'] == 'volatile'
+          assert p['contradiction_result'] == 'conflict'
+          assert p['bad_adjudication_result'] == 'rejected'
+          assert p['good_adjudication_result'] == 'stable'
+          print(json.dumps({k:p[k] for k in (
+            'pass','stable_count','volatile_claim_count','conflict_count',
+            'unsupported_result','stale_operational_result','fresh_operational_result',
+            'durable_executable_result','mismatched_receipt_result','contradiction_result',
+            'bad_adjudication_result','good_adjudication_result')}, indent=2, sort_keys=True))
+          PY
