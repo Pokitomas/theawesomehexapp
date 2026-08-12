@@ -30,9 +30,36 @@ jobs:
           python3 -m py_compile foundry/archie-cerebellar-surprise/test_cerebellar_surprise.py
           python3 -m py_compile foundry/archie-cerebellar-surprise/resident_operator_continuity.py
           python3 -m py_compile foundry/archie-cerebellar-surprise/test_resident_operator_continuity.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/nonlinear_history_court.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/test_nonlinear_history_court.py
       - name: Falsification and continuity unit courts
         working-directory: foundry/archie-cerebellar-surprise
-        run: python3 -m unittest -v test_cerebellar_surprise.py test_resident_operator_continuity.py
+        run: python3 -m unittest -v test_cerebellar_surprise.py test_resident_operator_continuity.py test_nonlinear_history_court.py
+      - name: Nonlinear history separation court
+        run: |
+          python3 foundry/archie-cerebellar-surprise/nonlinear_history_court.py --output /tmp/nonlinear-history.json >/tmp/nonlinear-history.stdout
+          python3 - <<'PY'
+          import json
+          r = json.load(open('/tmp/nonlinear-history.json', encoding='utf-8'))
+          assert r['schema'] == 'archie/cerebellar-nonlinear-history-court-v1'
+          assert r['pass'] is True
+          assert r['promotion'] is False
+          assert r['checks']['linear_bank_aliases_histories_exactly'] is True
+          assert r['checks']['null_witness_is_exact'] is True
+          assert r['checks']['nonlinear_bank_separates_aliased_histories'] is True
+          assert r['checks']['same_state_scalar_count'] is True
+          assert r['linear_two_state_bank']['plus_state_exact'] == ['15/16', '175/128']
+          assert r['linear_two_state_bank']['minus_state_exact'] == ['15/16', '175/128']
+          assert r['nonlinear_two_state_bank']['linf_state_separation'] > 1e-4
+          assert r['nonlinear_two_state_bank']['ei_differential_separation'] > 1e-4
+          print(json.dumps({
+              'pass': r['pass'],
+              'promotion': r['promotion'],
+              'linear_state': r['linear_two_state_bank']['plus_state_exact'],
+              'nonlinear_linf': r['nonlinear_two_state_bank']['linf_state_separation'],
+              'differential_separation': r['nonlinear_two_state_bank']['ei_differential_separation'],
+          }, sort_keys=True))
+          PY
       - name: Frozen strict surprise receipt court
         run: |
           python3 foundry/archie-cerebellar-surprise/cerebellar_surprise.py --output /tmp/cerebellar-surprise.json >/tmp/cerebellar-surprise.stdout
