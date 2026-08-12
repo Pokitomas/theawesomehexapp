@@ -57,6 +57,7 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_ablation.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_multiseed.py
+          python3 -m py_compile foundry/archie-action-latent/operator_delta_collision_court.py
           python3 -m py_compile foundry/archie-action-latent/information_budget_court.py
           python3 -m py_compile foundry/archie-action-latent/surprise_residual_memory.py
           python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
@@ -143,6 +144,24 @@ jobs:
             'median_forward_mse_ratio':p['median_forward_mse_ratio'],
             'median_inverse_mse_ratio':p['median_inverse_mse_ratio'],
             'median_effect_nmi_gain':p['median_effect_nmi_gain'],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Adversarial delta-collision sufficiency court
+        run: |
+          python3 foundry/archie-action-latent/operator_delta_collision_court.py \
+            --seeds 7601,7602,7603,7604,7605 \
+            --pairs 240 --epochs 120 --codes 4 --device cpu \
+            --output /tmp/archie-delta-collision.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-delta-collision.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'endpoint_forward_wins':p['endpoint_forward_wins'],
+            'endpoint_strong_forward_wins':p['endpoint_strong_forward_wins'],
+            'median_endpoint_over_delta_forward_mse':p['median_endpoint_over_delta_forward_mse'],
+            'median_endpoint_over_delta_inverse_mse':p['median_endpoint_over_delta_inverse_mse'],
+            'median_endpoint_effect_nmi_advantage':p['median_endpoint_effect_nmi_advantage'],
           }, indent=2, sort_keys=True))
           PY
       - name: Homeostatic surprise-memory court
