@@ -1,0 +1,53 @@
+name: ARCHIE semantic macro transport court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/semantic_macro_transport_court.py'
+      - '.github/workflows/archie-semantic-macro-transport-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/semantic_macro_transport_court.py
+      - name: Semantic normalization and transport accounting
+        run: |
+          python3 foundry/archie-action-latent/semantic_macro_transport_court.py \
+            --output /tmp/archie-semantic-macro-transport.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-semantic-macro-transport.json'))
+          assert p['pass'] is True
+          assert p['collision_control']['tiny_signature_equal'] is True
+          assert p['collision_control']['wide_signature_equal'] is False
+          assert p['heldout_macro_exact']['x1'] and p['heldout_macro_exact']['x2']
+          assert p['transport']['raw_tree_bytes'] > p['transport']['macro_total_bytes']
+          assert p['dispatch_accounting']['tree_visits'] > p['dispatch_accounting']['macro_total_visits']
+          print(json.dumps({
+            'pass':p['pass'],
+            'x1_rep':p['semantic_normalization']['x1_cheapest_representative'],
+            'x2_rep':p['semantic_normalization']['x2_cheapest_representative'],
+            'template':p['semantic_normalization']['induced_template'],
+            'raw_tree_bytes':p['transport']['raw_tree_bytes'],
+            'macro_total_bytes':p['transport']['macro_total_bytes'],
+            'transport_ratio':p['transport']['raw_over_macro_ratio'],
+            'tree_visits':p['dispatch_accounting']['tree_visits'],
+            'macro_visits':p['dispatch_accounting']['macro_total_visits'],
+            'dispatch_ratio':p['dispatch_accounting']['tree_over_macro_ratio'],
+            'ci_wallclock_ratio_diagnostic':p['ci_wallclock_diagnostic_not_gate']['tree_over_macro_ratio'],
+            'finite_signature_collision_control':p['collision_control'],
+          }, indent=2, sort_keys=True))
+          PY
