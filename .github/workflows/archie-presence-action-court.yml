@@ -9,9 +9,11 @@ on:
       - 'scripts/archie-presence-brain-broker.mjs'
       - 'scripts/tests/archie-presence-brain-broker.test.mjs'
       - 'scripts/archie-local-semantic-broker.py'
+      - 'scripts/archie-local-semantic-broker-v2.py'
       - 'scripts/archie-local-semantic-supervisor.py'
       - 'scripts/archie-semantic-trainer-coexistence-court.py'
       - 'scripts/tests/test_archie_local_semantic_broker.py'
+      - 'scripts/tests/test_archie_local_semantic_broker_v2.py'
       - 'scripts/archie-capability-proof.py'
       - 'foundry/archie-action-latent/**'
       - 'foundry/archie-distill/packed_stream_train.py'
@@ -39,9 +41,12 @@ jobs:
         run: node --test scripts/tests/archie-presence-brain-broker.test.mjs
       - name: Local semantic broker preemption court
         run: python3 scripts/tests/test_archie_local_semantic_broker.py
+      - name: Proof-grounded semantic boundary court
+        run: python3 scripts/tests/test_archie_local_semantic_broker_v2.py
       - name: Python source syntax court
         run: |
           python3 -m py_compile scripts/archie-local-semantic-broker.py
+          python3 -m py_compile scripts/archie-local-semantic-broker-v2.py
           python3 -m py_compile scripts/archie-local-semantic-supervisor.py
           python3 -m py_compile scripts/archie-semantic-trainer-coexistence-court.py
           python3 -m py_compile scripts/archie-capability-proof.py
