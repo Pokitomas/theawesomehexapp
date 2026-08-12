@@ -1,0 +1,51 @@
+name: ARCHIE operator constraint manifold court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/operator_constraint_manifold.py'
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-operator-constraint-manifold-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/operator_constraint_manifold.py
+      - name: Exact active causal manifold identification
+        run: |
+          python3 foundry/archie-action-latent/operator_constraint_manifold.py \
+            --output /tmp/archie-operator-manifold.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-operator-manifold.json'))
+          assert p['pass'] is True
+          a=p['identifiable_case']
+          c=p['collinear_underdetermined_case']
+          assert a['final_rank'] == 6 and a['final_nullity'] == 0
+          assert a['exact_recovery'] and a['consolidation']['stable']
+          assert c['final_rank'] == 4 and c['final_nullity'] == 2
+          assert not c['unique_solution'] and not c['consolidation']['stable']
+          print(json.dumps({
+            'pass':p['pass'],
+            'identifiable_rank':a['final_rank'],
+            'identifiable_nullity':a['final_nullity'],
+            'exact_recovery':a['exact_recovery'],
+            'selected_probes':[x['selected'] for x in a['trace']],
+            'collinear_rank':c['final_rank'],
+            'collinear_nullity':c['final_nullity'],
+            'collinear_stable_count':c['stable_count'],
+          }, indent=2, sort_keys=True))
+          PY

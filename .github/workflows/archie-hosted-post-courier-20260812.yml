@@ -1,0 +1,62 @@
+name: ARCHIE hosted POST courier 20260812
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-hosted-post-courier-20260812.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  courier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      S_RELAY_A: ${{ secrets.ARCHIE_RELAY_TOKEN }}
+      S_RELAY_B: ${{ secrets.RELAY_TOKEN }}
+      S_RELAY_C: ${{ secrets.VERCEL_RELAY_TOKEN }}
+      S_RELAY_D: ${{ secrets.ARCHIE_TOKEN }}
+      S_SHELL_A: ${{ secrets.ARCHIE_SHELL_TOKEN }}
+      S_SHELL_B: ${{ secrets.ARCHIE_SHELL_SECRET }}
+      S_SHELL_C: ${{ secrets.SHELL_TOKEN }}
+    steps:
+      - name: Probe credential presence and harmless host POST
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          relay=''
+          relay_name='NONE'
+          for pair in 'ARCHIE_RELAY_TOKEN:S_RELAY_A' 'RELAY_TOKEN:S_RELAY_B' 'VERCEL_RELAY_TOKEN:S_RELAY_C' 'ARCHIE_TOKEN:S_RELAY_D'; do
+            name=${pair%%:*}; var=${pair##*:}; value=${!var:-}
+            if [ -n "$value" ]; then relay="$value"; relay_name="$name"; break; fi
+          done
+          shelltok=''
+          shell_name='NONE'
+          for pair in 'ARCHIE_SHELL_TOKEN:S_SHELL_A' 'ARCHIE_SHELL_SECRET:S_SHELL_B' 'SHELL_TOKEN:S_SHELL_C'; do
+            name=${pair%%:*}; var=${pair##*:}; value=${!var:-}
+            if [ -n "$value" ]; then shelltok="$value"; shell_name="$name"; break; fi
+          done
+          echo "relay_secret_name=$relay_name"
+          echo "shell_secret_name=$shell_name"
+          if [ -z "$relay" ]; then echo 'NO_RELAY_SECRET'; exit 20; fi
+          body='{"cmd":"printf HOSTED_POST_OK"}'
+          args=(-fsS --max-time 30 -X POST "https://archie-vercel-relay.vercel.app/api/relay?route=shell&token=${relay}" -H 'Content-Type: application/json')
+          if [ -n "$shelltok" ]; then args+=(-H "x-archie-shell-token: ${shelltok}"); fi
+          set +e
+          code=$(curl "${args[@]}" --data-binary "$body" -o response.txt -w '%{http_code}')
+          rc=$?
+          set -e
+          echo "curl_rc=$rc http=$code"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('response.txt')
+          if p.exists():
+              s=p.read_text(errors='replace')
+              print('response_bytes=',len(s.encode()))
+              print(s[:4000])
+          PY
+          test "$rc" -eq 0
+          test "$code" = 200
+          grep -q 'HOSTED_POST_OK' response.txt

@@ -1,0 +1,53 @@
+name: ARCHIE residual grammar production v2 court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/residual_grammar_production_search.py'
+      - 'foundry/archie-action-latent/residual_grammar_production_search_v2.py'
+      - '.github/workflows/archie-residual-grammar-production-v2-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/residual_grammar_production_search_v2.py
+      - name: Nonsingular residual-driven grammar synthesis
+        run: |
+          python3 foundry/archie-action-latent/residual_grammar_production_search_v2.py \
+            --max-cost 6 --output /tmp/archie-residual-grammar-v2.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-residual-grammar-v2.json'))
+          assert p['pass'] is True
+          s=p['rational_square_case']
+          c=p['out_of_budget_rational_cubic_case']
+          assert s['output1']['holdout_exact'] and s['output2']['holdout_exact']
+          assert s['promotion_event']['result'] == 'stable'
+          assert not c['output1']['holdout_exact'] and not c['output2']['holdout_exact']
+          assert c['promotion_event']['result'] == 'volatile'
+          print(json.dumps({
+            'pass':p['pass'],
+            'v1_failure_preserved':p['v1_failure_preserved'],
+            'square_grammar_size':s['grammar_expression_count'],
+            'square_expr_y1':s['output1']['expression'],
+            'square_expr_y2':s['output2']['expression'],
+            'square_cost_y1':s['output1']['cost'],
+            'square_cost_y2':s['output2']['cost'],
+            'cubic_expr_y1':c['output1']['expression'],
+            'cubic_expr_y2':c['output2']['expression'],
+            'cubic_promotion':c['promotion_event']['result'],
+          }, indent=2, sort_keys=True))
+          PY

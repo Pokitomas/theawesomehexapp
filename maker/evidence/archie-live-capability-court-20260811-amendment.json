@@ -1,0 +1,33 @@
+{
+  "schema": "archie/live-capability-court-amendment-v1",
+  "amends": "maker/evidence/archie-live-capability-court-20260811.json",
+  "observed_local": "2026-08-11T21:26:14-07:00/2026-08-11T21:27:22-07:00",
+  "correction": {
+    "prior_claim": "presence reactor was a live process but had no systemd unit because archie-presence.service was not found",
+    "corrected_claim": "the checked unit name was incomplete; the existing canonical unit is archie-presence-reactor.service",
+    "proof": {
+      "unit": "archie-presence-reactor.service",
+      "unit_path": "/home/awesomekai/.config/systemd/user/archie-presence-reactor.service",
+      "description": "ARCHIE persistent presence reactor",
+      "enabled": true,
+      "active": true,
+      "final_main_pid": 873149,
+      "restart_count": 1,
+      "exec": "/usr/bin/python3 /home/awesomekai/archie-remote/presence_reactor.py --tick-ms 20 --quiet-ms 25",
+      "socket": "/home/awesomekai/archie-remote/presence/presence.sock",
+      "final_socket_owner_pid": 873149
+    }
+  },
+  "failed_intervention_preserved": {
+    "event": "A new archie-presence.service was temporarily installed under the mistaken assumption that no presence unit existed.",
+    "observable_counterexample": "The existing archie-presence-reactor.service immediately restarted the killed old reactor, producing two presence_reactor.py processes and two bound Unix datagram socket inodes at the same pathname.",
+    "repair": "The newly created duplicate archie-presence.service was disabled and removed. The existing canonical archie-presence-reactor.service was kept. Final court observed exactly one matching reactor process and one socket owner.",
+    "result": "recovered_without_hiding_failure"
+  },
+  "final_state": {
+    "matching_presence_reactor_processes": 1,
+    "canonical_pid": 873149,
+    "canonical_unit_active": true,
+    "duplicate_unit_removed": true
+  }
+}

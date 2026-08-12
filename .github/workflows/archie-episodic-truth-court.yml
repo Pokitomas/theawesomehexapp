@@ -1,0 +1,64 @@
+name: ARCHIE episodic + truth court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'scripts/archie-local-semantic-broker.py'
+      - 'scripts/archie-local-semantic-broker-v2.py'
+      - 'scripts/archie-local-semantic-broker-v3.py'
+      - 'scripts/archie-semantic-episodic-memory.py'
+      - 'scripts/archie-semantic-episodic-memory-v2.py'
+      - 'scripts/tests/test_archie_local_semantic_broker_v3.py'
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-episodic-truth-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: |
+          python3 -m py_compile scripts/archie-local-semantic-broker.py
+          python3 -m py_compile scripts/archie-local-semantic-broker-v2.py
+          python3 -m py_compile scripts/archie-local-semantic-broker-v3.py
+          python3 -m py_compile scripts/archie-semantic-episodic-memory.py
+          python3 -m py_compile scripts/archie-semantic-episodic-memory-v2.py
+          python3 -m py_compile scripts/tests/test_archie_local_semantic_broker_v3.py
+          python3 -m py_compile foundry/archie-action-latent/evidence_gated_consolidation.py
+      - name: Exact multi-turn episodic exterior court
+        run: python3 scripts/archie-semantic-episodic-memory-v2.py --court
+      - name: Resident semantic recall boundary court
+        run: python3 scripts/tests/test_archie_local_semantic_broker_v3.py
+      - name: Evidence-gated consolidation court
+        run: |
+          python3 foundry/archie-action-latent/evidence_gated_consolidation.py \
+            --output /tmp/archie-evidence-gated.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-evidence-gated.json'))
+          assert p['pass'] is True
+          assert p['unsupported_result'] == 'volatile'
+          assert p['stale_operational_result'] == 'volatile'
+          assert p['fresh_operational_result'] == 'stable'
+          assert p['durable_executable_result'] == 'stable'
+          assert p['mismatched_receipt_result'] == 'volatile'
+          assert p['contradiction_result'] == 'conflict'
+          assert p['bad_adjudication_result'] == 'rejected'
+          assert p['good_adjudication_result'] == 'stable'
+          print(json.dumps({k:p[k] for k in (
+            'pass','stable_count','volatile_claim_count','conflict_count',
+            'unsupported_result','stale_operational_result','fresh_operational_result',
+            'durable_executable_result','mismatched_receipt_result','contradiction_result',
+            'bad_adjudication_result','good_adjudication_result')}, indent=2, sort_keys=True))
+          PY

@@ -1,0 +1,13 @@
+[Unit]
+Description=ARCHIE persistent presence reactor
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/awesomekai/archie-remote/presence_reactor.py --tick-ms 20 --quiet-ms 25
+Restart=always
+RestartSec=0.25
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

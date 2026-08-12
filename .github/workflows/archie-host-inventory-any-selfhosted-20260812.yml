@@ -1,0 +1,47 @@
+name: ARCHIE any selfhosted probe 20260812
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-host-inventory-any-selfhosted-20260812.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-any-selfhosted-20260812
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: self-hosted
+    timeout-minutes: 8
+    steps:
+      - name: Prove workstation and capture owner state
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          O="$RUNNER_TEMP/archie-any-selfhosted-probe"
+          mkdir -p "$O"
+          {
+            echo "time=$(date -Iseconds)"; echo "host=$(hostname)"; echo "runner=${RUNNER_NAME:-unknown}"; id
+            echo '=== SIDECAR ==='; systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager 2>/dev/null || true
+            echo '=== LIVE EXEC ==='; systemctl --user show archie-live-exec.service -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>/dev/null || true
+            echo '=== TRAINER ==='; systemctl --user show archie-gpt56-packed-stream-v1.service -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>/dev/null || true
+            echo '=== GPU ==='; (/usr/lib/wsl/lib/nvidia-smi || nvidia-smi) 2>&1 || true
+            echo '=== DXG ==='; fuser -v /dev/dxg 2>&1 || true
+            for p in $(fuser /dev/dxg 2>/dev/null || true); do echo "PID=$p"; tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null || true; echo; cat /proc/$p/cgroup 2>/dev/null || true; done
+            echo '=== LOCK ==='; ls -l /home/awesomekai/archie-bench/GPU.lock 2>/dev/null || true; if [ -e /home/awesomekai/archie-bench/GPU.lock ]; then flock -n /home/awesomekai/archie-bench/GPU.lock -c 'echo GPU_LOCK_FREE' || echo GPU_LOCK_HELD; fi
+            echo '=== LEASE ==='; cat /home/awesomekai/maximal/ACTIVE_GPU_LEASE.json 2>/dev/null || echo MISSING
+            echo '=== HALT ==='; cat /home/awesomekai/maximal/scratch/packed-stream-v1/HALT.json 2>/dev/null || echo MISSING
+            echo '=== STAGED TARGETS ==='; find /home/awesomekai -maxdepth 6 -type f \( -name 'patch_live_exec_durable_v3.py' -o -name 'archie_durable_stream.py' -o -name 'gpu_owner_audit.py' -o -name 'archie_delta_control_dependency_probe_v1.py' -o -name 'origin_v3_query_v2.py' -o -name 'run_real_packed_microscope_v4.sh' -o -name 'archie_tensor_microscope.py' \) -printf '%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n' 2>/dev/null | sort -r | head -100
+            echo '=== LIVE EXEC SHA ==='; sha256sum /home/awesomekai/archie-remote/live_exec.py 2>/dev/null || true
+          } | tee "$O/probe.txt"
+      - name: Upload receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-any-selfhosted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archie-any-selfhosted-probe
+          retention-days: 7

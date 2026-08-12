@@ -1,0 +1,58 @@
+name: Verify ARCHIE causal holonomy court
+
+on:
+  pull_request:
+    paths:
+      - foundry/causal_holonomy_court.py
+      - .github/workflows/archie-causal-holonomy-court.yml
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+    paths:
+      - foundry/causal_holonomy_court.py
+      - .github/workflows/archie-causal-holonomy-court.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  causal-holonomy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Install numerical oracle
+        run: python -m pip install --disable-pip-version-check --no-input numpy
+      - name: Syntax check
+        run: python -m py_compile foundry/causal_holonomy_court.py
+      - name: Run causal holonomy court
+        run: python foundry/causal_holonomy_court.py > causal-holonomy-receipt.json
+      - name: Validate semantic and bijection gates
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('causal-holonomy-receipt.json'))
+          assert r['status']=='pass', r
+          assert r['closed_form_relative_error'] < 1e-10
+          assert r['complete_observation_reconstruction_relative_error'] < 1e-10
+          assert r['single_query_nonzero_holonomy_norm'] > 1e-6
+          assert r['single_query_behavior_norm'] < 1e-10
+          assert r['rank_deficient_nonzero_holonomy_norm'] > 1e-6
+          assert r['rank_deficient_behavior_norm'] < 1e-9
+          assert r['fission_shared_order_effect_norm'] > 1e-6
+          assert r['fission_product_order_effect_norm'] < 1e-12
+          print('causal holonomy semantic gates: PASS')
+          PY
+      - name: Upload truthful receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archie-causal-holonomy-receipt
+          path: causal-holonomy-receipt.json
+          if-no-files-found: error
+          retention-days: 14

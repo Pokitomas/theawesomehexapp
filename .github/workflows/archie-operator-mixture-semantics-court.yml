@@ -1,0 +1,55 @@
+name: ARCHIE operator-mixture semantics court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+    paths:
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - 'foundry/archie-action-latent/operator_mixture_semantics_court.py'
+      - '.github/workflows/archie-operator-mixture-semantics-court.yml'
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - 'foundry/archie-action-latent/operator_mixture_semantics_court.py'
+      - '.github/workflows/archie-operator-mixture-semantics-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tensor-semantics-court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PyTorch CPU
+        run: python3 -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Compile exact court sources
+        run: |
+          python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
+          python3 -m py_compile foundry/archie-action-latent/operator_mixture_semantics_court.py
+      - name: Falsify soft-mixture algebra preservation
+        run: |
+          python3 foundry/archie-action-latent/operator_mixture_semantics_court.py \
+            --device cpu --output /tmp/archie-operator-mixture-semantics.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-operator-mixture-semantics.json'))
+          assert p['pass'] is True
+          assert p['per_code_orthogonality_max_abs_error'] < 1e-5
+          assert p['min_mixed_soft_roundtrip_max_abs_error'] > 1e-3
+          assert p['min_mixed_soft_linear_isometry_defect'] > 1e-3
+          assert p['max_hard_roundtrip_max_abs_error'] < 1e-5
+          print(json.dumps({
+            'pass':p['pass'],
+            'tensor_shapes':p['tensor_shapes'],
+            'per_code_orthogonality':p['per_code_orthogonality_max_abs_error'],
+            'min_mixed_roundtrip_defect':p['min_mixed_soft_roundtrip_max_abs_error'],
+            'min_mixed_isometry_defect':p['min_mixed_soft_linear_isometry_defect'],
+            'max_hard_roundtrip':p['max_hard_roundtrip_max_abs_error'],
+          }, indent=2, sort_keys=True))
+          PY

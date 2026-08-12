@@ -1,0 +1,225 @@
+name: ARCHIE presence + action court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'scripts/archie-presence-brain-broker.mjs'
+      - 'scripts/tests/archie-presence-brain-broker.test.mjs'
+      - 'scripts/archie-local-semantic-broker.py'
+      - 'scripts/archie-local-semantic-broker-v2.py'
+      - 'scripts/archie-local-semantic-supervisor.py'
+      - 'scripts/archie-semantic-trainer-coexistence-court.py'
+      - 'scripts/tests/test_archie_local_semantic_broker.py'
+      - 'scripts/tests/test_archie_local_semantic_broker_v2.py'
+      - 'scripts/archie-capability-proof.py'
+      - 'foundry/archie-action-latent/**'
+      - 'foundry/archie-distill/packed_stream_train.py'
+      - 'foundry/archie-distill/test_packed_stream_train.py'
+      - 'foundry/archie-distill/causal_trace_compiler.py'
+      - 'foundry/archie-distill/test_causal_trace_compiler.py'
+      - '.github/workflows/archie-presence-action-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install learned-court dependency
+        run: python3 -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Presence broker unit court
+        run: node --test scripts/tests/archie-presence-brain-broker.test.mjs
+      - name: Local semantic broker preemption court
+        run: python3 scripts/tests/test_archie_local_semantic_broker.py
+      - name: Proof-grounded semantic boundary court
+        run: python3 scripts/tests/test_archie_local_semantic_broker_v2.py
+      - name: Python source syntax court
+        run: |
+          python3 -m py_compile scripts/archie-local-semantic-broker.py
+          python3 -m py_compile scripts/archie-local-semantic-broker-v2.py
+          python3 -m py_compile scripts/archie-local-semantic-supervisor.py
+          python3 -m py_compile scripts/archie-semantic-trainer-coexistence-court.py
+          python3 -m py_compile scripts/archie-capability-proof.py
+          python3 -m py_compile foundry/archie-action-latent/motor_babble.py
+          python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
+          python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
+          python3 -m py_compile foundry/archie-action-latent/operator_delta_ablation.py
+          python3 -m py_compile foundry/archie-action-latent/operator_delta_multiseed.py
+          python3 -m py_compile foundry/archie-action-latent/operator_delta_collision_court.py
+          python3 -m py_compile foundry/archie-action-latent/adaptive_sufficient_selector.py
+          python3 -m py_compile foundry/archie-action-latent/counterexample_guided_relational_lift.py
+          python3 -m py_compile foundry/archie-action-latent/information_budget_court.py
+          python3 -m py_compile foundry/archie-action-latent/surprise_residual_memory.py
+          python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
+          python3 -m py_compile foundry/archie-action-latent/test_homeostatic_surprise_memory.py
+          python3 -m py_compile foundry/archie-distill/packed_stream_train.py
+          python3 -m py_compile foundry/archie-distill/test_packed_stream_train.py
+          python3 -m py_compile foundry/archie-distill/causal_trace_compiler.py
+          python3 -m py_compile foundry/archie-distill/test_causal_trace_compiler.py
+      - name: Information budget / infinite-context falsification court
+        run: |
+          python3 foundry/archie-action-latent/information_budget_court.py \
+            --state-bits 8 --history-length 10 --steps 100000 \
+            --facts 4096 --resident-capacity 64 \
+            --output /tmp/archie-information-budget.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-information-budget.json'))
+          assert p['pass'] is True
+          assert p['arbitrary_history_bound']['pigeonhole_collision_forced'] is True
+          assert p['finite_sufficient_statistic_control']['exact'] is True
+          assert p['two_tier_memory_control']['resident_exact_recall_rate'] < 1.0
+          assert p['two_tier_memory_control']['exterior_exact_recall_rate'] == 1.0
+          print(json.dumps({
+            'pass':p['pass'],
+            'forced_collision':p['arbitrary_history_bound']['pigeonhole_collision_forced'],
+            'sufficient_statistic_exact':p['finite_sufficient_statistic_control']['exact'],
+            'resident_recall':p['two_tier_memory_control']['resident_exact_recall_rate'],
+            'exterior_recall':p['two_tier_memory_control']['exterior_exact_recall_rate'],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Exact surprise-residual memory court
+        run: |
+          python3 foundry/archie-action-latent/surprise_residual_memory.py \
+            --length 100000 --alphabet 16 --output /tmp/archie-surprise-residual.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-surprise-residual.json'))
+          assert p['pass'] is True
+          cases={x['name']:x for x in p['cases']}
+          assert all(x['exact_replay'] for x in p['cases'])
+          assert cases['structured_sparse_noise']['residual_rate'] < cases['uniform_random']['residual_rate']
+          assert cases['mostly_deterministic_markov']['residual_rate'] < cases['uniform_random']['residual_rate']
+          print(json.dumps(cases, indent=2, sort_keys=True))
+          PY
+      - name: Action-latent motor-babbling court
+        run: python3 foundry/archie-action-latent/test_motor_babble.py
+      - name: Learned consequence-operator court
+        run: |
+          set +e
+          python3 foundry/archie-action-latent/operator_predictive_core.py \
+            --steps 600 --codes 8 --epochs 120 --device cpu \
+            --output /tmp/archie-operator-core-court.json
+          rc=$?
+          cat /tmp/archie-operator-core-court.json || true
+          if [ "$rc" -ne 0 ]; then
+            compact=$(python3 - <<'PY'
+          import json
+          p='/tmp/archie-operator-core-court.json'
+          try:
+              x=json.load(open(p))
+              keys=['pass','loss_initial','loss_final','train_forward_mse','test_forward_mse','test_inverse_mse','used_codes','latent_code_capacity','latent_vs_hand_effect_purity','latent_vs_hand_effect_nmi','operator_orthogonality_max_abs_error']
+              print(json.dumps({k:x.get(k) for k in keys}, separators=(',',':')))
+          except Exception as e:
+              print(json.dumps({'result_read_error':str(e)}))
+          PY
+          )
+            echo "::error title=Learned consequence-operator court::$compact"
+            exit "$rc"
+          fi
+      - name: Multi-seed latent displacement ablation
+        run: |
+          python3 foundry/archie-action-latent/operator_delta_multiseed.py \
+            --seeds 5601,5602,5603,5604,5605 \
+            --steps 400 --codes 8 --epochs 80 --device cpu \
+            --output /tmp/archie-delta-multiseed.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-delta-multiseed.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'promotion_candidate':p['promotion_candidate'],
+            'delta_forward_wins':p['delta_forward_wins'],
+            'delta_strong_forward_wins':p['delta_strong_forward_wins'],
+            'median_forward_mse_ratio':p['median_forward_mse_ratio'],
+            'median_inverse_mse_ratio':p['median_inverse_mse_ratio'],
+            'median_effect_nmi_gain':p['median_effect_nmi_gain'],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Adversarial delta-collision sufficiency court
+        run: |
+          python3 foundry/archie-action-latent/operator_delta_collision_court.py \
+            --seeds 7601,7602,7603,7604,7605 \
+            --pairs 240 --epochs 120 --codes 4 --device cpu \
+            --output /tmp/archie-delta-collision.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-delta-collision.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'endpoint_forward_wins':p['endpoint_forward_wins'],
+            'endpoint_strong_forward_wins':p['endpoint_strong_forward_wins'],
+            'median_endpoint_over_delta_forward_mse':p['median_endpoint_over_delta_forward_mse'],
+            'median_endpoint_over_delta_inverse_mse':p['median_endpoint_over_delta_inverse_mse'],
+            'median_endpoint_effect_nmi_advantage':p['median_endpoint_effect_nmi_advantage'],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Adaptive minimal-sufficient representation court
+        continue-on-error: true
+        run: |
+          python3 foundry/archie-action-latent/adaptive_sufficient_selector.py \
+            --seeds 8801,8802,8803 --translation-groups 480 --collision-groups 240 \
+            --codes 6 --expert-epochs 140 --router-epochs 180 --device cpu \
+            --output /tmp/archie-adaptive-sufficiency.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-adaptive-sufficiency.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'median_adaptive_over_endpoint_forward_mse':p['median_adaptive_over_endpoint_forward_mse'],
+            'median_adaptive_over_delta_forward_mse':p['median_adaptive_over_delta_forward_mse'],
+            'median_context_usage_rate':p['median_context_usage_rate'],
+            'median_context_usage_on_context_required':p['median_context_usage_on_context_required'],
+            'median_context_usage_on_delta_sufficient':p['median_context_usage_on_delta_sufficient'],
+            'median_gate_oracle_accuracy':p['median_gate_oracle_accuracy'],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Counterexample-guided relational lift court
+        run: |
+          python3 foundry/archie-action-latent/counterexample_guided_relational_lift.py \
+            --seeds 9901,9902,9903 --pairs 300 --codes 4 \
+            --search-epochs 80 --final-epochs 130 --device cpu \
+            --output /tmp/archie-relational-lift.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-relational-lift.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'selected_features':p['selected_features'],
+            'median_lift_over_delta_forward_mse':p['median_lift_over_delta_forward_mse'],
+            'median_lift_over_endpoint_forward_mse':p['median_lift_over_endpoint_forward_mse'],
+            'median_effect_nmi_grading_only':p['median_effect_nmi_grading_only'],
+            'input_width_lift':p['input_width_lift'],
+            'input_width_endpoint_delta':p['input_width_endpoint_delta'],
+          }, indent=2, sort_keys=True))
+          assert p['pass'] is True
+          PY
+      - name: Homeostatic surprise-memory court
+        run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
+      - name: Lineage-safe causal trace court
+        run: python3 foundry/archie-distill/test_causal_trace_compiler.py
+      - name: Packed-stream AMP overflow recovery court
+        run: python3 foundry/archie-distill/test_packed_stream_train.py
+      - name: Capability-proof fail-closed court
+        run: |
+          python3 scripts/archie-capability-proof.py --repo "$GITHUB_WORKSPACE" --output /tmp/archie-capability-proof.json
+          python3 - <<'PY'
+          import json
+          p = json.load(open('/tmp/archie-capability-proof.json'))
+          assert p['schema'] == 'archie/capability-proof-v2'
+          assert p['receipt_sha256']
+          assert 'shell_secret_file' in p and 'content' not in p['shell_secret_file']
+          assert p['git']['is_git'] is True
+          PY

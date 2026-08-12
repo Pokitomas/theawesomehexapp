@@ -1,0 +1,46 @@
+name: ARCHIE operator belief filter court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/operator_belief_filter_court.py'
+      - '.github/workflows/archie-operator-belief-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/operator_belief_filter_court.py
+      - name: Lawful uncertainty branch court
+        run: |
+          python3 foundry/archie-action-latent/operator_belief_filter_court.py --output /tmp/archie-operator-belief.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-operator-belief.json'))
+          assert p['pass'] is True
+          for r in p['runs']:
+              assert len(r['first_update']['survivors']) == 2
+              assert r['premature_expected_x2'] == ['-1/1','1/1']
+              assert not r['premature_expected_x2_is_any_lawful_branch']
+              assert len(r['second_update']['survivors']) == 1
+              assert r['posterior_future_exact']
+          print(json.dumps({
+            'pass':p['pass'],
+            'truths':[r['truth'] for r in p['runs']],
+            'invented_mean':[r['premature_expected_x2'] for r in p['runs']],
+            'mean_is_lawful':[r['premature_expected_x2_is_any_lawful_branch'] for r in p['runs']],
+            'future_exact':[r['posterior_future_exact'] for r in p['runs']],
+          }, indent=2, sort_keys=True))
+          PY

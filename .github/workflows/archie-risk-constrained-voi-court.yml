@@ -1,0 +1,53 @@
+name: ARCHIE risk-constrained VOI court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/risk_constrained_value_of_information.py'
+      - '.github/workflows/archie-risk-constrained-voi-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/risk_constrained_value_of_information.py
+      - name: Decision-relevant distinguishability budget
+        run: |
+          python3 foundry/archie-action-latent/risk_constrained_value_of_information.py \
+            --output /tmp/archie-risk-voi.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-risk-voi.json'))
+          assert p['pass'] is True
+          rel=p['decision_relevance_case']
+          assert rel['selected_probe']['name'] == 'decision_boundary'
+          assert rel['raw_entropy_best_probe']['name'] == 'nuisance_high_entropy'
+          assert p['low_stakes_case']['disposition'] == 'preserve_uncertainty'
+          assert p['unsafe_certainty_case']['disposition'] == 'preserve_uncertainty'
+          assert p['irreversible_probe_case']['disposition'] == 'preserve_uncertainty'
+          grades={x['name']:x for x in rel['probes']}
+          print(json.dumps({
+            'pass':p['pass'],
+            'raw_entropy_choice':rel['raw_entropy_best_probe']['name'],
+            'voi_choice':rel['selected_probe']['name'],
+            'nuisance_information_bits':grades['nuisance_high_entropy']['information_gain_bits'],
+            'nuisance_decision_voi':grades['nuisance_high_entropy']['decision_value_of_information'],
+            'decision_information_bits':grades['decision_boundary']['information_gain_bits'],
+            'decision_voi':grades['decision_boundary']['decision_value_of_information'],
+            'low_stakes':p['low_stakes_case']['disposition'],
+            'unsafe_certainty':p['unsafe_certainty_case']['disposition'],
+            'irreversible_probe':p['irreversible_probe_case']['disposition'],
+          }, indent=2, sort_keys=True))
+          PY

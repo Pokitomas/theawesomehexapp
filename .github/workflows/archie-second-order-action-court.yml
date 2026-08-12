@@ -1,0 +1,48 @@
+name: ARCHIE second-order action identity court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/second_order_action_identity_court.py'
+      - '.github/workflows/archie-second-order-action-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/second_order_action_identity_court.py
+      - name: Exact one-step non-identifiability witness
+        run: |
+          python3 foundry/archie-action-latent/second_order_action_identity_court.py \
+            --seed 12001 --witnesses 256 --output /tmp/archie-second-order.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-second-order.json'))
+          assert p['pass'] is True
+          assert p['first_transition']['deterministic_bayes_accuracy_ceiling'] == 0.5
+          assert p['first_transition']['contradictory_signatures'] == 256
+          assert p['second_transition']['contradictory_signatures'] == 0
+          assert p['second_order_rule_accuracy'] == 1.0
+          print(json.dumps({
+            'pass':p['pass'],
+            'witnesses':p['witnesses'],
+            'first_step_bayes_ceiling':p['first_transition']['deterministic_bayes_accuracy_ceiling'],
+            'first_step_contradictions':p['first_transition']['contradictory_signatures'],
+            'second_step_contradictions':p['second_transition']['contradictory_signatures'],
+            'second_order_rule_accuracy':p['second_order_rule_accuracy'],
+            'dot_d1_d2_values':p['dot_d1_d2_values'],
+            'witness_sha256':p['witness_sha256'],
+          }, indent=2, sort_keys=True))
+          PY
