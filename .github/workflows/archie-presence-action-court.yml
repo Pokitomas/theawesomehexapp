@@ -10,6 +10,7 @@ on:
       - 'scripts/tests/archie-presence-brain-broker.test.mjs'
       - 'scripts/archie-local-semantic-broker.py'
       - 'scripts/archie-local-semantic-supervisor.py'
+      - 'scripts/tests/test_archie_local_semantic_broker.py'
       - 'scripts/archie-capability-proof.py'
       - 'foundry/archie-action-latent/**'
       - 'foundry/archie-distill/packed_stream_train.py'
@@ -33,6 +34,8 @@ jobs:
           python-version: '3.12'
       - name: Presence broker unit court
         run: node --test scripts/tests/archie-presence-brain-broker.test.mjs
+      - name: Local semantic broker preemption court
+        run: python3 scripts/tests/test_archie_local_semantic_broker.py
       - name: Python source syntax court
         run: |
           python3 -m py_compile scripts/archie-local-semantic-broker.py
