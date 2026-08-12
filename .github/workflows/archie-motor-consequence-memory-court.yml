@@ -1,0 +1,59 @@
+name: ARCHIE motor consequence memory court
+
+on:
+  push:
+    branches:
+      - gpt56sol/cerebellar-surprise-court-20260811
+    paths:
+      - 'foundry/archie-action-latent/motor_babble.py'
+      - 'foundry/archie-cerebellar-surprise/motor_consequence_memory_court.py'
+      - 'foundry/archie-cerebellar-surprise/test_motor_consequence_memory_court.py'
+      - '.github/workflows/archie-motor-consequence-memory-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: |
+          python3 -m py_compile foundry/archie-cerebellar-surprise/motor_consequence_memory_court.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/test_motor_consequence_memory_court.py
+      - name: Unit court
+        working-directory: foundry/archie-cerebellar-surprise
+        run: python3 -m unittest -v test_motor_consequence_memory_court.py
+      - name: Three-seed chronological receipt
+        run: |
+          python3 foundry/archie-cerebellar-surprise/motor_consequence_memory_court.py --steps 256 --output /tmp/motor-consequence-memory.json >/tmp/motor-consequence-memory.stdout
+          python3 - <<'PY'
+          import json, math
+          r = json.load(open('/tmp/motor-consequence-memory.json', encoding='utf-8'))
+          assert r['schema'] == 'archie/cerebellar-motor-consequence-memory-court-v1'
+          assert r['court_valid'] is True
+          assert r['promotion'] is False
+          assert r['dynamic_state_scalars']['linear_two_pole'] == 2
+          assert r['dynamic_state_scalars']['nonlinear_two_state'] == 2
+          assert len(r['runs']) == 3
+          assert all(x['deterministic_replay_exact'] for x in r['runs'])
+          assert all(x['motor_inverse_pass_rate'] == 1.0 for x in r['runs'])
+          assert all(x['motor_continuity_pass_rate'] == 1.0 for x in r['runs'])
+          a = r['aggregate']
+          assert all(math.isfinite(a[k]) for k in ('action_only_mean_test_mse','linear_two_pole_mean_test_mse','nonlinear_two_state_mean_test_mse','nonlinear_relative_improvement_vs_linear'))
+          print(json.dumps({
+              'court_valid': r['court_valid'],
+              'promotion': r['promotion'],
+              'action_only_mse': a['action_only_mean_test_mse'],
+              'linear_mse': a['linear_two_pole_mean_test_mse'],
+              'nonlinear_mse': a['nonlinear_two_state_mean_test_mse'],
+              'nonlinear_seed_wins': a['nonlinear_seed_wins_vs_linear'],
+              'relative_improvement': a['nonlinear_relative_improvement_vs_linear'],
+              'candidate_earns_followup': a['candidate_earns_followup'],
+          }, sort_keys=True))
+          PY
