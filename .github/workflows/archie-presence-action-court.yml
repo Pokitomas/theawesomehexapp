@@ -12,6 +12,8 @@ on:
       - 'scripts/archie-local-semantic-supervisor.py'
       - 'scripts/archie-capability-proof.py'
       - 'foundry/archie-action-latent/**'
+      - 'foundry/archie-distill/packed_stream_train.py'
+      - 'foundry/archie-distill/test_packed_stream_train.py'
       - '.github/workflows/archie-presence-action-court.yml'
 
 permissions:
@@ -39,8 +41,12 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/motor_babble.py
           python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
           python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
+          python3 -m py_compile foundry/archie-distill/packed_stream_train.py
+          python3 -m py_compile foundry/archie-distill/test_packed_stream_train.py
       - name: Action-latent motor-babbling court
         run: python3 foundry/archie-action-latent/test_motor_babble.py
+      - name: Packed-stream AMP overflow recovery court
+        run: python3 foundry/archie-distill/test_packed_stream_train.py
       - name: Capability-proof fail-closed court
         run: |
           python3 scripts/archie-capability-proof.py --repo "$GITHUB_WORKSPACE" --output /tmp/archie-capability-proof.json
