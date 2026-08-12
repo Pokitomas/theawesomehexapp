@@ -56,6 +56,7 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
           python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_ablation.py
+          python3 -m py_compile foundry/archie-action-latent/operator_delta_multiseed.py
           python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-action-latent/test_homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-distill/packed_stream_train.py
@@ -87,12 +88,25 @@ jobs:
             echo "::error title=Learned consequence-operator court::$compact"
             exit "$rc"
           fi
-      - name: Latent displacement inverse-dynamics ablation
+      - name: Multi-seed latent displacement ablation
         run: |
-          python3 foundry/archie-action-latent/operator_delta_ablation.py \
+          python3 foundry/archie-action-latent/operator_delta_multiseed.py \
+            --seeds 5601,5602,5603,5604,5605 \
             --steps 400 --codes 8 --epochs 80 --device cpu \
-            --output /tmp/archie-delta-ablation.json
-          cat /tmp/archie-delta-ablation.json
+            --output /tmp/archie-delta-multiseed.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-delta-multiseed.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'promotion_candidate':p['promotion_candidate'],
+            'delta_forward_wins':p['delta_forward_wins'],
+            'delta_strong_forward_wins':p['delta_strong_forward_wins'],
+            'median_forward_mse_ratio':p['median_forward_mse_ratio'],
+            'median_inverse_mse_ratio':p['median_inverse_mse_ratio'],
+            'median_effect_nmi_gain':p['median_effect_nmi_gain'],
+          }, indent=2, sort_keys=True))
+          PY
       - name: Homeostatic surprise-memory court
         run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
       - name: Lineage-safe causal trace court
