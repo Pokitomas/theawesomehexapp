@@ -8,6 +8,7 @@ on:
     paths:
       - 'scripts/archie-presence-brain-broker.mjs'
       - 'scripts/tests/archie-presence-brain-broker.test.mjs'
+      - 'scripts/archie-local-semantic-broker.py'
       - 'scripts/archie-capability-proof.py'
       - 'foundry/archie-action-latent/**'
       - '.github/workflows/archie-presence-action-court.yml'
@@ -29,11 +30,17 @@ jobs:
           python-version: '3.12'
       - name: Presence broker unit court
         run: node --test scripts/tests/archie-presence-brain-broker.test.mjs
+      - name: Python source syntax court
+        run: |
+          python3 -m py_compile scripts/archie-local-semantic-broker.py
+          python3 -m py_compile scripts/archie-capability-proof.py
+          python3 -m py_compile foundry/archie-action-latent/motor_babble.py
+          python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
+          python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
       - name: Action-latent motor-babbling court
         run: python3 foundry/archie-action-latent/test_motor_babble.py
       - name: Capability-proof fail-closed court
         run: |
-          python3 -m py_compile scripts/archie-capability-proof.py
           python3 scripts/archie-capability-proof.py --repo "$GITHUB_WORKSPACE" --output /tmp/archie-capability-proof.json
           python3 - <<'PY'
           import json
