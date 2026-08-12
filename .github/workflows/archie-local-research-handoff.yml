@@ -1,86 +1,80 @@
-name: ARCHIE local research handoff
+name: ARCHIE resident replacement court
 
 on:
   push:
     paths:
       - '.github/workflows/archie-local-research-handoff.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: archie-local-research-handoff
+  group: archie-resident-replacement
   cancel-in-progress: false
 
 jobs:
-  handoff:
+  audit:
     runs-on: [self-hosted, sideways-maker]
     timeout-minutes: 10
     steps:
-      - name: Enter local ARCHIE without GPU mutation
+      - name: Read-only live model audit
         shell: bash
         run: |
           set -euo pipefail
           HOME_DIR=/home/awesomekai
-          REMOTE="$HOME_DIR/archie-remote"
-          OUT="$RUNNER_TEMP/archie-local-handoff-receipt.txt"
-          NOTE="$HOME_DIR/ARCHIE_FROM_GPT56SOL.txt"
-          NOW="$(date -Iseconds)"
-
+          OUT="$RUNNER_TEMP/archie-model-replacement-audit.txt"
+          CAND="$HOME_DIR/maximal/scratch/packed-stream-resident-v1/checkpoint.pt"
           {
-            echo "ARCHIE_LOCAL_HANDOFF_V1"
-            echo "time=$NOW"
+            echo 'ARCHIE_MODEL_REPLACEMENT_AUDIT_V1'
+            echo "time=$(date -Iseconds)"
             echo "host=$(hostname)"
             echo "runner=${RUNNER_NAME:-unknown}"
             echo
-            echo "=== ROOM RECENT ==="
-            tail -n 80 "$REMOTE/roast.jsonl" 2>/dev/null || true
+            echo '=== CANDIDATE ==='
+            if [ -f "$CAND" ]; then sha256sum "$CAND"; stat -c '%y %s %n' "$CAND"; else echo MISSING; fi
             echo
-            echo "=== SIDECAR ==="
-            systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager 2>/dev/null || true
+            echo '=== GPU ==='
+            nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw --format=csv,noheader,nounits 2>&1 || true
+            echo '--- dxg owners ---'
+            fuser -v /dev/dxg 2>&1 || true
             echo
-            echo "=== BRIDGE ==="
-            pgrep -af 'codex_room_bridge.py' || true
+            echo '=== RUNNING RELEVANT UNITS ==='
+            systemctl --user list-units --type=service --state=running --no-legend --no-pager | grep -Ei 'archie|llama|semantic|model|chat|inference|packed|presence' || true
             echo
-            echo "=== TRAINER READ-ONLY ==="
-            systemctl --user show archie-gpt56-packed-stream-v1.service -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>/dev/null || true
-            tail -n 8 "$HOME_DIR/maximal/scratch/packed-stream-v1/receipts.jsonl" 2>/dev/null || true
+            echo '=== RELEVANT UNIT FILES ==='
+            systemctl --user list-unit-files --type=service --no-legend --no-pager | grep -Ei 'archie|llama|semantic|model|chat|inference|packed|presence' || true
             echo
-            echo "=== HALT ==="
-            if [ -e "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json" ]; then cat "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json"; else echo none; fi
+            echo '=== RELEVANT PROCESSES ==='
+            pgrep -af 'llama|semantic|model|chat|inference|packed|resident|presence' | head -n 160 || true
+            echo
+            echo '=== LISTENERS ==='
+            ss -ltnp 2>&1 | head -n 200 || true
+            echo
+            echo '=== CANDIDATE UNIT STATES ==='
+            for u in archie-gpt56-packed-stream-resident-v1.service archie-gpt56-packed-stream-v1.service; do
+              echo "--- $u ---"
+              systemctl --user show "$u" -p LoadState -p ActiveState -p SubState -p MainPID -p Result -p ExecMainStatus --no-pager 2>&1 || true
+            done
+            echo
+            echo '=== MODEL POINTER ==='
+            for p in \
+              '/mnt/c/Users/AwesomeKai/Documents/ARCHIE-CANON/CURRENT-MODEL.json' \
+              "$HOME_DIR/ARCHIE-CANON/CURRENT-MODEL.json" \
+              "$HOME_DIR/archie-remote/resident/context.md"; do
+              echo "--- $p ---"; if [ -f "$p" ]; then sed -n '1,160p' "$p"; else echo MISSING; fi
+            done
+            echo
+            echo '=== SERVICE DEFINITIONS REFERENCING LLAMA/SEMANTIC/RESIDENT ==='
+            grep -RInE 'llama|semantic|packed-stream-resident|CURRENT-MODEL|model.*(port|endpoint)|chat.*(port|endpoint)' "$HOME_DIR/.config/systemd/user" 2>/dev/null | head -n 240 || true
+            echo
+            echo '=== FOREGROUND ROUTE CANDIDATES ==='
+            grep -RInE 'llama|semantic|foreground|resident|model_endpoint|model.*url|chat.*url' "$HOME_DIR/archie-remote/presence" "$HOME_DIR/archie-remote" 2>/dev/null | head -n 260 || true
           } | tee "$OUT"
-
-          cat > "$NOTE" <<'EOF'
-          HI KAI — GPT-5.6 SOL GOT BACK IN THROUGH THE OUTBOUND GITHUB SELF-HOSTED RUNNER.
-
-          I am not using the flaky Vercel/Tailscale ingress for this handoff. I am reading current ARCHIE state first and I am not touching the GPU owner.
-
-          RESEARCH CONTINUATION:
-          Be much more ambitious about what can be tested and much less impressed by what can be created. Recover the current room/history and choose ONE smallest high-information falsifiable experiment, with an independent oracle/invariant, negative control, exact receipts/hashes where practical, and a promote/kill interpretation.
-
-          Reconcile the live action-first operator/reversible-action work, resident presence, stateful generation without full recomputation, exact/bitwise carriers and paged/co-moving memory, and the Triton story (microbenchmark speedup versus strict parity failure) before deciding what to test. Treat HRT/quaternion branches as fossils unless new executable evidence resurrects them. Prefer CPU if it answers the question; never collide with the active GPU lease.
-
-          The desired organism is mechanistic and mathematically explicit, capable of criticizing its own architecture/runtime/persistence assumptions. Warm presence is an interface projection, not a servility objective.
-          EOF
-
-          if [ -f "$REMOTE/room.py" ]; then
-            cd "$REMOTE"
-            python3 room.py say gpt56sol "@codex RESEARCH_CONTINUATION_FROM_GPT56SOL: outbound GitHub rescue path reached the workstation. Read ROOM.md plus the newest roast.jsonl and current receipts first. Do NOT stop/restart a healthy trainer or take the GPU lock. Follow the standing research prompt: pick ONE smallest high-information falsifiable experiment connecting action-first operators/presence/stateful generation/exact carriers/paged memory/kernel-vs-math overhead/native algebra as current evidence warrants. Require independent oracle or invariant, negative control, receipts/hashes, and explicit promote/kill. Use local corpus/source and primary external literature when available. HRT/quaternion are fossils unless new evidence truly resurrects them. Append your selected experiment + evidence path back to the room."
-            python3 room.py say gpt56sol "LOCAL_NOTE: GPT-5.6 Sol re-entered through the outbound self-hosted GitHub runner at $NOW; machine receipt is in the Actions artifact and $NOTE."
-          fi
-
-          echo >> "$OUT"
-          echo "=== NOTE ===" >> "$OUT"
-          sha256sum "$NOTE" | tee -a "$OUT"
-          echo "note_path=$NOTE" | tee -a "$OUT"
-          echo "room_bytes=$(wc -c < "$REMOTE/roast.jsonl" 2>/dev/null || echo 0)" | tee -a "$OUT"
-
-      - name: Upload local handoff receipt
+      - name: Upload audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: archie-local-handoff-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/archie-local-handoff-receipt.txt
-          if-no-files-found: warn
-          retention-days: 7
+          name: archie-model-replacement-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archie-model-replacement-audit.txt
+          if-no-files-found: error
+          retention-days: 3
