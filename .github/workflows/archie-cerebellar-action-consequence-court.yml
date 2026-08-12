@@ -1,0 +1,54 @@
+name: ARCHIE nonlinear action consequence court
+
+on:
+  push:
+    branches:
+      - gpt56sol/cerebellar-surprise-court-20260811
+    paths:
+      - 'foundry/archie-cerebellar-surprise/nonlinear_history_court.py'
+      - 'foundry/archie-cerebellar-surprise/nonlinear_action_consequence_court.py'
+      - 'foundry/archie-cerebellar-surprise/test_nonlinear_action_consequence_court.py'
+      - '.github/workflows/archie-cerebellar-action-consequence-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: |
+          python3 -m py_compile foundry/archie-cerebellar-surprise/nonlinear_history_court.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/nonlinear_action_consequence_court.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/test_nonlinear_action_consequence_court.py
+      - name: Action consequence unit court
+        working-directory: foundry/archie-cerebellar-surprise
+        run: python3 -m unittest -v test_nonlinear_action_consequence_court.py
+      - name: Strict consequence receipt
+        run: |
+          python3 foundry/archie-cerebellar-surprise/nonlinear_action_consequence_court.py --output /tmp/action-consequence.json >/tmp/action-consequence.stdout
+          python3 - <<'PY'
+          import json
+          r = json.load(open('/tmp/action-consequence.json', encoding='utf-8'))
+          assert r['schema'] == 'archie/cerebellar-nonlinear-action-consequence-court-v1'
+          assert r['pass'] is True
+          assert r['promotion'] is False
+          assert r['matched_linear_two_state_baseline']['all_train_and_test_pairs_alias_exactly'] is True
+          assert r['matched_linear_two_state_baseline']['best_deterministic_mean_reward_upper_bound'] == 0.5
+          assert r['nonlinear_two_state_candidate']['mean_reward'] == 1.0
+          assert r['nonlinear_two_state_candidate']['extra_objective_progress_vs_matched_linear_upper_bound'] == 0.5
+          assert r['counterexample_to_broad_superiority']['separates_constructed_pair'] is True
+          print(json.dumps({
+              'pass': r['pass'],
+              'promotion': r['promotion'],
+              'matched_linear_upper_bound': r['matched_linear_two_state_baseline']['best_deterministic_mean_reward_upper_bound'],
+              'nonlinear_mean_reward': r['nonlinear_two_state_candidate']['mean_reward'],
+              'alternate_linear_counterexample': r['counterexample_to_broad_superiority']['separates_constructed_pair'],
+          }, sort_keys=True))
+          PY
