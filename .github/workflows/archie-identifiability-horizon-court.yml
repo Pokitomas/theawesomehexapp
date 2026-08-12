@@ -1,0 +1,46 @@
+name: ARCHIE identifiability horizon ladder
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/identifiability_horizon_ladder.py'
+      - '.github/workflows/archie-identifiability-horizon-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/identifiability_horizon_ladder.py
+      - name: Reversible passive-identifiability ladder
+        run: |
+          python3 foundry/archie-action-latent/identifiability_horizon_ladder.py \
+            --max-horizon 128 --output /tmp/archie-identifiability-horizon.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-identifiability-horizon.json'))
+          assert p['pass'] is True
+          assert p['max_horizon'] == 128
+          assert len(p['witnesses']) == 128
+          assert all(x['prefix_identical'] and x['future_diverges'] for x in p['witnesses'])
+          assert all(x['u_is_bijection'] and x['v_is_bijection'] for x in p['witnesses'])
+          print(json.dumps({
+            'pass':p['pass'],
+            'max_horizon':p['max_horizon'],
+            'witness_count':len(p['witnesses']),
+            'last_state_count':p['witnesses'][-1]['state_count'],
+            'last_bayes_ceiling':p['witnesses'][-1]['deterministic_operator_identity_bayes_ceiling_balanced'],
+            'last_witness_sha256':p['witnesses'][-1]['witness_sha256'],
+          }, indent=2, sort_keys=True))
+          PY
