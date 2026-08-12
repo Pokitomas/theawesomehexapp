@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: [self-hosted, sideways-maker]
+    runs-on: self-hosted
     timeout-minutes: 5
     steps:
       - name: Prove workstation runner
@@ -19,8 +19,8 @@ jobs:
         run: |
           set -euo pipefail
           REMOTE=/home/awesomekai/archie-remote
-          mkdir -p "$REMOTE"
-          printf '[%s] chatgpt: SELF-HOSTED RUNNER LANDED. Direct local execution path is alive.\n' "$(date +%T)" | tee -a "$REMOTE/CHATGPT_VISIBLE_STREAM.txt"
+          test -d "$REMOTE"
+          printf '[%s] chatgpt: SELF-HOSTED RUNNER LANDED on %s. Direct local execution path is alive.\n' "$(date +%T)" "$(hostname)" | tee -a "$REMOTE/CHATGPT_VISIBLE_STREAM.txt"
           echo "host=$(hostname)"
           echo "runner=${RUNNER_NAME:-unknown}"
           systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID --no-pager
