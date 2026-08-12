@@ -1,0 +1,54 @@
+name: ARCHIE self-expanding polynomial grammar court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/self_expanding_polynomial_grammar.py'
+      - 'foundry/archie-action-latent/operator_constraint_manifold.py'
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-self-expanding-polynomial-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/self_expanding_polynomial_grammar.py
+      - name: Falsification-driven model-order growth
+        run: |
+          python3 foundry/archie-action-latent/self_expanding_polynomial_grammar.py \
+            --max-degree 4 --output /tmp/archie-self-expanding-poly.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-self-expanding-poly.json'))
+          assert p['pass'] is True
+          cases=p['cases']
+          assert cases['quadratic']['winner_degree'] == 2
+          assert cases['cubic']['winner_degree'] == 3
+          assert cases['quartic']['winner_degree'] == 4
+          assert cases['rational']['winner_degree'] is None
+          assert cases['rational']['promotion_event']['result'] == 'volatile'
+          print(json.dumps({
+            'pass':p['pass'],
+            'max_degree':p['max_degree'],
+            'max_basis_size':p['max_basis_size'],
+            'train_points':p['train_point_count'],
+            'holdout_points':p['holdout_point_count'],
+            'quadratic_degree':cases['quadratic']['winner_degree'],
+            'cubic_degree':cases['cubic']['winner_degree'],
+            'quartic_degree':cases['quartic']['winner_degree'],
+            'rational_degree':cases['rational']['winner_degree'],
+            'rational_promotion':cases['rational']['promotion_event']['result'],
+          }, indent=2, sort_keys=True))
+          PY
