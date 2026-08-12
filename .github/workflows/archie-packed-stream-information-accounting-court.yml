@@ -1,0 +1,51 @@
+name: ARCHIE packed-stream information accounting court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+    paths:
+      - 'foundry/archie-distill/packed_stream_train.py'
+      - 'foundry/archie-distill/packed_stream_information_accounting_court.py'
+      - '.github/workflows/archie-packed-stream-information-accounting-court.yml'
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/packed_stream_train.py'
+      - 'foundry/archie-distill/packed_stream_information_accounting_court.py'
+      - '.github/workflows/archie-packed-stream-information-accounting-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  information-accounting-court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile court
+        run: python3 -m py_compile foundry/archie-distill/packed_stream_information_accounting_court.py
+      - name: Separate presentation count from evidence coverage
+        run: |
+          python3 foundry/archie-distill/packed_stream_information_accounting_court.py \
+            --corpus-tokens 100003 --seq 1024 \
+            --output /tmp/archie-packed-stream-information-accounting.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-packed-stream-information-accounting.json'))
+          assert p['pass'] is True
+          m=p['main']
+          assert m['unique_target_positions_per_sampler_period'] == 100002
+          assert m['target_presentations_per_sampler_period'] == (100003-1024)*1024
+          assert m['presentation_to_unique_ratio'] > 100
+          print(json.dumps({
+            'pass':p['pass'],
+            'target_presentations':m['target_presentations_per_sampler_period'],
+            'unique_target_positions':m['unique_target_positions_per_sampler_period'],
+            'presentation_to_unique_ratio':m['presentation_to_unique_ratio'],
+            'max_target_multiplicity':m['max_target_multiplicity'],
+          }, indent=2, sort_keys=True))
+          PY
