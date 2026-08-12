@@ -54,10 +54,27 @@ jobs:
         run: python3 foundry/archie-action-latent/test_motor_babble.py
       - name: Learned consequence-operator court
         run: |
+          set +e
           python3 foundry/archie-action-latent/operator_predictive_core.py \
             --steps 600 --codes 8 --epochs 120 --device cpu \
             --output /tmp/archie-operator-core-court.json
-          cat /tmp/archie-operator-core-court.json
+          rc=$?
+          cat /tmp/archie-operator-core-court.json || true
+          if [ "$rc" -ne 0 ]; then
+            compact=$(python3 - <<'PY'
+          import json
+          p='/tmp/archie-operator-core-court.json'
+          try:
+              x=json.load(open(p))
+              keys=['pass','loss_initial','loss_final','train_forward_mse','test_forward_mse','test_inverse_mse','used_codes','latent_code_capacity','latent_vs_hand_effect_purity','latent_vs_hand_effect_nmi','operator_orthogonality_max_abs_error']
+              print(json.dumps({k:x.get(k) for k in keys}, separators=(',',':')))
+          except Exception as e:
+              print(json.dumps({'result_read_error':str(e)}))
+          PY
+          )
+            echo "::error title=Learned consequence-operator court::$compact"
+            exit "$rc"
+          fi
       - name: Homeostatic surprise-memory court
         run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
       - name: Packed-stream AMP overflow recovery court
