@@ -1,0 +1,54 @@
+name: ARCHIE cerebellar surprise falsification court
+
+on:
+  push:
+    branches:
+      - gpt56sol/cerebellar-surprise-court-20260811
+    paths:
+      - 'foundry/archie-cerebellar-surprise/**'
+      - '.github/workflows/archie-cerebellar-surprise-court.yml'
+  pull_request:
+    paths:
+      - 'foundry/archie-cerebellar-surprise/**'
+      - '.github/workflows/archie-cerebellar-surprise-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax court
+        run: |
+          python3 -m py_compile foundry/archie-cerebellar-surprise/cerebellar_surprise.py
+          python3 -m py_compile foundry/archie-cerebellar-surprise/test_cerebellar_surprise.py
+      - name: Falsification unit court
+        working-directory: foundry/archie-cerebellar-surprise
+        run: python3 -m unittest -v test_cerebellar_surprise.py
+      - name: Strict receipt court
+        run: |
+          python3 foundry/archie-cerebellar-surprise/cerebellar_surprise.py --output /tmp/cerebellar-surprise.json >/tmp/cerebellar-surprise.stdout
+          python3 - <<'PY'
+          import json
+          p = json.load(open('/tmp/cerebellar-surprise.json', encoding='utf-8'))
+          assert p['schema'] == 'archie/cerebellar-surprise-court-v1'
+          assert p['pass'] is True
+          assert p['promotion'] is False
+          assert p['checks']['affine_equivalence_falsifier'] is True
+          assert p['checks']['stagnant_action_loop_breaks'] is True
+          assert p['checks']['productive_repetition_preserved'] is True
+          assert p['baselines']['simple_unseen_event']['ei_dominated_by_one_trace_on_this_task'] is True
+          assert len(p['falsified_claims']) >= 3
+          print(json.dumps({
+              'pass': p['pass'],
+              'promotion': p['promotion'],
+              'metrics': p['metrics'],
+              'falsified_claims': p['falsified_claims'],
+          }, sort_keys=True))
+          PY
