@@ -1,0 +1,43 @@
+{
+  "schema": "archie/semantic-trainer-coexistence-court-v2",
+  "observed_host_time": "2026-08-11T22:06:20-07:00",
+  "trainer": "archie-gpt56-packed-stream-resident-v1.service",
+  "trainer_unit_live_at_start_and_end": true,
+  "trainer_main_pid": 879017,
+  "trainer_step_before": 4104,
+  "trainer_step_after": 4105,
+  "trainer_receipt_advanced": true,
+  "foreground_backend": {
+    "kind": "local llama.cpp semantic scaffold",
+    "endpoint": "172.22.64.1:18767",
+    "model_id": "local",
+    "server_parallel_slots": 1
+  },
+  "semantic_runs": [
+    {"run": 1, "first_delta_ms": 34.529, "done_ms": 62.170, "http_status": 200, "output": "READY"},
+    {"run": 2, "first_delta_ms": 21.931, "done_ms": 49.718, "http_status": 200, "output": "READY"},
+    {"run": 3, "first_delta_ms": 21.500, "done_ms": 49.086, "http_status": 200, "output": "READY"},
+    {"run": 4, "first_delta_ms": 21.465, "done_ms": 49.049, "http_status": 200, "output": "READY"},
+    {"run": 5, "first_delta_ms": 21.284, "done_ms": 48.689, "http_status": 200, "output": "READY"},
+    {"run": 6, "first_delta_ms": 39.697, "done_ms": 68.195, "http_status": 200, "output": "READY"},
+    {"run": 7, "first_delta_ms": 21.770, "done_ms": 49.545, "http_status": 200, "output": "READY"},
+    {"run": 8, "first_delta_ms": 21.461, "done_ms": 49.084, "http_status": 200, "output": "READY"}
+  ],
+  "median_first_delta_ms": 21.635,
+  "max_first_delta_ms": 39.697,
+  "precommitted_max_median_first_delta_ms": 250.0,
+  "gpu_samples": [
+    {"memory_used_mib": 2552.0, "memory_total_mib": 6144.0, "util_pct": 0.0, "temp_c": 44.0, "power_w": 21.28},
+    {"memory_used_mib": 3506.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 59.96},
+    {"memory_used_mib": 3504.0, "memory_total_mib": 6144.0, "util_pct": 36.0, "temp_c": 44.0, "power_w": 60.79},
+    {"memory_used_mib": 3406.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 59.89},
+    {"memory_used_mib": 3406.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 59.68},
+    {"memory_used_mib": 3404.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 61.08},
+    {"memory_used_mib": 3406.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 60.84},
+    {"memory_used_mib": 3406.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 60.75},
+    {"memory_used_mib": 3406.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 60.52},
+    {"memory_used_mib": 3406.0, "memory_total_mib": 6144.0, "util_pct": 100.0, "temp_c": 44.0, "power_w": 60.32}
+  ],
+  "verdict": "PASS",
+  "claim_boundary": "This proves low foreground semantic TTFT while the exact resident microbatch-4 trainer demonstrably advanced at least one optimizer receipt. It does not prove the final ARCHIE architecture, a long-context turn, or a future local non-classical core."
+}
