@@ -54,28 +54,38 @@ jobs:
               assert math.isclose(observed, expected, rel_tol=0.0, abs_tol=1e-15), (name, observed, expected)
           print(json.dumps({'pass': actual['pass'], 'promotion': actual['promotion'], 'metrics': actual['metrics']}, sort_keys=True))
           PY
-      - name: Semantic-collapse continuity receipt court
+      - name: Frozen semantic-collapse continuity receipt court
         run: |
           python3 foundry/archie-cerebellar-surprise/resident_operator_continuity.py --output /tmp/resident-continuity.json >/tmp/resident-continuity.stdout
           python3 - <<'PY'
-          import json
-          p = json.load(open('/tmp/resident-continuity.json', encoding='utf-8'))
-          assert p['schema'] == 'archie/resident-operator-continuity-court-v1'
-          assert p['pass'] is True
-          assert p['checks']['renderer_fallback_cannot_change_operator_trajectory'] is True
-          assert p['checks']['stagnant_repeat_breaks_by_second_repeat'] is True
-          assert p['checks']['productive_repetition_preserved'] is True
-          assert p['checks']['surprising_no_progress_is_inspected_not_randomized'] is True
-          assert p['checks']['restart_preserves_objective_and_memory'] is True
-          assert p['checks']['no_added_ei_dynamic_traces'] is True
-          assert p['renderer_collapse']['durable_snapshots_equal'] is True
-          assert p['state_reuse']['added_dynamic_trace_count'] == 0
+          import json, math
+          actual = json.load(open('/tmp/resident-continuity.json', encoding='utf-8'))
+          frozen = json.load(open('foundry/archie-cerebellar-surprise/CONTINUITY_RECEIPT.json', encoding='utf-8'))
+          assert actual['schema'] == 'archie/resident-operator-continuity-court-v1'
+          assert frozen['schema'] == 'archie/resident-operator-continuity-reference-receipt-v1'
+          assert actual['pass'] is frozen['verdict']['pass'] is True
+          assert actual['promotion'] == frozen['verdict']['promotion']
+          assert actual['checks']['renderer_fallback_cannot_change_operator_trajectory'] is True
+          assert actual['checks']['stagnant_repeat_breaks_by_second_repeat'] is True
+          assert actual['checks']['productive_repetition_preserved'] is True
+          assert actual['checks']['surprising_no_progress_is_inspected_not_randomized'] is True
+          assert actual['checks']['restart_preserves_objective_and_memory'] is True
+          assert actual['checks']['no_added_ei_dynamic_traces'] is True
+          assert actual['renderer_collapse']['generic_operator_trajectory'] == frozen['renderer_collapse']['generic_operator_trajectory']
+          assert actual['renderer_collapse']['durable_snapshots_equal'] == frozen['renderer_collapse']['durable_snapshots_equal'] is True
+          assert actual['stagnation']['first_decision'] == frozen['stagnation']['first_decision']
+          assert actual['stagnation']['second_decision'] == frozen['stagnation']['second_decision']
+          assert math.isclose(actual['stagnation']['second_novelty_gate'], frozen['stagnation']['second_novelty_gate'], rel_tol=0.0, abs_tol=1e-15)
+          assert actual['productive_repeat'] == frozen['productive_repeat']
+          assert actual['unexpected_consequence']['decision'] == frozen['unexpected_consequence']['decision']
+          assert math.isclose(actual['unexpected_consequence']['novelty_gate'], frozen['unexpected_consequence']['novelty_gate'], rel_tol=0.0, abs_tol=1e-15)
+          assert actual['state_reuse'] == frozen['state_reuse']
           print(json.dumps({
-              'pass': p['pass'],
-              'renderer_trajectory': p['renderer_collapse']['generic_operator_trajectory'],
-              'stagnation': p['stagnation'],
-              'productive_repeat': p['productive_repeat'],
-              'unexpected_consequence': p['unexpected_consequence'],
-              'state_reuse': p['state_reuse'],
+              'pass': actual['pass'],
+              'renderer_trajectory': actual['renderer_collapse']['generic_operator_trajectory'],
+              'stagnation': actual['stagnation'],
+              'productive_repeat': actual['productive_repeat'],
+              'unexpected_consequence': actual['unexpected_consequence'],
+              'state_reuse': actual['state_reuse'],
           }, sort_keys=True))
           PY
