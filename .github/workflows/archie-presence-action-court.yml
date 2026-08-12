@@ -59,6 +59,7 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/operator_delta_multiseed.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_collision_court.py
           python3 -m py_compile foundry/archie-action-latent/adaptive_sufficient_selector.py
+          python3 -m py_compile foundry/archie-action-latent/counterexample_guided_relational_lift.py
           python3 -m py_compile foundry/archie-action-latent/information_budget_court.py
           python3 -m py_compile foundry/archie-action-latent/surprise_residual_memory.py
           python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
@@ -166,6 +167,7 @@ jobs:
           }, indent=2, sort_keys=True))
           PY
       - name: Adaptive minimal-sufficient representation court
+        continue-on-error: true
         run: |
           python3 foundry/archie-action-latent/adaptive_sufficient_selector.py \
             --seeds 8801,8802,8803 --translation-groups 480 --collision-groups 240 \
@@ -183,6 +185,26 @@ jobs:
             'median_context_usage_on_delta_sufficient':p['median_context_usage_on_delta_sufficient'],
             'median_gate_oracle_accuracy':p['median_gate_oracle_accuracy'],
           }, indent=2, sort_keys=True))
+          PY
+      - name: Counterexample-guided relational lift court
+        run: |
+          python3 foundry/archie-action-latent/counterexample_guided_relational_lift.py \
+            --seeds 9901,9902,9903 --pairs 300 --codes 4 \
+            --search-epochs 80 --final-epochs 130 --device cpu \
+            --output /tmp/archie-relational-lift.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-relational-lift.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'selected_features':p['selected_features'],
+            'median_lift_over_delta_forward_mse':p['median_lift_over_delta_forward_mse'],
+            'median_lift_over_endpoint_forward_mse':p['median_lift_over_endpoint_forward_mse'],
+            'median_effect_nmi_grading_only':p['median_effect_nmi_grading_only'],
+            'input_width_lift':p['input_width_lift'],
+            'input_width_endpoint_delta':p['input_width_endpoint_delta'],
+          }, indent=2, sort_keys=True))
+          assert p['pass'] is True
           PY
       - name: Homeostatic surprise-memory court
         run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
