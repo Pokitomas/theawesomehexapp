@@ -18,6 +18,8 @@ on:
       - 'foundry/archie-action-latent/**'
       - 'foundry/archie-distill/packed_stream_train.py'
       - 'foundry/archie-distill/test_packed_stream_train.py'
+      - 'foundry/archie-distill/causal_trace_compiler.py'
+      - 'foundry/archie-distill/test_causal_trace_compiler.py'
       - '.github/workflows/archie-presence-action-court.yml'
 
 permissions:
@@ -57,6 +59,8 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/test_homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-distill/packed_stream_train.py
           python3 -m py_compile foundry/archie-distill/test_packed_stream_train.py
+          python3 -m py_compile foundry/archie-distill/causal_trace_compiler.py
+          python3 -m py_compile foundry/archie-distill/test_causal_trace_compiler.py
       - name: Action-latent motor-babbling court
         run: python3 foundry/archie-action-latent/test_motor_babble.py
       - name: Learned consequence-operator court
@@ -84,6 +88,8 @@ jobs:
           fi
       - name: Homeostatic surprise-memory court
         run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
+      - name: Lineage-safe causal trace court
+        run: python3 foundry/archie-distill/test_causal_trace_compiler.py
       - name: Packed-stream AMP overflow recovery court
         run: python3 foundry/archie-distill/test_packed_stream_train.py
       - name: Capability-proof fail-closed court
