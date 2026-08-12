@@ -58,6 +58,7 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/operator_delta_ablation.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_multiseed.py
           python3 -m py_compile foundry/archie-action-latent/operator_delta_collision_court.py
+          python3 -m py_compile foundry/archie-action-latent/adaptive_sufficient_selector.py
           python3 -m py_compile foundry/archie-action-latent/information_budget_court.py
           python3 -m py_compile foundry/archie-action-latent/surprise_residual_memory.py
           python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
@@ -162,6 +163,25 @@ jobs:
             'median_endpoint_over_delta_forward_mse':p['median_endpoint_over_delta_forward_mse'],
             'median_endpoint_over_delta_inverse_mse':p['median_endpoint_over_delta_inverse_mse'],
             'median_endpoint_effect_nmi_advantage':p['median_endpoint_effect_nmi_advantage'],
+          }, indent=2, sort_keys=True))
+          PY
+      - name: Adaptive minimal-sufficient representation court
+        run: |
+          python3 foundry/archie-action-latent/adaptive_sufficient_selector.py \
+            --seeds 8801,8802,8803 --translation-groups 480 --collision-groups 240 \
+            --codes 6 --expert-epochs 140 --router-epochs 180 --device cpu \
+            --output /tmp/archie-adaptive-sufficiency.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-adaptive-sufficiency.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'median_adaptive_over_endpoint_forward_mse':p['median_adaptive_over_endpoint_forward_mse'],
+            'median_adaptive_over_delta_forward_mse':p['median_adaptive_over_delta_forward_mse'],
+            'median_context_usage_rate':p['median_context_usage_rate'],
+            'median_context_usage_on_context_required':p['median_context_usage_on_context_required'],
+            'median_context_usage_on_delta_sufficient':p['median_context_usage_on_delta_sufficient'],
+            'median_gate_oracle_accuracy':p['median_gate_oracle_accuracy'],
           }, indent=2, sort_keys=True))
           PY
       - name: Homeostatic surprise-memory court
