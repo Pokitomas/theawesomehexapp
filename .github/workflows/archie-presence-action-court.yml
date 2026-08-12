@@ -55,6 +55,7 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/motor_babble.py
           python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
           python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
+          python3 -m py_compile foundry/archie-action-latent/operator_delta_ablation.py
           python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-action-latent/test_homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-distill/packed_stream_train.py
@@ -86,6 +87,12 @@ jobs:
             echo "::error title=Learned consequence-operator court::$compact"
             exit "$rc"
           fi
+      - name: Latent displacement inverse-dynamics ablation
+        run: |
+          python3 foundry/archie-action-latent/operator_delta_ablation.py \
+            --steps 400 --codes 8 --epochs 80 --device cpu \
+            --output /tmp/archie-delta-ablation.json
+          cat /tmp/archie-delta-ablation.json
       - name: Homeostatic surprise-memory court
         run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
       - name: Lineage-safe causal trace court
