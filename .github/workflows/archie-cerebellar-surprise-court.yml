@@ -31,24 +31,30 @@ jobs:
       - name: Falsification unit court
         working-directory: foundry/archie-cerebellar-surprise
         run: python3 -m unittest -v test_cerebellar_surprise.py
-      - name: Strict receipt court
+      - name: Frozen strict receipt court
         run: |
           python3 foundry/archie-cerebellar-surprise/cerebellar_surprise.py --output /tmp/cerebellar-surprise.json >/tmp/cerebellar-surprise.stdout
           python3 - <<'PY'
-          import json
-          p = json.load(open('/tmp/cerebellar-surprise.json', encoding='utf-8'))
-          assert p['schema'] == 'archie/cerebellar-surprise-court-v1'
-          assert p['pass'] is True
-          assert p['promotion'] is False
-          assert p['checks']['affine_equivalence_falsifier'] is True
-          assert p['checks']['stagnant_action_loop_breaks'] is True
-          assert p['checks']['productive_repetition_preserved'] is True
-          assert p['baselines']['simple_unseen_event']['ei_dominated_by_one_trace_on_this_task'] is True
-          assert len(p['falsified_claims']) >= 3
+          import json, math
+          actual = json.load(open('/tmp/cerebellar-surprise.json', encoding='utf-8'))
+          frozen = json.load(open('foundry/archie-cerebellar-surprise/REFERENCE_RECEIPT.json', encoding='utf-8'))
+          assert actual['schema'] == 'archie/cerebellar-surprise-court-v1'
+          assert frozen['schema'] == 'archie/cerebellar-surprise-reference-receipt-v1'
+          assert actual['pass'] is frozen['verdict']['pass'] is True
+          assert actual['promotion'] is frozen['verdict']['promotion'] is False
+          assert actual['checks']['affine_equivalence_falsifier'] is True
+          assert actual['checks']['stagnant_action_loop_breaks'] is True
+          assert actual['checks']['productive_repetition_preserved'] is True
+          assert actual['baselines']['simple_unseen_event']['ei_dominated_by_one_trace_on_this_task'] is True
+          assert actual['falsified_claims'] == frozen['falsified_claims']
+          for name, expected in frozen['expected_metrics'].items():
+              observed = actual['metrics'][name]
+              assert math.isclose(observed, expected, rel_tol=0.0, abs_tol=1e-15), (name, observed, expected)
           print(json.dumps({
-              'pass': p['pass'],
-              'promotion': p['promotion'],
-              'metrics': p['metrics'],
-              'falsified_claims': p['falsified_claims'],
+              'pass': actual['pass'],
+              'promotion': actual['promotion'],
+              'metrics': actual['metrics'],
+              'falsified_claims': actual['falsified_claims'],
+              'frozen_receipt_validated_head': frozen['validated_head_sha'],
           }, sort_keys=True))
           PY
