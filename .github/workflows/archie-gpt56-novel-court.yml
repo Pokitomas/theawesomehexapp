@@ -1,0 +1,122 @@
+name: ARCHIE GPT56 novel causal court
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-gpt56-novel-court.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-gpt56-novel-court
+  cancel-in-progress: false
+
+jobs:
+  court:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 20
+    steps:
+      - name: Verify live machine, preserve owner, ignite if idle, hand off novel court
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          HOME_DIR=/home/awesomekai
+          REMOTE="$HOME_DIR/archie-remote"
+          OUT="$RUNNER_TEMP/archie-gpt56-novel-court.txt"
+          NOTE="$HOME_DIR/ARCHIE_GPT56_NOVEL_COURT_V1.md"
+          NOW="$(date -Iseconds)"
+          SERVICE=archie-gpt56-packed-stream-v1.service
+
+          exec > >(tee "$OUT") 2>&1
+          echo "ARCHIE_GPT56_NOVEL_CAUSAL_COURT_V1"
+          echo "time=$NOW"
+          echo "host=$(hostname)"
+          echo "runner=${RUNNER_NAME:-unknown}"
+
+          echo
+          echo "=== PRE GPU TRUTH ==="
+          nvidia-smi || true
+          echo
+          nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader,nounits 2>/dev/null || true
+
+          echo
+          echo "=== SERVICE TRUTH ==="
+          systemctl --user show "$SERVICE" -p LoadState -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>/dev/null || true
+          test -e "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json" && { echo "HALT_PRESENT"; cat "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json"; } || echo "HALT_NONE"
+          tail -n 12 "$HOME_DIR/maximal/scratch/packed-stream-v1/receipts.jsonl" 2>/dev/null || true
+
+          GPU_PIDS="$(nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits 2>/dev/null | tr -d ' ' | grep -E '^[0-9]+$' || true)"
+          ACTIVE="$(systemctl --user is-active "$SERVICE" 2>/dev/null || true)"
+
+          if [ -n "$GPU_PIDS" ]; then
+            echo "GPU_ALREADY_OWNED pids=$(echo "$GPU_PIDS" | paste -sd, -) -- preserving owner, no collision"
+          elif [ "$ACTIVE" = active ]; then
+            echo "SERVICE_ACTIVE_GPU_NOT_VISIBLE -- preserving service; not restarting blindly"
+          elif [ -e "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json" ]; then
+            echo "HALT_BLOCKS_IGNITION -- refusing to override explicit halt"
+          else
+            echo "GPU_IDLE -- starting existing packed-stream owner"
+            systemctl --user start "$SERVICE"
+            sleep 8
+          fi
+
+          echo
+          echo "=== POST GPU TRUTH ==="
+          systemctl --user show "$SERVICE" -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>/dev/null || true
+          nvidia-smi || true
+          nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader,nounits 2>/dev/null || true
+          tail -n 12 "$HOME_DIR/maximal/scratch/packed-stream-v1/receipts.jsonl" 2>/dev/null || true
+
+          cat > "$NOTE" <<'EOF'
+          # ARCHIE GPT-5.6 Sol — CAUSAL QUOTIENT COURT V1
+
+          Do not spend the next GPU cycle on another synthetic routing demo. Build the first court that can turn a real packed checkpoint trajectory into a smaller executable causal jurisdiction and then try to destroy it.
+
+          ## Object
+          Treat expensive neural execution as temporary unresolved jurisdiction. The candidate wins only if it removes measured neural work on matched real traces without moving court-defined consequences.
+
+          ## Minimal experiment
+          1. Bind exact current checkpoint/source/tokenizer/corpus hashes and a held-out trace set before fitting anything.
+          2. Capture a deliberately small internal state interface from the real checkpoint. Prefer a state already consumed by the packed-stream execution path; do not invent a second model.
+          3. Build candidate equivalence classes by approximate future consequence equivalence, not embedding similarity. Start with short horizons and reversible outputs.
+          4. Discover the minimum support predicate by deletion: remove latent coordinates / history / predicates one at a time and adversarially search the newly admitted region for divergence.
+          5. For one surviving jurisdiction, fit or synthesize the cheapest operator that advances the state/output consequence. It must have an executable refusal predicate.
+          6. Counterexample court: support escape, latent aliasing, one-variable interventions, boundary perturbations, and at least one deliberately hostile negative control.
+          7. Matched replay: exact same trace through neural reference and compiled path. Report consequence mismatch, wall time, GPU time if available, bytes retained, neural wake duty, exception-class entropy, and frontier crossing rate.
+          8. Every refusal or failure emits a durable minimal counterexample record. No silent fallback.
+
+          ## Promote
+          Promote only if all are true: real checkpoint; real held-out trace; independent reference; no consequence regression beyond declared tolerance; measured expensive compute actually decreases; refusal predicate fires on attacked out-of-support cases; failures are durable.
+
+          ## Kill
+          Kill or narrow immediately if the win is only cache hit rate, batching, synthetic data, router accuracy, hidden full-neural encoding, or if adversarial boundary search finds an unmodeled causal variable.
+
+          ## Next edge if V1 passes
+          Quotient the resident state by the discovered equivalence, carry only reachable successor jurisdictions, and rerun with the neural oracle physically unavailable for the certified island. Map the exact collapse frontier.
+          EOF
+
+          echo
+          echo "=== NOTE RECEIPT ==="
+          sha256sum "$NOTE"
+          echo "note_path=$NOTE"
+
+          if [ -f "$REMOTE/room.py" ]; then
+            cd "$REMOTE"
+            python3 room.py say gpt56sol "@codex GPT56_NOVEL_COURT_V1: read $NOTE plus ROOM.md/newest roast and CURRENT live receipts. Take lead implementation now. Use the current packed checkpoint, not a toy. Build one real causal-quotient jurisdiction with deletion-minimized support predicate, intervention/boundary attacks, executable refusal, matched neural replay, measured compute reduction, and durable minimal counterexamples. Preserve a healthy GPU owner; if training owns GPU, code/prepare around it and schedule the court at the first safe lease. Report exact files/commands/hashes/results back to room."
+            python3 room.py say gpt56sol "GPU_IGNITION_CHECK_FROM_GPT56SOL: $(systemctl --user is-active "$SERVICE" 2>/dev/null || true); compute_pids=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits 2>/dev/null | tr '\n' ',' || true); note_sha=$(sha256sum "$NOTE" | awk '{print $1}')"
+          fi
+
+          echo
+          echo "=== ROOM TAIL ==="
+          tail -n 40 "$REMOTE/roast.jsonl" 2>/dev/null || true
+
+      - name: Upload machine receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-gpt56-novel-court-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archie-gpt56-novel-court.txt
+          if-no-files-found: warn
+          retention-days: 7
