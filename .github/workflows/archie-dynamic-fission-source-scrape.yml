@@ -1,0 +1,124 @@
+name: ARCHIE dynamic fission source scrape
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-dynamic-fission-source-scrape.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-dynamic-fission-source-scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 10
+    steps:
+      - name: Capture current packed identity and source without GPU mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          H=/home/awesomekai
+          OUT="$RUNNER_TEMP/archie-dynamic-fission-source"
+          mkdir -p "$OUT/source"
+
+          exec > >(tee "$OUT/receipt.txt") 2>&1
+          echo 'ARCHIE_DYNAMIC_FISSION_SOURCE_SCRAPE_V1'
+          date -Iseconds
+          hostname
+          echo "runner=${RUNNER_NAME:-unknown}"
+
+          echo '=== GPU READ ONLY ==='
+          /usr/lib/wsl/lib/nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw,fan.speed --format=csv,noheader 2>&1 || true
+          echo '=== GPU OWNERS ==='
+          for p in /proc/[0-9]*; do
+            pid=${p##*/}
+            if [ -e "$p/fd" ] && ls -l "$p/fd" 2>/dev/null | grep -q '/dev/dxg'; then
+              printf '%s ' "$pid"
+              tr '\0' ' ' < "$p/cmdline" 2>/dev/null || true
+              echo
+            fi
+          done
+
+          echo '=== SERVICES ==='
+          for u in archie-gpt56-packed-stream-v1.service archie-live-exec.service archie-shell-sidecar.service; do
+            echo "--- $u"
+            systemctl --user show "$u" -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>&1 || true
+          done
+
+          echo '=== PACKED RECEIPTS ==='
+          tail -n 24 "$H/maximal/scratch/packed-stream-v1/receipts.jsonl" 2>/dev/null || true
+          echo '=== HALT ==='
+          if [ -f "$H/maximal/scratch/packed-stream-v1/HALT.json" ]; then cat "$H/maximal/scratch/packed-stream-v1/HALT.json"; else echo none; fi
+
+          copy_one() {
+            f="$1"
+            if [ -f "$f" ]; then
+              bn=$(printf '%s' "$f" | sed 's#^/##; s#/#__#g')
+              cp -a "$f" "$OUT/source/$bn"
+              sha256sum "$f"
+            else
+              echo "MISSING $f"
+            fi
+          }
+
+          echo '=== CANONICAL FILES ==='
+          copy_one "$H/archie-bench/moonshot/full-model-b/full_step_court.py"
+          copy_one "$H/maximal/scratch/packed-stream-v1/stream_train.py"
+          copy_one "$H/maximal/source/archie_lab_core.py"
+          copy_one "$H/maximal/source/typed_delta_memory.py"
+          copy_one "$H/maximal/source/typed_delta_scan.py"
+          copy_one "$H/maximal/source/archie_lab_train.py"
+          copy_one "$H/theawesomehexapp-pr730/foundry/archie-distill/archie_hybrid_core.py"
+          copy_one "$H/theawesomehexapp-pr730/foundry/archie-distill/archie_delta_memory.py"
+
+          echo '=== COURT IMPORTS / PATH CANDIDATES ==='
+          grep -nE 'import|source|typed_delta|archie_lab|triton|Delta|delta|build_arm|execute_step|projection' "$H/archie-bench/moonshot/full-model-b/full_step_court.py" 2>/dev/null | head -n 500 || true
+
+          echo '=== CHECKPOINT SCHEMA ONLY ==='
+          CK="$H/maximal/scratch/packed-stream-v1/checkpoint.pt"
+          if [ -f "$CK" ]; then
+            python3 - "$CK" "$OUT/checkpoint_schema.json" <<'PY'
+import json, sys
+from pathlib import Path
+try:
+    import torch
+    p=Path(sys.argv[1]); out=Path(sys.argv[2])
+    z=torch.load(p,map_location='cpu',weights_only=False)
+    model=z.get('model',z.get('model_state_dict',{})) if isinstance(z,dict) else {}
+    rec={
+      'top_keys': sorted(map(str,z.keys())) if isinstance(z,dict) else [],
+      'schema': z.get('schema') if isinstance(z,dict) else None,
+      'arm': z.get('arm') if isinstance(z,dict) else None,
+      'step': z.get('step') if isinstance(z,dict) else None,
+      'tokens_seen': z.get('tokens_seen') if isinstance(z,dict) else None,
+      'canonical_court_sha256': z.get('canonical_court_sha256') if isinstance(z,dict) else None,
+      'corpus_sha256': z.get('corpus_sha256') if isinstance(z,dict) else None,
+      'model_tensors': {str(k): {'shape': list(v.shape), 'dtype': str(v.dtype)} for k,v in model.items() if hasattr(v,'shape')},
+    }
+    out.write_text(json.dumps(rec,indent=2,sort_keys=True)+'\n')
+    print(json.dumps({k:rec[k] for k in ['schema','arm','step','tokens_seen','canonical_court_sha256','corpus_sha256']},indent=2))
+except Exception as e:
+    print('checkpoint schema error',repr(e))
+PY
+          fi
+
+          echo '=== SOURCE TREE HINTS ==='
+          find "$H/maximal" "$H/archie-bench/moonshot/full-model-b" -maxdepth 4 -type f \( -name '*.py' -o -name '*.triton' -o -name '*.cu' \) -printf '%p\n' 2>/dev/null | sort | head -n 800 > "$OUT/source_tree.txt" || true
+          cat "$OUT/source_tree.txt" || true
+
+          echo '=== ARTIFACT MANIFEST ==='
+          (cd "$OUT" && find . -type f -print0 | sort -z | xargs -0 sha256sum) | tee "$OUT/manifest.sha256"
+
+      - name: Upload source scrape
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-dynamic-fission-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/archie-dynamic-fission-source
+          if-no-files-found: error
+          retention-days: 7
