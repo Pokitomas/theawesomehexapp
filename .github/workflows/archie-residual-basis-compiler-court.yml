@@ -1,0 +1,53 @@
+name: ARCHIE residual basis compiler court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/residual_basis_compiler.py'
+      - 'foundry/archie-action-latent/operator_constraint_manifold.py'
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-residual-basis-compiler-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/residual_basis_compiler.py
+      - name: Exact residual-driven family growth
+        run: |
+          python3 foundry/archie-action-latent/residual_basis_compiler.py \
+            --output /tmp/archie-residual-basis.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-residual-basis.json'))
+          assert p['pass'] is True
+          q=p['quadratic_case']
+          c=p['out_of_grammar_cubic_case']
+          assert not q['base_affine_consistent']
+          assert q['winner'] is not None
+          assert q['extension_event']['result'] == 'stable'
+          assert not c['base_affine_consistent']
+          assert c['winner'] is None
+          assert c['extension_event']['result'] == 'volatile'
+          print(json.dumps({
+            'pass':p['pass'],
+            'quadratic_affine_consistent':q['base_affine_consistent'],
+            'quadratic_compiled_basis':q['winner'],
+            'quadratic_extension':q['extension_event']['result'],
+            'cubic_affine_consistent':c['base_affine_consistent'],
+            'cubic_compiled_basis':c['winner'],
+            'cubic_extension':c['extension_event']['result'],
+          }, indent=2, sort_keys=True))
+          PY
