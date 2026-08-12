@@ -24,26 +24,66 @@ A seductive impossibility claim is not a roadmap. Prove the boundary first, then
 
 ---
 
-## Current backend state — last machine-verified
+## Current backend state — fresh bounded-EXEC watch
 
-These are the last machine-derived receipts before the relay/upstream became unavailable; they are **not silently promoted to current state**.
+The forgotten live door was recovered. The correct bounded surface is:
 
-- Active research branch: `gpt56sol/presence-action-core-20260811`
-- Durable AMP-overflow recovery commit: `dc4500c349094f585ad561875fc44045403194af`
-- GitHub Actions run `31564020037`: success, including the explicit **Packed-stream AMP overflow recovery court**
-- Packed-stream source/tracked-copy SHA: `e1df47d70ef18d1a3e1d0512e3deaaf2502c1b32190a3b4a6640de1da8a1d039`
-- Trainer service had resumed at step `4080`, sampler cursor `130560`
-- Fresh finite receipt crossed to step `4090`
-- Tokens seen: `134,021,120`
-- Loss: `1.6380921602249146`
-- Grad norm: `2.988424032977884`
-- HALT: none
-- Last sane GPU receipt: 64 C, 117.45 W
-- Earlier step `4017` failure was reproduced as a recoverable AMP overflow on batch `afaf8c3f1e245d80`; scaler dropped `262144 → 131072`, the same batch was retried, and training continued.
+`HTTPS → Vercel /api/relay → route=exec → ARCHIE EXEC`
+
+`route=cmd` was the wrong door for the current executive surface. A fresh `help` call returned HTTP 200 and identified the bounded/no-shell surface with verbs including `say`, `hear`, `status`, `watch`, `read`, `crawl`, `journal`, `alarms`, and `ledger`. A PATIENT `watch` job was admitted and drained successfully, so the following state is direct machine-derived evidence rather than stale summary.
+
+Fresh watch at approximately 00:09 local:
+- GPU: `2645 / 6144 MiB`, utilization `8%`, temperature `39 C`.
+- Canonical trainer identity: **STALE**.
+- Truth age: `21366.4 s`.
+- Executive verdict: **FAIL-CLOSED: do not infer one trainer**.
+- No alarm was raised by the watch job.
+- Therefore GPU occupancy is real, but it is not currently lawful to attribute that occupancy to one named trainer without a fresh identity receipt.
+
+Matched 24,140,160-parameter arms reported by the live dashboard:
+- ARM T `small-xf`: 12 attention / 0 SSM, DONE, `1.160768 bpb`, step `6000/6000`, last shown loss `0.7040`, NaN 0, skipped 0.
+- ARM H `small`: 3 attention + 9 SSM, DONE, `1.164678 bpb`, step `6000/6000`, last shown loss `0.6951`, NaN 0, skipped 0.
+- ARM H2 `small-mem`: long-memory init, DONE, `1.166176 bpb`, step `6000/6000`, last shown loss `0.6947`, NaN 0, skipped 0.
+
+Identical-batch hybrid-minus-transformer sample-efficiency trajectory:
+- 3.7M tokens: `-0.2663`, 95% CI `[-0.3800, -0.1554]` → hybrid better.
+- 10.6M: `+0.0944`, CI `[+0.0749, +0.1139]` → transformer better.
+- 17.6M: `+0.0202`, CI `[+0.0096, +0.0304]` → transformer better.
+- 24.6M: `-0.0002`, CI `[-0.0124, +0.0091]` → unresolved.
+- 31.5M: `+0.0034`, CI `[-0.0011, +0.0078]` → unresolved.
+- 38.5M: `-0.0096`, CI `[-0.0148, -0.0047]` → hybrid better.
+- 45.9M: `-0.0060`, CI `[-0.0119, -0.0002]` → hybrid better.
+- Dashboard verdict: **UNRESOLVED**, reported slope `+0.056/doubling`.
+- This court is explicitly sample-efficiency, not compute-efficiency.
+
+Rank-ladder snapshot, three seeds each where complete, paired against coeff-1536:
+- `ctx1024-fibers256`: `0/3` complete.
+- `ctx512-fibers256`: `3/3`, mean `2.940092`, delta `+0.174746` (worse).
+- `ctx512-fibers320`: `3/3`, mean `2.914847`, delta `+0.149501` (worse).
+- `rank-192`: `3/3`, mean `2.618228`, delta `-0.147119` (better).
+- `rank-24`: `3/3`, mean `2.846150`, delta `+0.080804` (worse).
+- `rank-96`: `3/3`, mean `2.691364`, delta `-0.073982` (better).
+- `rotcap-0.01`: `3/3`, mean `2.953264`, delta `+0.187917` (worse).
+
+Queue snapshot:
+- `queue_after_armh.sh`: not running.
+- Historical queue annotation still reads `ARM H → ARM H2 (small-mem) → rank-24 → ctx512/ctx1024 fibers`.
+
+Interpretation for next work:
+1. Do **not** infer that packed-stream-v1 or any other named trainer currently owns the GPU.
+2. The active matched-arm results say architecture ordering is non-monotonic across token budget; no simple “hybrid wins” or “transformer wins” claim is admitted.
+3. Rank-192 and rank-96 are the strongest currently displayed rank-ladder directions; rank-24 and the shown fiber/rotcap variants are negative controls worth preserving.
+4. The queue is idle, so new experiments should be launched only after a fresh ownership/lease identity court, not by assuming the old queue is authoritative.
+5. The bounded EXEC path itself is live and should be preferred over shell/legacy routes.
+
+Historical packed-stream evidence that remains valid as archived evidence, not current process identity:
+- Durable AMP-overflow recovery commit: `dc4500c349094f585ad561875fc44045403194af`.
+- GitHub Actions run `31564020037`: success, including the explicit Packed-stream AMP overflow recovery court.
+- Packed-stream patched source SHA: `e1df47d70ef18d1a3e1d0512e3deaaf2502c1b32190a3b4a6640de1da8a1d039`.
+- Step 4017 batch `afaf8c3f1e245d80` reproduced as recoverable AMP overflow; scaler `262144 → 131072`; same batch retried and training continued.
 - Original halt evidence was archived rather than deleted.
-- The durable live-control seam is HTTPS → Vercel relay → bounded workstation executor / sidecar. At the time of this note update, relay probes are not reaching the workstation reliably (502 / connector throttling), so live process state must be re-observed before any new mutation.
 
-Durable local coordination paths once authority is restored:
+Durable coordination/evidence paths:
 - `/home/awesomekai/archie-remote/ROOM.md`
 - `/home/awesomekai/archie-remote/roast.jsonl`
 - `/home/awesomekai/.archie-shell-sidecar.log`
