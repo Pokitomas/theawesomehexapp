@@ -46,6 +46,8 @@ jobs:
           python3 -m py_compile foundry/archie-action-latent/motor_babble.py
           python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
           python3 -m py_compile foundry/archie-action-latent/operator_predictive_core.py
+          python3 -m py_compile foundry/archie-action-latent/homeostatic_surprise_memory.py
+          python3 -m py_compile foundry/archie-action-latent/test_homeostatic_surprise_memory.py
           python3 -m py_compile foundry/archie-distill/packed_stream_train.py
           python3 -m py_compile foundry/archie-distill/test_packed_stream_train.py
       - name: Action-latent motor-babbling court
@@ -56,6 +58,8 @@ jobs:
             --steps 600 --codes 8 --epochs 120 --device cpu \
             --output /tmp/archie-operator-core-court.json
           cat /tmp/archie-operator-core-court.json
+      - name: Homeostatic surprise-memory court
+        run: python3 foundry/archie-action-latent/test_homeostatic_surprise_memory.py
       - name: Packed-stream AMP overflow recovery court
         run: python3 foundry/archie-distill/test_packed_stream_train.py
       - name: Capability-proof fail-closed court
