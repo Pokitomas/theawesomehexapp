@@ -10,6 +10,7 @@ on:
       - 'scripts/tests/archie-presence-brain-broker.test.mjs'
       - 'scripts/archie-local-semantic-broker.py'
       - 'scripts/archie-local-semantic-supervisor.py'
+      - 'scripts/archie-semantic-trainer-coexistence-court.py'
       - 'scripts/tests/test_archie_local_semantic_broker.py'
       - 'scripts/archie-capability-proof.py'
       - 'foundry/archie-action-latent/**'
@@ -40,6 +41,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/archie-local-semantic-broker.py
           python3 -m py_compile scripts/archie-local-semantic-supervisor.py
+          python3 -m py_compile scripts/archie-semantic-trainer-coexistence-court.py
           python3 -m py_compile scripts/archie-capability-proof.py
           python3 -m py_compile foundry/archie-action-latent/motor_babble.py
           python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
