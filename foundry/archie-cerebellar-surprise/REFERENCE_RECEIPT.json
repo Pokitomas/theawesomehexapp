@@ -1,0 +1,44 @@
+{
+  "schema": "archie/cerebellar-surprise-reference-receipt-v1",
+  "validated_head_sha": "e9886477fe49079ddbdc49ddaf1fd8b3aa19be3a",
+  "github_actions": {
+    "run_id": 31569595855,
+    "job_id": 94028540557,
+    "syntax_court": "success",
+    "unit_tests": 10,
+    "unit_test_result": "success",
+    "strict_receipt_court": "success"
+  },
+  "source_path": "foundry/archie-cerebellar-surprise/cerebellar_surprise.py",
+  "test_path": "foundry/archie-cerebellar-surprise/test_cerebellar_surprise.py",
+  "paper": {
+    "doi": "10.1038/s41467-026-75212-4",
+    "boundary": "event-driven E/I time-scale inspiration only; not a memtransistor/device emulator"
+  },
+  "crawler_provenance": {
+    "crawler_sha256": "dad201538e106d4636ecf4a3922ee40db8a9dd8e6b45d7bb0e9e469efad3a9cc",
+    "use_scope": "reference_only",
+    "training_ingest": "never_automatic"
+  },
+  "verdict": {
+    "pass": true,
+    "promotion": false,
+    "promotion_reason": "restricted E/I is affine-filter-equivalent and is dominated by a one-trace baseline on the simplest unseen-event task"
+  },
+  "expected_metrics": {
+    "initial_ei_novelty": 0.45000000000000007,
+    "analytic_steady_ei_novelty": -0.9454496182212067,
+    "familiar_novelty_last": -0.7971641141089023,
+    "deviant_novelty_first": 0.45000000000000007,
+    "deviant_novelty_last": -0.8145846726677721,
+    "order_normal_last": -0.07703807436356591,
+    "order_deviant": 0.45000000000000007
+  },
+  "falsified_claims": [
+    "unequal E/I time constants alone constitute novel software architecture",
+    "scalar novelty alone is sufficient memory-write or action utility",
+    "passing unseen-event detection justifies replacing a one-trace familiarity baseline"
+  ],
+  "retained_candidate": "event-addressed surprise as a scheduler feature only, conditioned on objective progress and kept separate from value/uncertainty",
+  "next_earned_experiment": "test measured non-affine pulse-history-dependent increments against matched one-trace, multi-EMA and prediction-error baselines on resident action/consequence streams"
+}
