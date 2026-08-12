@@ -13,17 +13,20 @@ class MotorConsequenceMemoryCourt(unittest.TestCase):
             {"motor_action": {"kind": "mkdir"}, "observed_delta": {"created_files": 0, "created_dirs": 1, "deleted_files": 0, "deleted_dirs": 0, "changed_files": 0, "byte_delta": 0}},
             {"motor_action": {"kind": "mkdir"}, "observed_delta": {"created_files": 0, "created_dirs": 1, "deleted_files": 0, "deleted_dirs": 0, "changed_files": 0, "byte_delta": 0}},
         ]
-        x, y, states = C.design(rows, decays=(0.5, 0.8), updater=C.linear_update)
-        self.assertEqual(states[0], (0.0, 0.0))
-        self.assertEqual(x[0][-2:], [0.0, 0.0])
+        x, y, states = C.design(rows, decays=(0.5,), updater=C.linear_update)
+        self.assertEqual(states[0], (0.0,))
+        self.assertEqual(x[0][-1:], [0.0])
         self.assertGreater(states[1][0], 0.0)
         self.assertEqual(y[0], y[1])
 
-    def test_candidate_decision_is_not_confused_with_court_validity(self):
+    def test_state_cost_decision_is_separate_from_court_validity(self):
         result = C.run_court(seeds=(56,), steps=96)
         self.assertTrue(result["court_valid"])
         self.assertFalse(result["promotion"])
-        self.assertIn("candidate_earns_followup", result["aggregate"])
+        aggregate = result["aggregate"]
+        self.assertIn("minimal_followup", aggregate)
+        self.assertIn(aggregate["minimal_followup"], ("action-only", "linear-one-pole", "linear-two-pole"))
+        self.assertEqual(result["dynamic_state_scalars"]["linear_one_pole"], 1)
         self.assertEqual(result["dynamic_state_scalars"]["linear_two_pole"], 2)
         self.assertEqual(result["dynamic_state_scalars"]["nonlinear_two_state"], 2)
 
@@ -31,14 +34,21 @@ class MotorConsequenceMemoryCourt(unittest.TestCase):
         result = C.run_court(seeds=(56,), steps=96)
         run = result["runs"][0]
         self.assertTrue(run["deterministic_replay_exact"])
-        for arm in ("action_only", "linear_two_pole", "nonlinear_two_state"):
+        for arm in ("action_only", "linear_one_pole", "linear_two_pole", "nonlinear_two_state"):
             self.assertTrue(math.isfinite(run[arm]["test_mse"]))
+        self.assertEqual(run["linear_one_pole"]["test_rows"], run["linear_two_pole"]["test_rows"])
         self.assertEqual(run["linear_two_pole"]["test_rows"], run["nonlinear_two_state"]["test_rows"])
 
-    def test_promotion_remains_false_even_if_candidate_wins(self):
+    def test_decay_search_budget_is_explicit(self):
+        self.assertEqual(len(list(C.decay_choices(1))), len(C.DECAYS))
+        self.assertEqual(len(list(C.decay_choices(2))), 15)
+        with self.assertRaises(ValueError):
+            list(C.decay_choices(3))
+
+    def test_promotion_remains_false_regardless_of_minimal_followup(self):
         result = C.run_court(seeds=(56,), steps=96)
         self.assertFalse(result["promotion"])
-        self.assertIn("resident", result["interpretation"].lower())
+        self.assertIn("counterfactual action-value", result["interpretation"].lower())
 
 
 if __name__ == "__main__":
