@@ -25,9 +25,8 @@ jobs:
           H=/home/awesomekai
           OUT="$RUNNER_TEMP/archie-dynamic-fission-source"
           mkdir -p "$OUT/source"
-
           exec > >(tee "$OUT/receipt.txt") 2>&1
-          echo 'ARCHIE_DYNAMIC_FISSION_SOURCE_SCRAPE_V1'
+          echo ARCHIE_DYNAMIC_FISSION_SOURCE_SCRAPE_V2
           date -Iseconds
           hostname
           echo "runner=${RUNNER_NAME:-unknown}"
@@ -49,7 +48,6 @@ jobs:
             echo "--- $u"
             systemctl --user show "$u" -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>&1 || true
           done
-
           echo '=== PACKED RECEIPTS ==='
           tail -n 24 "$H/maximal/scratch/packed-stream-v1/receipts.jsonl" 2>/dev/null || true
           echo '=== HALT ==='
@@ -76,41 +74,18 @@ jobs:
           copy_one "$H/theawesomehexapp-pr730/foundry/archie-distill/archie_hybrid_core.py"
           copy_one "$H/theawesomehexapp-pr730/foundry/archie-distill/archie_delta_memory.py"
 
-          echo '=== COURT IMPORTS / PATH CANDIDATES ==='
-          grep -nE 'import|source|typed_delta|archie_lab|triton|Delta|delta|build_arm|execute_step|projection' "$H/archie-bench/moonshot/full-model-b/full_step_court.py" 2>/dev/null | head -n 500 || true
-
-          echo '=== CHECKPOINT SCHEMA ONLY ==='
+          echo '=== COURT PATH HINTS ==='
+          grep -nE 'import|source|typed_delta|archie_lab|triton|Delta|delta|build_arm|execute_step|projection' "$H/archie-bench/moonshot/full-model-b/full_step_court.py" 2>/dev/null | head -n 600 || true
+          echo '=== CHECKPOINT ID ==='
           CK="$H/maximal/scratch/packed-stream-v1/checkpoint.pt"
           if [ -f "$CK" ]; then
-            python3 - "$CK" "$OUT/checkpoint_schema.json" <<'PY'
-import json, sys
-from pathlib import Path
-try:
-    import torch
-    p=Path(sys.argv[1]); out=Path(sys.argv[2])
-    z=torch.load(p,map_location='cpu',weights_only=False)
-    model=z.get('model',z.get('model_state_dict',{})) if isinstance(z,dict) else {}
-    rec={
-      'top_keys': sorted(map(str,z.keys())) if isinstance(z,dict) else [],
-      'schema': z.get('schema') if isinstance(z,dict) else None,
-      'arm': z.get('arm') if isinstance(z,dict) else None,
-      'step': z.get('step') if isinstance(z,dict) else None,
-      'tokens_seen': z.get('tokens_seen') if isinstance(z,dict) else None,
-      'canonical_court_sha256': z.get('canonical_court_sha256') if isinstance(z,dict) else None,
-      'corpus_sha256': z.get('corpus_sha256') if isinstance(z,dict) else None,
-      'model_tensors': {str(k): {'shape': list(v.shape), 'dtype': str(v.dtype)} for k,v in model.items() if hasattr(v,'shape')},
-    }
-    out.write_text(json.dumps(rec,indent=2,sort_keys=True)+'\n')
-    print(json.dumps({k:rec[k] for k in ['schema','arm','step','tokens_seen','canonical_court_sha256','corpus_sha256']},indent=2))
-except Exception as e:
-    print('checkpoint schema error',repr(e))
-PY
+            sha256sum "$CK"
+            python3 -c "import torch,json,sys; z=torch.load(sys.argv[1],map_location='cpu',weights_only=False); m=z.get('model',z.get('model_state_dict',{})); r={'top_keys':sorted(map(str,z.keys())),'schema':z.get('schema'),'arm':z.get('arm'),'step':z.get('step'),'tokens_seen':z.get('tokens_seen'),'canonical_court_sha256':z.get('canonical_court_sha256'),'corpus_sha256':z.get('corpus_sha256'),'model_tensors':{str(k):{'shape':list(v.shape),'dtype':str(v.dtype)} for k,v in m.items() if hasattr(v,'shape')}}; open(sys.argv[2],'w').write(json.dumps(r,indent=2,sort_keys=True)+'\\n'); print(json.dumps({k:r[k] for k in ['schema','arm','step','tokens_seen','canonical_court_sha256','corpus_sha256']},indent=2))" "$CK" "$OUT/checkpoint_schema.json" || true
           fi
 
           echo '=== SOURCE TREE HINTS ==='
           find "$H/maximal" "$H/archie-bench/moonshot/full-model-b" -maxdepth 4 -type f \( -name '*.py' -o -name '*.triton' -o -name '*.cu' \) -printf '%p\n' 2>/dev/null | sort | head -n 800 > "$OUT/source_tree.txt" || true
           cat "$OUT/source_tree.txt" || true
-
           echo '=== ARTIFACT MANIFEST ==='
           (cd "$OUT" && find . -type f -print0 | sort -z | xargs -0 sha256sum) | tee "$OUT/manifest.sha256"
 
