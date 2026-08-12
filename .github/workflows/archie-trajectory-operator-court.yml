@@ -1,0 +1,46 @@
+name: ARCHIE trajectory operator court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/trajectory_operator_core.py'
+      - 'foundry/archie-action-latent/operator_predictive_core.py'
+      - '.github/workflows/archie-trajectory-operator-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install torch
+        run: python3 -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/trajectory_operator_core.py
+      - name: Learned repeated-intervention operator court
+        run: |
+          python3 foundry/archie-action-latent/trajectory_operator_core.py \
+            --seeds 13001,13002,13003 --rows 1200 --codes 2 --epochs 260 \
+            --device cpu --output /tmp/archie-trajectory-operator.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-trajectory-operator.json'))
+          print(json.dumps({
+            'pass':p['pass'],
+            'median_alias_trajectory_over_one_step_mse':p['median_alias_trajectory_over_one_step_mse'],
+            'median_trajectory_effect_nmi_grading_only':p['median_trajectory_effect_nmi_grading_only'],
+            'median_trajectory_effect_purity_grading_only':p['median_trajectory_effect_purity_grading_only'],
+            'alias_one_step_probability_diffs':[r['alias_one_step_probability_max_abs_diff'] for r in p['runs']],
+            'alias_trajectory_probability_diffs':[r['alias_trajectory_probability_max_abs_diff'] for r in p['runs']],
+          }, indent=2, sort_keys=True))
+          assert p['pass'] is True
+          PY
