@@ -9,6 +9,7 @@ on:
       - 'scripts/archie-presence-brain-broker.mjs'
       - 'scripts/tests/archie-presence-brain-broker.test.mjs'
       - 'scripts/archie-local-semantic-broker.py'
+      - 'scripts/archie-local-semantic-supervisor.py'
       - 'scripts/archie-capability-proof.py'
       - 'foundry/archie-action-latent/**'
       - '.github/workflows/archie-presence-action-court.yml'
@@ -33,6 +34,7 @@ jobs:
       - name: Python source syntax court
         run: |
           python3 -m py_compile scripts/archie-local-semantic-broker.py
+          python3 -m py_compile scripts/archie-local-semantic-supervisor.py
           python3 -m py_compile scripts/archie-capability-proof.py
           python3 -m py_compile foundry/archie-action-latent/motor_babble.py
           python3 -m py_compile foundry/archie-action-latent/action_groupoid_carrier.py
