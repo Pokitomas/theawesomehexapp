@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ spec = importlib.util.spec_from_file_location("archie_motor_babble", MODULE_PATH
 if spec is None or spec.loader is None:
     raise RuntimeError(f"cannot load {MODULE_PATH}")
 mb = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = mb
 spec.loader.exec_module(mb)
 
 
