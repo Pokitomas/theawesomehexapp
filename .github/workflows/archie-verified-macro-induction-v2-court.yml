@@ -1,0 +1,52 @@
+name: ARCHIE verified macro induction v2 court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/verified_macro_induction.py'
+      - 'foundry/archie-action-latent/verified_macro_induction_v2.py'
+      - '.github/workflows/archie-verified-macro-induction-v2-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/verified_macro_induction_v2.py
+      - name: Recursive anti-unification and held-out macro reuse
+        run: |
+          python3 foundry/archie-action-latent/verified_macro_induction_v2.py \
+            --max-cost 6 --output /tmp/archie-verified-macro-v2.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-verified-macro-v2.json'))
+          assert p['pass'] is True
+          assert p['mdl_savings_four_occurrences'] > 0
+          assert p['single_occurrence_savings'] <= 0
+          assert p['heldout_exact'] is True
+          assert p['promotion_event']['result'] == 'stable'
+          print(json.dumps({
+            'pass':p['pass'],
+            'v1_failure_preserved':p['v1_failure_preserved'],
+            'source_expressions':p['source_expressions'],
+            'induced_template':p['induced_template'],
+            'baseline_nodes':p['baseline_nodes_four_occurrences'],
+            'compiled_nodes':p['compiled_nodes_four_occurrences'],
+            'mdl_savings':p['mdl_savings_four_occurrences'],
+            'single_occurrence_savings':p['single_occurrence_savings'],
+            'heldout_instantiation':p['heldout_instantiation'],
+            'heldout_exact':p['heldout_exact'],
+            'promotion':p['promotion_event']['result'],
+          }, indent=2, sort_keys=True))
+          PY
