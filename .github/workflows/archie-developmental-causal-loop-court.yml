@@ -1,0 +1,54 @@
+name: ARCHIE developmental causal loop court
+
+on:
+  push:
+    branches:
+      - gpt56sol/presence-action-core-20260811
+  pull_request:
+    paths:
+      - 'foundry/archie-action-latent/developmental_causal_loop.py'
+      - 'foundry/archie-action-latent/risk_constrained_value_of_information.py'
+      - 'foundry/archie-action-latent/evidence_gated_consolidation.py'
+      - '.github/workflows/archie-developmental-causal-loop-court.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax
+        run: python3 -m py_compile foundry/archie-action-latent/developmental_causal_loop.py
+      - name: Belief to safe probe to receipt to consolidation
+        run: |
+          python3 foundry/archie-action-latent/developmental_causal_loop.py \
+            --output /tmp/archie-developmental-causal-loop.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/archie-developmental-causal-loop.json'))
+          assert p['pass'] is True
+          for r in p['truth_runs']:
+              assert r['phase1_plan']['selected_probe']['name'] == 'decision_boundary'
+              assert len(r['phase1_belief']) == 2
+              assert not r['phase1_consolidation']['stable_identity']
+              assert r['phase2_plan']['selected_probe']['name'] == 'within_class_identity'
+              assert len(r['final_belief']) == 1
+              assert r['stable_identity'] == r['truth']
+          assert p['unsafe_case']['plan']['disposition'] == 'preserve_uncertainty'
+          assert p['unsafe_case']['stable_count'] == 0
+          print(json.dumps({
+            'pass':p['pass'],
+            'truths':[r['truth'] for r in p['truth_runs']],
+            'phase1_belief_sizes':[len(r['phase1_belief']) for r in p['truth_runs']],
+            'phase2_belief_sizes':[len(r['final_belief']) for r in p['truth_runs']],
+            'stable_identities':[r['stable_identity'] for r in p['truth_runs']],
+            'unsafe_disposition':p['unsafe_case']['plan']['disposition'],
+            'unsafe_stable_count':p['unsafe_case']['stable_count'],
+          }, indent=2, sort_keys=True))
+          PY
