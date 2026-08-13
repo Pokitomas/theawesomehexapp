@@ -1,0 +1,75 @@
+name: ARCHIE editing quiet diagnostic
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-editing-quiet.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archie-editing-quiet
+  cancel-in-progress: false
+
+jobs:
+  quiet:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 8
+    steps:
+      - name: Quiet known ARCHIE compute and inspect Resolve
+        shell: bash
+        run: |
+          set -u
+          OUT="$RUNNER_TEMP/editing-quiet.txt"
+          SHOT="$RUNNER_TEMP/resolve-screen.png"
+          {
+            echo "EDITING_QUIET_V1"
+            date -Iseconds
+            echo "host=$(hostname) runner=${RUNNER_NAME:-unknown}"
+            echo
+            echo "=== GPU BEFORE ==="
+            nvidia-smi || true
+            echo
+            echo "=== ACTIVE ARCHIE USER SERVICES BEFORE ==="
+            systemctl --user list-units --type=service --state=running --no-legend --no-pager 2>/dev/null | grep -Ei 'archie|gpt56|packed|train|trainer|gpu|court|burn|microscope|research' || true
+            echo
+            echo "=== STOPPING KNOWN EDITING-CONFLICT COMPUTE ==="
+            mapfile -t UNITS < <(systemctl --user list-units --type=service --state=running --no-legend --no-pager 2>/dev/null | awk '{print $1}' | grep -Ei '^(archie|gpt56).*(train|trainer|gpu|packed|stream|court|burn|microscope|research|forge|continuation|takeover|controller).*\.service$' || true)
+            for u in "${UNITS[@]}"; do
+              case "$u" in
+                archie-shell-sidecar.service) echo "KEEP $u" ;;
+                *) echo "STOP $u"; systemctl --user stop "$u" || true ;;
+              esac
+            done
+            sleep 3
+            echo
+            echo "=== GPU AFTER ==="
+            nvidia-smi || true
+            echo
+            echo "=== GPU COMPUTE APPS AFTER ==="
+            nvidia-smi --query-compute-apps=pid,process_name,used_gpu_memory --format=csv,noheader 2>/dev/null || true
+            echo
+            echo "=== RESOLVE PROCESS ==="
+            powershell.exe -NoLogo -NoProfile -Command '$p=Get-CimInstance Win32_Process -Filter "Name=''Resolve.exe''" -ErrorAction SilentlyContinue | Select-Object ProcessId,ExecutablePath,CommandLine; if($p){$p|ConvertTo-Json -Compress}else{"resolve":"not-running"}' || true
+            echo
+            echo "=== TOP WINDOWS GPU ENGINES ==="
+            powershell.exe -NoLogo -NoProfile -Command '$s=(Get-Counter "\GPU Engine(*)\Utilization Percentage" -ErrorAction SilentlyContinue).CounterSamples | ? CookedValue -gt 0.5 | Sort-Object CookedValue -Descending | Select-Object -First 20 InstanceName,CookedValue; if($s){$s|ConvertTo-Json -Compress}else{"gpuCounters":"none"}' || true
+          } | tee "$OUT"
+
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp=New-Object System.Drawing.Bitmap $b.Width,$b.Height; $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location,[System.Drawing.Point]::Empty,$b.Size); $bmp.Save("'"$(wslpath -w "$SHOT")"'",[System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose()' || true
+
+          echo "screenshot=$SHOT" >> "$OUT"
+          ls -l "$SHOT" >> "$OUT" 2>&1 || true
+
+      - name: Upload editing quiet receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: editing-quiet-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/editing-quiet.txt
+            ${{ runner.temp }}/resolve-screen.png
+          if-no-files-found: warn
+          retention-days: 1
