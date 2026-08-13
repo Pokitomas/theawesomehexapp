@@ -9,9 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  AUDIT_DIR: /tmp/chatgpt-resolve-audit
-
 jobs:
   inspect:
     runs-on: self-hosted
@@ -20,81 +17,36 @@ jobs:
       - name: Quiet ARCHIE and inspect Resolve
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p "$AUDIT_DIR"
-          echo "=== HOST ==="
+          set -u
+          echo '=== HOST ==='
           hostname
           date --iso-8601=seconds
-
-          echo "=== QUIET HEAVY ARCHIE ==="
+          echo '=== QUIET HEAVY ARCHIE ==='
           systemctl --user stop archie-gpt56-packed-stream-resident-v1.service 2>/dev/null || true
           systemctl --user stop archie-gpt56-packed-stream-v1.service 2>/dev/null || true
           systemctl --user show archie-gpt56-packed-stream-resident-v1.service archie-gpt56-packed-stream-v1.service -p Id -p ActiveState -p SubState -p Result --no-pager 2>/dev/null || true
           nvidia-smi --query-gpu=timestamp,temperature.gpu,utilization.gpu,memory.used,memory.total --format=csv,noheader || true
-
-          echo "=== RESOLVE PROCESS + WINDOW ==="
-          /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -Command '
-            $ErrorActionPreference="Continue";
-            $p=Get-Process Resolve -ErrorAction SilentlyContinue;
-            if($p){$p | Select-Object Id,ProcessName,MainWindowTitle,Path,StartTime | Format-List}else{"RESOLVE_NOT_RUNNING"};
-            Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class FG { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count); }
-"@;
-            $h=[FG]::GetForegroundWindow(); $b=New-Object System.Text.StringBuilder 1024; [void][FG]::GetWindowText($h,$b,$b.Capacity); "FOREGROUND="+$b.ToString();
-          ' || true
-
-          echo "=== RESOLVE UIA TOP LEVEL ==="
-          /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -Command '
-            $ErrorActionPreference="Continue"; Add-Type -AssemblyName UIAutomationClient;
-            $p=Get-Process Resolve -ErrorAction SilentlyContinue | Select-Object -First 1;
-            if(!$p -or !$p.MainWindowHandle){"NO_RESOLVE_WINDOW"; exit 0};
-            $root=[System.Windows.Automation.AutomationElement]::FromHandle($p.MainWindowHandle);
-            "ROOT="+$root.Current.Name;
-            $all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition);
-            $rows=@(); foreach($e in $all){ try{$n=$e.Current.Name; $t=$e.Current.ControlType.ProgrammaticName; if($n -and ($n -match "Lonnie|Lonee|Ryan|Chad|Timeline|Media|Multicam|Edit|Audio|Video|Offline")){ $rows += [pscustomobject]@{Type=$t;Name=$n} }}catch{} };
-            $rows | Select-Object -First 120 | Format-Table -AutoSize;
-          ' || true
-
-          echo "=== KNOWN SYNC MEDIA ==="
-          for p in \
-            '/mnt/c/Users/AwesomeKai/Downloads/Chad x  Ryan Samsung-002.mp4' \
-            '/mnt/c/Users/AwesomeKai/Downloads/Chad x Ryan iPhone-001.MOV' \
-            '/mnt/c/Users/AwesomeKai/Downloads/RyanXChad/Ryan x Chad/Audio/Chad.WAV' \
-            '/mnt/c/Users/AwesomeKai/Downloads/RyanXChad/Ryan x Chad/Audio/Lonnie_ChadxRyan.WAV' \
-            '/mnt/c/Users/AwesomeKai/Downloads/ARCHIE_REVIEW_20260806/RyanXChad_CAMS_only.fcpxml' \
-            '/mnt/c/Users/AwesomeKai/Downloads/ARCHIE_REVIEW_20260806/RyanXChad_VIDEO_sync.fcpxml'; do
-            if [[ -e "$p" ]]; then stat -c '%s bytes | %y | %n' "$p"; else echo "MISSING | $p"; fi
-          done
-
-          echo "=== RECENT RESOLVE PROJECT PATHS ==="
+          echo '=== RESOLVE PROCESS ==='
+          /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$p=Get-Process Resolve -ErrorAction SilentlyContinue; if($p){$p | Select-Object Id,ProcessName,MainWindowTitle,Path,StartTime | Format-List}else{"RESOLVE_NOT_RUNNING"}' || true
+          echo '=== RESOLVE UIA MATCHES ==='
+          /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -Command 'Add-Type -AssemblyName UIAutomationClient; $p=Get-Process Resolve -ErrorAction SilentlyContinue | Select-Object -First 1; if(!$p -or !$p.MainWindowHandle){"NO_RESOLVE_WINDOW"; exit 0}; $root=[System.Windows.Automation.AutomationElement]::FromHandle($p.MainWindowHandle); "ROOT="+$root.Current.Name; $all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition); $i=0; foreach($e in $all){try{$n=$e.Current.Name; if($n -and $n -match "Lonnie|Lonee|Ryan|Chad|Timeline|Media|Multicam|Edit|Audio|Video|Offline"){($e.Current.ControlType.ProgrammaticName+" | "+$n); $i++; if($i -ge 120){break}}}catch{}}' || true
+          echo '=== KNOWN MEDIA ==='
+          for p in '/mnt/c/Users/AwesomeKai/Downloads/Chad x  Ryan Samsung-002.mp4' '/mnt/c/Users/AwesomeKai/Downloads/Chad x Ryan iPhone-001.MOV' '/mnt/c/Users/AwesomeKai/Downloads/RyanXChad/Ryan x Chad/Audio/Chad.WAV' '/mnt/c/Users/AwesomeKai/Downloads/RyanXChad/Ryan x Chad/Audio/Lonnie_ChadxRyan.WAV' '/mnt/c/Users/AwesomeKai/Downloads/ARCHIE_REVIEW_20260806/RyanXChad_CAMS_only.fcpxml' '/mnt/c/Users/AwesomeKai/Downloads/ARCHIE_REVIEW_20260806/RyanXChad_VIDEO_sync.fcpxml'; do if [[ -e "$p" ]]; then stat -c '%s bytes | %y | %n' "$p"; else echo "MISSING | $p"; fi; done
+          echo '=== RESOLVE PROJECT LIBRARY RECENT ==='
           BASE='/mnt/c/Users/AwesomeKai/AppData/Roaming/Blackmagic Design/DaVinci Resolve/Support/Resolve Project Library'
-          if [[ -d "$BASE" ]]; then
-            find "$BASE" -maxdepth 8 \( -type d -o -type f \) -iname '*lonnie*' -o -iname '*lonee*' -o -iname '*ryan*' -o -iname '*chad*' 2>/dev/null | head -100 || true
-            find "$BASE" -maxdepth 8 -type d -printf '%T@ %TY-%Tm-%Td %TH:%TM:%TS %p\n' 2>/dev/null | sort -nr | head -40 || true
-          else echo "PROJECT_LIBRARY_NOT_FOUND"; fi
-
-          echo "=== SCRIPTING SURFACE ==="
-          find '/mnt/c/ProgramData/Blackmagic Design/DaVinci Resolve/Support/Developer/Scripting' '/mnt/c/Program Files/Blackmagic Design/DaVinci Resolve' -maxdepth 5 \( -iname 'DaVinciResolveScript.py' -o -iname 'fuscript.exe' -o -iname '*script*.dll' \) 2>/dev/null | head -80 || true
+          if [[ -d "$BASE" ]]; then find "$BASE" -maxdepth 8 -type d -printf '%T@ %TY-%Tm-%Td %TH:%TM:%TS %p\n' 2>/dev/null | sort -nr | head -50 || true; fi
+          echo '=== NAMED PROJECT PATHS ==='
+          if [[ -d "$BASE" ]]; then find "$BASE" -maxdepth 10 \( -iname '*lonnie*' -o -iname '*lonee*' -o -iname '*ryan*' -o -iname '*chad*' \) -print 2>/dev/null | head -100 || true; fi
+          echo '=== RESOLVE SCRIPTING ==='
+          find '/mnt/c/ProgramData/Blackmagic Design/DaVinci Resolve/Support/Developer/Scripting' '/mnt/c/Program Files/Blackmagic Design/DaVinci Resolve' -maxdepth 5 \( -iname 'DaVinciResolveScript.py' -o -iname 'fuscript.exe' \) -print 2>/dev/null | head -50 || true
           /mnt/c/Windows/System32/cmd.exe /c 'where py 2>nul & where python 2>nul' 2>/dev/null | tr -d '\r' || true
-
-          echo "=== RECENT RESOLVE LOG HINTS ==="
+          echo '=== RESOLVE LOG HINTS ==='
           LOGROOT='/mnt/c/Users/AwesomeKai/AppData/Roaming/Blackmagic Design/DaVinci Resolve/Support/logs'
-          if [[ -d "$LOGROOT" ]]; then
-            find "$LOGROOT" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -8 | cut -d' ' -f2- | while IFS= read -r f; do echo "--- $f"; tail -n 250 "$f" 2>/dev/null | grep -Eai 'Lonnie|Lonee|Ryan|Chad|project|timeline|media offline|decode|error' | tail -40 || true; done
-          fi
-
-          echo "=== SCREENSHOT ==="
-          SHOT='C:\\Users\\AwesomeKai\\AppData\\Local\\Temp\\chatgpt_resolve_audit.png'
-          /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -Command '
-            Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing;
-            $r=[System.Windows.Forms.SystemInformation]::VirtualScreen;
-            $bmp=New-Object System.Drawing.Bitmap $r.Width,$r.Height;
-            $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($r.Left,$r.Top,0,0,$bmp.Size);
-            $path="C:\Users\AwesomeKai\AppData\Local\Temp\chatgpt_resolve_audit.png"; $bmp.Save($path,[System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose(); "SHOT="+$path;
-          ' || true
-          cp '/mnt/c/Users/AwesomeKai/AppData/Local/Temp/chatgpt_resolve_audit.png' "$AUDIT_DIR/resolve.png" 2>/dev/null || true
+          if [[ -d "$LOGROOT" ]]; then find "$LOGROOT" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -6 | cut -d' ' -f2- | while IFS= read -r f; do echo "--- $f"; tail -n 300 "$f" 2>/dev/null | grep -Eai 'Lonnie|Lonee|Ryan|Chad|project|timeline|media offline|decode|error' | tail -50 || true; done; fi
+          echo '=== SCREENSHOT ==='
+          /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -Command 'Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $r=[System.Windows.Forms.SystemInformation]::VirtualScreen; $bmp=New-Object System.Drawing.Bitmap $r.Width,$r.Height; $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($r.Left,$r.Top,0,0,$bmp.Size); $path="C:\Users\AwesomeKai\AppData\Local\Temp\chatgpt_resolve_audit.png"; $bmp.Save($path,[System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose(); $bmp.Dispose(); "SHOT="+$path' || true
+          mkdir -p /tmp/chatgpt-resolve-audit
+          cp '/mnt/c/Users/AwesomeKai/AppData/Local/Temp/chatgpt_resolve_audit.png' /tmp/chatgpt-resolve-audit/resolve.png 2>/dev/null || true
       - name: Upload Resolve screenshot
         uses: actions/upload-artifact@v4
         with:
