@@ -1,0 +1,37 @@
+name: ARCHIE cloud door check
+
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-cloud-door-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check stored control doors without exposing secrets
+        shell: bash
+        env:
+          SHELL_SECRET: ${{ secrets.ARCHIE_SHELL_SECRET }}
+          RELAY_TOKEN: ${{ secrets.ARCHIE_RELAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "${SHELL_SECRET:-}" ] && echo shell_secret=present || echo shell_secret=missing
+          [ -n "${RELAY_TOKEN:-}" ] && echo relay_token=present || echo relay_token=missing
+
+          if [ -n "${SHELL_SECRET:-}" ]; then
+            S="${SHELL_SECRET#/}"
+            code=$(curl -sS -o /tmp/h -w '%{http_code}' --max-time 12 "https://desktop-6fn9b4m-1.tail1bf489.ts.net/${S}/shell/health" || true)
+            echo "direct_shell_health_http=$code"
+            head -c 300 /tmp/h 2>/dev/null | tr '\n' ' '; echo
+          fi
+
+          if [ -n "${RELAY_TOKEN:-}" ]; then
+            code=$(curl -sS -o /tmp/r -w '%{http_code}' --max-time 12 "https://archie-vercel-relay.vercel.app/api/relay?token=${RELAY_TOKEN}&route=health" || true)
+            echo "relay_health_http=$code"
+            head -c 300 /tmp/r 2>/dev/null | tr '\n' ' '; echo
+          fi
