@@ -1,0 +1,44 @@
+name: Resolve workstation recovery temporary
+
+on:
+  push:
+    paths:
+      - '.github/workflows/resolve-workstation-recover-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: self-hosted
+    timeout-minutes: 8
+    steps:
+      - name: Recover local control and inspect Resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo '=== HOST ==='
+          date
+          hostname
+          id
+          echo '=== KEEP ARCHIE TRAINERS STOPPED ==='
+          systemctl --user stop archie-gpt56-packed-stream-resident-v1.service archie-gpt56-packed-stream-v1.service 2>/dev/null || true
+          echo '=== RESTART CONTROL SERVICES ==='
+          systemctl --user restart archie-shell-sidecar.service 2>/dev/null || true
+          systemctl --user restart archie-live-exec.service 2>/dev/null || true
+          sleep 2
+          systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID --no-pager 2>/dev/null || true
+          systemctl --user show archie-live-exec.service -p ActiveState -p SubState -p MainPID --no-pager 2>/dev/null || true
+          echo '=== GPU ==='
+          nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw --format=csv,noheader 2>/dev/null || true
+          echo '=== RESOLVE WINDOWS PROCESS ==='
+          powershell.exe -NoProfile -Command '$p=Get-Process Resolve -ErrorAction SilentlyContinue; if($p){$p|Select-Object Id,ProcessName,MainWindowTitle,Responding|Format-List}else{"RESOLVE_NOT_RUNNING"}' 2>/dev/null || true
+          echo '=== MEDIA EXISTS ==='
+          for p in \
+            '/mnt/c/Users/AwesomeKai/Downloads/Chad x  Ryan Samsung-002.mp4' \
+            '/mnt/c/Users/AwesomeKai/Downloads/Chad x Ryan iPhone-001.MOV' \
+            '/mnt/c/Users/AwesomeKai/Downloads/RyanXChad/Ryan x Chad/Audio/Chad.WAV' \
+            '/mnt/c/Users/AwesomeKai/Downloads/RyanXChad/Ryan x Chad/Audio/Lonnie_ChadxRyan.WAV'; do
+            if [ -f "$p" ]; then stat -c '%s %n' "$p"; else echo "MISSING $p"; fi
+          done
+          echo 'RESOLVE_WORKSTATION_RECOVERY_DONE'
