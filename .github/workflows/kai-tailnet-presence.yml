@@ -1,0 +1,25 @@
+name: Kai tailnet presence
+
+on:
+  push:
+    paths:
+      - '.github/workflows/kai-tailnet-presence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  presence:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 3
+    steps:
+      - name: Check kai on existing tailnet
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_host=$(hostname)"
+          TS="$(command -v tailscale || true)"
+          if [ -z "$TS" ] && [ -x '/mnt/c/Program Files/Tailscale/tailscale.exe' ]; then TS='/mnt/c/Program Files/Tailscale/tailscale.exe'; fi
+          [ -n "$TS" ] || { echo 'tailscale=missing'; exit 2; }
+          $TS status 2>/dev/null | awk 'tolower($2)=="kai" {print "kai_status=" $4 " " $5 " " $6}' || true
+          if $TS ping --timeout=3s kai >/dev/null 2>&1; then echo 'kai_ping=ok'; else echo 'kai_ping=failed'; fi
