@@ -1,6 +1,10 @@
 # Local dependencies
 node_modules/
 
+# Python bytecode from `npm run check:syntax` (py_compile)
+__pycache__/
+*.py[cod]
+
 # Private hosted configuration and local Archie data
 .env.archied
 .archie/
