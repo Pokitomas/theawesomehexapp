@@ -5,20 +5,49 @@ on:
       - '.github/workflows/pc-nanny-cancel-queued.yml'
 permissions:
   actions: write
-  contents: read
+  contents: write
 jobs:
   cancel:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cancel queued nanny runs and capture state
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            for (const run_id of [32283657428,32283815915]) {
+            const fs=require('fs');
+            const ids=[32283657428,32283815915];
+            const rows=[];
+            for (const run_id of ids) {
+              let cancel='';
               try {
                 await github.rest.actions.cancelWorkflowRun({owner:context.repo.owner,repo:context.repo.repo,run_id});
-                console.log(`cancel requested ${run_id}`);
-              } catch (e) {
-                console.log(`cancel ${run_id}: ${e.status||''} ${e.message}`);
+                cancel='cancel_requested';
+              } catch(e) {
+                cancel=`cancel_response:${e.status||''}:${e.message}`;
+              }
+              await new Promise(r=>setTimeout(r,1500));
+              try {
+                const x=(await github.rest.actions.getWorkflowRun({owner:context.repo.owner,repo:context.repo.repo,run_id})).data;
+                rows.push({run_id,cancel,status:x.status,conclusion:x.conclusion,updated_at:x.updated_at});
+              } catch(e) {
+                rows.push({run_id,cancel,status:`read_error:${e.status||''}`,conclusion:null});
               }
             }
+            fs.mkdirSync('machine-receipts',{recursive:true});
+            fs.writeFileSync('machine-receipts/nanny-cancel-status.json',JSON.stringify({observed_at:new Date().toISOString(),runs:rows},null,2)+'\n');
+      - name: Commit cancellation receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat machine-receipts/nanny-cancel-status.json
+          git config user.name 'pc-nanny-cancel[bot]'
+          git config user.email 'pc-nanny-cancel[bot]@users.noreply.github.com'
+          git add machine-receipts/nanny-cancel-status.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'PC nanny cancellation receipt [skip ci]'
+          git pull --rebase
+          git push
