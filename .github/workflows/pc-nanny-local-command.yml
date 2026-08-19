@@ -1,0 +1,60 @@
+name: PC nanny local command
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  command:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 771 &&
+      github.event.comment.user.login == 'Pokitomas' &&
+      startsWith(github.event.comment.body, '/pc-nanny-local ')
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 30
+    steps:
+      - name: Decode and execute local command
+        id: exec
+        env:
+          BODY: ${{ github.event.comment.body }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          OUT="$RUNNER_TEMP/pc-nanny-local-${GITHUB_RUN_ID}.log"
+          B64="${BODY#'/pc-nanny-local '}"
+          export B64
+          python3 - <<'PY' >"$RUNNER_TEMP/pc-nanny-command.sh"
+          import base64, os
+          s=os.environ['B64']; s += '='*((4-len(s)%4)%4)
+          raw=base64.urlsafe_b64decode(s.encode('ascii'))
+          text=raw.decode('utf-8')
+          if '\x00' in text: raise SystemExit('NUL refused')
+          print(text)
+          PY
+          set +e
+          bash "$RUNNER_TEMP/pc-nanny-command.sh" >"$OUT" 2>&1
+          RC=$?
+          set -e
+          echo "output_path=$OUT" >> "$GITHUB_OUTPUT"
+          echo "rc=$RC" >> "$GITHUB_OUTPUT"
+
+      - name: Publish local receipt
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          OUT_PATH: ${{ steps.exec.outputs.output_path }}
+          CMD_RC: ${{ steps.exec.outputs.rc }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs');
+            let text='NO_RECEIPT';
+            try{text=fs.readFileSync(process.env.OUT_PATH,'utf8')}catch(e){text+=` ${String(e)}`}
+            const max=60000;
+            if(text.length>max)text=text.slice(0,max)+`\n...[truncated ${text.length-max} chars]`;
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`PC_NANNY_LOCAL_RECEIPT\nrun_id=${context.runId}\nexit_code=${process.env.CMD_RC||'unknown'}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
