@@ -1,0 +1,19 @@
+{
+  "observed_at": "2026-08-19T18:09:55.390Z",
+  "runs": [
+    {
+      "run_id": 32283657428,
+      "cancel": "cancel_response:409:Cannot cancel a workflow run that is completed.",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "updated_at": "2026-08-19T18:06:29Z"
+    },
+    {
+      "run_id": 32283815915,
+      "cancel": "cancel_response:409:Cannot cancel a workflow run that is completed.",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "updated_at": "2026-08-19T18:06:29Z"
+    }
+  ]
+}
