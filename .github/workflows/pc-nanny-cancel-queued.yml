@@ -1,0 +1,24 @@
+name: PC nanny cancel queued
+on:
+  push:
+    paths:
+      - '.github/workflows/pc-nanny-cancel-queued.yml'
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            for (const run_id of [32283657428,32283815915]) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({owner:context.repo.owner,repo:context.repo.repo,run_id});
+                console.log(`cancel requested ${run_id}`);
+              } catch (e) {
+                console.log(`cancel ${run_id}: ${e.status||''} ${e.message}`);
+              }
+            }
