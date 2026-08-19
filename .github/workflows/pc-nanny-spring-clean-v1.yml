@@ -1,0 +1,411 @@
+name: PC nanny spring clean v1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/pc-nanny-spring-clean-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pc-nanny-spring-clean
+  cancel-in-progress: false
+
+jobs:
+  nanny:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Evidence-first spring clean
+        shell: bash
+        run: |
+          set -uo pipefail
+          HOME_DIR=/home/awesomekai
+          WIN_USER='/mnt/c/Users/AwesomeKai'
+          NEW_PROJECT="$WIN_USER/Documents/New project"
+          NANNY="$NEW_PROJECT/PC_NANNY_RECEIPT.md"
+          OUT="$RUNNER_TEMP/pc-nanny-v1.md"
+          BEFORE_C=$(df -B1 /mnt/c 2>/dev/null | awk 'NR==2{print $4}' || echo 0)
+          BEFORE_L=$(df -B1 / 2>/dev/null | awk 'NR==2{print $4}' || echo 0)
+          NOW=$(date -Iseconds)
+
+          exec > >(tee "$OUT") 2>&1
+          echo '# PC NANNY SPRING CLEAN V1'
+          echo
+          echo "time: $NOW"
+          echo "host: $(hostname)"
+          echo "runner: ${RUNNER_NAME:-unknown}"
+          echo "pwd: $(pwd)"
+          echo
+          echo '## Guardrails'
+          echo '- PRESERVE: checked Archie and ACSC model runs; they are distinct.'
+          echo '- PRESERVE: 2.50 GB PWA release ZIP as ready-to-share runtime bundle; no deletion in this pass.'
+          echo '- V13 Unicode filename anomaly: audit only here; repair must be one exact path transaction.'
+          echo '- PRESERVE: local sidecar, desktop/agent worker, current control bridge, receipts, checkpoints unless independently proven redundant.'
+          echo '- This pass permanently deletes only rebuildable caches and old temp files; large duplicate payloads are inventoried, not auto-deleted.'
+          echo
+
+          echo '## Previous nanny receipt'
+          if [ -f "$NANNY" ]; then
+            echo "path: $NANNY"
+            echo "bytes: $(stat -c %s "$NANNY" 2>/dev/null || echo '?')"
+            sed -n '1,420p' "$NANNY"
+          else
+            echo 'MISSING'
+          fi
+          echo
+
+          echo '## Control plane / GPU before'
+          for u in archie-shell-sidecar.service archie-agent-worker.service archie-live-exec.service archie-chatgpt-takeover.service archie-codex-bridge.service archie-control-plane-watchdog.timer; do
+            printf '%s: ' "$u"
+            systemctl --user is-active "$u" 2>/dev/null || true
+          done
+          echo
+          nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu,power.draw --format=csv,noheader 2>/dev/null || true
+          echo 'GPU compute owners:'
+          nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader 2>/dev/null || true
+          echo
+
+          echo '## Running user services'
+          systemctl --user --no-pager --type=service --state=running 2>/dev/null || true
+          echo
+          echo '## Linux top processes'
+          ps -eo pid,ppid,etimes,%cpu,%mem,rss,stat,args --sort=-rss | head -n 90 || true
+          echo
+          echo '## Windows top processes'
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; Get-CimInstance Win32_Process | ForEach-Object { $p=Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; [pscustomobject]@{Id=$_.ProcessId;Name=$_.Name;MB=[math]::Round(($p.WorkingSet64/1MB),1);CommandLine=$_.CommandLine} } | Sort-Object MB -Descending | Select-Object -First 80 | Format-Table -Wrap -AutoSize' || true
+          echo
+
+          echo '## Startup and scheduled tasks likely related to old agents/wallpapers'
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; "RUN:"; Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" | Format-List; "TASKS:"; Get-ScheduledTask | Where-Object { $_.TaskName -match "Archie|Claude|Codex|AI|wall|meme|python|node|WSL|Tailscale|Resolve" } | ForEach-Object { [pscustomobject]@{Task=$_.TaskName;State=$_.State;Actions=(($_.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join " | ")} } | Format-Table -Wrap -AutoSize' || true
+          echo
+
+          echo '## Wallpaper state before'
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; Get-ItemProperty "HKCU:\Control Panel\Desktop" | Select-Object Wallpaper,WallpaperStyle,TileWallpaper | Format-List; if(Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers"){Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers" | Format-List}' || true
+          echo
+
+          echo '## Disk before'
+          df -h / /mnt/c || true
+          echo
+          echo 'New project top-level:'
+          du -sh "$NEW_PROJECT"/* 2>/dev/null | sort -hr | head -n 80 || true
+          echo
+          echo 'WSL home top-level:'
+          du -sh "$HOME_DIR"/* 2>/dev/null | sort -hr | head -n 80 || true
+          echo
+          echo 'Downloads top-level:'
+          du -sh "$WIN_USER/Downloads"/* 2>/dev/null | sort -hr | head -n 80 || true
+          echo
+
+          echo '## Large exact-duplicate inventory (NO auto-delete)'
+          python3 - <<'PY'
+          import hashlib, os
+          from collections import defaultdict
+          roots=[
+            '/mnt/c/Users/AwesomeKai/Documents/New project',
+            '/mnt/c/Users/AwesomeKai/Downloads',
+          ]
+          bysize=defaultdict(list)
+          limit_files=250000
+          seen=0
+          for root in roots:
+            if not os.path.isdir(root): continue
+            for dp,dns,fns in os.walk(root):
+              low=dp.lower()
+              if any(x in low for x in ('\\appdata\\local\\temp','/.git/objects','/node_modules/.cache')): continue
+              for fn in fns:
+                seen += 1
+                if seen > limit_files: break
+                p=os.path.join(dp,fn)
+                try: sz=os.path.getsize(p)
+                except OSError: continue
+                if sz >= 64*1024*1024: bysize[sz].append(p)
+              if seen > limit_files: break
+            if seen > limit_files: break
+          groups=0
+          for sz,ps in sorted(bysize.items(), reverse=True):
+            if len(ps)<2: continue
+            byhash=defaultdict(list)
+            for p in ps:
+              h=hashlib.sha256()
+              try:
+                with open(p,'rb') as f:
+                  for b in iter(lambda:f.read(8*1024*1024),b''): h.update(b)
+              except OSError: continue
+              byhash[h.hexdigest()].append(p)
+            for hh,items in byhash.items():
+              if len(items)>1:
+                groups += 1
+                print(f'DUPLICATE_GROUP size={sz} sha256={hh}')
+                for p in items: print('  ',p)
+          print(f'scanned_files={seen} duplicate_groups={groups}')
+          PY
+          echo
+
+          echo '## V13 Unicode anomaly audit (NO mutation)'
+          if [ -f "$NANNY" ]; then grep -inE 'V13|unicode|filename|delete|replace' "$NANNY" | head -n 120 || true; fi
+          python3 - <<'PY'
+          import os, unicodedata
+          roots=['/mnt/c/Users/AwesomeKai/Documents/New project','/home/awesomekai']
+          n=0
+          for root in roots:
+            if not os.path.isdir(root): continue
+            for dp,dns,fns in os.walk(root):
+              if 'archie_v13' not in dp.lower() and 'v13' not in dp.lower():
+                dns[:] = [d for d in dns if not d.startswith('.')][:40]
+              for fn in fns:
+                if any(ord(c)>127 for c in fn):
+                  p=os.path.join(dp,fn)
+                  print('NONASCII',repr(p),'NFC=',repr(unicodedata.normalize('NFC',p)),'NFD=',repr(unicodedata.normalize('NFD',p)))
+                  n+=1
+                  if n>=80: raise SystemExit
+          print('nonascii_candidates=',n)
+          PY
+          echo
+
+          echo '## Safe cache/temp reclaim'
+          FREED_LOG="$RUNNER_TEMP/freed.tsv"
+          : > "$FREED_LOG"
+          python3 - <<'PY'
+          import os, shutil, time
+          roots=[
+            '/mnt/c/Users/AwesomeKai/AppData/Local/Temp',
+          ]
+          cutoff=time.time()-7*24*3600
+          freed=0; removed=0; failed=0
+          def size(p):
+            try:
+              if os.path.islink(p): return 0
+              if os.path.isfile(p): return os.path.getsize(p)
+              total=0
+              for dp,_,fs in os.walk(p):
+                for f in fs:
+                  try: total+=os.path.getsize(os.path.join(dp,f))
+                  except OSError: pass
+              return total
+            except OSError: return 0
+          for root in roots:
+            if not os.path.isdir(root): continue
+            for name in os.listdir(root):
+              p=os.path.join(root,name)
+              try: mt=os.path.getmtime(p)
+              except OSError: continue
+              if mt>cutoff: continue
+              s=size(p)
+              try:
+                if os.path.isdir(p) and not os.path.islink(p): shutil.rmtree(p)
+                else: os.remove(p)
+                freed += s; removed += 1
+              except Exception: failed += 1
+          print(f'windows_temp_removed={removed} failed={failed} estimated_bytes={freed}')
+          PY
+
+          # Project-local rebuildable metadata/caches only. Never weights, checkpoints, corpora, receipts, or source.
+          CACHE_BYTES=0
+          CACHE_COUNT=0
+          while IFS= read -r -d '' d; do
+            s=$(du -sb "$d" 2>/dev/null | awk '{print $1}' || echo 0)
+            rm -rf -- "$d" 2>/dev/null || continue
+            CACHE_BYTES=$((CACHE_BYTES+s)); CACHE_COUNT=$((CACHE_COUNT+1))
+          done < <(find "$HOME_DIR" "$NEW_PROJECT" -xdev -type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '.mypy_cache' -o -name '.ruff_cache' -o -path '*/node_modules/.cache' -o -path '*/.next/cache' \) -print0 2>/dev/null)
+          echo "project_cache_dirs_removed=$CACHE_COUNT estimated_bytes=$CACHE_BYTES"
+
+          if command -v pip >/dev/null 2>&1; then
+            echo 'pip cache purge:'
+            pip cache purge 2>&1 || true
+          fi
+          if command -v npm >/dev/null 2>&1; then
+            echo 'npm cache verify/clean:'
+            npm cache verify 2>&1 || true
+            npm cache clean --force 2>&1 || true
+          fi
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; $paths=@("$env:LOCALAPPDATA\pip\Cache","$env:LOCALAPPDATA\npm-cache\_cacache"); foreach($p in $paths){if(Test-Path $p){$b=(Get-ChildItem $p -Recurse -File -EA SilentlyContinue | Measure-Object Length -Sum).Sum; Remove-Item "$p\*" -Recurse -Force -EA SilentlyContinue; "windows_cache_cleaned=$p bytes=$b"}}' || true
+          echo
+
+          echo '## Stale process/service cleanup'
+          echo 'No broad process killing in pass 1. Current sidecar/worker/control services are protected.'
+          echo 'Stopping only exact legacy presentation/instrument services if they are running; no disable/delete.'
+          for u in archie-takeover-instrument.service archie-unified-atlas.service archie-surface.service archie-dashboard-truth.service; do
+            if systemctl --user is-active --quiet "$u" 2>/dev/null; then
+              echo "STOP_LEGACY_PRESENTATION $u"
+              systemctl --user stop "$u" || true
+            fi
+          done
+          echo
+
+          echo '## Install 2011 meme wallpaper rotation'
+          WALL="$WIN_USER/Pictures/2011 Meme Rotation"
+          SRC="$WALL/sources"
+          mkdir -p "$SRC"
+          cat > "$WALL/SOURCES.txt" <<'EOF'
+          Web-sourced classic meme templates; fetched 2026-08-19.
+          Success Kid: https://imgflip.com/s/meme/Success-Kid.jpg
+          Scumbag Steve: https://imgflip.com/s/meme/Scumbag-Steve.jpg
+          Philosoraptor: https://imgflip.com/s/meme/Philosoraptor.jpg
+          Troll Face: https://imgflip.com/s/meme/Troll-Face.jpg
+          Bad Luck Brian: https://imgflip.com/s/meme/Bad-Luck-Brian.jpg
+          Futurama Fry: https://imgflip.com/s/meme/Futurama-Fry.jpg
+          Ancient Aliens: https://imgflip.com/s/meme/Ancient-Aliens.jpg
+          One Does Not Simply: https://imgflip.com/s/meme/One-Does-Not-Simply.jpg
+          Nyan Cat: https://i.imgflip.com/atevl.jpg
+          Captions/layout are custom for Kai's PC spring-clean rotation.
+          EOF
+          declare -A URLS=(
+            [success]='https://imgflip.com/s/meme/Success-Kid.jpg'
+            [scumbag]='https://imgflip.com/s/meme/Scumbag-Steve.jpg'
+            [philo]='https://imgflip.com/s/meme/Philosoraptor.jpg'
+            [troll]='https://imgflip.com/s/meme/Troll-Face.jpg'
+            [badluck]='https://imgflip.com/s/meme/Bad-Luck-Brian.jpg'
+            [fry]='https://imgflip.com/s/meme/Futurama-Fry.jpg'
+            [aliens]='https://imgflip.com/s/meme/Ancient-Aliens.jpg'
+            [boromir]='https://imgflip.com/s/meme/One-Does-Not-Simply.jpg'
+            [nyan]='https://i.imgflip.com/atevl.jpg'
+          )
+          for k in "${!URLS[@]}"; do
+            curl -LfsS --connect-timeout 10 --max-time 40 "${URLS[$k]}" -o "$SRC/$k.jpg" || echo "DOWNLOAD_FAIL $k ${URLS[$k]}"
+          done
+
+          PS1_WIN='C:\Users\AwesomeKai\Pictures\2011 Meme Rotation\make-wallpapers.ps1'
+          cat > "$WALL/make-wallpapers.ps1" <<'EOF'
+          Add-Type -AssemblyName System.Drawing
+          $ErrorActionPreference='Stop'
+          $Root='C:\Users\AwesomeKai\Pictures\2011 Meme Rotation'
+          $Src=Join-Path $Root 'sources'
+          $items=@(
+            @{s='success.jpg'; a='CLEANED TEMP'; b='DIDN''T DELETE THE MODEL'},
+            @{s='scumbag.jpg'; a='SAYS "RELEASE ZIP"'; b='CONTAINS THE SAME 2.5 GB'},
+            @{s='philo.jpg'; a='IF CACHE IS REBUILDABLE'; b='WHY IS IT 47 GB'},
+            @{s='troll.jpg'; a='RUNS ONE MORE SIDECAR'; b='47 PORTS LATER'},
+            @{s='badluck.jpg'; a='DELETES ONE DUPLICATE'; b='IT WAS THE CANONICAL COPY'},
+            @{s='fry.jpg'; a='NOT SURE IF BACKUP'; b='OR SECOND PROBLEM'},
+            @{s='aliens.jpg'; a='DUPLICATE FILES?'; b='AGENTS'},
+            @{s='boromir.jpg'; a='ONE DOES NOT SIMPLY'; b='RM -RF ARCHIE'},
+            @{s='nyan.jpg'; a='GPU AT 0%'; b='STILL HEATING THE ROOM'},
+            @{s='success.jpg'; a='HASHED BOTH RUNS'; b='THEY''RE ACTUALLY DIFFERENT'},
+            @{s='philo.jpg'; a='IS IT A CHECKPOINT'; b='IF NOBODY KNOWS WHAT RESUMES IT'},
+            @{s='scumbag.jpg'; a='MAKES A TEMP DIR'; b='CALLS IT PERMANENT'}
+          )
+          function DrawCenterText($g,$text,$y,$font,$w){
+            $fmt=New-Object System.Drawing.StringFormat
+            $fmt.Alignment=[System.Drawing.StringAlignment]::Center
+            $fmt.LineAlignment=[System.Drawing.StringAlignment]::Center
+            $path=New-Object System.Drawing.Drawing2D.GraphicsPath
+            $em=$g.DpiY * $font.Size / 72
+            $path.AddString($text,$font.FontFamily,[int]$font.Style,$em,(New-Object System.Drawing.RectangleF(40,$y,$w-80,145)),$fmt)
+            $pen=New-Object System.Drawing.Pen([System.Drawing.Color]::Black,14)
+            $pen.LineJoin=[System.Drawing.Drawing2D.LineJoin]::Round
+            $g.DrawPath($pen,$path)
+            $g.FillPath([System.Drawing.Brushes]::White,$path)
+            $pen.Dispose(); $path.Dispose(); $fmt.Dispose()
+          }
+          $font=New-Object System.Drawing.Font('Impact',76,[System.Drawing.FontStyle]::Regular,[System.Drawing.GraphicsUnit]::Pixel)
+          $i=0
+          foreach($it in $items){
+            $i++
+            $in=Join-Path $Src $it.s
+            if(!(Test-Path $in)){continue}
+            $bmp=New-Object System.Drawing.Bitmap 1920,1080
+            $g=[System.Drawing.Graphics]::FromImage($bmp)
+            $g.SmoothingMode='HighQuality'; $g.InterpolationMode='HighQualityBicubic'; $g.TextRenderingHint='AntiAliasGridFit'
+            $rect=New-Object System.Drawing.Rectangle 0,0,1920,1080
+            $brush=New-Object System.Drawing.Drawing2D.LinearGradientBrush($rect,[System.Drawing.Color]::FromArgb(15,52,96),[System.Drawing.Color]::FromArgb(106,50,120),35)
+            $g.FillRectangle($brush,$rect); $brush.Dispose()
+            $img=[System.Drawing.Image]::FromFile($in)
+            $maxW=1180; $maxH=760
+            $scale=[Math]::Min($maxW/$img.Width,$maxH/$img.Height)
+            $dw=[int]($img.Width*$scale); $dh=[int]($img.Height*$scale)
+            $x=[int]((1920-$dw)/2); $y=[int]((1080-$dh)/2)
+            $shadow=New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(90,0,0,0))
+            $g.FillRectangle($shadow,$x+18,$y+18,$dw,$dh); $shadow.Dispose()
+            $g.DrawImage($img,$x,$y,$dw,$dh); $img.Dispose()
+            DrawCenterText $g $it.a 24 $font 1920
+            DrawCenterText $g $it.b 900 $font 1920
+            $g.Dispose()
+            $out=Join-Path $Root ('wallpaper-{0:D2}.jpg' -f $i)
+            $codec=[System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object MimeType -eq 'image/jpeg'
+            $ep=New-Object System.Drawing.Imaging.EncoderParameters 1
+            $ep.Param[0]=New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality,[long]84)
+            $bmp.Save($out,$codec,$ep); $ep.Dispose(); $bmp.Dispose()
+          }
+          $font.Dispose()
+          EOF
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$PS1_WIN" || true
+
+          cat > "$WALL/rotate.ps1" <<'EOF'
+          Add-Type @'
+          using System;
+          using System.Runtime.InteropServices;
+          public class KaiWallpaper {
+            [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+            public static extern bool SystemParametersInfo(int action, int param, string value, int flags);
+          }
+          '@
+          $Root='C:\Users\AwesomeKai\Pictures\2011 Meme Rotation'
+          $Pics=Get-ChildItem $Root -Filter 'wallpaper-*.jpg' | Sort-Object Name
+          if(!$Pics){exit 1}
+          $State=Join-Path $Root '.index'
+          $i=0
+          if(Test-Path $State){[void][int]::TryParse((Get-Content $State -Raw).Trim(),[ref]$i)}
+          $i=($i+1) % $Pics.Count
+          Set-Content -Path $State -Value $i -NoNewline
+          Set-ItemProperty 'HKCU:\Control Panel\Desktop' WallpaperStyle '10'
+          Set-ItemProperty 'HKCU:\Control Panel\Desktop' TileWallpaper '0'
+          [void][KaiWallpaper]::SystemParametersInfo(20,0,$Pics[$i].FullName,3)
+          EOF
+
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; Get-ScheduledTask | Where-Object { $_.TaskName -match "wallpaper|background" -and $_.TaskName -ne "Kai 2011 Meme Rotation" } | ForEach-Object { "OLD_WALLPAPER_TASK $($_.TaskName) $($_.State) actions=$((($_.Actions|ForEach-Object{"$($_.Execute) $($_.Arguments)"}) -join " | "))" }' || true
+          powershell.exe -NoLogo -NoProfile -Command '$ErrorActionPreference="Stop"; $script="C:\Users\AwesomeKai\Pictures\2011 Meme Rotation\rotate.ps1"; $a=New-ScheduledTaskAction -Execute "powershell.exe" -Argument ("-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `""+$script+"`""); $t=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15); $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited; Register-ScheduledTask -TaskName "Kai 2011 Meme Rotation" -Action $a -Trigger $t -Principal $p -Description "Classic web meme wallpaper rotation; 2011-ish; no AI-subject wallpaper generation." -Force | Out-Null; & $script; "WALLPAPER_TASK=INSTALLED pictures=$((Get-ChildItem (Split-Path $script) -Filter "wallpaper-*.jpg").Count)"' || true
+          echo
+
+          echo '## Control plane / GPU after'
+          for u in archie-shell-sidecar.service archie-agent-worker.service archie-live-exec.service archie-chatgpt-takeover.service archie-codex-bridge.service archie-control-plane-watchdog.timer; do
+            printf '%s: ' "$u"
+            systemctl --user is-active "$u" 2>/dev/null || true
+          done
+          nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu,power.draw --format=csv,noheader 2>/dev/null || true
+          nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader 2>/dev/null || true
+          echo
+
+          AFTER_C=$(df -B1 /mnt/c 2>/dev/null | awk 'NR==2{print $4}' || echo 0)
+          AFTER_L=$(df -B1 / 2>/dev/null | awk 'NR==2{print $4}' || echo 0)
+          echo '## Disk after'
+          df -h / /mnt/c || true
+          echo "windows_free_before_bytes=$BEFORE_C"
+          echo "windows_free_after_bytes=$AFTER_C"
+          echo "windows_delta_free_bytes=$((AFTER_C-BEFORE_C))"
+          echo "wsl_free_before_bytes=$BEFORE_L"
+          echo "wsl_free_after_bytes=$AFTER_L"
+          echo "wsl_delta_free_bytes=$((AFTER_L-BEFORE_L))"
+          echo
+          echo '## Pass-1 decision'
+          echo 'Large duplicate groups were only inventoried. Next pass may delete exact redundant payloads only after reading this receipt and honoring protected PWA/Archie/ACSC/V13 constraints.'
+
+          # Append durable machine-side receipt without destroying the earlier evidence inventory.
+          {
+            echo
+            echo
+            echo '---'
+            echo
+            cat "$OUT"
+          } >> "$NANNY" 2>/dev/null || true
+
+      - name: Publish nanny receipt into repo
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p machine-receipts
+          cp "$RUNNER_TEMP/pc-nanny-v1.md" machine-receipts/pc-nanny-latest.md 2>/dev/null || printf '# PC nanny\nNo receipt produced.\n' > machine-receipts/pc-nanny-latest.md
+          git config user.name 'pc-nanny[bot]'
+          git config user.email 'pc-nanny[bot]@users.noreply.github.com'
+          git add machine-receipts/pc-nanny-latest.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'PC nanny receipt [skip ci]'
+          git push
