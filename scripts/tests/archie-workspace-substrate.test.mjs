@@ -107,4 +107,4 @@ test('HTTP service separates public reads from private reads and keeps mutation 
   assert.equal(artifact.status, 200);
   assert.equal(artifact.headers.get('x-archie-artifact-id'), 'artifact_alpha');
   assert.equal(await artifact.text(), 'verified result\n');
-}
+});

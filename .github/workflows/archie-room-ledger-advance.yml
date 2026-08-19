@@ -1,0 +1,86 @@
+name: ARCHIE room ledger advance
+
+# Every other workflow in this repository is workflow_dispatch or push-path
+# only, so the room cursor advances solely when a human or an agent fires it.
+# This is the scheduled path: it folds new room events into the stored cursor
+# and commits the result, so state persists without a reader returning to poke
+# it. Read-only with respect to the room log and the GPU.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/archie-room-ledger-advance.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: archie-room-ledger-advance
+  cancel-in-progress: false
+
+jobs:
+  advance:
+    runs-on: [self-hosted, sideways-maker]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Fold new room events into the stored cursor
+        id: fold
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOM=/home/awesomekai/archie-remote/roast.jsonl
+          CONTROL=remote/kai-control.json
+          OUT="$RUNNER_TEMP/room-ledger.txt"
+          exec > >(tee "$OUT") 2>&1
+
+          echo ARCHIE_ROOM_LEDGER_ADVANCE_V1
+          date -Iseconds
+          hostname
+
+          command -v node >/dev/null || { echo 'node=missing on runner'; exit 2; }
+          node --version
+
+          before=$(node -e "try{process.stdout.write(String(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).seq??0))}catch{process.stdout.write('0')}" "$CONTROL")
+          echo "cursor_before=$before"
+          echo "room_lines=$(wc -l < "$ROOM" 2>/dev/null || echo 0)"
+
+          # The fold reads the room log and writes only the control file. It
+          # never claims the GPU and never restarts a service.
+          node scripts/archie-room-ledger.mjs --room "$ROOM" --control "$CONTROL" --json
+
+          after=$(node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).seq??0))" "$CONTROL")
+          echo "cursor_after=$after"
+          echo "advanced=$(( after - before ))" >> "$GITHUB_OUTPUT"
+
+      - name: Commit the advanced cursor
+        if: steps.fold.outputs.advanced != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet -- remote/kai-control.json && { echo 'cursor unchanged on disk'; exit 0; }
+          git config user.name 'archie-room-ledger'
+          git config user.email 'archie-room-ledger@users.noreply.github.com'
+          git add remote/kai-control.json
+          git commit -m "room ledger: advance cursor by ${{ steps.fold.outputs.advanced }} event(s)"
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin "${{ github.ref_name }}" && git push origin "HEAD:${{ github.ref_name }}" && exit 0
+            sleep $(( 2 ** attempt ))
+          done
+          echo 'cursor commit failed after 4 attempts'
+          exit 1
+
+      - name: Upload ledger receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archie-room-ledger-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/room-ledger.txt
+          if-no-files-found: warn
+          retention-days: 7
