@@ -1,0 +1,69 @@
+name: Direct TS contract probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/direct-ts-contract-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe command proxy contract with harmless command
+        shell: python
+        run: |
+          import base64, json, urllib.parse, urllib.request, urllib.error, os
+          command="printf DIRECT_TS_CONTRACT_OK"
+          b=base64.urlsafe_b64encode(command.encode()).decode().rstrip('=')
+          hosts=[
+            'https://archie-direct-ts-cmd.vercel.app/api/cmd',
+            'https://archie-live-cmd-proxy.vercel.app/api/cmd',
+          ]
+          cases=[]
+          for host in hosts:
+            cases += [
+              ('GET-b', host+'?'+urllib.parse.urlencode({'b':b}), 'GET', None, {}),
+              ('GET-cmd-plain', host+'?'+urllib.parse.urlencode({'cmd':command}), 'GET', None, {}),
+              ('GET-cmd-b64', host+'?'+urllib.parse.urlencode({'cmd':b}), 'GET', None, {}),
+              ('GET-command', host+'?'+urllib.parse.urlencode({'command':command}), 'GET', None, {}),
+              ('GET-q', host+'?'+urllib.parse.urlencode({'q':command}), 'GET', None, {}),
+              ('GET-route-b', host+'?'+urllib.parse.urlencode({'route':'cmd','b':b}), 'GET', None, {}),
+              ('POST-json-cmd', host, 'POST', json.dumps({'cmd':command}).encode(), {'content-type':'application/json'}),
+              ('POST-json-b', host, 'POST', json.dumps({'b':b}).encode(), {'content-type':'application/json'}),
+              ('POST-form-cmd', host, 'POST', urllib.parse.urlencode({'cmd':command}).encode(), {'content-type':'application/x-www-form-urlencoded'}),
+              ('POST-form-b', host, 'POST', urllib.parse.urlencode({'b':b}).encode(), {'content-type':'application/x-www-form-urlencoded'}),
+              ('POST-query-b', host+'?'+urllib.parse.urlencode({'b':b}), 'POST', b'', {}),
+              ('POST-text', host, 'POST', command.encode(), {'content-type':'text/plain'}),
+            ]
+          lines=['DIRECT_TS_CONTRACT_PROBE_V1']
+          for label,url,method,data,headers in cases:
+            req=urllib.request.Request(url,data=data,method=method,headers={'accept':'application/json','user-agent':'archie-contract-probe',**headers})
+            try:
+              with urllib.request.urlopen(req,timeout=12) as r:
+                body=r.read(4000).decode('utf-8','replace')
+                lines.append(f'{label} | {urllib.parse.urlsplit(url).netloc} | {r.status} | {body!r}')
+            except urllib.error.HTTPError as e:
+              body=e.read(4000).decode('utf-8','replace')
+              lines.append(f'{label} | {urllib.parse.urlsplit(url).netloc} | {e.code} | {body!r}')
+            except Exception as e:
+              lines.append(f'{label} | {urllib.parse.urlsplit(url).netloc} | ERR | {type(e).__name__}:{e}')
+          out=os.path.join(os.environ['RUNNER_TEMP'],'direct-ts-contract.txt')
+          open(out,'w',encoding='utf-8').write('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+
+      - name: Publish probe receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs');
+            const p=process.env.RUNNER_TEMP+'/direct-ts-contract.txt';
+            let text='NO_RECEIPT'; try{text=fs.readFileSync(p,'utf8')}catch(e){text+=` ${e}`}
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`DIRECT_TS_CONTRACT_RECEIPT\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
