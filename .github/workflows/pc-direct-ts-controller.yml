@@ -1,0 +1,71 @@
+name: PC direct TS controller
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: pc-direct-ts-controller
+  cancel-in-progress: false
+
+jobs:
+  command:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 771 &&
+      github.event.comment.user.login == github.repository_owner &&
+      startsWith(github.event.comment.body, '/tsctl ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Send command through direct TS proxy
+        id: send
+        shell: python
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          import base64, json, os, urllib.request, urllib.error
+          raw=os.environ['BODY'][len('/tsctl '):].strip()
+          raw += '='*((4-len(raw)%4)%4)
+          cmd=base64.urlsafe_b64decode(raw.encode()).decode('utf-8')
+          if not cmd.strip(): raise SystemExit('empty command')
+          if len(cmd)>120000: raise SystemExit('command too large')
+          url='https://archie-direct-ts-cmd.vercel.app/api/cmd'
+          body=json.dumps({'cmd':cmd,'timeout':3600}).encode()
+          req=urllib.request.Request(url,data=body,method='POST',headers={'content-type':'application/json','accept':'application/json'})
+          out=os.environ['RUNNER_TEMP']+'/tsctl-response.txt'
+          try:
+            with urllib.request.urlopen(req,timeout=3610) as r:
+              text=r.read().decode('utf-8','replace')
+              status=r.status
+              headers=dict(r.headers.items())
+          except urllib.error.HTTPError as e:
+            status=e.code; text=e.read().decode('utf-8','replace'); headers=dict(e.headers.items())
+          except Exception as e:
+            status=0; text=repr(e); headers={}
+          with open(out,'w',encoding='utf-8') as f:
+            f.write('TSCTL_RESPONSE_V1\n')
+            f.write(f'http_status={status}\n')
+            if 'x-archie-relay' in {k.lower():v for k,v in headers.items()}:
+              f.write('relay_header_present=true\n')
+            f.write(text[:120000])
+          print(f'http_status={status}')
+          print(f'output_path={out}',file=open(os.environ['GITHUB_OUTPUT'],'a'))
+
+      - name: Publish direct-controller receipt
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          OUT_PATH: ${{ steps.send.outputs.output_path }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs');
+            let text='NO_RECEIPT';
+            try{text=fs.readFileSync(process.env.OUT_PATH,'utf8')}catch(e){text += ` ${String(e)}`}
+            if(text.length>60000)text=text.slice(0,60000)+`\n...[truncated ${text.length-60000} chars]`;
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`TSCTL_RECEIPT\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
