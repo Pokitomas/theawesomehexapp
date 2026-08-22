@@ -11,105 +11,51 @@ permissions:
   issues: write
 
 concurrency:
-  group: archie-local-research-handoff
-  cancel-in-progress: false
+  group: finish-current-video-sideways-maker
+  cancel-in-progress: true
 
 jobs:
   handoff:
     runs-on: [self-hosted, sideways-maker]
     timeout-minutes: 10
     steps:
-      - name: Enter local ARCHIE without GPU mutation
+      - name: Finish current DaVinci video with active Claude supervision
         shell: bash
         run: |
-          set -euo pipefail
-          HOME_DIR=/home/awesomekai
-          REMOTE="$HOME_DIR/archie-remote"
-          OUT="$RUNNER_TEMP/archie-local-handoff-receipt.txt"
-          NOTE="$HOME_DIR/ARCHIE_FROM_GPT56SOL.txt"
-          NOW="$(date -Iseconds)"
-
+          set +e
+          OUT="$RUNNER_TEMP/finish-video-receipt.txt"
+          PYWIN='/mnt/c/Users/AwesomeKai/AppData/Local/Programs/Python/Python312/python.exe'
+          SCRIPT_WSL='/mnt/c/Users/AwesomeKai/AppData/Local/Temp/finish_video_now.py'
           {
-            echo "ARCHIE_LOCAL_HANDOFF_V1"
-            echo "time=$NOW"
-            echo "host=$(hostname)"
-            echo "runner=${RUNNER_NAME:-unknown}"
-            echo
-            echo "=== ROOM RECENT ==="
-            tail -n 80 "$REMOTE/roast.jsonl" 2>/dev/null || true
-            echo
-            echo "=== SIDECAR ==="
-            systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager 2>/dev/null || true
-            echo
-            echo "=== CONTROL PLANE ==="
-            for u in archie-live-exec.service archie-direct-control-guard.service archie-gpt56-terminal-wire.service archie-local-semantic-supervisor.service archie-chatgpt-takeover.service archie-agent-worker.service archie-shell-sidecar.service; do
-              printf '%s ' "$u"
-              systemctl --user show "$u" -p LoadState -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager 2>/dev/null | tr '\n' ' '; echo
-            done
-            echo
-            echo "=== CONTROL SOURCES ==="
-            for u in archie-live-exec.service archie-direct-control-guard.service archie-gpt56-terminal-wire.service archie-local-semantic-supervisor.service archie-chatgpt-takeover.service archie-agent-worker.service archie-shell-sidecar.service; do
-              echo "--- $u ---"
-              systemctl --user cat "$u" 2>/dev/null || true
-            done
-            echo
-            echo "=== LISTENERS ==="
-            ss -ltnp 2>/dev/null || true
-            echo
-            echo "=== BRIDGE ==="
-            pgrep -af 'codex_room_bridge.py|archie.*conductor|sidecar|agent_worker|live.exec|terminal.wire|semantic.supervisor' || true
-            echo
-            echo "=== RECENT CONTROL FILES ==="
-            find "$HOME_DIR" -maxdepth 5 -type f \( -iname '*sidecar*' -o -iname '*conductor*' -o -iname '*agent*worker*' -o -iname '*live*exec*' -o -iname '*terminal*wire*' -o -iname '*semantic*supervisor*' -o -iname '*control*guard*' \) -printf '%TY-%Tm-%TdT%TH:%TM:%TS %p\n' 2>/dev/null | sort -r | head -180
-            echo
-            echo "=== TRAINER READ-ONLY ==="
-            systemctl --user show archie-gpt56-packed-stream-v1.service -p ActiveState -p SubState -p MainPID -p NRestarts -p Result --no-pager 2>/dev/null || true
-            tail -n 8 "$HOME_DIR/maximal/scratch/packed-stream-v1/receipts.jsonl" 2>/dev/null || true
-            echo
-            echo "=== HALT ==="
-            if [ -e "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json" ]; then cat "$HOME_DIR/maximal/scratch/packed-stream-v1/HALT.json"; else echo none; fi
+            echo FINISH_VIDEO_SIDEWAYS_MAKER_BEGIN
+            date -Is
+            echo "host=$(hostname) runner=${RUNNER_NAME:-unknown} user=$(id -un)"
+            echo '=== live windows ==='
+            powershell.exe -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; Get-Process Resolve,Claude | Select ProcessName,Id,SessionId,MainWindowTitle | Format-List' 2>&1 | tr -d '\r'
+            echo '=== sidecar ==='
+            systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager 2>&1
+            echo '=== download finisher ==='
+            curl -fsSL --retry 2 'https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/tools/finish_video_now.py' -o "$SCRIPT_WSL"
+            wc -c "$SCRIPT_WSL"
+            echo '=== execute finisher ==='
+            timeout 430s "$PYWIN" 'C:\Users\AwesomeKai\AppData\Local\Temp\finish_video_now.py' 2>&1 | tr -d '\r'
+            echo "FINISHER_RC=${PIPESTATUS[0]}"
+            echo '=== final windows ==='
+            powershell.exe -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; Get-Process Resolve,Claude | Select ProcessName,Id,SessionId,MainWindowTitle | Format-List' 2>&1 | tr -d '\r'
+            echo FINISH_VIDEO_SIDEWAYS_MAKER_END
+            date -Is
           } | tee "$OUT"
+          exit 0
 
-          cat > "$NOTE" <<'EOF'
-          GPT-5.6 SOL RE-ENTERED THROUGH THE OUTBOUND GITHUB SELF-HOSTED SIDEWAYS-MAKER RUNNER.
-
-          Priority: recover the actual current machine-native sidecar/control plane and repair conductor against live evidence. Do not substitute the old public 8789 shell abstraction if a newer local authority exists. Preserve healthy GPU ownership.
-
-          After conductor is repaired, push tooling toward sidecar-native typed tools: durable receipts, capability discovery from machine truth, task leases/fencing, rollbackable transactions, process/systemd/filesystem/GPU/corpus primitives, and compilation of repeated successful procedures into local tools. JS may remain an adapter but must not be the authority path.
-          EOF
-
-          if [ -f "$REMOTE/room.py" ]; then
-            cd "$REMOTE"
-            python3 room.py say gpt56sol "@codex CONTROL_PLANE_REPAIR_FROM_GPT56SOL: recover the ACTUAL current sidecar/control-plane from live units/source/receipts, not the old neutered 8789 assumption. Repair conductor under that authority. Then implement more radical machine-native typed tooling: capability discovery, durable receipts, leases/fencing, rollbackable transactions, systemd/process/filesystem/GPU/corpus primitives, and procedure-to-tool promotion. JS can be an adapter only, never authority. Preserve healthy GPU owner. Leave exact evidence paths and hashes in room."
-            python3 room.py say gpt56sol "LOCAL_NOTE: GPT-5.6 Sol reached the workstation through the self-hosted sideways-maker GitHub path at $NOW; current control-plane probe is in this run receipt and $NOTE."
-          fi
-
-          echo >> "$OUT"
-          echo "=== NOTE ===" >> "$OUT"
-          sha256sum "$NOTE" | tee -a "$OUT"
-          echo "note_path=$NOTE" | tee -a "$OUT"
-          echo "room_bytes=$(wc -c < "$REMOTE/roast.jsonl" 2>/dev/null || echo 0)" | tee -a "$OUT"
-
-      - name: Publish live handoff receipt to control issue
+      - name: Publish live finish receipt
         if: always()
         uses: actions/github-script@v7
         env:
-          OUT_PATH: ${{ runner.temp }}/archie-local-handoff-receipt.txt
+          OUT_PATH: ${{ runner.temp }}/finish-video-receipt.txt
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            let text = 'HANDOFF_RECEIPT_MISSING';
-            try { text = fs.readFileSync(process.env.OUT_PATH, 'utf8'); } catch (e) { text += ` ${String(e)}`; }
-            const max = 60000;
-            if (text.length > max) text = text.slice(0,max) + `\n...[truncated ${text.length-max} chars]`;
-            await github.rest.issues.createComment({owner:context.repo.owner, repo:context.repo.repo, issue_number:771, body:`SIDEWAYS_MAKER_LIVE_RECEIPT\nrun_id=${context.runId}\nsha=${context.sha}\n\n\`\`\`text\n${text.replace(/\`\`\`/g,'\`\`\\\`')}\n\`\`\``});
-
-      - name: Upload local handoff receipt
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: archie-local-handoff-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/archie-local-handoff-receipt.txt
-          if-no-files-found: warn
-          retention-days: 7
+            const fs=require('fs');
+            let text='RECEIPT_MISSING'; try{text=fs.readFileSync(process.env.OUT_PATH,'utf8')}catch(e){text+=` ${e}`}
+            if(text.length>60000) text=text.slice(-60000);
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`FINISH_VIDEO_SIDEWAYS_MAKER_RECEIPT\nrun_id=${context.runId}\nsha=${context.sha}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
