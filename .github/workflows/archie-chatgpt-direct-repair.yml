@@ -10,17 +10,77 @@ permissions:
   contents: read
 
 jobs:
-  smoke:
+  probe-real-control-plane:
     runs-on: self-hosted
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Prove workstation runner
+      - name: Probe real workstation control plane
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
+          export SYSTEMD_PAGER=cat PAGER=cat
           REMOTE=/home/awesomekai/archie-remote
-          test -d "$REMOTE"
-          printf '[%s] chatgpt: SELF-HOSTED RUNNER LANDED on %s. Direct local execution path is alive.\n' "$(date +%T)" "$(hostname)" | tee -a "$REMOTE/CHATGPT_VISIBLE_STREAM.txt"
-          echo "host=$(hostname)"
-          echo "runner=${RUNNER_NAME:-unknown}"
-          systemctl --user show archie-shell-sidecar.service -p ActiveState -p SubState -p MainPID --no-pager
+          mkdir -p "$REMOTE"
+          OUT="$REMOTE/CHATGPT_REAL_CONTROL_PROBE_20260822.txt"
+          exec > >(tee "$OUT") 2>&1
+          echo '=== ARCHIE REAL CONTROL PROBE 2026-08-22 ==='
+          date -Is
+          echo "host=$(hostname) runner=${RUNNER_NAME:-unknown} user=$(id -un) uid=$(id -u)"
+          echo
+          echo '=== RUNNING/LOADED ARCHIE USER UNITS ==='
+          systemctl --user list-units --all --type=service --no-pager --plain | grep -Ei 'archie|sidecar|conductor|supervisor|terminal|wire|exec|guard|watchdog|agent|worker' || true
+          echo
+          echo '=== KNOWN CONTROL UNITS ==='
+          for u in archie-live-exec.service archie-direct-control-guard.service archie-gpt56-terminal-wire.service archie-local-semantic-supervisor.service archie-chatgpt-takeover.service archie-agent-worker.service archie-shell-sidecar.service; do
+            echo "--- $u ---"
+            systemctl --user show "$u" --no-pager -p LoadState -p ActiveState -p SubState -p MainPID -p NRestarts -p Result -p FragmentPath -p ExecStart 2>/dev/null || true
+          done
+          echo
+          echo '=== TIMERS ==='
+          systemctl --user list-timers --all --no-pager | grep -Ei 'archie|control|watch|sidecar|conductor|agent' || true
+          echo
+          echo '=== CONTROL UNIT DEFINITIONS ==='
+          for u in archie-live-exec.service archie-direct-control-guard.service archie-gpt56-terminal-wire.service archie-local-semantic-supervisor.service archie-chatgpt-takeover.service archie-agent-worker.service archie-shell-sidecar.service; do
+            echo "--- $u ---"
+            systemctl --user cat "$u" 2>/dev/null || true
+          done
+          echo
+          echo '=== LISTENERS ==='
+          ss -ltnp 2>/dev/null || true
+          echo
+          echo '=== UNIX SOCKETS ==='
+          ss -lxnp 2>/dev/null | grep -Ei 'archie|python|node|codex|claude' || true
+          echo
+          echo '=== CONTROL PROCESSES ==='
+          ps -eo pid,ppid,lstart,etimes,%cpu,%mem,args --sort=-lstart | grep -Ei '[a]rchie|[s]idecar|[c]onductor|[s]upervisor|[t]erminal|[l]ive-exec|[d]irect-control|[a]gent-worker|[c]odex' | head -180 || true
+          echo
+          echo '=== RECENT CONTROL FILES ==='
+          find /home/awesomekai -maxdepth 5 -type f \( -iname '*sidecar*' -o -iname '*conductor*' -o -iname '*live*exec*' -o -iname '*direct*control*' -o -iname '*terminal*wire*' -o -iname '*supervisor*' -o -iname '*agent*worker*' -o -iname '*watchdog*' \) -printf '%TY-%Tm-%TdT%TH:%TM:%TS %p\n' 2>/dev/null | sort -r | head -250
+          echo
+          echo '=== RECENT ARCHIE-REMOTE ==='
+          find "$REMOTE" -maxdepth 3 -type f -printf '%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n' 2>/dev/null | sort -r | head -250
+          echo
+          echo '=== SERVICE SOURCE SURVEY ==='
+          for u in archie-live-exec.service archie-direct-control-guard.service archie-gpt56-terminal-wire.service archie-local-semantic-supervisor.service archie-chatgpt-takeover.service archie-agent-worker.service archie-shell-sidecar.service; do
+            frag=$(systemctl --user show "$u" -p FragmentPath --value 2>/dev/null || true)
+            [ -n "$frag" ] || continue
+            echo "--- source via $u :: $frag ---"
+            grep -nE 'ExecStart|Environment|WorkingDirectory' "$frag" 2>/dev/null || true
+          done
+          echo
+          echo '=== RECENT JOURNALS ==='
+          for u in archie-live-exec.service archie-direct-control-guard.service archie-gpt56-terminal-wire.service archie-local-semantic-supervisor.service archie-chatgpt-takeover.service archie-agent-worker.service archie-shell-sidecar.service; do
+            echo "--- $u ---"
+            journalctl --user -u "$u" -n 80 --no-pager 2>/dev/null || true
+          done
+          echo
+          echo '=== TAILSCALE ==='
+          tailscale status 2>/dev/null | head -80 || true
+          tailscale serve status 2>/dev/null || true
+          tailscale funnel status 2>/dev/null || true
+          echo
+          echo '=== GPU ==='
+          /usr/lib/wsl/lib/nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw --format=csv,noheader 2>/dev/null || nvidia-smi 2>/dev/null || true
+          echo
+          echo '=== END PROBE ==='
+          printf '[%s] chatgpt: real control-plane probe complete: %s\n' "$(date +%T)" "$OUT" >> "$REMOTE/CHATGPT_VISIBLE_STREAM.txt"
