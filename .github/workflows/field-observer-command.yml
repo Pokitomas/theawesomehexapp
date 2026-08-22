@@ -1,0 +1,32 @@
+name: Current field run observer
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  observe:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 771 &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.body == '/field-observe'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const names=['current-field-actuator-doh.yml','current-field-actuator.yml'];
+            const lines=['CURRENT_FIELD_RUNS'];
+            for(const workflow_id of names){
+              const {data}=await github.rest.actions.listWorkflowRuns({owner:context.repo.owner,repo:context.repo.repo,workflow_id,per_page:5});
+              lines.push(`== ${workflow_id} ==`);
+              for(const r of data.workflow_runs) lines.push(`${r.id} | ${r.status} | ${r.conclusion||'-'} | ${r.created_at} | ${r.head_sha}`);
+            }
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:'```text\n'+lines.join('\n')+'\n```'});
