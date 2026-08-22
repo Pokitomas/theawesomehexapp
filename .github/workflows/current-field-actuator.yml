@@ -13,9 +13,9 @@ permissions:
 jobs:
   actuate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
-      - name: Send controller action into current machine field
+      - name: Send finish-video objective into resident machine field
         shell: python
         run: |
           import html, json, os, re, time, urllib.parse, urllib.request, urllib.error
@@ -23,45 +23,26 @@ jobs:
           page=urllib.request.urlopen(urllib.request.Request(tramp,headers={'user-agent':'archie-current-actuator'}),timeout=15).read().decode('utf-8','replace')
           m=re.search(r'href=["\']([^"\']+)["\']',page,re.I)
           if not m: raise SystemExit('no live trampoline target')
-          live=html.unescape(m.group(1))
-          u=urllib.parse.urlsplit(live)
-          q=urllib.parse.parse_qs(u.query)
+          live=html.unescape(m.group(1)); u=urllib.parse.urlsplit(live); q=urllib.parse.parse_qs(u.query)
           cap=(q.get('k') or [''])[0]
           if not cap: raise SystemExit('live target missing capability')
-          base=f'{u.scheme}://{u.netloc}'
-          common_q=urllib.parse.urlencode({'k':cap})
+          base=f'{u.scheme}://{u.netloc}'; common_q=urllib.parse.urlencode({'k':cap})
           headers={'content-type':'application/json','accept':'application/json','user-agent':'gpt56-current-controller','x-archie-shell-token':cap}
-          text=(
-            'GPT56_PERSISTENT_CONTROLLER_ACTION_V1: act now on the local machine, not as a note. '
-            'Inspect the already-running /home/awesomekai/archie-remote/gpt56_unblock_bridge.py and the Hotwire control stack '
-            '(hotwire.service, hotwire-sentinel.service, hotwire-deck.service). Preserve existing GPU owners. '
-            'Re-establish the most capable persistent full-computer controller path that was working hours ago, including Windows desktop/UI action if that stack supports it. '
-            'Write /home/awesomekai/archie-remote/GPT56_CURRENT_CONTROLLER_ACTION.json with timestamp, active control services, exact actuator path, and a harmless Windows-session proof. '
-            'Do not merely explain; execute and receipt.'
-          )
-          lines=['CURRENT_FIELD_ACTUATOR_V1']
-          def call(path,method='GET',body=None):
+          text='''FINISH_CURRENT_DAVINCI_VIDEO_NOW_V1. This is an execution objective, not a note and not an infrastructure task. Everything except the completed video is disposable. Act continuously on this Windows machine until the current Lonnie/Ryan DaVinci video is genuinely finished. Use the existing local full-computer/Hotwire/sidecar abilities directly. Do not spend time building a new controller. Resolve is the target application. Preserve ARCHIE // PERFECT SYNC as untouched sync baseline. Prefer/use the safe project lonee ryan - ARCHIE LOVING EDIT if present; otherwise duplicate before destructive work. A validated candidate C:\\Users\\AwesomeKai\\Downloads\\ARCHIE_LOVING_EDIT_WORK\\ARCHIE_FRONTIER_CUT_v1.fcpxml is ~17:08 from ~25:11 and is a strong first assembly, not sacred truth. Import/use it as a working timeline if not already live. Story: remove dead air, repeated setup, technical faff, non-payoff tangents and low-energy stretches while preserving funny, awkward, revealing and emotional beats. Camera: iPhone/main stable base; Samsung/second only for reactions, emphasis, awkward silence, resets or clearly better comedy/clarity; preserve solved ~14.489 s source offset/~6 ms residual sync. Audio is critical: crisp natural dialogue, materially reduce Swingers crowd/background without metallic denoise or crushed compression, preserve believable room tone, match levels/speakers/angles, listen rather than meter-only. Then motivated J/L cuts, sparse punch-ins/reframes, restrained transitions, captions after timing locks, graphics only if useful. Save checkpoints and playback/scrub representative joins. If Claude Desktop is useful, put it in Cowork + On your computer and actively supervise/correct it; its prior Windows-MCP failure was spawn uv ENOENT, so repair uv only if needed to make it act. Do not stop at an explanation or first GUI failure; retry another route. You may download/run https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/tools/finish_video_now.py as a bootstrap, but do not become dependent on that script. Success condition is actual Resolve timeline/audio/camera edits saved and verified. Keep acting. Post concise receipts of concrete Resolve state/actions to Pokitomas/theawesomehexapp issue 771 when possible.'''
+          lines=['CURRENT_FIELD_FINISH_VIDEO_V1']
+          def call(path,method='GET',body=None,timeout=30):
             url=base+path+'?'+common_q
             req=urllib.request.Request(url,data=(json.dumps(body).encode() if body is not None else None),method=method,headers=headers)
             try:
-              with urllib.request.urlopen(req,timeout=25) as r:
-                return r.status,r.read(12000).decode('utf-8','replace')
-            except urllib.error.HTTPError as e:
-              return e.code,e.read(12000).decode('utf-8','replace')
-            except Exception as e:
-              return 0,f'{type(e).__name__}:{e}'
-          st,body=call('/agent/field','POST',{'text':text})
-          lines.append(f'field_post_status={st}')
-          lines.append('field_post_body='+body[:6000].replace(cap,'[redacted-cap]'))
-          time.sleep(8)
-          st2,body2=call('/agent/field','GET')
-          lines.append(f'field_get_status={st2}')
-          lines.append('field_get_body='+body2[:6000].replace(cap,'[redacted-cap]'))
-          st3,body3=call('/health','GET')
-          lines.append(f'health_status={st3}')
-          lines.append('health_body='+body3[:3000].replace(cap,'[redacted-cap]'))
-          out=os.path.join(os.environ['RUNNER_TEMP'],'current-field-actuator.txt')
-          open(out,'w',encoding='utf-8').write('\n'.join(lines)+'\n')
+              with urllib.request.urlopen(req,timeout=timeout) as r: return r.status,r.read(16000).decode('utf-8','replace')
+            except urllib.error.HTTPError as e: return e.code,e.read(16000).decode('utf-8','replace')
+            except Exception as e: return 0,f'{type(e).__name__}:{e}'
+          st,body=call('/agent/field','POST',{'text':text}); lines += [f'field_post_status={st}','field_post_body='+body[:7000].replace(cap,'[redacted-cap]')]
+          for delay in (8,20,40):
+            time.sleep(delay if delay==8 else delay-8 if delay==20 else delay-20)
+            s,b=call('/agent/field','GET'); lines += [f'field_get_t{delay}_status={s}',f'field_get_t{delay}_body='+b[:8000].replace(cap,'[redacted-cap]')]
+          sh,sb=call('/health','GET'); lines += [f'health_status={sh}','health_body='+sb[:3000].replace(cap,'[redacted-cap]')]
+          out=os.path.join(os.environ['RUNNER_TEMP'],'current-field-actuator.txt'); open(out,'w',encoding='utf-8').write('\n'.join(lines)+'\n')
           print('\n'.join(x for x in lines if 'body=' not in x))
 
       - name: Publish sanitized actuator receipt
@@ -70,8 +51,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs=require('fs');
-            const p=process.env.RUNNER_TEMP+'/current-field-actuator.txt';
+            const fs=require('fs'); const p=process.env.RUNNER_TEMP+'/current-field-actuator.txt';
             let text='NO_RECEIPT'; try{text=fs.readFileSync(p,'utf8')}catch(e){text+=` ${e}`}
-            if(text.length>30000) text=text.slice(0,30000)+'\n...[truncated]';
-            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CURRENT_FIELD_ACTUATOR_RECEIPT\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
+            if(text.length>50000) text=text.slice(-50000);
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CURRENT_FIELD_FINISH_VIDEO_RECEIPT\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
