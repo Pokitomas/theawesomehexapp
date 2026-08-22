@@ -22,7 +22,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const names=['current-field-actuator-doh.yml','current-field-actuator.yml'];
+            const names=['live-tunnel-sidecar-post.yml','hosted-tailnet-sidecar.yml','current-field-actuator-doh.yml','current-field-actuator.yml'];
             const lines=['CURRENT_FIELD_RUNS'];
             for(const workflow_id of names){
               const {data}=await github.rest.actions.listWorkflowRuns({owner:context.repo.owner,repo:context.repo.repo,workflow_id,per_page:5});
