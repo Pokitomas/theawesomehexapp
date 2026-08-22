@@ -1,0 +1,34 @@
+name: PC controller observer
+
+on:
+  push:
+    paths:
+      - '.github/workflows/pc-controller-observer.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish controller run state
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const names=['pc-persistent-controller.yml','pc-full-control-probe.yml','archie-local-research-handoff.yml','archie-chatgpt-direct-repair.yml'];
+            const lines=['PC_CONTROLLER_RUN_STATE',`observer_run=${context.runId}`,''];
+            for (const workflow_id of names) {
+              try {
+                const {data}=await github.rest.actions.listWorkflowRuns({owner:context.repo.owner,repo:context.repo.repo,workflow_id,per_page:8});
+                lines.push(`== ${workflow_id} ==`);
+                for (const r of data.workflow_runs) lines.push(`${r.id} | ${r.status} | ${r.conclusion||'-'} | ${r.event} | ${r.created_at} | ${r.head_sha}`);
+              } catch(e) {
+                lines.push(`== ${workflow_id} == ERROR ${String(e)}`);
+              }
+            }
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:'```text\n'+lines.join('\n')+'\n```'});
