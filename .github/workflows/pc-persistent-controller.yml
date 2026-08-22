@@ -1,0 +1,86 @@
+name: PC persistent controller
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: pc-persistent-controller
+  cancel-in-progress: false
+
+jobs:
+  command:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 771 &&
+      github.event.comment.user.login == github.repository_owner &&
+      startsWith(github.event.comment.body, '/pcctl ')
+    runs-on: [self-hosted, Windows]
+    timeout-minutes: 60
+    steps:
+      - name: Execute owner command on workstation
+        id: exec
+        shell: powershell
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          $ErrorActionPreference='Continue'
+          $out=Join-Path $env:RUNNER_TEMP ("pcctl-{0}.txt" -f $env:GITHUB_RUN_ID)
+          $body=$env:BODY
+          $b64=$body.Substring('/pcctl '.Length).Trim()
+          try {
+            $pad=(4-($b64.Length % 4)) % 4
+            if($pad){$b64 += ('=' * $pad)}
+            $b64=$b64.Replace('-','+').Replace('_','/')
+            $bytes=[Convert]::FromBase64String($b64)
+            $script=[Text.Encoding]::UTF8.GetString($bytes)
+            if([string]::IsNullOrWhiteSpace($script)){throw 'empty command'}
+            if($script.Length -gt 120000){throw 'command too large'}
+            $cmd=Join-Path $env:RUNNER_TEMP ("pcctl-{0}.ps1" -f $env:GITHUB_RUN_ID)
+            [IO.File]::WriteAllText($cmd,$script,(New-Object Text.UTF8Encoding($false)))
+            $wp=[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+            @(
+              'PC_PERSISTENT_CONTROLLER_V1'
+              "time=$([DateTimeOffset]::Now.ToString('o'))"
+              "computer=$env:COMPUTERNAME"
+              "runner=$env:RUNNER_NAME"
+              "identity=$([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+              "is_admin=$($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+              "session=$PID/$((Get-Process -Id $PID).SessionId)"
+            ) | Set-Content -LiteralPath $out -Encoding UTF8
+            & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $cmd *>> $out
+            $rc=$LASTEXITCODE
+          } catch {
+            "CONTROLLER_EXCEPTION=$($_.Exception.Message)" | Add-Content -LiteralPath $out
+            $rc=97
+          }
+          "exit_code=$rc" | Add-Content -LiteralPath $out
+          "output_path=$out" >> $env:GITHUB_OUTPUT
+          "rc=$rc" >> $env:GITHUB_OUTPUT
+          exit 0
+
+      - name: Publish durable controller receipt
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          OUT_PATH: ${{ steps.exec.outputs.output_path }}
+          CMD_RC: ${{ steps.exec.outputs.rc }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs');
+            let text='NO_RECEIPT';
+            try{text=fs.readFileSync(process.env.OUT_PATH,'utf8')}catch(e){text += ` ${String(e)}`}
+            if(text.length>60000) text=text.slice(0,60000)+`\n...[truncated ${text.length-60000} chars]`;
+            await github.rest.issues.createComment({
+              owner:context.repo.owner,
+              repo:context.repo.repo,
+              issue_number:771,
+              body:`PCCTL_RECEIPT\nrun_id=${context.runId}\nexit_code=${process.env.CMD_RC||'unknown'}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``
+            });
