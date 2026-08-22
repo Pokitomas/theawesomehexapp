@@ -1,0 +1,85 @@
+name: PC full control probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/pc-full-control-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: pc-full-control-probe
+  cancel-in-progress: false
+
+jobs:
+  full-windows:
+    runs-on: [self-hosted, Windows]
+    timeout-minutes: 10
+    steps:
+      - name: Probe full Windows workstation authority
+        id: probe
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Continue'
+          $Out=Join-Path $env:RUNNER_TEMP 'pc-full-control-probe.txt'
+          Start-Transcript -Path $Out -Force | Out-Null
+          'PC_FULL_CONTROL_PROBE_V1'
+          "time=$([DateTimeOffset]::Now.ToString('o'))"
+          "computer=$env:COMPUTERNAME"
+          "user=$env:USERNAME"
+          "runner=$env:RUNNER_NAME"
+          "identity=$([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+          $wp=[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+          "is_admin=$($wp.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+          ''
+          '=== SESSION/DESKTOP ==='
+          query user 2>&1
+          Get-Process explorer,dwm,SearchHost,ShellExperienceHost -ErrorAction SilentlyContinue | Select-Object Id,SessionId,ProcessName,Path | Format-Table -AutoSize
+          ''
+          '=== ARCHIE WINDOWS CONTROL PROCESSES ==='
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {$_.Name -match 'python|powershell|pwsh|node|wsl|tailscale' -or $_.CommandLine -match 'archie|sidecar|uia|tcp_probe|terminal_wire|live-exec|control'} | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine | Format-List
+          ''
+          '=== ARCHIE APPDATA ==='
+          Get-ChildItem 'C:\Users\AwesomeKai\AppData\Local\ARCHIE' -Force -Recurse -ErrorAction SilentlyContinue | Select-Object FullName,Length,LastWriteTime | Format-Table -Wrap -AutoSize
+          ''
+          '=== TASKS ==='
+          Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {$_.TaskName -match 'Archie|ChatGPT|Codex|Sidecar|UIA|control|runner|nanny'} | ForEach-Object {[pscustomobject]@{Task=$_.TaskName;State=$_.State;Principal=$_.Principal.UserId;RunLevel=$_.Principal.RunLevel;Actions=(($_.Actions|ForEach-Object{"$($_.Execute) $($_.Arguments)"}) -join ' | ')}} | Format-Table -Wrap -AutoSize
+          ''
+          '=== WINDOWS SERVICES/RUNNER ==='
+          Get-CimInstance Win32_Service -ErrorAction SilentlyContinue | Where-Object {$_.Name -match 'actions|runner|archie|tailscale' -or $_.PathName -match 'actions-runner|archie'} | Select-Object Name,State,StartMode,StartName,PathName | Format-List
+          ''
+          '=== LISTENERS ==='
+          Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Sort-Object LocalPort | Select-Object LocalAddress,LocalPort,OwningProcess,@{n='Process';e={(Get-Process -Id $_.OwningProcess -EA SilentlyContinue).ProcessName}} | Format-Table -AutoSize
+          ''
+          '=== WSL CONTROL UNITS ==='
+          wsl.exe -e bash -lc 'systemctl --user list-units --all --type=service --no-pager --plain | grep -Ei "archie|sidecar|uia|terminal|wire|exec|control|supervisor|runner|agent" || true' 2>&1
+          ''
+          '=== WSL CONTROL FILES ==='
+          wsl.exe -e bash -lc 'find /home/awesomekai -maxdepth 5 -type f \( -iname "*uia*" -o -iname "*desktop*" -o -iname "*sidecar*" -o -iname "*terminal*wire*" -o -iname "*live*exec*" -o -iname "*control*" \) -printf "%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n" 2>/dev/null | sort -r | head -250' 2>&1
+          ''
+          '=== UIA BRIDGE UNIT/SOURCE ==='
+          wsl.exe -e bash -lc 'systemctl --user cat archie-uia-bridge.service 2>/dev/null || true; systemctl --user show archie-uia-bridge.service -p ActiveState -p SubState -p MainPID -p ExecStart -p FragmentPath --no-pager 2>/dev/null || true' 2>&1
+          ''
+          '=== TCP PROBE UNIT/SOURCE ==='
+          wsl.exe -e bash -lc 'systemctl --user cat archie-tcp-probe.service 2>/dev/null || true; systemctl --user show archie-tcp-probe.service -p ActiveState -p SubState -p MainPID -p ExecStart -p FragmentPath --no-pager 2>/dev/null || true' 2>&1
+          ''
+          '=== TERMINAL WIRE / LIVE EXEC ==='
+          wsl.exe -e bash -lc 'for u in archie-gpt56-terminal-wire.service archie-live-exec.service archie-local-semantic-supervisor.service; do echo ---$u---; systemctl --user cat $u 2>/dev/null || true; systemctl --user show $u -p ActiveState -p SubState -p MainPID -p ExecStart -p FragmentPath --no-pager 2>/dev/null || true; done' 2>&1
+          Stop-Transcript | Out-Null
+          "out_path=$Out" >> $env:GITHUB_OUTPUT
+
+      - name: Publish probe receipt
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          OUT_PATH: ${{ steps.probe.outputs.out_path }}
+        with:
+          script: |
+            const fs=require('fs');
+            let text='NO_RECEIPT';
+            try{text=fs.readFileSync(process.env.OUT_PATH,'utf8')}catch(e){text += ` ${String(e)}`}
+            if(text.length>60000) text=text.slice(0,60000)+`\n...[truncated ${text.length-60000} chars]`;
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`PC_FULL_CONTROL_PROBE_RECEIPT\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
