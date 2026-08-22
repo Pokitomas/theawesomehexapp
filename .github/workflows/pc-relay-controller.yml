@@ -1,0 +1,70 @@
+name: PC relay controller
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: pc-relay-controller
+  cancel-in-progress: false
+
+jobs:
+  command:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 771 &&
+      github.event.comment.user.login == github.repository_owner &&
+      startsWith(github.event.comment.body, '/relayctl ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ARCHIE_RELAY_TOKEN: ${{ secrets.ARCHIE_RELAY_TOKEN }}
+      VERCEL_RELAY_TOKEN: ${{ secrets.VERCEL_RELAY_TOKEN }}
+    steps:
+      - name: Execute through persistent hosted relay
+        id: relay
+        shell: python
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          import json, os, urllib.parse, urllib.request, urllib.error
+          encoded=os.environ['BODY'][len('/relayctl '):].strip()
+          if not encoded or len(encoded)>180000: raise SystemExit('missing/oversized command')
+          token=os.environ.get('ARCHIE_RELAY_TOKEN') or os.environ.get('VERCEL_RELAY_TOKEN') or ''
+          out=os.path.join(os.environ['RUNNER_TEMP'],'relayctl-response.txt')
+          if not token:
+            text='RELAYCTL_BLOCKED: configured relay credential unavailable to this workflow\n'; status=0
+          else:
+            qs=urllib.parse.urlencode({'token':token,'route':'cmd','b':encoded})
+            req=urllib.request.Request('https://archie-vercel-relay.vercel.app/api/relay?'+qs,headers={'accept':'application/json','user-agent':'archie-persistent-controller'})
+            try:
+              with urllib.request.urlopen(req,timeout=3610) as r:
+                status=r.status; text=r.read().decode('utf-8','replace')
+            except urllib.error.HTTPError as e:
+              status=e.code; text=e.read().decode('utf-8','replace')
+            except Exception as e:
+              status=0; text=repr(e)
+          with open(out,'w',encoding='utf-8') as f:
+            f.write('RELAYCTL_RESPONSE_V1\n')
+            f.write(f'http_status={status}\n')
+            f.write(text[:120000])
+          print(f'http_status={status}')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as g: g.write(f'output_path={out}\n')
+
+      - name: Publish relay receipt
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          OUT_PATH: ${{ steps.relay.outputs.output_path }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs');
+            let text='NO_RECEIPT';
+            try{text=fs.readFileSync(process.env.OUT_PATH,'utf8')}catch(e){text += ` ${String(e)}`}
+            if(text.length>60000)text=text.slice(0,60000)+`\n...[truncated ${text.length-60000} chars]`;
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`RELAYCTL_RECEIPT\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
