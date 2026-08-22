@@ -1,0 +1,126 @@
+{
+  "schema": "archie-court-iv-heldout/v1",
+  "recorded": "2026-08-01",
+  "run": "archie-event-semidirect-45m-v1/full-triton-seed-113",
+  "source": "trainer-produced heldout-evaluation.json and training-receipt.json",
+  "provenance": {
+    "model_fingerprint": "f24dc480c58c81f48da70b4bf9ebd49845a0d412b88023ce64e98839be9005ec",
+    "model_artifact_sha256": "f66c15cd6151ce0ae55a55fbd75c63536596b897c9c4f88fcd0c31d07020492c",
+    "suite_digest": "a4bad61b404f151afad20d2db08f84b79d73aa5fbd1b2971785577077a252e60",
+    "development_corpus_sha256": "9ff03a3b4b0ab951630cb574883da1a18d754f6c04ce44f031b8d7cddf4da582",
+    "train_corpus_sha256": "421426a7060942f6c5fe3176f743ba0539f71fb8a7daf03e10e955a5a6a7d54e",
+    "parameters": 45697024,
+    "steps": 30000,
+    "tokens_seen": 307200000,
+    "gpu": "NVIDIA GeForce RTX 2060",
+    "wall_seconds": 23065.6
+  },
+  "heldout": {
+    "bits_per_input_token": 1.2282414631699956,
+    "ci95": [
+      1.2042140820746843,
+      1.2522688442653072
+    ],
+    "mean_nats_per_token": 0.8513521072431044,
+    "window_count": 3914,
+    "heldout_targets": 2000054,
+    "sequence_length": 512,
+    "unit_note": "bits_per_encoded_token; 99.98% of tokens are single bytes, so this equals BPB to ~0.02%"
+  },
+  "versus_measured_floors": {
+    "gzip_-9": {
+      "floor": 1.4337,
+      "delta": -0.2055,
+      "verdict": "model better by 14.3%"
+    },
+    "bzip2_-9": {
+      "floor": 1.2369,
+      "delta": -0.0087,
+      "verdict": "statistical tie; floor lies inside the model 95% CI"
+    },
+    "xz_-9e": {
+      "floor": 0.9794,
+      "delta": 0.2488,
+      "verdict": "model worse by 25.4%"
+    }
+  },
+  "generalization": {
+    "training_windowed_mean_bpb": 1.218,
+    "heldout_bpb": 1.2282,
+    "gap": 0.0102,
+    "note": "Court IV predicted the gap would be small because the run consumes 19.6% of one epoch with no byte repeated. Confirmed: +0.0102 BPB."
+  },
+  "court_iv_section_5_confirmation": {
+    "mean_retention": 0.5594432714965133,
+    "implied_decay_rate_nats_per_token": 0.5808,
+    "implied_1e_horizon_tokens": 1.72,
+    "implied_half_life_tokens": 1.19,
+    "mean_absolute_transport_coordinate": 0.07591249750883462,
+    "transport_fraction_of_cap": 0.38,
+    "transport_toll_nats_per_token": 0.2052,
+    "transport_share_of_all_forgetting": 0.353,
+    "mean_relative_central_commutator": 0.6715792190190087,
+    "verdict": "The section 5 memory/transport trade is confirmed on trained weights, and is more severe than predicted. Section 5 projected a 2.1-token horizon at FULL transport; the model runs 38% of the transport cap and still averages a 1.72-token horizon. The denominator (1+|x|+|y|+|z|) accounts for 35.3% of all forgetting. The noncommutative term is genuinely in use -- relative central commutator 0.67 -- so the model is actively buying transport with memory, exactly the exchange section 5 identified."
+  },
+  "contraction_certificate_confirmed": {
+    "maximum_linear_infinity_norm": 0.9980019927024841,
+    "exp_minus_0_002": 0.9980019986673331,
+    "agreement": "9 decimal places",
+    "note": "Court IV E1 proved ||qN||inf <= c_i sigma(a) < c_i < 1 analytically. The trained run's observed maximum is the slowest fiber's ceiling exp(-0.002) exactly, so the bound is tight and reached."
+  },
+  "scan_parity_confirmed": {
+    "paths": [
+      "serial",
+      "reference",
+      "triton"
+    ],
+    "loss_maximum_absolute_difference": 0.0,
+    "note": "Court IV E1 checked serial vs Hillis-Steele vs balanced tree agreement in float64 and found <= 2.7e-15. The run's own preflight finds exact 0.0 loss agreement across serial, reference and Triton on GPU."
+  },
+  "caveat_contamination_check": {
+    "reported_status": "pass",
+    "reported_reason": "corpora have distinct SHA-256 digests",
+    "assessment": "This is a weak check. Distinct file digests prove only that the two files are not byte-identical; they do not establish that no held-out document also appears in training. The corpus metadata separately claims the split was made by source document, which if true is the real guarantee -- but this check does not verify it. A document-level hash intersection over the 257/258 delimiters would.",
+    "affects_headline_number": "not materially, but the check should not be cited as proof of non-overlap"
+  },
+  "transport_cap_ablation": {
+    "status": "INCONCLUSIVE -- cannot answer the question as run",
+    "runs": {
+      "cap-zero-triton/seed-113": {
+        "transport_cap": 0.0,
+        "bits_per_input_token": 5.268276246801349,
+        "ci95_bpb": [
+          5.106,
+          5.4306
+        ],
+        "window_count": 129
+      },
+      "full-triton/seed-113": {
+        "transport_cap": 0.2,
+        "bits_per_input_token": 5.162579441306383,
+        "ci95_bpb": [
+          4.9978,
+          5.3274
+        ],
+        "window_count": 129
+      }
+    },
+    "difference_bpb": 0.1057,
+    "difference_standard_error_bpb": 0.118,
+    "difference_ci95_bpb": [
+      -0.1256,
+      0.337
+    ],
+    "t_statistic": 0.896,
+    "significant_at_95": false,
+    "why_it_cannot_answer": [
+      "The difference is 0.1057 BPB against a standard error of 0.1180 BPB; the 95% interval on the difference spans zero comfortably.",
+      "Both smoke models sit at 5.16-5.27 BPB against an order-0 byte-frequency floor of 5.4439, so each has learned only 0.18-0.28 BPB beyond raw byte statistics. Neither has begun to use its recurrent state, which is the thing the ablation is meant to test.",
+      "129 evaluation windows versus 3,914 for the 30,000-step run.",
+      "The smoke runs are 4.2x worse than the real run, so they do not probe the regime the question is about."
+    ],
+    "direction": "nominally favours transport_cap=0.2 by 0.1057 BPB, but this is not evidence",
+    "what_would_answer_it": "One 30,000-step run at transport_cap=0.0 matching full-triton-seed-113 in every other respect, evaluated on the same digest-bound suite. Roughly 6.4 hours on the same RTX 2060.",
+    "note_on_prior_expectation": "Court IV expected the measured relative central commutator of 0.6716 to imply a visible ablation gap. At smoke scale it does not appear. That expectation remains untested, not confirmed."
+  }
+}
