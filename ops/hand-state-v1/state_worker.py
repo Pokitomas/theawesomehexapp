@@ -24,18 +24,21 @@ def proc_name(pid):
 def winrec(h):
  p=pid_for(h);t=title(h);return {'hwnd':int(h),'pid':p,'process':proc_name(p),'title':t,'project':t.split('DaVinci Resolve - ',1)[1] if t.startswith('DaVinci Resolve - ') else ''}
 def meaningful_front():
+ rawh=int(u.GetForegroundWindow() or 0);raw=winrec(rawh) if rawh else {'hwnd':0,'pid':0,'process':'','title':'','project':''};n=raw.get('process','').lower();t=raw.get('title','')
+ noisy=(n=='textinputhost.exe' or (n=='pythonw.exe' and t=='tk') or (n=='explorer.exe' and t=='Program Manager'))
+ if t and not noisy:return raw
  out=[]
  @ctypes.WINFUNCTYPE(ctypes.c_bool,ctypes.c_void_p,ctypes.c_void_p)
  def cb(h,l):
   if u.IsWindowVisible(h):
-   t=title(h)
-   if t:
-    p=pid_for(h);n=proc_name(p).lower()
-    if not (n=='textinputhost.exe' or (n=='pythonw.exe' and t=='tk') or (n=='explorer.exe' and t=='Program Manager')):
+   tt=title(h)
+   if tt:
+    p=pid_for(h);nn=proc_name(p).lower()
+    if not (nn=='textinputhost.exe' or (nn=='pythonw.exe' and tt=='tk') or (nn=='explorer.exe' and tt=='Program Manager')):
      out.append(winrec(h));return False
   return True
  u.EnumWindows(cb,0)
- return out[0] if out else winrec(u.GetForegroundWindow())
+ return out[0] if out else raw
 def idle_ms():
  li=LASTINPUTINFO();li.cbSize=ctypes.sizeof(li)
  if not u.GetLastInputInfo(ctypes.byref(li)):return None
