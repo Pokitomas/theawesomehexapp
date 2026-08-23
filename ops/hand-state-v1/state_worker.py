@@ -6,8 +6,9 @@ B=Path(r'C:\Users\AwesomeKai\AppData\Local\Temp')
 OUT=B/'ARCHIE_LIVE_STATE.json';TMP=B/'ARCHIE_LIVE_STATE.next.json';SCREEN=B/'archie_phone_screen.jpg'
 REQ=B/'ARCHIE_STATE_ACTION_REQ.json';RESP=B/'ARCHIE_STATE_ACTION_RESP.json';RESPTMP=B/'ARCHIE_STATE_ACTION_RESP.next.json'
 u=ctypes.windll.user32;k=ctypes.windll.kernel32
-SW_RESTORE=9;KEYUP=2;VK={'ctrl':0x11,'shift':0x10,'alt':0x12,'space':0x20,'esc':0x1b,'z':0x5a,'s':0x53,'3':0x33,'4':0x34}
+SW_RESTORE=9;KEYUP=2;SWP_NOMOVE=2;SWP_NOSIZE=1;SWP_SHOWWINDOW=0x40;VK={'ctrl':0x11,'shift':0x10,'alt':0x12,'space':0x20,'esc':0x1b,'z':0x5a,'s':0x53,'3':0x33,'4':0x34}
 class POINT(ctypes.Structure):_fields_=[('x',ctypes.c_long),('y',ctypes.c_long)]
+class RECT(ctypes.Structure):_fields_=[('left',ctypes.c_long),('top',ctypes.c_long),('right',ctypes.c_long),('bottom',ctypes.c_long)]
 class LASTINPUTINFO(ctypes.Structure):_fields_=[('cbSize',ctypes.c_uint),('dwTime',ctypes.c_uint)]
 def title(h):
  n=u.GetWindowTextLengthW(h);b=ctypes.create_unicode_buffer(n+1);u.GetWindowTextW(h,b,n+1);return b.value
@@ -20,6 +21,21 @@ def proc_name(pid):
  try:n=psutil.Process(pid).name() if pid else ''
  except:n=''
  _pc[pid]=(now,n);return n
+def winrec(h):
+ p=pid_for(h);t=title(h);return {'hwnd':int(h),'pid':p,'process':proc_name(p),'title':t,'project':t.split('DaVinci Resolve - ',1)[1] if t.startswith('DaVinci Resolve - ') else ''}
+def meaningful_front():
+ out=[]
+ @ctypes.WINFUNCTYPE(ctypes.c_bool,ctypes.c_void_p,ctypes.c_void_p)
+ def cb(h,l):
+  if u.IsWindowVisible(h):
+   t=title(h)
+   if t:
+    p=pid_for(h);n=proc_name(p).lower()
+    if not (n=='textinputhost.exe' or (n=='pythonw.exe' and t=='tk') or (n=='explorer.exe' and t=='Program Manager')):
+     out.append(winrec(h));return False
+  return True
+ u.EnumWindows(cb,0)
+ return out[0] if out else winrec(u.GetForegroundWindow())
 def idle_ms():
  li=LASTINPUTINFO();li.cbSize=ctypes.sizeof(li)
  if not u.GetLastInputInfo(ctypes.byref(li)):return None
@@ -52,21 +68,18 @@ def key_up(x):u.keybd_event(VK[x],0,KEYUP,0)
 def keyseq(*keys):
  for x in keys:key_down(x)
  for x in reversed(keys):key_up(x)
+def click_xy(px,py):
+ u.SetCursorPos(int(px),int(py));u.mouse_event(0x0002,0,0,0,0);u.mouse_event(0x0004,0,0,0,0)
 def focus_resolve():
- h,t=find_resolve();u.ShowWindow(h,SW_RESTORE);u.BringWindowToTop(h)
- # The ALT-down trick grants foreground activation to this interactive desktop process.
- key_down('alt')
- try:
-  u.SetForegroundWindow(h);u.SwitchToThisWindow(h,True);u.SetActiveWindow(h)
- finally:key_up('alt')
- time.sleep(.012);ft=title(u.GetForegroundWindow())
- if 'DaVinci Resolve' not in ft or 'ARCHIE LOVING EDIT' not in ft:raise RuntimeError('Resolve focus not acquired: '+ft[:120])
- return ft
+ h,t=find_resolve();u.ShowWindow(h,SW_RESTORE);u.SetWindowPos(h,0,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);u.BringWindowToTop(h)
+ r=RECT();u.GetWindowRect(h,ctypes.byref(r));x=max(r.left+180,min(r.right-180,(r.left+r.right)//2));y=max(r.top+8,min(r.bottom-8,r.top+14));click_xy(x,y);time.sleep(.025)
+ mf=meaningful_front()
+ if mf.get('hwnd')!=h:raise RuntimeError('Resolve focus not acquired: '+mf.get('title','')[:120])
+ return mf.get('title','')
 def click_norm(x,y):
- ft=title(u.GetForegroundWindow())
+ mf=meaningful_front();ft=mf.get('title','')
  if 'DaVinci Resolve' in ft and 'ARCHIE LOVING EDIT' not in ft:raise RuntimeError('Resolve guard blocked tap')
- sw=u.GetSystemMetrics(0);sh=u.GetSystemMetrics(1);px=max(0,min(sw-1,int(float(x)*sw)));py=max(0,min(sh-1,int(float(y)*sh)))
- u.SetCursorPos(px,py);u.mouse_event(0x0002,0,0,0,0);u.mouse_event(0x0004,0,0,0,0);return [px,py]
+ sw=u.GetSystemMetrics(0);sh=u.GetSystemMetrics(1);px=max(0,min(sw-1,int(float(x)*sw)));py=max(0,min(sh-1,int(float(y)*sh)));click_xy(px,py);return [px,py]
 def perform(d):
  a=str(d.get('action','')).lower();out={'ok':True,'action':a}
  if a=='tap':out['point']=click_norm(d.get('x',0),d.get('y',0))
@@ -94,16 +107,15 @@ while True:
     except Exception as e:r={'ok':False,'action':str(d.get('action','')),'error':str(e)}
     r.update({'id':rid,'at':time.time(),'worker_ms':round((time.perf_counter()-ta)*1000,2)});atomic(RESP,RESPTMP,r);last_action=r
  except Exception:pass
- hwnd=int(u.GetForegroundWindow() or 0);t=title(hwnd) if hwnd else '';pid=pid_for(hwnd) if hwnd else 0;pn=proc_name(pid);cur=cursor();front_sig=(hwnd,pid,pn,t)
+ rawh=int(u.GetForegroundWindow() or 0);raw=winrec(rawh) if rawh else {'hwnd':0,'pid':0,'process':'','title':'','project':''};front=meaningful_front();cur=cursor();front_sig=(front['hwnd'],front['pid'],front['process'],front['title'])
  if front_sig!=last_front:content_seq+=1;last_front=front_sig
  if cur!=last_cursor:motion_seq+=1;last_cursor=cur
  try:sm=SCREEN.stat();sns=sm.st_mtime_ns;ssize=sm.st_size
  except Exception:sns=0;ssize=0
  if sns!=last_screen_ns:screen_seq+=1;last_screen_ns=sns
  if now>=next_apps:apps=app_counts();next_apps=now+1.
- project=t.split('DaVinci Resolve - ',1)[1] if t.startswith('DaVinci Resolve - ') else ''
  sample_ms=(time.perf_counter()-started)*1000
- v={'schema':'archie-live-state/v1','at':now,'seq':seq,'content_seq':content_seq,'motion_seq':motion_seq,'front':{'hwnd':hwnd,'pid':pid,'process':pn,'title':t,'project':project},'cursor':cur,'idle_ms':idle_ms(),'apps':apps,'screen':{'seq':screen_seq,'mtime':sns/1e9 if sns else 0,'bytes':ssize},'guard':{'resolve_target':'lonee ryan - ARCHIE LOVING EDIT','locked':['lonee ryan - ARCHIE CUT','ARCHIE // PERFECT SYNC']},'semantics':{'mode':'deterministic','ml_awake':False,'note':'ML not required for live state fast-path'},'last_action':last_action,'sample_ms':round(sample_ms,3)}
+ v={'schema':'archie-live-state/v1','at':now,'seq':seq,'content_seq':content_seq,'motion_seq':motion_seq,'front':front,'raw_front':raw,'front_method':'z_order_meaningful','cursor':cur,'idle_ms':idle_ms(),'apps':apps,'screen':{'seq':screen_seq,'mtime':sns/1e9 if sns else 0,'bytes':ssize},'guard':{'resolve_target':'lonee ryan - ARCHIE LOVING EDIT','locked':['lonee ryan - ARCHIE CUT','ARCHIE // PERFECT SYNC']},'semantics':{'mode':'deterministic','ml_awake':False,'note':'ML not required for live state fast-path'},'last_action':last_action,'sample_ms':round(sample_ms,3)}
  try:atomic(OUT,TMP,v)
  except:pass
  delay=.05-(time.perf_counter()-started)
