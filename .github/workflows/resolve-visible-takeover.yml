@@ -1,0 +1,88 @@
+name: Resolve visible takeover
+
+on:
+  push:
+    paths:
+      - '.github/workflows/resolve-visible-takeover.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  actuate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SHELL_SECRET: ${{ secrets.ARCHIE_SHELL_SECRET }}
+    steps:
+      - name: Launch current visible finisher through authenticated sidecar
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess
+          receipt=[]
+          secret=os.environ.get('SHELL_SECRET','')
+          if not secret:
+              receipt.append('shell_secret=missing')
+              pathlib.Path('/tmp/resolve-visible-receipt.txt').write_text('\n'.join(receipt)+'\n')
+              raise SystemExit(0)
+          raw=secret
+          s=secret[1:] if secret.startswith('/') else secret
+          base=f'https://desktop-6fn9b4m-1.tail1bf489.ts.net/{s}/shell'
+          def redact(x): return x.replace(raw,'[redacted]').replace(s,'[redacted]')
+          def curl(method,url,token=None,obj=None,timeout=35):
+              a=['curl','-4','--http1.1','-ksS','--connect-timeout','12','--max-time',str(timeout),'-w','\n__HTTP__%{http_code}']
+              if method=='POST': a += ['-X','POST']
+              if token is not None: a += ['-H',f'x-archie-shell-token: {token}']
+              if obj is not None: a += ['-H','content-type: application/json','--data-binary',json.dumps(obj)]
+              a += [url]
+              p=subprocess.run(a,text=True,capture_output=True,timeout=timeout+8)
+              return p.returncode,p.stdout+'\n'+p.stderr
+          rc,h=curl('GET',base+'/health',timeout=18)
+          receipt.append('health='+redact(h)[:1600])
+          if '__HTTP__200' not in h:
+              pathlib.Path('/tmp/resolve-visible-receipt.txt').write_text('\n'.join(receipt)+'\n')
+              raise SystemExit(0)
+          probe="printf 'RESOLVE_VISIBLE_SHELL_OK\\n'; hostname; date -Is"
+          selected=None
+          for route in (base,base+'/exec'):
+              for token in (raw,s):
+                  rc,r=curl('POST',route,token,{'cmd':probe},30)
+                  receipt.append('probe='+redact(r)[:1800])
+                  if 'RESOLVE_VISIBLE_SHELL_OK' in r and '__HTTP__200' in r:
+                      selected=(route,token); break
+              if selected: break
+          if not selected:
+              receipt.append('direct_exec=unavailable')
+              pathlib.Path('/tmp/resolve-visible-receipt.txt').write_text('\n'.join(receipt)+'\n')
+              raise SystemExit(0)
+          route,token=selected
+          receipt.append('direct_exec=confirmed')
+          src='https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/f6efe7bafb9df1bb3163003758b7d9a65e0699b9/tools/finish_video_now.py'
+          launch=("set -Eeuo pipefail; "
+                  "DEST='/mnt/c/Users/AwesomeKai/AppData/Local/Temp/finish_video_now.py'; "
+                  "OUT='/mnt/c/Users/AwesomeKai/AppData/Local/Temp/finish_video_now.log'; "
+                  "curl -fsSL '"+src+"' -o \"$DEST\"; "
+                  "pkill -f 'finish_video_now.py' 2>/dev/null || true; "
+                  "nohup /mnt/c/Users/AwesomeKai/AppData/Local/Programs/Python/Python312/python.exe "
+                  "'C:\\\\Users\\\\AwesomeKai\\\\AppData\\\\Local\\\\Temp\\\\finish_video_now.py' "
+                  ">\"$OUT\" 2>&1 </dev/null & echo LAUNCHED_PID=$!; "
+                  "echo SCRIPT_BYTES=$(wc -c < \"$DEST\"); sleep 3; echo '=== BOOT ==='; tail -n 100 \"$OUT\" 2>/dev/null || true")
+          rc,r=curl('POST',route,token,{'cmd':launch},45)
+          receipt.append('launch='+redact(r)[:6000])
+          check=("echo '=== PROCESS ==='; pgrep -af finish_video_now.py || true; "
+                 "echo '=== LOG ==='; tail -n 120 /mnt/c/Users/AwesomeKai/AppData/Local/Temp/finish_video_now.log 2>/dev/null || true")
+          rc,r=curl('POST',route,token,{'cmd':check},35)
+          receipt.append('check='+redact(r)[:7000])
+          pathlib.Path('/tmp/resolve-visible-receipt.txt').write_text('\n'.join(receipt)+'\n')
+      - name: Publish sanitized receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs');
+            let text='NO_RECEIPT'; try{text=fs.readFileSync('/tmp/resolve-visible-receipt.txt','utf8')}catch(e){text+=' '+e}
+            if(text.length>18000) text=text.slice(-18000)+'\n...[head truncated]';
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:772,body:`RESOLVE_VISIBLE_TAKEOVER_RECEIPT\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
