@@ -3,19 +3,23 @@ from pathlib import Path
 import psutil
 
 B=Path(r'C:\Users\AwesomeKai\AppData\Local\Temp')
-OUT=B/'ARCHIE_LIVE_STATE.json'; TMP=B/'ARCHIE_LIVE_STATE.next.json'; SCREEN=B/'archie_phone_screen.jpg'
-REQ=B/'ARCHIE_STATE_ACTION_REQ.json'; RESP=B/'ARCHIE_STATE_ACTION_RESP.json'; RESPTMP=B/'ARCHIE_STATE_ACTION_RESP.next.json'
-u=ctypes.windll.user32; k=ctypes.windll.kernel32
-SW_RESTORE=9; KEYUP=2; VK={'ctrl':0x11,'shift':0x10,'alt':0x12,'space':0x20,'esc':0x1b,'z':0x5a,'s':0x53,'3':0x33,'4':0x34}
-class POINT(ctypes.Structure): _fields_=[('x',ctypes.c_long),('y',ctypes.c_long)]
-class LASTINPUTINFO(ctypes.Structure): _fields_=[('cbSize',ctypes.c_uint),('dwTime',ctypes.c_uint)]
+OUT=B/'ARCHIE_LIVE_STATE.json';TMP=B/'ARCHIE_LIVE_STATE.next.json';SCREEN=B/'archie_phone_screen.jpg'
+REQ=B/'ARCHIE_STATE_ACTION_REQ.json';RESP=B/'ARCHIE_STATE_ACTION_RESP.json';RESPTMP=B/'ARCHIE_STATE_ACTION_RESP.next.json'
+u=ctypes.windll.user32;k=ctypes.windll.kernel32
+SW_RESTORE=9;KEYUP=2;VK={'ctrl':0x11,'shift':0x10,'alt':0x12,'space':0x20,'esc':0x1b,'z':0x5a,'s':0x53,'3':0x33,'4':0x34}
+class POINT(ctypes.Structure):_fields_=[('x',ctypes.c_long),('y',ctypes.c_long)]
+class LASTINPUTINFO(ctypes.Structure):_fields_=[('cbSize',ctypes.c_uint),('dwTime',ctypes.c_uint)]
 def title(h):
- n=u.GetWindowTextLengthW(h); b=ctypes.create_unicode_buffer(n+1);u.GetWindowTextW(h,b,n+1);return b.value
+ n=u.GetWindowTextLengthW(h);b=ctypes.create_unicode_buffer(n+1);u.GetWindowTextW(h,b,n+1);return b.value
 def pid_for(h):
  p=ctypes.c_ulong();u.GetWindowThreadProcessId(h,ctypes.byref(p));return int(p.value)
+_pc={}
 def proc_name(pid):
- try:return psutil.Process(pid).name() if pid else ''
- except:return ''
+ now=time.time();hit=_pc.get(pid)
+ if hit and now-hit[0]<3:return hit[1]
+ try:n=psutil.Process(pid).name() if pid else ''
+ except:n=''
+ _pc[pid]=(now,n);return n
 def idle_ms():
  li=LASTINPUTINFO();li.cbSize=ctypes.sizeof(li)
  if not u.GetLastInputInfo(ctypes.byref(li)):return None
@@ -31,8 +35,7 @@ def app_counts():
    elif n=='claude.exe':out['Claude']+=1
  except:pass
  return out
-def atomic(path,tmp,v):
- tmp.write_text(json.dumps(v,separators=(',',':'),ensure_ascii=False),encoding='utf-8');os.replace(tmp,path)
+def atomic(path,tmp,v):tmp.write_text(json.dumps(v,separators=(',',':'),ensure_ascii=False),encoding='utf-8');os.replace(tmp,path)
 def find_resolve():
  found=[]
  @ctypes.WINFUNCTYPE(ctypes.c_bool,ctypes.c_void_p,ctypes.c_void_p)
@@ -41,26 +44,23 @@ def find_resolve():
    t=title(h)
    if t.startswith('DaVinci Resolve - '):found.append((int(h),t))
   return True
- u.EnumWindows(cb,0)
- good=[x for x in found if 'ARCHIE LOVING EDIT' in x[1]]
+ u.EnumWindows(cb,0);good=[x for x in found if 'ARCHIE LOVING EDIT' in x[1]]
  if not good:raise RuntimeError('Resolve guard: LOVING EDIT window missing')
  return good[0]
+def key_down(x):u.keybd_event(VK[x],0,0,0)
+def key_up(x):u.keybd_event(VK[x],0,KEYUP,0)
 def keyseq(*keys):
- for x in keys:u.keybd_event(VK[x],0,0,0)
- for x in reversed(keys):u.keybd_event(VK[x],0,KEYUP,0)
+ for x in keys:key_down(x)
+ for x in reversed(keys):key_up(x)
 def focus_resolve():
- h,t=find_resolve();u.ShowWindow(h,SW_RESTORE)
- fg=u.GetForegroundWindow();cur_tid=k.GetCurrentThreadId();fg_tid=u.GetWindowThreadProcessId(fg,None) if fg else 0; tgt_tid=u.GetWindowThreadProcessId(h,None)
- attached=[]
+ h,t=find_resolve();u.ShowWindow(h,SW_RESTORE);u.BringWindowToTop(h)
+ # The ALT-down trick grants foreground activation to this interactive desktop process.
+ key_down('alt')
  try:
-  for tid in (fg_tid,tgt_tid):
-   if tid and tid!=cur_tid and u.AttachThreadInput(cur_tid,tid,True):attached.append(tid)
-  keyseq('alt');u.BringWindowToTop(h);u.SetForegroundWindow(h);u.SetFocus(h)
- finally:
-  for tid in reversed(attached):u.AttachThreadInput(cur_tid,tid,False)
- time.sleep(.015)
- ft=title(u.GetForegroundWindow())
- if 'DaVinci Resolve' not in ft or 'ARCHIE LOVING EDIT' not in ft:raise RuntimeError('Resolve focus not acquired')
+  u.SetForegroundWindow(h);u.SwitchToThisWindow(h,True);u.SetActiveWindow(h)
+ finally:key_up('alt')
+ time.sleep(.012);ft=title(u.GetForegroundWindow())
+ if 'DaVinci Resolve' not in ft or 'ARCHIE LOVING EDIT' not in ft:raise RuntimeError('Resolve focus not acquired: '+ft[:120])
  return ft
 def click_norm(x,y):
  ft=title(u.GetForegroundWindow())
