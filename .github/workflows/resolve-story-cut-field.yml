@@ -1,0 +1,65 @@
+name: Resolve story cut field
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  actuate:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 771 &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.body == '/resolve-story-cut-now'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Inject exact current Resolve objective
+        shell: python
+        run: |
+          import html,json,os,re,time,urllib.parse,urllib.request,urllib.error
+          tramp='https://archie-link-trampoline.vercel.app/'
+          page=urllib.request.urlopen(urllib.request.Request(tramp,headers={'user-agent':'resolve-story-cut-controller'}),timeout=15).read().decode('utf-8','replace')
+          m=re.search(r'href=["\']([^"\']+)["\']',page,re.I)
+          if not m: raise SystemExit('no live trampoline target')
+          live=html.unescape(m.group(1)); u=urllib.parse.urlsplit(live); q=urllib.parse.parse_qs(u.query)
+          cap=(q.get('k') or [''])[0]
+          if not cap: raise SystemExit('live target missing capability')
+          base=f'{u.scheme}://{u.netloc}'; common=urllib.parse.urlencode({'k':cap})
+          headers={'content-type':'application/json','accept':'application/json','user-agent':'gpt56-story-cut-controller','x-archie-shell-token':cap}
+          text=r'''RESOLVE_STORY_CUT_VISIBLE_TAKEOVER_V2. EXECUTE NOW, do not plan or narrate. Use the resident full-computer controller to visibly operate DaVinci Resolve on this Windows desktop. Project must remain "lonee ryan - ARCHIE LOVING EDIT". HARD LOCK: NEVER mutate "ARCHIE CUT" or "ARCHIE // PERFECT SYNC". The current good working timeline already exists and is visibly named "ARCHIE STORY CUT LIVE (2)"; prior screen proof showed the assembled 21/17 clip structure. Do not rebuild it, do not replace it with another XML, and do not retreat to FRONTIER CUT.
+
+VISIBLE-ONLY MUTATIONS: editing changes must happen through visible Resolve mouse/keyboard/UI actions so the human can see the work surface change. Hidden sensing is fine. FIRST, import C:\Users\AwesomeKai\Downloads\ARCHIE_LOVING_EDIT_WORK\ARCHIE_STORY_CUT_LIVE.srt through Resolve's visible subtitle import UI and get its prepared 172 captions onto the CURRENT STORY CUT LIVE (2) timeline by timecode. Prove success on the visible work surface by showing subtitle text in the viewer/timeline. If captions are already present, prove that instead of duplicating them.
+
+THEN immediately PLAY/WATCH the opening and several joins and make taste edits, not infrastructure: remove dead seconds/repeated setup/technical faff/weak pauses/ugly joins; preserve funny, awkward, revealing and emotional beats. iPhone/main is the stable home base. Samsung/second angle only for reactions, emphasis, awkward silence, visual resets, or clearly better comedy/clarity; no random switching. Preserve sync. Save checkpoints.
+
+AUDIO: crispy close natural dialogue; Swingers crowd/background materially reduced; preserve human room tone; no metallic/watery AI denoise and no smashed compressor; listen across joins and avoid level jumps. Structure before polish, then restrained J/L cuts, punch-ins/reframes, color/audio polish only when earned.
+
+Use tools aggressively but DROP any slow helper. If Claude/Cowork is useful, supervise it rather than trusting narration; the updated https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/tools/finish_video_now.py is a current visible-only bootstrap. If an action route fails, switch route and make the smallest reversible visible Resolve move. Do not stop at explanation. Keep acting on the episode and emit concrete state/receipts into the field.'''
+          def call(path,method='GET',body=None,timeout=35):
+              url=base+path+'?'+common
+              req=urllib.request.Request(url,data=(json.dumps(body).encode() if body is not None else None),method=method,headers=headers)
+              try:
+                  with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,r.read(24000).decode('utf-8','replace')
+              except urllib.error.HTTPError as e:return e.code,e.read(24000).decode('utf-8','replace')
+              except Exception as e:return 0,f'{type(e).__name__}:{e}'
+          lines=['RESOLVE_STORY_CUT_VISIBLE_TAKEOVER_V2']
+          st,b=call('/agent/field','POST',{'text':text}); lines += [f'post_status={st}','post_body='+b[:10000].replace(cap,'[redacted-cap]')]
+          time.sleep(8)
+          st,b=call('/agent/field','GET'); lines += [f'get_status={st}','get_body='+b[:14000].replace(cap,'[redacted-cap]')]
+          st,b=call('/health','GET'); lines += [f'health_status={st}','health_body='+b[:3000].replace(cap,'[redacted-cap]')]
+          open('/tmp/resolve-story-cut-field.txt','w',encoding='utf-8').write('\n'.join(lines)+'\n')
+      - name: Publish field receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs'); let text='NO_RECEIPT';
+            try{text=fs.readFileSync('/tmp/resolve-story-cut-field.txt','utf8')}catch(e){text+=' '+e}
+            if(text.length>26000) text=text.slice(-26000);
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`RESOLVE_STORY_CUT_FIELD_RECEIPT\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
