@@ -1,26 +1,35 @@
-import json,sys,time
-from pywinauto import Desktop
+import ctypes,json,sys,time
 import pyautogui
+u=ctypes.windll.user32
+SW_RESTORE=9
+
+def title(hwnd):
+    n=u.GetWindowTextLengthW(hwnd); b=ctypes.create_unicode_buffer(n+1); u.GetWindowTextW(hwnd,b,n+1); return b.value
 
 def front_title():
-    try:
-        import ctypes
-        u=ctypes.windll.user32; h=u.GetForegroundWindow(); n=u.GetWindowTextLengthW(h); b=ctypes.create_unicode_buffer(n+1);u.GetWindowTextW(h,b,n+1);return b.value
-    except Exception:return ''
+    h=u.GetForegroundWindow(); return title(h) if h else ''
 
-def resolve_window():
-    D=Desktop(backend='uia')
-    ws=[w for w in D.windows() if 'DaVinci Resolve' in (w.window_text() or '')]
-    if not ws: raise RuntimeError('Resolve window missing')
-    w=ws[0]
-    if 'ARCHIE LOVING EDIT' not in (w.window_text() or ''): raise RuntimeError('Resolve guard: not LOVING EDIT')
-    return w
+def find_resolve():
+    found=[]
+    @ctypes.WINFUNCTYPE(ctypes.c_bool,ctypes.c_void_p,ctypes.c_void_p)
+    def cb(h,l):
+        if u.IsWindowVisible(h):
+            t=title(h)
+            if t.startswith('DaVinci Resolve - '): found.append((int(h),t))
+        return True
+    u.EnumWindows(cb,0)
+    if not found: raise RuntimeError('Resolve window missing')
+    good=[x for x in found if 'ARCHIE LOVING EDIT' in x[1]]
+    if not good: raise RuntimeError('Resolve guard: LOVING EDIT window missing')
+    return good[0]
 
 def focus_resolve():
-    w=resolve_window(); w.set_focus(); time.sleep(.04); return w.window_text()
+    h,t=find_resolve(); u.ShowWindow(h,SW_RESTORE); u.BringWindowToTop(h); u.SetForegroundWindow(h); time.sleep(.025)
+    ft=front_title()
+    if 'DaVinci Resolve' not in ft or 'ARCHIE LOVING EDIT' not in ft: raise RuntimeError('Resolve focus not acquired')
+    return ft
 
-def key(*ks):
-    pyautogui.hotkey(*ks) if len(ks)>1 else pyautogui.press(ks[0])
+def key(*ks): pyautogui.hotkey(*ks) if len(ks)>1 else pyautogui.press(ks[0])
 
 a=sys.argv[1].lower() if len(sys.argv)>1 else ''
 out={'ok':True,'action':a}
@@ -40,6 +49,5 @@ try:
     elif a=='cut': focus_resolve(); key('shift','3')
     elif a=='look': pass
     else: raise RuntimeError('unknown action')
-except Exception as e:
-    out={'ok':False,'action':a,'error':str(e)}
+except Exception as e: out={'ok':False,'action':a,'error':str(e)}
 print(json.dumps(out,separators=(',',':')))
