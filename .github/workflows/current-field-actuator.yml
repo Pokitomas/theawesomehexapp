@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: Send finish-video objective into resident machine field
+      - name: Send current story-cut objective into resident machine field
         shell: python
         run: |
           import html, json, os, re, time, urllib.parse, urllib.request, urllib.error
@@ -32,8 +32,16 @@ jobs:
           if not cap: raise SystemExit('live target missing capability')
           base=f'{u.scheme}://{u.netloc}'; common_q=urllib.parse.urlencode({'k':cap})
           headers={'content-type':'application/json','accept':'application/json','user-agent':'gpt56-current-controller','x-archie-shell-token':cap}
-          text='''FINISH_CURRENT_DAVINCI_VIDEO_NOW_V1. This is an execution objective, not a note and not an infrastructure task. Everything except the completed video is disposable. Act continuously on this Windows machine until the current Lonnie/Ryan DaVinci video is genuinely finished. Use existing local full-computer/Hotwire/sidecar abilities directly. Resolve is the target. Preserve ARCHIE // PERFECT SYNC untouched. Prefer lonee ryan - ARCHIE LOVING EDIT if present; otherwise duplicate before destructive work. Candidate C:\\Users\\AwesomeKai\\Downloads\\ARCHIE_LOVING_EDIT_WORK\\ARCHIE_FRONTIER_CUT_v1.fcpxml is a validated ~17:08 first assembly from ~25:11; import/use it if not live but revise by taste. Cut dead air, repeated setup, technical faff, non-payoff tangents and low-energy stretches; preserve funny/awkward/revealing/emotional beats. iPhone/main is stable base; Samsung/second only as motivated punctuation. Preserve solved sync (~14.489s source offset, ~6ms prior residual). Audio: crisp natural dialogue; materially reduce Swingers crowd/background without metallic denoise or crushed compression; preserve room tone and match levels. Then motivated J/L cuts, sparse punch-ins/reframes, restrained transitions, captions after timing locks. Save checkpoints and playback/scrub joins. If Claude is useful, Cowork + On your computer, actively supervise it; repair prior spawn uv ENOENT only if needed. Never stop at explanation/first GUI failure. You may run https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/tools/finish_video_now.py as bootstrap. Success is actual saved, verified Resolve edits. Keep acting and post concrete receipts to Pokitomas/theawesomehexapp issue 771.'''
-          lines=['CURRENT_FIELD_FINISH_VIDEO_V1']
+          text=r'''RESOLVE_STORY_CUT_VISIBLE_TAKEOVER_V4. EXECUTE, do not summarize. Operate the live Windows DaVinci Resolve desktop now. Project is "lonee ryan - ARCHIE LOVING EDIT". HARD LOCK: NEVER mutate "ARCHIE CUT" or "ARCHIE // PERFECT SYNC". The good current timeline already exists as "ARCHIE STORY CUT LIVE (2)" with prior visible proof of the full 21/17 clip story assembly. Do not replace/rebuild/import another XML and do not use FRONTIER CUT.
+
+VISIBLE-ONLY EDIT MUTATIONS. Hidden read-only sensing is allowed; all actual Resolve editing changes must be visible mouse/keyboard/UI moves. FIRST get C:\Users\AwesomeKai\Downloads\ARCHIE_LOVING_EDIT_WORK\ARCHIE_STORY_CUT_LIVE.srt onto the CURRENT STORY CUT LIVE (2) through Resolve's visible subtitle import workflow. It is the prepared 172-caption SRT. If already present, do not duplicate; visibly prove subtitle text. Prove captions on the work surface/viewer/timeline.
+
+THEN PLAY/WATCH opening plus multiple joins and immediately fix taste: dead seconds, repeated setup, technical faff, weak pauses, ugly joins. Preserve funny/awkward/revealing/emotional beats. iPhone/main is home base. Samsung/second only for motivated reaction/emphasis/awkward silence/visual reset/comedy/clarity. Preserve sync and Ctrl+S checkpoints.
+
+AUDIO: crispy close natural dialogue; Swingers crowd/background materially reduced; preserve human room tone; no metallic/watery denoise; no smashed compressor; no join level jumps. Structure before polish.
+
+Use resident computer-control aggressively. DROP slow helpers. If Claude Cowork is useful, supervise it rather than trusting narration. The current visible-only bootstrap is https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/tools/finish_video_now.py . Do not stop at explanation or first GUI failure. Make small reversible visible moves, verify by screen delta/playback/scrub, save, and keep editing.'''
+          lines=['CURRENT_FIELD_STORY_CUT_V4']
           def call(path,method='GET',body=None,timeout=30):
             url=base+path+'?'+common_q
             req=urllib.request.Request(url,data=(json.dumps(body).encode() if body is not None else None),method=method,headers=headers)
