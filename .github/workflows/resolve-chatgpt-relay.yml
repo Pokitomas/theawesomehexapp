@@ -13,26 +13,33 @@ permissions:
 jobs:
   deliver:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
-      - name: Deliver exact live Resolve objective
+      - name: Deliver native phone-live bootstrap
         shell: python
         run: |
-          import json,os,subprocess,time
-          directive=r'''RESOLVE_STORY_CUT_VISIBLE_TAKEOVER_V3 owner-authorized execution directive. ACT NOW on the live Windows desktop; do not summarize or design infrastructure. DaVinci Resolve is the target. Project: lonee ryan - ARCHIE LOVING EDIT. HARD LOCK: never mutate ARCHIE CUT or ARCHIE // PERFECT SYNC. Current good working timeline is already present and visible as ARCHIE STORY CUT LIVE (2), prior proof 21/17 clip structure. Do not rebuild it, import another XML, or retreat to FRONTIER CUT.
+          import json,subprocess,time
+          directive=r'''PHONE_LIVE_NATIVE_BOOTSTRAP_V2 — owner-authorized live-controller execution. ACT NOW from the resident Windows controller. Vercel is one-shot bootstrap transport only and MUST NOT remain in the resulting phone runtime path.
 
-Every EDITING MUTATION must be visibly performed through Resolve mouse/keyboard/UI. Hidden read-only sensing is fine. FIRST: use Resolve's visible subtitle import UI to import C:\Users\AwesomeKai\Downloads\ARCHIE_LOVING_EDIT_WORK\ARCHIE_STORY_CUT_LIVE.srt and get its prepared 172 captions onto the CURRENT STORY CUT LIVE (2) timeline by timecode. If captions are already present, prove them rather than duplicate. Visibly prove subtitle text in the viewer/timeline.
+ENTER the default-ChatGPT 15-minute externally measured timebox now. It is awareness/pace only, never a completion/liveness/provider boundary.
 
-THEN play/watch the opening and multiple joins and immediately fix taste: dead seconds, repeated setup, technical faff, weak pauses, ugly joins. Preserve funny/awkward/revealing/emotional beats. iPhone/main is home base; Samsung/second only for reactions, emphasis, awkward silence, visual reset, or clearly better comedy/clarity. Preserve sync and save checkpoints.
+Produce a REAL public HTTPS URL the owner can tap from an iPhone on ordinary cellular with Tailscale/VPN off. Build/refactor only the narrow native phone live-field surface needed around the already-running controller. Prefer the smallest reversible non-Vercel reverse ingress available on this Windows PC, e.g. Cloudflare Quick Tunnel; if absent, install/use a portable user-local equivalent. Do NOT restart the main controller or lose its memory-only absorbed context. Disposable phone/tunnel/helpers may restart.
 
-AUDIO: crispy close natural dialogue; materially reduce Swingers crowd/background; keep human room tone; no metallic/watery denoise, no smashed compressor, no level jumps at joins. Structure first, polish after.
+UX: one sparse live field, not dashboard. Owner speech/text is accepted and marked HEARD immediately as a SIDEBAND ingress; it must NEVER cancel, supersede, pause, steal, or falsely complete the currently executing controller task merely because new speech arrived. The intelligence chooses when/what to answer. Stream action/effect/VERIFIED receipts continuously. Stream a bounded current-PC visual preview/diff sufficient to see what the controller acts on. Playback/reply may duck for new speech without cancelling controller work. Preserve plaintext_persisted=false; save no raw mic media.
 
-Use existing resident full-computer/Hotwire/controller abilities. DROP any slow helper. If Claude Cowork is useful, actively supervise it; updated visible-only bootstrap is https://raw.githubusercontent.com/Pokitomas/theawesomehexapp/main/tools/finish_video_now.py . Do not stop at explanation or first GUI failure. Make the smallest reversible visible Resolve move, verify work-surface delta/playback, save, and continue. Emit concrete receipts/state into the resident field.'''
+PUBLIC ALLOWLIST ONLY: phone input + seat/event/visual read + health/session. Explicitly refuse/not-route 8789 shell, filesystem, secrets, workspace_patch, generic /action, controller admin, arbitrary command execution. Controller mutation stays local and occupant-authorized.
+
+TEST BEFORE READY: (1) public URL 200 through non-tail/non-Vercel path; (2) hostname/runtime path contains no .ts.net or .vercel.app hop; (3) shell/workspace_patch/generic action/admin probes refused/not routed; (4) start/observe unresolved controller work then inject phone input and prove same work remains live while HEARD updates; (5) events/effect/VERIFIED stream works; (6) bounded PC visual preview works and changes with action; (7) helper/tunnel survives normal request and health remains live. Only change implementation when the next test is already defined. Do not close Roblox/windows until this phone milestone is proven.
+
+When ALL pass, publish exactly one issue-771 comment line using local authenticated gh/git if available:
+PHONE_LIVE_READY url=<public_https_url> transport=<non-vercel transport> test=<short receipt/digest>
+If publication is unavailable, emit that exact line into controller/relay output and keep the public surface running. Continue controller work after publication; this is not overall completion.'''
           url='https://archie-chatgpt-relay.vercel.app/api/index'
-          p=subprocess.run(['curl','-sS','--max-time','30','-X','POST','-H','content-type: application/json','-H','accept: application/json','--data-binary',json.dumps({'text':directive}),'-w','\n__HTTP__%{http_code}',url],text=True,capture_output=True,timeout=38)
-          lines=['RESOLVE_DIRECT_RELAY_V3','rc='+str(p.returncode),'delivery='+(p.stdout+p.stderr)[:8000]]
-          time.sleep(4)
+          p=subprocess.run(['curl','-sS','--max-time','45','-X','POST','-H','content-type: application/json','-H','accept: application/json','--data-binary',json.dumps({'text':directive}),'-w','\n__HTTP__%{http_code}',url],text=True,capture_output=True,timeout=52)
+          lines=['PHONE_LIVE_BOOTSTRAP_V2','rc='+str(p.returncode),'delivery='+(p.stdout+p.stderr)[:10000]]
+          time.sleep(3)
           open('/tmp/resolve-direct-relay.txt','w',encoding='utf-8').write('\n'.join(lines)+'\n')
+          if p.returncode != 0: raise SystemExit(p.returncode)
       - name: Publish delivery receipt
         if: always()
         uses: actions/github-script@v7
@@ -40,4 +47,4 @@ Use existing resident full-computer/Hotwire/controller abilities. DROP any slow 
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs=require('fs');let text='NO_RECEIPT';try{text=fs.readFileSync('/tmp/resolve-direct-relay.txt','utf8')}catch(e){text+=' '+e}
-            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`RESOLVE_DIRECT_RELAY_RECEIPT\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`PHONE_LIVE_BOOTSTRAP_DELIVERY\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
