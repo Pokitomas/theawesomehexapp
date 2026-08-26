@@ -1,0 +1,43 @@
+name: ARCHIE close Roblox now
+on:
+  push:
+    paths:
+      - '.github/workflows/archie-close-roblox-now.yml'
+permissions:
+  contents: read
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SHELL_SECRET: ${{ secrets.ARCHIE_SHELL_SECRET }}
+    steps:
+      - name: Close Roblox and verify
+        shell: python
+        run: |
+          import json, os, subprocess, sys
+          secret=os.environ.get('SHELL_SECRET','')
+          if not secret:
+              print('RESULT missing_secret'); sys.exit(2)
+          raw=secret; s=secret[1:] if secret.startswith('/') else secret
+          base=f'https://desktop-6fn9b4m-1.tail1bf489.ts.net/{s}/shell'
+          def curl(method,url,obj=None,token=None,timeout=8):
+              a=['curl','-sS','--max-time',str(timeout),'-w','\n__HTTP__%{http_code}']
+              if method=='POST': a += ['-X','POST']
+              if token: a += ['-H',f'x-archie-shell-token: {token}']
+              if obj is not None: a += ['-H','content-type: application/json','--data-binary',json.dumps(obj)]
+              a += [url]
+              p=subprocess.run(a,text=True,capture_output=True,timeout=timeout+3)
+              return p.stdout+p.stderr
+          h=curl('GET',base+'/health',timeout=7)
+          print('HEALTH', h.replace(raw,'[redacted]').replace(s,'[redacted]')[:1000])
+          if '__HTTP__200' not in h: sys.exit(3)
+          cmd="powershell.exe -NoLogo -NoProfile -Command \"$n=@('RobloxPlayerBeta','RobloxStudioBeta'); Get-Process -Name $n -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 300; $left=Get-Process -Name $n -ErrorAction SilentlyContinue; if($left){$left | Select-Object -ExpandProperty ProcessName; exit 7}else{Write-Output 'ROBLOX_CLOSED'}\""
+          for route in (base,base+'/exec'):
+              for tok in (raw,s):
+                  r=curl('POST',route,{'cmd':cmd},tok,12)
+                  clean=r.replace(raw,'[redacted]').replace(s,'[redacted]')
+                  print('EXEC',clean[:2000])
+                  if 'ROBLOX_CLOSED' in r and '__HTTP__200' in r:
+                      print('RESULT ROBLOX_CLOSED_VERIFIED'); sys.exit(0)
+          sys.exit(4)
