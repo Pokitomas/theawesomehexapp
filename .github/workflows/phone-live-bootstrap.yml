@@ -1,0 +1,72 @@
+name: Bootstrap native public phone ingress
+
+on:
+  push:
+    paths:
+      - '.github/workflows/phone-live-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Deliver one-shot bootstrap to resident controller
+        shell: python
+        run: |
+          import json, os, subprocess, textwrap
+          directive = r'''PHONE_LIVE_NATIVE_BOOTSTRAP_V1 — owner-authorized live-controller execution. This is a one-shot bootstrap transport only; Vercel MUST NOT remain in the resulting phone path.
+
+ENTER the default-ChatGPT 15-minute externally measured timebox now. The timebox is awareness/pace only and MUST NOT be interpreted as task completion, liveness failure, or provider completion.
+
+Immediate objective: produce a REAL public HTTPS URL the owner can tap from an iPhone on ordinary cellular with Tailscale/VPN off. Build/refactor only the narrow native phone surface necessary for a live field into the already-running controller. Prefer the smallest reversible public reverse ingress available on this Windows PC (Cloudflare Quick Tunnel is acceptable; if cloudflared is absent, use a portable user-local binary or an equivalently narrow non-Vercel reverse tunnel). Do not expose 8789 shell, workspace_patch, generic /action, secrets, filesystem, or raw controller admin endpoints to the public internet.
+
+PHONE UX CONTRACT:
+- one sparse live field, not a dashboard;
+- owner speech/text is accepted immediately as sideband ingress and NEVER cancels, supersedes, pauses, or steals the currently executing controller task merely because new speech arrived;
+- acknowledge/heard state immediately from the phone bridge, while the intelligence chooses when/what to answer;
+- stream controller action/effect/verified receipts continuously to phone;
+- stream a bounded current-PC visual preview/diff so owner can see what the controller acts on; no unrelated filesystem/browser scraping;
+- playback/reply may be interrupted/ducked by new speech without cancelling controller work;
+- preserve plaintext_persisted=false and do not save raw microphone media;
+- public capability surface is allowlisted: phone input + seat/event/visual read only. Controller mutation remains local and occupant-authorized.
+
+DO NOT restart the main controller or lose its memory-only absorbed context. You may restart/replace only disposable helpers/phone bridge/tunnel components. Do not close Roblox/windows yet; that comes only after this phone milestone is proven.
+
+TEST BEFORE CLAIMING READY:
+1) public URL returns 200 from outside the tailnet path;
+2) no Vercel URL or Vercel hop appears in the phone runtime path;
+3) public probes for shell, workspace_patch, generic action/admin are refused/not routed;
+4) phone input enters the controller sideband without completing/cancelling an existing task;
+5) events/verified effects and bounded visual preview are readable through the public surface;
+6) tunnel/helper survives its first normal request and reports a live health receipt.
+
+When and only when those pass, publish exactly one machine-readable line to GitHub issue 771 using the already-authenticated local gh/git path if available:
+PHONE_LIVE_READY url=<public_https_url> transport=<non-vercel transport> test=<short receipt/digest>
+If local GitHub publication is unavailable, emit the same exact line into the controller/relay output and keep the surface running. Continue controller work after publication; do not treat publication as overall task completion.'''
+          url='https://archie-chatgpt-relay.vercel.app/api/index'
+          p=subprocess.run([
+            'curl','-sS','--max-time','40','-X','POST',
+            '-H','content-type: application/json','-H','accept: application/json',
+            '--data-binary',json.dumps({'text':directive}),url
+          ], text=True, capture_output=True, timeout=48)
+          body=(p.stdout+p.stderr)[:12000]
+          open('/tmp/phone-live-bootstrap.txt','w',encoding='utf-8').write(f'rc={p.returncode}\n{body}\n')
+          if p.returncode != 0:
+            raise SystemExit(p.returncode)
+      - name: Publish bootstrap delivery receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs'); let text='NO_RECEIPT';
+            try{text=fs.readFileSync('/tmp/phone-live-bootstrap.txt','utf8')}catch(e){text+=' '+e}
+            await github.rest.issues.createComment({
+              owner:context.repo.owner,repo:context.repo.repo,issue_number:771,
+              body:`PHONE_LIVE_BOOTSTRAP_DELIVERY run_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``
+            });
