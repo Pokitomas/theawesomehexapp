@@ -13,6 +13,7 @@ if str(HERE) not in sys.path:
 from core import Capability, SeatLease, UniversalRemoteKernel, receipt, verify_receipt
 import distill
 import maker_fixture
+import preference_train
 import render_ffmpeg
 import synthetic_pref
 import video_editor_v2
@@ -21,7 +22,7 @@ import video_editor_v2
 def cold_start_court() -> dict:
     code = (
         "import sys;sys.path.insert(0," + repr(str(HERE)) + ");"
-        "import core,maker_fixture,video_editor_v2,render_ffmpeg,synthetic_pref,distill;"
+        "import core,maker_fixture,video_editor_v2,render_ffmpeg,synthetic_pref,preference_train,distill;"
         "print(core.SCHEMA)"
     )
     t0 = time.perf_counter_ns()
@@ -130,6 +131,11 @@ def synthetic_court() -> dict:
     return receipt("court.synthetic", {"synthetic": r["payload"], "passes": bool(r["payload"]["passes"])})
 
 
+def preference_training_court() -> dict:
+    r = preference_train.court()
+    return receipt("court.preference_training", {"training": r["payload"], "passes": bool(r["payload"].get("passes"))})
+
+
 def run() -> dict:
     courts = {
         "cold_start": cold_start_court(),
@@ -141,6 +147,7 @@ def run() -> dict:
         "video_render": render_court(),
         "distill": distill_court(),
         "synthetic_preference": synthetic_court(),
+        "preference_training": preference_training_court(),
     }
     passes = {name: bool(value["payload"].get("passes")) for name, value in courts.items()}
     return receipt("kernel-maker.promotion-court", {
