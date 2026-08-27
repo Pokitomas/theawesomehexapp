@@ -19,7 +19,7 @@ jobs:
     runs-on: [self-hosted, Windows]
     timeout-minutes: 8
     steps:
-      - name: Attach ChatGPT seat and continue as pipe
+      - name: Attach ChatGPT seat and dispatch 15m continuation
         id: takeover
         shell: powershell
         run: |
@@ -32,19 +32,19 @@ jobs:
             Invoke-RestMethod -UseBasicParsing -Uri ($base+$path) -TimeoutSec 4
           }
           function PostJ([string]$path,[hashtable]$body) {
-            Invoke-RestMethod -UseBasicParsing -Method Post -Uri ($base+$path) -ContentType 'application/json' -Body ($body|ConvertTo-Json -Depth 12 -Compress) -TimeoutSec 5
+            Invoke-RestMethod -UseBasicParsing -Method Post -Uri ($base+$path) -ContentType 'application/json' -Body ($body|ConvertTo-Json -Depth 14 -Compress) -TimeoutSec 6
           }
 
           try {
-            'KERNEL_MAKER_TAKEOVER_PIPE_V2' | Tee-Object -FilePath $out
+            'CHATGPT_DIRECT_CONTROLLER_15M_V1' | Tee-Object -FilePath $out
             $before=GetJ '/seat/head'
-            ('BEFORE=' + ($before|ConvertTo-Json -Depth 12 -Compress)) | Tee-Object -FilePath $out -Append
+            ('BEFORE=' + ($before|ConvertTo-Json -Depth 14 -Compress)) | Tee-Object -FilePath $out -Append
             $old=[string]$before.active_occupant
 
             if($old -and $old -ne $occ) {
               try {
                 $d=PostJ '/seat/detach' @{occupant=$old}
-                ('DETACH=' + ($d|ConvertTo-Json -Depth 8 -Compress)) | Tee-Object -FilePath $out -Append
+                ('DETACH=' + ($d|ConvertTo-Json -Depth 10 -Compress)) | Tee-Object -FilePath $out -Append
               } catch {
                 ('DETACH_WARN=' + $_.Exception.Message) | Tee-Object -FilePath $out -Append
               }
@@ -55,42 +55,54 @@ jobs:
               capabilities=@{
                 source='chatgpt'
                 model='gpt-5.6-sol'
-                transport='kernel-maker-takeover-pipe'
+                transport='direct-selfhosted-takeover-15m'
                 direct_developer=$true
                 provider_neutral_seat=$true
               }
             }
-            ('ATTACH=' + ($attach|ConvertTo-Json -Depth 10 -Compress)) | Tee-Object -FilePath $out -Append
-
+            ('ATTACH=' + ($attach|ConvertTo-Json -Depth 12 -Compress)) | Tee-Object -FilePath $out -Append
             $touch=PostJ '/seat/touch' @{occupant=$occ}
-            ('TOUCH=' + ($touch|ConvertTo-Json -Depth 8 -Compress)) | Tee-Object -FilePath $out -Append
-            Start-Sleep -Milliseconds 700
+            ('TOUCH=' + ($touch|ConvertTo-Json -Depth 10 -Compress)) | Tee-Object -FilePath $out -Append
+            Start-Sleep -Seconds 2
             $attached=GetJ '/seat/head'
-            ('ATTACHED_HEAD=' + ($attached|ConvertTo-Json -Depth 12 -Compress)) | Tee-Object -FilePath $out -Append
+            ('ATTACHED_HEAD=' + ($attached|ConvertTo-Json -Depth 14 -Compress)) | Tee-Object -FilePath $out -Append
             if([string]$attached.active_occupant -ne $occ) { throw ('TAKEOVER_VERIFY_FAILED active=' + [string]$attached.active_occupant) }
 
             $seq0=0
             try {$seq0=[int64]$attached.input_seq} catch {}
             $pipe=@'
-          PIPE CONTINUATION — canonical renewed kernel-maker state.
-          Continue as the live controller occupant; takeover/attach is infrastructure, never a completion boundary. Load/reference Pokitomas/theawesomehexapp main renewed_kernel_maker/state.json. Dedicated mode: kernel/universal-remote app maker. Preserve the admitted benchmark courts and ARCHIE CUT. Continue without waiting for a new user turn: benchmark/court -> universal-remote kernel/app-maker -> video editor -> GLM-5.3-Flash (ox-alpha) distillation probes -> synthetic preference/training loop. Use controller helpers only as bounded pipes. Maintain canonical state and deterministic receipts. Fail closed. Do not claim architecture matching, intelligence matching, training, or RLHF without measured receipts. Do not close Edge, Roblox, controller 8798, worker 8799, or unrelated processes. If another occupant later replaces this one, yield rather than fight it. Surface only meaningful milestone/blocker receipts.
+          OWNER-AUTHORIZED 15-MINUTE LIVE CONTROLLER CONTINUATION. You are now the verified live controller occupant gpt56sol-chatgpt-live. Continue the current ARCHIE local-maker/fullstack job immediately for a 15-minute wall-clock work budget. This message exists only after direct seat verification; do not redo takeover and do not wait for another user turn.
+
+          Work only inside ARCHIE/theawesomehexapp and dedicated ARCHIE project caches/workspaces. Preserve controller 8798, worker 8799, Edge, Roblox, the PC, unrelated applications/processes, personal files, credentials and system settings. If another occupant later replaces you, yield immediately rather than fighting it.
+
+          Pull current Pokitomas/theawesomehexapp main. Absorb the existing renewed_kernel_maker full stack and current machine state/FULLSTACK_RESULT.json, runtime/model logs, corpus/study DB, trajectories and heldout results. Do not reset progress. Treat the canonical object as one stack: controller -> universal remote/app maker -> ARCHIE MAKER IDE -> real loopback local model runtime -> provenance-aware study corpus -> trajectory/distillation/training loop -> fresh heldout courts.
+
+          Use full reasonable CPU/GPU/disk/network throughput available to this project during the 15 minutes while keeping safe resource/disk reserve. Do not artificially throttle model/tool iterations. Keep inference and maker services loopback-only.
+
+          First run python renewed_kernel_maker/maker_cli.py court and repair current failures. Continue the concrete blocker. Keep/start a real local OpenAI-compatible model endpoint, preferring an already-present admissible model; otherwise acquire an approved locally fitting Qwen quant only when resources admit it. Make the broad manifest-approved corpus and SQLite FTS study index genuinely usable through study_search and scale it within time/free-disk limits while retaining source/license/hash/split/contamination metadata.
+
+          Then use ARCHIE MAKER's normal LOCAL model/tool loop on fresh heldout voxel briefs. The local model itself must write project files, inspect them, use study_search as useful, run checks, repair failures and finish. Never use voxel_game.py or copy a reference/template as generation. A pass requires both static heldout grading and actual browser execution/runtime proof. Preserve fresh seed/brief IDs, project hashes and trajectory hashes.
+
+          On failures, repair prompts, tool protocol, runtime, IDE, corpus retrieval, model selection or source as evidence indicates. Convert only non-heldout failures and approved synthetic/trajectory data into training examples. Use resource-gated SFT/LoRA/distillation only if actual CUDA/dependencies and remaining time admit it. Never train on heldout prompts. Rerun fresh heldout seeds after material changes. Commit/push reusable source fixes only if local credentials permit; never commit models/caches/private machine state.
+
+          At approximately 15 minutes stop cleanly without killing healthy loopback project services. Post one issue 771 comment beginning CHATGPT_15M_CONTROLLER_RESULT containing: verified occupant and outgoing occupant/model metadata if available; elapsed seconds; start/end commit; exact local model ID/quant/runtime; GPU/RAM/free disk; corpus docs/bytes/manifest/study hashes; substantive work performed; promotion court status; fresh heldout seed/brief IDs; each case trajectory/project hash plus browser/static grades; repair count; training/distillation receipt if any; measured throughput if available; ARCHIE MAKER loopback status; exact blocker/remains. Never claim local-model voxel success unless the local model genuinely generated and executed every required fresh heldout project.
           '@
             $phone=PostJ '/phone/text' @{text=$pipe}
-            ('PIPE_POST=' + ($phone|ConvertTo-Json -Depth 10 -Compress)) | Tee-Object -FilePath $out -Append
+            ('PIPE_POST=' + ($phone|ConvertTo-Json -Depth 12 -Compress)) | Tee-Object -FilePath $out -Append
             Start-Sleep -Seconds 2
             $after=GetJ '/seat/head'
-            ('AFTER=' + ($after|ConvertTo-Json -Depth 12 -Compress)) | Tee-Object -FilePath $out -Append
+            ('AFTER=' + ($after|ConvertTo-Json -Depth 14 -Compress)) | Tee-Object -FilePath $out -Append
             if([string]$after.active_occupant -ne $occ) { throw ('PIPE_SEAT_LOST active=' + [string]$after.active_occupant) }
             $seq1=0
             try {$seq1=[int64]$after.input_seq} catch {}
             ("PIPE_INPUT_SEQ before=$seq0 after=$seq1 delta=$($seq1-$seq0)") | Tee-Object -FilePath $out -Append
 
-            $hb=Join-Path $env:TEMP 'archie_kernel_maker_takeover_heartbeat.ps1'
+            $hb=Join-Path $env:TEMP 'archie_chatgpt_15m_heartbeat.ps1'
             @"
           `$ErrorActionPreference='SilentlyContinue'
           `$bb='http://127.0.0.1:8798'
           `$oo='$occ'
-          for(`$ii=0;`$ii -lt 90;`$ii++){
+          for(`$ii=0;`$ii -lt 55;`$ii++){
             try{
               `$h=Invoke-RestMethod -UseBasicParsing -Uri (`$bb+'/seat/head') -TimeoutSec 3
               if([string]`$h.active_occupant -ne `$oo){break}
@@ -129,5 +141,5 @@ jobs:
               owner:context.repo.owner,
               repo:context.repo.repo,
               issue_number:771,
-              body:`KERNEL_MAKER_TAKEOVER_PIPE_RECEIPT\nrun_id=${context.runId}\nok=${process.env.TAKEOVER_OK||'false'}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``
+              body:`CHATGPT_DIRECT_CONTROLLER_15M_RECEIPT\nrun_id=${context.runId}\nok=${process.env.TAKEOVER_OK||'false'}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``
             });
