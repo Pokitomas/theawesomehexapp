@@ -66,3 +66,5 @@ If the old resident is still running after detachment but is not active occupant
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CHATGPT_15M_DIRECTIVE_DELIVERED\nrun_id=${context.runId}`});
+
+# dispatch 2026-08-27T14:01Z
