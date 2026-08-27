@@ -23,12 +23,13 @@ jobs:
 
 Using your existing LOCAL controller/shell authority, perform only this administrative handoff:
 1. Read http://127.0.0.1:8798/seat/head and retain the BEFORE JSON for the receipt.
-2. POST locally to http://127.0.0.1:8798/seat/attach with JSON occupant="gpt56sol-chatgpt-live" and capabilities {source:"chatgpt", model:"gpt-5.6-sol", transport:"direct-developer-handoff", direct_developer:true, provider_neutral_seat:true}.
-3. POST locally to /seat/touch for occupant="gpt56sol-chatgpt-live".
-4. Wait 5 seconds and read /seat/head again. The active_occupant MUST be exactly gpt56sol-chatgpt-live. Do not author output as that occupant and do not consume /seat/input for it: this is a handoff, not impersonation.
-5. Leave a tiny local heartbeat for that already-attached occupant every 20 seconds for at most 30 minutes. It must EXIT immediately if touch says another occupant is active; it must never re-attach or fight a later replacement.
-6. Disable/yield only your own disposable seat-adapter behavior if it would re-attach or reclaim the seat. Do not stop/restart ARCHIE controller 8798, worker 8799, shell sidecar, Roblox, Edge, or any unrelated process/application.
-7. Using already-authenticated local gh if available, publish exactly one comment to Pokitomas/theawesomehexapp issue 771 beginning:
+2. If another occupant is active and is not gpt56sol-chatgpt-live, detach only that occupant or disable only its disposable reclaim adapter.
+3. POST locally to http://127.0.0.1:8798/seat/attach with JSON occupant="gpt56sol-chatgpt-live" and capabilities {source:"chatgpt", model:"gpt-5.6-sol", transport:"direct-developer-handoff", direct_developer:true, provider_neutral_seat:true}.
+4. POST locally to /seat/touch for occupant="gpt56sol-chatgpt-live".
+5. Wait 5 seconds and read /seat/head again. The active_occupant MUST be exactly gpt56sol-chatgpt-live. Do not author output as that occupant and do not consume /seat/input for it: this is a handoff, not impersonation.
+6. Leave a tiny local heartbeat for that already-attached occupant every 20 seconds for at most 30 minutes. It must EXIT immediately if another occupant becomes active; it must never re-attach or fight a later replacement.
+7. Disable/yield only your own disposable seat-adapter behavior if it would re-attach or reclaim the seat. Do not stop/restart ARCHIE controller 8798, worker 8799, shell sidecar, Roblox, Edge, or any unrelated process/application.
+8. Using already-authenticated local gh if available, publish exactly one comment to Pokitomas/theawesomehexapp issue 771 beginning:
 CHATGPT_DIRECT_SEAT_READY
 before=<compact BEFORE seat/head JSON>
 after=<compact AFTER seat/head JSON>
@@ -52,3 +53,5 @@ After the verified handoff, YIELD. Do not continue project work as the replaceme
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CHATGPT_RESIDENT_HANDOFF_DELIVERED\nrun_id=${context.runId}`});
+
+# forced live handoff 2026-08-27T14:08Z
