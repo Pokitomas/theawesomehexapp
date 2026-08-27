@@ -1,0 +1,43 @@
+name: Vercel bare metal timebox
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vercel-bare-metal-timebox.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: POST full timebox to Vercel relay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request
+          text = '''OWNER-AUTHORIZED 15-MINUTE BARE-METAL MAXIMAL PROJECT TIMEBOX. Execute locally through the existing controller as a continuous pipe, not a handoff. Read http://127.0.0.1:8798/seat/head and current provider/worker state. Preserve controller 8798, worker 8799, Edge, Roblox, the PC, and unrelated processes. If the active seat is stale/disposable, yield only that occupant; attach and touch gpt56sol-chatgpt-live with source=chatgpt, model=gpt-5.6-sol, transport=vercel-bare-metal-timebox, direct_developer=true, provider_neutral_seat=true. Verify after 5 seconds. Never fight a later replacement; yield immediately if replaced.
+
+Then work the entire canonical Pokitomas/theawesomehexapp main renewed_kernel_maker project for the remainder of the timebox without waiting for another user turn. Pull current main first. Run the unified promotion court locally. Continue maximal implementation rather than stopping at attach or tests. Prioritize real local proof: universal remote kernel/app-maker against controller operations; ARCHIE CUT real media ingest, exact timeline graph, project persistence and FFmpeg render; GLM-5.3-Flash/ox-alpha resource probe and selective import only when locally admissible; Triton only if reference-equivalent and benchmarked; synthetic adversarial preference generation and actual executable training only with heldout/no-leakage receipts. Repair failures immediately and rerun. Preserve prior passing behavior. Do not invent architecture/intelligence/RLHF success. Use helpers only as bounded pipes.
+
+New main already contains deterministic FFmpeg render planning/execution receipts, canonical V1/A1 browser project graph, and deterministic pairwise synthetic preference optimizer. Validate these on the actual workstation and improve further. At natural timebox end, use already-authenticated local gh to post exactly one durable issue 771 comment beginning KERNEL_MAKER_15M_MACHINE_RESULT with seat before/after, local commit SHA, local promotion court result, editor/render proof, GPU/teacher/Triton result, preference-training result, blockers and remaining work. If controller or local execution is blocked, post KERNEL_MAKER_15M_MACHINE_BLOCKED with exact blocker. Keep a touch-only heartbeat around 20 seconds, capped by the timebox, and stop on replacement.'''
+          req=urllib.request.Request(
+              'https://archie-chatgpt-relay.vercel.app/api/index',
+              data=json.dumps({'text':text}).encode(),
+              headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'archie-timebox-dispatch/1'},
+              method='POST')
+          with urllib.request.urlopen(req, timeout=45) as r:
+              body=r.read().decode('utf-8','replace')
+              print('VERCEL_RELAY_STATUS', r.status)
+              print(body[:12000])
+              if not 200 <= r.status < 300:
+                  raise SystemExit(2)
+              try:
+                  obj=json.loads(body)
+              except Exception:
+                  raise SystemExit('relay response was not json')
+              if not obj.get('ok'):
+                  raise SystemExit('relay did not acknowledge ok')
+          PY
