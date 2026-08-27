@@ -13,6 +13,7 @@ if str(HERE) not in sys.path:
 from core import Capability, SeatLease, UniversalRemoteKernel, receipt, verify_receipt
 import distill
 import maker_fixture
+import render_ffmpeg
 import synthetic_pref
 import video_editor_v2
 
@@ -20,7 +21,7 @@ import video_editor_v2
 def cold_start_court() -> dict:
     code = (
         "import sys;sys.path.insert(0," + repr(str(HERE)) + ");"
-        "import core,maker_fixture,video_editor_v2,synthetic_pref,distill;"
+        "import core,maker_fixture,video_editor_v2,render_ffmpeg,synthetic_pref,distill;"
         "print(core.SCHEMA)"
     )
     t0 = time.perf_counter_ns()
@@ -110,6 +111,11 @@ def editor_court() -> dict:
     return receipt("court.editor", {"editor": p, "passes": passes})
 
 
+def render_court() -> dict:
+    r = render_ffmpeg.court()
+    return receipt("court.render", {"render": r["payload"], "passes": bool(r["payload"].get("passes"))})
+
+
 def distill_court() -> dict:
     r = distill.court()
     p = r["payload"]
@@ -132,6 +138,7 @@ def run() -> dict:
         "remote": remote_court(),
         "maker": maker_court(),
         "video_editor": editor_court(),
+        "video_render": render_court(),
         "distill": distill_court(),
         "synthetic_preference": synthetic_court(),
     }
