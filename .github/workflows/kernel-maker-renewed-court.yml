@@ -19,7 +19,9 @@ jobs:
       - name: Unified promotion court
         env:
           PYTHONPATH: renewed_kernel_maker
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p renewed_kernel_maker/evidence
           python renewed_kernel_maker/court.py | tee renewed_kernel_maker/evidence/promotion-court.json
       - name: Verify video editor is self-contained
