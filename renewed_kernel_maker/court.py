@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import time
@@ -11,16 +10,17 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
-from core import AppMaker, Capability, SeatLease, UniversalRemoteKernel, canonical, receipt, verify_receipt
+from core import Capability, SeatLease, UniversalRemoteKernel, receipt, verify_receipt
 import distill
+import maker_fixture
 import synthetic_pref
-import video_editor
+import video_editor_v2
 
 
 def cold_start_court() -> dict:
     code = (
         "import sys;sys.path.insert(0," + repr(str(HERE)) + ");"
-        "import core,video_editor,synthetic_pref,distill;"
+        "import core,maker_fixture,video_editor_v2,synthetic_pref,distill;"
         "print(core.SCHEMA)"
     )
     t0 = time.perf_counter_ns()
@@ -40,11 +40,12 @@ def receipt_court() -> dict:
     again = receipt("fixture", {"a": [3, 2, 1], "z": 1})
     corrupt = json.loads(json.dumps(value))
     corrupt["payload"]["z"] = 2
+    passes = verify_receipt(value) and value["sha256"] == again["sha256"] and not verify_receipt(corrupt)
     return receipt("court.receipt", {
         "valid": verify_receipt(value),
         "order_independent": value["sha256"] == again["sha256"],
         "corruption_detected": not verify_receipt(corrupt),
-        "passes": verify_receipt(value) and value["sha256"] == again["sha256"] and not verify_receipt(corrupt),
+        "passes": passes,
     })
 
 
@@ -88,17 +89,24 @@ def remote_court() -> dict:
 
 
 def maker_court() -> dict:
-    r = AppMaker().court()
+    r = maker_fixture.court()
     p = r["payload"]
-    passes = all(bool(p.get(k)) for k in ("inspect_valid", "pre_repair_failed", "repair_changed", "post_repair_passed", "run_passed"))
+    passes = all(bool(p.get(k)) for k in (
+        "inspect_valid", "pre_repair_failed", "repair_receipt", "cache_invalidated", "post_repair_passed", "run_passed"
+    ))
     return receipt("court.maker", {"maker": p, "passes": passes})
 
 
 def editor_court() -> dict:
-    r = video_editor.court()
+    r = video_editor_v2.court()
     p = r["payload"]
     b = p["benchmark"]
-    passes = all(bool(p.get(k)) for k in ("add_receipt", "split_receipt", "undo_receipt", "redo_receipt", "redo_exact", "portable_roundtrip", "save_receipt")) and bool(b["deterministic_replay"]) and bool(b["exact_frame_roundtrip"])
+    passes = (
+        all(bool(p.get(k)) for k in ("add_receipt", "split_receipt", "undo_receipt", "redo_receipt", "redo_exact", "portable_roundtrip", "save_receipt"))
+        and bool(b["deterministic_replay"])
+        and bool(b["exact_frame_roundtrip"])
+        and bool(b["mutation_receipts_valid"])
+    )
     return receipt("court.editor", {"editor": p, "passes": passes})
 
 
@@ -107,8 +115,6 @@ def distill_court() -> dict:
     p = r["payload"]
     import_status = p["import_attempt"]["status"]
     triton_status = p["triton"]["status"]
-    # BLOCKED is an admissible result when resource evidence says a full teacher
-    # cannot fit. SKIP is admissible for Triton only when unavailable; a FAIL is not.
     passes = bool(p["kl_oracle"]["passes"]) and import_status in {"BLOCKED", "READY_TO_MATERIALIZE"} and triton_status in {"SKIP", "PASS"}
     return receipt("court.distill", {"distill": p, "passes": passes})
 
@@ -130,13 +136,12 @@ def run() -> dict:
         "synthetic_preference": synthetic_court(),
     }
     passes = {name: bool(value["payload"].get("passes")) for name, value in courts.items()}
-    final = receipt("kernel-maker.promotion-court", {
+    return receipt("kernel-maker.promotion-court", {
         "courts": courts,
         "passes": passes,
         "all_required_pass": all(passes.values()),
         "promotion": "ADMIT" if all(passes.values()) else "REFUSE",
     })
-    return final
 
 
 if __name__ == "__main__":
