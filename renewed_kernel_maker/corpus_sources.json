@@ -1,0 +1,34 @@
+{
+  "schema": "archie-corpus-sources/v1",
+  "policy": {
+    "allowed_spdx": ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "Zlib", "ISC"],
+    "require_declared_license": true,
+    "exclude_generated_vendor_dirs": true,
+    "exclude_benchmark_prompts": true,
+    "dedupe_by_normalized_sha256": true
+  },
+  "sources": [
+    {"repo":"godotengine/godot","license":"MIT","domain":"game-engine"},
+    {"repo":"bevyengine/bevy","license":"MIT OR Apache-2.0","domain":"game-engine"},
+    {"repo":"mrdoob/three.js","license":"MIT","domain":"graphics-web"},
+    {"repo":"BabylonJS/Babylon.js","license":"Apache-2.0","domain":"graphics-web"},
+    {"repo":"raysan5/raylib","license":"Zlib","domain":"game-engine"},
+    {"repo":"microsoft/TypeScript","license":"Apache-2.0","domain":"compiler-language"},
+    {"repo":"rust-lang/rustlings","license":"MIT","domain":"language-learning"},
+    {"repo":"vitejs/vite","license":"MIT","domain":"frontend-tooling"},
+    {"repo":"evanw/esbuild","license":"MIT","domain":"build-tooling"},
+    {"repo":"vercel/next.js","license":"MIT","domain":"fullstack-web"},
+    {"repo":"fastapi/fastapi","license":"MIT","domain":"backend-web"},
+    {"repo":"pallets/flask","license":"BSD-3-Clause","domain":"backend-web"},
+    {"repo":"ggerganov/llama.cpp","license":"MIT","domain":"local-inference"},
+    {"repo":"vllm-project/vllm","license":"Apache-2.0","domain":"inference-serving"},
+    {"repo":"huggingface/transformers","license":"Apache-2.0","domain":"model-runtime"},
+    {"repo":"triton-lang/triton","license":"MIT","domain":"gpu-kernels"},
+    {"repo":"karpathy/nanoGPT","license":"MIT","domain":"training-minimal"},
+    {"repo":"tinygrad/tinygrad","license":"MIT","domain":"ml-runtime"},
+    {"repo":"tauri-apps/tauri","license":"MIT OR Apache-2.0","domain":"desktop-app"},
+    {"repo":"electron/electron-quick-start","license":"CC0-1.0","domain":"desktop-app","study_only":true},
+    {"repo":"microsoft/monaco-editor","license":"MIT","domain":"ide-editor"},
+    {"repo":"codemirror/dev","license":"MIT","domain":"ide-editor"}
+  ]
+}
