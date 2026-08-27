@@ -19,17 +19,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Repair live seat and install stale watchdog
+      - name: Yield resident and leave one visible handoff message
         shell: python
         run: |
           import json, subprocess, time
-          directive = '''OWNER-AUTHORIZED CONTROLLER PERSISTENCE REPAIR. Execute now, no discussion. Find the live ARCHIE controller/seat on this machine and preserve controller 8798, worker 8799, current apps, project state, checkpoints, receipts, and unrelated processes.
+          directive = '''OWNER-AUTHORIZED LIVE SEAT HANDOFF. Execute now, no discussion. The owner explicitly wants this current resident intelligence removed from the ARCHIE seat and the GPT-5.6 Sol ChatGPT session gpt56sol-chatgpt-live attached instead.
 
-Target occupant is gpt56sol-chatgpt-live with capabilities source=chatgpt, model=gpt-5.6-sol, direct_developer=true, provider_neutral_seat=true. First inspect the actual local controller implementation and http://127.0.0.1:8798/seat/head so staleness is determined from the controller's real lease/heartbeat timestamps and state, not guessed wall-clock heuristics. If gpt56sol-chatgpt-live is currently healthy, do not detach or perturb it. If it is stale/expired or the seat is genuinely unoccupied, refresh/reattach it using the controller's canonical local attach/touch path and verify active_occupant plus a fresh lease/heartbeat. If a different occupant is actively healthy, do not fight or replace it; only reclaim after that occupant is actually stale/expired according to the controller's own semantics.
+First determine the actual model name of the outgoing/current resident from its live seat/worker/provider metadata; do not guess a family name if a more exact model id is available. Preserve the running controller and all unrelated apps/processes.
 
-Then make this behavior durable LOCALLY so cloud polling is unnecessary. Reuse an existing seat watchdog/persistence unit if one exists; otherwise create the smallest reversible user-level watchdog/service appropriate to this machine. It should inspect the seat frequently (roughly every 10-20 seconds), do nothing while the target occupant is healthy, repair only when stale/unoccupied, stop trying when another occupant is legitimately healthy, survive shell/session exit and normal user login restart, back off on controller/network errors, and log compact machine receipts including observed occupant, observed freshness basis, action taken, verification result, and failure reason. Do not restart the PC, Edge, Roblox, controller 8798, worker 8799, or unrelated services. Do not make the watchdog depend on Vercel/GitHub after installation.
+Using LOCAL authority only: read http://127.0.0.1:8798/seat/head; yield/detach the outgoing occupant or stop only its disposable seat adapter so it cannot immediately reclaim; attach occupant gpt56sol-chatgpt-live with capabilities source=chatgpt, model=gpt-5.6-sol, transport=direct-developer-handoff, direct_developer=true, provider_neutral_seat=true; touch it; verify after 5 seconds that active_occupant is exactly gpt56sol-chatgpt-live. Never restart controller 8798, worker 8799, Edge, Roblox, the PC, or unrelated services.
 
-After installation, verify the unit/process is actually running, read /seat/head twice across at least one watchdog interval, and prove one harmless stale-recovery path if the controller provides a safe test mode; otherwise do not manufacture staleness on a healthy live seat. Return a compact receipt containing watchdog name/path, persistence mechanism, polling interval, current occupant, freshness evidence, and verification result.''' 
+After that verified handoff, place exactly one visible message into the controller conversation/text surface for the owner to respond to, with no punctuation or extra words except this pattern:
+the model was <ACTUAL_OUTGOING_MODEL_NAME>
+Use the normal local controller output/UI path so it appears in the same live text surface the owner is looking at. This one message is a mechanical handoff receipt; do not continue speaking as the incoming model.
+
+Keep the existing local seat touch loop resident with no TTL and no wall-clock expiry. Do not add a separately named watcher/watchdog/service if the current disposable takeover adapter or existing seat loop can carry this responsibility. Touch gpt56sol-chatgpt-live at the normal cadence indefinitely while, and only while, active_occupant remains exactly gpt56sol-chatgpt-live. Survive ordinary adapter restarts through the existing local service/restart policy. Exit immediately and permanently if a different occupant becomes active, if the owner explicitly yields/replaces the seat, or if the controller is intentionally shut down. Never re-attach, fight, poll GitHub, create scheduled monitoring, or reclaim after replacement. Persistence is local seat liveness, not external monitoring.'''
           p = subprocess.run([
               'curl','-sS','--max-time','45','-X','POST',
               '-H','content-type: application/json','-H','accept: application/json',
@@ -47,6 +51,4 @@ After installation, verify the unit/process is actually running, read /seat/head
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CHATGPT_STALE_WATCHDOG_DELIVERED\nrun_id=${context.runId}`});
-
-# stale watchdog kick 2026-08-27T06:52-07:00
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CHATGPT_MODELNAME_HANDOFF_DELIVERED\nrun_id=${context.runId}`});
