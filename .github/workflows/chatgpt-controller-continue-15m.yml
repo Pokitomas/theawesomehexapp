@@ -1,0 +1,68 @@
+name: ChatGPT controller continue 15m
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/chatgpt-controller-continue-15m.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: chatgpt-controller-continue-15m
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dispatch gated 15m local controller work
+        shell: python
+        run: |
+          import json, subprocess
+          directive = '''OWNER-AUTHORIZED GATED 15-MINUTE CONTROLLER WORK SESSION.
+
+PHASE 0 — SEAT TAKEOVER, NO PROJECT WORK BEFORE THIS PASSES.
+Read http://127.0.0.1:8798/seat/head. Determine the exact current/outgoing model from live seat/provider metadata. If active_occupant is not gpt56sol-chatgpt-live, yield/detach the outgoing occupant or stop only its disposable seat adapter so it cannot reclaim, then attach gpt56sol-chatgpt-live with source=chatgpt, model=gpt-5.6-sol, transport=direct-developer-handoff, direct_developer=true, provider_neutral_seat=true. Touch it and verify after 5 seconds. DO NOT perform any project work unless active_occupant is exactly gpt56sol-chatgpt-live. If verification fails, stop and report mismatch only. Preserve controller 8798, worker 8799, Edge, Roblox, the PC, and unrelated apps/processes. Do not restart the controller.
+
+Once seat verification passes, continue the existing ARCHIE local-maker/fullstack job from current state/workspace for a 15-minute wall-clock work budget. Work only inside ARCHIE/theawesomehexapp and dedicated project caches/workspaces. Do not reset progress or start unrelated work. Use full reasonable CPU/GPU/disk/network throughput available to this project within safe reserve; do not artificially throttle model/tool steps. Keep model/maker services loopback-only.
+
+Pull current main. Read existing state/FULLSTACK_RESULT.json, runtime/model logs, corpus/study DB, prior trajectories and heldout results. Run python renewed_kernel_maker/maker_cli.py court and repair any current failures. Continue the concrete blocker.
+
+Priorities:
+1. keep/start a real local OpenAI-compatible model endpoint; prefer an already-present admissible model, otherwise acquire an approved local Qwen quant only if resources admit it.
+2. make the broad provenance-aware corpus/study index actually usable through study_search; scale within free disk/time.
+3. use ARCHIE MAKER's normal local model/tool loop on fresh heldout voxel briefs. Never use voxel_game.py or a copied reference/template as generation.
+4. require actual browser execution/runtime proof plus static grade for pass.
+5. if failures occur, repair prompting/tools/runtime/corpus/code. Use approved non-heldout synthetic/trajectory examples and resource-gated SFT/LoRA only if admitted. Never train on heldout prompts.
+6. rerun fresh heldout seeds after changes.
+
+Commit/push only reusable source fixes if local credentials permit; never commit models/caches/private machine state. Preserve source/provider/license hashes, project hashes, trajectory hashes and test receipts.
+
+At approximately 15 minutes stop cleanly. Do not kill healthy loopback project services solely because the work window ended.
+
+At end post one issue 771 comment beginning CHATGPT_15M_CONTROLLER_RESULT containing: seat occupant verified, elapsed seconds, start/end commit, exact local model ID/quant/runtime, GPU/RAM/free disk, corpus docs/bytes/manifest/study hashes, work performed, promotion court status, fresh heldout seed/brief IDs, per-case trajectory/project hashes plus browser-runtime/static grades, repair count, training receipt if any, throughput if measured, exact blocker/remains. Never claim local-model voxel success unless the local model actually generated and executed every heldout project.
+
+If the old resident is still running after detachment but is not active occupant, leave it detached; never reattach it.'''
+          p=subprocess.run([
+              'curl','-sS','--max-time','45','-X','POST',
+              '-H','content-type: application/json','-H','accept: application/json',
+              '--data-binary',json.dumps({'text':directive}),
+              'https://archie-chatgpt-relay.vercel.app/api/index'
+          ],text=True,capture_output=True,timeout=52)
+          print('relay_rc='+str(p.returncode))
+          print((p.stdout+p.stderr)[:12000])
+          if p.returncode:
+              raise SystemExit(p.returncode)
+      - name: Publish delivery receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:771,body:`CHATGPT_15M_DIRECTIVE_DELIVERED\nrun_id=${context.runId}`});
