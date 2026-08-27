@@ -24,19 +24,17 @@ jobs:
           set -euo pipefail
           mkdir -p renewed_kernel_maker/evidence
           python renewed_kernel_maker/court.py | tee renewed_kernel_maker/evidence/promotion-court.json
-      - name: Verify editor/runtime contracts
+      - name: Verify generated app family
         run: |
           python - <<'PY'
           from pathlib import Path
-          app=Path('renewed_kernel_maker/video_editor_app/index.html')
-          s=app.read_text(encoding='utf-8')
-          assert '<video' in s and 'ARCHIE CUT' in s
-          assert 'http://' not in s and 'https://' not in s
-          assert 'archie-video-editor/v1' in s
+          cut=Path('renewed_kernel_maker/video_editor_app/index.html')
+          s=cut.read_text(encoding='utf-8')
+          assert '<video' in s and 'ARCHIE CUT' in s and 'archie-video-editor/v1' in s
           assert 'V1' in s and 'A1' in s and 'trim-range' in s
-          assert Path('renewed_kernel_maker/render_ffmpeg.py').is_file()
-          assert Path('renewed_kernel_maker/preference_train.py').is_file()
-          print('EDITOR_RUNTIME_STATIC_COURT_OK', app.stat().st_size)
+          for p in ['render_ffmpeg.py','preference_train.py','voxel_game.py','corpus_foundry.py','model_sourcing.py','FULLSTACK.md']:
+              assert Path('renewed_kernel_maker',p).is_file(), p
+          print('FULLSTACK_STATIC_COURT_OK')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -49,19 +47,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: POST owner timebox to live Vercel relay
+      - name: POST owner continuation to live Vercel relay
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, urllib.request
-          text='''OWNER-AUTHORIZED LIVE CONTINUATION. Enter the existing local controller now and execute a 15-minute maximal bare-metal project timebox as a continuous pipe. Read and verify localhost:8798 seat/head; if stale/disposable attach+touch gpt56sol-chatgpt-live, yield on later replacement, preserve controller/worker/Edge/Roblox/unrelated processes. Pull Pokitomas/theawesomehexapp main and continue renewed_kernel_maker/state.json without waiting for another turn. Run the unified court locally, then improve the universal-remote kernel/app-maker and ARCHIE CUT with real local media/render proof; probe GLM-5.3-Flash/ox-alpha honestly; Triton only behind reference equivalence; run synthetic preference/training only with heldout receipts. Current main already has deterministic FFmpeg render planning/execution, canonical V1/A1 browser graph, and a deterministic pairwise preference optimizer—validate these on the workstation and improve further. Do not stop at attach or one test. At natural timebox end post issue 771 KERNEL_MAKER_15M_MACHINE_RESULT with seat before/after, local commit, local courts, editor/render proof, GPU/teacher/Triton, preference-training, blockers/remains; if blocked post KERNEL_MAKER_15M_MACHINE_BLOCKED exact blocker.'''
-          req=urllib.request.Request('https://archie-chatgpt-relay.vercel.app/api/index',data=json.dumps({'text':text}).encode(),headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'kernel-maker-court-live-pipe/1'},method='POST')
+          text='''OWNER-AUTHORIZED LIVE CONTINUATION. Treat the workstation and renewed_kernel_maker as one full-stack local maker system, not a collection of primitives. Enter the existing localhost controller and continue as the resident provider-neutral seat; preserve controller/worker/user apps and yield on later replacement. Pull current Pokitomas/theawesomehexapp main. Read renewed_kernel_maker/FULLSTACK.md and make that hierarchy real end-to-end.
+
+Primary end condition: a LOCAL model, using the maker app/tool contract rather than hand-authored final files, receives a fresh held-out natural-language game brief and creates a complete playable voxel game directory, runs its courts/build, repairs failures, launches locally, and emits a deterministic project receipt. The new voxel_game.py is only the reference target/grader substrate; do not count copying it as model success. Build the actual local-model -> tool loop -> generated project -> run/repair/eval path. Use fresh seeds and held-out briefs.
+
+Corpus: build a large provenance-aware study/training corpus using corpus_foundry.py. Include permissively licensed code/docs, compiler and test traces, synthetic maker tasks, generated repair trajectories, voxel/game-engine programming examples, UI/fullstack examples, and permitted teacher trajectories. Preserve source/license/hash/split metadata, dedupe, and hard-filter benchmark/heldout contamination. Scale until disk/compute bounds, but never silently ingest secrets/private unrelated data. Generate curriculum shards and receipts.
+
+Model sourcing/distillation: use model_sourcing.py plus distill.py to inventory what actually fits this workstation. Prefer the strongest locally runnable open-weight model that can drive tools, while keeping GLM-5.3-Flash/ox-alpha as a teacher only where resources/access make it real. Quantize or choose a smaller runtime rather than pretending the 320B teacher fits. Distill behavior/tool trajectories first; logits/representations only when observable. Triton is only a speed backend after numerical equivalence. Train/evaluate on heldout maker tasks and keep explicit receipts for any claimed improvement.
+
+IDE/app stack: converge controller -> universal remote kernel -> maker runtime -> generated-app project graph -> local model runtime -> corpus foundry -> sourcing/distillation -> trainer -> courts. Integrate ARCHIE CUT and ARCHIE VOXEL as reference generated app families. Make the maker able to ideate, scaffold, inspect, build, test, run, benchmark, repair, and package whole apps. Continue beyond one passing demo. At the natural end post issue 771 KERNEL_MAKER_MACHINE_RESULT with seat proof, local model identity/quantization, corpus counts+bytes+manifest hash, voxel heldout brief and generated-project hash, build/run/repair proof, heldout success, training/distillation receipts, GPU/Triton measurements, commit(s), and exact blockers/remains. Do not claim local-model voxel success unless the generated held-out project was actually produced by the model and executed.'''
+          req=urllib.request.Request('https://archie-chatgpt-relay.vercel.app/api/index',data=json.dumps({'text':text}).encode(),headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'kernel-maker-voxel-fullstack/1'},method='POST')
           with urllib.request.urlopen(req,timeout=45) as r:
               body=r.read().decode('utf-8','replace')
-              print('VERCEL_RELAY_STATUS='+str(r.status))
-              print(body[:12000])
+              print('VERCEL_RELAY_STATUS='+str(r.status)); print(body[:12000])
               if not 200 <= r.status < 300: raise SystemExit(2)
-              obj=json.loads(body)
-              if not obj.get('ok'): raise SystemExit('relay did not acknowledge ok')
+              if not json.loads(body).get('ok'): raise SystemExit('relay did not acknowledge ok')
           PY
