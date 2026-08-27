@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ARCHIE CUT</title>
+<style>
+:root{color-scheme:dark;--bg:#080a0c;--panel:#101419;--line:#29313a;--text:#edf2f5;--muted:#82909b;--hot:#b8ffd0}*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}body{display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}button,input{font:inherit}.top{height:44px;display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);background:#0b0e11}.brand{font-size:12px;letter-spacing:.18em}.grow{flex:1}.small{font-size:10px;color:var(--muted)}button,.file{border:1px solid var(--line);background:#11171c;color:var(--text);border-radius:8px;padding:7px 10px;cursor:pointer}.file input{display:none}.workspace{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 310px}.viewer{min-height:0;display:grid;place-items:center;background:#000;position:relative}video{width:100%;height:100%;object-fit:contain}.empty{position:absolute;color:#59636c;font-size:12px;pointer-events:none}.side{border-left:1px solid var(--line);background:var(--panel);padding:10px;overflow:auto}.section{padding:8px 0;border-bottom:1px solid #20262d}.section:last-child{border:0}.section h3{font-size:10px;letter-spacing:.12em;color:var(--muted);margin:0 0 8px}.row{display:flex;align-items:center;gap:7px;margin:6px 0}.row>*{min-width:0}.row input[type=number]{width:86px;background:#090c0f;border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px}.meter{font-size:11px;word-break:break-all}.timeline{padding:8px 10px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0b0e11}.transport{display:flex;align-items:center;gap:6px;margin-bottom:8px}.time{font-size:11px;color:var(--muted);min-width:170px}.scrub{width:100%;accent-color:var(--hot)}.clipbar{height:32px;position:relative;border:1px solid var(--line);border-radius:7px;background:#0e1317;overflow:hidden;margin-top:6px}.segment{position:absolute;top:4px;bottom:4px;border:1px solid #60707d;border-radius:4px;background:#23303a;min-width:2px}.segment.cut{border-color:#a5ffc3}.status{color:var(--hot)}pre{font-size:10px;color:#95a2ab;white-space:pre-wrap;margin:0}@media(max-width:800px){.workspace{grid-template-columns:1fr}.side{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">ARCHIE CUT</div><span id="status" class="small status">cold</span><div class="grow"></div><label class="file">OPEN<input id="file" type="file" accept="video/*,audio/*"></label><button id="export">PROJECT</button></header>
+<main class="workspace"><section class="viewer"><video id="video" playsinline preload="metadata"></video><div id="empty" class="empty">open a local media file</div></section><aside class="side">
+<div class="section"><h3>PROJECT</h3><div class="row"><span class="small">FPS</span><input id="fps" type="number" min="1" max="240" step="0.001" value="30"></div><div id="source" class="meter small">no source</div></div>
+<div class="section"><h3>RANGE</h3><div class="row"><button id="markIn">SET IN</button><button id="markOut">SET OUT</button></div><div id="range" class="meter">IN — / OUT —</div></div>
+<div class="section"><h3>EDIT LOG</h3><div class="row"><button id="cut">CUT HERE</button><button id="undo">UNDO</button><button id="redo">REDO</button></div><pre id="log">[]</pre></div>
+<div class="section"><h3>COURT</h3><button id="bench">RUN LOCAL BENCH</button><pre id="benchOut">not run</pre></div>
+</aside></main>
+<footer class="timeline"><div class="transport"><button id="prev">◀F</button><button id="play">PLAY</button><button id="next">F▶</button><span id="time" class="time">00:00:00.000 · f0</span></div><input id="scrub" class="scrub" type="range" min="0" max="100000" value="0"><div id="clips" class="clipbar"></div></footer>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),v=$('video'),file=$('file'),scrub=$('scrub'),fps=$('fps');
+const state={schema:'archie-cut-project/v1',source:null,duration:0,fps:30,inFrame:null,outFrame:null,cuts:[],ops:[],redo:[]};
+const clone=x=>JSON.parse(JSON.stringify(x));
+function frame(){return Math.max(0,Math.round(v.currentTime*state.fps))}
+function sec(f){return f/state.fps}
+function fmt(t){if(!Number.isFinite(t))t=0;const h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=Math.floor(t%60),ms=Math.floor((t-Math.floor(t))*1000);return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`}
+function projectSnapshot(){return{schema:state.schema,source:state.source,duration:state.duration,fps:state.fps,inFrame:state.inFrame,outFrame:state.outFrame,cuts:[...state.cuts].sort((a,b)=>a-b)}}
+function restore(s){Object.assign(state,{source:s.source,duration:s.duration,fps:s.fps,inFrame:s.inFrame,outFrame:s.outFrame,cuts:[...s.cuts]});fps.value=String(state.fps);render()}
+function op(kind,change){const before=projectSnapshot();change();const after=projectSnapshot();state.ops.push({id:crypto.randomUUID(),kind,before,after});state.redo=[];render()}
+function render(){state.fps=Math.max(1,Number(fps.value)||30);const f=frame();$('time').textContent=`${fmt(v.currentTime)} · f${f}`;$('range').textContent=`IN ${state.inFrame??'—'} / OUT ${state.outFrame??'—'}`;$('log').textContent=JSON.stringify(state.ops.slice(-7).map(x=>({kind:x.kind,at:x.after.cuts?.at?.(-1)})),null,2);$('status').textContent=state.source?'live':'cold';$('empty').style.display=state.source?'none':'block';if(state.duration>0)scrub.value=String(Math.round(v.currentTime/state.duration*100000));renderClips()}
+function renderClips(){const root=$('clips');root.innerHTML='';if(!state.duration)return;const end=Math.max(1,Math.round(state.duration*state.fps));const cuts=[0,...state.cuts.filter(x=>x>0&&x<end).sort((a,b)=>a-b),end];for(let i=0;i<cuts.length-1;i++){const e=document.createElement('div');e.className='segment'+(i?' cut':'');e.style.left=(cuts[i]/end*100)+'%';e.style.width=((cuts[i+1]-cuts[i])/end*100)+'%';e.title=`f${cuts[i]} → f${cuts[i+1]}`;root.appendChild(e)}}
+file.onchange=()=>{const f=file.files?.[0];if(!f)return;if(v.src?.startsWith('blob:'))URL.revokeObjectURL(v.src);v.src=URL.createObjectURL(f);state.source={name:f.name,size:f.size,type:f.type,lastModified:f.lastModified};state.cuts=[];state.ops=[];state.redo=[];$('source').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MiB`;render()};
+v.onloadedmetadata=()=>{state.duration=v.duration||0;render()};v.ontimeupdate=render;fps.onchange=()=>{op('set-fps',()=>{state.fps=Math.max(1,Number(fps.value)||30)})};
+$('play').onclick=()=>{if(v.paused){v.play();$('play').textContent='PAUSE'}else{v.pause();$('play').textContent='PLAY'}};v.onpause=()=>{$('play').textContent='PLAY'};
+function seekFrame(n){const max=Math.max(0,Math.floor(state.duration*state.fps)-1);const target=Math.min(max,Math.max(0,n));v.currentTime=sec(target);render()}
+$('prev').onclick=()=>seekFrame(frame()-1);$('next').onclick=()=>seekFrame(frame()+1);scrub.oninput=()=>{if(state.duration)v.currentTime=Number(scrub.value)/100000*state.duration};
+$('markIn').onclick=()=>op('mark-in',()=>{state.inFrame=frame();if(state.outFrame!=null&&state.outFrame<state.inFrame)state.outFrame=null});$('markOut').onclick=()=>op('mark-out',()=>{state.outFrame=frame();if(state.inFrame!=null&&state.inFrame>state.outFrame)state.inFrame=null});
+$('cut').onclick=()=>{const f=frame();if(!state.cuts.includes(f)&&f>0)op('cut',()=>state.cuts.push(f))};
+$('undo').onclick=()=>{const x=state.ops.pop();if(!x)return;state.redo.push(x);restore(x.before)};$('redo').onclick=()=>{const x=state.redo.pop();if(!x)return;state.ops.push(x);restore(x.after)};
+$('export').onclick=()=>{const data={...projectSnapshot(),ops:state.ops};const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(state.source?.name||'project')+'.archie-cut.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('bench').onclick=()=>{const N=250000,cuts=[];let x=0;const t=performance.now();for(let i=0;i<N;i++){x=(x*1664525+1013904223)>>>0;if((x&1023)===0)cuts.push(x%100000)}cuts.sort((a,b)=>a-b);let checksum=0;for(const c of cuts)checksum=(checksum+c)>>>0;const ms=performance.now()-t;$('benchOut').textContent=JSON.stringify({operations:N,elapsed_ms:+ms.toFixed(3),ops_per_s:Math.round(N/(ms/1000)),segments:cuts.length+1,checksum},null,2)};
+if('requestVideoFrameCallback'in HTMLVideoElement.prototype){const tick=()=>v.requestVideoFrameCallback(()=>{render();tick()});tick()}render();
+</script>
+</body>
+</html>
