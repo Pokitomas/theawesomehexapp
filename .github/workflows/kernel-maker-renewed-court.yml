@@ -1,7 +1,7 @@
 name: kernel-maker-renewed-court
 on:
   push:
-    branches: [kernel-maker-renewed-20260826]
+    branches: [main, kernel-maker-renewed-20260826]
     paths:
       - 'renewed_kernel_maker/**'
       - '.github/workflows/kernel-maker-renewed-court.yml'
@@ -24,16 +24,19 @@ jobs:
           set -euo pipefail
           mkdir -p renewed_kernel_maker/evidence
           python renewed_kernel_maker/court.py | tee renewed_kernel_maker/evidence/promotion-court.json
-      - name: Verify video editor is self-contained
+      - name: Verify editor/runtime contracts
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('renewed_kernel_maker/video_editor_app/index.html')
-          s=p.read_text(encoding='utf-8')
+          app=Path('renewed_kernel_maker/video_editor_app/index.html')
+          s=app.read_text(encoding='utf-8')
           assert '<video' in s and 'ARCHIE CUT' in s
           assert 'http://' not in s and 'https://' not in s
-          assert 'archie-cut-project/v1' in s
-          print('VIDEO_EDITOR_STATIC_COURT_OK', p.stat().st_size)
+          assert 'archie-video-editor/v1' in s
+          assert 'V1' in s and 'A1' in s and 'trim-range' in s
+          assert Path('renewed_kernel_maker/render_ffmpeg.py').is_file()
+          assert Path('renewed_kernel_maker/preference_train.py').is_file()
+          print('EDITOR_RUNTIME_STATIC_COURT_OK', app.stat().st_size)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
