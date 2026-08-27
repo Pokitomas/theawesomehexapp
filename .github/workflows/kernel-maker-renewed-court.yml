@@ -1,0 +1,41 @@
+name: kernel-maker-renewed-court
+on:
+  push:
+    branches: [kernel-maker-renewed-20260826]
+    paths:
+      - 'renewed_kernel_maker/**'
+      - '.github/workflows/kernel-maker-renewed-court.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  court:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax court
+        run: python -m compileall -q renewed_kernel_maker
+      - name: Unified promotion court
+        env:
+          PYTHONPATH: renewed_kernel_maker
+        run: |
+          mkdir -p renewed_kernel_maker/evidence
+          python renewed_kernel_maker/court.py | tee renewed_kernel_maker/evidence/promotion-court.json
+      - name: Verify video editor is self-contained
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('renewed_kernel_maker/video_editor_app/index.html')
+          s=p.read_text(encoding='utf-8')
+          assert '<video' in s and 'ARCHIE CUT' in s
+          assert 'http://' not in s and 'https://' not in s
+          assert 'archie-cut-project/v1' in s
+          print('VIDEO_EDITOR_STATIC_COURT_OK', p.stat().st_size)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kernel-maker-renewed-evidence
+          path: renewed_kernel_maker/evidence/
+          if-no-files-found: warn
