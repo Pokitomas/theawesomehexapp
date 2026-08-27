@@ -1,0 +1,36 @@
+name: Validate Alienware native ingest
+
+on:
+  pull_request:
+    paths:
+      - 'foundry/archie-distill/nativize_alienware_rslora.py'
+      - 'foundry/archie-distill/alienware_rslora_ingest_api.py'
+      - 'foundry/archie-distill/test_alienware_rslora_ingest.py'
+      - 'docs/archie-alienware-native-ingest.md'
+      - '.github/workflows/archie-alienware-native-ingest.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@bfe8cc55a7890e3d6672eda6460ef37bfcc70755 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Verify CPU-only ingest and native receipt contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            foundry/archie-distill/nativize_alienware_rslora.py \
+            foundry/archie-distill/alienware_rslora_ingest_api.py \
+            foundry/archie-distill/test_alienware_rslora_ingest.py
+          python foundry/archie-distill/test_alienware_rslora_ingest.py
+          grep -Fq 'python-standard-library' foundry/archie-distill/nativize_alienware_rslora.py
+          grep -Fq 'cuda_required": False' foundry/archie-distill/nativize_alienware_rslora.py
+          grep -Fq 'X-Archie-SHA256' foundry/archie-distill/alienware_rslora_ingest_api.py
