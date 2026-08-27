@@ -1,0 +1,42 @@
+on:
+  push:
+    paths: ['.github/workflows/_x.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  x:
+    runs-on: self-hosted
+    timeout-minutes: 3
+    steps:
+      - shell: bash
+        run: |
+          set -euo pipefail
+          u=archie-chatgpt-takeover.service
+          echo "time=$(date -Is) host=$(hostname) user=$(id -un)"
+          systemctl --user show "$u" -p LoadState -p ActiveState -p SubState -p MainPID -p NRestarts -p FragmentPath -p ExecStart --no-pager || true
+          f="$(systemctl --user show "$u" -p FragmentPath --value 2>/dev/null || true)"
+          if [ -z "$f" ] || [ ! -f "$f" ]; then
+            echo UNIT_MISSING
+            exit 2
+          fi
+          cat "$f"
+          mkdir -p "$HOME/.config/systemd/user/$u.d"
+          cat > "$HOME/.config/systemd/user/$u.d/override.conf" <<'EOF'
+          [Unit]
+          StartLimitIntervalSec=0
+          [Service]
+          Restart=always
+          RestartSec=1
+          RuntimeMaxSec=infinity
+          EOF
+          systemctl --user daemon-reload
+          systemctl --user enable "$u" >/dev/null 2>&1 || true
+          systemctl --user restart "$u"
+          sleep 3
+          systemctl --user show "$u" -p ActiveState -p SubState -p MainPID -p NRestarts -p Restart -p RestartUSec -p RuntimeMaxUSec --no-pager
+          curl -fsS --max-time 5 http://127.0.0.1:8798/seat/head || true
+          echo
+          p="$(systemctl --user show "$u" -p ExecStart --value)"
+          printf '%s\n' "$p"
+          journalctl --user -u "$u" -n 40 --no-pager || true
