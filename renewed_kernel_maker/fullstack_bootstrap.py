@@ -6,13 +6,12 @@ from typing import Any
 HERE=Path(__file__).resolve().parent
 if str(HERE) not in sys.path:sys.path.insert(0,str(HERE))
 from core import canonical,receipt
-import corpus_build,curriculum,local_runtime,study_index,voxel_heldout
+import corpus_stream,curriculum,local_runtime,study_index,voxel_heldout
 from local_model_maker import RuntimeConfig,probe
-SCHEMA='archie-fullstack-bootstrap/v2';DEFAULT_HF_REPO='Qwen/Qwen3-4B-GGUF';DEFAULT_HF_FILE='Qwen3-4B-Q4_K_M.gguf'
+SCHEMA='archie-fullstack-bootstrap/v3';DEFAULT_HF_REPO='Qwen/Qwen3-4B-GGUF';DEFAULT_HF_FILE='Qwen3-4B-Q4_K_M.gguf'
 def disk_free_gib(path):return shutil.disk_usage(path).free/(1024**3)
 def run(argv,cwd=None,timeout=600,env=None):
-    try:
-        p=subprocess.run(argv,cwd=str(cwd) if cwd else None,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=timeout,env=env);return {'ok':p.returncode==0,'returncode':p.returncode,'stdout':p.stdout[-12000:]}
+    try:p=subprocess.run(argv,cwd=str(cwd) if cwd else None,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=timeout,env=env);return {'ok':p.returncode==0,'returncode':p.returncode,'stdout':p.stdout[-12000:]}
     except Exception as exc:return {'ok':False,'reason':f'{type(exc).__name__}: {exc}'}
 def ensure_llama_server(cache,allow_network):
     existing=local_runtime.discover_executables().get('llama-server')
@@ -27,8 +26,7 @@ def ensure_llama_server(cache,allow_network):
         r=run([git,'clone','--depth','1','https://github.com/ggml-org/llama.cpp.git',str(src)],timeout=600)
         if not r['ok']:return {'status':'BLOCKED','reason':'llama.cpp-clone-failed','detail':r}
     build=src/'build';r=run([cmake,'-S',str(src),'-B',str(build),'-DGGML_CUDA=ON','-DLLAMA_CURL=ON'],timeout=300)
-    if not r['ok']:
-        shutil.rmtree(build,ignore_errors=True);r=run([cmake,'-S',str(src),'-B',str(build),'-DGGML_CUDA=OFF','-DLLAMA_CURL=ON'],timeout=300)
+    if not r['ok']:shutil.rmtree(build,ignore_errors=True);r=run([cmake,'-S',str(src),'-B',str(build),'-DGGML_CUDA=OFF','-DLLAMA_CURL=ON'],timeout=300)
     if not r['ok']:return {'status':'BLOCKED','reason':'llama.cpp-configure-failed','detail':r}
     r=run([cmake,'--build',str(build),'--config','Release','-j','2','--target','llama-server'],timeout=1800)
     if not r['ok']:return {'status':'BLOCKED','reason':'llama.cpp-build-failed','detail':r}
@@ -62,11 +60,10 @@ def ensure_browser(cache,allow_network):
     r=run([sys.executable,'-m','pip','install','--target',str(deps),'playwright'],timeout=600)
     if not r['ok']:return {'status':'BLOCKED','reason':'playwright-pip-failed','detail':r}
     if str(deps) not in sys.path:sys.path.insert(0,str(deps))
-    os.environ['PLAYWRIGHT_BROWSERS_PATH']=str(browsers)
-    r=run([sys.executable,'-m','playwright','install','chromium'],timeout=1200,env=env)
+    os.environ['PLAYWRIGHT_BROWSERS_PATH']=str(browsers);r=run([sys.executable,'-m','playwright','install','chromium'],timeout=1200,env=env)
     return {'status':'READY','source':'project-cache','browser_path':str(browsers)} if r['ok'] else {'status':'BLOCKED','reason':'chromium-install-failed','detail':r}
-def build_study(cache,out,allow_network,max_sources=18):
-    plan=json.loads((HERE/'corpus_sources.json').read_text(encoding='utf-8'));plan['sources']=plan['sources'][:max(1,max_sources)];plan_path=out/'active-corpus-plan.json';out.mkdir(parents=True,exist_ok=True);plan_path.write_text(json.dumps(plan,indent=2),encoding='utf-8');corpus=corpus_build.build(plan_path,cache/'repos',out/'corpus',allow_network=allow_network);shards=sorted((out/'corpus'/'shards').glob('train-*.jsonl'))+sorted((out/'corpus'/'shards').glob('validation-*.jsonl'));db=out/'study.db';idx=study_index.ingest_jsonl(db,shards) if shards else {'inserted':0,'total':0,'skipped':0};cur=curriculum.generate(100000,1000000);cur_receipt=curriculum.write_shards(cur,out/'curriculum');return {'corpus':corpus,'study':idx,'study_db':str(db),'curriculum':cur_receipt['payload']}
+def build_study(cache,out,allow_network,max_sources=22):
+    out.mkdir(parents=True,exist_ok=True);corpus=corpus_stream.build(HERE/'corpus_sources.json',cache/'repos',out/'corpus',allow_network=allow_network,max_sources=max_sources,reserve_gib=8);shard_root=out/'corpus'/'shards';shards=sorted(shard_root.glob('train-*.jsonl'))+sorted(shard_root.glob('validation-*.jsonl'))+sorted(shard_root.glob('study-*.jsonl'));db=out/'study.db';idx=study_index.ingest_jsonl(db,shards,allowed_splits={'train','validation','study'}) if shards else {'inserted':0,'total':0,'skipped':0};cur=curriculum.generate(100000,1000000);cur_receipt=curriculum.write_shards(cur,out/'curriculum');return {'corpus':corpus,'study':idx,'study_db':str(db),'curriculum':cur_receipt['payload']}
 def launch_maker_server(config,workspace,log,port=8844):
     if local_runtime.port_open('127.0.0.1',port):return {'status':'REUSED','url':f'http://127.0.0.1:{port}'}
     log.parent.mkdir(parents=True,exist_ok=True);fh=log.open('ab',buffering=0);argv=[sys.executable,str(HERE/'maker_server.py'),'--host','127.0.0.1','--port',str(port),'--workspace',str(workspace),'--endpoint',config.endpoint,'--model',config.model]
@@ -77,8 +74,8 @@ def launch_maker_server(config,workspace,log,port=8844):
         if local_runtime.port_open('127.0.0.1',port):return {'status':'READY','pid':p.pid,'url':f'http://127.0.0.1:{port}'}
         time.sleep(.5)
     return {'status':'TIMEOUT','pid':p.pid}
-def execute(root,allow_network,max_sources=18,cases=3):
-    root=root.resolve();root.mkdir(parents=True,exist_ok=True);cache=root/'cache';state=root/'state';state.mkdir(exist_ok=True);result={'schema':SCHEMA,'started_at':time.time(),'free_start_gib':disk_free_gib(root)}
+def execute(root,allow_network,max_sources=22,cases=3):
+    root=root.resolve();root.mkdir(parents=True,exist_ok=True);cache=root/'cache';state=root/'state';state.mkdir(exist_ok=True);started_ns=time.time_ns();result={'schema':SCHEMA,'started_at':time.time(),'free_start_gib':disk_free_gib(root)}
     court=run([sys.executable,str(HERE/'maker_cli.py'),'court'],timeout=180);result['court']={'ok':court['ok'],'tail':court.get('stdout','')[-3000:]}
     if not court['ok']:result.update(status='BLOCKED',reason='promotion-court-failed');return receipt('fullstack.bootstrap',result)
     runtime=ensure_llama_server(cache,allow_network);result['runtime']=runtime
@@ -87,10 +84,10 @@ def execute(root,allow_network,max_sources=18,cases=3):
     if model['status']!='READY':result.update(status='BLOCKED',reason='model-unavailable');return receipt('fullstack.bootstrap',result)
     browser=ensure_browser(cache,allow_network);result['browser']=browser
     if browser['status']!='READY':result.update(status='BLOCKED',reason='executed-browser-proof-unavailable');return receipt('fullstack.bootstrap',result)
-    study=build_study(cache,state,allow_network,max_sources);result['study']={'documents':study['study'].get('total',0),'study_db':study['study_db'],'corpus_bytes':study['corpus'].get('shards',{}).get('bytes',0),'curriculum_records':study['curriculum'].get('records',0)}
+    study=build_study(cache,state,allow_network,max_sources);result['study']={'documents':study['study'].get('total',0),'study_db':study['study_db'],'corpus_bytes':study['corpus'].get('bytes',0),'corpus_sha256':study['corpus'].get('sha256'),'curriculum_records':study['curriculum'].get('records',0)}
     lr=local_runtime.launch(local_runtime.RuntimeLaunch('llama.cpp',runtime['path'],model['path'],ctx=8192,gpu_layers=999),state/'llama-server.log',ready_timeout_s=180);result['model_server']=lr['payload']
     if lr['payload']['status'] not in {'READY','REUSED'}:result.update(status='BLOCKED',reason='model-server-failed');return receipt('fullstack.bootstrap',result)
-    cfg=RuntimeConfig(endpoint=lr['payload']['endpoint'],model=Path(model['path']).stem,study_db=study['study_db'],timeout_s=180,max_tokens=8192);result['probe']=probe(cfg)['payload'];result['maker_server']=launch_maker_server(cfg,state/'projects',state/'maker-server.log');suite=voxel_heldout.evaluate_suite(cfg,state/'heldout',count=cases);result['voxel_suite']=suite['payload'];result['free_end_gib']=disk_free_gib(root);result['status']='SUCCESS' if suite['payload'].get('passes') else 'HELDOUT_FAILED';result['passes']=bool(suite['payload'].get('passes'));result['finished_at']=time.time();result['sha256']=hashlib.sha256(canonical(result)).hexdigest();(state/'FULLSTACK_RESULT.json').write_text(json.dumps(receipt('fullstack.bootstrap',result),indent=2),encoding='utf-8');return receipt('fullstack.bootstrap',result)
+    cfg=RuntimeConfig(endpoint=lr['payload']['endpoint'],model=Path(model['path']).stem,study_db=study['study_db'],timeout_s=180,max_tokens=8192);result['probe']=probe(cfg)['payload'];result['maker_server']=launch_maker_server(cfg,state/'projects',state/'maker-server.log');base_seed=1_000_000+started_ns%1_000_000_000;result['heldout_base_seed']=base_seed;suite=voxel_heldout.evaluate_suite(cfg,state/'heldout'/str(base_seed),count=cases,base_seed=base_seed);result['voxel_suite']=suite['payload'];result['free_end_gib']=disk_free_gib(root);result['status']='SUCCESS' if suite['payload'].get('passes') else 'HELDOUT_FAILED';result['passes']=bool(suite['payload'].get('passes'));result['finished_at']=time.time();result['sha256']=hashlib.sha256(canonical(result)).hexdigest();(state/'FULLSTACK_RESULT.json').write_text(json.dumps(receipt('fullstack.bootstrap',result),indent=2),encoding='utf-8');return receipt('fullstack.bootstrap',result)
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,required=True);ap.add_argument('--allow-network',action='store_true');ap.add_argument('--max-sources',type=int,default=18);ap.add_argument('--cases',type=int,default=3);ns=ap.parse_args();r=execute(ns.root,ns.allow_network,ns.max_sources,ns.cases);print(json.dumps(r,indent=2));return 0 if r['payload'].get('passes') else 2
+    ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,required=True);ap.add_argument('--allow-network',action='store_true');ap.add_argument('--max-sources',type=int,default=22);ap.add_argument('--cases',type=int,default=3);ns=ap.parse_args();r=execute(ns.root,ns.allow_network,ns.max_sources,ns.cases);print(json.dumps(r,indent=2));return 0 if r['payload'].get('passes') else 2
 if __name__=='__main__':raise SystemExit(main())
