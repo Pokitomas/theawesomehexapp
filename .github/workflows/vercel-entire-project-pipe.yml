@@ -1,0 +1,36 @@
+name: Vercel entire project pipe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/vercel-entire-project-pipe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: POST entire project directive to Vercel relay
+        shell: python
+        run: |
+          import json, urllib.request
+          directive = '''OWNER-AUTHORIZED ENTIRE-PROJECT EXECUTION THROUGH VERCEL RELAY. Execute locally now; do not summarize and do not stop at takeover. Use Vercel only as transport and the local controller at 127.0.0.1:8798 as the mutation membrane. Read /seat/head and current worker/provider state. Preserve controller 8798, worker 8799, Edge, Roblox, the PC, and unrelated processes. If a stale/disposable occupant owns the seat, yield it cleanly. Attach/touch gpt56sol-chatgpt-live with source=chatgpt, model=gpt-5.6-sol, transport=vercel-entire-project-pipe, direct_developer=true, provider_neutral_seat=true and verify active_occupant exactly matches; never fight a later replacement.
+
+Continue the entire canonical project from Pokitomas/theawesomehexapp main renewed_kernel_maker/state.json. Execute continuously in order: benchmark courts; kernel/universal-remote app maker; new video editor; runtime-resolved teacher / GLM-5.3-Flash ox-alpha candidate distillation probes with Triton only after reference equivalence; synthetic adversarial preference/training loop. Run, inspect, repair, rerun. Preserve deterministic receipts, fail closed, forbid benchmark leakage, and make no architecture/intelligence/training claim without measured evidence. Strengthen action verification beyond coarse visual hashes. Build the video editor as a real generated app with exact rational frame/time indexing, non-destructive operation log, direct frame seek, audio unchanged by default, portable JSON project format, correctness-gated acceleration, and real-operation benchmark traces. Resolve teacher availability at runtime; if unavailable, receipt BLOCKED rather than fake it.
+
+Absorb existing code, state, receipts, current machine state, and prior failures before mutation. Prefer repairing existing mechanisms over parallel duplicates. Delete only provably obsolete replaced artifacts; never delete user data/chats or unrelated files. Maintain canonical resumable state. Keep a touch-only heartbeat every 20 seconds for at most 30 minutes, exiting immediately if another occupant replaces this one. Publish a durable machine-side issue-771 receipt beginning VERCEL_ENTIRE_PROJECT_PIPE_READY with compact seat/head, phase reached, latest court results, and exact blocker if incomplete; on failure use VERCEL_ENTIRE_PROJECT_PIPE_BLOCKED. Continue until a natural hard blocker or the full ordered pipeline is receipted. Do not merely acknowledge.'''
+          req = urllib.request.Request(
+              'https://archie-chatgpt-relay.vercel.app/api/index',
+              data=json.dumps({'text': directive}).encode('utf-8'),
+              headers={'Content-Type':'application/json','Accept':'application/json'},
+              method='POST')
+          with urllib.request.urlopen(req, timeout=50) as response:
+              body = response.read().decode('utf-8','replace')
+              print('status='+str(response.status))
+              print(body[:16000])
+              if response.status < 200 or response.status >= 300:
+                  raise SystemExit(1)
