@@ -1,0 +1,42 @@
+name: local-maker-voxel-resident
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/local-maker-voxel-resident.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send bounded local maker development run
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request
+          text = '''OWNER-AUTHORIZED SOFTWARE DEVELOPMENT RUN on the local workstation. Work only on the ARCHIE local-maker project and its dedicated caches/workspaces; do not modify unrelated applications, personal files, credentials, or system settings. Pull current Pokitomas/theawesomehexapp main and treat renewed_kernel_maker/FULLSTACK.md as the canonical architecture.
+
+Goal: make the full stack real enough that a genuinely local model can create a complete voxel game from the ARCHIE MAKER app. Run `python renewed_kernel_maker/maker_cli.py court` first and repair any failures. Inventory existing GGUF/local-model files and installed inference runtimes without downloading a giant teacher. Prefer an already-present model; otherwise choose a locally admissible open model from model_sourcing.py. A 6-8 GiB-class machine should test Qwen3-8B Q4 and/or Qwen2.5-Coder-7B Q4 only if they actually fit; use a smaller Qwen model if necessary. Do not claim a model fit until it launches and answers the local OpenAI-compatible endpoint.
+
+Build a dedicated corpus cache and study index using corpus_sources.json, corpus_build.py, curriculum.py, and study_index.py. Only ingest sources permitted by the manifest; retain source/license/hash/split metadata; do not ingest unrelated private files, secrets, benchmark heldout prompts, or credentials. Scale corpus acquisition to reasonable free-disk/time limits. Build deterministic curriculum shards, then expose the resulting FTS study DB to ARCHIE MAKER through ARCHIE_STUDY_DB.
+
+Start the local model server and ARCHIE MAKER server on loopback only. Use the maker's normal model/tool loop—not voxel_game.py or a copied template—to run at least three fresh heldout voxel briefs through voxel_heldout.evaluate_suite. The model may use approved study_search. It must write the project, inspect it, run checks, repair failures and finish. Record project/trajectory hashes and grader results. If it fails, convert failures into approved synthetic/trajectory training examples and use the resource-gated SFT/LoRA path only if the GPU and dependencies actually admit it; then rerun heldout cases with fresh seeds. Do not train on heldout cases themselves.
+
+Continue improving the IDE, tool loop, corpus, prompting, model selection and training until either all heldout voxel cases pass or a concrete local resource/runtime blocker is demonstrated. Reference ARCHIE VOXEL is a grader/reference only and does not count as model generation. At the end post one issue 771 comment beginning LOCAL_MAKER_VOXEL_RESULT with: local commit, model ID + quantization + runtime, GPU/RAM/free disk, corpus document count/bytes/manifest hash/study-index hash, heldout brief IDs, per-case trajectory/project hashes and grades, number of repair steps, any training receipt, measured tokens/sec if available, and exact blocker/remains. Never report local-model voxel success unless the local model actually produced and executed the heldout projects.'''
+          req=urllib.request.Request(
+              'https://archie-chatgpt-relay.vercel.app/api/index',
+              data=json.dumps({'text':text}).encode(),
+              headers={'Content-Type':'application/json','Accept':'application/json','User-Agent':'archie-local-maker-voxel/1'},
+              method='POST')
+          with urllib.request.urlopen(req,timeout=45) as r:
+              body=r.read().decode('utf-8','replace')
+              print('VERCEL_RELAY_STATUS',r.status)
+              print(body[:12000])
+              if not 200 <= r.status < 300: raise SystemExit(2)
+              obj=json.loads(body)
+              if not obj.get('ok'): raise SystemExit('relay did not acknowledge ok')
+          PY
