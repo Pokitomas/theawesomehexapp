@@ -1,13 +1,16 @@
 {
   "schema": "archie-kernel-maker-state/v1",
-  "state": "renewed",
+  "state": "renewed-active-timebox",
   "mode": "dedicated-kernel-universal-remote-app-maker",
   "authority": {
     "mutation_membrane": "controller",
     "continuity": "backend-owned",
     "occupancy": "provider-replaceable",
     "canonical_repo_state": "renewed_kernel_maker/state.json",
-    "live_controller_injection": "blocked-until-receipted-transport-returns"
+    "live_controller_injection": "vercel-relay-dispatched-awaiting-machine-receipt",
+    "relay_project": "archie-chatgpt-relay",
+    "relay_route": "/api/index",
+    "timebox_minutes": 15
   },
   "order": [
     "benchmark-court",
@@ -24,7 +27,10 @@
     "generated_app_build_run_repair": "required",
     "portable_project_roundtrip": "required",
     "video_edit_graph_determinism": "required",
-    "held_out_no_leakage": "required"
+    "deterministic_ffmpeg_render_plan": "required",
+    "audio_untouched_default_render": "required",
+    "held_out_no_leakage": "required",
+    "real_deterministic_preference_optimizer": "required"
   },
   "maker_contract": {
     "kernel_boundary": "small-capability-core",
@@ -40,12 +46,13 @@
     "scrub": "direct-frame-seek",
     "audio": "unaltered-by-default",
     "project": "portable-json",
+    "render": "deterministic-ffmpeg-plan-with-receipt",
     "acceleration": "optional-and-correctness-gated",
     "benchmark": "real-operation-trace"
   },
   "distillation_contract": {
-    "teacher": "resolve-at-runtime-no-name-assumption",
-    "ox_alpha": "treat-as-candidate-teacher-only-after-proven-local-or-open-access",
+    "teacher": "zai-org/GLM-5.3-Flash",
+    "ox_alpha": "confirmed-teacher-alias",
     "architecture_match_claim": "forbidden-without-measured-evidence",
     "transfer_targets": [
       "held-out-task-behavior",
@@ -62,14 +69,20 @@
       "execute",
       "score-deterministic-receipts",
       "build-preference-pairs",
-      "train-or-rank",
+      "pairwise-logistic-preference-optimize",
       "held-out-court"
     ],
     "benchmark_leakage": "forbidden",
-    "training_claim_requires_receipt": true
+    "training_claim_requires_receipt": true,
+    "current_training_scope": "tiny-transparent-preference-scorer-not-language-model-rlhf"
   },
+  "current_timebox_changes": [
+    "deterministic ffmpeg render planner and execution receipts",
+    "render promotion court",
+    "real deterministic synthetic preference optimizer",
+    "held-out preference training gate"
+  ],
   "known_live_transport_blockers": [
-    "private-tailnet-hostname-not-resolvable-from-github-hosted-runner",
-    "vercel-fast-hand-upstream-currently-returned-502"
+    "machine-side seat receipt not yet observed after current Vercel dispatch"
   ]
 }
