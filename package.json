@@ -8,13 +8,15 @@
     "archied": "scripts/archied.mjs",
     "archied-hosted": "scripts/archied-hosted.mjs",
     "archie-hybrid-runner": "scripts/archie-enrolled-hybrid-runner.mjs",
-    "archie-enrolled-hybrid-runner": "scripts/archie-enrolled-hybrid-runner.mjs"
+    "archie-enrolled-hybrid-runner": "scripts/archie-enrolled-hybrid-runner.mjs",
+    "archie-room-ledger": "scripts/archie-room-ledger.mjs"
   },
   "files": [
     "scripts/archied.mjs",
     "scripts/archied-hosted.mjs",
     "scripts/archie-enrolled-hybrid-runner.mjs",
     "scripts/archie-hybrid-protocol.mjs",
+    "scripts/archie-room-ledger.mjs",
     "scripts/archie-hosted-backup.mjs",
     "scripts/archie-hosted-security.mjs",
     "scripts/archie-workspace-core.mjs",
@@ -34,9 +36,10 @@
     "archied:hosted": "node scripts/archied-hosted.mjs",
     "runner": "node scripts/archie-enrolled-hybrid-runner.mjs",
     "runner:enrolled": "node scripts/archie-enrolled-hybrid-runner.mjs",
+    "room:ledger": "node scripts/archie-room-ledger.mjs",
     "view": "python3 labs/archie-one-surface/server.py",
-    "check:syntax": "node --check scripts/archied.mjs && node --check scripts/archied-hosted.mjs && node --check scripts/archie-enrolled-hybrid-runner.mjs && node --check scripts/archie-hybrid-protocol.mjs && node --check scripts/archie-hosted-backup.mjs && node --check scripts/archie-hosted-security.mjs && node --check scripts/archie-workspace-core.mjs && node --check scripts/archie-workspace-portable.mjs && node --check scripts/archie-workspace-file-provider.mjs && node --check scripts/archie-workspace-service.mjs && python3 -m py_compile labs/archie-one-surface/server.py",
-    "test:transport": "node --test scripts/tests/archie-workspace-substrate.test.mjs scripts/tests/archied-service.test.mjs scripts/tests/archied-hosted.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs",
+    "check:syntax": "node --check scripts/archied.mjs && node --check scripts/archied-hosted.mjs && node --check scripts/archie-enrolled-hybrid-runner.mjs && node --check scripts/archie-hybrid-protocol.mjs && node --check scripts/archie-room-ledger.mjs && node --check scripts/archie-hosted-backup.mjs && node --check scripts/archie-hosted-security.mjs && node --check scripts/archie-workspace-core.mjs && node --check scripts/archie-workspace-portable.mjs && node --check scripts/archie-workspace-file-provider.mjs && node --check scripts/archie-workspace-service.mjs && python3 -m py_compile labs/archie-one-surface/server.py",
+    "test:transport": "node --test scripts/tests/archie-workspace-substrate.test.mjs scripts/tests/archied-service.test.mjs scripts/tests/archied-hosted.test.mjs scripts/tests/archie-enrolled-hybrid-runner.test.mjs scripts/tests/archie-room-ledger.test.mjs",
     "check:language": "node scripts/check-engineering-language.mjs",
     "verify": "npm run check:syntax && npm run check:language && npm run test:transport"
   }

@@ -25,6 +25,7 @@ npm run archied          # local workspace service
 npm run archied:hosted   # private hosted wrapper + enrolled runner transport
 npm run view             # read-only live engineering view on localhost:8890
 npm run verify           # syntax + active-language + transport contract tests
+npm run room:ledger -- --room <roast.jsonl>   # fold room events into durable state
 ```
 
 For the container path, copy `.env.archied.example` to `.env.archied`, replace every placeholder with real local values, then run `docker compose -f compose.hosted.yaml up --build`.
@@ -36,6 +37,7 @@ For the container path, copy `.env.archied.example` to `.env.archied`, replace e
 - `scripts/archie-enrolled-hybrid-runner.mjs` — bounded enrolled worker. Both `archie-enrolled-hybrid-runner` and the legacy `archie-hybrid-runner` package bin names map directly here.
 - `scripts/archie-workspace-*.mjs` — digest-bound workspace/event/artifact substrate.
 - `scripts/archie-hybrid-protocol.mjs` — enrolled transport protocol.
+- `scripts/archie-room-ledger.mjs` — durable fold over the room event log. The read-only surface tails a bounded window, so a reader that reconnects cannot see state older than that window. This keeps a resumable cursor plus folded state in `remote/kai-control.json`, so a later reader resumes at the stored sequence instead of re-deriving from a tail. An obligation opens when a message addresses an agent under an uppercase tag and closes when that agent emits the same tag; whatever stays open is reported as derived work. A room log shorter than the stored cursor is an explicit failure rather than a silent restart at zero.
 - `labs/archie-one-surface/index.html` + `labs/archie-one-surface/server.py` — the single read-only representation of live machine truth and retained project state.
 - `00-ARCHIE-MODEL/BENCHMARKS.json` — architecture-independent evaluation targets.
 - `00-ARCHIE-MODEL/evidence/HOSTED-LINUX-CPU-RSLORA.json` — exact historical CPU training receipt provenance retained separately because it contains artifact/run/config digests not duplicated in the compact narrative.
