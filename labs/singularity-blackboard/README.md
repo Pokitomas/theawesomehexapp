@@ -423,3 +423,9 @@ synthetic singularity theorems) · Rodnianski & Speck, Fournodavlos–Rodnianski
 Kasner-like singularity formation).
 
 Reproduce every number: `pip install sympy && python3 verify.py`
+
+---
+
+A typeset, browsable version of this note (with the two-terminus figure animated) is
+published at https://claude.ai/code/artifact/70aac963-53ef-48f1-adf7-f909aaa8f504 and
+mirrored here as `terminus.html`.

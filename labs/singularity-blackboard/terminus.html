@@ -1,0 +1,731 @@
+<title>The Terminus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global', scale: 1.04 },
+  options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+
+<style>
+:root {
+  --ground:      #EDF0F3;
+  --surface:     #FFFFFF;
+  --slab:        #E3E8EE;
+  --ink:         #12161C;
+  --ink-soft:    #4E5765;
+  --ink-faint:   #7C8695;
+  --rule:        #D2D9E1;
+  --rule-strong: #B4BECA;
+  --weyl:        #28489C;
+  --weyl-wash:   #DDE4F5;
+  --ricci:       #9A6410;
+  --ricci-wash:  #F3E7CF;
+  --focus:       #28489C;
+}
+:root:not([data-theme="light"]) { color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground:      #0E1116;
+    --surface:     #151A21;
+    --slab:        #1B212A;
+    --ink:         #E3E7EC;
+    --ink-soft:    #9BA5B2;
+    --ink-faint:   #6E7886;
+    --rule:        #262D37;
+    --rule-strong: #3A434F;
+    --weyl:        #86A9F2;
+    --weyl-wash:   #1A2440;
+    --ricci:       #DFA84C;
+    --ricci-wash:  #33270F;
+    --focus:       #86A9F2;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground:      #0E1116;
+  --surface:     #151A21;
+  --slab:        #1B212A;
+  --ink:         #E3E7EC;
+  --ink-soft:    #9BA5B2;
+  --ink-faint:   #6E7886;
+  --rule:        #262D37;
+  --rule-strong: #3A434F;
+  --weyl:        #86A9F2;
+  --weyl-wash:   #1A2440;
+  --ricci:       #DFA84C;
+  --ricci-wash:  #33270F;
+  --focus:       #86A9F2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.66;
+  margin: 0;
+  padding: 0 clamp(18px, 5vw, 56px) 96px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1100px; margin: 0 auto; }
+
+/* ---- the reading column, with a hanging gutter for status chips ---- */
+.col { max-width: 64ch; }
+.band { display: grid; grid-template-columns: 1fr; gap: 0; }
+@media (min-width: 1000px) {
+  .band { grid-template-columns: 148px minmax(0, 64ch); gap: 0 32px; align-items: start; }
+}
+
+h1, h2, h3 {
+  font-family: Newsreader, ui-serif, Georgia, serif;
+  font-weight: 500;
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ================= masthead ================= */
+.mast { padding: clamp(40px, 8vw, 84px) 0 34px; border-bottom: 1px solid var(--rule-strong); }
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 22px;
+}
+h1 { font-size: clamp(46px, 9vw, 88px); line-height: 0.96; letter-spacing: -0.022em; }
+.standfirst {
+  font-family: Newsreader, ui-serif, Georgia, serif;
+  font-size: clamp(19px, 2.4vw, 23px); line-height: 1.5; color: var(--ink-soft);
+  max-width: 46ch; margin: 22px 0 0; font-style: italic;
+}
+.mast-meta {
+  display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 30px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+  color: var(--ink-faint); letter-spacing: 0.02em;
+}
+
+/* ================= the two-terminus figure ================= */
+.figure {
+  margin: 40px 0 0; background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 3px; overflow: hidden;
+}
+.figure-head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 14px 18px; border-bottom: 1px solid var(--rule);
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint);
+}
+#clock { color: var(--ink-soft); text-transform: none; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+#twoTerminus { display: block; width: 100%; height: auto; }
+.figure-legend {
+  display: grid; grid-template-columns: 1fr; gap: 12px;
+  padding: 14px 18px 16px; border-top: 1px solid var(--rule);
+  font-size: 13.5px; color: var(--ink-soft); line-height: 1.5;
+}
+@media (min-width: 620px) { .figure-legend { grid-template-columns: 1fr 1fr; gap: 26px; } }
+.figure-legend b { font-weight: 600; }
+.k-ricci b { color: var(--ricci); }
+.k-weyl b { color: var(--weyl); }
+.figure-legend code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px;
+  color: var(--ink); background: var(--slab); padding: 1px 5px; border-radius: 2px;
+}
+
+/* ================= sections ================= */
+section { padding: 52px 0 0; }
+.sec-no {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.14em;
+  color: var(--ink-faint); display: block; margin-bottom: 10px;
+}
+h2 { font-size: clamp(28px, 4vw, 37px); line-height: 1.12; letter-spacing: -0.016em; }
+h3 {
+  font-size: 21px; line-height: 1.25; margin: 34px 0 0;
+  letter-spacing: -0.008em;
+}
+p { margin: 18px 0 0; }
+.col > p:first-child, .col > h2 + p { margin-top: 16px; }
+strong { font-weight: 600; }
+em { font-style: italic; }
+
+a { color: var(--weyl); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+
+/* ---- status chips: encode epistemic standing, not decoration ---- */
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 2px; white-space: nowrap;
+  margin: 0 0 14px;
+}
+@media (min-width: 1000px) {
+  .chip { margin: 0; position: sticky; top: 20px; }
+  .band > .chip { justify-self: end; }
+}
+.chip::before { content: ""; width: 6px; height: 6px; flex: none; }
+.chip-derived { color: var(--weyl); background: var(--weyl-wash); }
+.chip-derived::before { background: var(--weyl); }
+.chip-known { color: var(--ink-soft); background: var(--slab); }
+.chip-known::before { background: var(--ink-faint); }
+.chip-proposed { color: var(--ink-soft); background: transparent; border: 1px dashed var(--rule-strong); }
+.chip-proposed::before { border: 1px solid var(--ink-faint); }
+
+/* ---- derivation slabs ---- */
+.slab {
+  background: var(--slab); border-left: 2px solid var(--weyl);
+  padding: 22px 24px; margin: 28px 0 0; border-radius: 0 3px 3px 0;
+  overflow-x: auto;
+}
+.slab-label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 4px;
+}
+.slab p { margin-top: 14px; font-size: 15.5px; color: var(--ink-soft); }
+.slab mjx-container { margin: 14px 0 !important; }
+.slab-ricci { border-left-color: var(--ricci); }
+
+mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+
+code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.88em; background: var(--slab); color: var(--ink);
+  padding: 1.5px 5px; border-radius: 2px;
+}
+.slab code { background: var(--surface); }
+
+/* ---- pull quote: the load-bearing claims ---- */
+.claim {
+  margin: 30px 0 0; padding: 20px 0 20px 22px;
+  border-left: 3px solid var(--ricci);
+  font-family: Newsreader, ui-serif, Georgia, serif;
+  font-size: 21px; line-height: 1.42; color: var(--ink);
+  text-wrap: pretty;
+}
+.claim.weyl { border-left-color: var(--weyl); }
+
+/* ---- tables ---- */
+.tablewrap { overflow-x: auto; margin: 28px 0 0; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 620px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.45; }
+thead th {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 500; background: var(--slab);
+}
+tbody tr:last-child td { border-bottom: none; }
+td.mono, th.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-variant-numeric: tabular-nums; }
+.rung { color: var(--ink-faint); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; }
+.tag-weyl { color: var(--weyl); font-weight: 600; }
+.tag-ricci { color: var(--ricci); font-weight: 600; }
+
+/* ---- conjecture cards ---- */
+.conj {
+  margin: 28px 0 0; padding: 24px; background: var(--surface);
+  border: 1px dashed var(--rule-strong); border-radius: 3px;
+}
+.conj h3 { margin: 0; font-size: 20px; }
+.conj-id {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+  letter-spacing: 0.1em; color: var(--ink-faint); display: block; margin-bottom: 6px;
+}
+.kill {
+  margin: 18px 0 0; padding: 14px 16px; background: var(--ground);
+  border-radius: 2px; font-size: 14.5px; line-height: 1.55; color: var(--ink-soft);
+}
+.kill b {
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ricci);
+  display: block; margin-bottom: 5px;
+}
+
+/* ---- fragility ladder ---- */
+ol.frag { margin: 24px 0 0; padding: 0; list-style: none; counter-reset: f; }
+ol.frag li {
+  counter-increment: f; position: relative; padding: 14px 0 14px 44px;
+  border-top: 1px solid var(--rule); font-size: 15.5px; line-height: 1.55;
+}
+ol.frag li::before {
+  content: counter(f); position: absolute; left: 0; top: 15px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+  color: var(--ink-faint); width: 26px; text-align: right;
+}
+ol.frag li:last-child { border-bottom: 1px solid var(--rule); }
+
+ul.plain { margin: 18px 0 0; padding-left: 20px; }
+ul.plain li { margin-top: 9px; }
+
+.hr { height: 1px; background: var(--rule-strong); margin: 60px 0 0; border: 0; }
+
+footer {
+  margin-top: 56px; padding-top: 26px; border-top: 1px solid var(--rule);
+  font-size: 13.5px; line-height: 1.6; color: var(--ink-faint);
+}
+footer .col { max-width: 78ch; }
+footer b { color: var(--ink-soft); font-weight: 600; }
+footer code { background: var(--slab); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">Blackboard · gravitational collapse</p>
+    <h1>The Terminus</h1>
+    <p class="standfirst">Oppenheimer and Snyder called their own endpoint unphysical. Here is the invariant reason — and it is not the one usually given.</p>
+    <div class="mast-meta">
+      <span>Geometric units <code>G = c = 1</code></span>
+      <span><code>s</code> = proper time remaining</span>
+      <span>16/16 symbolic checks</span>
+    </div>
+
+    <figure class="figure">
+      <div class="figure-head">
+        <span>Two terminal geometries, same ball of test dust</span>
+        <span id="clock">s = 1.000</span>
+      </div>
+      <canvas id="twoTerminus" width="1000" height="330" aria-label="Animation comparing the isotropic Oppenheimer-Snyder crush with anisotropic Kasner spaghettification as proper time runs out"></canvas>
+      <figcaption class="figure-legend">
+        <div class="k-ricci"><b>Oppenheimer–Snyder</b> — every axis <code>∝ s^2/3</code>. Isotropic crush to a point. Weyl curvature identically zero; matter-dominated. Requires uniform density exactly.</div>
+        <div class="k-weyl"><b>Generic collapse</b> — radial <code>∝ s^−1/3</code>, transverse <code>∝ s^2/3</code>. Volume still vanishes, but one axis diverges. Weyl-dominated; matter subleading.</div>
+      </figcaption>
+    </figure>
+  </header>
+
+  <!-- ============ 0 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-known">Framing</span>
+      <div class="col">
+        <span class="sec-no">§ 0 — GROUND RULES</span>
+        <h2>Two failure modes, deliberately avoided</h2>
+        <p><strong>Premature synthesis</strong> is the reflex that ends every discussion of singularities with <em>“and then quantum gravity takes over.”</em> That sentence is a coupon for a theory nobody has, and it gets spent long before classical general relativity has been exhausted. The classical theory has more to say about the terminus than it is usually allowed to say.</p>
+        <p><strong>Tunnel vision</strong> is building all intuition on Schwarzschild and Oppenheimer–Snyder, which are the two least generic solutions in the problem. Section 4 measures exactly how non-generic, with a one-line algebraic condition.</p>
+        <p>The organising move is the third thing: <strong>take the time coordinate to be arbitrary and see which statements survive.</strong> Statements that don’t survive aren’t physics — they’re bookkeeping about a foliation. That filter does most of the work below.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 1 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-known">Established</span>
+      <div class="col">
+        <span class="sec-no">§ 1 — WHAT 1939 AND 1965 ACTUALLY SAY</span>
+        <h2>The theorem concludes incompleteness, and nothing else</h2>
+        <p>Oppenheimer &amp; Snyder matched a closed dust <span style="white-space:nowrap">FLRW</span> interior to an exterior Schwarzschild and got two results, both correct, both about <em>curves</em>: a comoving dust element reaches zero areal radius in finite proper time, and a distant observer never sees the surface cross <code>r = 2M</code> — the luminosity fades with e-folding time \(3\sqrt{3}\,M\), which is <strong>25.59 μs</strong> for a solar mass.</p>
+        <p>They flagged the zero-volume endpoint as an artefact of pressureless dust. The standard reply is that Penrose closed that loophole. The reply is right, and it is usually misread.</p>
+        <div class="slab">
+          <p class="slab-label">Penrose 1965</p>
+          <p style="margin-top:6px">If a spacetime admits a non-compact Cauchy surface, satisfies the null convergence condition \(R_{ab}k^ak^b \ge 0\), and contains a closed trapped surface, then it is future null geodesically <strong>incomplete</strong>.</p>
+        </div>
+        <p>Read the conclusion carefully. It is <em>not</em> “the density becomes infinite.” It is <em>not</em> “there is a point where matter is destroyed.” It is: some inextendible causal geodesic has finite affine length. The theorem is silent about what sits at the end — and the silence is structural, because its hypotheses are global and causal while “what happens there” is local and metric.</p>
+        <p>Three consequences get skipped routinely:</p>
+        <ul class="plain">
+          <li><strong>The singularity is not a set.</strong> It is a property of the manifold. Every attempt to attach it as a boundary has known pathologies — Schmidt’s <span style="white-space:nowrap">b-boundary</span> puts the singular point in the closure of <em>every</em> interior point for closed FRW and for Schwarzschild, so the quotient topology isn’t even T₁. Only the causal boundary is in decent shape, and it keeps causal but not metric information.</li>
+          <li><strong>Curvature need not diverge.</strong> Quasi-regular “whimper” singularities are geodesically incomplete with bounded curvature. Divergence is an extra fact about Schwarzschild, not a corollary.</li>
+          <li><strong>Incomplete does not mean inextendible.</strong> This one breaks the standard story outright — §6.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-derived">Derived here</span>
+      <div class="col">
+        <span class="sec-no">§ 2 — THE ARBITRARY-TIME FILTER</span>
+        <h2>“When does the matter vanish?” has no invariant answer</h2>
+        <p>Define the <strong>survival functional</strong> of a foliation. Let \(\mu\) be the measure on the matter congruence and \(\Sigma_t\) any global spacelike foliation:</p>
+        <div class="slab">
+          <p class="slab-label">Survival functional</p>
+          \[ N_\Sigma(t) \;=\; \mu\!\left\{\, \text{worldlines meeting } \Sigma_t \,\right\} \]
+          <p>The formal object hiding behind every sentence of the form <em>“the matter is gone.”</em> It is not a diffeomorphism invariant, and the failure is not subtle.</p>
+        </div>
+        <p>In <strong>Painlevé–Gullstrand</strong> or ingoing Eddington–Finkelstein slicing, the slices are regular across the horizon and run into <code>r = 0</code>. \(N_\Sigma(t)\) drops to zero at finite \(t\); matter “vanishes.”</p>
+        <p>In <strong>maximal slicing</strong> (\(K=0\)) the lapse obeys \(\nabla^2\alpha = \alpha K_{ij}K^{ij}\), so by the maximum principle \(\alpha &gt; 0\) everywhere but collapses in the strong field. The slices are limited by the double root of \(f r^4 + C^2\) with \(f = 1-2M/r\):</p>
+        <div class="slab">
+          <p class="slab-label">Limiting maximal slice</p>
+          \[ r_0 = \tfrac{3}{2}M, \qquad C = \tfrac{3\sqrt{3}}{4}M^2, \qquad R_{abcd}R^{abcd}\big|_{r_0} = \frac{1024}{243\,M^4} \]
+          <p>Finite curvature. The foliation asymptotes to an eternal cylinder <em>outside</em> <code>r = 0</code> and never reaches it — the “trumpet” every moving-puncture code lives on. In this time, <strong>\(N_\Sigma(t) = N_0\) forever: the collapse never completes and no matter ever disappears.</strong></p>
+        </div>
+        <p>Both foliations are global, spacelike, asymptotically flat, and cover the entire exterior. They disagree about whether the matter still exists.</p>
+        <blockquote class="claim weyl">“Matter vanishes upon reaching the end of its worldline” is a statement about a choice of time function, not about the spacetime. The invariant residue is only: <em>these curves are incomplete, and here is the limiting behaviour along each.</em></blockquote>
+        <p>That residue is computable. The rest of this note computes it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-derived">Derived here</span>
+      <div class="col">
+        <span class="sec-no">§ 3 — WHAT THE TERMINUS DOES TO A BODY</span>
+        <h2>Zero volume, unbounded length</h2>
+        <p>Radial marginally bound infall gives \(r(s) = (9M/2)^{1/3}s^{2/3}\), so the tidal coefficient is universal — every trace of \(M\) cancels:</p>
+        <div class="slab">
+          <p class="slab-label">Tidal coefficient and deviation exponents</p>
+          \[ \frac{M}{r^3} \;=\; \frac{2}{9s^2} \]
+          <p>Geodesic deviation in the parallel-propagated frame, \(\ddot\xi^{\hat i} = -R^{\hat i}{}_{\hat t \hat j \hat t}\,\xi^{\hat j}\), is then an Euler equation:</p>
+          \[ \text{transverse: } p(p-1) = -\tfrac{2}{9} \;\Rightarrow\; p \in \{\tfrac13, \tfrac23\} \]
+          \[ \text{radial: } p(p-1) = +\tfrac{4}{9} \;\Rightarrow\; p \in \{-\tfrac13, \tfrac43\} \]
+        </div>
+        <p>Reading the metric directly confirms it: near <code>r = 0</code> the vacuum interior is Kasner with exponents \((-\tfrac13, \tfrac23, \tfrac23)\), satisfying \(\sum p = \sum p^2 = 1\). So the body arrives <strong>stretched to unbounded length and squeezed to zero cross-section</strong>, with three-volume going to zero. Not crushed to a point. “Zero volume” and “crushed to a point” are different claims, and only the first is true.</p>
+        <p>Two more numbers worth having. The longest proper time any worldline has between the horizon and the terminus is</p>
+        <div class="slab">
+          <p class="slab-label">Lorentzian diameter of the interior</p>
+          \[ \int_0^{2M}\frac{\sqrt{r}\;dr}{\sqrt{2M-r}} \;=\; \pi M \qquad (15.47\;\mu\text{s for one solar mass}) \]
+        </div>
+        <p>— so the interior is a Lorentzian metric space of <em>finite diameter</em>, which matters in §8. And in the Kasner parametrisation \(p_1 = -u/(1{+}u{+}u^2)\), \(p_2 = (1{+}u)/(1{+}u{+}u^2)\), \(p_3 = u(1{+}u)/(1{+}u{+}u^2)\), Schwarzschild sits at exactly \(u = 1\) — the locally rotationally symmetric point, the fixed point of the BKL era map, the one Kasner that does not oscillate.</p>
+        <blockquote class="claim weyl">The canonical black hole interior sits at the single most degenerate point of the space of terminal geometries.</blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-derived">Derived here</span>
+      <div class="col">
+        <span class="sec-no">§ 4 — THE CENTREPIECE</span>
+        <h2>The 1939 endpoint is not merely unphysical. It is Weyl-free.</h2>
+        <p>Oppenheimer and Snyder said dust is an idealisation. Here is a sharper and more damaging statement: <strong>even inside dust, their endpoint is a measure-zero degeneracy — and it degenerates in the one direction that inverts its physical meaning.</strong></p>
+        <p>Take marginally bound Lemaître–Tolman–Bondi dust. Same matter, same symmetry, one free function \(m(r)\) instead of a constant density:</p>
+        <div class="slab">
+          <p class="slab-label">LTB dust, expanded about the terminus</p>
+          \[ \dot R^2 = \frac{2m(r)}{R}, \qquad R(\tau,r) = \left[\, r^{3/2} - \tfrac{3}{2}\sqrt{2m}\;\tau \,\right]^{2/3} \]
+          <p>Each shell crunches at its own comoving time \(\tau_s(r) = \tfrac23 r^{3/2}/\sqrt{2m}\). Setting \(s = \tau_s(r) - \tau\) and expanding as \(s \to 0\):</p>
+          \[ R \;\to\; \left(\tfrac{9m}{2}\right)^{1/3} s^{2/3} \]
+          \[ R' \;\to\; \left[\frac{2^{1/6}\,3^{2/3}\sqrt{r}\,\bigl(3m - r\,m'\bigr)}{9\,m^{7/6}}\right] s^{-1/3} \]
+        </div>
+        <blockquote class="claim">The entire Oppenheimer–Snyder special case is the vanishing of one algebraic factor: \(3m - r\,m' = 0\), that is, \(m \propto r^3\), that is, uniform density.</blockquote>
+        <p>Off that locus — for <em>every other</em> mass profile — the radial scale factor goes as \(s^{-1/3}\), the angular ones as \(s^{2/3}\), and the terminus is the Kasner of §3. Generic dust spaghettifies. Uniform dust does not. The difference is one function’s worth of fine-tuning.</p>
+
+        <h3>Now split the curvature</h3>
+        <p>Separate the Ricci (matter) part from the Weyl (free gravitational field) part. For LTB the single Weyl scalar is \(\Psi_2 = m/R^3 - m'/(3R^2R')\), and the two pieces scale differently:</p>
+        <div class="slab slab-ricci">
+          <p class="slab-label">Ricci against Weyl at the terminus</p>
+          \[ \frac{m}{R^3} \;\longrightarrow\; \frac{2}{9s^2} \qquad\text{— independent of } m(r) \text{ entirely} \]
+          \[ \rho = \frac{m'}{4\pi R^2 R'} \;\sim\; s^{-1} \]
+        </div>
+        <p><strong>(a) The generic terminus is Weyl-dominated, and universally so.</strong> The ratio Ricci/Weyl is \(O(s) \to 0\): the collapsing matter’s own energy density becomes <em>dynamically irrelevant at its own terminus</em>. And the surviving Weyl scalar \(2/9s^2\) carries no memory of \(m(r)\) — every dust profile approaches the same terminal geometry.</p>
+        <p><strong>(b) The Oppenheimer–Snyder terminus has \(\Psi_2 \equiv 0\) exactly.</strong> Its interior is FLRW, hence conformally flat, hence Weyl-free. Substituting \(m = \tfrac{4\pi}{3}\rho_0 r^3\) gives \(\Psi_2 = 0\) identically and \(\tau_s'(r) = 0\); both verified symbolically.</p>
+        <p>Put (a) and (b) against Penrose’s Weyl Curvature Hypothesis — Weyl vanishes at <em>initial</em> singularities (low entropy) and is unconstrained at <em>final</em> ones (high entropy) — and the 1939 endpoint lands on the wrong side of the ledger.</p>
+        <blockquote class="claim">The Oppenheimer–Snyder endpoint has the curvature signature of a Big Bang running backwards, not of a gravitational collapse. It is the unique Weyl-free, entropy-minimising member of its family. Oppenheimer and Snyder were right that it is unphysical; the invariant reason is not that dust lacks pressure, but that their endpoint is <em>time-reversed cosmology</em> — reached only by tuning away every degree of freedom that makes collapse collapse.</blockquote>
+        <p>Every intuition inherited from 1939 — <em>matter crushed to a point of infinite density</em> — is intuition about this one Weyl-free ray. The density does diverge there, as \(\rho \sim s^{-2}\), matter-dominated. Nowhere else does it dominate.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ladder ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-known">Synthesis</span>
+      <div class="col">
+        <span class="sec-no">§ 4b — THE GENERICITY LADDER</span>
+        <h2>Each rung changes the answer</h2>
+        <p>The rungs are genuinely ordered: each is a strict genericity increase over the one above, and each revises what “happens to the matter.”</p>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th class="mono">Rung</th><th>Solution</th><th>Terminal geometry</th><th>Curvature character</th><th>What happens to matter</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="rung">1</td>
+            <td><b>Oppenheimer–Snyder</b><br><span class="mono" style="color:var(--ink-faint)">uniform dust</span></td>
+            <td class="mono">(2/3, 2/3, 2/3)<br>isotropic</td>
+            <td><span class="tag-ricci">Ricci only</span><br><span class="mono" style="color:var(--ink-faint)">Weyl ≡ 0</span></td>
+            <td>Crushed isotropically to zero volume</td>
+          </tr>
+          <tr>
+            <td class="rung">2</td>
+            <td><b>Schwarzschild interior</b><br><span class="mono" style="color:var(--ink-faint)">vacuum</span></td>
+            <td class="mono">(−1/3, 2/3, 2/3)<br>Kasner, u = 1</td>
+            <td><span class="tag-weyl">Weyl only</span><br><span class="mono" style="color:var(--ink-faint)">no oscillation</span></td>
+            <td>Stretched without bound, squeezed to a line</td>
+          </tr>
+          <tr>
+            <td class="rung">3</td>
+            <td><b>Generic LTB dust</b><br><span class="mono" style="color:var(--ink-faint)">3m − rm′ ≠ 0</span></td>
+            <td class="mono">(−1/3, 2/3, 2/3)<br>velocity-dominated</td>
+            <td><span class="tag-weyl">Weyl dominates</span><br><span class="mono" style="color:var(--ink-faint)">Ricci/Weyl = O(s)</span></td>
+            <td>Same, and its own density stops mattering</td>
+          </tr>
+          <tr>
+            <td class="rung">4</td>
+            <td><b>Generic, no symmetry</b><br><span class="mono" style="color:var(--ink-faint)">BKL / billiards</span></td>
+            <td class="mono">u iterated by the<br>Gauss map — chaotic</td>
+            <td><span class="tag-weyl">Weyl dominates</span><br><span class="mono" style="color:var(--ink-faint)">asymptotically silent</span></td>
+            <td>Each point decouples into its own dynamics</td>
+          </tr>
+          <tr>
+            <td class="rung">5</td>
+            <td><b>Kerr, generic perturbation</b><br><span class="mono" style="color:var(--ink-faint)">every real black hole</span></td>
+            <td class="mono">weak null singularity<br>at the Cauchy horizon</td>
+            <td>Curvature diverges,<br>tidal <em>distortion</em> finite</td>
+            <td><b>May cross intact.</b> The worldline may not end.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-derived">Derived here</span>
+      <div class="col">
+        <span class="sec-no">§ 5 — INVERTING THE PREMISE</span>
+        <h2>The obstruction is not a theory of matter</h2>
+        <p>The standard closing line: <em>we can’t say what happens to the matter until we have a theory of matter.</em> Section 4 undercuts the premise. At the generic terminus the matter’s stress-energy is subleading by a full power of \(s\); the dynamics belongs to the vacuum field’s own nonlinearity. Three separable questions have been fused into one.</p>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="mono">Q</th><th>Question</th><th>What it actually needs</th></tr></thead>
+        <tbody>
+          <tr><td class="rung">Q1</td><td>What is the terminal geometry?</td><td>Vacuum GR. Largely answered: Kasner/BKL, matter subdominant.</td></tr>
+          <tr><td class="rung">Q2</td><td>What happens to matter’s degrees of freedom?</td><td>The structure of the causal boundary. Not a matter theory.</td></tr>
+          <tr><td class="rung">Q3</td><td>Does the terminus occur, or is it replaced?</td><td>Quantum gravity — but the handover scale is set by <em>curvature</em>, \(s \sim t_{\text{Pl}}\) from \(2/9s^2 \sim \ell_{\text{Pl}}^{-2}\), independent of what fell in.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="band" style="margin-top:28px">
+      <span class="chip chip-known">Established</span>
+      <div class="col">
+        <p style="margin-top:0">Where matter genuinely does enter is sharper and far more interesting than “we need a theory of it.” In the cosmological-billiards picture the terminal dynamics is a billiard in the space of Kasner exponents, and <strong>matter enters only by determining which walls exist</strong> — never as an energy source:</p>
+        <ul class="plain">
+          <li>Pure 4D gravity → the table is the Weyl chamber of the hyperbolic Kac–Moody algebra \(AE_3\); finite volume, therefore <strong>chaotic</strong>, with \(u\) iterated by the Gauss map.</li>
+          <li>A massless scalar or stiff fluid (\(p = \rho\), \(\rho \sim s^{-2}\) — the one matter that <em>isn’t</em> subdominant) removes walls and <strong>kills the chaos</strong>: monotone Kasner.</li>
+          <li>Eleven-dimensional supergravity → \(E_{10}\). Pure gravity in \(D \ge 11\) → non-chaotic.</li>
+        </ul>
+        <blockquote class="claim weyl">The terminus does not need a theory of matter. It needs the <em>field content</em> — the spectrum of p-forms and dilaton couplings that fixes which Kac–Moody Weyl chamber you are bouncing in. That is far weaker and far more tractable; and for the energy density it is not a requirement at all.</blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-known">Theorem</span>
+      <div class="col">
+        <span class="sec-no">§ 6 — ROTATING HOLES</span>
+        <h2>The worldline may not end at all</h2>
+        <p>Every astrophysical black hole rotates, and Kerr’s interior is not Schwarzschild’s. The inner Cauchy horizon is destabilised by mass inflation: the Hawking mass diverges exponentially, curvature blows up. But the tidal <em>distortion</em> — the double time-integral of the tidal tensor, which is what actually deforms a body — <strong>converges</strong>. In Ori’s weak null singularity the metric is continuous but not \(C^1\): tidal forces diverge while their effect on an infalling body stays finite.</p>
+        <p>Then Dafermos and Luk proved the \(C^0\) formulation of strong cosmic censorship <strong>false</strong> for Kerr. For data converging to Kerr in the exterior, the maximal development admits a continuous extension across the Cauchy horizon. Censorship is expected to survive in the \(H^1_{\text{loc}}\) sense — the extension exists but fails to be a weak solution.</p>
+        <blockquote class="claim">Penrose guarantees an incomplete geodesic. For rotating black holes that incompleteness sits where the spacetime is <em>continuously extendible</em> — the worldline runs out of <em>this solution</em>, not out of <em>spacetime</em>. “Matter vanishes at the end of its worldline” is not established for any realistic black hole. What is established is that the Einstein equations stop determining the future: a failure of <em>predictivity</em>, not of <em>existence</em>.</blockquote>
+        <p>This is the sharpest available correction to the received account, and it is not speculative. It is a theorem, and it is about the only black holes that exist.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-derived">Reframe</span>
+      <div class="col">
+        <span class="sec-no">§ 7 — CONFERRAL</span>
+        <h2>“Properties passed to the hole” is a theorem about surface integrals</h2>
+        <p>Why do \(M\), \(Q\), \(J\) survive when nothing else does? The usual answer invokes no-hair. The structural answer is cleaner and does the actual work: <strong>\(M\), \(Q\), \(J\) are surface integrals at infinity</strong> — ADM, Komar, Gauss. Their conservation is a statement about flux through a two-sphere in the <em>exterior</em>. It never referenced the interior, so nothing at the terminus can threaten it. Nothing is transferred through anything; the bookkeeping closes in a region the matter has already left.</p>
+        <p>Baryon number has no long-range field, hence no Gauss law, hence no exterior representative — which is the entire content of “black holes violate baryon number.”</p>
+        <blockquote class="claim weyl">Exactly the charges with Gauss laws are conferred. Everything else was never an exterior quantity to begin with. “Conferral” is not a process at the singularity; it is a theorem about which functionals of the interior data are measurable from outside.</blockquote>
+        <p>Formally, let \(\mu\) be the <em>terminal measure</em> — the pushforward of the matter measure along the congruence onto the causal boundary. The exterior sees only three Gauss-protected moments of it:</p>
+        <div class="slab">
+          <p class="slab-label">Information loss as non-injectivity</p>
+          \[ \mu \;\longmapsto\; (M,\,Q,\,J) \]
+          <p>Information loss <em>is</em> the non-injectivity of that map. The fibre over a given \((M,Q,J)\) is a space of measures on the terminal boundary, and Bekenstein–Hawking asserts its log-volume is \(A/4 = 4\pi M^2\) — about \(1.05\times10^{77}\) nats for a solar mass.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 8 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-proposed">Proposed</span>
+      <div class="col">
+        <span class="sec-no">§ 8 — THREE CONJECTURES</span>
+        <h2>Blackboard proposals, each with a way to kill it</h2>
+        <p>Clearly labelled: these are proposals, not results. Each is stated with the observation that would end it.</p>
+
+        <div class="conj">
+          <span class="conj-id">C1</span>
+          <h3>Terminal Measure Program, with an entropy selection principle</h3>
+          <p>Replace the failed <span style="white-space:nowrap">b-boundary</span> with the causal boundary of the maximal development, equipped with the pushforward measure \(\mu\), treated as a Lorentzian metric-measure space in the synthetic framework now available — Lorentzian length spaces, timelike Ricci bounds by optimal transport, which already yield synthetic proofs of the Hawking and Penrose theorems. The finite Lorentzian diameter \(\pi M\) from §3 is what makes the completion tractable.</p>
+          <p><strong>The new part is a requirement:</strong> a boundary construction should be <em>obliged</em> to yield a measure space of entropy \(A/4\). No existing construction is asked to do this.</p>
+          <div class="kill"><b>Kill-test — and I expect it to fail</b>Compute \(\mu\) for Oppenheimer–Snyder, where everything is explicit. All dust reaches the terminus simultaneously in comoving time; the boundary is an antichain parametrised by \(\chi \in [0,\chi_0]\), with entropy fixed by the initial data — not \(4\pi M^2\). If that is right, <em>the classical terminal boundary is too small to carry Bekenstein–Hawking entropy</em>, which is a clean statement of the information problem in purely geometric terms — and it says the entropy does not live at the terminus.</div>
+        </div>
+
+        <div class="conj">
+          <span class="conj-id">C2</span>
+          <h3>The silent terminal boundary is an antichain</h3>
+          <p>Under asymptotic silence, particle horizons shrink to zero at the terminus, spatial derivatives drop out, and each spatial point decouples into its own dynamical system. <strong>Conjecture:</strong> the causal boundary of a generic terminus is an <em>antichain</em> — no two terminal points causally related, zero Lorentzian separation, but carrying a non-trivial measure. Information loss is then not annihilation but <strong>causal decoupling</strong>: each worldline’s terminal data becomes permanently inaccessible to every other.</p>
+          <div class="kill"><b>Kill-test</b>Silence is known to fail on a measure-zero set — the “spikes,” partially controlled rigorously in recent stable-singularity-formation work. Whether spikes are boundary-relevant is exactly the crux. If they carry positive boundary measure, C2 is dead.</div>
+        </div>
+
+        <div class="conj">
+          <span class="conj-id">C3</span>
+          <h3>A universal classical information-destruction rate</h3>
+          <p>The BKL parameter is iterated by the Gauss map \(u \mapsto 1/(u-1)\), whose invariant measure is \(du/\bigl((1+u)\ln 2\bigr)\) and whose Kolmogorov–Sinai entropy is</p>
+          \[ h = \frac{\pi^2}{6\ln 2} = 2.3731\ \text{nats} = 3.4237\ \text{bits per BKL era} \]
+          <p><strong>Conjecture:</strong> this is the <em>rate</em> of classical information destruction at a chaotic terminus — per spatial cell, per era — and it is <strong>universal</strong>, independent of what collapsed. That universality is the same kind of universality as \(A/4\), which is the whole reason to suspect a relation.</p>
+          <div class="kill"><b>Kill-test</b>Count effective silent cells inside the horizon in the asymptotic regime, multiply by \(h\) per era, cut off at the Planck era. If that reproduces \(4\pi M^2\), the coincidence isn’t one. If it misses by many orders of magnitude — the likely outcome — then C3 describes the classical cascade only; combined with C1’s expected failure it says the entropy lives on the horizon and not at the terminus, which is itself worth establishing.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 9 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-proposed">Self-audit</span>
+      <div class="col">
+        <span class="sec-no">§ 9 — WHAT I WOULD RETRACT FIRST</span>
+        <h2>Ranked by fragility, most fragile first</h2>
+        <ol class="frag">
+          <li><strong>C3</strong> is the most speculative thing here. The map from “BKL eras” to “bits per unit proper time” needs a regulator I have not constructed, and the cell count is hand-waved.</li>
+          <li><strong>C1’s entropy selection principle</strong> is a proposal about what a definition <em>ought</em> to satisfy. Reasonable people can reject it and keep the causal boundary as it is.</li>
+          <li><strong>C2</strong> dies immediately if spikes are shown to carry boundary measure.</li>
+          <li><strong>§5’s inversion of the premise</strong> is safe for dust and for any matter with \(p &lt; \rho\), and <em>fails for stiff matter</em> (\(p = \rho\)), where \(\rho \sim s^{-2}\) is not subdominant. As a universal claim it would be wrong; with the equation-of-state condition attached it holds.</li>
+          <li><strong>§4’s derivation</strong> is the sturdiest thing in the note — a two-line expansion in a textbook solution, symbolically verified. I would defend it as written.</li>
+          <li><strong>§6</strong> is not mine and is not fragile. It is Dafermos–Luk, and it is a theorem.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <hr class="hr">
+
+  <!-- ============ 10 ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-known">Closing</span>
+      <div class="col">
+        <span class="sec-no">§ 10 — THE BLACKBOARD IN ONE PARAGRAPH</span>
+        <h2>Each clause weakens under the filter</h2>
+        <p>The received story runs: matter falls in, its worldline ends, its properties pass to the hole, and we cannot say more without a theory of matter. <em>“Its worldline ends”</em> is Penrose’s incompleteness, which for rotating holes sits at a continuously extendible boundary — the equations stop predicting, the spacetime does not stop. <em>“Matter vanishes”</em> is foliation-dependent; in maximal slicing nothing ever vanishes and the collapse never completes. <em>“Properties conferred”</em> is a theorem about Gauss laws in the exterior, not a process at the terminus. And <em>“we need a theory of matter”</em> has it backwards: at the generic terminus the matter’s energy density is subleading by a full power of \(s\), the geometry is Weyl-dominated and profile-independent, and matter enters only by choosing which Kac–Moody Weyl chamber the billiard bounces in. The 1939 endpoint that started all of this is not merely unphysical — it is the unique Weyl-free, entropy-minimising ray in its own family, which is to say a Big Bang played backwards. The generic terminus looks nothing like it, and most of what remains unknown there is a question about the gravitational field, not about what fell in.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="col">
+      <p style="margin-top:0"><b>Reproducing every number.</b> All exponents, the \(\pi M\) diameter, the \(r_0 = 3M/2\) cylinder, the Weyl universality and the O–S degeneracy are regenerated by <code>verify.py</code> in <code>labs/singularity-blackboard/</code> — 16 of 16 symbolic checks, SymPy only.</p>
+      <p><b>Leaning on.</b> Oppenheimer &amp; Snyder 1939 · Penrose 1965 · Hawking &amp; Penrose 1970 · Belinski–Khalatnikov–Lifshitz 1970/72 · Eardley–Liang–Sachs 1972 · Estabrook et al. and Reinhart 1973 · Ellis &amp; Schmidt 1977 · Bosshard 1976, Johnson 1977 · Poisson &amp; Israel 1989–90, Ori 1991 · Uggla, van Elst, Wainwright &amp; Ellis 2003 · Damour, Henneaux &amp; Nicolai 2003 · Flores, Herrera &amp; Sánchez 2011 · Dafermos &amp; Luk 2017 · Luk &amp; Oh 2017–19 · Kunzinger &amp; Sämann 2018, Cavalletti &amp; Mondino 2020 · Rodnianski &amp; Speck, Fournodavlos–Rodnianski–Speck.</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var cv = document.getElementById('twoTerminus');
+  var clock = document.getElementById('clock');
+  if (!cv || !cv.getContext) return;
+  var ctx = cv.getContext('2d');
+
+  var N = 88, ring = [];
+  for (var i = 0; i < N; i++) {
+    var a = (i / N) * Math.PI * 2;
+    ring.push([Math.cos(a), Math.sin(a)]);
+  }
+
+  function tok(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // s runs 1 -> S_MIN, then restarts. Exponents are the derived ones.
+  var S_MIN = 0.045, DUR = 5200, t0 = performance.now();
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function panel(cx, cy, ar, at, color, label, sub, W) {
+    var R = 30 * (W / 1000) * 2.0;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    for (var i = 0; i < ring.length; i++) {
+      var x = cx + ring[i][0] * R * ar;
+      var y = cy + ring[i][1] * R * at;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.globalAlpha = 0.13; ctx.fill();
+    ctx.globalAlpha = 1; ctx.lineWidth = 1.6; ctx.stroke();
+
+    // the test particles themselves
+    ctx.globalAlpha = 0.85;
+    for (var j = 0; j < ring.length; j += 4) {
+      ctx.beginPath();
+      ctx.arc(cx + ring[j][0] * R * ar, cy + ring[j][1] * R * at, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // axis hairlines
+    ctx.globalAlpha = 0.28; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(cx - R * 3.1, cy); ctx.lineTo(cx + R * 3.1, cy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.font = '600 12px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, cx, cy + 96);
+    ctx.fillStyle = tok('--ink-faint');
+    ctx.font = '400 11px "IBM Plex Mono", monospace';
+    ctx.fillText(sub, cx, cy + 114);
+    ctx.restore();
+  }
+
+  function frame(now) {
+    var W = cv.clientWidth || 1000;
+    var H = Math.round(W * 0.33);
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(W * dpr)) {
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.style.height = H + 'px';
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    var u = reduced ? 0.86 : ((now - t0) % DUR) / DUR;
+    var s = Math.exp(Math.log(1) * (1 - u) + Math.log(S_MIN) * u); // log sweep 1 -> S_MIN
+
+    var iso = Math.pow(s, 2 / 3);            // O-S: every axis
+    var kasR = Math.pow(s, -1 / 3);          // generic: radial
+    var kasT = Math.pow(s, 2 / 3);           // generic: transverse
+
+    var cy = H * 0.45;
+    panel(W * 0.27, cy, iso, iso, tok('--ricci'), 'ISOTROPIC CRUSH', 's^2/3  ×  s^2/3', W);
+    panel(W * 0.72, cy, kasR, kasT, tok('--weyl'), 'KASNER SPAGHETTIFICATION', 's^-1/3  ×  s^2/3', W);
+
+    // divider
+    ctx.save();
+    ctx.strokeStyle = tok('--rule'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W * 0.5, 18); ctx.lineTo(W * 0.5, H - 18); ctx.stroke();
+    ctx.restore();
+
+    if (clock) clock.textContent = 's = ' + s.toFixed(3);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
