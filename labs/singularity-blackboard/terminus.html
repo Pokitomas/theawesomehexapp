@@ -277,6 +277,26 @@ footer code { background: var(--slab); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+@media print {
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { padding: 0 32px 24px; font-size: 12.5px; }
+  /* CSS Grid does not fragment across print page breaks: the two-column .band
+     (chip gutter + reading column) can paint a chip's background on one page
+     while its text lands on the next. Collapse to a single flowed column for
+     print instead of fighting the grid across a break. */
+  .band { display: block !important; }
+  .chip {
+    position: static !important; display: inline-flex !important;
+    margin: 0 0 14px !important; justify-self: initial !important;
+  }
+  section { padding-top: 30px; break-before: auto; }
+  .mast { padding-top: 12px; }
+  h1 { font-size: 46px; }
+  .figure, .slab, .conj, .claim, .tablewrap, thead, tr, .kill { break-inside: avoid; }
+  a { color: var(--ink); text-decoration: underline; }
+  footer { break-inside: avoid-page; }
+}
 </style>
 
 <div class="wrap">
