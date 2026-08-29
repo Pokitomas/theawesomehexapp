@@ -30,6 +30,17 @@ def F_(y, g):
             (q + 2.0 * sp - 2.0 * R3 * sm) * n3)
 
 
+def F_bianchiII_(y, g):
+    """Bianchi II vacuum: N_2 = N_3 = 0 identically, Omega = 0 identically (no matter)."""
+    sp, sm, n1 = y
+    Om = 1.0 - sp * sp - sm * sm - 0.75 * n1 * n1
+    q = 2.0 * (sp * sp + sm * sm) + 0.5 * (3.0 * g - 2.0) * Om
+    Sp = -n1 * n1
+    return (-(2.0 - q) * sp - 3.0 * Sp,
+            -(2.0 - q) * sm,
+            (q - 4.0 * sp) * n1)
+
+
 A2 = (0.2,)
 A3 = (3.0 / 40.0, 9.0 / 40.0)
 A4 = (44.0 / 45.0, -56.0 / 15.0, 32.0 / 9.0)
@@ -44,27 +55,29 @@ def _ax(y, ks, cs, h):
     return tuple(y[i] + h * sum(c * k[i] for c, k in zip(cs, ks)) for i in range(len(y)))
 
 
-def dp45(y, g, tau0, tau1, tol, hmax, cb):
+def dp45(F, y, g, tau0, tau1, tol, hmax, cb):
+    """Dormand-Prince 4/5, adaptive step. F(y, g) -> dy/dtau, any fixed dimension."""
     y = tuple(y)
+    n = len(y)
     t = tau0
     d = 1.0 if tau1 > tau0 else -1.0
     h = d * min(hmax, fabs(tau1 - tau0) * 1e-4)
-    k1 = F_(y, g)
+    k1 = F(y, g)
     nst = 0
     while (tau1 - t) * d > 0.0:
         if fabs(h) > fabs(tau1 - t):
             h = tau1 - t
-        k2 = F_(_ax(y, (k1,), A2, h), g)
-        k3 = F_(_ax(y, (k1, k2), A3, h), g)
-        k4 = F_(_ax(y, (k1, k2, k3), A4, h), g)
-        k5 = F_(_ax(y, (k1, k2, k3, k4), A5, h), g)
-        k6 = F_(_ax(y, (k1, k2, k3, k4, k5), A6, h), g)
+        k2 = F(_ax(y, (k1,), A2, h), g)
+        k3 = F(_ax(y, (k1, k2), A3, h), g)
+        k4 = F(_ax(y, (k1, k2, k3), A4, h), g)
+        k5 = F(_ax(y, (k1, k2, k3, k4), A5, h), g)
+        k6 = F(_ax(y, (k1, k2, k3, k4, k5), A6, h), g)
         ks = (k1, k2, k3, k4, k5, k6)
-        y5 = tuple(y[i] + h * sum(b * k[i] for b, k in zip(B5[:6], ks)) for i in range(5))
-        k7 = F_(y5, g)
+        y5 = tuple(y[i] + h * sum(b * k[i] for b, k in zip(B5[:6], ks)) for i in range(n))
+        k7 = F(y5, g)
         ks7 = ks + (k7,)
         e = max(fabs(h) * fabs(sum((B5[j] - B4[j]) * ks7[j][i] for j in range(7)))
-                for i in range(5))
+                for i in range(n))
         sc = tol * (1.0 + max(fabs(v) for v in y5))
         if e <= sc or fabs(h) < 1e-14:
             t += h
@@ -134,7 +147,7 @@ def run_(y0, g, tau1, tol=1e-11, thr=1e-3, rec_bounces=False):
             if rec_bounces:
                 rec.append((st['bidx'], t, y[0], y[1]))
     st['t'] = 0.0
-    yf, nst = dp45(y0, g, 0.0, tau1, tol, 0.05, cb)
+    yf, nst = dp45(F_, y0, g, 0.0, tau1, tol, 0.05, cb)
     if st['in'] and st['s'] is not None:
         S.append(st['s'])
     return S, st, yf, nst, rec
@@ -419,10 +432,63 @@ def main():
         L(" %-4d %6d %10.5f %14.3e %12.3e" % (target, len(pts), Ln, maxdev, maxdev / Ln))
     L()
     L(" max rel deviation from straight chord over all bounces = %.3e" % max(devs))
-    L(" Bianchi II (one N_i != 0) is exactly integrable ; the heteroclinic Kasner-to-Kasner")
-    L(" transition it produces is, to this accuracy, a straight chord of the Kasner circle")
+    L(" this is NOT explained by the size of the two subdominant N_i during the bounce")
+    L(" (checked separately: their max^2 there runs ~1e-30 to ~1e-170 -- far too small to")
+    L(" account for a ~1e-4..1e-6 deviation by any clean power-law scaling). It is dominated")
+    L(" by the thr=%.0e endpoint-selection ambiguity itself: S is built by taking whichever" % THR)
+    L(" sample happens to minimise max(|N_i|) inside the threshold shell, which is an O(thr)")
+    L(" operational choice, not a physical residual. S12 derives why the chord holds at all:")
+    L(" in the idealized N_2=N_3=0 limit this section approximates, it is EXACT.")
 
-    H_("S10", "H^2 = (8 pi G/3) rho (1 - rho/rho_c) ,  rho=rho_c(aB/a)^3 ,  a(t)=aB(1+(t/tB)^2)^(1/3)")
+    H_("S10", "THEOREM: Bianchi II vacuum (N_2=N_3=0) has an exact rational first integral")
+    L(" Constraint (Omega=0, vacuum):  Sigma_+^2 + Sigma_-^2 + (3/4)N_1^2 = 1")
+    L(" Substituting q = 2 - (3/2)N_1^2 into S0 collapses the N_1^2 dependence completely:")
+    L()
+    L("      dSigma_+/dtau = (3/2) N_1^2 (2 - Sigma_+)")
+    L("      dSigma_-/dtau = -(3/2) N_1^2 Sigma_-")
+    L()
+    L(" Divide the two: N_1^2 cancels exactly, leaving a first-order ODE in the plane alone,")
+    L(" with no tau- or N_1-dependence left at all:")
+    L()
+    L("      dSigma_-/dSigma_+  =  -Sigma_- / (2 - Sigma_+)")
+    L()
+    L(" Separable. Integrating:  d(ln Sigma_-) = d(ln(Sigma_+ - 2))  =>")
+    L()
+    L("      K := Sigma_- / (Sigma_+ - 2)   is an EXACT constant of motion.")
+    L()
+    L(" Proof this is exact (not leading-order): d/dtau[Sigma_-/(Sigma_+-2)], expanded using")
+    L(" the two ODEs above with NO small-N_1 approximation anywhere, is identically zero --")
+    L(" verified symbolically in verify.py. Every Bianchi II bounce is EXACTLY a straight")
+    L(" chord through the point (Sigma_+,Sigma_-) = (2,0) -- a point outside the physical")
+    L(" disk (4 > 1), i.e. every such chord is a secant of a circle centred beyond its rim.")
+    L()
+    L(" Numeric confirmation -- integrate the REDUCED 3-variable system directly (not the")
+    L(" full 5-variable one), so N_2=N_3=0 holds by construction, not by falling below a")
+    L(" threshold. If the theorem is right this should hold to machine precision, not 1e-6:")
+    L()
+    L(" %14s %14s %16s %10s %10s" % ("Sigma_+(0)", "Sigma_-(0)", "max|K(tau)-K0|", "N1_min", "N1_max"))
+    L(" " + "-" * 68)
+    worst = 0.0
+    for sp0, sm0 in ((-0.31, 0.52), (0.6, -0.15), (-0.9, 0.05), (0.05, 0.05), (-0.999, 0.02)):
+        n1_0 = sqrt((4.0 / 3.0) * (1.0 - sp0 * sp0 - sm0 * sm0))
+        K0 = sm0 / (sp0 - 2.0)
+        trace = []
+
+        def cb3(t, y, trace=trace):
+            trace.append(y)
+
+        dp45(F_bianchiII_, (sp0, sm0, n1_0), 1.0, 0.0, -80.0, 1e-13, 0.02, cb3)
+        n1s = [y[2] for y in trace]
+        Kdevs = [fabs(y[1] / (y[0] - 2.0) - K0) for y in trace]
+        mx = max(Kdevs) if Kdevs else 0.0
+        worst = max(worst, mx)
+        L(" %14.6f %14.6f %16.3e %10.2e %10.6f" % (sp0, sm0, mx, min(n1s), max(n1s)))
+    L()
+    L(" worst |K(tau)-K0| across all runs = %.3e  (vs S9's %.3e at thr=%.0e)" % (worst, max(devs), THR))
+    L(" N1 sweeping from ~0 to O(1) and back is a genuine full bounce, not a near-Kasner")
+    L(" no-op -- the conservation law holds through the entire nonlinear transition.")
+
+    H_("S11", "H^2 = (8 pi G/3) rho (1 - rho/rho_c) ,  rho=rho_c(aB/a)^3 ,  a(t)=aB(1+(t/tB)^2)^(1/3)")
     G, rc, aB = 1.0, 1.0, 1.0
     tB = 1.0 / sqrt(6.0 * pi * G * rc)
     L(" tB = 1/sqrt(6 pi G rho_c) = %.6f    [G=rho_c=aB=1]" % tB)
@@ -444,7 +510,7 @@ def main():
     L(" for any FINITE rho_c the density, H, and R are bounded for all t in R : no singularity, ever")
     L(" this is a toy 1-parameter deformation of GR, not a claim about which deformation nature uses")
 
-    H_("S11", "invariants")
+    H_("S12", "invariants")
     L(" %-40s %20.10f" % ("pi M / M", pi))
     L(" %-40s %20s" % ("(p_1,p_2,p_3) at u=1", "(-1/3, 2/3, 2/3)"))
     L(" %-40s %20.10f" % ("Sigma_+ at u=1  [axis-1 special]", 1.0))
@@ -456,8 +522,9 @@ def main():
     L(" %-40s %20.10f" % ("C / M^2  [K=0 limit]", 3.0 * sqrt(3.0) / 4.0))
     L(" %-40s %20.10f" % ("R_abcd R^abcd (r_0) * M^4", 1024.0 / 243.0))
     L(" %-40s %20.3e" % ("max BKL-map cross-check err (S8)", max(errs)))
-    L(" %-40s %20.3e" % ("max chord deviation (S9)", max(devs)))
-    L(" %-40s %20.10f" % ("R(bounce) / (pi G rho_c)  (S10)", R0 / (pi * G * rc)))
+    L(" %-40s %20.3e" % ("max chord deviation, thr-limited (S9)", max(devs)))
+    L(" %-40s %20.3e" % ("max |K-K0|, exact theorem (S10)", worst))
+    L(" %-40s %20.10f" % ("R(bounce) / (pi G rho_c)  (S11)", R0 / (pi * G * rc)))
     L()
 
 

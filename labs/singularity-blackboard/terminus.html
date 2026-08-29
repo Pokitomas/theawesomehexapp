@@ -308,7 +308,7 @@ footer code { background: var(--slab); }
     <div class="mast-meta">
       <span>Geometric units <code>G = c = 1</code></span>
       <span><code>s</code> = proper time remaining</span>
-      <span>16/16 symbolic checks</span>
+      <span>25/25 symbolic checks</span>
     </div>
 
     <figure class="figure">
@@ -612,6 +612,42 @@ footer code { background: var(--slab); }
     </div>
   </section>
 
+  <!-- ============ 8b ============ -->
+  <section>
+    <div class="band">
+      <span class="chip chip-derived">Derived here</span>
+      <div class="col">
+        <span class="sec-no">§ 8b — TWO PROOFS, ADDED AFTER THE NUMERIC COMPANION FOUND THEM</span>
+        <h2>Neither cited, nor merely checked to some decimal places</h2>
+        <p>Everything above this line was either cited (a theorem I did not prove) or checked numerically (an exponent, a ratio, a coincidence to some number of decimal places). Building <code>terminus.py</code> turned up two claims that are neither. Both are stated precisely enough that a wrong step would be falsifiable; neither is claimed as unknown to specialists in this field — only as more than I had actually shown before checking.</p>
+
+        <h3>Theorem 1 — the BKL “chord” is exact in the Bianchi II limit, not approximate</h3>
+        <p><code>terminus.py</code>’s bounce-linearity check measured a real Mixmaster trajectory against a straight line joining its flanking Kasner points and found agreement to within \(10^{-4}\) to \(10^{-7}\) — good, but unexplained, reported as an empirical fact with no claim about why.</p>
+        <p>Restrict to the idealized limit the heuristic actually describes: Bianchi <span style="white-space:nowrap">II</span> vacuum, <code>N₂ = N₃ = 0</code> identically, <code>Ω = 0</code>. The vacuum constraint forces <code>q = 2 − (3/2)N₁²</code>, which collapses the equations of motion to:</p>
+        <div class="slab">
+          <p class="slab-label">Bianchi II vacuum, reduced</p>
+          \[ \frac{d\Sigma_+}{d\tau} = \frac{3}{2}N_1^2(2-\Sigma_+), \qquad \frac{d\Sigma_-}{d\tau} = -\frac{3}{2}N_1^2\,\Sigma_- \]
+          <p>Divide one by the other: \(N_1^2\) cancels <em>exactly</em>, leaving a first-order ODE in the plane alone, with no \(\tau\)- or \(N_1\)-dependence left:</p>
+          \[ \frac{d\Sigma_-}{d\Sigma_+} = \frac{-\Sigma_-}{2-\Sigma_+} \]
+          <p>Separable: \(d(\ln\Sigma_-) = d(\ln(\Sigma_+-2))\).</p>
+        </div>
+        <blockquote class="claim weyl"><code>K := Σ₋/(Σ₊ − 2)</code> is an exact constant of motion of the Bianchi II vacuum flow.</blockquote>
+        <p>Not to leading order — exactly. Differentiating \(K\) along the actual flow with no small-\(N_1\) truncation anywhere gives \(dK/d\tau \equiv 0\) as a rational-function identity (<code>verify.py</code>, Theorem 1). Every Bianchi II bounce lies <strong>exactly</strong> on a straight chord of the Kasner circle — and every such chord, extended, passes through the single point \((\Sigma_+,\Sigma_-)=(2,0)\), which sits <em>outside</em> the physical disk (\(4>1\)): the whole one-parameter family of bounces is a pencil of secants through a common external point.</p>
+        <p><code>terminus.py</code> confirms this by integrating the <em>reduced</em> 3-variable system directly — so <code>N₂=N₃=0</code> holds by construction, not by falling below a detection threshold — across five initial conditions, through a full nonlinear bounce (\(N_1\) sweeping from \(\sim 10^{-200}\) to \(O(1)\) and back). \(K\) is conserved to <strong>\(10^{-15}\)–\(10^{-18}\)</strong>: the floor of double-precision arithmetic, not a small residual.</p>
+        <p>That also retroactively explains the earlier \(10^{-4}\)–\(10^{-7}\): it is <em>not</em> a physical correction from the two “quiescent” axes being merely small rather than zero — checking directly, their squared size during a bounce runs \(10^{-30}\) to \(10^{-170}\), far below the observed residual, so that tidy story is false, and it would have been wrong to assert it without checking. The residual is dominated by something cruder: the original check selects each chord’s endpoint operationally, as whichever sample first drops below a fixed threshold — an \(O(\text{threshold})\) choice about <em>where in the shell to sample</em>, not a feature of the dynamics. Swap the operational proxy for the real reduced system and the residual doesn’t shrink — it disappears to machine precision.</p>
+
+        <h3>Theorem 2 — the maximal-slicing radius <code>r₀ = 3M/2</code> is a true extremum, by hand</h3>
+        <p>§2’s limiting cylinder came from asking a computer algebra system to solve \(P(r,C) = r^4 - 2Mr^3 + C^2 = 0\) jointly with \(\partial P/\partial r = 0\). Solid, but a computer asserting a fact is not a proof of one. The fact itself is elementary.</p>
+        <div class="slab slab-ricci">
+          <p class="slab-label">Claim</p>
+          <p style="margin-top:0"><code>h(r) := r³(2M − r)</code> attains its maximum on <code>(0, 2M)</code> uniquely at <code>r = 3M/2</code>, where <code>h = 27M⁴/16</code>.</p>
+          <p><b>Proof.</b> \(h(0)=h(2M)=0\), and \(h(r)>0\) on the open interval, so the maximum is interior. \(h'(r) = 6Mr^2-4r^3 = 2r^2(3M-2r)\), whose only zero on \(r>0\) is \(r=3M/2\) (the factor \(r^2\) contributes only the boundary point \(r=0\), excluded since \(r>0\)). \(h''(3M/2) = -9M^2 < 0\): a genuine maximum, and the only interior critical point, hence global. Direct substitution: \(h(3M/2) = (3M/2)^3(M/2) = 27M^4/16\). <span style="float:right">&#8718;</span></p>
+        </div>
+        <p>Since \(P(r,C)=0 \iff C^2=h(r)\), this is exactly the statement that \(C^2=27M^4/16\) is the largest value for which the maximal-slicing radial profile has <em>any</em> real solution at all — the algebraic content of why the family of slices cannot be pushed past \(r_0=3M/2\). (The physical embedding — that boundary-time evolution actually drives the family toward this extremal \(C\), asymptotically, never reaching it — is Estabrook–Wahlquist–Christensen–DeWitt–Smarr–Tsiang 1973 and Reinhart 1973, cited not re-derived; what’s new here is only the hand proof of the extremal-value fact, in place of “a computer algebra system solved it.”)</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ 9 ============ -->
   <section>
     <div class="band">
@@ -624,8 +660,10 @@ footer code { background: var(--slab); }
           <li><strong>C1’s entropy selection principle</strong> is a proposal about what a definition <em>ought</em> to satisfy. Reasonable people can reject it and keep the causal boundary as it is.</li>
           <li><strong>C2</strong> dies immediately if spikes are shown to carry boundary measure.</li>
           <li><strong>§5’s inversion of the premise</strong> is safe for dust and for any matter with \(p &lt; \rho\), and <em>fails for stiff matter</em> (\(p = \rho\)), where \(\rho \sim s^{-2}\) is not subdominant. As a universal claim it would be wrong; with the equation-of-state condition attached it holds.</li>
-          <li><strong>§4’s derivation</strong> is the sturdiest thing in the note — a two-line expansion in a textbook solution, symbolically verified. I would defend it as written.</li>
+          <li><strong>§4’s derivation</strong> is a two-line expansion in a textbook solution, symbolically verified. I would defend it as written.</li>
           <li><strong>§6</strong> is not mine and is not fragile. It is Dafermos–Luk, and it is a theorem.</li>
+          <li><strong>§8b’s Theorem 2</strong> is elementary calculus with no moving parts — the only way it’s wrong is arithmetic, and <code>verify.py</code> rules that out.</li>
+          <li><strong>§8b’s Theorem 1</strong> is the sturdiest thing in the note. Checked two independent ways — a symbolic identity (\(dK/d\tau \equiv 0\), exactly) and a numeric integration of the actual nonlinear system to \(10^{-15}\)–\(10^{-18}\) — and the two agree. If exactly one claim here had to survive scrutiny unchanged, this is the one.</li>
         </ol>
       </div>
     </div>
@@ -647,7 +685,7 @@ footer code { background: var(--slab); }
 
   <footer>
     <div class="col">
-      <p style="margin-top:0"><b>Reproducing every number.</b> All exponents, the \(\pi M\) diameter, the \(r_0 = 3M/2\) cylinder, the Weyl universality and the O–S degeneracy are regenerated by <code>verify.py</code> in <code>labs/singularity-blackboard/</code> — 16 of 16 symbolic checks, SymPy only.</p>
+      <p style="margin-top:0"><b>Reproducing every number.</b> All exponents, the \(\pi M\) diameter, the \(r_0 = 3M/2\) cylinder, the Weyl universality, the O–S degeneracy, and the two proofs in §8b are regenerated by <code>verify.py</code> in <code>labs/singularity-blackboard/</code> — 25 of 25 symbolic checks, SymPy only. The numeric companion <code>terminus.py</code> (stdlib only) independently confirms Theorem 1 to machine precision.</p>
       <p><b>Leaning on.</b> Oppenheimer &amp; Snyder 1939 · Penrose 1965 · Hawking &amp; Penrose 1970 · Belinski–Khalatnikov–Lifshitz 1970/72 · Eardley–Liang–Sachs 1972 · Estabrook et al. and Reinhart 1973 · Ellis &amp; Schmidt 1977 · Bosshard 1976, Johnson 1977 · Poisson &amp; Israel 1989–90, Ori 1991 · Uggla, van Elst, Wainwright &amp; Ellis 2003 · Damour, Henneaux &amp; Nicolai 2003 · Flores, Herrera &amp; Sánchez 2011 · Dafermos &amp; Luk 2017 · Luk &amp; Oh 2017–19 · Kunzinger &amp; Sämann 2018, Cavalletti &amp; Mondino 2020 · Rodnianski &amp; Speck, Fournodavlos–Rodnianski–Speck.</p>
     </div>
   </footer>

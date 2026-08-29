@@ -113,6 +113,82 @@ check("curvature on that cylinder is finite", K_at_r0.has(M) and sp.limit(K_at_r
       f"Kretschmann = {K_at_r0}")
 
 
+# ---------------------------------------------------------------- section 8b (new)
+# THEOREM 1. Bianchi II vacuum (Wainwright-Hsu variables, N2=N3=0, Omega=0) has an
+# exact rational first integral K = Sigma_-/(Sigma_+ - 2), so the Kasner-to-Kasner
+# "chord" used heuristically throughout the BKL literature is not an approximation
+# in this limit -- it is exact.
+Sp, Sm, N1 = sp.symbols("Sigma_+ Sigma_- N_1", real=True)
+
+# Vacuum constraint: Omega = 1 - Sigma_+^2 - Sigma_-^2 - K_curv = 0, K_curv = (3/4)N1^2
+# (since N2=N3=0). Solve it for (Sigma_+^2+Sigma_-^2) and substitute into
+# q = 2(Sigma_+^2+Sigma_-^2) + (1/2)(3*1-2)*Omega  [gamma=1, but Omega=0 kills that term
+# regardless of gamma -- vacuum has no matter fluid at all]:
+sum_sq = sp.solve(sp.Eq(1 - Sp ** 2 - Sm ** 2 - sp.Rational(3, 4) * N1 ** 2, 0), Sp ** 2 + Sm ** 2)[0]
+q_expr = sp.expand(2 * sum_sq)
+check("vacuum constraint forces q = 2 - (3/2)N1^2", sp.simplify(q_expr - (2 - sp.Rational(3, 2) * N1 ** 2)) == 0,
+      f"q = {q_expr}")
+
+Sp_pot = -N1 ** 2          # (1/2)[(0-0)^2 - N1(2N1-0-0)] with N2=N3=0
+Sm_pot = 0                 # (sqrt3/2)(0-0)(N1-0-0) with N2=N3=0
+
+dSp = sp.simplify(-(2 - q_expr) * Sp - 3 * Sp_pot)
+dSm = sp.simplify(-(2 - q_expr) * Sm - 3 * Sm_pot)
+check(
+    "Bianchi II: dSigma_+/dtau = (3/2)N1^2(2-Sigma_+)",
+    sp.simplify(dSp - sp.Rational(3, 2) * N1 ** 2 * (2 - Sp)) == 0,
+    f"dSigma_+/dtau = {dSp}",
+)
+check(
+    "Bianchi II: dSigma_-/dtau = -(3/2)N1^2 Sigma_-",
+    sp.simplify(dSm - (-sp.Rational(3, 2) * N1 ** 2 * Sm)) == 0,
+    f"dSigma_-/dtau = {dSm}",
+)
+
+# The N1^2 factor cancels in the ratio -- the trajectory's shape in the (Sigma_+,Sigma_-)
+# plane is governed by a first-order ODE with NO N1- or tau-dependence left:
+ratio = sp.simplify(dSm / dSp)
+check("dSigma_-/dSigma_+ = Sigma_-/(Sigma_+ - 2), independent of N1", ratio == Sm / (Sp - 2), f"ratio = {ratio}")
+
+# K := Sigma_-/(Sigma_+-2) is therefore a first integral. Proof: differentiate it along
+# the flow using the two ODEs above and show the result is IDENTICALLY zero -- not to
+# leading order in N1, not approximately, exactly, as a rational-function identity.
+K_quantity = Sm / (Sp - 2)
+dK_along_flow = sp.diff(K_quantity, Sp) * dSp + sp.diff(K_quantity, Sm) * dSm
+check(
+    "THEOREM 1: d/dtau[Sigma_-/(Sigma_+-2)] = 0 identically (exact first integral)",
+    sp.simplify(dK_along_flow) == 0,
+    f"d/dtau[K] = {sp.simplify(dK_along_flow)}",
+)
+
+# ---------------------------------------------------------------- section 2b (new)
+# THEOREM 2. The maximal-slicing double-root radius r0 = 3M/2 (section 2 above) is the
+# unique global maximum of h(r) := r^3(2M-r) on (0,2M), proved by elementary calculus
+# rather than solve(). This is the fact that makes r0 a genuine extremal radius, not
+# merely "a root sympy happened to find."
+h = rr ** 3 * (2 * M - rr)
+hprime = sp.simplify(sp.diff(h, rr))
+crit = sp.solve(sp.Eq(hprime, 0), rr)
+# rr was declared positive at its first use (section 2 above), so solve() correctly
+# reports only the interior critical point on r in (0,2M); r=0 is a boundary value,
+# checked separately below via direct substitution, not as an interior critical point.
+check(
+    "h'(r) = 2r^2(3M-2r) = 0 has one critical point on r>0: r = 3M/2",
+    crit == [sp.Rational(3, 2) * M],
+    f"h'(r) = {hprime},  critical points (r>0) = {crit}",
+)
+# second-derivative test: h''(3M/2) < 0 confirms a maximum, not an inflection/minimum.
+h2 = sp.diff(h, rr, 2)
+h2_at_r0 = sp.simplify(h2.subs(rr, sp.Rational(3, 2) * M))
+check("h''(3M/2) < 0  (genuine maximum, not a saddle)", sp.simplify(h2_at_r0) < 0, f"h''(3M/2) = {h2_at_r0}")
+h_max = sp.simplify(h.subs(rr, sp.Rational(3, 2) * M))
+check("h(3M/2) = 27M^4/16, matching C^2 at the double root", h_max == sp.Rational(27, 16) * M ** 4, f"h(3M/2) = {h_max}")
+# h(0)=h(2M)=0 and h>0 on the open interval, so this interior critical point is the
+# GLOBAL max on (0,2M), not just a local one -- no other critical point competes.
+check("h(0) = h(2M) = 0 (endpoints), so the interior critical point is the global max",
+      h.subs(rr, 0) == 0 and sp.simplify(h.subs(rr, 2 * M)) == 0)
+
+
 # ---------------------------------------------------------------- numbers
 M_sun = 4.925490947e-6                      # GM_sun/c^3, seconds
 M_pl_kg, M_sun_kg = 2.176434e-8, 1.98847e30
