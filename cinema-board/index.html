@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Wizardpost — Cinematography Wall v1</title>
+<style>
+  :root{--paper:#f0eee8;--ink:#171717;--muted:#77736b;}
+  *{box-sizing:border-box}
+  html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0e0e0f;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  #viewport{position:fixed;inset:0;overflow:hidden;touch-action:none;background:#101010}
+  #stage{position:absolute;left:0;top:0;width:5600px;height:3600px;transform-origin:0 0;background-color:#dedbd2;background-image:radial-gradient(#b9b4aa 1px,transparent 1px);background-size:26px 26px;box-shadow:0 0 0 1px #0006}
+  .card{position:absolute;background:#f7f5ef;padding:8px 8px 28px;border-radius:2px;box-shadow:0 10px 28px #0003,0 2px 7px #0002;cursor:grab;user-select:none;touch-action:none;transform-origin:50% 50%;transition:box-shadow .12s ease;overflow:hidden}
+  .card:active{cursor:grabbing;box-shadow:0 18px 45px #0005,0 3px 9px #0003}
+  .card img{display:block;width:100%;height:100%;object-fit:cover;background:#ddd;pointer-events:none}
+  .card .cap{position:absolute;left:9px;right:9px;bottom:8px;font-size:10px;line-height:1;color:#2d2b28;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
+  .note{position:absolute;max-width:460px;padding:18px 20px;background:#fff77f;color:#181818;box-shadow:0 10px 24px #0002;font:700 34px/1.02 Georgia,serif;letter-spacing:-.03em;transform-origin:center;cursor:grab;user-select:none;touch-action:none}
+  .note.small{font-size:21px;max-width:320px;background:#eff0e8;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:600;line-height:1.12}
+  .tape:before{content:"";position:absolute;width:96px;height:28px;top:-15px;left:50%;transform:translateX(-50%) rotate(-2deg);background:#e9dfc9aa;backdrop-filter:blur(1px);box-shadow:0 1px 1px #0001}
+  #hud{position:fixed;left:14px;top:14px;z-index:9999;display:flex;gap:7px;align-items:center;max-width:calc(100vw - 28px);overflow:auto;padding-bottom:2px;pointer-events:auto}
+  .pill{border:1px solid #ffffff26;background:#151515dc;color:#f5f5f5;border-radius:999px;padding:9px 12px;font-size:12px;font-weight:650;letter-spacing:.01em;backdrop-filter:blur(14px);white-space:nowrap}
+  button.pill{appearance:none;cursor:pointer}
+  button.pill:active{transform:translateY(1px)}
+  #hint{position:fixed;right:14px;bottom:14px;z-index:9999;background:#151515d9;color:#ddd;border:1px solid #ffffff1f;border-radius:14px;padding:9px 11px;font-size:11px;backdrop-filter:blur(12px);pointer-events:none}
+  #mini{position:fixed;left:14px;bottom:14px;z-index:9999;background:#151515d9;color:#fff;border:1px solid #ffffff1f;border-radius:12px;padding:9px 10px;font-size:11px;backdrop-filter:blur(12px);pointer-events:none}
+  @media(max-width:700px){#hint{display:none}.pill{font-size:11px;padding:8px 10px}.note{font-size:28px}}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage"></div></div>
+<div id="hud">
+  <span class="pill">WIZARDPOST / CINEMATOGRAPHY WALL 01</span>
+  <button class="pill" id="home">home</button>
+  <button class="pill" id="scatter">re-scatter</button>
+  <button class="pill" id="save">save positions</button>
+  <button class="pill" id="clear">forget saved</button>
+</div>
+<div id="mini">20 refs · draggable · infinite-ish canvas</div>
+<div id="hint">drag empty space = pan · pinch/wheel = zoom · drag images = move</div>
+<script src="https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js"></script>
+<script>
+const refs = [
+  {t:'After Yang — domestic negative space',u:'https://film-grab.com/wp-content/uploads/photo-gallery/After_Yang006.jpg?bwg=1656513579',x:520,y:370,w:500,h:390,r:-3},
+  {t:'Columbus — tiny body / architecture',u:'https://film-grab.com/wp-content/uploads/photo-gallery/Columbus_002.jpg?bwg=1569401874',x:1080,y:270,w:430,h:430,r:2},
+  {t:'Joshua Tree — real desert + impossible glow',u:'https://static.bhphotovideo.com/explora/sites/default/files/nail-long-exposures-with-neutral-density-filters-ts.png',x:1640,y:250,w:520,h:360,r:-1},
+  {t:'Abandoned mine mouth — ordinary danger',u:'https://www.starbuck.org/content/images/2023/05/IMG_3486.jpg',x:2240,y:330,w:390,h:510,r:4},
+  {t:'There Will Be Blood — labor in dirt',u:'https://images.blu-ray.com/reviews/416_8.jpg',x:2710,y:240,w:510,h:390,r:-2},
+  {t:'Close Encounters — camera believes the revelation',u:'https://www.slashfilm.com/img/gallery/steven-spielbergs-first-sci-fi-movie-ever-is-impossible-watch-today/firelight-inspired-steven-spielberg-to-make-close-encounters-of-the-third-kind-1751072783.jpg',x:3340,y:270,w:430,h:430,r:1},
+  {t:'Zzyzx — California beauty with wrongness inside it',u:'https://a.1stdibscdn.com/richard-heeps-photography-zzyzx-resort-pool-soda-dry-lake-california-american-landscape-color-photo-for-sale/a_6893/a_60848421587855502403/Zzyzx_6x7_master.jpg',x:3920,y:330,w:500,h:400,r:-4},
+  {t:'Stalker — wet tunnel / figure swallowed by place',u:'https://i0.wp.com/64.media.tumblr.com/d0be7d28762d1ffd49ab5884ca9b3fa3/e5cec1db2216c2e8-13/s1280x1920/d6d5131f4c8c1b5fa869495ea7efea6bfa03b8df.jpg',x:4500,y:260,w:420,h:520,r:2},
+  {t:'Days of Heaven — labor as transcendence',u:'https://s3.us-east-2.amazonaws.com/the-gram-assets/artwork/Days-of-Heaven_2025-08-11-142815_kaif.jpg',x:680,y:1030,w:480,h:480,r:3},
+  {t:'Badlands — person reduced to a mark in landscape',u:'https://www.bluscreens.net/uploads/1/4/8/9/14897402/badlands32_orig.jpg',x:1230,y:940,w:430,h:430,r:-3},
+  {t:'American Honey — youth + road + last light',u:'https://www.slashfilm.com/img/gallery/10-best-sasha-lane-movies-tv-shows-ranked/american-honey-1743787129.jpg',x:1760,y:1000,w:410,h:500,r:1},
+  {t:'No Country — roadside space as threat',u:'https://gov.texas.gov/uploads/images/film/tft_thrills_no_country_1.png',x:2240,y:920,w:500,h:500,r:-2},
+  {t:'A Ghost Story — banal room, metaphysical event',u:'https://miro.medium.com/v2/resize%3Afit%3A1400/1%2AVJOcGCGmvGB88robarbDGw.jpeg',x:2820,y:980,w:500,h:440,r:4},
+  {t:'The Master — skin, darkness, uncompromised face',u:'https://shot.cafe/images/o/the-master-2012-753.jpg',x:3430,y:960,w:430,h:430,r:-1},
+  {t:'The Florida Project — ugly real color allowed to live',u:'https://film-grab.com/wp-content/uploads/photo-gallery/florida014.jpg?bwg=1551290193',x:3970,y:1010,w:430,h:430,r:2},
+  {t:'Mine tunnel — wet rock / reflected industrial light',u:'https://diem25.org/wp-content/uploads/2021/08/3839838_1a3e1a07.jpg',x:4490,y:930,w:500,h:500,r:-3},
+  {t:'Mud continuity — evidence not punchline',u:'https://www.sinkwarehouse.com.au/product_images/uploaded_images/close-up-dirty-shirt-white-surface-generative-ai.jpg',x:810,y:1700,w:420,h:500,r:-1},
+  {t:'The minivan should stay painfully ordinary',u:'https://images.offerup.com/Ono2_uj6rRHxcBah27e-0hkDutA%3D/2048x1536/0153/01533044a9e243538b2b9239beb131c5.jpg',x:1360,y:1680,w:510,h:400,r:3},
+  {t:'Minecraft handbook — manual, not nostalgia prop',u:'https://rezised-images.knhbt.cz/1920x1920/72804052.jpg',x:2010,y:1650,w:420,h:510,r:-4},
+  {t:'Santa Clarita terrain — local scale and ridgelines',u:'https://static.55places.com/blog/media/santa-clarita-mountains-f032e008494be4205177a9e0f40bdcb3.jpg',x:2520,y:1680,w:520,h:420,r:1}
+];
+
+const notes = [
+  {text:'THE FEED IS UGLY\nON PURPOSE',x:250,y:220,r:-6,cls:''},
+  {text:'the film begins when the interface dies',x:3230,y:760,r:3,cls:'small'},
+  {text:'DO NOT PHOTOGRAPH\nTHE MEMES AS JOKES',x:3470,y:1560,r:-3,cls:''},
+  {text:'ordinary object + exact geometry = authority',x:700,y:2260,r:2,cls:'small'},
+  {text:'CALIFORNIA SHOULD LOOK\nBEAUTIFUL AND EMBARRASSING',x:1480,y:2350,r:-2,cls:''},
+  {text:'mud is proof',x:2820,y:2240,r:4,cls:'small'},
+  {text:'camera believes\nUganda Knuckles',x:3890,y:2150,r:-4,cls:''},
+  {text:'NO “DREAM” EFFECT',x:4490,y:1840,r:5,cls:'small'}
+];
+
+const stage = document.getElementById('stage');
+
+function cardFrom(ref,i){
+  const el=document.createElement('div');
+  el.className='card panzoom-exclude tape';
+  el.dataset.i=i;
+  el.style.width=ref.w+'px'; el.style.height=ref.h+'px';
+  el.style.left=ref.x+'px'; el.style.top=ref.y+'px';
+  el.style.transform=`rotate(${ref.r}deg)`;
+  el.innerHTML=`<img loading="lazy" referrerpolicy="no-referrer" src="${ref.u}" alt=""><div class="cap">${ref.t}</div>`;
+  stage.appendChild(el); makeDraggable(el);
+}
+function noteFrom(n,i){
+  const el=document.createElement('div');
+  el.className='note panzoom-exclude '+n.cls;
+  el.dataset.note=i;
+  el.style.left=n.x+'px';el.style.top=n.y+'px';el.style.transform=`rotate(${n.r}deg)`;
+  el.textContent=n.text;
+  stage.appendChild(el);makeDraggable(el);
+}
+refs.forEach(cardFrom); notes.forEach(noteFrom);
+
+const panzoom = Panzoom(stage,{maxScale:2.6,minScale:.16,startScale:.34,startX:-180,startY:-110,excludeClass:'panzoom-exclude',animate:false});
+const viewport=document.getElementById('viewport');
+viewport.addEventListener('wheel',e=>{e.preventDefault();panzoom.zoomWithWheel(e);},{passive:false});
+
+let z=50;
+function makeDraggable(el){
+  let sx=0,sy=0,ox=0,oy=0,drag=false;
+  el.addEventListener('pointerdown',e=>{
+    e.stopPropagation(); drag=true; el.setPointerCapture(e.pointerId); sx=e.clientX; sy=e.clientY;
+    ox=parseFloat(el.style.left)||0; oy=parseFloat(el.style.top)||0; el.style.zIndex=++z;
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!drag)return; e.stopPropagation();
+    const scale=panzoom.getScale ? panzoom.getScale() : 1;
+    el.style.left=(ox+(e.clientX-sx)/scale)+'px';
+    el.style.top=(oy+(e.clientY-sy)/scale)+'px';
+  });
+  const end=e=>{if(!drag)return;drag=false;try{el.releasePointerCapture(e.pointerId)}catch(_){} };
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+
+function state(){
+  return [...document.querySelectorAll('.card,.note')].map(el=>({k:el.classList.contains('note')?'n'+el.dataset.note:'c'+el.dataset.i,x:el.style.left,y:el.style.top,z:el.style.zIndex||'',tr:el.style.transform}));
+}
+function applySaved(){
+  try{const s=JSON.parse(localStorage.getItem('wizardpost-cine-board-v1')||'null');if(!s)return;
+    const map=new Map(s.map(o=>[o.k,o]));
+    document.querySelectorAll('.card,.note').forEach(el=>{const k=el.classList.contains('note')?'n'+el.dataset.note:'c'+el.dataset.i;const o=map.get(k);if(o){el.style.left=o.x;el.style.top=o.y;el.style.zIndex=o.z;el.style.transform=o.tr;}})
+  }catch(_){ }
+}
+applySaved();
+
+document.getElementById('home').onclick=()=>panzoom.reset({animate:true});
+document.getElementById('save').onclick=()=>{localStorage.setItem('wizardpost-cine-board-v1',JSON.stringify(state()));flash('saved locally')};
+document.getElementById('clear').onclick=()=>{localStorage.removeItem('wizardpost-cine-board-v1');flash('saved layout forgotten')};
+document.getElementById('scatter').onclick=()=>{
+  document.querySelectorAll('.card').forEach((el,i)=>{
+    const col=i%5,row=Math.floor(i/5);const jx=(Math.random()-.5)*250,jy=(Math.random()-.5)*220;
+    el.style.left=(500+col*930+jx)+'px';el.style.top=(350+row*690+jy)+'px';el.style.transform=`rotate(${(Math.random()-.5)*9}deg)`;
+  });
+  flash('re-scattered');
+};
+function flash(msg){const m=document.getElementById('mini');const old=m.textContent;m.textContent=msg;setTimeout(()=>m.textContent=old,1200)}
+</script>
+</body>
+</html>
