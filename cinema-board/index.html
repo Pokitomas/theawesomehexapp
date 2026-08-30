@@ -3,184 +3,194 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
-<title>Wizardpost — Cinematography Wall 01</title>
+<meta name="theme-color" content="#87d8ef">
+<title>Wizardpost Visual Atlas</title>
 <style>
-:root{--ink:#171715;--paper:#d8d2c4;--hud:#111d;--line:#ffffff28}
+:root{
+  --sky:#73d6f4;--sky2:#c9f7ff;--grass:#b7df59;--ink:#17221d;--glass:rgba(235,252,255,.72);
+  --glass2:rgba(255,255,255,.42);--line:rgba(255,255,255,.78);--shadow:rgba(29,55,55,.24);--hot:#ff6137;
+  --ui:ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold",system-ui,sans-serif;--serif:Georgia,"Times New Roman",serif;
+}
 *{box-sizing:border-box}
-html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-#viewport{position:fixed;inset:0;overflow:hidden;touch-action:none;background:#b8b09f;overscroll-behavior:none}
-/* FAIL-VISIBLE FIRST PAINT: the board is visible before any JS runs. */
-#board{position:absolute;left:0;top:0;width:2100px;height:3200px;transform-origin:0 0;transform:translate3d(12px,78px,0) scale(.17);background-color:var(--paper);background-image:radial-gradient(#8f8878 1.3px,transparent 1.3px);background-size:24px 24px;box-shadow:0 0 0 2px #8f8878,0 30px 90px #0005;will-change:transform}
-.card,.note{position:absolute;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;transform-origin:center;will-change:left,top,transform}
-.card{overflow:hidden;background:#c9c1b1;box-shadow:0 18px 42px #332b223d,0 2px 8px #0003;border:7px solid #eee9df}
-.card:active,.note:active{cursor:grabbing}
-.card .fallback{position:absolute;inset:0;display:grid;place-items:center;padding:30px;text-align:center;background:linear-gradient(145deg,#b9af9c,#ded8cb);color:#4e493f;font:800 27px/1.02 Georgia,serif;letter-spacing:-.03em}
-.card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:transparent}
-.card .cap{position:absolute;z-index:3;left:10px;right:10px;bottom:9px;width:max-content;max-width:calc(100% - 20px);padding:6px 8px;background:#111d;color:#fff;border:1px solid #ffffff22;border-radius:999px;font-size:14px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(6px)}
-.note{padding:24px 27px;max-width:500px;background:#fff06a;color:#181611;box-shadow:0 14px 34px #0003;font:800 38px/.96 Georgia,serif;letter-spacing:-.045em}
-.note.small{background:#f0ece2;font:700 24px/1.05 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.025em}
-.note.red{background:#ef6b56}
-.note.blue{background:#8fc5d4}
-#hud{position:fixed;z-index:9999;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center;gap:8px;pointer-events:none}
-.hudleft,.hudright{display:flex;gap:6px;align-items:center;pointer-events:auto}
-.pill{appearance:none;border:1px solid var(--line);background:var(--hud);color:#f5f5f2;border-radius:999px;padding:9px 12px;font:750 12px/1 ui-sans-serif,system-ui;letter-spacing:.02em;backdrop-filter:blur(13px);white-space:nowrap}
-button.pill{cursor:pointer;min-width:40px}
-button.pill:active{transform:scale(.96)}
-#status{position:fixed;z-index:9999;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));padding:7px 9px;border:1px solid var(--line);background:#111c;color:#ddd;border-radius:999px;font-size:10px;pointer-events:none;backdrop-filter:blur(10px)}
-@media(max-width:560px){.pill.title{font-size:10px;padding:8px 10px}.hudright .pill{padding:8px 10px}.card{border-width:6px}.card .cap{font-size:13px}}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;color:var(--ink);font-family:var(--ui);background:#7ccde2}
+button,input{font:inherit}
+#world{position:fixed;inset:0;overflow:hidden;touch-action:none;overscroll-behavior:none;background:
+  radial-gradient(circle at 82% 12%,rgba(255,255,255,.95) 0 2%,rgba(255,255,255,.4) 3%,transparent 8%),
+  radial-gradient(circle at 17% 10%,rgba(255,255,255,.5),transparent 18%),
+  linear-gradient(#63c8ec 0 42%,#c9eff4 53%,#b3df67 54%,#78ad45 76%,#4c7839 100%)}
+#world:before{content:"";position:absolute;left:-14vw;right:-8vw;bottom:-15vh;height:48vh;background:
+  radial-gradient(ellipse at 12% 100%,#263320 0 26%,transparent 27%),
+  radial-gradient(ellipse at 54% 100%,#30351f 0 31%,transparent 32%),
+  radial-gradient(ellipse at 89% 100%,#18291f 0 30%,transparent 31%);filter:blur(1px);opacity:.78;pointer-events:none}
+#world:after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(circle at 16% 17%,rgba(255,255,255,.8) 0 5px,rgba(136,232,255,.45) 6px 18px,transparent 20px),
+  radial-gradient(circle at 88% 29%,rgba(255,255,255,.75) 0 4px,rgba(94,207,235,.33) 5px 14px,transparent 16px),
+  linear-gradient(100deg,transparent 0 72%,rgba(255,115,55,.10) 74%,transparent 79%)}
+
+/* Frazetta mass as interface composition: dark counterweight, hot diagonal, light field. */
+#mass{position:fixed;z-index:1;right:-11vw;bottom:-11vh;width:48vw;height:69vh;pointer-events:none;opacity:.78;filter:drop-shadow(-24px 20px 32px #0b16164d)}
+#mass:before{content:"";position:absolute;inset:9% 0 0 18%;background:linear-gradient(150deg,#171d18 0 48%,#35251c 64%,#b94627 83%,#ff9b44 100%);clip-path:polygon(44% 0,68% 13%,76% 31%,100% 49%,76% 57%,92% 100%,42% 82%,0 100%,18% 56%,3% 33%,32% 29%);border-radius:44% 38% 28% 52%}
+#mass:after{content:"";position:absolute;right:4%;bottom:4%;width:45%;height:68%;background:radial-gradient(ellipse at 50% 20%,#ffbd59 0 4%,#d35c2b 20%,#2b211b 54%,#111 77%);clip-path:polygon(53% 0,68% 17%,61% 32%,84% 55%,100% 100%,49% 83%,8% 100%,34% 54%,20% 32%,38% 17%);mix-blend-mode:screen;opacity:.5}
+
+#board{position:absolute;z-index:3;left:0;top:0;width:5200px;height:4300px;transform-origin:0 0;will-change:transform;background:
+  radial-gradient(circle at 7% 11%,rgba(255,255,255,.26) 0 3px,transparent 4px),
+  radial-gradient(circle at 73% 44%,rgba(255,255,255,.16) 0 2px,transparent 3px);background-size:41px 41px,57px 57px}
+
+.card{position:absolute;width:360px;min-height:240px;border-radius:29px;padding:9px;background:linear-gradient(155deg,rgba(255,255,255,.94),rgba(222,247,247,.64) 45%,rgba(156,211,219,.46));border:1px solid rgba(255,255,255,.9);box-shadow:0 22px 55px rgba(14,38,37,.26),inset 0 1px 0 #fff,inset 0 -3px 8px rgba(49,126,139,.16);backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25);cursor:grab;touch-action:none;user-select:none;transform-origin:center;overflow:hidden}
+.card:before{content:"";position:absolute;z-index:4;left:10%;right:10%;top:5px;height:22px;border-radius:50%;background:linear-gradient(rgba(255,255,255,.95),rgba(255,255,255,0));opacity:.7;pointer-events:none}
+.card.active{outline:4px solid color-mix(in srgb,var(--accent,#fff) 76%,white);box-shadow:0 28px 70px rgba(14,38,37,.4),0 0 0 9px rgba(255,255,255,.28),inset 0 1px 0 #fff}
+.card .image{height:220px;border-radius:22px;position:relative;overflow:hidden;background:linear-gradient(145deg,#222e27,#8aa77c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18),0 3px 10px rgba(0,0,0,.15)}
+.card .image img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.card .image .fallback{position:absolute;inset:0;display:grid;place-items:end start;padding:18px;background:linear-gradient(135deg,#17251e 0 45%,var(--accent,#7bd4f2) 110%);color:#fff;font:800 29px/.92 var(--serif);letter-spacing:-.04em;text-shadow:0 2px 12px #0008}
+.card .body{padding:12px 8px 7px}
+.card .eyebrow{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.13em;opacity:.66}
+.card .dot{width:9px;height:9px;border-radius:50%;background:var(--accent,#fff);box-shadow:0 0 0 3px rgba(255,255,255,.68),0 0 10px var(--accent,#fff)}
+.card h2{margin:7px 0 6px;font:900 25px/.92 var(--serif);letter-spacing:-.045em}
+.card .note{font-size:13px;line-height:1.22;font-weight:700;opacity:.82}
+.card .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.chip{font-size:10px;line-height:1;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,.54);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 -1px 2px rgba(0,0,0,.08);white-space:nowrap}
+.card[data-hidden="1"]{display:none}
+.card[data-depth="surface"] .note,.card[data-depth="surface"] .chips{display:none}
+.card[data-depth="surface"]{min-height:0}
+.card[data-depth="surface"] h2{font-size:20px}
+.card[data-depth="mechanism"] .chip.lineage,.card[data-depth="mechanism"] .chip.use{display:none}
+.card[data-depth="lineage"] .chip.use{display:none}
+.card.textonly .image{height:165px}
+
+#chrome{position:fixed;z-index:10000;inset:0;pointer-events:none}
+.topbar{position:absolute;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));height:58px;display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid rgba(255,255,255,.84);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.88),rgba(191,236,246,.61) 45%,rgba(105,190,214,.55));box-shadow:0 9px 27px rgba(30,75,82,.23),inset 0 1px 0 #fff,inset 0 -3px 8px rgba(46,131,157,.18);backdrop-filter:blur(22px) saturate(1.3);pointer-events:auto}
+.logo{height:42px;min-width:42px;border-radius:14px;background:radial-gradient(circle at 34% 26%,#fff 0 7%,#91f1ff 8% 24%,#258dc1 50%,#193b64 78%);border:2px solid rgba(255,255,255,.86);box-shadow:inset 0 -5px 8px #173b7090,0 3px 8px #27697955;display:grid;place-items:center;color:#fff;font-weight:1000;text-shadow:0 1px 5px #073b5b;flex:0 0 auto}
+.titlebox{min-width:0;display:flex;flex-direction:column;line-height:1}.titlebox b{font-size:13px;letter-spacing:.02em;white-space:nowrap}.titlebox span{font-size:9px;opacity:.65;white-space:nowrap}
+.search{margin-left:auto;position:relative;flex:1;max-width:470px;min-width:90px}.search input{width:100%;height:39px;border:1px solid rgba(78,139,152,.32);border-radius:15px;padding:0 13px 0 35px;outline:none;background:rgba(255,255,255,.64);box-shadow:inset 0 2px 8px rgba(52,116,133,.16),0 1px 0 #fff;color:#17313a;font-weight:700}.search:before{content:"⌕";position:absolute;left:12px;top:5px;font-size:24px;color:#2f7385}
+.iconbtn{width:40px;height:40px;border:1px solid rgba(255,255,255,.8);border-radius:14px;color:#17495d;background:linear-gradient(#fff,rgba(185,233,242,.84));box-shadow:inset 0 -3px 5px rgba(67,145,160,.19),0 3px 6px rgba(34,89,102,.14);font-size:17px;font-weight:900;cursor:pointer}.iconbtn:active{transform:translateY(1px);box-shadow:inset 0 2px 5px rgba(34,89,102,.19)}
+
+.familyrail{position:absolute;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:calc(max(8px,env(safe-area-inset-top)) + 66px);display:flex;gap:6px;overflow:auto;scrollbar-width:none;padding:2px 1px 8px;pointer-events:auto}.familyrail::-webkit-scrollbar{display:none}
+.familybtn{border:1px solid rgba(255,255,255,.78);border-radius:999px;padding:8px 11px;background:rgba(239,253,255,.64);box-shadow:0 5px 15px rgba(35,85,86,.13),inset 0 1px #fff;color:#183a3b;font-size:10px;font-weight:900;white-space:nowrap;cursor:pointer;backdrop-filter:blur(13px)}
+.familybtn.on{background:linear-gradient(180deg,#fff,var(--accent,#b8f1ff));box-shadow:0 6px 18px rgba(35,85,86,.2),inset 0 1px #fff,0 0 0 2px rgba(255,255,255,.35)}
+
+#inspector{position:absolute;z-index:10002;right:max(10px,env(safe-area-inset-right));top:calc(max(8px,env(safe-area-inset-top)) + 112px);width:min(360px,calc(100vw - 20px));max-height:calc(100vh - 208px);overflow:auto;border:1px solid rgba(255,255,255,.82);border-radius:25px;padding:16px;background:linear-gradient(145deg,rgba(244,255,255,.88),rgba(176,226,230,.71));box-shadow:0 20px 70px rgba(26,64,59,.28),inset 0 1px #fff;backdrop-filter:blur(24px) saturate(1.25);pointer-events:auto;transform:translateX(calc(100% + 30px));transition:transform .24s cubic-bezier(.2,.85,.25,1)}
+#inspector.open{transform:translateX(0)}
+#inspector .close{float:right}.insFamily{font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em;opacity:.55;margin-top:4px}.insTitle{font:900 28px/.92 var(--serif);letter-spacing:-.05em;margin:7px 35px 8px 0}.insNote{font-size:13px;font-weight:700;line-height:1.26}.insSection{margin-top:14px;font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.12em;opacity:.55}.insList{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.sourceLink{display:block;margin-top:14px;color:#0b657e;font-size:11px;font-weight:900;text-decoration:none}
+
+.bottomdock{position:absolute;z-index:10001;left:50%;bottom:max(9px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:7px;border:1px solid rgba(255,255,255,.86);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(163,226,239,.72));box-shadow:0 12px 35px rgba(21,68,76,.26),inset 0 1px #fff;backdrop-filter:blur(20px);pointer-events:auto}
+.dockbtn{height:44px;min-width:44px;border-radius:15px;border:1px solid rgba(255,255,255,.84);background:linear-gradient(#fbffff,#c8edf2);box-shadow:inset 0 -3px 5px rgba(71,150,164,.17),0 2px 4px rgba(40,91,100,.14);color:#174554;font-size:11px;font-weight:1000;padding:0 12px;cursor:pointer}.dockbtn.on{background:linear-gradient(#fff,#a8ecf7);box-shadow:inset 0 -3px 5px rgba(27,127,155,.21),0 0 0 3px rgba(255,255,255,.38)}
+#status{position:absolute;left:max(10px,env(safe-area-inset-left));bottom:max(13px,env(safe-area-inset-bottom));padding:7px 9px;border:1px solid rgba(255,255,255,.7);border-radius:999px;background:rgba(15,45,43,.58);color:#eefeff;font-size:9px;font-weight:800;letter-spacing:.02em;backdrop-filter:blur(10px);pointer-events:none}
+
+.bootcard{position:absolute;z-index:2;left:40px;top:150px;width:min(520px,calc(100vw - 80px));padding:18px 20px;border-radius:26px;border:1px solid #fff9;background:#eafcffd9;box-shadow:0 20px 60px #173b4145;pointer-events:none}.bootcard b{font:900 28px/.95 var(--serif)}.bootcard p{margin:7px 0 0;font-size:12px;font-weight:700}.loaded .bootcard{display:none}
+@media(max-width:700px){
+ .topbar{height:54px;border-radius:18px}.logo{height:38px;min-width:38px;border-radius:12px}.titlebox{display:none}.search input{height:36px}.iconbtn{width:36px;height:36px;border-radius:12px}.familyrail{top:calc(max(8px,env(safe-area-inset-top)) + 60px)}
+ #inspector{top:auto;bottom:calc(max(9px,env(safe-area-inset-bottom)) + 67px);max-height:48vh;width:calc(100vw - 20px)}
+ .bottomdock{gap:5px;padding:6px}.dockbtn{height:42px;min-width:42px;border-radius:14px;padding:0 10px}.dockbtn .wide{display:none}#status{display:none}
+ .card{border-radius:24px}.card .image{border-radius:18px}
+}
 </style>
 </head>
 <body>
-<div id="viewport" aria-label="Freeform cinematography reference board">
-  <main id="board">
-    <!-- Static DOM on purpose. If JS or a CDN dies, this collage still exists. -->
-    <article class="card" data-card style="left:70px;top:70px;width:500px;height:390px;transform:rotate(-4deg)"><div class="fallback">BEDROOM / NEGATIVE SPACE</div><img loading="eager" referrerpolicy="no-referrer" src="https://images.squarespace-cdn.com/content/v1/5ee17ceb66d99a3bade53551/1626456228985-QIGABBB444Y6XB8BIY90/5d473e49216101.58ae0f875b983.jpg" alt="Warm directional bedroom window light" onerror="this.remove()"><span class="cap">bedroom — light has somewhere to come from</span></article>
-    <article class="card" data-card style="left:610px;top:45px;width:440px;height:520px;transform:rotate(3deg)"><div class="fallback">AFTER YANG / ROOM AS LOCATION</div><img loading="eager" referrerpolicy="no-referrer" src="https://film-grab.com/wp-content/uploads/photo-gallery/After_Yang006.jpg?bwg=1656513579" alt="After Yang frame reference" onerror="this.remove()"><span class="cap">room is bigger than the person</span></article>
-    <article class="card" data-card style="left:1090px;top:90px;width:410px;height:430px;transform:rotate(-1.5deg)"><div class="fallback">COLUMBUS / GEOMETRY</div><img loading="eager" referrerpolicy="no-referrer" src="https://film-grab.com/wp-content/uploads/photo-gallery/Columbus_002.jpg?bwg=1569401874" alt="Columbus architectural frame reference" onerror="this.remove()"><span class="cap">tiny body / exact architecture</span></article>
-    <article class="card" data-card style="left:1510px;top:35px;width:520px;height:380px;transform:rotate(4deg)"><div class="fallback">CALIFORNIA / WRONG BEAUTY</div><img loading="eager" referrerpolicy="no-referrer" src="https://static.bhphotovideo.com/explora/sites/default/files/nail-long-exposures-with-neutral-density-filters-ts.png" alt="California desert light reference" onerror="this.remove()"><span class="cap">California should be gorgeous without behaving</span></article>
-
-    <div class="note" data-card style="left:90px;top:500px;transform:rotate(5deg)">THE FEED IS UGLY<br>ON PURPOSE</div>
-    <div class="note small blue" data-card style="left:1420px;top:465px;transform:rotate(-3deg)">the film starts when the interface dies</div>
-
-    <article class="card" data-card style="left:80px;top:720px;width:610px;height:430px;transform:rotate(1deg)"><div class="fallback">ROADSIDE / REAL TRASH</div><img loading="lazy" referrerpolicy="no-referrer" src="https://savesfbay.org/wp-content/uploads/2022/08/Caltrans.jpg" alt="Roadside trash reference" onerror="this.remove()"><span class="cap">do not production-design the trash into tastefulness</span></article>
-    <article class="card" data-card style="left:650px;top:650px;width:470px;height:520px;transform:rotate(-5deg)"><div class="fallback">MINIVAN / PAINFULLY ORDINARY</div><img loading="lazy" referrerpolicy="no-referrer" src="https://www.vehiclebright.com/wp-content/uploads/2025/04/interior-space-in-toyota-sienna-and-honda-odyssey.jpeg" alt="Minivan interior reference" onerror="this.remove()"><span class="cap">never make the van cool</span></article>
-    <article class="card" data-card style="left:1125px;top:680px;width:500px;height:500px;transform:rotate(3deg)"><div class="fallback">NO COUNTRY / ROADSIDE SCALE</div><img loading="lazy" referrerpolicy="no-referrer" src="https://gov.texas.gov/uploads/images/film/tft_thrills_no_country_1.png" alt="No Country for Old Men landscape reference" onerror="this.remove()"><span class="cap">roadside space can carry threat by itself</span></article>
-    <article class="card" data-card style="left:1590px;top:650px;width:450px;height:560px;transform:rotate(-2deg)"><div class="fallback">AMERICAN HONEY / ROAD YOUTH</div><img loading="lazy" referrerpolicy="no-referrer" src="https://www.slashfilm.com/img/gallery/10-best-sasha-lane-movies-tv-shows-ranked/american-honey-1743787129.jpg" alt="American Honey road reference" onerror="this.remove()"><span class="cap">youth + road + available light</span></article>
-
-    <div class="note red" data-card style="left:180px;top:1190px;transform:rotate(-4deg)">HARAMBE IS AN<br>APPARITION, NOT A BIT</div>
-    <div class="note small" data-card style="left:1220px;top:1210px;transform:rotate(2deg)">cheap image + serious landscape = authority</div>
-
-    <article class="card" data-card style="left:70px;top:1510px;width:450px;height:560px;transform:rotate(4deg)"><div class="fallback">THE MANUAL / TACTILE MEMORY</div><img loading="lazy" referrerpolicy="no-referrer" src="https://burst.shopifycdn.com/photos/pair-of-hands-hold-a-big-book.jpg?exif=0&amp;format=pjpg&amp;iptc=0&amp;width=1000" alt="Hands opening an old book" onerror="this.remove()"><span class="cap">the guide is a manual, not nostalgia merch</span></article>
-    <article class="card" data-card style="left:500px;top:1450px;width:530px;height:530px;transform:rotate(-2deg)"><div class="fallback">MINE / WET ROCK</div><img loading="lazy" referrerpolicy="no-referrer" src="https://images.squarespace-cdn.com/content/v1/611f2838c5dddc73cfc0b07a/1629435452117-OXOWJLQFGWZBZF6677HC/AdobeStock_270017671.jpeg" alt="Wet abandoned mine tunnel" onerror="this.remove()"><span class="cap">world becomes heavier underground</span></article>
-    <article class="card" data-card style="left:1000px;top:1495px;width:560px;height:430px;transform:rotate(4deg)"><div class="fallback">THERE WILL BE BLOOD / LABOR</div><img loading="lazy" referrerpolicy="no-referrer" src="https://images.blu-ray.com/reviews/416_8.jpg" alt="There Will Be Blood dirt and labor reference" onerror="this.remove()"><span class="cap">dirt is material, not a color grade</span></article>
-    <article class="card" data-card style="left:1530px;top:1450px;width:500px;height:500px;transform:rotate(-3deg)"><div class="fallback">STALKER / PLACE SWALLOWS BODY</div><img loading="lazy" referrerpolicy="no-referrer" src="https://i0.wp.com/64.media.tumblr.com/d0be7d28762d1ffd49ab5884ca9b3fa3/e5cec1db2216c2e8-13/s1280x1920/d6d5131f4c8c1b5fa869495ea7efea6bfa03b8df.jpg" alt="Stalker tunnel reference" onerror="this.remove()"><span class="cap">wet darkness without generic horror</span></article>
-
-    <div class="note small blue" data-card style="left:700px;top:2030px;transform:rotate(-4deg)">pickaxe impacts should feel heavier than the edit</div>
-    <div class="note" data-card style="left:1290px;top:2005px;transform:rotate(3deg)">CAMERA BELIEVES<br>UGANDA KNUCKLES</div>
-
-    <article class="card" data-card style="left:80px;top:2310px;width:520px;height:430px;transform:rotate(-3deg)"><div class="fallback">GHOST STORY / BANAL METAPHYSICS</div><img loading="lazy" referrerpolicy="no-referrer" src="https://miro.medium.com/v2/resize%3Afit%3A1400/1%2AVJOcGCGmvGB88robarbDGw.jpeg" alt="A Ghost Story room reference" onerror="this.remove()"><span class="cap">ordinary room / impossible event</span></article>
-    <article class="card" data-card style="left:560px;top:2240px;width:460px;height:520px;transform:rotate(5deg)"><div class="fallback">REVELATION / FACE + LIGHT</div><img loading="lazy" referrerpolicy="no-referrer" src="https://ogimg.infoglobo.com.br/in/24264047-d0c-99f/FT1086A/Meu-Nome-e-Sara-6-min-scaled.jpg" alt="Face framed by warm lights" onerror="this.remove()"><span class="cap">let the face receive something enormous</span></article>
-    <article class="card" data-card style="left:1010px;top:2260px;width:480px;height:480px;transform:rotate(-1deg)"><div class="fallback">THE MASTER / FACE HOLDS FRAME</div><img loading="lazy" referrerpolicy="no-referrer" src="https://shot.cafe/images/o/the-master-2012-753.jpg" alt="The Master portrait reference" onerror="this.remove()"><span class="cap">do not wink during revelation</span></article>
-    <article class="card" data-card style="left:1460px;top:2220px;width:570px;height:430px;transform:rotate(3deg)"><div class="fallback">FLORIDA PROJECT / UGLY REAL COLOR</div><img loading="lazy" referrerpolicy="no-referrer" src="https://film-grab.com/wp-content/uploads/photo-gallery/florida014.jpg?bwg=1551290193" alt="The Florida Project color reference" onerror="this.remove()"><span class="cap">real color is allowed to be embarrassing</span></article>
-
-    <article class="card" data-card style="left:90px;top:2760px;width:520px;height:360px;transform:rotate(2deg)"><div class="fallback">LOCAL RIDGELINES</div><img loading="lazy" referrerpolicy="no-referrer" src="https://static.55places.com/blog/media/santa-clarita-mountains-f032e008494be4205177a9e0f40bdcb3.jpg" alt="Santa Clarita mountain terrain" onerror="this.remove()"><span class="cap">use the place you actually have</span></article>
-    <article class="card" data-card style="left:590px;top:2790px;width:470px;height:340px;transform:rotate(-4deg)"><div class="fallback">MUD / PROOF</div><img loading="lazy" referrerpolicy="no-referrer" src="https://www.sinkwarehouse.com.au/product_images/uploaded_images/close-up-dirty-shirt-white-surface-generative-ai.jpg" alt="Mud-stained shirt reference" onerror="this.remove()"><span class="cap">mud is evidence, never a punchline insert</span></article>
-    <article class="card" data-card style="left:1030px;top:2760px;width:480px;height:370px;transform:rotate(1deg)"><div class="fallback">ZZYZX / BEAUTY + WRONGNESS</div><img loading="lazy" referrerpolicy="no-referrer" src="https://a.1stdibscdn.com/richard-heeps-photography-zzyzx-resort-pool-soda-dry-lake-california-american-landscape-color-photo-for-sale/a_6893/a_60848421587855502403/Zzyzx_6x7_master.jpg" alt="Zzyzx California landscape reference" onerror="this.remove()"><span class="cap">beauty can contain garbage and still be beauty</span></article>
-    <div class="note small" data-card style="left:1540px;top:2780px;transform:rotate(-3deg)">ENDING: same room.<br>spinner dead.<br>mud survives.</div>
-  </main>
+<div id="world">
+  <div id="mass"></div>
+  <div class="bootcard"><b>Visual Atlas is loading as data, not decoration.</b><p>If corpus JavaScript fails, this stays visible instead of giving you a dead black page.</p></div>
+  <main id="board" aria-label="Freeform cinematography corpus"></main>
 </div>
 
-<div id="hud">
-  <div class="hudleft"><span class="pill title">WIZARDPOST / WALL 01</span></div>
-  <div class="hudright"><button class="pill" id="minus" aria-label="Zoom out">−</button><button class="pill" id="home">home</button><button class="pill" id="plus" aria-label="Zoom in">+</button></div>
+<div id="chrome">
+  <div class="topbar">
+    <div class="logo">W</div>
+    <div class="titlebox"><b>WIZARDPOST VISUAL ATLAS</b><span>cinematography corpus / mechanisms / lineages</span></div>
+    <label class="search"><input id="search" autocomplete="off" placeholder="search mass, wet rock, roadside…"></label>
+    <button class="iconbtn" id="home" title="fit corpus">⌂</button>
+    <button class="iconbtn" id="scatter" title="recompose">✣</button>
+  </div>
+  <div class="familyrail" id="familyrail"></div>
+  <aside id="inspector" aria-live="polite"></aside>
+  <div class="bottomdock">
+    <button class="dockbtn on" data-depth="surface">◉ <span class="wide">surface</span></button>
+    <button class="dockbtn" data-depth="mechanism">⌁ <span class="wide">mechanism</span></button>
+    <button class="dockbtn" data-depth="lineage">∞ <span class="wide">lineage</span></button>
+    <button class="dockbtn" data-depth="full">✦ <span class="wide">full</span></button>
+  </div>
+  <div id="status">booting corpus…</div>
 </div>
-<div id="status">drag · pinch · zoom</div>
 
+<script src="./corpus.js"></script>
 <script>
 (()=>{
 'use strict';
-const viewport=document.getElementById('viewport');
-const board=document.getElementById('board');
-const status=document.getElementById('status');
-const BW=2100;
-const MIN=.08,MAX=2.4;
-let cam={x:12,y:78,s:.17};
-let pointers=new Map();
-let gesture=null;
-let active=null;
-let loaded=0,failed=0;
-
+const corpus=Array.isArray(window.CINEMA_CORPUS)?window.CINEMA_CORPUS:[];
+const families=window.CINEMA_FAMILIES||{};
+const board=document.getElementById('board'), world=document.getElementById('world'), rail=document.getElementById('familyrail');
+const inspector=document.getElementById('inspector'), search=document.getElementById('search'), status=document.getElementById('status');
+const BW=5200,BH=4300,MIN=.07,MAX=2.5;
+let cam={x:0,y:120,s:.22},pointers=new Map(),gesture=null,drag=null,depth='surface',family='all',selected=null,z=100;
+const cards=new Map();
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function hash(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rand(seed){let x=seed||1;return()=>{x=(Math.imul(x,1664525)+1013904223)>>>0;return x/4294967296}}
 function paint(){board.style.transform=`translate3d(${cam.x}px,${cam.y}px,0) scale(${cam.s})`}
-function home(){
-  const top=64;
-  cam.s=clamp((window.innerWidth-24)/BW,MIN,.72);
-  cam.x=(window.innerWidth-BW*cam.s)/2;
-  cam.y=Math.max(top+8, top+(window.innerHeight-top-3200*cam.s)*.12);
-  paint();
+function home(){const top=112,bottom=74;cam.s=clamp(Math.min((innerWidth-30)/BW,(innerHeight-top-bottom)/BH)*3.0,MIN,.42);cam.x=(innerWidth-BW*cam.s)/2;cam.y=top+18;paint()}
+function familyColor(id){return families[id]?.accent||'#eefcff'}
+function familyLabel(id){return families[id]?.label||id}
+function dimensions(item){const n=hash(item.id);return {w:320+(n%150),h: item.image?390+((n>>>4)%170):285+((n>>>6)%120),r:-5+((n>>>9)%101)/10}}
+function position(item,i){
+ const order=['frazetta','fantasy-print','aero','cinema-space','cinema-matter','cinema-road','cinema-color','relic-internet','theory','local'];
+ const fi=Math.max(0,order.indexOf(item.family)); const cols=3;
+ const clusterX=220+(fi%cols)*1640, clusterY=210+Math.floor(fi/cols)*1180;
+ const r=rand(hash(item.id)); return {x:clusterX+120+r()*1200,y:clusterY+80+r()*780};
 }
-function zoomAt(factor,cx,cy){
-  const ns=clamp(cam.s*factor,MIN,MAX);
-  const wx=(cx-cam.x)/cam.s, wy=(cy-cam.y)/cam.s;
-  cam.x=cx-wx*ns; cam.y=cy-wy*ns; cam.s=ns; paint();
+function chip(s,cls=''){return `<span class="chip ${cls}">${esc(s)}</span>`}
+function makeCard(item,i){
+ const d=dimensions(item),p=position(item,i),el=document.createElement('article');
+ el.className='card'+(!item.image?' textonly':''); el.dataset.id=item.id; el.dataset.depth=depth; el.dataset.family=item.family;
+ el.style.cssText=`--accent:${familyColor(item.family)};left:${p.x}px;top:${p.y}px;width:${d.w}px;transform:rotate(${d.r}deg);z-index:${10+i}`;
+ const img=item.image?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(item.image)}" alt="${esc(item.title)}" onerror="this.remove()">`:'';
+ const mech=(item.mechanisms||[]).map(x=>chip(x,'mechanism')).join('');
+ const lin=(item.lineage||[]).map(x=>chip(x,'lineage')).join('');
+ const use=(item.filmUse||[]).map(x=>chip('→ '+x,'use')).join('');
+ el.innerHTML=`<div class="image"><div class="fallback">${esc(item.title)}</div>${img}</div><div class="body"><div class="eyebrow"><i class="dot"></i>${esc(familyLabel(item.family))}</div><h2>${esc(item.title)}</h2><div class="note">${esc(item.note||'')}</div><div class="chips">${mech}${lin}${use}</div></div>`;
+ board.appendChild(el); cards.set(item.id,el); return el;
 }
-function cardOf(t){return t.closest&&t.closest('[data-card]')}
-function worldPos(el){return {x:parseFloat(el.style.left)||0,y:parseFloat(el.style.top)||0}}
-function setStatus(txt){status.textContent=txt}
+corpus.forEach(makeCard);
+document.documentElement.classList.add('loaded');
 
-viewport.addEventListener('pointerdown',e=>{
-  e.preventDefault();
-  viewport.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(pointers.size===1){
-    const c=cardOf(e.target);
-    if(c){
-      const p=worldPos(c);
-      active={el:c,id:e.pointerId,startX:e.clientX,startY:e.clientY,left:p.x,top:p.y};
-      c.style.zIndex=String(1000+Date.now()%100000);
-    }else{
-      gesture={kind:'pan',id:e.pointerId,startX:e.clientX,startY:e.clientY,x:cam.x,y:cam.y};
-    }
-  }
-  if(pointers.size===2){
-    active=null;
-    const a=[...pointers.values()];
-    const mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2;
-    const d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);
-    gesture={kind:'pinch',dist:d,s:cam.s,wx:(mx-cam.x)/cam.s,wy:(my-cam.y)/cam.s};
-  }
-});
-viewport.addEventListener('pointermove',e=>{
-  if(!pointers.has(e.pointerId))return;
-  e.preventDefault();
-  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(pointers.size===2&&gesture&&gesture.kind==='pinch'){
-    const a=[...pointers.values()];
-    const mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2;
-    const d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);
-    const ns=clamp(gesture.s*(d/Math.max(1,gesture.dist)),MIN,MAX);
-    cam.s=ns;cam.x=mx-gesture.wx*ns;cam.y=my-gesture.wy*ns;paint();return;
-  }
-  if(pointers.size===1&&active&&active.id===e.pointerId){
-    active.el.style.left=(active.left+(e.clientX-active.startX)/cam.s)+'px';
-    active.el.style.top=(active.top+(e.clientY-active.startY)/cam.s)+'px';return;
-  }
-  if(pointers.size===1&&gesture&&gesture.kind==='pan'&&gesture.id===e.pointerId){
-    cam.x=gesture.x+(e.clientX-gesture.startX);cam.y=gesture.y+(e.clientY-gesture.startY);paint();
-  }
-});
-function endPointer(e){
-  pointers.delete(e.pointerId);
-  try{viewport.releasePointerCapture(e.pointerId)}catch(_){}
-  if(pointers.size===0){active=null;gesture=null;return}
-  if(pointers.size===1){
-    const [id,p]=[...pointers.entries()][0];
-    gesture={kind:'pan',id,startX:p.x,startY:p.y,x:cam.x,y:cam.y};active=null;
-  }
+function renderRail(){
+ const counts={};corpus.forEach(i=>counts[i.family]=(counts[i.family]||0)+1);
+ const all=document.createElement('button');all.className='familybtn on';all.textContent=`all · ${corpus.length}`;all.dataset.family='all';rail.appendChild(all);
+ Object.keys(families).forEach(id=>{if(!counts[id])return;const b=document.createElement('button');b.className='familybtn';b.dataset.family=id;b.style.setProperty('--accent',familyColor(id));b.textContent=`${families[id].label} · ${counts[id]}`;rail.appendChild(b)});
 }
-viewport.addEventListener('pointerup',endPointer);
-viewport.addEventListener('pointercancel',endPointer);
-viewport.addEventListener('wheel',e=>{e.preventDefault();zoomAt(Math.exp(-e.deltaY*.0012),e.clientX,e.clientY)},{passive:false});
+renderRail();
+function searchable(item){return [item.title,item.family,item.note,item.source,...(item.mechanisms||[]),...(item.lineage||[]),...(item.filmUse||[])].join(' ').toLowerCase()}
+function applyFilter(){const q=search.value.trim().toLowerCase();let visible=0;corpus.forEach(item=>{const ok=(family==='all'||item.family===family)&&(!q||searchable(item).includes(q));const el=cards.get(item.id);el.dataset.hidden=ok?'0':'1';if(ok)visible++});status.textContent=`${visible}/${corpus.length} refs · ${depth} depth · drag / pinch`;}
+rail.addEventListener('click',e=>{const b=e.target.closest('.familybtn');if(!b)return;family=b.dataset.family;rail.querySelectorAll('.familybtn').forEach(x=>x.classList.toggle('on',x===b));applyFilter();});
+search.addEventListener('input',applyFilter);
+document.querySelectorAll('[data-depth]').forEach(btn=>btn.addEventListener('click',()=>{depth=btn.dataset.depth;document.querySelectorAll('.dockbtn').forEach(x=>x.classList.toggle('on',x===btn));cards.forEach(el=>el.dataset.depth=depth);applyFilter()}));
 
-document.getElementById('home').addEventListener('click',home);
-document.getElementById('plus').addEventListener('click',()=>zoomAt(1.32,innerWidth*.5,innerHeight*.5));
-document.getElementById('minus').addEventListener('click',()=>zoomAt(.76,innerWidth*.5,innerHeight*.5));
-window.addEventListener('resize',()=>{if(cam.s<.3)home()});
+function openInspector(item){selected=item.id;cards.forEach((el,id)=>el.classList.toggle('active',id===item.id));
+ inspector.innerHTML=`<button class="iconbtn close" aria-label="close">×</button><div class="insFamily">${esc(familyLabel(item.family))}</div><div class="insTitle">${esc(item.title)}</div><div class="insNote">${esc(item.note||'')}</div><div class="insSection">mechanisms</div><div class="insList">${(item.mechanisms||[]).map(x=>chip(x)).join('')}</div><div class="insSection">lineage</div><div class="insList">${(item.lineage||[]).map(x=>chip(x)).join('')}</div><div class="insSection">use in this film</div><div class="insList">${(item.filmUse||[]).map(x=>chip(x)).join('')}</div><a class="sourceLink" href="${esc(item.sourceUrl)}" target="_blank" rel="noopener">source · ${esc(item.source)} ↗</a>`;
+ inspector.classList.add('open');inspector.querySelector('.close').onclick=closeInspector;
+}
+function closeInspector(){selected=null;inspector.classList.remove('open');cards.forEach(el=>el.classList.remove('active'))}
+function cardAt(t){return t.closest?.('.card')}
+function worldPos(el){return{x:parseFloat(el.style.left)||0,y:parseFloat(el.style.top)||0}}
+function zoomAt(f,cx,cy){const ns=clamp(cam.s*f,MIN,MAX),wx=(cx-cam.x)/cam.s,wy=(cy-cam.y)/cam.s;cam.x=cx-wx*ns;cam.y=cy-wy*ns;cam.s=ns;paint()}
 
-document.querySelectorAll('.card img').forEach(img=>{
-  img.addEventListener('load',()=>{loaded++;setStatus(`${loaded} refs loaded · drag · pinch`)},{once:true});
-  img.addEventListener('error',()=>{failed++;setStatus(failed?`${failed} source${failed>1?'s':''} unavailable · board still works`:'drag · pinch')},{once:true});
+world.addEventListener('pointerdown',e=>{if(e.target.closest('#chrome'))return;e.preventDefault();world.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===1){const c=cardAt(e.target);if(c){const p=worldPos(c);drag={el:c,id:e.pointerId,sx:e.clientX,sy:e.clientY,l:p.x,t:p.y,moved:false};c.style.zIndex=String(++z)}else gesture={kind:'pan',id:e.pointerId,sx:e.clientX,sy:e.clientY,x:cam.x,y:cam.y}}
+ if(pointers.size===2){drag=null;const a=[...pointers.values()],mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2,d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);gesture={kind:'pinch',dist:d,s:cam.s,wx:(mx-cam.x)/cam.s,wy:(my-cam.y)/cam.s}}
 });
-
-/* first-frame invariant: board must intersect the viewport even if everything else fails */
-requestAnimationFrame(()=>{
-  home();
-  requestAnimationFrame(()=>{
-    const r=board.getBoundingClientRect();
-    if(r.right<40||r.left>innerWidth-40||r.bottom<80||r.top>innerHeight-40){home()}
-    document.documentElement.dataset.boot='ok';
-  });
+world.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===2&&gesture?.kind==='pinch'){const a=[...pointers.values()],mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2,d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y),ns=clamp(gesture.s*(d/Math.max(1,gesture.dist)),MIN,MAX);cam.s=ns;cam.x=mx-gesture.wx*ns;cam.y=my-gesture.wy*ns;paint();return}
+ if(pointers.size===1&&drag?.id===e.pointerId){const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;if(Math.hypot(dx,dy)>8)drag.moved=true;drag.el.style.left=(drag.l+dx/cam.s)+'px';drag.el.style.top=(drag.t+dy/cam.s)+'px';return}
+ if(pointers.size===1&&gesture?.kind==='pan'){cam.x=gesture.x+(e.clientX-gesture.sx);cam.y=gesture.y+(e.clientY-gesture.sy);paint()}
 });
+function end(e){const was=drag&&drag.id===e.pointerId?drag:null;pointers.delete(e.pointerId);try{world.releasePointerCapture(e.pointerId)}catch(_){ }if(was&&!was.moved){const item=corpus.find(x=>x.id===was.el.dataset.id);if(item)openInspector(item)}if(pointers.size===0){drag=null;gesture=null}else if(pointers.size===1){const [id,p]=[...pointers.entries()][0];gesture={kind:'pan',id,sx:p.x,sy:p.y,x:cam.x,y:cam.y};drag=null}}
+world.addEventListener('pointerup',end);world.addEventListener('pointercancel',end);world.addEventListener('wheel',e=>{if(e.target.closest('#chrome'))return;e.preventDefault();zoomAt(Math.exp(-e.deltaY*.0011),e.clientX,e.clientY)},{passive:false});
+
+function recompose(){corpus.forEach((item,i)=>{const el=cards.get(item.id),base=position(item,i),r=rand(hash(item.id+'scatter'+Date.now()));el.style.left=(base.x+(r()-.5)*720)+'px';el.style.top=(base.y+(r()-.5)*500)+'px';el.style.transform=`rotate(${-9+r()*18}deg)`});status.textContent='recomposed by lineage clusters'}
+document.getElementById('home').onclick=home;document.getElementById('scatter').onclick=recompose;
+window.addEventListener('resize',()=>{if(innerWidth<700)home()});
+
+applyFilter();home();
+requestAnimationFrame(()=>{const r=board.getBoundingClientRect();if(r.right<30||r.left>innerWidth-30||r.bottom<100||r.top>innerHeight-30)home();status.textContent=`${corpus.length} refs wired · surface depth · drag / pinch`});
 })();
 </script>
 </body>
