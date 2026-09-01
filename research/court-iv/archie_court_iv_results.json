@@ -1,0 +1,498 @@
+{
+  "schema": "archie-court-iv/v1",
+  "claim_boundary": "Properties of the transition algebra and its hyperparameters, computed from the architecture in the launch-time audit.  Not a capability measurement, not a benchmark, not an admission decision.",
+  "e1_lane_admission": {
+    "trials": 400,
+    "scan_length": 96,
+    "max_associativity_defect": 4.440892098500626e-16,
+    "max_contraction_ratio_over_ceiling": 0.9965408181131135,
+    "contraction_certificate_holds": true,
+    "serial_vs_hillis_steele_max_gap": 2.6645352591003757e-15,
+    "serial_vs_binary_tree_max_gap": 2.6645352591003757e-15,
+    "scan_vs_stepwise_state_max_gap": 4.440892098500626e-16,
+    "verdict": "Lane A admitted via the closed-contractive-semigroup clause, not via the compact-group clause.  R_{>0} x H_3 is noncompact and solvable; Court III Proposition A does not apply and is not needed."
+  },
+  "e2_solver_depth": {
+    "archie_event_semidirect": {
+      "seed_0": {
+        "rounds_by_length": {
+          "64": 1,
+          "128": 1,
+          "256": 1,
+          "512": 1,
+          "1024": 1
+        },
+        "beta": 0.0,
+        "prefactor": 1.0,
+        "r_squared": 1.0
+      },
+      "seed_1": {
+        "rounds_by_length": {
+          "64": 1,
+          "128": 1,
+          "256": 1,
+          "512": 1,
+          "1024": 1
+        },
+        "beta": 0.0,
+        "prefactor": 1.0,
+        "r_squared": 1.0
+      },
+      "seed_2": {
+        "rounds_by_length": {
+          "64": 1,
+          "128": 1,
+          "256": 1,
+          "512": 1,
+          "1024": 1
+        },
+        "beta": 0.0,
+        "prefactor": 1.0,
+        "r_squared": 1.0
+      }
+    },
+    "residual_tanh_comparator": {
+      "seed_0": {
+        "rounds_by_length": {
+          "64": 11,
+          "128": 20,
+          "256": 40,
+          "512": 79
+        },
+        "beta": 0.953304738861942,
+        "prefactor": 10.716857567382304,
+        "r_squared": 0.9989507308996062,
+        "round_cap": 240,
+        "censored_at_cap": false,
+        "beta_interpretation": "measured"
+      },
+      "seed_1": {
+        "rounds_by_length": {
+          "64": 8,
+          "128": 8,
+          "256": 8,
+          "512": 13
+        },
+        "beta": 0.21013191544232773,
+        "prefactor": 7.2597106924906365,
+        "r_squared": 0.6000000000000003,
+        "round_cap": 240,
+        "censored_at_cap": false,
+        "beta_interpretation": "measured"
+      },
+      "seed_2": {
+        "rounds_by_length": {
+          "64": 12,
+          "128": 21,
+          "256": 42,
+          "512": 83
+        },
+        "beta": 0.937023079187731,
+        "prefactor": 11.55643552618183,
+        "r_squared": 0.997751842255238,
+        "round_cap": 240,
+        "censored_at_cap": false,
+        "beta_interpretation": "measured"
+      }
+    },
+    "summary": {
+      "archie_beta_max": 0.0,
+      "comparator_beta_range": [
+        0.21013191544232773,
+        0.953304738861942
+      ],
+      "verdict": "beta = 0 for the shipped law at every tested length, structurally and not by tuning: the recurrence is affine in the state, so one correction round is exact (Court III Proposition E).  The associative scan is already the exact solver, so no correction round is needed at all.  Court III's beta-regularization program therefore does not apply to this model as built -- it applies to a Lane B the model does not have."
+    }
+  },
+  "e3_cancellation_certificate": {
+    "trials": 1000,
+    "proposed_scalar_monoid": {
+      "nonzero_associativity_gap_fraction": 1.0,
+      "median_gap": 3.073863062611423,
+      "max_gap": 35.13615171938635,
+      "verdict": "refuted, reproducing Court III section 4"
+    },
+    "repair_a_log_semiring": {
+      "max_associativity_defect": 8.881784197001252e-16,
+      "is_associative": true,
+      "median_bound_looseness_two_factors": 1.9039061810557292,
+      "p95_bound_looseness_two_factors": 3.6328546708013163,
+      "verdict": "associative and executable, at the cost of a bound that is already loose by the reported factor after only two factors -- exactly the cancellation blindness Court III predicted"
+    },
+    "applies_to_shipped_model": false,
+    "note": "The shipped model needs no cancellation certificate: its retention is a positive scalar, so prefix gains multiply exactly and the log-gain is additive with zero looseness.  The certificate problem is a Lane B/C problem."
+  },
+  "e4_growth_penalty": {
+    "unit_checks": [
+      {
+        "k_T": 4.0,
+        "k_2T": 4.0,
+        "beta_target": 0.0,
+        "expect_zero": true,
+        "value": 0.0,
+        "passed": true
+      },
+      {
+        "k_T": 4.0,
+        "k_2T": 8.0,
+        "beta_target": 1.0,
+        "expect_zero": true,
+        "value": 0.0,
+        "passed": true
+      },
+      {
+        "k_T": 4.0,
+        "k_2T": 8.0,
+        "beta_target": 0.0,
+        "expect_zero": false,
+        "value": 0.6931471805599452,
+        "passed": true
+      },
+      {
+        "k_T": 4.0,
+        "k_2T": 2.0,
+        "beta_target": 0.0,
+        "expect_zero": true,
+        "value": 0.0,
+        "passed": true
+      }
+    ],
+    "all_unit_checks_passed": true,
+    "gradient_wrt_log_k2T_in_active_region": 1.000000000139778,
+    "gradient_matches_analytic_one": true,
+    "applied_to_comparator": {
+      "rounds_T256": 8,
+      "rounds_T512": 13,
+      "penalty_at_beta_target_0": 0.485507815781701,
+      "penalty_at_beta_target_0.61": 0.06268803564013437,
+      "block_record": {
+        "local_residual": 2.7949886745066436e-17,
+        "round_history": [
+          1.707207954916713e+92,
+          2.071280499300873e+62,
+          1.8804823656600563e+74,
+          1.6390829932943467,
+          3.450498214835097e+57,
+          7.494936933056115,
+          1.0758982054372606e+40,
+          3.285988292517435,
+          4.200544374769874e+22,
+          1.0968728837549457,
+          67150.90349360184,
+          0.01966798430158262,
+          2.7949886745066436e-17
+        ],
+        "rounds": 13,
+        "per_round_contraction": [
+          1.2132561199329237e-30,
+          907883971434.4738,
+          8.71629015632392e-75,
+          2.1051394157290582e+57,
+          2.1721318100766808e-57,
+          1.435500011603907e+39,
+          3.054181404812328e-40,
+          1.2783199454285902e+22,
+          2.611263650357313e-23,
+          61220.315032059945,
+          2.928923257667946e-07,
+          1.4210854715202005e-15
+        ],
+        "mean_contraction": 1.754282846440882e+56,
+        "growth_estimate": 0.485507815781701
+      }
+    },
+    "applied_to_shipped_model": {
+      "rounds_T512": 1,
+      "penalty_at_beta_target_0": 0.0,
+      "block_record": {
+        "local_residual": 2.437305590074826e-16,
+        "round_history": [
+          2.437305590074826e-16
+        ],
+        "rounds": 1,
+        "per_round_contraction": [],
+        "mean_contraction": null,
+        "growth_estimate": 0.0
+      },
+      "note": "identically zero at every beta_target; the term is vacuous here"
+    }
+  },
+  "e5_memory_transport_trade": {
+    "training_window": 512,
+    "structural_horizon_ceiling_tokens": 500.0,
+    "ceiling_reaches_training_window": false,
+    "ceiling_note": "The retention ceiling c_i = exp(-linspace(0.002, 0.2)_i) caps the slowest fiber at 500 tokens of 1/e horizon even with a saturated gate and zero transport.  No fiber can span the 512-token training window under any normalizer, because the cap is a property of the linspace lower bound alone.",
+    "initialization_horizon": {
+      "shipped_bias_4.0": {
+        "slowest_fiber_retention": 0.9800517251767155,
+        "half_life_tokens": 34.39948685609449,
+        "effective_horizon_tokens": 49.6279690964126,
+        "retained_fraction_over_training_window": 3.307399963015716e-05
+      },
+      "proposed_bias_8.0": {
+        "slowest_fiber_retention": 0.9976673185668743,
+        "half_life_tokens": 296.79938729486287,
+        "effective_horizon_tokens": 428.19100418918146,
+        "retained_fraction_over_training_window": 0.30248364686511375
+      },
+      "saturated_gate": {
+        "slowest_fiber_retention": 0.9980019986672398,
+        "half_life_tokens": 346.5735902637819,
+        "effective_horizon_tokens": 499.99999997664173,
+        "retained_fraction_over_training_window": 0.3591554413122234
+      }
+    },
+    "transport_budget_at_fixed_horizon": {
+      "horizon_32_tokens": {
+        "shipped": {
+          "max_transport": 0.009800000000000001,
+          "fraction_of_available_range": 0.049
+        },
+        "exact_inf_norm": {
+          "max_transport": 0.0148,
+          "fraction_of_available_range": 0.074
+        },
+        "decoupled": {
+          "max_transport": 0.2,
+          "fraction_of_available_range": 1.0
+        }
+      },
+      "horizon_128_tokens": {
+        "shipped": {
+          "max_transport": 0.0019000000000000002,
+          "fraction_of_available_range": 0.0095
+        },
+        "exact_inf_norm": {
+          "max_transport": 0.0029000000000000002,
+          "fraction_of_available_range": 0.0145
+        },
+        "decoupled": {
+          "max_transport": 0.2,
+          "fraction_of_available_range": 1.0
+        }
+      },
+      "horizon_512_tokens": {
+        "shipped": {
+          "max_transport": 0.0,
+          "fraction_of_available_range": 0.0
+        },
+        "exact_inf_norm": {
+          "max_transport": 0.0,
+          "fraction_of_available_range": 0.0
+        },
+        "decoupled": {
+          "max_transport": 0.0,
+          "fraction_of_available_range": 0.0
+        }
+      }
+    },
+    "worst_case_prefix_norm_by_configuration": {
+      "shipped": [
+        {
+          "decay_rate": 0.002,
+          "horizon_tokens": 2.1186277774978297,
+          "worst_case_prefix_norm": 0.8732517488338349
+        },
+        {
+          "decay_rate": 0.01,
+          "horizon_tokens": 2.0833175815174103,
+          "worst_case_prefix_norm": 0.8662936045304411
+        },
+        {
+          "decay_rate": 0.05,
+          "horizon_tokens": 1.9230635014034785,
+          "worst_case_prefix_norm": 0.832325746438047
+        },
+        {
+          "decay_rate": 0.2,
+          "horizon_tokens": 1.492529228723167,
+          "worst_case_prefix_norm": 0.7163894089431672
+        }
+      ],
+      "exact_inf_norm": [
+        {
+          "decay_rate": 0.002,
+          "horizon_tokens": 2.954452069635574,
+          "worst_case_prefix_norm": 0.9980019986672398
+        },
+        {
+          "decay_rate": 0.01,
+          "horizon_tokens": 2.8862341460652114,
+          "worst_case_prefix_norm": 0.9900498337490755
+        },
+        {
+          "decay_rate": 0.05,
+          "horizon_tokens": 2.5875079895580515,
+          "worst_case_prefix_norm": 0.9512294245006251
+        },
+        {
+          "decay_rate": 0.2,
+          "horizon_tokens": 1.8640293602106683,
+          "worst_case_prefix_norm": 0.8187307530779053
+        }
+      ],
+      "decoupled": [
+        {
+          "decay_rate": 0.002,
+          "horizon_tokens": 499.99999997664173,
+          "worst_case_prefix_norm": 2754.310961838483
+        },
+        {
+          "decay_rate": 0.01,
+          "horizon_tokens": 99.99999999906531,
+          "worst_case_prefix_norm": 118.57276090497727
+        },
+        {
+          "decay_rate": 0.05,
+          "horizon_tokens": 19.999999999962608,
+          "worst_case_prefix_norm": 6.791935162436095
+        },
+        {
+          "decay_rate": 0.2,
+          "horizon_tokens": 4.999999999997663,
+          "worst_case_prefix_norm": 1.2760942580924322
+        }
+      ]
+    },
+    "court_iv_scale_free_transport": {
+      "kappa_0.5": {
+        "rows": [
+          {
+            "decay_rate": 0.002,
+            "transport_cap": 0.001,
+            "horizon_tokens": 499.99999997664173,
+            "worst_case_prefix_norm": 0.9999980026645741,
+            "transport_accumulated_over_own_horizon": 0.49999999997664174
+          },
+          {
+            "decay_rate": 0.01,
+            "transport_cap": 0.005,
+            "horizon_tokens": 99.99999999906531,
+            "worst_case_prefix_norm": 0.999950332086566,
+            "transport_accumulated_over_own_horizon": 0.49999999999532657
+          },
+          {
+            "decay_rate": 0.05,
+            "transport_cap": 0.025,
+            "horizon_tokens": 19.999999999962608,
+            "worst_case_prefix_norm": 0.9987908957256562,
+            "transport_accumulated_over_own_horizon": 0.4999999999990652
+          },
+          {
+            "decay_rate": 0.2,
+            "transport_cap": 0.1,
+            "horizon_tokens": 4.999999999997663,
+            "worst_case_prefix_norm": 0.9824769036934865,
+            "transport_accumulated_over_own_horizon": 0.49999999999976635
+          }
+        ],
+        "bound_spread_across_fibers": 1.0178335988410714
+      },
+      "kappa_1.0": {
+        "rows": [
+          {
+            "decay_rate": 0.002,
+            "transport_cap": 0.002,
+            "horizon_tokens": 499.99999997664173,
+            "worst_case_prefix_norm": 1.3133841251811718,
+            "transport_accumulated_over_own_horizon": 0.9999999999532835
+          },
+          {
+            "decay_rate": 0.01,
+            "transport_cap": 0.01,
+            "horizon_tokens": 99.99999999906531,
+            "worst_case_prefix_norm": 1.312110979065321,
+            "transport_accumulated_over_own_horizon": 0.9999999999906531
+          },
+          {
+            "decay_rate": 0.05,
+            "transport_cap": 0.05,
+            "horizon_tokens": 19.999999999962608,
+            "worst_case_prefix_norm": 1.3049126019452233,
+            "transport_accumulated_over_own_horizon": 0.9999999999981304
+          },
+          {
+            "decay_rate": 0.2,
+            "transport_cap": 0.2,
+            "horizon_tokens": 4.999999999997663,
+            "worst_case_prefix_norm": 1.2760942580924322,
+            "transport_accumulated_over_own_horizon": 0.9999999999995327
+          }
+        ],
+        "bound_spread_across_fibers": 1.0292218751493187
+      },
+      "kappa_2.0": {
+        "rows": [
+          {
+            "decay_rate": 0.002,
+            "transport_cap": 0.004,
+            "horizon_tokens": 499.99999997664173,
+            "worst_case_prefix_norm": 2.61292374721235,
+            "transport_accumulated_over_own_horizon": 1.999999999906567
+          },
+          {
+            "decay_rate": 0.01,
+            "transport_cap": 0.02,
+            "horizon_tokens": 99.99999999906531,
+            "worst_case_prefix_norm": 2.6021754890784483,
+            "transport_accumulated_over_own_horizon": 1.9999999999813063
+          },
+          {
+            "decay_rate": 0.05,
+            "transport_cap": 0.1,
+            "horizon_tokens": 19.999999999962608,
+            "worst_case_prefix_norm": 2.5785431717356846,
+            "transport_accumulated_over_own_horizon": 1.9999999999962608
+          },
+          {
+            "decay_rate": 0.2,
+            "transport_cap": 0.2,
+            "horizon_tokens": 4.999999999997663,
+            "worst_case_prefix_norm": 1.2760942580924322,
+            "transport_accumulated_over_own_horizon": 0.9999999999995327
+          }
+        ],
+        "bound_spread_across_fibers": 2.047594627624354
+      }
+    },
+    "verdict": "The shipped normalizer divides retention by (1 + |x| + |y| + |z|), so a fiber pays for noncommutative transport in memory horizon.  Long-memory fibers can therefore only afford a small fraction of the transport range, which confines the Heisenberg mechanism to fast-decaying fibers.  Setting the transport cap proportional to the fiber's own decay rate removes the trade while keeping a uniform, fiber-independent bound on the prefix norm."
+  },
+  "e6_parameter_accounting": {
+    "audited_total": 45697024,
+    "reconstructed_total": 45697024,
+    "matches": true,
+    "implied_fact": "the reconstruction only closes if the depthwise convolution carries no bias term; that is a recoverable detail the audit did not state outright",
+    "breakdown": {
+      "token_embedding": 532480,
+      "depthwise_conv_kernel": 14336,
+      "local_projection": 4196352,
+      "coefficient_layernorm": 4096,
+      "coefficient_hidden": 4196352,
+      "coefficient_output": 22030848,
+      "readout_layernorm": 9216,
+      "readout_in": 9439232,
+      "readout_hidden": 4196352,
+      "head_layernorm": 8192,
+      "output_projection_bias_free": 1064960,
+      "trainable_initial_state": 4608
+    },
+    "share_of_parameters": {
+      "coefficient_output": 0.48210684354412225,
+      "readout_in": 0.20656119750817908,
+      "local_projection": 0.0918298749607852,
+      "coefficient_hidden": 0.0918298749607852,
+      "readout_hidden": 0.0918298749607852,
+      "output_projection_bias_free": 0.023304799892439384,
+      "token_embedding": 0.011652399946219692,
+      "depthwise_conv_kernel": 0.0003137184600905302,
+      "readout_layernorm": 0.00020167615291534084,
+      "head_layernorm": 0.00017926769148030297,
+      "trainable_initial_state": 0.00010083807645767042,
+      "coefficient_layernorm": 8.963384574015148e-05
+    },
+    "non_trainable_buffer_values": 1536,
+    "structural_depth": 1,
+    "depth_note": "There is exactly one recurrent layer.  Features -> coefficients -> scan -> readout -> logits, with no stacking.  The only state-path nonlinearity is the single bilinear x2*y1 term in the Heisenberg composition."
+  },
+  "runtime_seconds": 6.3604304440000305
+}
