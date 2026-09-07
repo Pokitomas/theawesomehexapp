@@ -1,6 +1,6 @@
 param(
   [string]$Repo = 'Pokitomas/theawesomehexapp',
-  [string]$StableRoot = "$env:USERPROFILE\.actions-runner\q0907",
+  [string]$StableRoot = '',
   [string]$RunnerName = "q0907-$env:COMPUTERNAME"
 )
 
@@ -26,8 +26,48 @@ function Remove-LocalRunnerConfig([string]$Root) {
     Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Root $n)
   }
 }
+function Install-UserSupervisor([string]$Root) {
+  $supervisor = Join-Path $Root 'q0907-supervisor.ps1'
+  @"
+`$ErrorActionPreference='Continue'
+Set-Location '$($Root.Replace("'","''"))'
+Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
+while (`$true) {
+  Add-Content -Path '.\q0907-supervisor.log' -Value "START `$(Get-Date -Format o)"
+  & cmd.exe /d /c run.cmd >> '.\q0907-runner.log' 2>&1
+  `$code = `$LASTEXITCODE
+  Add-Content -Path '.\q0907-supervisor.log' -Value "EXIT code=`$code time=`$(Get-Date -Format o)"
+  Start-Sleep -Seconds 5
+}
+"@ | Set-Content -Encoding utf8 $supervisor
 
-Say "target=$RunnerName root=$StableRoot"
+  $taskName = 'q0907-actions-runner'
+  try {
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$supervisor`""
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName $taskName
+    return 'scheduled-task-supervisor'
+  } catch {
+    Say "scheduled-task setup failed: $($_.Exception.Message); using HKCU Run + detached supervisor"
+    $cmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$supervisor`""
+    New-Item 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Force | Out-Null
+    Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'q0907-actions-runner' -Value $cmd
+    Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
+    Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',$supervisor) -WindowStyle Hidden | Out-Null
+    return 'hkcu-run-supervisor'
+  }
+}
+
+$admin = Is-Admin
+if ([string]::IsNullOrWhiteSpace($StableRoot)) {
+  if ($admin) { $StableRoot = 'C:\actions-runner\q0907' }
+  else { $StableRoot = "$env:USERPROFILE\.actions-runner\q0907" }
+}
+
+Say "target=$RunnerName root=$StableRoot elevated=$admin"
 New-Item -ItemType Directory -Force -Path (Split-Path $StableRoot -Parent) | Out-Null
 
 $source = $null
@@ -56,14 +96,17 @@ if (-not (Test-Path (Join-Path $StableRoot 'run.cmd'))) { throw 'Stable runner t
 Push-Location $StableRoot
 try {
   $registration = Get-GhToken 'registration-token'
+  $registrationMode = $null
+  $serviceRequested = $false
+
   if ($registration) {
-    Say 'local GitHub authorization can mint a runner registration token; refreshing registration'
+    Say 'local GitHub authorization can mint a runner registration token; refreshing registration as non-ephemeral'
     if (Test-Path '.runner') {
       $remove = Get-GhToken 'remove-token'
       $removed = $false
       if ($remove) {
         try {
-          & .\config.cmd remove --unattended --token $remove 2>&1 | ForEach-Object {
+          & .\config.cmd remove --token $remove 2>&1 | ForEach-Object {
             $line = [string]$_
             if ($line -notmatch '(?i)token') { Write-Host $line }
           }
@@ -71,59 +114,48 @@ try {
         } catch {}
       }
       if (-not $removed) {
-        Say 'old server registration could not be cleanly removed; discarding only the copied local runner credentials'
+        Say 'old registration could not be cleanly removed; discarding only local copied runner configuration files'
         Remove-LocalRunnerConfig $StableRoot
       }
+      $remove = $null
     }
 
-    & .\config.cmd --unattended --url "https://github.com/$Repo" --token $registration --name $RunnerName --work '_work' --replace 2>&1 | ForEach-Object {
+    $cfg = @('--unattended','--url',"https://github.com/$Repo",'--token',$registration,'--name',$RunnerName,'--work','_work','--replace')
+    if ($admin) {
+      $cfg += '--runasservice'
+      $serviceRequested = $true
+      Say 'configuring Windows service during runner registration'
+    }
+
+    & .\config.cmd @cfg 2>&1 | ForEach-Object {
       $line = [string]$_
       if ($line -notmatch '(?i)token') { Write-Host $line }
     }
-    if ($LASTEXITCODE -ne 0) { throw "config.cmd failed rc=$LASTEXITCODE" }
+    $configRc = $LASTEXITCODE
+    $registration = $null
+    if ($configRc -ne 0) { throw "config.cmd failed rc=$configRc" }
     $registrationMode = 'refreshed-non-ephemeral'
   } elseif (Test-Path '.runner') {
-    Say 'no local registration-token authority; reusing recovered configured runner credentials'
+    Say 'no local registration-token authority; reusing recovered configured runner credentials under the same Windows machine'
     $registrationMode = 'reused-existing-config'
   } else {
     throw 'Runner registration is required, but local gh authorization cannot mint a registration token and no reusable .runner config exists.'
   }
 
-  $supervisor = Join-Path $StableRoot 'q0907-supervisor.ps1'
-  @"
-`$ErrorActionPreference='Continue'
-Set-Location '$($StableRoot.Replace("'","''"))'
-Remove-Item Env:RUNNER_TRACKING_ID -ErrorAction SilentlyContinue
-while (`$true) {
-  `$stamp = Get-Date -Format o
-  Add-Content -Path '.\q0907-supervisor.log' -Value "START `$stamp"
-  & cmd.exe /d /c run.cmd >> '.\q0907-runner.log' 2>&1
-  `$code = `$LASTEXITCODE
-  Add-Content -Path '.\q0907-supervisor.log' -Value "EXIT code=`$code time=`$(Get-Date -Format o)"
-  Start-Sleep -Seconds 5
-}
-"@ | Set-Content -Encoding utf8 $supervisor
-
   $persistence = $null
-  if (Is-Admin -and (Test-Path '.\svc.cmd')) {
-    Say 'installing native Actions runner Windows service'
-    try { & .\svc.cmd stop 2>$null | Out-Null } catch {}
-    try { & .\svc.cmd uninstall 2>$null | Out-Null } catch {}
-    & .\svc.cmd install
-    if ($LASTEXITCODE -ne 0) { throw "svc.cmd install failed rc=$LASTEXITCODE" }
-    & .\svc.cmd start
-    if ($LASTEXITCODE -ne 0) { throw "svc.cmd start failed rc=$LASTEXITCODE" }
-    $persistence = 'windows-service'
+  if ($serviceRequested) {
+    $svc = @(Get-Service 'actions.runner.*' -ErrorAction SilentlyContinue | Where-Object {
+      $_.DisplayName -like "*$RunnerName*" -or $_.Name -like "*$RunnerName*"
+    }) | Select-Object -First 1
+    if ($svc) {
+      if ($svc.Status -ne 'Running') { Start-Service -Name $svc.Name }
+      $persistence = "windows-service:$($svc.Name)"
+    } else {
+      Say 'service was requested but no matching Actions service was found; falling back to a user supervisor'
+      $persistence = Install-UserSupervisor $StableRoot
+    }
   } else {
-    Say 'using current-user logon supervisor (no elevation required)'
-    $taskName = 'q0907-actions-runner'
-    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$supervisor`""
-    $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
-    Start-ScheduledTask -TaskName $taskName
-    $persistence = 'scheduled-task-supervisor'
+    $persistence = Install-UserSupervisor $StableRoot
   }
 
   $listener = $false
@@ -136,7 +168,12 @@ while (`$true) {
   }
 
   if (-not $listener) {
-    Say 'listener not observed yet; last runner log follows'
+    Say 'listener not observed yet; diagnostic tails follow'
+    Get-ChildItem '.\_diag\Runner_*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object {
+      Get-Content $_.FullName -Tail 80 -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_ -notmatch '(?i)(token|credential|authorization)') { Write-Host $_ }
+      }
+    }
     Get-Content '.\q0907-runner.log' -Tail 80 -ErrorAction SilentlyContinue | ForEach-Object {
       if ($_ -notmatch '(?i)(token|credential|authorization)') { Write-Host $_ }
     }
