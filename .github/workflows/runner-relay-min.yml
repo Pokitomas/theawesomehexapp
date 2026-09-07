@@ -13,3 +13,4 @@ jobs:
           body=$(jq -cn --arg text "$msg" '{text:$text}')
           curl -fsS --max-time 45 -H 'content-type: application/json' --data-binary "$body" https://archie-chatgpt-relay.vercel.app/api/index
           echo RELAY_DELIVERY_OK
+# trigger 2
