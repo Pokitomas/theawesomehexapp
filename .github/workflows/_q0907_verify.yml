@@ -1,0 +1,26 @@
+name: q0907 verify
+on:
+  push:
+    paths:
+      - '.github/workflows/_q0907_verify.yml'
+jobs:
+  verify:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - name: Verify Windows self-hosted runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Write-Host "HOST=$env:COMPUTERNAME"
+          Write-Host "USER=$env:USERNAME"
+          Write-Host "RUNNER=$env:RUNNER_NAME"
+          Get-Date -Format o
+          Get-Command wsl.exe | Select-Object -ExpandProperty Source
+          wsl.exe -e bash -lc 'printf "WSL_OK\n"; uname -a'
+          if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
+            nvidia-smi.exe --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader
+          } else {
+            Write-Host 'NVIDIA_SMI_NOT_FOUND'
+          }
+          Write-Host 'Q0907_VERIFY_OK'
