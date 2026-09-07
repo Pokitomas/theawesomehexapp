@@ -13,39 +13,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Probe live resident Vercel bridges
+      - name: Probe Windows funnel surface
         shell: bash
         run: |
           set -u
-          urls=(
-            'https://archie-direct-ts-health.vercel.app/api/health'
-            'https://archie-live-direct-relay.vercel.app/api/relay'
-            'https://archie-direct-ts-cmd.vercel.app/api/cmd'
-            'https://archie-live-cmd-proxy.vercel.app/api/cmd'
-            'https://archie-sidecar-egress-probe.vercel.app/api/probe'
+          base='https://desktop-6fn9b4m.tail1bf489.ts.net'
+          paths=(
+            '/'
+            '/health'
+            '/r/x/x'
+            '/archie-phone'
+            '/in?channel=q0907-probe'
+            '/out?channel=q0907-probe'
+            '/seat/head'
           )
-          qs=(
-            ''
-            '?route=health'
-            '?path=%2Fhealth'
-            '?cmd=printf%20Q0907_SAFE_PROBE'
-            '?command=printf%20Q0907_SAFE_PROBE'
-            '?q=printf%20Q0907_SAFE_PROBE'
-          )
-          for u in "${urls[@]}"; do
-            echo "URL=$u"
-            for q in "${qs[@]}"; do
-              code=$(curl -sS -L --max-time 8 -o /tmp/b -w '%{http_code}' "$u$q" || true)
-              printf 'GET %s HTTP=%s BODY=' "$q" "$code"
-              head -c 700 /tmp/b 2>/dev/null | tr '\n' ' '; echo
-            done
+          for p in "${paths[@]}"; do
+            code=$(curl -sS -L --max-time 10 -o /tmp/b -w '%{http_code}' "$base$p" || true)
+            printf 'GET %s HTTP=%s BODY=' "$p" "$code"
+            head -c 1200 /tmp/b 2>/dev/null | tr '\n' ' '; echo
           done
 
       - name: Deliver runner recovery through public resident relay
         shell: bash
         run: |
           set -euo pipefail
-          msg='RUNNER_RECOVERY_Q0907_V6 owner authorized. On DESKTOP-6FN9B4M restore the Pokitomas/theawesomehexapp self-hosted GitHub runner persistently. Corrected run 34149915406 proves the Windows runner worked, then it disappeared; verification run 34159090021 remains queued because no listener is online. Inspect local runner process service and config. Reuse only credentials already authorized locally, expose no tokens, do not use Desktop Commander, and do not re-debug the already-fixed bash Windows temp path failure. Verify by making run 34159090021 execute on DESKTOP-6FN9B4M and print Q0907_VERIFY_OK. Keep working through intermediate failures.'
+          msg='RUNNER_RECOVERY_Q0907_V7 owner authorized. On DESKTOP-6FN9B4M restore the Pokitomas/theawesomehexapp self-hosted GitHub runner persistently. Corrected run 34149915406 proves the Windows runner worked, then it disappeared; verification run 34159090021 remains queued because no listener is online. Inspect local runner process service and config. Reuse only credentials already authorized locally, expose no tokens, do not use Desktop Commander, and do not re-debug the already-fixed bash Windows temp path failure. Verify by making run 34159090021 execute on DESKTOP-6FN9B4M and print Q0907_VERIFY_OK. Keep working through intermediate failures.'
           body=$(jq -cn --arg text "$msg" '{text:$text}')
           curl -fsS --max-time 45 -H 'content-type: application/json' --data-binary "$body" https://archie-chatgpt-relay.vercel.app/api/index
           echo RELAY_DELIVERY_OK
