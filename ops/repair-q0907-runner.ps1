@@ -76,7 +76,7 @@ if (Test-Path (Join-Path $StableRoot 'config.cmd')) {
 } else {
   $candidates = @(
     Get-ChildItem "$env:LOCALAPPDATA\Temp" -Directory -Filter 'q0907-*' -ErrorAction SilentlyContinue |
-      Where-Object { Test-Path (Join-Path $_.FullName 'config.cmd') -and Test-Path (Join-Path $_.FullName 'bin\Runner.Listener.exe') } |
+      Where-Object { (Test-Path (Join-Path $_.FullName 'config.cmd')) -and (Test-Path (Join-Path $_.FullName 'bin\Runner.Listener.exe')) } |
       Sort-Object LastWriteTime -Descending
   )
   if ($candidates.Count -eq 0) {
@@ -145,7 +145,7 @@ try {
   $persistence = $null
   if ($serviceRequested) {
     $svc = @(Get-Service 'actions.runner.*' -ErrorAction SilentlyContinue | Where-Object {
-      $_.DisplayName -like "*$RunnerName*" -or $_.Name -like "*$RunnerName*"
+      ($_.DisplayName -like "*$RunnerName*") -or ($_.Name -like "*$RunnerName*")
     }) | Select-Object -First 1
     if ($svc) {
       if ($svc.Status -ne 'Running') { Start-Service -Name $svc.Name }
