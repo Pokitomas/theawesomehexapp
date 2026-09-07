@@ -1,21 +1,30 @@
 name: q0907 verify
+
 on:
   push:
     paths:
       - '.github/workflows/_q0907_verify.yml'
+
 jobs:
   verify:
     runs-on: self-hosted
     timeout-minutes: 5
+    outputs:
+      host: ${{ steps.identity.outputs.host }}
+      runner: ${{ steps.identity.outputs.runner }}
     steps:
-      - name: Verify Windows self-hosted runner
+      - id: identity
+        name: Verify Windows self-hosted runner
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           Write-Host "HOST=$env:COMPUTERNAME"
           Write-Host "USER=$env:USERNAME"
           Write-Host "RUNNER=$env:RUNNER_NAME"
+          "host=$env:COMPUTERNAME" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "runner=$env:RUNNER_NAME" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           Get-Date -Format o
+          if ($env:COMPUTERNAME -ne 'DESKTOP-6FN9B4M') { throw "unexpected host $env:COMPUTERNAME" }
           Get-Command wsl.exe | Select-Object -ExpandProperty Source
           wsl.exe -e bash -lc 'printf "WSL_OK\n"; uname -a'
           if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
@@ -24,3 +33,21 @@ jobs:
             Write-Host 'NVIDIA_SMI_NOT_FOUND'
           }
           Write-Host 'Q0907_VERIFY_OK'
+
+  survive:
+    needs: verify
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - name: Prove runner survived prior job completion
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Write-Host "FIRST_HOST=${{ needs.verify.outputs.host }}"
+          Write-Host "FIRST_RUNNER=${{ needs.verify.outputs.runner }}"
+          Write-Host "SECOND_HOST=$env:COMPUTERNAME"
+          Write-Host "SECOND_RUNNER=$env:RUNNER_NAME"
+          if ($env:COMPUTERNAME -ne '${{ needs.verify.outputs.host }}') { throw 'host changed between jobs' }
+          if ($env:RUNNER_NAME -ne '${{ needs.verify.outputs.runner }}') { throw 'runner changed between jobs' }
+          if ($env:COMPUTERNAME -ne 'DESKTOP-6FN9B4M') { throw "unexpected host $env:COMPUTERNAME" }
+          Write-Host 'Q0907_PERSIST_OK'
