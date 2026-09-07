@@ -40,3 +40,5 @@ VERIFY, not narrate: get the already queued run 34159090021 picked up on this ex
           script: |
             const fs=require('fs');let text='NO_RECEIPT';try{text=fs.readFileSync('/tmp/runner-recovery-relay.txt','utf8')}catch(e){text+=' '+e}
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:772,body:`RUNNER_RECOVERY_RELAY_DELIVERY\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
+
+# second-push trigger
