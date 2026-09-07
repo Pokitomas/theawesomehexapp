@@ -15,26 +15,25 @@ jobs:
     steps:
       - id: identity
         name: Verify Windows self-hosted runner
-        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        shell: cmd
         run: |
-          $ErrorActionPreference='Stop'
-          Write-Host "HOST=$env:COMPUTERNAME"
-          Write-Host "USER=$env:USERNAME"
-          Write-Host "RUNNER=$env:RUNNER_NAME"
-          "host=$env:COMPUTERNAME" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "runner=$env:RUNNER_NAME" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Get-Date -Format o
-          if ($env:COMPUTERNAME -ne 'DESKTOP-6FN9B4M') { throw "unexpected host $env:COMPUTERNAME" }
-          Get-Command wsl.exe | Select-Object -ExpandProperty Source
-          wsl.exe -e bash -lc 'printf "WSL_OK\n"; uname -a'
-          if ($LASTEXITCODE -ne 0) { throw "wsl failed rc=$LASTEXITCODE" }
-          if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
+          @echo off
+          echo HOST=%COMPUTERNAME%
+          echo USER=%USERNAME%
+          echo RUNNER=%RUNNER_NAME%
+          >>"%GITHUB_OUTPUT%" echo host=%COMPUTERNAME%
+          >>"%GITHUB_OUTPUT%" echo runner=%RUNNER_NAME%
+          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 10
+          C:\Windows\System32\wsl.exe -e bash -lc "printf 'WSL_OK\n'; uname -a"
+          if errorlevel 1 exit /b 11
+          where nvidia-smi.exe >nul 2>nul
+          if errorlevel 1 (
+            echo NVIDIA_SMI_NOT_FOUND
+          ) else (
             nvidia-smi.exe --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader
-            if ($LASTEXITCODE -ne 0) { throw "nvidia-smi failed rc=$LASTEXITCODE" }
-          } else {
-            Write-Host 'NVIDIA_SMI_NOT_FOUND'
-          }
-          Write-Host 'Q0907_VERIFY_OK'
+            if errorlevel 1 exit /b 12
+          )
+          echo Q0907_VERIFY_OK
 
   survive:
     needs: verify
@@ -42,14 +41,14 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Prove runner survived prior job completion
-        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        shell: cmd
         run: |
-          $ErrorActionPreference='Stop'
-          Write-Host "FIRST_HOST=${{ needs.verify.outputs.host }}"
-          Write-Host "FIRST_RUNNER=${{ needs.verify.outputs.runner }}"
-          Write-Host "SECOND_HOST=$env:COMPUTERNAME"
-          Write-Host "SECOND_RUNNER=$env:RUNNER_NAME"
-          if ($env:COMPUTERNAME -ne '${{ needs.verify.outputs.host }}') { throw 'host changed between jobs' }
-          if ($env:RUNNER_NAME -ne '${{ needs.verify.outputs.runner }}') { throw 'runner changed between jobs' }
-          if ($env:COMPUTERNAME -ne 'DESKTOP-6FN9B4M') { throw "unexpected host $env:COMPUTERNAME" }
-          Write-Host 'Q0907_PERSIST_OK'
+          @echo off
+          echo FIRST_HOST=${{ needs.verify.outputs.host }}
+          echo FIRST_RUNNER=${{ needs.verify.outputs.runner }}
+          echo SECOND_HOST=%COMPUTERNAME%
+          echo SECOND_RUNNER=%RUNNER_NAME%
+          if /I not "%COMPUTERNAME%"=="${{ needs.verify.outputs.host }}" exit /b 20
+          if /I not "%RUNNER_NAME%"=="${{ needs.verify.outputs.runner }}" exit /b 21
+          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 22
+          echo Q0907_PERSIST_OK
