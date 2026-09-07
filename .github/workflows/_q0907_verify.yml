@@ -15,7 +15,7 @@ jobs:
     steps:
       - id: identity
         name: Verify Windows self-hosted runner
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference='Stop'
           Write-Host "HOST=$env:COMPUTERNAME"
@@ -27,8 +27,10 @@ jobs:
           if ($env:COMPUTERNAME -ne 'DESKTOP-6FN9B4M') { throw "unexpected host $env:COMPUTERNAME" }
           Get-Command wsl.exe | Select-Object -ExpandProperty Source
           wsl.exe -e bash -lc 'printf "WSL_OK\n"; uname -a'
+          if ($LASTEXITCODE -ne 0) { throw "wsl failed rc=$LASTEXITCODE" }
           if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
             nvidia-smi.exe --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader
+            if ($LASTEXITCODE -ne 0) { throw "nvidia-smi failed rc=$LASTEXITCODE" }
           } else {
             Write-Host 'NVIDIA_SMI_NOT_FOUND'
           }
@@ -40,7 +42,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Prove runner survived prior job completion
-        shell: powershell
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference='Stop'
           Write-Host "FIRST_HOST=${{ needs.verify.outputs.host }}"
