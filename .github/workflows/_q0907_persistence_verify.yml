@@ -43,3 +43,5 @@ jobs:
           if ($env:COMPUTERNAME -ne 'DESKTOP-6FN9B4M') { throw "unexpected host $env:COMPUTERNAME" }
           Write-Host 'Q0907_PERSISTENCE_JOB2_OK'
           Write-Host 'Q0907_PERSIST_OK'
+
+# trigger 2026-09-07
