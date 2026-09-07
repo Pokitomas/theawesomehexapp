@@ -15,7 +15,7 @@ jobs:
     steps:
       - id: identity
         name: Verify Windows self-hosted runner
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference='Stop'
           Write-Host "HOST=$env:COMPUTERNAME"
@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Prove runner survived prior job completion
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference='Stop'
           Write-Host "FIRST_HOST=${{ needs.verify.outputs.host }}"
