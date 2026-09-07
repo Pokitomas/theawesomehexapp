@@ -7,44 +7,38 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  actions: read
+  issues: write
 
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Probe rescue OIDC broker without exposing credentials
+      - name: Inspect registered self-hosted runners
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          broker='https://archie-rescue-oidc-broker-20260831.vercel.app/api/index'
-          audiences=(
-            'https://github.com/Pokitomas'
-            'https://archie-rescue-oidc-broker-20260831.vercel.app'
-            'archie-rescue-oidc-broker-20260831'
-          )
-          for aud in "${audiences[@]}"; do
-            enc=$(python -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$aud")
-            sep='&'; [[ "$ACTIONS_ID_TOKEN_REQUEST_URL" == *'?'* ]] || sep='?'
-            tok=$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}${sep}audience=${enc}" | jq -r .value)
-            echo "AUD=$aud"
-            for method in GET POST; do
-              if [ "$method" = POST ]; then
-                code=$(curl -sS --max-time 15 -o /tmp/b -w '%{http_code}' -X POST -H "Authorization: Bearer $tok" -H 'content-type: application/json' --data '{}' "$broker" || true)
-              else
-                code=$(curl -sS --max-time 15 -o /tmp/b -w '%{http_code}' -H "Authorization: Bearer $tok" "$broker" || true)
-              fi
-              printf '%s HTTP=%s ' "$method" "$code"
-              jq -c 'if type=="object" then {keys:(keys|sort),error:(.error//null),ok:(.ok//null)} else {type:type} end' /tmp/b 2>/dev/null || echo nonjson
-            done
-          done
+          code=$(curl -sS -o "$RUNNER_TEMP/runners.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/Pokitomas/theawesomehexapp/actions/runners')
+          echo "HTTP=$code"
+          if [ "$code" = 200 ]; then
+            jq '{total_count, runners:[.runners[]|{id,name,os,status,busy,labels:[.labels[].name]}]}' "$RUNNER_TEMP/runners.json" | tee "$RUNNER_TEMP/runner-registry.txt"
+          else
+            jq '{message,status}' "$RUNNER_TEMP/runners.json" 2>/dev/null | tee "$RUNNER_TEMP/runner-registry.txt" || cat "$RUNNER_TEMP/runners.json" | tee "$RUNNER_TEMP/runner-registry.txt"
+          fi
 
-      - name: Deliver runner recovery through public resident relay
-        shell: bash
-        run: |
-          set -euo pipefail
-          msg='RUNNER_RECOVERY_Q0907_V8 owner authorized. On DESKTOP-6FN9B4M restore the Pokitomas/theawesomehexapp self-hosted GitHub runner persistently. Corrected run 34149915406 proves the Windows runner worked, then it disappeared; verification run 34159090021 remains queued because no listener is online. Inspect local runner process service and config. Reuse only credentials already authorized locally, expose no tokens, do not use Desktop Commander, and do not re-debug the already-fixed bash Windows temp path failure. Verify by making run 34159090021 execute on DESKTOP-6FN9B4M and print Q0907_VERIFY_OK. Keep working through intermediate failures.'
-          body=$(jq -cn --arg text "$msg" '{text:$text}')
-          curl -fsS --max-time 45 -H 'content-type: application/json' --data-binary "$body" https://archie-chatgpt-relay.vercel.app/api/index
-          echo RELAY_DELIVERY_OK
+      - name: Publish registry receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs=require('fs'); const p=process.env.RUNNER_TEMP+'/runner-registry.txt';
+            let text='NO_RECEIPT'; try{text=fs.readFileSync(p,'utf8')}catch(e){text+=' '+e}
+            if(text.length>12000) text=text.slice(0,12000);
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:772,body:`Q0907_RUNNER_REGISTRY\nrun_id=${context.runId}\n\n\`\`\`json\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
