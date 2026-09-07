@@ -35,3 +35,5 @@ jobs:
             echo "relay_health_http=$code"
             head -c 300 /tmp/r 2>/dev/null | tr '\n' ' '; echo
           fi
+
+# q0907 verify 2026-09-07
