@@ -15,23 +15,32 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Deliver q0907 runner recovery directive
-        shell: python
+        shell: bash
         run: |
-          import json,subprocess,time
-          directive=r'''RUNNER_RECOVERY_Q0907_V2 — owner-authorized maintenance on the user's own machine. ACT NOW from the resident Windows controller; do not merely summarize.
+          set -euo pipefail
+          directive=$(cat <<'EOF'
+          RUNNER_RECOVERY_Q0907_V3 — owner-authorized maintenance on the user's own machine. Act now from the resident Windows controller; do not merely summarize.
 
-Target host: DESKTOP-6FN9B4M. Target repo: Pokitomas/theawesomehexapp. The self-hosted runner q0907-DESKTOP-6FN9B4M successfully executed workflow run 34149915406, then disappeared. A fresh self-hosted verification run 34159090021 is queued because no listener is online. The successful runner was effectively one-shot/ephemeral; make the intended runner reliably available for subsequent jobs.
+          Target host: DESKTOP-6FN9B4M. Target repo: Pokitomas/theawesomehexapp. The self-hosted runner q0907-DESKTOP-6FN9B4M successfully executed corrected workflow run 34149915406 and then disappeared. Verification run 34159090021 is queued because no self-hosted listener is online. Make the runner reliably persistent for subsequent jobs.
 
-Inspect actual Windows runner installation/config/process/service state. Prefer converting/using an already-registered non-ephemeral runner as a persistent Windows service or, if the intended design must remain ephemeral, install a local supervisor that immediately provisions/starts the next runner after each job. Reuse existing locally authorized GitHub credentials only. Do not print or persist registration tokens/PATs in logs. Do not invent credentials. Do not use Desktop Commander. Do not disturb unrelated apps.
+          Inspect the actual Windows runner install/config/process/service state. Prefer an already-registered persistent runner service; otherwise use a reliable local supervisor for the intended runner lifecycle. Reuse only credentials already authorized on the machine. Never expose tokens. Do not use Desktop Commander. Do not disturb unrelated apps.
 
-Known earlier workflow bug is already fixed: the failing run 34147107726 used bash against a Windows temp-script path; the corrected pwsh workflow run 34149915406 succeeded. Do NOT re-debug that old shell-path issue. The live issue is runner liveness after the successful one-shot job.
+          The old bash/Windows-temp-path bug from run 34147107726 is already fixed. Do not re-debug it. The current defect is post-job runner liveness.
 
-VERIFY, not narrate: get the already queued run 34159090021 picked up on this exact Windows host and make it print Q0907_VERIFY_OK. If that exact queued job cannot be revived, trigger/prove an equivalent self-hosted diagnostic on the same host and record the run/job identity. Keep working through intermediate failures. If and only if local registration authorization truly does not exist, leave the system stable and publish an exact blocker receipt without secrets.'''
-          url='https://archie-chatgpt-relay.vercel.app/api/index'
-          p=subprocess.run(['curl','-sS','--max-time','45','-X','POST','-H','content-type: application/json','-H','accept: application/json','--data-binary',json.dumps({'text':directive}),'-w','\n__HTTP__%{http_code}',url],text=True,capture_output=True,timeout=52)
-          lines=['RUNNER_RECOVERY_Q0907_V2','rc='+str(p.returncode),'delivery='+(p.stdout+p.stderr)[:10000]]
-          open('/tmp/runner-recovery-relay.txt','w',encoding='utf-8').write('\n'.join(lines)+'\n')
-          if p.returncode != 0: raise SystemExit(p.returncode)
+          Verify the repair by getting queued run 34159090021 picked up on DESKTOP-6FN9B4M and producing Q0907_VERIFY_OK. If that run cannot be revived, prove an equivalent self-hosted diagnostic on this exact host. Keep working through intermediate failures; report an exact blocker only if local registration authorization genuinely does not exist.
+          EOF
+          )
+          payload=$(jq -cn --arg text "$directive" '{text:$text}')
+          set +e
+          out=$(curl -sS --max-time 45 -X POST -H 'content-type: application/json' -H 'accept: application/json' --data-binary "$payload" -w $'\n__HTTP__%{http_code}' 'https://archie-chatgpt-relay.vercel.app/api/index' 2>&1)
+          rc=$?
+          set -e
+          {
+            echo RUNNER_RECOVERY_Q0907_V3
+            echo "rc=$rc"
+            echo "$out"
+          } | tee /tmp/runner-recovery-relay.txt
+          test "$rc" -eq 0
       - name: Publish delivery receipt
         if: always()
         uses: actions/github-script@v7
@@ -40,5 +49,3 @@ VERIFY, not narrate: get the already queued run 34159090021 picked up on this ex
           script: |
             const fs=require('fs');let text='NO_RECEIPT';try{text=fs.readFileSync('/tmp/runner-recovery-relay.txt','utf8')}catch(e){text+=' '+e}
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:772,body:`RUNNER_RECOVERY_RELAY_DELIVERY\nrun_id=${context.runId}\n\n\`\`\`text\n${text.replace(/```/g,'``\\`')}\n\`\`\``});
-
-# second-push trigger
