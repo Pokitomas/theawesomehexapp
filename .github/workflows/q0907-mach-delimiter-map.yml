@@ -16,7 +16,7 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $env:PYTHONIOENCODING='utf-8'
-          & 'C:\Python314\python.exe' - <<'PY'
+          @'
           from pathlib import Path
           root=Path(r'C:\Users\AwesomeKai\mach\shell')
           pairs={'(':')','[':']','{':'}'}; closes={v:k for k,v in pairs.items()}
@@ -50,12 +50,11 @@ jobs:
               marks=[]
               if bad: marks.append(bad[0][2])
               marks += [x[1] for x in stack[-5:]]
-              ls=s.splitlines()
-              shown=set()
+              ls=s.splitlines();shown=set()
               for m in marks:
                   for n in range(max(1,m-8),min(len(ls),m+8)+1):
                       if n not in shown:
                           shown.add(n);print(f'CTX {n:04d}: {ls[n-1]}')
           for name in ('face.mach','game.mach'): scan(root/name)
-          PY
+          '@ | & 'C:\Python314\python.exe' -
           if($LASTEXITCODE-ne0){throw 'delimiter map failed'}
