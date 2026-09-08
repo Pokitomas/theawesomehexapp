@@ -1,0 +1,2 @@
+PAIR_STATE_V1
+status=idle
