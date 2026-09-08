@@ -13,5 +13,10 @@
     "react": "latest",
     "react-dom": "latest",
     "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0"
   }
 }
