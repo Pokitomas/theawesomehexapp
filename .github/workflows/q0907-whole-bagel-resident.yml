@@ -1,5 +1,4 @@
 name: Q0907 whole bagel resident
-# second push intentionally arms a newly-created workflow
 
 on:
   push:
@@ -44,7 +43,6 @@ jobs:
           $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
           if (-not $token) { throw 'resident token file is empty' }
 
-          # Discover the real resident auth convention on /health first; never print the token.
           $auth = $null
           foreach ($mode in @('bearer','header','query','none')) {
             try {
@@ -61,7 +59,6 @@ jobs:
           Write-Host "RESIDENT_AUTH_MODE=$auth"
           Write-Host 'RESIDENT_HEALTH_OK=200'
 
-          # Confirm the same auth can write an empty frame to an isolated probe channel.
           $probeUri = "$resident/in?channel=claude-auth-probe"
           $probeHeaders = @{}
           if ($auth -eq 'bearer') { $probeHeaders['Authorization'] = "Bearer $token" }
@@ -90,14 +87,17 @@ jobs:
           "@
           [System.IO.File]::WriteAllText($wrapper, $wrapperBody.Replace("`r`n","`n"), (New-Object System.Text.UTF8Encoding($false)))
 
-          schtasks.exe /End /TN $taskName 2>$null | Out-Null
-          schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
+          # Missing old task is normal. cmd.exe keeps its expected errors out of PowerShell's terminating-error path.
+          cmd.exe /d /c "schtasks /End /TN `"$taskName`" >nul 2>&1" | Out-Null
+          cmd.exe /d /c "schtasks /Delete /TN `"$taskName`" /F >nul 2>&1" | Out-Null
+
           $taskCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$wrapper`""
           schtasks.exe /Create /TN $taskName /SC ONLOGON /TR $taskCommand /F | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'could not create persistent bridge task' }
 
-          $env:RUNNER_TRACKING_ID = ''
-          Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$wrapper) -WindowStyle Hidden
-          try { schtasks.exe /Run /TN $taskName | Out-Null } catch { }
+          # Task Scheduler owns the process, not Actions; this is what keeps it alive after runner cleanup.
+          schtasks.exe /Run /TN $taskName | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'could not start persistent bridge task' }
 
           Start-Sleep -Seconds 8
           if (-not (Test-Path -LiteralPath $logFile -PathType Leaf)) { throw 'bridge did not produce a log' }
@@ -108,7 +108,7 @@ jobs:
           if (-not ($tail -match 'CLAUDE_RESIDENT_BRIDGE up')) { throw 'bridge process did not reach resident startup' }
           if ($tail -match 'RESIDENT_AUTH_HINT') { throw 'bridge reached resident but authentication failed' }
 
-          $task = schtasks.exe /Query /TN $taskName /FO LIST 2>$null
+          schtasks.exe /Query /TN $taskName /FO LIST | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'persistent bridge task was not registered' }
           Write-Host 'CLAUDE_RESIDENT_BRIDGE_LIVE=1'
           Write-Host "BRIDGE=$bridge"
