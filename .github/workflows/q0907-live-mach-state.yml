@@ -1,0 +1,104 @@
+name: Q0907 live Mach state
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-live-mach-state.yml'
+
+jobs:
+  live:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Read the actual live Mach state, including crowd primitive and Node
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $root = 'C:\Users\AwesomeKai\mach'
+          Set-Location -LiteralPath $root
+
+          Write-Host '=== LIVE HOST ==='
+          hostname
+          Get-Date -Format o
+          Write-Host '=== GIT ==='
+          git status --short --branch
+          git rev-parse --show-toplevel
+          git rev-parse HEAD
+          git branch --show-current
+          git diff --stat
+          git diff --name-only
+
+          Write-Host '=== PROCESS / PORT STATE ==='
+          Get-Process node,msedge,python,python3,cloudflared -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime,Path | Format-Table -AutoSize
+          Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 8789,8790,8798,8811 } | Select-Object LocalAddress,LocalPort,OwningProcess,State | Format-Table -AutoSize
+
+          Write-Host '=== MACH COMPUTER BRIDGE ==='
+          @'
+          import json, os, sys
+          sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
+          try:
+              from mach.core.computer import perform
+              for req in (
+                  {'cap':'windows'},
+                  {'cap':'processes','find':'node'},
+                  {'cap':'processes','find':'msedge'},
+              ):
+                  try:
+                      print(json.dumps({'request':req,'result':perform(req)}, default=str)[:12000])
+                  except Exception as e:
+                      print(json.dumps({'request':req,'error':repr(e)}))
+          except Exception as e:
+              print('COMPUTER_IMPORT_ERROR', repr(e))
+          '@ | python -
+
+          Write-Host '=== CROWD / PRIMITIVE LIVE SOURCE ==='
+          $rg = Get-Command rg.exe -ErrorAction SilentlyContinue
+          if (-not $rg) { $rg = Get-Command rg -ErrorAction SilentlyContinue }
+          if ($rg) {
+            & $rg.Source -n -S --hidden --glob '!**/.git/**' --glob '!**/.whole_bagel_*/*' --glob '!**/__pycache__/**' -C 8 'crowd|primitive\(' mach 2>$null
+          } else {
+            Get-ChildItem -LiteralPath (Join-Path $root 'mach') -Recurse -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.Length -lt 3000000 } |
+              Select-String -Pattern 'crowd','primitive\(' -CaseSensitive:$false -Context 8,8 -ErrorAction SilentlyContinue |
+              Select-Object -First 500 | ForEach-Object { $_.ToString() }
+          }
+
+          Write-Host '=== LIVE MODIFIED FILE CONTENT AROUND DIFF ==='
+          $changed = @(git diff --name-only) + @(git ls-files --others --exclude-standard)
+          $changed = $changed | Where-Object { $_ -like 'mach/*' } | Select-Object -Unique
+          foreach ($f in $changed) {
+            Write-Host "--- $f ---"
+            if (Test-Path -LiteralPath $f -PathType Leaf) {
+              Get-Content -LiteralPath $f -TotalCount 1200 -ErrorAction SilentlyContinue
+            }
+          }
+
+          Write-Host '=== NODE CHECK ==='
+          $node = Get-Command node.exe -ErrorAction SilentlyContinue
+          if (-not $node) { $node = Get-Command node -ErrorAction SilentlyContinue }
+          if ($node) {
+            & $node.Source --version
+            Push-Location (Join-Path $root 'mach\web')
+            & $node.Source check.js
+            $nodeCode = $LASTEXITCODE
+            Pop-Location
+            Write-Host "NODE_CHECK_EXIT=$nodeCode"
+          } else {
+            Write-Host 'NODE_MISSING_ON_WINDOWS_PATH'
+          }
+
+          Write-Host '=== HOSTED SUITES ==='
+          python mach\tests\run_all.py
+          Write-Host "HOSTED_SUITES_EXIT=$LASTEXITCODE"
+
+          Write-Host '=== PYTEST FAST STATE ==='
+          python -m pytest -q mach\tests --disable-warnings --maxfail=1
+          Write-Host "PYTEST_EXIT=$LASTEXITCODE"
+
+          Write-Host '=== NATIVE COURT DISCOVERY ==='
+          Get-ChildItem -LiteralPath (Join-Path $root 'mach') -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match 'court|test|check|build' -and $_.FullName -notmatch '\\.git\\' } |
+            Select-Object -First 250 FullName | Format-Table -AutoSize
+
+          Write-Host 'LIVE_STATE_PROBE_DONE'
