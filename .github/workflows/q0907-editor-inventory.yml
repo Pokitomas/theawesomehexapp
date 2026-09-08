@@ -1,0 +1,139 @@
+name: Q0907 editor inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-editor-inventory.yml'
+
+jobs:
+  inventory:
+    runs-on: self-hosted
+    timeout-minutes: 25
+    steps:
+      - name: Find every editor/parser copy and heal exact organs
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $py312w='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\pythonw.exe'
+          $env:PYTHONPATH=$parent
+          $env:RUNNER_TRACKING_ID=''
+          Set-Location $root
+
+          Write-Host '=== EXACT ORGANS BEFORE ==='
+          $all=@(Get-CimInstance Win32_Process)
+          $all | Where-Object {$_.CommandLine -match 'mach\.core\.keeper|mach\.core\.ingress_bridge|antigravity_seat\.py|[\\/]shell[\\/]run\.py'} | ForEach-Object { Write-Host ("ORGAN {0} {1}" -f $_.ProcessId,$_.CommandLine) }
+          if(-not ($all|Where-Object{$_.CommandLine -match 'mach\.core\.ingress_bridge'})){
+            Start-Process -FilePath $py314 -ArgumentList @('-m','mach.core.ingress_bridge') -WorkingDirectory $parent -WindowStyle Hidden
+            Start-Sleep -Seconds 2
+          }
+          $all=@(Get-CimInstance Win32_Process)
+          if(-not ($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){
+            Start-Process -FilePath $py312w -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $parent -WindowStyle Hidden
+            Start-Sleep -Seconds 5
+          }
+          $all=@(Get-CimInstance Win32_Process)
+          if(-not ($all|Where-Object{$_.CommandLine -match 'antigravity_seat\.py'})){
+            Start-Process -FilePath $py314 -ArgumentList @((Join-Path $root 'core\antigravity_seat.py'),'--rate','2.0') -WorkingDirectory $parent -WindowStyle Hidden
+          }
+          if(-not ($all|Where-Object{$_.CommandLine -match '[\\/]shell[\\/]run\.py'})){
+            Start-Process -FilePath $py312w -ArgumentList @((Join-Path $root 'shell\run.py')) -WorkingDirectory $parent -WindowStyle Hidden
+          }
+          Start-Sleep -Seconds 4
+
+          Write-Host '=== SOURCE/PARSER/DOUBLE-TREE INVENTORY ==='
+          @'
+          import hashlib, json, os, pathlib, sys
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach')
+          staged=root/'mach'
+          needles={
+            'source_paint':'face/source-paint',
+            'f1_source':'F1 is source in the same native Mach window',
+            'source_keys':'Ctrl-S save    Ctrl-R run live    F5 return',
+            'reader':'Reader. Text to form.',
+            'sym':'class Sym:',
+            'command_import':'mach.core.command',
+            'crowd':'oasis/crowd',
+          }
+          ex={'.git','target','node_modules','__pycache__','.whole_bagel_snapshots'}
+          suffix={'.py','.mach','.js','.html','.c','.h','.rs','.md','.txt','.json','.yml','.yaml'}
+          hits={k:[] for k in needles}
+          named=[]
+          for p in root.rglob('*'):
+            try:
+              rel=p.relative_to(root)
+              if not p.is_file() or any(x in ex or x.startswith('.whole_bagel_backup') or x.startswith('.claude_pull_backup') for x in rel.parts): continue
+              if p.suffix.lower() not in suffix or p.stat().st_size>6_000_000: continue
+              if p.name in {'face.mach','editor.mach','read.py','shore.html','computer.py','keeper.py','run.py','test_command.py'}:
+                raw=p.read_bytes(); named.append((rel.as_posix(),len(raw),hashlib.sha256(raw).hexdigest()[:16]))
+              text=p.read_text(encoding='utf-8',errors='ignore')
+              for k,n in needles.items():
+                if n in text: hits[k].append(rel.as_posix())
+            except Exception: pass
+          print('NAMED_COPIES')
+          for row in sorted(named): print('COPY',*row)
+          for k in needles:
+            print('HITS',k,len(hits[k]),*hits[k][:80])
+
+          same=[]; changed=[]; missing=[]
+          if staged.is_dir():
+            for src in sorted(p for p in staged.rglob('*') if p.is_file() and not any(x in ex for x in p.relative_to(staged).parts)):
+              rel=src.relative_to(staged); dst=root/rel
+              if not dst.is_file(): missing.append(rel.as_posix())
+              elif src.read_bytes()==dst.read_bytes(): same.append(rel.as_posix())
+              else: changed.append(rel.as_posix())
+          print('STAGED_VS_LIVE same=%d changed=%d missing=%d' % (len(same),len(changed),len(missing)))
+          for x in changed[:250]: print('DIFF',x)
+          for x in missing[:250]: print('MISSING_LIVE',x)
+
+          code_roots=['core','lang','shell','web','tests','apps','native','machos-native']
+          active=[]
+          stage_set=set()
+          if staged.is_dir():
+            stage_set={p.relative_to(staged).as_posix() for p in staged.rglob('*') if p.is_file()}
+          for d in code_roots:
+            base=root/d
+            if not base.is_dir(): continue
+            for p in base.rglob('*'):
+              if p.is_file() and not any(x in ex for x in p.relative_to(root).parts):
+                rel=p.relative_to(root).as_posix()
+                if rel not in stage_set: active.append(rel)
+          print('ACTIVE_ONLY_CODE',len(active))
+          for x in active[:300]: print('ACTIVE_ONLY',x)
+
+          out=root/'.editor_inventory.json'
+          out.write_text(json.dumps({'hits':hits,'copies':named,'changed':changed,'missing':missing,'active_only':active},indent=2),encoding='utf-8')
+          print('INVENTORY='+str(out))
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'inventory failed'}
+
+          Write-Host '=== RESIDENT IDENTITY / LIVE ROOT ==='
+          @'
+          import os,sys,json
+          os.chdir(r'C:\Users\AwesomeKai');sys.path.insert(0,r'C:\Users\AwesomeKai')
+          import mach.core.computer as M
+          from mach.core import home
+          print('CLIENT_ROOT='+str(home.ROOT))
+          c=M.connect(start=False,timeout=5)
+          cat=c.do('catalog'); print('CATALOG_OK='+str(cat.get('ok'))+' N='+str(len(cat.get('transitions',[]))))
+          server={x['edge']:x['cap'] for x in cat.get('transitions',[])}
+          for k in ('file','splice','tree','query'):
+            print('CAP',k,M._CAPS.get(k,b'').hex(),server.get(k,''),M._CAPS.get(k,b'').hex()==server.get(k,''))
+          for needle in ('face/source-paint','Reader. Text to form.','oasis/crowd'):
+            for path in ('shell/face.mach','lang/read.py','web/shore.html','mach/shell/face.mach','mach/lang/read.py','mach/web/shore.html'):
+              if 'query' in server:
+                x=c.invoke(server['query'],path=path,find=needle,limit=8)
+                if x.get('hits'): print('LIVE_QUERY',needle,path,len(x['hits']))
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){Write-Host 'LIVE_BRIDGE_PROBE_FAILED'}
+
+          Write-Host '=== WARDEN TAIL ==='
+          if(Test-Path (Join-Path $root 'state\warden.log')){Get-Content (Join-Path $root 'state\warden.log') -Tail 100}
+
+          Write-Host '=== EXACT ORGANS AFTER ==='
+          $all=@(Get-CimInstance Win32_Process)
+          $all | Where-Object {$_.CommandLine -match 'mach\.core\.keeper|mach\.core\.ingress_bridge|antigravity_seat\.py|[\\/]shell[\\/]run\.py'} | ForEach-Object { Write-Host ("ORGAN {0} {1}" -f $_.ProcessId,$_.CommandLine) }
+          Write-Host 'EDITOR_INVENTORY_DONE=1'
