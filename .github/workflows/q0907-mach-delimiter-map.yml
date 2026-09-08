@@ -1,0 +1,61 @@
+name: Q0907 Mach delimiter map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-mach-delimiter-map.yml'
+
+jobs:
+  map:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Locate extra and missing delimiters in live face and game
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:PYTHONIOENCODING='utf-8'
+          & 'C:\Python314\python.exe' - <<'PY'
+          from pathlib import Path
+          root=Path(r'C:\Users\AwesomeKai\mach\shell')
+          pairs={'(':')','[':']','{':'}'}; closes={v:k for k,v in pairs.items()}
+          def scan(p):
+              s=p.read_text(encoding='utf-8');stack=[];i=0;line=1;col=0;bad=[]
+              while i<len(s):
+                  c=s[i];col+=1
+                  if c=='\n': line+=1;col=0;i+=1;continue
+                  if c==';':
+                      while i<len(s) and s[i]!='\n': i+=1
+                      continue
+                  if c=='"':
+                      i+=1
+                      while i<len(s):
+                          if s[i]=='\\' and i+1<len(s): i+=2;continue
+                          if s[i]=='"': i+=1;break
+                          if s[i]=='\n': line+=1;col=0
+                          else: col+=1
+                          i+=1
+                      continue
+                  if c in pairs: stack.append((c,line,col,i))
+                  elif c in closes:
+                      if not stack: bad.append(('EXTRA',c,line,col,i,None));break
+                      o=stack.pop()
+                      if o[0]!=closes[c]: bad.append(('MISMATCH',c,line,col,i,o));break
+                  i+=1
+              print('FILE',p.name,'bytes',len(s.encode()),'lines',s.count('\n')+1)
+              if bad: print('FIRST_BAD',repr(bad[0]))
+              print('UNMATCHED_COUNT',len(stack))
+              for x in stack[-12:]: print('UNMATCHED_OPEN',repr(x))
+              marks=[]
+              if bad: marks.append(bad[0][2])
+              marks += [x[1] for x in stack[-5:]]
+              ls=s.splitlines()
+              shown=set()
+              for m in marks:
+                  for n in range(max(1,m-8),min(len(ls),m+8)+1):
+                      if n not in shown:
+                          shown.add(n);print(f'CTX {n:04d}: {ls[n-1]}')
+          for name in ('face.mach','game.mach'): scan(root/name)
+          PY
+          if($LASTEXITCODE-ne0){throw 'delimiter map failed'}
