@@ -1,0 +1,20 @@
+{
+  "name": "Archie Console",
+  "short_name": "Archie",
+  "description": "Governed operator console for the local Archie router. Private and offline after first load.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B0D12",
+  "theme_color": "#0B0D12",
+  "categories": ["productivity", "business", "utilities"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230B0D12'/%3E%3Cpath d='M256 112 384 184v144L256 400 128 328V184z' fill='none' stroke='%235B87FF' stroke-width='28'/%3E%3Ccircle cx='256' cy='256' r='44' fill='%235B87FF'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
