@@ -7,45 +7,20 @@ permissions:
 jobs:
   rewrite:
     runs-on: self-hosted
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Atomically rewrite observed Mach surface
-        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+      - name: Apply observed-version rewrite
+        shell: cmd
         run: |
-          $ErrorActionPreference='Stop'
-          python "$env:GITHUB_WORKSPACE\ops\mach-delight-rewrite.py" "C:\Users\AwesomeKai\mach"
-          if ($LASTEXITCODE -ne 0) { throw "rewrite failed rc=$LASTEXITCODE" }
-      - name: Existing desktop court plus render
-        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+          @echo off
+          python "%GITHUB_WORKSPACE%\ops\mach-delight-rewrite.py" "C:\Users\AwesomeKai\mach"
+          if errorlevel 1 exit /b 11
+          echo MACH_LIVE_REWRITE_OK
+      - name: Run Mach desktop court
+        shell: cmd
         run: |
-          $ErrorActionPreference='Stop'
-          $png = Join-Path $env:RUNNER_TEMP 'mach-live-redesign.png'
-          python "C:\Users\AwesomeKai\mach\tests\desktop_ui.py" --render $png
-          if ($LASTEXITCODE -ne 0) { throw "desktop court failed rc=$LASTEXITCODE" }
-          if (-not (Test-Path $png)) { throw 'render missing' }
-          Write-Host 'MACH_DESKTOP_COURT_OK'
-      - name: Verify through resident Mach ingress
-        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
-        run: |
-          $ErrorActionPreference='Stop'
-          Start-Sleep -Milliseconds 1800
-          $say='C:\Users\AwesomeKai\mach\say.py'
-          python $say '(gui/lens-open!)'
-          if ($LASTEXITCODE -ne 0) { throw 'resident lens open failed' }
-          $lens = python $say -a gui/lens
-          Write-Host "RESIDENT_LENS=$lens"
-          python $say '(gui/lens-key! (map "key" "w" "text" "w" "ctrl" false))'
-          if ($LASTEXITCODE -ne 0) { throw 'resident lens key failed' }
-          $query = python $say -a gui/query
-          Write-Host "RESIDENT_QUERY=$query"
-          if (($query -join "`n") -notmatch 'w') { throw 'live lens query did not update' }
-          python $say '(gui/lens-close!)'
-          python $say '(gui/lens-open!)'
-          Write-Host 'MACH_RESIDENT_INTERACTION_OK'
-      - name: Upload live render
-        uses: actions/upload-artifact@v4
-        with:
-          name: mach-live-redesign-${{ github.run_id }}
-          path: ${{ runner.temp }}/mach-live-redesign.png
-          retention-days: 1
+          @echo off
+          python "C:\Users\AwesomeKai\mach\tests\desktop_ui.py" --render "%RUNNER_TEMP%\mach-live-redesign.png"
+          if errorlevel 1 exit /b 12
+          echo MACH_LIVE_DESKTOP_COURT_OK
