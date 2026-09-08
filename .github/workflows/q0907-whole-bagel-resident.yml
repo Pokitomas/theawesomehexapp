@@ -41,26 +41,35 @@ jobs:
           if (-not $ghCmd) { throw 'Windows gh not found' }
           $gh = $ghCmd.Source
 
-          $health = Invoke-WebRequest -UseBasicParsing -Uri "$resident/health" -TimeoutSec 5
-          if ($health.StatusCode -lt 200 -or $health.StatusCode -ge 300) { throw "resident health HTTP $($health.StatusCode)" }
-          Write-Host "RESIDENT_HEALTH_OK=$($health.StatusCode)"
-
           $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
           if (-not $token) { throw 'resident token file is empty' }
+
+          # Discover the real resident auth convention on /health first; never print the token.
           $auth = $null
           foreach ($mode in @('bearer','header','query','none')) {
             try {
-              $uri = "$resident/in?channel=claude-auth-probe"
+              $uri = "$resident/health"
               $headers = @{}
               if ($mode -eq 'bearer') { $headers['Authorization'] = "Bearer $token" }
               elseif ($mode -eq 'header') { $headers['x-model-resident-token'] = $token }
-              elseif ($mode -eq 'query') { $uri += '&token=' + [uri]::EscapeDataString($token) }
-              $r = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Headers $headers -Body ([byte[]]@()) -ContentType 'application/octet-stream' -TimeoutSec 5
+              elseif ($mode -eq 'query') { $uri += '?token=' + [uri]::EscapeDataString($token) }
+              $r = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Get -Headers $headers -TimeoutSec 5
               if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300) { $auth = $mode; break }
             } catch { }
           }
           if (-not $auth) { throw 'resident auth mode could not be established' }
           Write-Host "RESIDENT_AUTH_MODE=$auth"
+          Write-Host 'RESIDENT_HEALTH_OK=200'
+
+          # Confirm the same auth can write an empty frame to an isolated probe channel.
+          $probeUri = "$resident/in?channel=claude-auth-probe"
+          $probeHeaders = @{}
+          if ($auth -eq 'bearer') { $probeHeaders['Authorization'] = "Bearer $token" }
+          elseif ($auth -eq 'header') { $probeHeaders['x-model-resident-token'] = $token }
+          elseif ($auth -eq 'query') { $probeUri += '&token=' + [uri]::EscapeDataString($token) }
+          $probe = Invoke-WebRequest -UseBasicParsing -Uri $probeUri -Method Post -Headers $probeHeaders -Body ([byte[]]@()) -ContentType 'application/octet-stream' -TimeoutSec 5
+          if ($probe.StatusCode -lt 200 -or $probe.StatusCode -ge 300) { throw "resident ingress HTTP $($probe.StatusCode)" }
+          Write-Host 'RESIDENT_INGRESS_OK=1'
 
           $pythonDir = Split-Path -Parent $python
           $ghDir = Split-Path -Parent $gh
