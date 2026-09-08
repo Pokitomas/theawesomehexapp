@@ -11,7 +11,7 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
-      - name: Overlay live Claude Mach tree onto the Windows host
+      - name: Overlay and verify live Claude Mach tree on the Windows host
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -23,7 +23,6 @@ jobs:
           DEST="$ROOT/mach"
           REPO=Pokitomas/local-machine-mac95
           BRANCH='claude/yo-dood-tm72j0'
-          FALLBACK_SHA='2b3fbf71a4189daf59d7083497fb7f5d89f3bf29'
           STAMP=$(date +%Y%m%d_%H%M%S)
           BACK="$ROOT/.claude_pull_backup_$STAMP"
           RECEIPTS="$ROOT/.pull_receipts"
@@ -35,7 +34,6 @@ jobs:
 
           SHA=''
           SRC=''
-
           if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
             SHA=$(gh api "repos/$REPO/branches/$BRANCH" --jq '.commit.sha')
             test -n "$SHA"
@@ -56,18 +54,15 @@ jobs:
             git -C "$ROOT" archive "$SHA" mach | tar -x -C "$TMP/tree"
             SRC="$TMP/tree/mach"
           else
-            SHA="$FALLBACK_SHA"
             echo 'NO_AUTHENTICATED_SOURCE' >&2
             exit 21
           fi
 
-          test -d "$SRC"
           test -f "$SRC/web/check.js"
           test -f "$SRC/web/shore.html"
 
           python3 - "$SRC" "$DEST" "$BACK" "$RECEIPTS/$STAMP.json" "$SHA" <<'PY'
           import hashlib, json, pathlib, shutil, sys, time
-
           src, dst, back, receipt = map(pathlib.Path, sys.argv[1:5])
           sha = sys.argv[5]
           copied = backed = unchanged = 0
@@ -80,7 +75,8 @@ jobs:
                       h.update(b)
               return h.digest()
 
-          for p in sorted(x for x in src.rglob('*') if x.is_file()):
+          source_files = sorted(p for p in src.rglob('*') if p.is_file())
+          for p in source_files:
               rel = p.relative_to(src)
               q = dst / rel
               if q.exists() and q.is_file() and digest(p) == digest(q):
@@ -96,31 +92,50 @@ jobs:
               copied += 1
               changed.append(rel.as_posix())
 
+          mismatches = []
+          for p in source_files:
+              rel = p.relative_to(src)
+              q = dst / rel
+              if not q.is_file() or digest(p) != digest(q):
+                  mismatches.append(rel.as_posix())
+
           data = {
-              'schema': 'mach-host-pull/v1',
+              'schema': 'mach-host-pull/v2',
               'sha': sha,
               'source': 'Pokitomas/local-machine-mac95:claude/yo-dood-tm72j0',
               'destination': str(dst),
               'backup': str(back),
+              'source_files': len(source_files),
               'copied': copied,
               'backed_up': backed,
               'unchanged': unchanged,
+              'hash_mismatches': mismatches,
               'changed': changed,
               'unix_time': time.time(),
           }
           receipt.write_text(json.dumps(data, indent=2), encoding='utf-8')
           print('PULLED_SHA=' + sha)
+          print('SOURCE_FILES=' + str(len(source_files)))
           print('COPIED=' + str(copied))
           print('BACKED_UP=' + str(backed))
           print('UNCHANGED=' + str(unchanged))
+          print('HASH_MISMATCHES=' + str(len(mismatches)))
           print('RECEIPT=' + str(receipt))
           print('BACKUP=' + str(back))
+          if mismatches:
+              raise SystemExit('host verification failed: ' + ', '.join(mismatches[:20]))
           PY
 
-          cd "$DEST/web"
-          node check.js
           cd "$ROOT"
           python3 -m compileall -q mach/core mach/lang
+          echo 'PY_COMPILE_OK'
+
+          if command -v node >/dev/null 2>&1; then
+            (cd "$DEST/web" && node check.js)
+            echo 'NODE_CHECK_OK'
+          else
+            echo 'NODE_CHECK_SKIPPED_NO_WSL_NODE'
+          fi
 
           printf '%s\n' "$SHA" > "$RECEIPTS/latest.sha"
           printf '%s\n' "$STAMP" > "$RECEIPTS/latest.stamp"
