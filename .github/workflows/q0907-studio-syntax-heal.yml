@@ -1,0 +1,112 @@
+name: Q0907 studio syntax heal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-studio-syntax-heal.yml'
+
+jobs:
+  heal:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Fix exact face and story boundaries then prove resident plus studio stay put
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $py312w='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\pythonw.exe'
+          $env:PYTHONPATH=$parent
+          $env:PYTHONIOENCODING='utf-8'
+          $env:RUNNER_TRACKING_ID=''
+          Set-Location $parent
+
+          @'
+          from pathlib import Path
+          import shutil,time
+          root=Path(r'C:\Users\AwesomeKai\mach')
+          stamp=time.strftime('%Y%m%d_%H%M%S')
+          fixes=[
+            (root/'shell'/'face.mach',
+             '    (each face/site-row (range (len journey/sites))))',
+             '    (each face/site-row (range (len journey/sites)))'),
+            (root/'shell'/'game.mach',
+             '    s))))))))))))))))))))))\n\n(rule world/step',
+             '    s)))))))))))))))))))))))\n\n(rule world/step'),
+          ]
+          for p,old,new in fixes:
+              s=p.read_text(encoding='utf-8')
+              if old in s:
+                  b=root/'state'/(p.stem+'-before-syntax-heal-'+stamp+p.suffix)
+                  shutil.copy2(p,b);p.write_text(s.replace(old,new,1),encoding='utf-8')
+                  print('PATCHED',p);print('BACKUP',b)
+              elif new in s:
+                  print('ALREADY_FIXED',p)
+              else:
+                  raise SystemExit('exact repair site not found '+str(p))
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'exact syntax repair failed'}
+
+          Write-Host '=== ALL LIVE MACH SOURCES PARSE ==='
+          @'
+          import pathlib,sys
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach');sys.path.insert(0,r'C:\Users\AwesomeKai')
+          from mach.lang.read import read
+          bad=[]
+          for p in sorted((root/'shell').glob('*.mach')):
+              try: print('PARSE_OK',p.name,len(read(p.read_text(encoding='utf-8'))))
+              except Exception as e: bad.append((p.name,type(e).__name__,str(e)));print('PARSE_FAIL',bad[-1])
+          if bad: raise SystemExit(repr(bad))
+          print('ALL_LIVE_SHELL_PARSE_OK=1')
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'parse court red'}
+
+          Write-Host '=== ONE STUDIO BOOT COURT BEFORE SUPERVISION ==='
+          @'
+          import os,pathlib,subprocess,time
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach');env=os.environ.copy();env['PYTHONPATH']=r'C:\Users\AwesomeKai';env.pop('RUNNER_TRACKING_ID',None)
+          p=subprocess.Popen([r'C:\Python314\python.exe',str(root/'shell'/'studio_run.py')],cwd=r'C:\Users\AwesomeKai',env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+          try:
+              out,err=p.communicate(timeout=6);raise SystemExit('studio exited early rc=%s out=%r err=%r'%(p.returncode,out[-4000:],err[-8000:]))
+          except subprocess.TimeoutExpired:
+              print('STUDIO_DIRECT_HOLD_6S=1 pid='+str(p.pid));p.terminate()
+              try:p.wait(3)
+              except subprocess.TimeoutExpired:p.kill();p.wait()
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'direct studio boot red'}
+
+          Write-Host '=== RESET EXACT SUPERVISOR GRAPH ==='
+          $all=@(Get-CimInstance Win32_Process)
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'studio_run\.py'})){Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}
+          Start-Sleep -Seconds 1
+          Start-Process -FilePath $py312w -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $parent -WindowStyle Hidden
+
+          Start-Sleep -Seconds 9
+          $s1=@(Get-CimInstance Win32_Process|Where-Object{$_.CommandLine -match 'studio_run\.py'})
+          $r1=@(Get-CimInstance Win32_Process|Where-Object{$_.CommandLine -match 'mach\.core\.antigravity_seat'})
+          if($s1.Count-ne1 -or $r1.Count-ne1){
+            if(Test-Path (Join-Path $root 'state\warden.log')){Get-Content (Join-Path $root 'state\warden.log') -Tail 70}
+            throw "9s graph studio=$($s1.Count) resident=$($r1.Count)"
+          }
+          $spid=$s1[0].ProcessId;$rpid=$r1[0].ProcessId;Write-Host "PIDS_9S studio=$spid resident=$rpid"
+          Start-Sleep -Seconds 22
+          $s2=@(Get-CimInstance Win32_Process|Where-Object{$_.CommandLine -match 'studio_run\.py'})
+          $r2=@(Get-CimInstance Win32_Process|Where-Object{$_.CommandLine -match 'mach\.core\.antigravity_seat'})
+          if($s2.Count-ne1 -or $r2.Count-ne1){throw "31s graph studio=$($s2.Count) resident=$($r2.Count)"}
+          Write-Host "PIDS_31S studio=$($s2[0].ProcessId) resident=$($r2[0].ProcessId)"
+          if($s2[0].ProcessId-ne$spid -or $r2[0].ProcessId-ne$rpid){throw 'an organ restarted during recurrence court'}
+
+          @'
+          import os,sys
+          os.chdir(r'C:\Users\AwesomeKai');sys.path.insert(0,r'C:\Users\AwesomeKai')
+          import mach.core.computer as M
+          c=M.connect(start=False,timeout=5);cat=c.do('catalog')
+          print('CATALOG_OK='+str(cat.get('ok'))+' N='+str(len(cat.get('transitions',[]))))
+          assert cat.get('ok') and len(cat.get('transitions',[]))>=13
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'capability court red'}
+          Write-Host 'STUDIO_AND_RESIDENT_RECURRENT_OK=1'
