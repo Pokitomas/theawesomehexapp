@@ -1,4 +1,5 @@
 name: Q0907 whole bagel resident
+# second push intentionally arms a newly-created workflow
 
 on:
   push:
@@ -40,12 +41,10 @@ jobs:
           if (-not $ghCmd) { throw 'Windows gh not found' }
           $gh = $ghCmd.Source
 
-          # Prove the local resident is the thing we are attaching to.
           $health = Invoke-WebRequest -UseBasicParsing -Uri "$resident/health" -TimeoutSec 5
           if ($health.StatusCode -lt 200 -or $health.StatusCode -ge 300) { throw "resident health HTTP $($health.StatusCode)" }
           Write-Host "RESIDENT_HEALTH_OK=$($health.StatusCode)"
 
-          # Detect the resident's actual token convention without printing the token.
           $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
           if (-not $token) { throw 'resident token file is empty' }
           $auth = $null
@@ -63,7 +62,6 @@ jobs:
           if (-not $auth) { throw 'resident auth mode could not be established' }
           Write-Host "RESIDENT_AUTH_MODE=$auth"
 
-          # The wrapper reads the secret locally at launch. Nothing secret is copied to GitHub or logs.
           $pythonDir = Split-Path -Parent $python
           $ghDir = Split-Path -Parent $gh
           $wrapperBody = @"
@@ -83,13 +81,11 @@ jobs:
           "@
           [System.IO.File]::WriteAllText($wrapper, $wrapperBody.Replace("`r`n","`n"), (New-Object System.Text.UTF8Encoding($false)))
 
-          # Replace only our own task. It restarts the peer after login/reboot.
           schtasks.exe /End /TN $taskName 2>$null | Out-Null
           schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
           $taskCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$wrapper`""
           schtasks.exe /Create /TN $taskName /SC ONLOGON /TR $taskCommand /F | Out-Null
 
-          # Start now outside the Actions runner's process-cleanup ancestry, and also arm Task Scheduler.
           $env:RUNNER_TRACKING_ID = ''
           Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$wrapper) -WindowStyle Hidden
           try { schtasks.exe /Run /TN $taskName | Out-Null } catch { }
