@@ -1,0 +1,52 @@
+name: Q0907 surface crash
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-surface-crash.yml'
+
+jobs:
+  diagnose:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Run one surface with stderr and restore the singleton machine
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $py312='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe'
+          $py312w='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\pythonw.exe'
+          $env:PYTHONPATH=$parent
+          $env:RUNNER_TRACKING_ID=''
+
+          $all=@(Get-CimInstance Win32_Process)
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}
+          foreach($p in @($all|Where-Object{$_.CommandLine -match '[\\/]shell[\\/]run\.py'})){Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}
+          Start-Sleep -Seconds 1
+
+          Write-Host '=== ONE SURFACE RUN WITH STDERR ==='
+          @'
+          import os,pathlib,subprocess
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach')
+          env=os.environ.copy();env['PYTHONPATH']=r'C:\Users\AwesomeKai'
+          p=subprocess.Popen([r'C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe',str(root/'shell'/'run.py')],cwd=r'C:\Users\AwesomeKai',env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+          try:
+              out,err=p.communicate(timeout=9)
+              print('SURFACE_EXIT='+str(p.returncode))
+          except subprocess.TimeoutExpired:
+              print('SURFACE_STAYED_UP_9S=1 pid='+str(p.pid));p.terminate()
+              try: out,err=p.communicate(timeout=4)
+              except subprocess.TimeoutExpired: p.kill();out,err=p.communicate()
+          print('SURFACE_STDOUT_BEGIN');print(out[-30000:]);print('SURFACE_STDOUT_END')
+          print('SURFACE_STDERR_BEGIN');print(err[-50000:]);print('SURFACE_STDERR_END')
+          '@ | & $py314 -
+
+          Write-Host '=== RESTORE KEEPER ==='
+          $all=@(Get-CimInstance Win32_Process)
+          if(-not ($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){Start-Process -FilePath $py312w -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $parent -WindowStyle Hidden}
+          Start-Sleep -Seconds 5
+          Write-Host 'SURFACE_DIAG_DONE=1'
