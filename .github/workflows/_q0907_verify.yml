@@ -5,55 +5,45 @@ on:
     paths:
       - '.github/workflows/_q0907_verify.yml'
 
+permissions:
+  contents: read
+
 jobs:
-  verify:
+  apply:
     runs-on: self-hosted
-    timeout-minutes: 5
-    outputs:
-      host: ${{ steps.identity.outputs.host }}
-      runner: ${{ steps.identity.outputs.runner }}
+    timeout-minutes: 10
     steps:
-      - id: identity
-        name: Verify Windows self-hosted runner
+      - uses: actions/checkout@v4
+      - name: Apply observed Mach redesign
         shell: cmd
         run: |
           @echo off
-          echo HOST=%COMPUTERNAME%
-          echo USER=%USERNAME%
-          echo RUNNER=%RUNNER_NAME%
-          >>"%GITHUB_OUTPUT%" echo host=%COMPUTERNAME%
-          >>"%GITHUB_OUTPUT%" echo runner=%RUNNER_NAME%
+          echo HOST=%COMPUTERNAME% USER=%USERNAME% RUNNER=%RUNNER_NAME%
           if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 10
           if /I not "%USERNAME%"=="AwesomeKai" exit /b 13
-          C:\Windows\System32\wsl.exe -e bash -lc "printf 'WSL_OK\n'; uname -a" > "%RUNNER_TEMP%\q0907-wsl.txt" 2>&1
-          type "%RUNNER_TEMP%\q0907-wsl.txt"
-          findstr /C:"WSL_OK" "%RUNNER_TEMP%\q0907-wsl.txt" >nul || exit /b 11
-          where nvidia-smi.exe >nul 2>nul
-          if errorlevel 1 (
-            echo NVIDIA_SMI_NOT_FOUND
-            exit /b 12
-          ) else (
-            nvidia-smi.exe --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader
-            if errorlevel 1 exit /b 12
-          )
-          echo Q0907_VERIFY_OK
-
-  survive:
-    needs: verify
-    runs-on: self-hosted
-    timeout-minutes: 5
-    steps:
-      - name: Prove runner survived prior job completion
+          python "%GITHUB_WORKSPACE%\ops\mach-delight-rewrite.py" "C:\Users\AwesomeKai\mach"
+          if errorlevel 1 exit /b 31
+          echo MACH_LIVE_REWRITE_OK
+      - name: Mach desktop court
         shell: cmd
         run: |
           @echo off
-          echo FIRST_HOST=${{ needs.verify.outputs.host }}
-          echo FIRST_RUNNER=${{ needs.verify.outputs.runner }}
-          echo SECOND_HOST=%COMPUTERNAME%
-          echo SECOND_USER=%USERNAME%
-          echo SECOND_RUNNER=%RUNNER_NAME%
-          if /I not "%COMPUTERNAME%"=="${{ needs.verify.outputs.host }}" exit /b 20
-          if /I not "%RUNNER_NAME%"=="${{ needs.verify.outputs.runner }}" exit /b 21
-          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 22
-          if /I not "%USERNAME%"=="AwesomeKai" exit /b 23
-          echo Q0907_PERSIST_OK
+          python "C:\Users\AwesomeKai\mach\tests\desktop_ui.py" --render "%RUNNER_TEMP%\mach-live-redesign.png"
+          if errorlevel 1 exit /b 32
+          echo MACH_LIVE_DESKTOP_COURT_OK
+
+  survive:
+    needs: apply
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - name: Prove listener and rewritten source survive
+        shell: cmd
+        run: |
+          @echo off
+          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 40
+          if /I not "%USERNAME%"=="AwesomeKai" exit /b 41
+          findstr /C:"(rule gui/lens-open!" "C:\Users\AwesomeKai\mach\shell\desktop.mach" >nul || exit /b 42
+          findstr /C:"(rule gui/lens-key!" "C:\Users\AwesomeKai\mach\shell\desktop-apps.mach" >nul || exit /b 43
+          findstr /C:"\"id\" \"halo\"" "C:\Users\AwesomeKai\mach\shell\enchiridion.mach" >nul || exit /b 44
+          echo MACH_LIVE_PERSIST_OK
