@@ -1,0 +1,89 @@
+name: Q0907 resident module fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-resident-module-fix.yml'
+
+jobs:
+  fix:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Make the resident a package module and prove it stays resident
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $py312w='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\pythonw.exe'
+          $env:PYTHONPATH=$parent
+          $env:RUNNER_TRACKING_ID=''
+          Set-Location $root
+
+          Write-Host '=== PATCH BOTH CURRENT COPIES ==='
+          @'
+          from pathlib import Path
+          root=Path(r'C:\Users\AwesomeKai\mach')
+          old='organ("resident", [PY314, ROOT + r"\\core\\antigravity_seat.py", "--rate", "2.0"])'
+          new='organ("resident", [PY314, "-m", "mach.core.antigravity_seat", "--rate", "2.0"], mark="mach.core.antigravity_seat")'
+          for p in (root/'core'/'keeper.py', root/'mach'/'core'/'keeper.py'):
+              if not p.is_file():
+                  print('ABSENT',p); continue
+              s=p.read_text(encoding='utf-8')
+              if new in s:
+                  print('ALREADY_FIXED',p); continue
+              if old not in s:
+                  raise SystemExit('launch site changed: '+str(p))
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+              print('PATCHED',p)
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'keeper patch failed'}
+
+          Write-Host '=== STOP EXACT OLD OWNER / RESTART KEEPER ==='
+          $all=@(Get-CimInstance Win32_Process)
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'antigravity_seat\.py|mach\.core\.antigravity_seat'})){Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}
+          Start-Sleep -Seconds 1
+          Start-Process -FilePath $py312w -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $parent -WindowStyle Hidden
+
+          Write-Host '=== HOLD TEST ==='
+          Start-Sleep -Seconds 8
+          $r1=@(Get-CimInstance Win32_Process | Where-Object {$_.CommandLine -match 'mach\.core\.antigravity_seat'})
+          if($r1.Count-ne1){
+            if(Test-Path (Join-Path $root 'state\warden.log')){Get-Content (Join-Path $root 'state\warden.log') -Tail 60}
+            throw "resident count after 8s = $($r1.Count)"
+          }
+          $pid1=$r1[0].ProcessId
+          Write-Host "RESIDENT_PID_8S=$pid1 CMD=$($r1[0].CommandLine)"
+          Start-Sleep -Seconds 18
+          $r2=@(Get-CimInstance Win32_Process | Where-Object {$_.CommandLine -match 'mach\.core\.antigravity_seat'})
+          if($r2.Count-ne1){throw "resident count after 26s = $($r2.Count)"}
+          $pid2=$r2[0].ProcessId
+          Write-Host "RESIDENT_PID_26S=$pid2"
+          if($pid1-ne$pid2){throw "resident restarted during hold test: $pid1 -> $pid2"}
+
+          Write-Host '=== PACKAGE / MACHINE PROBE ==='
+          @'
+          import os,sys
+          os.chdir(r'C:\Users\AwesomeKai');sys.path.insert(0,r'C:\Users\AwesomeKai')
+          from mach.core import keeper
+          keeper.ORGANS.clear(); keeper.house()
+          r=keeper.ORGANS['resident']
+          print('RESIDENT_ARGV='+repr(r.argv))
+          print('RESIDENT_MARK='+r.mark)
+          assert r.argv[1:3]==['-m','mach.core.antigravity_seat']
+          assert r.mark=='mach.core.antigravity_seat'
+          import mach.core.computer as M
+          c=M.connect(start=False,timeout=5)
+          cat=c.do('catalog')
+          print('CATALOG_OK='+str(cat.get('ok'))+' N='+str(len(cat.get('transitions',[]))))
+          assert cat.get('ok') and len(cat.get('transitions',[]))>=13
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'package/machine probe failed'}
+
+          Write-Host '=== WARDEN TAIL ==='
+          if(Test-Path (Join-Path $root 'state\warden.log')){Get-Content (Join-Path $root 'state\warden.log') -Tail 35}
+          Write-Host 'RESIDENT_MODULE_FIX_OK=1'
