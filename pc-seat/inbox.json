@@ -1,6 +1,6 @@
 {
-  "nonce": "mach-branch-bus-install-20260907-a",
+  "nonce": "mach-branch-bus-v2-install-20260907-a",
   "op": "shell",
   "timeout_s": 120,
-  "argv": ["python", "ops/q0907-branch-bus.py", "--install"]
+  "argv": ["python", "ops/q0907-branch-bus-v2.py", "--install"]
 }
