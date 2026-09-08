@@ -1,31 +1,32 @@
-name: q0907 verify
+name: q0907 seat
 
 on:
   push:
     paths:
       - '.github/workflows/_q0907_verify.yml'
+      - 'pc-seat/inbox.json'
+      - 'ops/q0907-seat.py'
+
+concurrency:
+  group: q0907-seat
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  resident:
+  seat:
     runs-on: self-hosted
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
-      - name: Enter Mach through resident language current
+      - uses: actions/checkout@v4
+      - name: Execute q0907 seat request
         shell: cmd
         run: |
           @echo off
-          python -c "import sys,time; sys.path.insert(0,r'C:\Users\AwesomeKai'); from mach.core.presence import Presence; p=Presence(); print('GUI_ENABLED_BEFORE=',p.ask('gui/enabled',wait=5).get('value')); print('MODE_BEFORE=',p.ask('mode',wait=5).get('value')); p.do('(gui/lens-open!)',wait=5); assert p.ask('gui/lens',wait=5).get('value') is True; p.do('(gui/lens-key! (map \"key\" \"w\" \"text\" \"w\" \"ctrl\" false))',wait=5); q=p.ask('gui/query',wait=5).get('value'); print('RESIDENT_QUERY=',q); assert q=='w'; p.do('(put \"gui/query\" \"\")',wait=5); p.do('(gui/emit! \"touch\" (/ screen/w 2) 92)',wait=5); p.do('(gui/lens-open!)',wait=5); assert p.ask('gui/lens',wait=5).get('value') is True; assert p.ask('gui/query',wait=5).get('value')==''; print('MACH_RESIDENT_INTERACTION_OK'); p.close()"
-          if errorlevel 1 exit /b 71
-          echo MACH_LENS_LEFT_OPEN
-
-  survive:
-    needs: resident
-    runs-on: self-hosted
-    timeout-minutes: 5
-    steps:
-      - name: Read back resident state after job boundary
-        shell: cmd
-        run: |
-          @echo off
-          python -c "import sys; sys.path.insert(0,r'C:\Users\AwesomeKai'); from mach.core.presence import Presence; p=Presence(); v=p.ask('gui/lens',wait=5).get('value'); q=p.ask('gui/query',wait=5).get('value'); print('LENS_AFTER=',v,'QUERY_AFTER=',repr(q)); assert v is True and q==''; print('MACH_RESIDENT_PERSIST_OK'); p.close()"
-          if errorlevel 1 exit /b 72
+          echo HOST=%COMPUTERNAME% USER=%USERNAME% RUNNER=%RUNNER_NAME%
+          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 90
+          if /I not "%USERNAME%"=="AwesomeKai" exit /b 91
+          python "%GITHUB_WORKSPACE%\ops\q0907-seat.py" "%GITHUB_WORKSPACE%\pc-seat\inbox.json"
+          if errorlevel 1 exit /b %ERRORLEVEL%
+          echo Q0907_DURABLE_SEAT_OK
