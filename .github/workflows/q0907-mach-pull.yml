@@ -1,4 +1,4 @@
-name: Q0907 Mach pull
+name: Q0907 whole bagel pull
 
 on:
   push:
@@ -9,60 +9,63 @@ on:
 jobs:
   pull:
     runs-on: self-hosted
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Overlay and verify live Claude Mach tree on the Windows host
+      - name: Pull, overlay, snapshot, and verify the entire live Claude branch on the Windows host
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $scriptPath = Join-Path $env:RUNNER_TEMP 'q0907_mach_pull.sh'
+          $scriptPath = Join-Path $env:RUNNER_TEMP 'q0907_whole_bagel_pull.sh'
           $body = @'
           set -Eeuo pipefail
 
           ROOT=/mnt/c/Users/AwesomeKai/mach
-          DEST="$ROOT/mach"
           REPO=Pokitomas/local-machine-mac95
           BRANCH='claude/yo-dood-tm72j0'
           STAMP=$(date +%Y%m%d_%H%M%S)
-          BACK="$ROOT/.claude_pull_backup_$STAMP"
-          RECEIPTS="$ROOT/.pull_receipts"
+          BACK="$ROOT/.whole_bagel_backup_$STAMP"
+          RECEIPTS="$ROOT/.whole_bagel_receipts"
+          SNAPSHOTS="$ROOT/.whole_bagel_snapshots"
           TMP=$(mktemp -d)
           trap 'rm -rf "$TMP"' EXIT
 
           test -d "$ROOT"
-          mkdir -p "$DEST" "$BACK" "$RECEIPTS"
+          mkdir -p "$BACK" "$RECEIPTS" "$SNAPSHOTS"
 
-          SHA=''
-          SRC=''
+          # Resolve the live branch on the host itself, then freeze that exact SHA.
           if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
             SHA=$(gh api "repos/$REPO/branches/$BRANCH" --jq '.commit.sha')
             test -n "$SHA"
             gh api -H 'Accept: application/vnd.github+json' "repos/$REPO/zipball/$SHA" > "$TMP/repo.zip"
-            mkdir -p "$TMP/unpack"
-            python3 - "$TMP/repo.zip" "$TMP/unpack" <<'PY'
-          import sys, zipfile
-          z, out = sys.argv[1:]
-          with zipfile.ZipFile(z) as f:
-              f.extractall(out)
-          PY
-            TOP=$(find "$TMP/unpack" -mindepth 1 -maxdepth 1 -type d | head -1)
-            SRC="$TOP/mach"
           elif git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
             git -C "$ROOT" fetch origin "$BRANCH" --quiet
             SHA=$(git -C "$ROOT" rev-parse FETCH_HEAD)
-            mkdir -p "$TMP/tree"
-            git -C "$ROOT" archive "$SHA" mach | tar -x -C "$TMP/tree"
-            SRC="$TMP/tree/mach"
+            git -C "$ROOT" archive --format=zip "$SHA" > "$TMP/repo.zip"
           else
             echo 'NO_AUTHENTICATED_SOURCE' >&2
             exit 21
           fi
 
-          test -f "$SRC/web/check.js"
-          test -f "$SRC/web/shore.html"
+          test -s "$TMP/repo.zip"
+          cp "$TMP/repo.zip" "$SNAPSHOTS/$SHA.zip"
+          mkdir -p "$TMP/unpack"
+          python3 - "$TMP/repo.zip" "$TMP/unpack" <<'PY'
+          import sys, zipfile
+          z, out = sys.argv[1:]
+          with zipfile.ZipFile(z) as f:
+              f.extractall(out)
+              print('ARCHIVE_ENTRIES=' + str(len(f.infolist())))
+          PY
 
-          python3 - "$SRC" "$DEST" "$BACK" "$RECEIPTS/$STAMP.json" "$SHA" <<'PY'
+          TOP=$(find "$TMP/unpack" -mindepth 1 -maxdepth 1 -type d | head -1)
+          test -n "$TOP"
+          SRC="$TOP"
+          test -f "$SRC/mach/web/shore.html"
+
+          # Entire branch, not just mach/: overlay every tracked file. PC-only files are preserved.
+          python3 - "$SRC" "$ROOT" "$BACK" "$RECEIPTS/$STAMP.json" "$SHA" <<'PY'
           import hashlib, json, pathlib, shutil, sys, time
+
           src, dst, back, receipt = map(pathlib.Path, sys.argv[1:5])
           sha = sys.argv[5]
           copied = backed = unchanged = 0
@@ -73,13 +76,16 @@ jobs:
               with p.open('rb') as f:
                   for b in iter(lambda: f.read(1024 * 1024), b''):
                       h.update(b)
-              return h.digest()
+              return h.hexdigest()
 
           source_files = sorted(p for p in src.rglob('*') if p.is_file())
+          manifest = []
           for p in source_files:
               rel = p.relative_to(src)
               q = dst / rel
-              if q.exists() and q.is_file() and digest(p) == digest(q):
+              src_hash = digest(p)
+              manifest.append({'path': rel.as_posix(), 'sha256': src_hash, 'bytes': p.stat().st_size})
+              if q.exists() and q.is_file() and digest(q) == src_hash:
                   unchanged += 1
                   continue
               if q.exists() and q.is_file():
@@ -93,14 +99,13 @@ jobs:
               changed.append(rel.as_posix())
 
           mismatches = []
-          for p in source_files:
-              rel = p.relative_to(src)
-              q = dst / rel
-              if not q.is_file() or digest(p) != digest(q):
-                  mismatches.append(rel.as_posix())
+          for item in manifest:
+              q = dst / item['path']
+              if not q.is_file() or digest(q) != item['sha256']:
+                  mismatches.append(item['path'])
 
           data = {
-              'schema': 'mach-host-pull/v2',
+              'schema': 'claude-whole-bagel-host-pull/v1',
               'sha': sha,
               'source': 'Pokitomas/local-machine-mac95:claude/yo-dood-tm72j0',
               'destination': str(dst),
@@ -111,10 +116,12 @@ jobs:
               'unchanged': unchanged,
               'hash_mismatches': mismatches,
               'changed': changed,
+              'manifest': manifest,
               'unix_time': time.time(),
           }
           receipt.write_text(json.dumps(data, indent=2), encoding='utf-8')
-          print('PULLED_SHA=' + sha)
+
+          print('WHOLE_BAGEL_SHA=' + sha)
           print('SOURCE_FILES=' + str(len(source_files)))
           print('COPIED=' + str(copied))
           print('BACKED_UP=' + str(backed))
@@ -123,23 +130,30 @@ jobs:
           print('RECEIPT=' + str(receipt))
           print('BACKUP=' + str(back))
           if mismatches:
-              raise SystemExit('host verification failed: ' + ', '.join(mismatches[:20]))
+              raise SystemExit('whole-bagel host verification failed: ' + ', '.join(mismatches[:20]))
           PY
 
-          cd "$ROOT"
-          python3 -m compileall -q mach/core mach/lang
-          echo 'PY_COMPILE_OK'
+          printf '%s\n' "$SHA" > "$RECEIPTS/latest.sha"
+          printf '%s\n' "$STAMP" > "$RECEIPTS/latest.stamp"
 
-          if command -v node >/dev/null 2>&1; then
-            (cd "$DEST/web" && node check.js)
+          # Sanity-check both the language/runtime and the game-side source now on the real host.
+          cd "$ROOT"
+          if test -d mach/core || test -d mach/lang; then
+            python3 -m compileall -q mach/core mach/lang
+            echo 'MACH_PY_COMPILE_OK'
+          fi
+          if test -d machine_scripts; then
+            python3 -m compileall -q machine_scripts
+            echo 'MACHINE_SCRIPTS_PY_COMPILE_OK'
+          fi
+          if command -v node >/dev/null 2>&1 && test -f mach/web/check.js; then
+            (cd mach/web && node check.js)
             echo 'NODE_CHECK_OK'
           else
             echo 'NODE_CHECK_SKIPPED_NO_WSL_NODE'
           fi
 
-          printf '%s\n' "$SHA" > "$RECEIPTS/latest.sha"
-          printf '%s\n' "$STAMP" > "$RECEIPTS/latest.stamp"
-          echo 'MACH_HOST_PULL_OK'
+          echo 'WHOLE_BAGEL_HOST_PULL_OK'
           '@
           $body = $body.Replace("`r`n", "`n")
           [System.IO.File]::WriteAllText($scriptPath, $body, (New-Object System.Text.UTF8Encoding($false)))
