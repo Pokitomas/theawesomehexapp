@@ -5,45 +5,37 @@ on:
     paths:
       - '.github/workflows/_q0907_verify.yml'
 
-permissions:
-  contents: read
-
 jobs:
-  apply:
+  court:
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
-      - name: Apply observed Mach redesign
+      - name: Verify exact redesigned sources
         shell: cmd
         run: |
           @echo off
           echo HOST=%COMPUTERNAME% USER=%USERNAME% RUNNER=%RUNNER_NAME%
-          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 10
-          if /I not "%USERNAME%"=="AwesomeKai" exit /b 13
-          python "%GITHUB_WORKSPACE%\ops\mach-delight-rewrite.py" "C:\Users\AwesomeKai\mach"
-          if errorlevel 1 exit /b 31
-          echo MACH_LIVE_REWRITE_OK
-      - name: Mach desktop court
+          python -c "import hashlib,pathlib,sys; ps=[r'C:\Users\AwesomeKai\mach\shell\desktop.mach',r'C:\Users\AwesomeKai\mach\shell\desktop-apps.mach',r'C:\Users\AwesomeKai\mach\shell\enchiridion.mach']; ex=['ce90a1ed76951e009308f914f12d50cf7bf69860cdae8b5040140bab20be0ea7','97f0a8f0ad9dee2a8f655ad3b942f21b2d53d93f2b5fdb61860aa1fe4a6a66e6','74348f0b81592c44d4090a8d092936ef9afb33f28c43f1a3098789e8e3fc50d5']; got=[hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in ps]; print(*[f'{p} {g}' for p,g in zip(ps,got)],sep='\n'); sys.exit(0 if got==ex else 51)"
+          if errorlevel 1 exit /b 51
+          echo MACH_REDIRECT_HASHES_OK
+      - name: Run actual Mach desktop court
         shell: cmd
         run: |
           @echo off
           python "C:\Users\AwesomeKai\mach\tests\desktop_ui.py" --render "%RUNNER_TEMP%\mach-live-redesign.png"
-          if errorlevel 1 exit /b 32
+          if errorlevel 1 exit /b 52
           echo MACH_LIVE_DESKTOP_COURT_OK
 
   survive:
-    needs: apply
+    needs: court
     runs-on: self-hosted
     timeout-minutes: 5
     steps:
-      - name: Prove listener and rewritten source survive
+      - name: Verify redesigned source remains and runner reclaims
         shell: cmd
         run: |
           @echo off
-          if /I not "%COMPUTERNAME%"=="DESKTOP-6FN9B4M" exit /b 40
-          if /I not "%USERNAME%"=="AwesomeKai" exit /b 41
-          findstr /C:"(rule gui/lens-open!" "C:\Users\AwesomeKai\mach\shell\desktop.mach" >nul || exit /b 42
-          findstr /C:"(rule gui/lens-key!" "C:\Users\AwesomeKai\mach\shell\desktop-apps.mach" >nul || exit /b 43
-          findstr /C:"\"id\" \"halo\"" "C:\Users\AwesomeKai\mach\shell\enchiridion.mach" >nul || exit /b 44
+          if /I not "%USERNAME%"=="AwesomeKai" exit /b 60
+          findstr /C:"(rule gui/lens-open!" "C:\Users\AwesomeKai\mach\shell\desktop.mach" >nul || exit /b 61
+          findstr /C:"(rule gui/lens-key!" "C:\Users\AwesomeKai\mach\shell\desktop-apps.mach" >nul || exit /b 62
           echo MACH_LIVE_PERSIST_OK
