@@ -1,0 +1,61 @@
+name: Q0907 developer substrate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-developer-substrate.yml'
+
+jobs:
+  inspect:
+    runs-on: self-hosted
+    timeout-minutes: 18
+    steps:
+      - name: Inventory agent package, provider edges, and run focused developer courts
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py='C:\Python314\python.exe'
+          $env:PYTHONPATH=$root
+          $env:PYTHONIOENCODING='utf-8'
+          Set-Location $root
+
+          @'
+          from pathlib import Path
+          import re
+          root=Path(r'C:\Users\AwesomeKai\mach')
+          a=root/'agent'
+          print('=== AGENT TREE ===')
+          if not a.is_dir(): raise SystemExit('agent package missing')
+          for p in sorted(a.rglob('*')):
+              if p.is_file() and '__pycache__' not in p.parts:
+                  print('AGENT_FILE',p.relative_to(root).as_posix(),p.stat().st_size)
+          print('=== PROVIDER / LOOP / MUTATION EDGES ===')
+          needles=('openai','anthropic','cloudflare','provider','model','llm','http','urllib','requests','prompt','complete','infer','subprocess','workspace','selfpatch','patch','write_file','run_command','verify','tool','loop','governor','coengineer','task')
+          for p in sorted(a.rglob('*.py')):
+              s=p.read_text(encoding='utf-8',errors='ignore')
+              hits=[]
+              for n,line in enumerate(s.splitlines(),1):
+                  low=line.lower()
+                  if any(x in low for x in needles) and (line.lstrip().startswith(('def ','class ','from ','import ')) or any(x in low for x in ('api','http','model','prompt','subprocess','patch','workspace','tool','verify'))):
+                      hits.append((n,line))
+              if hits:
+                  print('SOURCE',p.relative_to(root).as_posix())
+                  for n,line in hits[:180]: print(' ',n,line[:260])
+          print('=== KEY FILES ===')
+          for name in ('agentapp.py','kernel.py','workspace.py','selfpatch.py','governor.py','memory.py','coengineer.py','coengineer_event.py'):
+              p=a/name
+              if p.is_file():
+                  print('BEGIN_FILE',name)
+                  for n,line in enumerate(p.read_text(encoding='utf-8',errors='ignore').splitlines(),1):
+                      print(f'{n:04d}: {line}')
+                  print('END_FILE',name)
+          '@ | & $py -
+          if($LASTEXITCODE-ne0){throw 'agent inventory failed'}
+
+          Write-Host '=== FOCUSED DEVELOPER COURTS ==='
+          & $py -m pytest -q tests\test_agent.py tests\test_coengineer.py tests\test_coengineer_event.py tests\test_coengineer_replay_audit.py tests\test_command.py
+          if($LASTEXITCODE-ne0){throw 'developer courts red'}
+          Write-Host 'DEVELOPER_SUBSTRATE_GREEN=1'
