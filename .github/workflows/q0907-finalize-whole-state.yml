@@ -1,0 +1,114 @@
+name: Q0907 finalize whole state
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-finalize-whole-state.yml'
+
+jobs:
+  final:
+    runs-on: self-hosted
+    timeout-minutes: 35
+    steps:
+      - name: Release native DLL exactly, run every court, restore the recurrent organs
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $py312w='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\pythonw.exe'
+          $node=(Get-Command node.exe -ErrorAction Stop).Source
+          $cargo=Get-Command cargo.exe -ErrorAction SilentlyContinue; if(-not $cargo){$cargo=Get-Command cargo -ErrorAction Stop}
+          Set-Location $root
+
+          Write-Host '=== PRECOURT LIVE STATE ==='
+          $env:PYTHONPATH=$parent
+          @'
+          import os,sys
+          os.chdir(r'C:\Users\AwesomeKai');sys.path.insert(0,r'C:\Users\AwesomeKai')
+          import mach.core.computer as M
+          c=M.connect(start=False,timeout=5)
+          q=c.do('query',path='web/shore.html',find='oasis/crowd',limit=20)
+          if len(q.get('hits') or [])<2:raise SystemExit('crowd not recurrent')
+          cat=c.do('catalog');s={x['edge']:x['cap'] for x in cat['transitions']}
+          for k in ('file','splice','tree','query'):
+              if M._CAPS[k].hex()!=s[k]:raise SystemExit('cap drift '+k)
+          print('CROWD_AND_CAP_IDENTITY_OK=1')
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'pre-court identity failed'}
+
+          # Find who actually has the native image mapped. Never kill by interpreter name.
+          Write-Host '=== NATIVE DLL OWNERS ==='
+          $owners=@()
+          foreach($p in Get-Process -ErrorAction SilentlyContinue){
+            try { if(@($p.Modules | Where-Object {$_.ModuleName -ieq 'mach_resident.dll'}).Count -gt 0){$owners+=$p} } catch {}
+          }
+          foreach($p in $owners){
+            $ci=Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction SilentlyContinue
+            Write-Host "DLL_OWNER pid=$($p.Id) name=$($p.ProcessName) cmd=$($ci.CommandLine)"
+          }
+
+          # Pause only named Mach organs that can map the DLL. Keeper first so it cannot race the build.
+          $all=@(Get-CimInstance Win32_Process)
+          $allowed='mach\.core\.keeper|antigravity_seat\.py|[\\/]shell[\\/]run\.py|mach\.core\.ingress_bridge'
+          foreach($p in $all){
+            if($p.CommandLine -match $allowed){
+              Write-Host "PAUSE_ORGAN pid=$($p.ProcessId) cmd=$($p.CommandLine)"
+              Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Start-Sleep -Seconds 2
+
+          Write-Host '=== NATIVE BUILD / RUST COURTS ==='
+          & $cargo.Source build --manifest-path (Join-Path $root 'native\resident_core\Cargo.toml') --release
+          if($LASTEXITCODE-ne0){throw 'native build red'}
+          & $cargo.Source test --manifest-path (Join-Path $root 'native\resident_core\Cargo.toml') --release -- --nocapture
+          $rust=$LASTEXITCODE;Write-Host "RUST_COURTS_EXIT=$rust"
+          if($rust-ne0){throw 'rust courts red'}
+
+          # Restore ingress + keeper immediately before hosted courts; keeper adopts exact organs.
+          $env:PYTHONPATH=$parent;$env:RUNNER_TRACKING_ID=''
+          Start-Process -FilePath $py314 -ArgumentList @('-m','mach.core.ingress_bridge') -WorkingDirectory $parent -WindowStyle Hidden
+          Start-Sleep -Seconds 2
+          Start-Process -FilePath $py312w -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $parent -WindowStyle Hidden
+          Start-Sleep -Seconds 5
+
+          Write-Host '=== NODE CROWD / 13 STATES ==='
+          @'
+          import pathlib,re
+          s=pathlib.Path(r'C:\Users\AwesomeKai\mach\web\shore.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script[^>]*type=["\']text/mach["\'][^>]*>(.*?)</script>',s,flags=re.S|re.I)
+          d=pathlib.Path(r'C:\Users\AwesomeKai\mach\.live_shore_check');d.mkdir(exist_ok=True)
+          for p in d.glob('*.mach'):p.unlink()
+          for i,b in enumerate(blocks):(d/f'{i:02d}.mach').write_text(b,encoding='utf-8')
+          if len(blocks)<2:raise SystemExit('missing Mach blocks')
+          '@ | & $py314 -
+          $blocks=Get-ChildItem (Join-Path $root '.live_shore_check') -Filter '*.mach'|Sort-Object Name|ForEach-Object{$_.FullName}
+          & $node (Join-Path $root 'web\check.js') @blocks --frames 8 --states --watch oasis/crowd
+          if($LASTEXITCODE-ne0){throw 'node crowd court red'}
+
+          Write-Host '=== 22 HOSTED SUITES ==='
+          & $py314 (Join-Path $root 'tests\run_all.py')
+          $hosted=$LASTEXITCODE;Write-Host "HOSTED_22_EXIT=$hosted"
+
+          Write-Host '=== ALL PYTEST COURTS DISCOVERY ==='
+          & $py314 -m pytest --collect-only -q (Join-Path $root 'tests')
+          Write-Host "PYTEST_COLLECT_EXIT=$LASTEXITCODE"
+          & $py314 -m pytest -q (Join-Path $root 'tests')
+          $pytest=$LASTEXITCODE;Write-Host "PYTEST_ALL_EXIT=$pytest"
+
+          Write-Host '=== FINAL SINGLETONS / BRIDGE ==='
+          Start-Sleep -Seconds 3
+          $all=@(Get-CimInstance Win32_Process)
+          $k=@($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})
+          $i=@($all|Where-Object{$_.CommandLine -match 'mach\.core\.ingress_bridge'})
+          $r=@($all|Where-Object{$_.CommandLine -match 'antigravity_seat\.py'})
+          $s=@($all|Where-Object{$_.CommandLine -match '[\\/]shell[\\/]run\.py'})
+          Write-Host "FINAL_ORGANS keeper=$($k.Count) ingress=$($i.Count) resident=$($r.Count) surface=$($s.Count)"
+          if($k.Count-ne1 -or $i.Count-ne1 -or $r.Count-ne1 -or $s.Count-ne1){throw 'final organ graph red'}
+
+          if($hosted-ne0){throw 'hosted suites red'}
+          if($pytest-ne0){throw 'pytest courts red'}
+          Write-Host 'WHOLE_RECURRENT_STATE_OK=1'
