@@ -16,7 +16,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $scriptPath = Join-Path $env:RUNNER_TEMP 'q0907_mach_pull.sh'
-          @'
+          $body = @'
           set -Eeuo pipefail
 
           ROOT=/mnt/c/Users/AwesomeKai/mach
@@ -125,7 +125,9 @@ jobs:
           printf '%s\n' "$SHA" > "$RECEIPTS/latest.sha"
           printf '%s\n' "$STAMP" > "$RECEIPTS/latest.stamp"
           echo 'MACH_HOST_PULL_OK'
-          '@ | Set-Content -LiteralPath $scriptPath -Encoding utf8
+          '@
+          $body = $body.Replace("`r`n", "`n")
+          [System.IO.File]::WriteAllText($scriptPath, $body, (New-Object System.Text.UTF8Encoding($false)))
 
           if ($scriptPath -notmatch '^([A-Za-z]):\\(.*)$') { throw "Unexpected runner temp path: $scriptPath" }
           $drive = $Matches[1].ToLowerInvariant()
