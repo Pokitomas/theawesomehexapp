@@ -1,0 +1,132 @@
+name: Q0907 Mach pull
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-mach-pull.yml'
+
+jobs:
+  pull:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - name: Overlay live Claude Mach tree onto the Windows host
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scriptPath = Join-Path $env:RUNNER_TEMP 'q0907_mach_pull.sh'
+          @'
+          set -Eeuo pipefail
+
+          ROOT=/mnt/c/Users/AwesomeKai/mach
+          DEST="$ROOT/mach"
+          REPO=Pokitomas/local-machine-mac95
+          BRANCH='claude/yo-dood-tm72j0'
+          FALLBACK_SHA='2b3fbf71a4189daf59d7083497fb7f5d89f3bf29'
+          STAMP=$(date +%Y%m%d_%H%M%S)
+          BACK="$ROOT/.claude_pull_backup_$STAMP"
+          RECEIPTS="$ROOT/.pull_receipts"
+          TMP=$(mktemp -d)
+          trap 'rm -rf "$TMP"' EXIT
+
+          test -d "$ROOT"
+          mkdir -p "$DEST" "$BACK" "$RECEIPTS"
+
+          SHA=''
+          SRC=''
+
+          if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+            SHA=$(gh api "repos/$REPO/branches/$BRANCH" --jq '.commit.sha')
+            test -n "$SHA"
+            gh api -H 'Accept: application/vnd.github+json' "repos/$REPO/zipball/$SHA" > "$TMP/repo.zip"
+            mkdir -p "$TMP/unpack"
+            python3 - "$TMP/repo.zip" "$TMP/unpack" <<'PY'
+          import sys, zipfile
+          z, out = sys.argv[1:]
+          with zipfile.ZipFile(z) as f:
+              f.extractall(out)
+          PY
+            TOP=$(find "$TMP/unpack" -mindepth 1 -maxdepth 1 -type d | head -1)
+            SRC="$TOP/mach"
+          elif git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            git -C "$ROOT" fetch origin "$BRANCH" --quiet
+            SHA=$(git -C "$ROOT" rev-parse FETCH_HEAD)
+            mkdir -p "$TMP/tree"
+            git -C "$ROOT" archive "$SHA" mach | tar -x -C "$TMP/tree"
+            SRC="$TMP/tree/mach"
+          else
+            SHA="$FALLBACK_SHA"
+            echo 'NO_AUTHENTICATED_SOURCE' >&2
+            exit 21
+          fi
+
+          test -d "$SRC"
+          test -f "$SRC/web/check.js"
+          test -f "$SRC/web/shore.html"
+
+          python3 - "$SRC" "$DEST" "$BACK" "$RECEIPTS/$STAMP.json" "$SHA" <<'PY'
+          import hashlib, json, pathlib, shutil, sys, time
+
+          src, dst, back, receipt = map(pathlib.Path, sys.argv[1:5])
+          sha = sys.argv[5]
+          copied = backed = unchanged = 0
+          changed = []
+
+          def digest(p):
+              h = hashlib.sha256()
+              with p.open('rb') as f:
+                  for b in iter(lambda: f.read(1024 * 1024), b''):
+                      h.update(b)
+              return h.digest()
+
+          for p in sorted(x for x in src.rglob('*') if x.is_file()):
+              rel = p.relative_to(src)
+              q = dst / rel
+              if q.exists() and q.is_file() and digest(p) == digest(q):
+                  unchanged += 1
+                  continue
+              if q.exists() and q.is_file():
+                  b = back / rel
+                  b.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(q, b)
+                  backed += 1
+              q.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(p, q)
+              copied += 1
+              changed.append(rel.as_posix())
+
+          data = {
+              'schema': 'mach-host-pull/v1',
+              'sha': sha,
+              'source': 'Pokitomas/local-machine-mac95:claude/yo-dood-tm72j0',
+              'destination': str(dst),
+              'backup': str(back),
+              'copied': copied,
+              'backed_up': backed,
+              'unchanged': unchanged,
+              'changed': changed,
+              'unix_time': time.time(),
+          }
+          receipt.write_text(json.dumps(data, indent=2), encoding='utf-8')
+          print('PULLED_SHA=' + sha)
+          print('COPIED=' + str(copied))
+          print('BACKED_UP=' + str(backed))
+          print('UNCHANGED=' + str(unchanged))
+          print('RECEIPT=' + str(receipt))
+          print('BACKUP=' + str(back))
+          PY
+
+          cd "$DEST/web"
+          node check.js
+          cd "$ROOT"
+          python3 -m compileall -q mach/core mach/lang
+
+          printf '%s\n' "$SHA" > "$RECEIPTS/latest.sha"
+          printf '%s\n' "$STAMP" > "$RECEIPTS/latest.stamp"
+          echo 'MACH_HOST_PULL_OK'
+          '@ | Set-Content -LiteralPath $scriptPath -Encoding utf8
+
+          $wslPath = (& wsl.exe wslpath -u $scriptPath).Trim()
+          & wsl.exe bash $wslPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
