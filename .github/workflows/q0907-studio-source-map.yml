@@ -1,0 +1,52 @@
+name: Q0907 studio source map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-studio-source-map.yml'
+
+jobs:
+  map:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - name: Parse every live studio source independently and expose reload order
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $env:PYTHONPATH=$parent
+          Set-Location $parent
+          @'
+          import os,sys,pathlib,traceback,re
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach')
+          sys.path.insert(0,r'C:\Users\AwesomeKai')
+          from mach.lang.read import read,lex
+          print('=== STUDIO_HOST RELOAD REGION ===')
+          hp=root/'core'/'studio_host.py'
+          lines=hp.read_text(encoding='utf-8').splitlines()
+          for i in range(max(0,110),min(len(lines),190)):
+              print(f'{i+1:04d}: {lines[i]}')
+          print('=== SHELL MACH PARSE ===')
+          for p in sorted((root/'shell').glob('*.mach')):
+              s=p.read_text(encoding='utf-8')
+              try:
+                  forms=read(s)
+                  print('PARSE_OK',p.name,'bytes',len(s.encode()),'forms',len(forms),'tokens',len(lex(s)))
+              except Exception as e:
+                  print('PARSE_FAIL',p.name,type(e).__name__,str(e),'bytes',len(s.encode()),'tokens',len(lex(s)))
+                  # Find largest prefix that still parses, then show the tail around the break.
+                  ls=s.splitlines(True)
+                  lo=0
+                  for n in range(1,len(ls)+1):
+                      try: read(''.join(ls[:n])); lo=n
+                      except Exception: pass
+                  print('LAST_PARSEABLE_PREFIX_LINES',lo,'TOTAL_LINES',len(ls))
+                  start=max(0,lo-12);end=min(len(ls),lo+45)
+                  for j in range(start,end): print(f'BADCTX {j+1:04d}: {ls[j].rstrip()}')
+          print('STUDIO_SOURCE_MAP_DONE=1')
+          '@ | & $py314 -
+          if($LASTEXITCODE-ne0){throw 'source map failed'}
