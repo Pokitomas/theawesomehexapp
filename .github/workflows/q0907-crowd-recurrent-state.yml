@@ -1,0 +1,158 @@
+name: Q0907 crowd recurrent state
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-crowd-recurrent-state.yml'
+
+jobs:
+  mutate:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - name: Reload current Mach bridge, splice crowd into the live graph, and verify the whole state
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'C:\Users\AwesomeKai\mach'
+          Set-Location -LiteralPath $root
+          $python = (Get-Command python.exe -ErrorAction Stop).Source
+          $node = (Get-Command node.exe -ErrorAction Stop).Source
+
+          Write-Host '=== CURRENT BRIDGE BEFORE RELOAD ==='
+          @'
+          import json, sys
+          sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
+          from mach.core.computer import connect
+          c = connect(start=False)
+          print(json.dumps(c.do('catalog'), default=str)[:16000])
+          print(json.dumps(c.do('windows'), default=str)[:20000])
+          print(json.dumps(c.do('query', path='mach/web/shore.html', find='oasis/parts', limit=20), default=str)[:12000])
+          '@ | & $python -
+
+          # The source was overlaid while this long-lived bridge was already resident.
+          # Reload exactly that organ so its executable transitions and the source tree are one version.
+          $old = @(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'mach\.core\.ingress_bridge' })
+          foreach ($p in $old) {
+            Write-Host "RELOAD_INGRESS_PID=$($p.ProcessId)"
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop
+          }
+          Start-Sleep -Milliseconds 700
+          $env:RUNNER_TRACKING_ID = ''
+          Start-Process -FilePath $python -ArgumentList @('-m','mach.core.ingress_bridge') -WorkingDirectory $root -WindowStyle Hidden
+          Start-Sleep -Seconds 2
+
+          Write-Host '=== CURRENT BRIDGE AFTER RELOAD ==='
+          @'
+          import json, sys
+          sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
+          from mach.core.computer import connect
+          c = connect(start=False, timeout=5)
+          cat = c.do('catalog')
+          edges = {x['edge'] for x in cat.get('transitions', [])}
+          need = {'file','splice','tree','query','document','structure','processes','stop','launch'}
+          print('BRIDGE_EDGES=' + ','.join(sorted(edges)))
+          if not need.issubset(edges):
+              raise SystemExit('bridge did not reload current source: ' + repr(sorted(need-edges)))
+          print('CURRENT_BRIDGE_SOURCE_OK=1')
+          '@ | & $python -
+
+          Write-Host '=== BUILD CURRENT NATIVE RESIDENT CORE ==='
+          $cargo = Get-Command cargo.exe -ErrorAction SilentlyContinue
+          if (-not $cargo) { $cargo = Get-Command cargo -ErrorAction SilentlyContinue }
+          if ($cargo) {
+            & $cargo.Source build --manifest-path (Join-Path $root 'mach\native\resident_core\Cargo.toml') --release
+            if ($LASTEXITCODE -ne 0) { throw 'native resident core build failed' }
+            Write-Host 'NATIVE_RESIDENT_CORE_BUILT=1'
+          } else {
+            throw 'cargo is not on the Windows host PATH; refusing to skip native verification'
+          }
+
+          Write-Host '=== CAS-SPLICE CROWD THROUGH MACH COMPUTER ==='
+          @'
+          import json, sys
+          sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
+          from mach.core.computer import connect
+          c = connect(start=False, timeout=5)
+          path = 'mach/web/shore.html'
+          hits = c.do('query', path=path, find='(rule oasis/parts', limit=8)
+          rows = hits.get('hits') or []
+          if len(rows) != 1:
+              raise SystemExit('expected one oasis/parts rule, got ' + repr(rows))
+          at0 = max(0, int(rows[0]['at']) - 900)
+          obs = c.do('file', path=path, at=at0, limit=7000)
+          text = obs['text']
+          if '(rule oasis/crowd ' in text:
+              print('CROWD_ALREADY_TRACKED=1')
+          else:
+              marker = '(rule oasis/parts '
+              rel_insert = text.index(marker)
+              old = '''  (map "k" 8 "x" 0 "y" 0 "z" 0 "hx" oasis/cell "hy" 0.44 "hz" oasis/seed "r" 2.6\n       "g" 0 "s" 0.05 "df" shore/clock "ry" oasis/runa "rx" oasis/run\n       "cr" 0.235 "cg" 0.170 "cb" 0.128 "ro" 0.88 "ss" 0.14)'''
+              rel_map = text.index(old)
+              crowd_rule = '''(rule oasis/crowd\n  ; the several-million-body primitive is a claim of its own. It used to be anonymous\n  ; inside oasis/parts, which meant the graph could render it but could not name, watch,\n  ; persist, or attribute its motion as the crowd itself. Keep the renderer payload\n  ; identical; only make the law addressable in the same recurrent state as its drivers.\n  (map "k" 8 "x" 0 "y" 0 "z" 0 "hx" oasis/cell "hy" 0.44 "hz" oasis/seed "r" 2.6\n       "g" 0 "s" 0.05 "df" shore/clock "ry" oasis/runa "rx" oasis/run\n       "cr" 0.235 "cg" 0.170 "cb" 0.128 "ro" 0.88 "ss" 0.14))\n'''
+              base = int(obs['at'])
+              # Byte positions are derived from the exact observed UTF-8 slice.
+              before_insert = text[:rel_insert].encode('utf-8')
+              before_map = text[:rel_map].encode('utf-8')
+              oldb = old.encode('utf-8')
+              splices = [
+                  [base + len(before_insert), base + len(before_insert), crowd_rule],
+                  [base + len(before_map), base + len(before_map) + len(oldb), '  oasis/crowd'],
+              ]
+              out = c.do('splice', path=path, expect=obs['etag'], splices=splices)
+              print(json.dumps(out, default=str))
+              if not out.get('committed'):
+                  raise SystemExit('crowd CAS did not commit')
+          q = c.do('query', path=path, find='oasis/crowd', limit=20)
+          print(json.dumps(q, default=str)[:12000])
+          if len(q.get('hits') or []) < 2:
+              raise SystemExit('crowd is not both defined and consumed')
+          print('CROWD_NAMED_IN_LIVE_TREE=1')
+          '@ | & $python -
+
+          Write-Host '=== EXTRACT THE ACTUAL LIVE SHORE PROGRAM ==='
+          @'
+          import pathlib, re
+          src = pathlib.Path(r'C:\Users\AwesomeKai\mach\mach\web\shore.html').read_text(encoding='utf-8')
+          blocks = re.findall(r'<script[^>]*type=["\']text/mach["\'][^>]*>(.*?)</script>', src, flags=re.S|re.I)
+          if len(blocks) < 2:
+              raise SystemExit(f'expected >=2 Mach blocks, got {len(blocks)}')
+          out = pathlib.Path(r'C:\Users\AwesomeKai\mach\.live_shore_check')
+          out.mkdir(exist_ok=True)
+          for i,b in enumerate(blocks):
+              (out/f'{i:02d}.mach').write_text(b, encoding='utf-8')
+          print('LIVE_MACH_BLOCKS=' + str(len(blocks)))
+          '@ | & $python -
+
+          Write-Host '=== CROWD IS AN ACTIVE GRAPH CLAIM ==='
+          $blocks = Get-ChildItem -LiteralPath (Join-Path $root '.live_shore_check') -Filter '*.mach' | Sort-Object Name | ForEach-Object { $_.FullName }
+          & $node (Join-Path $root 'mach\web\check.js') @blocks --frames 8 --states --watch oasis/crowd
+          if ($LASTEXITCODE -ne 0) { throw 'live shore state check failed' }
+          Write-Host 'LIVE_SHORE_13_STATES_AND_CROWD_OK=1'
+
+          Write-Host '=== BOTH RENDERERS / NODE ==='
+          Push-Location (Join-Path $root 'mach\web')
+          & $node check.js
+          if ($LASTEXITCODE -ne 0) { throw 'node renderer check failed' }
+          Pop-Location
+          Write-Host 'NODE_RENDERER_CHECK_OK=1'
+
+          Write-Host '=== ALL 22 HOSTED SUITES ==='
+          & $python (Join-Path $root 'mach\tests\run_all.py')
+          $hosted = $LASTEXITCODE
+          Write-Host "HOSTED_SUITES_EXIT=$hosted"
+          if ($hosted -ne 0) { throw 'hosted suites are not green' }
+          Write-Host 'HOSTED_22_22_OK=1'
+
+          Write-Host '=== ROOT COURTS ==='
+          if (Test-Path -LiteralPath (Join-Path $root 'tests')) {
+            $env:PYTHONPATH = $root
+            & $python -m pytest -q (Join-Path $root 'tests')
+            if ($LASTEXITCODE -ne 0) { throw 'root courts failed' }
+            Write-Host 'ROOT_COURTS_OK=1'
+          } else {
+            throw 'root courts directory is absent; refusing to call verification complete'
+          }
+
+          Write-Host 'WHOLE_RECURRENT_STATE_OK=1'
