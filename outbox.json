@@ -1,10 +1,1 @@
-{
-  "schema": "mach-live-bus/v1",
-  "ack": 0,
-  "from": "mach",
-  "ok": true,
-  "status": "bootstrapping",
-  "result": {},
-  "heartbeat": 0,
-  "ts": 0
-}
+{"schema":"mach-live-bus/v1","ack":0,"from":"mach","box":"-IsjeU4Lzp_mTxqTP1vZSlLJyFFKqPlcgnqWSnJLTaKCFVGIaQECbjqbKCg-uFCg5DoaJF7G4HE5Jp_JQ8sAXdeF73vVGMC2cAouYX3AWt88w-ig5aso6UPWTOIhqp5TTpdPxQ","heartbeat":1788829002,"ts":1788829002.5350828}
