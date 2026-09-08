@@ -1,0 +1,49 @@
+name: Q0907 game story map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-game-story-map.yml'
+
+jobs:
+  map:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Print story tail and delimiter depth at later top-level-looking forms
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:PYTHONIOENCODING='utf-8'
+          @'
+          from pathlib import Path
+          p=Path(r'C:\Users\AwesomeKai\mach\shell\game.mach')
+          s=p.read_text(encoding='utf-8');ls=s.splitlines()
+          print('=== LINES 90-END ===')
+          for n in range(90,len(ls)+1): print(f'{n:04d}: {ls[n-1]}')
+          print('=== DEPTH AT LINE STARTS ===')
+          stack=[];ins=False;esc=False
+          for n,line in enumerate(ls,1):
+              # Report depth before this physical line.
+              st=line.lstrip()
+              if n>=90 and (st.startswith('(rule ') or st.startswith('(state ') or st.startswith('(def ')):
+                  print('TOPLOOK',n,'depth',len(stack),st[:100])
+              i=0
+              while i<len(line):
+                  c=line[i]
+                  if ins:
+                      if esc:esc=False
+                      elif c=='\\':esc=True
+                      elif c=='"':ins=False
+                      i+=1;continue
+                  if c==';':break
+                  if c=='"':ins=True;i+=1;continue
+                  if c in '([{':stack.append((c,n,i+1))
+                  elif c in ')]}':
+                      if stack:stack.pop()
+                      else:print('UNDERFLOW',n,i+1,c)
+                  i+=1
+          print('FINAL_STACK',stack[-10:])
+          '@ | & 'C:\Python314\python.exe' -
+          if($LASTEXITCODE-ne0){throw 'game story map failed'}
