@@ -1,0 +1,10 @@
+{
+  "schema": "mach-live-bus/v1",
+  "ack": 0,
+  "from": "mach",
+  "ok": true,
+  "status": "bootstrapping",
+  "result": {},
+  "heartbeat": 0,
+  "ts": 0
+}

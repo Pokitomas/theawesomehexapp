@@ -1,0 +1,8 @@
+{
+  "schema": "mach-live-bus/v1",
+  "seq": 0,
+  "from": "bootstrap",
+  "op": "noop",
+  "payload": {},
+  "ts": 0
+}
