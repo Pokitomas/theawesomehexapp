@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
-import { callMach } from "../../../../../lib/bus";
+import { callMach } from "../../../../lib/bus";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
