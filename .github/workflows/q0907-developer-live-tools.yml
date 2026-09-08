@@ -1,0 +1,46 @@
+name: Q0907 developer live tools
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-developer-live-tools.yml'
+
+jobs:
+  inspect:
+    runs-on: self-hosted
+    timeout-minutes: 12
+    steps:
+      - name: Print catalog and exact file query splice command contracts
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py='C:\Python314\python.exe'
+          $env:PYTHONPATH=$parent
+          $env:PYTHONIOENCODING='utf-8'
+          Set-Location $parent
+          @'
+          import os,sys,pathlib,re,inspect
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach')
+          sys.path.insert(0,r'C:\Users\AwesomeKai')
+          import mach.core.computer as C
+          c=C.connect(start=False,timeout=5)
+          cat=c.do('catalog')
+          print('=== LIVE CATALOG ===')
+          for row in cat.get('transitions',[]): print('CAP',row)
+          print('=== COMPUTER IMPLEMENTATION SITES ===')
+          p=root/'core'/'computer.py';lines=p.read_text(encoding='utf-8').splitlines()
+          names=('_file_read','_file_splice','_tree','_query','_command','TRANSITIONS','_CAPS','def invoke','def do')
+          for i,line in enumerate(lines):
+              if any(x in line for x in names):
+                  print('BLOCK_AT',i+1,line)
+                  for j in range(i,min(len(lines),i+75)): print(f'{j+1:04d}: {lines[j]}')
+          print('=== COMMAND MODULE ===')
+          q=root/'core'/'command.py'
+          if q.is_file():
+              for n,line in enumerate(q.read_text(encoding='utf-8').splitlines(),1): print(f'{n:04d}: {line}')
+          print('LIVE_DEVELOPER_TOOL_MAP_OK=1')
+          '@ | & $py -
+          if($LASTEXITCODE-ne0){throw 'live developer tool map failed'}
