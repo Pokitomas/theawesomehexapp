@@ -1,0 +1,113 @@
+name: Q0907 whole bagel resident
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-whole-bagel-resident.yml'
+
+jobs:
+  resident:
+    runs-on: self-hosted
+    timeout-minutes: 12
+    steps:
+      - name: Install and start the Claude workspace resident bridge on the real PC
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $root = 'C:\Users\AwesomeKai\mach'
+          $bridge = Join-Path $root 'machine_scripts\claude_resident_bridge.py'
+          $tokenFile = 'C:\Users\AwesomeKai\.model-resident\session.token'
+          $stateRoot = 'C:\Users\AwesomeKai\.claude-seat'
+          $wrapper = Join-Path $root 'machine_scripts\run_claude_resident_bridge.ps1'
+          $logDir = Join-Path $root '.resident_logs'
+          $logFile = Join-Path $logDir 'claude-resident-bridge.log'
+          $taskName = 'ClaudeResidentBridge'
+          $resident = 'http://127.0.0.1:8789'
+
+          if (-not (Test-Path -LiteralPath $bridge -PathType Leaf)) { throw "bridge missing: $bridge" }
+          if (-not (Test-Path -LiteralPath $tokenFile -PathType Leaf)) { throw "resident token file missing: $tokenFile" }
+          New-Item -ItemType Directory -Force -Path $stateRoot, $logDir | Out-Null
+
+          $pythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
+          if (-not $pythonCmd) { $pythonCmd = Get-Command python -ErrorAction SilentlyContinue }
+          if (-not $pythonCmd) { throw 'Windows Python not found' }
+          $python = $pythonCmd.Source
+
+          $ghCmd = Get-Command gh.exe -ErrorAction SilentlyContinue
+          if (-not $ghCmd) { $ghCmd = Get-Command gh -ErrorAction SilentlyContinue }
+          if (-not $ghCmd) { throw 'Windows gh not found' }
+          $gh = $ghCmd.Source
+
+          # Prove the local resident is the thing we are attaching to.
+          $health = Invoke-WebRequest -UseBasicParsing -Uri "$resident/health" -TimeoutSec 5
+          if ($health.StatusCode -lt 200 -or $health.StatusCode -ge 300) { throw "resident health HTTP $($health.StatusCode)" }
+          Write-Host "RESIDENT_HEALTH_OK=$($health.StatusCode)"
+
+          # Detect the resident's actual token convention without printing the token.
+          $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
+          if (-not $token) { throw 'resident token file is empty' }
+          $auth = $null
+          foreach ($mode in @('bearer','header','query','none')) {
+            try {
+              $uri = "$resident/in?channel=claude-auth-probe"
+              $headers = @{}
+              if ($mode -eq 'bearer') { $headers['Authorization'] = "Bearer $token" }
+              elseif ($mode -eq 'header') { $headers['x-model-resident-token'] = $token }
+              elseif ($mode -eq 'query') { $uri += '&token=' + [uri]::EscapeDataString($token) }
+              $r = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Headers $headers -Body ([byte[]]@()) -ContentType 'application/octet-stream' -TimeoutSec 5
+              if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300) { $auth = $mode; break }
+            } catch { }
+          }
+          if (-not $auth) { throw 'resident auth mode could not be established' }
+          Write-Host "RESIDENT_AUTH_MODE=$auth"
+
+          # The wrapper reads the secret locally at launch. Nothing secret is copied to GitHub or logs.
+          $pythonDir = Split-Path -Parent $python
+          $ghDir = Split-Path -Parent $gh
+          $wrapperBody = @"
+          `$ErrorActionPreference = 'Continue'
+          `$env:RUNNER_TRACKING_ID = ''
+          `$env:MODEL_RESIDENT_TOKEN = (Get-Content -LiteralPath '$tokenFile' -Raw).Trim()
+          `$env:PATH = '$ghDir;$pythonDir;' + `$env:PATH
+          `$log = '$logFile'
+          while (`$true) {
+            try {
+              & '$python' '$bridge' --resident '$resident' --channel claude --auth '$auth' --root '$stateRoot' *>> `$log
+            } catch {
+              (`$_.Exception.ToString()) | Out-File -FilePath `$log -Append -Encoding utf8
+            }
+            Start-Sleep -Seconds 2
+          }
+          "@
+          [System.IO.File]::WriteAllText($wrapper, $wrapperBody.Replace("`r`n","`n"), (New-Object System.Text.UTF8Encoding($false)))
+
+          # Replace only our own task. It restarts the peer after login/reboot.
+          schtasks.exe /End /TN $taskName 2>$null | Out-Null
+          schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
+          $taskCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$wrapper`""
+          schtasks.exe /Create /TN $taskName /SC ONLOGON /TR $taskCommand /F | Out-Null
+
+          # Start now outside the Actions runner's process-cleanup ancestry, and also arm Task Scheduler.
+          $env:RUNNER_TRACKING_ID = ''
+          Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$wrapper) -WindowStyle Hidden
+          try { schtasks.exe /Run /TN $taskName | Out-Null } catch { }
+
+          Start-Sleep -Seconds 8
+          if (-not (Test-Path -LiteralPath $logFile -PathType Leaf)) { throw 'bridge did not produce a log' }
+          $tail = Get-Content -LiteralPath $logFile -Tail 80 -ErrorAction SilentlyContinue
+          $safeTail = $tail | Where-Object { $_ -notmatch 'token' }
+          $safeTail | Select-Object -Last 30
+
+          if (-not ($tail -match 'CLAUDE_RESIDENT_BRIDGE up')) { throw 'bridge process did not reach resident startup' }
+          if ($tail -match 'RESIDENT_AUTH_HINT') { throw 'bridge reached resident but authentication failed' }
+
+          $task = schtasks.exe /Query /TN $taskName /FO LIST 2>$null
+          if ($LASTEXITCODE -ne 0) { throw 'persistent bridge task was not registered' }
+          Write-Host 'CLAUDE_RESIDENT_BRIDGE_LIVE=1'
+          Write-Host "BRIDGE=$bridge"
+          Write-Host "STATE=$stateRoot"
+          Write-Host "LOG=$logFile"
+          Write-Host "TASK=$taskName"
+          Write-Host 'WHOLE_BAGEL_RESIDENT_OK'
