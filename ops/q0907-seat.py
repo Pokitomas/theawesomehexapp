@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "q0907-seat/v1"
+VERSION = "q0907-seat/v2"
 MAX_OUTPUT = 120_000
 
 _SECRET_PATTERNS = [
@@ -92,6 +92,12 @@ def main() -> int:
         emit(f"MACH_PRESENT={mach.is_dir()}")
         emit("Q0907_SEAT_OK")
         return 0
+
+    if op == "live_install":
+        installer = Path(__file__).with_name("q0907-live-install.py")
+        if not installer.is_file():
+            raise FileNotFoundError(installer)
+        return run_argv([sys.executable, str(installer)], str(installer.parent), min(timeout, 240))
 
     if op == "shell":
         return run_argv(req.get("argv", []), cwd, timeout)
