@@ -5,32 +5,47 @@ on:
 permissions:
   contents: read
 jobs:
-  inspect:
+  rewrite:
     runs-on: self-hosted
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
-      - name: Index Mach architecture
+      - uses: actions/checkout@v4
+      - name: Atomically rewrite observed Mach surface
         shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference='Stop'
-          $src='C:\Users\AwesomeKai\mach'
-          if (-not (Test-Path $src)) { throw "missing $src" }
-          $ext=@('.py','.c','.h','.cpp','.hpp','.rs','.js','.ts','.tsx','.html','.css','.toml','.json','.md','.mach')
-          $files=@(Get-ChildItem $src -Recurse -File -Force | Where-Object {
-            $rel=$_.FullName.Substring($src.Length).TrimStart('\')
-            $parts=$rel -split '\\'
-            -not ($parts | Where-Object { $_ -in @('.git','.venv','venv','node_modules','__pycache__','.pytest_cache','build','dist') }) -and
-            $_.Length -lt 500000 -and $ext -contains $_.Extension.ToLowerInvariant()
-          })
-          Write-Host '=== ROOT ==='
-          Get-ChildItem $src -Force | Sort-Object PSIsContainer -Descending,Name | ForEach-Object { "{0}`t{1}" -f ($(if($_.PSIsContainer){'DIR'}else{'FILE'}),$_.Name) }
-          Write-Host '=== SOURCE PATHS ==='
-          $files | ForEach-Object { $_.FullName.Substring($src.Length).TrimStart('\') } | Sort-Object | Select-Object -First 500
-          Write-Host '=== ARCHITECTURE SYMBOLS ==='
-          $patterns=@('LiveDocument','class Graph','def .*graph','relation','spatial','overlay','decay','tau','pygame','pyglet','glfw','moderngl','tkinter','PyQt','window','renderer','render','editor','interactive','input','event','scheduler','slot','dirty','piece')
-          Select-String -Path $files.FullName -Pattern $patterns -CaseSensitive:$false -ErrorAction SilentlyContinue |
-            Select-Object -First 800 | ForEach-Object {
-              $rel=$_.Path.Substring($src.Length).TrimStart('\')
-              "${rel}:$($_.LineNumber): $($_.Line.Trim())"
-            }
-          Write-Host 'MACH_ARCH_INDEX_OK'
+          python "$env:GITHUB_WORKSPACE\ops\mach-delight-rewrite.py" "C:\Users\AwesomeKai\mach"
+          if ($LASTEXITCODE -ne 0) { throw "rewrite failed rc=$LASTEXITCODE" }
+      - name: Existing desktop court plus render
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference='Stop'
+          $png = Join-Path $env:RUNNER_TEMP 'mach-live-redesign.png'
+          python "C:\Users\AwesomeKai\mach\tests\desktop_ui.py" --render $png
+          if ($LASTEXITCODE -ne 0) { throw "desktop court failed rc=$LASTEXITCODE" }
+          if (-not (Test-Path $png)) { throw 'render missing' }
+          Write-Host 'MACH_DESKTOP_COURT_OK'
+      - name: Verify through resident Mach ingress
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference='Stop'
+          Start-Sleep -Milliseconds 1800
+          $say='C:\Users\AwesomeKai\mach\say.py'
+          python $say '(gui/lens-open!)'
+          if ($LASTEXITCODE -ne 0) { throw 'resident lens open failed' }
+          $lens = python $say -a gui/lens
+          Write-Host "RESIDENT_LENS=$lens"
+          python $say '(gui/lens-key! (map "key" "w" "text" "w" "ctrl" false))'
+          if ($LASTEXITCODE -ne 0) { throw 'resident lens key failed' }
+          $query = python $say -a gui/query
+          Write-Host "RESIDENT_QUERY=$query"
+          if (($query -join "`n") -notmatch 'w') { throw 'live lens query did not update' }
+          python $say '(gui/lens-close!)'
+          python $say '(gui/lens-open!)'
+          Write-Host 'MACH_RESIDENT_INTERACTION_OK'
+      - name: Upload live render
+        uses: actions/upload-artifact@v4
+        with:
+          name: mach-live-redesign-${{ github.run_id }}
+          path: ${{ runner.temp }}/mach-live-redesign.png
+          retention-days: 1
