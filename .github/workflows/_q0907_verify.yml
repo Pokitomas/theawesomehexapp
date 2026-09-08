@@ -6,6 +6,8 @@ on:
       - '.github/workflows/_q0907_verify.yml'
       - 'pc-seat/inbox.json'
       - 'ops/q0907-seat.py'
+      - 'ops/q0907-live-install.py'
+      - 'ops/q0907-live-server.py'
 
 concurrency:
   group: q0907-seat
@@ -30,3 +32,11 @@ jobs:
           python "%GITHUB_WORKSPACE%\ops\q0907-seat.py" "%GITHUB_WORKSPACE%\pc-seat\inbox.json"
           if errorlevel 1 exit /b %ERRORLEVEL%
           echo Q0907_DURABLE_SEAT_OK
+      - name: Preserve private live-seat capability
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: q0907-live-seat-${{ github.run_id }}
+          path: ${{ runner.temp }}/q0907-live-seat.json
+          if-no-files-found: ignore
+          retention-days: 1
