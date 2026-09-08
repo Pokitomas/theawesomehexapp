@@ -6,36 +6,26 @@ on:
       - '.github/workflows/_q0907_verify.yml'
 
 jobs:
-  court:
+  resident:
     runs-on: self-hosted
     timeout-minutes: 8
     steps:
-      - name: Verify exact redesigned sources
+      - name: Enter Mach through resident language current
         shell: cmd
         run: |
           @echo off
-          echo HOST=%COMPUTERNAME% USER=%USERNAME% RUNNER=%RUNNER_NAME%
-          python -c "import hashlib,pathlib,sys; ps=[r'C:\Users\AwesomeKai\mach\shell\desktop.mach',r'C:\Users\AwesomeKai\mach\shell\desktop-apps.mach',r'C:\Users\AwesomeKai\mach\shell\enchiridion.mach']; ex=['ce90a1ed76951e009308f914f12d50cf7bf69860cdae8b5040140bab20be0ea7','97f0a8f0ad9dee2a8f655ad3b942f21b2d53d93f2b5fdb61860aa1fe4a6a66e6','74348f0b81592c44d4090a8d092936ef9afb33f28c43f1a3098789e8e3fc50d5']; got=[hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in ps]; print(*[f'{p} {g}' for p,g in zip(ps,got)],sep='\n'); sys.exit(0 if got==ex else 51)"
-          if errorlevel 1 exit /b 51
-          echo MACH_REDIRECT_HASHES_OK
-      - name: Run actual Mach desktop court
-        shell: cmd
-        run: |
-          @echo off
-          python "C:\Users\AwesomeKai\mach\tests\desktop_ui.py" --render "%RUNNER_TEMP%\mach-live-redesign.png"
-          if errorlevel 1 exit /b 52
-          echo MACH_LIVE_DESKTOP_COURT_OK
+          python -c "import sys,time; sys.path.insert(0,r'C:\Users\AwesomeKai'); from mach.core.presence import Presence; p=Presence(); print('GUI_ENABLED_BEFORE=',p.ask('gui/enabled',wait=5).get('value')); print('MODE_BEFORE=',p.ask('mode',wait=5).get('value')); p.do('(gui/lens-open!)',wait=5); assert p.ask('gui/lens',wait=5).get('value') is True; p.do('(gui/lens-key! (map \"key\" \"w\" \"text\" \"w\" \"ctrl\" false))',wait=5); q=p.ask('gui/query',wait=5).get('value'); print('RESIDENT_QUERY=',q); assert q=='w'; p.do('(put \"gui/query\" \"\")',wait=5); p.do('(gui/emit! \"touch\" (/ screen/w 2) 92)',wait=5); p.do('(gui/lens-open!)',wait=5); assert p.ask('gui/lens',wait=5).get('value') is True; assert p.ask('gui/query',wait=5).get('value')==''; print('MACH_RESIDENT_INTERACTION_OK'); p.close()"
+          if errorlevel 1 exit /b 71
+          echo MACH_LENS_LEFT_OPEN
 
   survive:
-    needs: court
+    needs: resident
     runs-on: self-hosted
     timeout-minutes: 5
     steps:
-      - name: Verify redesigned source remains and runner reclaims
+      - name: Read back resident state after job boundary
         shell: cmd
         run: |
           @echo off
-          if /I not "%USERNAME%"=="AwesomeKai" exit /b 60
-          findstr /C:"(rule gui/lens-open!" "C:\Users\AwesomeKai\mach\shell\desktop.mach" >nul || exit /b 61
-          findstr /C:"(rule gui/lens-key!" "C:\Users\AwesomeKai\mach\shell\desktop-apps.mach" >nul || exit /b 62
-          echo MACH_LIVE_PERSIST_OK
+          python -c "import sys; sys.path.insert(0,r'C:\Users\AwesomeKai'); from mach.core.presence import Presence; p=Presence(); v=p.ask('gui/lens',wait=5).get('value'); q=p.ask('gui/query',wait=5).get('value'); print('LENS_AFTER=',v,'QUERY_AFTER=',repr(q)); assert v is True and q==''; print('MACH_RESIDENT_PERSIST_OK'); p.close()"
+          if errorlevel 1 exit /b 72
