@@ -127,6 +127,9 @@ jobs:
           echo 'MACH_HOST_PULL_OK'
           '@ | Set-Content -LiteralPath $scriptPath -Encoding utf8
 
-          $wslPath = (& wsl.exe wslpath -u $scriptPath).Trim()
+          if ($scriptPath -notmatch '^([A-Za-z]):\\(.*)$') { throw "Unexpected runner temp path: $scriptPath" }
+          $drive = $Matches[1].ToLowerInvariant()
+          $tail = $Matches[2].Replace('\','/')
+          $wslPath = "/mnt/$drive/$tail"
           & wsl.exe bash $wslPath
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
