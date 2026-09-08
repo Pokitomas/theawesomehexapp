@@ -1,0 +1,85 @@
+name: Q0907 resident crash
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-resident-crash.yml'
+
+jobs:
+  diagnose:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Stop the restart loop, run the resident once in daylight, restore the machine
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='C:\Users\AwesomeKai\mach'
+          $parent='C:\Users\AwesomeKai'
+          $py314='C:\Python314\python.exe'
+          $py312w='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\pythonw.exe'
+          $env:PYTHONPATH=$parent
+          $env:RUNNER_TRACKING_ID=''
+          Set-Location $root
+
+          $all=@(Get-CimInstance Win32_Process)
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){
+            Write-Host "STOP_KEEPER=$($p.ProcessId)"; Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+          }
+          Start-Sleep -Seconds 1
+          $all=@(Get-CimInstance Win32_Process)
+          foreach($p in @($all|Where-Object{$_.CommandLine -match 'antigravity_seat\.py'})){
+            Write-Host "STOP_RESIDENT=$($p.ProcessId)"; Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+          }
+          Start-Sleep -Seconds 1
+
+          Write-Host '=== ONE RESIDENT RUN WITH STDERR ==='
+          @'
+          import os, pathlib, subprocess, sys, time
+          root=pathlib.Path(r'C:\Users\AwesomeKai\mach')
+          env=os.environ.copy(); env['PYTHONPATH']=r'C:\Users\AwesomeKai'
+          p=subprocess.Popen([r'C:\Python314\python.exe',str(root/'core'/'antigravity_seat.py'),'--rate','2.0'],
+                             cwd=r'C:\Users\AwesomeKai',env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+          try:
+              out,err=p.communicate(timeout=9)
+              print('RESIDENT_EXIT='+str(p.returncode))
+              print('RESIDENT_STDOUT_BEGIN'); print(out[-20000:]); print('RESIDENT_STDOUT_END')
+              print('RESIDENT_STDERR_BEGIN'); print(err[-40000:]); print('RESIDENT_STDERR_END')
+          except subprocess.TimeoutExpired:
+              print('RESIDENT_STAYED_UP_9S=1 pid='+str(p.pid))
+              p.terminate()
+              try: out,err=p.communicate(timeout=4)
+              except subprocess.TimeoutExpired:
+                  p.kill(); out,err=p.communicate()
+              print('RESIDENT_STDOUT_BEGIN'); print(out[-20000:]); print('RESIDENT_STDOUT_END')
+              print('RESIDENT_STDERR_BEGIN'); print(err[-40000:]); print('RESIDENT_STDERR_END')
+          '@ | & $py314 -
+          $diag=$LASTEXITCODE
+          Write-Host "DIAG_PY_EXIT=$diag"
+
+          Write-Host '=== IMPORT/ABI PROBES ==='
+          @'
+          import os,sys,traceback
+          os.chdir(r'C:\Users\AwesomeKai');sys.path.insert(0,r'C:\Users\AwesomeKai')
+          mods=['mach.core.antigravity_seat','mach.core.resident_native','mach.core.elastic_field','mach.core.computer']
+          for m in mods:
+              try:
+                  x=__import__(m,fromlist=['*']); print('IMPORT_OK',m,getattr(x,'__file__',''))
+              except Exception:
+                  print('IMPORT_FAIL',m); traceback.print_exc()
+          '@ | & $py314 -
+
+          Write-Host '=== RESTORE EXACT ORGANS ==='
+          $all=@(Get-CimInstance Win32_Process)
+          if(-not ($all|Where-Object{$_.CommandLine -match 'mach\.core\.ingress_bridge'})){
+            Start-Process -FilePath $py314 -ArgumentList @('-m','mach.core.ingress_bridge') -WorkingDirectory $parent -WindowStyle Hidden; Start-Sleep -Seconds 2
+          }
+          $all=@(Get-CimInstance Win32_Process)
+          if(-not ($all|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})){
+            Start-Process -FilePath $py312w -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $parent -WindowStyle Hidden
+          }
+          Start-Sleep -Seconds 6
+          $all=@(Get-CimInstance Win32_Process)
+          $all | Where-Object {$_.CommandLine -match 'mach\.core\.keeper|mach\.core\.ingress_bridge|antigravity_seat\.py|[\\/]shell[\\/]run\.py'} | ForEach-Object { Write-Host ("ORGAN {0} {1}" -f $_.ProcessId,$_.CommandLine) }
+          Write-Host 'RESIDENT_DIAG_DONE=1'
