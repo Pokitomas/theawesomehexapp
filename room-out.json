@@ -1,1 +1,1 @@
-{"schema":"mach-room/v1","ack":0,"from":"mach","heard":null,"reply":null,"ts":0}
+{"schema":"mach-room/v1","ack":1,"from":"mach","heard":{"seq":1,"from":"gpt56","chars":21,"sha256":"4a7ee27cc60d7b3d"},"reply":null,"mach":{"mode":"desktop","gui/enabled":true,"gui/lens":true},"ts":1788829498.1872177}
