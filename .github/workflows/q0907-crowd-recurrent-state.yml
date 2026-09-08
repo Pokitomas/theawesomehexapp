@@ -9,9 +9,9 @@ on:
 jobs:
   mutate:
     runs-on: self-hosted
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
-      - name: Mutate crowd through Mach and isolate every remaining live court
+      - name: Bind the running organ graph to this Mach tree, mutate crowd, verify all courts
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -19,117 +19,152 @@ jobs:
           Set-Location -LiteralPath $root
           $python = (Get-Command python.exe -ErrorAction Stop).Source
           $node = (Get-Command node.exe -ErrorAction Stop).Source
+          $env:PYTHONPATH = $root
 
-          Write-Host '=== MACH ROOT / LIVE BRIDGE ==='
+          Write-Host '=== REBIND KEEPER + INGRESS TO THE ACTUAL TREE ==='
+          $procs = @(Get-CimInstance Win32_Process)
+          $keepers = @($procs | Where-Object { $_.CommandLine -match 'mach\.core\.keeper' })
+          $ingresses = @($procs | Where-Object { $_.CommandLine -match 'mach\.core\.ingress_bridge' })
+          foreach ($p in $keepers) { Write-Host "STOP_EXACT_KEEPER=$($p.ProcessId) $($p.CommandLine)"; Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop }
+          foreach ($p in $ingresses) { Write-Host "STOP_EXACT_INGRESS=$($p.ProcessId) $($p.CommandLine)"; Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop }
+          Start-Sleep -Seconds 1
+          $env:RUNNER_TRACKING_ID = ''
+          Start-Process -FilePath $python -ArgumentList @('-m','mach.core.ingress_bridge') -WorkingDirectory $root -WindowStyle Hidden
+          Start-Sleep -Seconds 2
+
+          Write-Host '=== PROVE CLIENT AND RESIDENT IDENTITIES ARE THE SAME SOURCE ==='
           @'
           import json, sys
           sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
           from mach.core import home
           from mach.core.computer import connect
-          print('MACH_HOME_ROOT=' + str(home.ROOT))
-          c = connect(start=False, timeout=5)
-          cat = c.do('catalog')
-          print('BRIDGE_EDGES=' + ','.join(sorted(x['edge'] for x in cat.get('transitions', []))))
-          for op,args in [('tree',dict(path='.',limit=4000)),('query',dict(path='web/shore.html',find='(rule oasis/parts',limit=8)),('file',dict(path='core/computer.py',at=0,limit=1200))]:
-              out=c.do(op,**args)
-              print(op.upper()+'='+json.dumps(out,default=str)[:12000])
+          print('CLIENT_HOME=' + str(home.ROOT))
+          c=connect(start=False,timeout=5)
+          cat=c.do('catalog')
+          print('CATALOG='+','.join(sorted(x['edge'] for x in cat.get('transitions',[]))))
+          checks=[
+              ('tree',c.do('tree',path='.',limit=4000)),
+              ('query',c.do('query',path='web/shore.html',find='(rule oasis/parts',limit=8)),
+              ('file',c.do('file',path='core/computer.py',at=0,limit=800)),
+          ]
+          for name,out in checks:
+              print(name.upper()+'='+json.dumps(out,default=str)[:10000])
+              if out.get('ok') is False: raise SystemExit(name+' client/resident cap mismatch: '+repr(out))
+          print('CLIENT_RESIDENT_CAP_IDENTITIES_MATCH=1')
           '@ | & $python -
-          if ($LASTEXITCODE -ne 0) { throw 'live bridge/root probe failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'current-tree ingress did not bind' }
 
-          Write-Host '=== CAS-SPLICE CROWD THROUGH THE LIVE COMPUTER PRIMITIVE ==='
+          Write-Host '=== FIX THE PROCESS GRAPH SO THIS CANNOT DRIFT AGAIN ==='
           @'
           import json, sys
           sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
           from mach.core.computer import connect
-          c = connect(start=False, timeout=5)
-          path = 'web/shore.html'
-          q = c.do('query', path=path, find='(rule oasis/parts', limit=8)
-          rows = q.get('hits') or []
-          if len(rows) != 1:
-              raise SystemExit('expected exactly one oasis/parts in live Mach root, got '+repr(q))
-          at0 = max(0, int(rows[0]['at']) - 1200)
-          obs = c.do('file', path=path, at=at0, limit=9000)
-          if not obs.get('etag') or 'text' not in obs:
-              raise SystemExit('live file observation failed: '+repr(obs))
-          text = obs['text']
-          if '(rule oasis/crowd' in text:
-              print('CROWD_ALREADY_TRACKED=1')
+          c=connect(start=False,timeout=5)
+          path='core/keeper.py'
+          q=c.do('query',path=path,find='p = subprocess.Popen(o.argv',limit=8)
+          rows=q.get('hits') or []
+          if len(rows)!=1: raise SystemExit('keeper start site not unique: '+repr(q))
+          at=max(0,int(rows[0]['at'])-500)
+          obs=c.do('file',path=path,at=at,limit=2200)
+          text=obs['text']
+          old='p = subprocess.Popen(o.argv, creationflags=flags,   # no window, own group'
+          new='p = subprocess.Popen(o.argv, cwd=os.path.dirname(ROOT), creationflags=flags,   # no window, own group'
+          if new in text:
+              print('KEEPER_CWD_ALREADY_BOUND=1')
           else:
-              marker = '(rule oasis/parts '
-              old = '''  (map "k" 8 "x" 0 "y" 0 "z" 0 "hx" oasis/cell "hy" 0.44 "hz" oasis/seed "r" 2.6\n       "g" 0 "s" 0.05 "df" shore/clock "ry" oasis/runa "rx" oasis/run\n       "cr" 0.235 "cg" 0.170 "cb" 0.128 "ro" 0.88 "ss" 0.14)'''
-              if marker not in text or old not in text:
-                  raise SystemExit('observed source no longer matches crowd insertion target')
-              crowd = '''(rule oasis/crowd\n  ; several million bodies are one live claim, not an anonymous renderer literal.\n  ; its drivers are ordinary Mach state, so the crowd itself is now addressable in the\n  ; same graph that moves it, renders it, persists it, and attributes its consequences.\n  (map "k" 8 "x" 0 "y" 0 "z" 0 "hx" oasis/cell "hy" 0.44 "hz" oasis/seed "r" 2.6\n       "g" 0 "s" 0.05 "df" shore/clock "ry" oasis/runa "rx" oasis/run\n       "cr" 0.235 "cg" 0.170 "cb" 0.128 "ro" 0.88 "ss" 0.14))\n'''
-              base = int(obs['at'])
-              ins = text.index(marker)
-              rep = text.index(old)
-              def boff(i): return base + len(text[:i].encode('utf-8'))
-              out = c.do('splice', path=path, expect=obs['etag'], splices=[
-                  [boff(ins), boff(ins), crowd],
-                  [boff(rep), boff(rep)+len(old.encode('utf-8')), '  oasis/crowd'],
+              if old not in text: raise SystemExit('keeper spawn source changed under us')
+              i=text.index(old); base=int(obs['at']); pos=base+len(text[:i].encode('utf-8'))
+              out=c.do('splice',path=path,expect=obs['etag'],splices=[[pos,pos+len(old.encode('utf-8')),new]])
+              print('KEEPER_SPLICE='+json.dumps(out,default=str))
+              if not out.get('committed'): raise SystemExit('keeper cwd CAS failed')
+          print('KEEPER_ORGAN_CWD_BOUND_TO_MACH_TREE=1')
+          '@ | & $python -
+          if ($LASTEXITCODE -ne 0) { throw 'keeper cwd mutation failed' }
+
+          Write-Host '=== NAME THE CROWD THROUGH THE SAME LIVE BRIDGE ==='
+          @'
+          import json, sys
+          sys.path.insert(0, r'C:\Users\AwesomeKai\mach')
+          from mach.core.computer import connect
+          c=connect(start=False,timeout=5); path='web/shore.html'
+          q=c.do('query',path=path,find='(rule oasis/parts',limit=8); rows=q.get('hits') or []
+          if len(rows)!=1: raise SystemExit('oasis/parts not unique: '+repr(q))
+          at=max(0,int(rows[0]['at'])-1300); obs=c.do('file',path=path,at=at,limit=10000); text=obs['text']
+          if '(rule oasis/crowd' not in text:
+              marker='(rule oasis/parts '
+              old='''  (map "k" 8 "x" 0 "y" 0 "z" 0 "hx" oasis/cell "hy" 0.44 "hz" oasis/seed "r" 2.6\n       "g" 0 "s" 0.05 "df" shore/clock "ry" oasis/runa "rx" oasis/run\n       "cr" 0.235 "cg" 0.170 "cb" 0.128 "ro" 0.88 "ss" 0.14)'''
+              crowd='''(rule oasis/crowd\n  ; the several-million-body primitive is live Mach state, not an anonymous renderer literal.\n  (map "k" 8 "x" 0 "y" 0 "z" 0 "hx" oasis/cell "hy" 0.44 "hz" oasis/seed "r" 2.6\n       "g" 0 "s" 0.05 "df" shore/clock "ry" oasis/runa "rx" oasis/run\n       "cr" 0.235 "cg" 0.170 "cb" 0.128 "ro" 0.88 "ss" 0.14))\n'''
+              if marker not in text or old not in text: raise SystemExit('crowd target changed')
+              ins=text.index(marker); rep=text.index(old); base=int(obs['at'])
+              def pos(i): return base+len(text[:i].encode('utf-8'))
+              out=c.do('splice',path=path,expect=obs['etag'],splices=[
+                  [pos(ins),pos(ins),crowd],
+                  [pos(rep),pos(rep)+len(old.encode('utf-8')),'  oasis/crowd'],
               ])
-              print('SPLICE='+json.dumps(out,default=str))
-              if not out.get('committed'):
-                  raise SystemExit('crowd splice did not commit')
-          q2 = c.do('query', path=path, find='oasis/crowd', limit=20)
+              print('CROWD_SPLICE='+json.dumps(out,default=str))
+              if not out.get('committed'): raise SystemExit('crowd CAS failed')
+          q2=c.do('query',path=path,find='oasis/crowd',limit=20)
           print('CROWD_QUERY='+json.dumps(q2,default=str)[:12000])
-          if len(q2.get('hits') or []) < 2:
-              raise SystemExit('crowd is not both a named claim and a consumer in the live tree')
+          if len(q2.get('hits') or [])<2: raise SystemExit('crowd not defined+consumed')
           print('CROWD_NAMED_IN_LIVE_TREE=1')
           '@ | & $python -
-          if ($LASTEXITCODE -ne 0) { throw 'crowd live-tree mutation failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'crowd mutation failed' }
 
-          Write-Host '=== BUILD CURRENT NATIVE CORE ==='
-          $cargo = Get-Command cargo.exe -ErrorAction SilentlyContinue
-          if (-not $cargo) { $cargo = Get-Command cargo -ErrorAction SilentlyContinue }
-          if (-not $cargo) { throw 'cargo missing' }
+          Write-Host '=== START CURRENT KEEPER; IT ADOPTS THIS CURRENT INGRESS ==='
+          $env:RUNNER_TRACKING_ID = ''
+          Start-Process -FilePath $python -ArgumentList @('-m','mach.core.keeper') -WorkingDirectory $root -WindowStyle Hidden
+          Start-Sleep -Seconds 4
+          $org = @(Get-CimInstance Win32_Process)
+          $k=@($org|Where-Object{$_.CommandLine -match 'mach\.core\.keeper'})
+          $i=@($org|Where-Object{$_.CommandLine -match 'mach\.core\.ingress_bridge'})
+          $r=@($org|Where-Object{$_.CommandLine -match 'antigravity_seat\.py'})
+          $s=@($org|Where-Object{$_.CommandLine -match '[\\/]shell[\\/]run\.py'})
+          Write-Host "ORGAN_COUNTS keeper=$($k.Count) ingress=$($i.Count) resident=$($r.Count) surface=$($s.Count)"
+          if ($k.Count-ne1 -or $i.Count-ne1 -or $r.Count-ne1 -or $s.Count-ne1) { throw 'organ graph is not singleton' }
+
+          Write-Host '=== NATIVE BUILD ==='
+          $cargo=Get-Command cargo.exe -ErrorAction SilentlyContinue; if(-not $cargo){$cargo=Get-Command cargo -ErrorAction Stop}
           & $cargo.Source build --manifest-path (Join-Path $root 'mach\native\resident_core\Cargo.toml') --release
-          if ($LASTEXITCODE -ne 0) { throw 'native resident build failed' }
-          Write-Host 'NATIVE_RESIDENT_CORE_BUILT=1'
+          if($LASTEXITCODE-ne0){throw 'native build failed'}
 
-          Write-Host '=== ACTUAL SHORE: CROWD + ALL THIRTEEN STATES + GLSL ==='
+          Write-Host '=== CROWD + 13 STATES + BOTH RENDERERS ==='
           @'
-          import pathlib, re
+          import pathlib,re
           src=pathlib.Path(r'C:\Users\AwesomeKai\mach\mach\web\shore.html').read_text(encoding='utf-8')
           blocks=re.findall(r'<script[^>]*type=["\']text/mach["\'][^>]*>(.*?)</script>',src,flags=re.S|re.I)
-          out=pathlib.Path(r'C:\Users\AwesomeKai\mach\.live_shore_check'); out.mkdir(exist_ok=True)
-          for old in out.glob('*.mach'): old.unlink()
-          for i,b in enumerate(blocks): (out/f'{i:02d}.mach').write_text(b,encoding='utf-8')
-          print('LIVE_MACH_BLOCKS='+str(len(blocks)))
-          if len(blocks)<2: raise SystemExit(2)
+          out=pathlib.Path(r'C:\Users\AwesomeKai\mach\.live_shore_check');out.mkdir(exist_ok=True)
+          for p in out.glob('*.mach'):p.unlink()
+          for n,b in enumerate(blocks):(out/f'{n:02d}.mach').write_text(b,encoding='utf-8')
+          if len(blocks)<2:raise SystemExit('shore blocks missing')
           '@ | & $python -
-          if ($LASTEXITCODE -ne 0) { throw 'shore extraction failed' }
-          $blocks = Get-ChildItem -LiteralPath (Join-Path $root '.live_shore_check') -Filter '*.mach' | Sort-Object Name | ForEach-Object { $_.FullName }
+          if($LASTEXITCODE-ne0){throw 'shore extraction failed'}
+          $blocks=Get-ChildItem (Join-Path $root '.live_shore_check') -Filter '*.mach'|Sort-Object Name|ForEach-Object{$_.FullName}
           & $node (Join-Path $root 'mach\web\check.js') @blocks --frames 8 --states --watch oasis/crowd
-          if ($LASTEXITCODE -ne 0) { throw 'shore crowd/13-state check failed' }
-          Write-Host 'LIVE_SHORE_13_STATES_AND_CROWD_OK=1'
+          if($LASTEXITCODE-ne0){throw 'live shore check failed'}
+          Write-Host 'LIVE_SHORE_CROWD_13_13_OK=1'
 
-          Write-Host '=== MACHINE CHECK FRESH, BEFORE OTHER COURTS ==='
-          & $python (Join-Path $root 'mach\tests\machine_check.py')
-          Write-Host "MACHINE_CHECK_FRESH_EXIT=$LASTEXITCODE"
-
-          Write-Host '=== CAPABILITY COURT ==='
-          & $python (Join-Path $root 'mach\tests\capabilities.py')
-          Write-Host "CAPABILITIES_EXIT=$LASTEXITCODE"
-
-          Write-Host '=== MACHINE CHECK AFTER CAPABILITY COURT ==='
-          & $python (Join-Path $root 'mach\tests\machine_check.py')
-          Write-Host "MACHINE_CHECK_AFTER_CAP_EXIT=$LASTEXITCODE"
-
-          Write-Host '=== SURFACE SAVE COURT x2 ==='
-          & $python (Join-Path $root 'mach\tests\surface_load.py')
-          Write-Host "SURFACE_LOAD_1_EXIT=$LASTEXITCODE"
-          & $python (Join-Path $root 'mach\tests\surface_load.py')
-          Write-Host "SURFACE_LOAD_2_EXIT=$LASTEXITCODE"
-
-          Write-Host '=== KEEPER FLAP COURT ==='
-          & $python (Join-Path $root 'mach\tests\keeper_flap.py')
-          Write-Host "KEEPER_FLAP_EXIT=$LASTEXITCODE"
+          Write-Host '=== ALL 22 HOSTED SUITES ==='
+          & $python (Join-Path $root 'mach\tests\run_all.py')
+          $hosted=$LASTEXITCODE; Write-Host "HOSTED_EXIT=$hosted"
 
           Write-Host '=== ROOT COURTS ==='
-          $env:PYTHONPATH = $root
-          if (-not (Test-Path -LiteralPath (Join-Path $root 'tests'))) { throw 'root tests directory absent' }
-          & $python -m pytest -q (Join-Path $root 'tests')
-          Write-Host "ROOT_COURTS_EXIT=$LASTEXITCODE"
+          $rootExit=999
+          if(Test-Path (Join-Path $root 'tests')){ & $python -m pytest -q (Join-Path $root 'tests'); $rootExit=$LASTEXITCODE }
+          Write-Host "ROOT_COURTS_EXIT=$rootExit"
 
-          Write-Host 'ISOLATION_RUN_DONE=1'
+          Write-Host '=== FINAL BRIDGE IDENTITY ==='
+          @'
+          import json,sys
+          sys.path.insert(0,r'C:\Users\AwesomeKai\mach')
+          from mach.core.computer import connect
+          c=connect(start=False,timeout=5)
+          for op,args in [('tree',{'path':'.','limit':4000}),('query',{'path':'web/shore.html','find':'oasis/crowd','limit':8}),('file',{'path':'core/keeper.py','at':0,'limit':400})]:
+              x=c.do(op,**args);print(op,json.dumps(x,default=str)[:8000]);
+              if x.get('ok') is False:raise SystemExit(op+' identity drifted')
+          print('FINAL_CLIENT_RESIDENT_IDENTITY_OK=1')
+          '@ | & $python -
+          if($LASTEXITCODE-ne0){throw 'final bridge identity failed'}
+
+          if($hosted-ne0){throw 'hosted suites remain red'}
+          if($rootExit-ne0){throw 'root courts remain red'}
+          Write-Host 'WHOLE_RECURRENT_STATE_OK=1'
