@@ -5,47 +5,32 @@ on:
 permissions:
   contents: read
 jobs:
-  snapshot:
+  inspect:
     runs-on: self-hosted
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
-      - name: Snapshot local Mach source
+      - name: Index Mach architecture
         shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
-          $ErrorActionPreference = 'Stop'
-          $src = 'C:\Users\AwesomeKai\mach'
-          if (-not (Test-Path $src)) { throw "Mach root missing: $src" }
-          $out = Join-Path $env:RUNNER_TEMP 'mach-live-source'
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $out
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          $excludeDirs = @('.git','.venv','venv','node_modules','__pycache__','.pytest_cache','.mypy_cache','.ruff_cache','build','dist','.cache')
-          $excludeExt = @('.pyc','.pyo','.dll','.exe','.pdb','.zip','.7z','.tar','.gz','.gguf','.bin','.png','.jpg','.jpeg','.webp','.mp4','.mov','.wav','.mp3')
-          $files = Get-ChildItem $src -Recurse -File -Force | Where-Object {
-            $rel = $_.FullName.Substring($src.Length).TrimStart('\')
-            $parts = $rel -split '\\'
-            -not ($parts | Where-Object { $excludeDirs -contains $_ }) -and
-            -not ($excludeExt -contains $_.Extension.ToLowerInvariant()) -and
-            $_.Length -lt 2000000
-          }
-          foreach ($f in $files) {
-            $rel = $f.FullName.Substring($src.Length).TrimStart('\')
-            $dst = Join-Path $out $rel
-            New-Item -ItemType Directory -Force -Path (Split-Path $dst -Parent) | Out-Null
-            Copy-Item -LiteralPath $f.FullName -Destination $dst -Force
-          }
-          $manifest = $files | ForEach-Object {
-            $rel = $_.FullName.Substring($src.Length).TrimStart('\')
-            "{0}`t{1}" -f $rel,$_.Length
-          }
-          $manifest | Set-Content -Encoding utf8 (Join-Path $out '_MANIFEST.txt')
-          Write-Host "MACH_ROOT=$src"
-          Write-Host "MACH_FILES=$($files.Count)"
-          $manifest | Select-Object -First 400 | ForEach-Object { Write-Host $_ }
-          Write-Host 'MACH_LIVE_SOURCE_READY'
-      - name: Upload Mach source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: mach-live-source-${{ github.run_id }}
-          path: ${{ runner.temp }}/mach-live-source
-          if-no-files-found: error
-          retention-days: 1
+          $ErrorActionPreference='Stop'
+          $src='C:\Users\AwesomeKai\mach'
+          if (-not (Test-Path $src)) { throw "missing $src" }
+          $ext=@('.py','.c','.h','.cpp','.hpp','.rs','.js','.ts','.tsx','.html','.css','.toml','.json','.md','.mach')
+          $files=@(Get-ChildItem $src -Recurse -File -Force | Where-Object {
+            $rel=$_.FullName.Substring($src.Length).TrimStart('\')
+            $parts=$rel -split '\\'
+            -not ($parts | Where-Object { $_ -in @('.git','.venv','venv','node_modules','__pycache__','.pytest_cache','build','dist') }) -and
+            $_.Length -lt 500000 -and $ext -contains $_.Extension.ToLowerInvariant()
+          })
+          Write-Host '=== ROOT ==='
+          Get-ChildItem $src -Force | Sort-Object PSIsContainer -Descending,Name | ForEach-Object { "{0}`t{1}" -f ($(if($_.PSIsContainer){'DIR'}else{'FILE'}),$_.Name) }
+          Write-Host '=== SOURCE PATHS ==='
+          $files | ForEach-Object { $_.FullName.Substring($src.Length).TrimStart('\') } | Sort-Object | Select-Object -First 500
+          Write-Host '=== ARCHITECTURE SYMBOLS ==='
+          $patterns=@('LiveDocument','class Graph','def .*graph','relation','spatial','overlay','decay','tau','pygame','pyglet','glfw','moderngl','tkinter','PyQt','window','renderer','render','editor','interactive','input','event','scheduler','slot','dirty','piece')
+          Select-String -Path $files.FullName -Pattern $patterns -CaseSensitive:$false -ErrorAction SilentlyContinue |
+            Select-Object -First 800 | ForEach-Object {
+              $rel=$_.Path.Substring($src.Length).TrimStart('\')
+              "${rel}:$($_.LineNumber): $($_.Line.Trim())"
+            }
+          Write-Host 'MACH_ARCH_INDEX_OK'
