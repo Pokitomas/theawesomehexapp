@@ -1,7 +1,5 @@
 {
-  "nonce": "popclod-windows-20260907-a",
-  "op": "shell",
-  "timeout_s": 30,
-  "cwd": "C:\\Users\\AwesomeKai\\mach",
-  "argv": ["python", "C:\\Users\\AwesomeKai\\mach\\say.py", "--computer", "{\"op\":\"windows\"}"]
+  "nonce": "mach-live-install-20260907-a",
+  "op": "live_install",
+  "timeout_s": 240
 }
