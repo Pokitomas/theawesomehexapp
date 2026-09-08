@@ -1,8 +1,1 @@
-{
-  "schema": "mach-live-bus/v1",
-  "seq": 0,
-  "from": "bootstrap",
-  "op": "noop",
-  "payload": {},
-  "ts": 0
-}
+{"schema":"mach-live-bus/v1","seq":1,"from":"gpt56","box":"_3buOYh6w6PZL1F8XHeKBNzJQtSQuHyQqc01skwraUhp-sqWt96vJvVRfBkJpR3","ts":1788829035.3689601}
