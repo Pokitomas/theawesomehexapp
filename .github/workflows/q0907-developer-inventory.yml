@@ -1,0 +1,55 @@
+name: Q0907 developer inventory
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/q0907-developer-inventory.yml'
+
+jobs:
+  inventory:
+    runs-on: self-hosted
+    timeout-minutes: 12
+    steps:
+      - name: Map agent model command studio and edit paths in the canonical live tree
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:PYTHONIOENCODING='utf-8'
+          @'
+          from pathlib import Path
+          import re
+          root=Path(r'C:\Users\AwesomeKai\mach')
+          roots=['core','shell','tests']
+          terms=['agent','coengineer','model','prompt','anthropic','openai','cloudflare','llm','inference','edit','splice','studio/source','studio/error','command','corpus','resident']
+          files=[]
+          for d in roots:
+              b=root/d
+              if not b.is_dir():continue
+              for p in b.rglob('*'):
+                  if p.is_file() and p.suffix.lower() in {'.py','.mach','.json','.md'} and '__pycache__' not in p.parts:
+                      files.append(p)
+          print('LIVE_CODE_FILES',len(files))
+          for p in sorted(files):
+              try:s=p.read_text(encoding='utf-8',errors='ignore')
+              except:continue
+              low=s.lower();hits=[t for t in terms if t in low]
+              if hits:
+                  rel=p.relative_to(root).as_posix()
+                  print('FILE',rel,'TERMS',','.join(hits),'BYTES',len(s.encode()))
+                  # definitions/classes/imports carrying the interesting machinery
+                  for n,line in enumerate(s.splitlines(),1):
+                      l=line.lower()
+                      if any(t in l for t in terms) and (line.lstrip().startswith(('def ','class ','(rule ','(state ','(def ','from ','import ')) or 'http' in l or 'api' in l or 'subprocess' in l):
+                          print('  HIT',n,line[:240])
+          print('=== TEST HEADS ===')
+          for name in ['test_agent.py','test_coengineer.py','test_coengineer_event.py','test_coengineer_replay_audit.py','test_command.py','surface_boot.py']:
+              p=root/'tests'/name
+              if p.is_file():
+                  print('TEST',name)
+                  for n,line in enumerate(p.read_text(encoding='utf-8',errors='ignore').splitlines(),1):
+                      if line.startswith(('def test_','class ')) or 'assert ' in line:
+                          print(' ',n,line[:240])
+          print('DEVELOPER_INVENTORY_DONE=1')
+          '@ | & 'C:\Python314\python.exe' -
+          if($LASTEXITCODE-ne0){throw 'developer inventory failed'}
