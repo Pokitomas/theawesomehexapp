@@ -1,0 +1,5 @@
+{
+  "nonce": "bootstrap-2026-09-07",
+  "op": "ping",
+  "timeout_s": 30
+}
