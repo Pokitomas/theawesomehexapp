@@ -12,33 +12,38 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Probe exact Facebook video media helpers
+      - name: Jump exact Facebook video to ten minutes
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_media_probe.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_ten.py'
           @'
-          import json,sys,time,shutil,subprocess,importlib.util
+          import json,sys,time
           from pathlib import Path
-          url="https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366"
-          r={"started":time.time(),"url":url,"which":{},"modules":{}}
-          for x in ("yt-dlp","yt-dlp.exe","ffmpeg","ffmpeg.exe","whisper","whisper.exe"):
-              r["which"][x]=shutil.which(x)
-          for x in ("yt_dlp","whisper","faster_whisper"):
-              r["modules"][x]=bool(importlib.util.find_spec(x))
-          cmd=None
-          if r["which"].get("yt-dlp.exe") or r["which"].get("yt-dlp"):
-              cmd=[r["which"].get("yt-dlp.exe") or r["which"].get("yt-dlp"),"--skip-download","--dump-single-json",url]
-          elif r["modules"].get("yt_dlp"):
-              cmd=[sys.executable,"-m","yt_dlp","--skip-download","--dump-single-json",url]
-          if cmd:
-              try:
-                  p=subprocess.run(cmd,capture_output=True,text=True,encoding="utf-8",errors="replace",timeout=90)
-                  r["probe_rc"]=p.returncode;r["probe_out"]=p.stdout[-120000:];r["probe_err"]=p.stderr[-20000:]
-              except Exception as e:r["probe_error"]=f"{type(e).__name__}: {e}"
+          sys.path.insert(0,r"C:\Users\AwesomeKai")
+          from mach.core import computer as m
+          r={"started":time.time()}
+          base="https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366"
+          try:
+              r["launch"]=m._launch_transition({"target":base+"?t=600"})
+              time.sleep(7)
+              r["windows"]=m._windows({})
+              r["focus"]=m._focus_transition({"target":"Facebook"})
+              r["home"]=m._key_transition({"target":"Facebook","vk":36,"physical":True})
+              time.sleep(2)
+              r["document"]=m._document_ingress({"target":"Facebook"})
+              r["capture"]=m._capture({"target":"Facebook","name":"fb_t600"})
+          except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
           r["finished"]=time.time()
-          Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
+          out=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json");out.write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
+          try:
+              from PIL import Image
+              p=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb_t600.png");q=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb_t600.jpg")
+              if p.exists():
+                  im=Image.open(p).convert("RGB");im.thumbnail((1400,900));im.save(q,"JPEG",quality=78,optimize=True)
+          except Exception:pass
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='probe exact facebook video media';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook t600';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
+          if(Test-Path 'C:\Users\AwesomeKai\mach\state\seen\fb_t600.jpg'){PutBus 'fb-t600.jpg' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb_t600.jpg'))}
