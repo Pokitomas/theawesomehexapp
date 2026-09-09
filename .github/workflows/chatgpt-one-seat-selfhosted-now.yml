@@ -14,78 +14,27 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 3
     steps:
-      - name: Attach ChatGPT seat and submit go
+      - name: Diagnose only the local seat controller boundary
         shell: pwsh
         run: |
-          $ErrorActionPreference='Stop'
-          $base='http://127.0.0.1:8798'
-          $occ='gpt56sol-chatgpt-live'
-          function GetJ([string]$p) {
-            Invoke-RestMethod -UseBasicParsing -Uri ($base+$p) -TimeoutSec 4
+          $ErrorActionPreference='Continue'
+          Write-Output 'CHATGPT_LOCAL_CONTROLLER_DIAG_V1'
+          Write-Output ('HOST='+$env:COMPUTERNAME+' RUNNER='+$env:RUNNER_NAME)
+          Write-Output '=== PORTS ==='
+          Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
+            Where-Object { $_.LocalPort -in 8789,8790,8791,8798,8799,8811 } |
+            Select-Object LocalAddress,LocalPort,OwningProcess,State | Format-Table -AutoSize
+          Write-Output '=== WINDOWS CANDIDATES ==='
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match 'python|node|pwsh|powershell' -and $_.CommandLine -match 'archie|mach|8798|8799|seat' } |
+            Select-Object ProcessId,ParentProcessId,Name,ExecutablePath | Format-Table -AutoSize
+          Write-Output '=== MACH SOURCE 8798 REFERENCES ==='
+          $root='C:\Users\AwesomeKai\mach'
+          $rg=Get-Command rg.exe -ErrorAction SilentlyContinue
+          if(-not $rg){$rg=Get-Command rg -ErrorAction SilentlyContinue}
+          if($rg -and (Test-Path $root)) {
+            & $rg.Source -n -S --hidden --glob '!**/.git/**' --glob '!**/__pycache__/**' --glob '!**/node_modules/**' '8798|/seat/head|/seat/attach' $root 2>$null | Select-Object -First 240
           }
-          function PostJ([string]$p,$o) {
-            Invoke-RestMethod -UseBasicParsing -Method Post -Uri ($base+$p) -ContentType 'application/json' -Body ($o|ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 4
-          }
-          function Seat($x) {
-            if($null -ne $x.seat) { return $x.seat }
-            return $x
-          }
-
-          Write-Output 'CHATGPT_ONE_SEAT_LOCAL_BEGIN'
-          $raw0=GetJ '/seat/head'
-          $before=Seat $raw0
-          Write-Output ('BEFORE='+($raw0|ConvertTo-Json -Depth 10 -Compress))
-          $old=[string]$before.active_occupant
-          if($old -match '(?i)claude|anthropic') {
-            try {
-              $det=PostJ '/seat/detach' @{occupant=$old}
-              Write-Output ('DETACH='+($det|ConvertTo-Json -Depth 8 -Compress))
-            } catch {
-              Write-Output ('DETACH_ERROR='+$_.Exception.Message)
-            }
-          }
-
-          $attach=PostJ '/seat/attach' @{
-            occupant=$occ
-            capabilities=@{
-              source='chatgpt'
-              model='gpt-5.6-sol'
-              transport='selfhosted-local-bounded'
-              direct_developer=$true
-              provider_neutral_seat=$true
-            }
-          }
-          Write-Output ('ATTACH='+($attach|ConvertTo-Json -Depth 8 -Compress))
-          $touch=PostJ '/seat/touch' @{occupant=$occ}
-          Write-Output ('TOUCH='+($touch|ConvertTo-Json -Depth 8 -Compress))
-
-          $raw1=GetJ '/seat/head'
-          $h1=Seat $raw1
-          $input0=[int64]($h1.input_seq)
-          $output0=[int64]($h1.output_seq)
-          $inp=PostJ '/seat/input' @{
-            text='go'
-            source='chatgpt'
-            kind='text'
-            metadata=@{ingress='selfhosted-local-bounded'}
-          }
-          Write-Output ('INPUT='+($inp|ConvertTo-Json -Depth 8 -Compress))
-
-          $accepted=$false
-          $last=$null
-          for($i=0; $i -lt 20; $i++) {
-            Start-Sleep -Milliseconds 500
-            $raw=GetJ '/seat/head'
-            $last=Seat $raw
-            $a=[string]$last.active_occupant
-            $iq=[int64]($last.input_seq)
-            $oq=[int64]($last.output_seq)
-            Write-Output ("POLL[$i] occupant=$a input_seq=$iq output_seq=$oq")
-            if($a -eq $occ -and $iq -gt $input0) { $accepted=$true; break }
-          }
-          if(-not $accepted) { throw 'seat/input was not observed on active ChatGPT occupant' }
-
-          $finalRaw=GetJ '/seat/head'
-          $final=Seat $finalRaw
-          Write-Output ('FINAL='+($finalRaw|ConvertTo-Json -Depth 10 -Compress))
-          Write-Output ("CHATGPT_ONE_SEAT_READY active_occupant=$($final.active_occupant) input_seq=$($final.input_seq) output_seq=$($final.output_seq) baseline_output_seq=$output0")
+          Write-Output '=== WSL SERVICES / PORTS ==='
+          wsl.exe -e bash -lc "echo USER=\$(id -un); echo HOME=\$HOME; systemctl --user --no-pager --full list-units --type=service --all 2>/dev/null | grep -Ei 'archie|mach|seat|controller|resident|sidecar' | head -120 || true; echo ---UNITFILES---; systemctl --user --no-pager --full list-unit-files --type=service 2>/dev/null | grep -Ei 'archie|mach|seat|controller|resident|sidecar' | head -120 || true; echo ---PORTS---; ss -ltnp 2>/dev/null | grep -E ':(8789|8790|8791|8798|8799|8811)( |$)' || true; echo ---USERUNITS---; grep -RIlE '8798|seat/head|seat/attach' ~/.config/systemd/user 2>/dev/null | head -80 || true"
+          Write-Output 'CHATGPT_LOCAL_CONTROLLER_DIAG_DONE'
