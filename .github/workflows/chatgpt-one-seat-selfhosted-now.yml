@@ -12,11 +12,78 @@ permissions:
 jobs:
   ingress:
     runs-on: self-hosted
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
-      - name: Read existing controller backups and dropins exactly
+      - name: Restore existing controller and submit go locally
         shell: pwsh
         run: |
-          $ErrorActionPreference='Continue'
-          Write-Output 'CHATGPT_CONTROLLER_BACKUP_READ_V2'
-          wsl.exe -e bash -lc 'id; echo HOME=$HOME; echo ===BACKUPS===; for f in ~/.config/systemd/user/archie-controller.service.bak-*; do echo ---$f---; cat "$f"; done; echo ===DROPINS===; for f in ~/.config/systemd/user/archie-controller.service.d/*; do echo ---$f---; cat "$f"; done; echo ===TARGETS===; grep -RIlE "8798|seat/head|seat/attach|ARCHIE_CONTROLLER" ~/.local ~/.config ~/archie* ~/mach 2>/dev/null | head -160; echo ===DONE==='
+          $ErrorActionPreference='Stop'
+          Write-Output 'CHATGPT_ONE_SEAT_RESTORE_AND_GO_V1'
+
+          # Restore only the missing canonical unit from its latest local backup.
+          wsl.exe -e bash -lc 'set -e; u=$HOME/.config/systemd/user; test -f "$u/archie-controller.service.bak-20260825-universal-seat"; if [ ! -f "$u/archie-controller.service" ]; then cp "$u/archie-controller.service.bak-20260825-universal-seat" "$u/archie-controller.service"; fi; systemctl --user daemon-reload; systemctl --user enable --now archie-controller.service; sleep 2; systemctl --user --no-pager --full status archie-controller.service | head -80'
+
+          $base='http://127.0.0.1:8798'
+          $occ='gpt56sol-chatgpt-live'
+          function GetJ([string]$p) {
+            Invoke-RestMethod -UseBasicParsing -Uri ($base+$p) -TimeoutSec 5
+          }
+          function PostJ([string]$p,$o) {
+            Invoke-RestMethod -UseBasicParsing -Method Post -Uri ($base+$p) -ContentType 'application/json' -Body ($o|ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 5
+          }
+          function Seat($x) {
+            if($null -ne $x.seat) { return $x.seat }
+            return $x
+          }
+
+          $ready=$false
+          for($i=0;$i -lt 20;$i++) {
+            try { $raw0=GetJ '/seat/head'; $ready=$true; break } catch { Start-Sleep -Milliseconds 500 }
+          }
+          if(-not $ready){ throw 'controller did not come up on 127.0.0.1:8798' }
+          Write-Output ('HEAD0='+($raw0|ConvertTo-Json -Depth 10 -Compress))
+          $before=Seat $raw0
+          $old=[string]$before.active_occupant
+
+          if($old -and $old -ne $occ) {
+            try {
+              $det=PostJ '/seat/detach' @{occupant=$old}
+              Write-Output ('DETACH='+($det|ConvertTo-Json -Depth 8 -Compress))
+            } catch {
+              Write-Output ('DETACH_NONFATAL='+$_.Exception.Message)
+            }
+          }
+
+          $attach=PostJ '/seat/attach' @{
+            occupant=$occ
+            capabilities=@{
+              source='chatgpt'
+              model='gpt-5.6-sol'
+              transport='selfhosted-local-bounded'
+              direct_developer=$true
+              provider_neutral_seat=$true
+            }
+          }
+          Write-Output ('ATTACH='+($attach|ConvertTo-Json -Depth 10 -Compress))
+          $touch=PostJ '/seat/touch' @{occupant=$occ}
+          Write-Output ('TOUCH='+($touch|ConvertTo-Json -Depth 10 -Compress))
+
+          $raw1=GetJ '/seat/head'
+          $h1=Seat $raw1
+          Write-Output ('HEAD1='+($raw1|ConvertTo-Json -Depth 10 -Compress))
+          if([string]$h1.active_occupant -ne $occ){ throw 'ChatGPT occupant did not become active' }
+
+          $inp=PostJ '/seat/input' @{
+            text='go'
+            source='chatgpt'
+            kind='text'
+            metadata=@{ingress='selfhosted-local-bounded'; requested_by='owner'}
+          }
+          Write-Output ('INPUT='+($inp|ConvertTo-Json -Depth 10 -Compress))
+          Start-Sleep -Seconds 1
+
+          $raw2=GetJ '/seat/head'
+          $h2=Seat $raw2
+          Write-Output ('HEAD2='+($raw2|ConvertTo-Json -Depth 10 -Compress))
+          if([string]$h2.active_occupant -ne $occ){ throw 'ChatGPT occupant lost seat after input' }
+          Write-Output ("CHATGPT_ONE_SEAT_READY active_occupant=$($h2.active_occupant) input_seq=$($h2.input_seq) output_seq=$($h2.output_seq)")
