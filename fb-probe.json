@@ -1,11 +1,61 @@
 {
-    "started":  "2026-09-09T04:18:21.4845108-07:00",
-    "before":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "launch":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "after":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "capture_Facebook":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "capture_Santa Clarita":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "capture_Edge":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "capture_Chrome":  "python.exe : Traceback (most recent call last):\r\nAt C:\\actions-runner\\q0907\\_work\\_temp\\2eee1e69-1a5b-4d80-9d89-5eb50b542fbc.ps1:7 char:18\r\n+   try { return ((\u0026 python.exe $say \u0027--computer\u0027 $j 2\u003e\u00261) | Out-String ...\r\n+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n  File \"C:\\Users\\AwesomeKai\\mach\\say.py\", line 12, in \u003cmodule\u003e\r\n    request = json.loads(a[idx + 1])\r\n  File \"C:\\Python314\\Lib\\json\\__init__.py\", line 352, in loads\r\n    return _default_decoder.decode(s)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 345, in decode\r\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\r\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"C:\\Python314\\Lib\\json\\decoder.py\", line 361, in raw_decode\r\n    obj, end = self.scan_once(s, idx)\r\n               ~~~~~~~~~~~~~~^^^^^^^^\r\njson.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\r\n",
-    "finished":  "2026-09-09T04:18:33.6146076-07:00"
+  "started": 1788952821.784223,
+  "before": {
+    "ok": true,
+    "value": {
+      "id": "d026a6b47dbd4b64b24758bb8788eba4",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 0"
+    }
+  },
+  "launch": {
+    "ok": true,
+    "value": {
+      "id": "9db53a282ffb43d98d9cc4a74bb891a0",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 0"
+    }
+  },
+  "after": {
+    "ok": true,
+    "value": {
+      "id": "16529bba4aa94a208dfd4d0ad5274690",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 0"
+    }
+  },
+  "capture_Facebook": {
+    "ok": true,
+    "value": {
+      "id": "b97e02c2c91445aeb87b70fdfc085783",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 2"
+    }
+  },
+  "picked": "Facebook",
+  "focus": {
+    "ok": true,
+    "value": {
+      "id": "95c2bf775cf34d18ae284ca897b45969",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 1"
+    }
+  },
+  "document": {
+    "ok": true,
+    "value": {
+      "id": "94786782b6344209a8136c081b0acbbf",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 1"
+    }
+  },
+  "capture_final": {
+    "ok": true,
+    "value": {
+      "id": "94e0a6e945ab49ab86a6ebeb908803ad",
+      "ok": false,
+      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 2"
+    }
+  },
+  "finished": 1788952829.7922335
 }
