@@ -23,7 +23,7 @@ jobs:
           sys.path.insert(0,r"C:\Users\AwesomeKai")
           from mach.core import computer as m
           import uiautomation as auto
-          r={"started":time.time(),"controls":[]}
+          r={"started":time.time(),"controls":[],"docs":[]}
           try:
               w=m._resolve("Facebook");root=auto.ControlFromHandle(int(w["hwnd"]));docs=[]
               def finddocs(c,d=0):
@@ -37,10 +37,10 @@ jobs:
               for dc in docs:
                   try:
                       p=dc.GetTextPattern();text=p.DocumentRange.GetText(-1) if p is not None else ""
-                      b=dc.BoundingRectangle
-                      if not text and int(b.width)>800 and int(b.height)>700:
-                          shell=dc;break
-                  except Exception:pass
+                      b=dc.BoundingRectangle;wide=float(b.right)-float(b.left);high=float(b.bottom)-float(b.top)
+                      r["docs"].append({"chars":len(text),"rect":str(b),"wide":wide,"high":high})
+                      if not text and wide>800 and high>700 and shell is None:shell=dc
+                  except Exception as e:r.setdefault("doc_errors",[]).append(type(e).__name__)
               if shell is None:raise RuntimeError("zero-text player shell not found")
               def row(c,depth):
                   out={"depth":depth,"type":str(c.ControlTypeName or ""),"name":str(c.Name or "")[:200],"class":str(c.ClassName or "")[:120],"id":str(c.AutomationId or "")[:120],"rect":str(c.BoundingRectangle)}
