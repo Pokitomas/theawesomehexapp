@@ -12,61 +12,45 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Open council video by exact text-range coordinates
+      - name: Resolve Facebook controls at council title
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_exact_open.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_control_probe.py'
           @'
           import json,sys,time
           from pathlib import Path
           sys.path.insert(0,r"C:\Users\AwesomeKai")
-          from mach.core import computer as m
           import uiautomation as auto
-          wanted="LIVE: City Council Meeting - September 8, 2026"
-          r={"started":time.time()}
-          try:
-              w=m._resolve("Facebook"); root=auto.ControlFromHandle(int(w["hwnd"])); docs=[]
-              def walk(c,d=0):
-                  if d>16:return
-                  try:
-                      if c.ControlTypeName=="DocumentControl":docs.append(c)
-                      for ch in c.GetChildren():walk(ch,d+1)
-                  except Exception:pass
-              walk(root)
-              target=None
-              for dc in docs:
-                  try:
-                      p=dc.GetTextPattern()
-                      if p is None:continue
-                      whole=p.DocumentRange
-                      text=whole.GetText(-1)
-                      i=text.find(wanted)
-                      if i<0:continue
-                      rg=whole.Clone()
-                      rg.MoveEndpointByUnit(auto.TextPatternRangeEndpoint.Start,auto.TextUnit.Character,i)
-                      rg.MoveEndpointByUnit(auto.TextPatternRangeEndpoint.End,auto.TextUnit.Character,-(len(text)-i-len(wanted)))
-                      target=rg
-                      r["index"]=i;r["range_text"]=rg.GetText(-1);r["doc_chars"]=len(text)
-                      break
-                  except Exception as e:r.setdefault("range_errors",[]).append(f"{type(e).__name__}: {e}")
-              if target is None:raise RuntimeError("exact meeting text range not found")
-              target.ScrollIntoView(True);time.sleep(1)
-              rects=list(target.GetBoundingRectangles() or [])
-              r["rects"]=[str(x) for x in rects]
-              if not rects:raise RuntimeError("meeting range has no rectangle")
-              q=rects[0]
-              left=float(q.left);top=float(q.top);right=float(q.right);bottom=float(q.bottom)
-              wx1,wy1,_,_=w["box"]
-              x=int((left+right)/2-wx1);y=int((top+bottom)/2-wy1)
-              r["relative_click"]=[x,y]
-              r["click"]=m._click_transition({"target":"Facebook","x":x,"y":y})
-              time.sleep(7)
-              r["after"]=m._document_ingress({"target":"Facebook"})
-          except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
+          r={"started":time.time(),"points":[]}
+          def info(c):
+              d={}
+              for k in ("Name","ControlTypeName","ClassName","AutomationId","HelpText"):
+                  try:d[k]=str(getattr(c,k) or "")
+                  except Exception:d[k]=""
+              try:d["rect"]=str(c.BoundingRectangle)
+              except Exception:d["rect"]=""
+              try:
+                  p=c.GetLegacyIAccessiblePattern()
+                  if p is not None:d["legacy"]={"value":str(p.Value or ""),"action":str(p.DefaultAction or ""),"role":str(p.Role)}
+              except Exception:pass
+              try:
+                  p=c.GetValuePattern()
+                  if p is not None:d["value"]=str(p.Value or "")
+              except Exception:pass
+              return d
+          for x,y in ((900,910),(968,910),(1030,910),(1100,910),(968,932)):
+              row={"xy":[x,y],"chain":[]}
+              try:
+                  c=auto.ControlFromPoint(x,y)
+                  for _ in range(9):
+                      row["chain"].append(info(c))
+                      c=c.GetParentControl()
+              except Exception as e:row["error"]=f"{type(e).__name__}: {e}"
+              r["points"].append(row)
           r["finished"]=time.time()
           Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='open exact council video';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='council title control metadata';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
