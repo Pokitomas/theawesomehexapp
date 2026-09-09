@@ -1,48 +1,636 @@
 {
-  "started": 1788953430.3649697,
-  "index": 1544,
-  "range_text": "LIVE: City Council Meet",
-  "doc_chars": 8322,
-  "rects": [
-    "(890,900,1047,921)[157x21]"
-  ],
-  "relative_click": [
-    137,
-    855
-  ],
-  "click": {
-    "window": {
-      "hwnd": 67241300,
-      "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
-      "box": [
-        831,
-        55,
-        1776,
-        1067
+  "started": 1788953506.4321208,
+  "points": [
+    {
+      "xy": [
+        900,
+        910
+      ],
+      "chain": [
+        {
+          "Name": "",
+          "ControlTypeName": "GroupControl",
+          "ClassName": "",
+          "AutomationId": "mount_0_0_7B",
+          "HelpText": "",
+          "rect": "(843,-606,1749,2013)[906x2619]",
+          "legacy": {
+            "value": "",
+            "action": "Press",
+            "role": "20"
+          }
+        },
+        {
+          "Name": "City of Santa Clarita Government | Facebook",
+          "ControlTypeName": "DocumentControl",
+          "ClassName": "",
+          "AutomationId": "RootWebArea",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
+            "action": "",
+            "role": "15"
+          },
+          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
+        },
+        {
+          "Name": "Chrome Legacy Window",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "Chrome_RenderWidgetHostHWND",
+          "AutomationId": "1995282",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "10"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "MultiContentsView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        }
       ]
     },
-    "clicked": [
-      137,
-      855
-    ]
-  },
-  "after": {
-    "window": {
-      "hwnd": 67241300,
-      "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
-      "box": [
-        831,
-        55,
-        1776,
-        1067
+    {
+      "xy": [
+        968,
+        910
+      ],
+      "chain": [
+        {
+          "Name": "",
+          "ControlTypeName": "GroupControl",
+          "ClassName": "",
+          "AutomationId": "mount_0_0_7B",
+          "HelpText": "",
+          "rect": "(843,-606,1749,2013)[906x2619]",
+          "legacy": {
+            "value": "",
+            "action": "Press",
+            "role": "20"
+          }
+        },
+        {
+          "Name": "City of Santa Clarita Government | Facebook",
+          "ControlTypeName": "DocumentControl",
+          "ClassName": "",
+          "AutomationId": "RootWebArea",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
+            "action": "",
+            "role": "15"
+          },
+          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
+        },
+        {
+          "Name": "Chrome Legacy Window",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "Chrome_RenderWidgetHostHWND",
+          "AutomationId": "1995282",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "10"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "MultiContentsView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        }
       ]
     },
-    "title": "City of Santa Clarita Government | Facebook",
-    "url": "https://www.facebook.com/cityofsantaclarita/videos/",
-    "chars": 8322,
-    "at": 0,
-    "more": false,
-    "text": "￼\n￼\n￼\nLog In\n￼\n￼\n￼\n￼\nCity of Santa Clarita Government \n￼\n52K followers • 144 following\n￼\n￼\n￼\n￼\nCity of Santa Clarita Government\nProfile settings see more options\nMost Popular\n￼\n￼\n￼\nReplay\n1:08 / 1:08\nChange Position\nSettings\nEnter fullscreen\nChange volume\nUnmute\nThis Week in Santa Clarita... 🌿 Looking for a way to give back to your community? Join us on Saturday, September 19, at the Newhall Community Center for the 31st Annual River Rally Clean-Up from 8:00 to 11:00 a.m. Over the past 30 …years, volunteers have removed more than 510,000 pounds of trash from the Santa Clara River! This year, you can be part of the effort and help keep one of Southern California’s last natural, free-flowing river systems clean. And once the clean-up wraps up, don’t forget to check out the Environmental Expo! Sign up today at GreenSantaClarita.com. #santaclarita #staygreen #community #cleanup #riverrally\nThis Week in Santa Clarita... 🌿 Looking for a way to give back to your community? Join us on Saturday, September 19, at the Newhall Community Center for the 31st Annual River Rally Clean-Up from 8:00 to 11:00 a.m. Over the past 30 years, volunteers have removed more than 510,000 pounds of trash …from the Santa Clara River! This year, you can be part of the effort and help keep one of Southern California’s last natural, free-flowing river systems clean. And once the clean-up wraps up, don’t forget to check out the Environmental Expo! Sign up today at GreenSantaClarita.com. #santaclarita #staygreen #community #cleanup #riverrally\nVideos\n￼\nLIVE: City Council Meeting - September 8, 2026\n10 hours ago \n1.4K views\nLike: 15 people\nLove: 5 people\n20\n￼\n⛰️🥾 Adventure is waiting! Youth Outdoor Adventures is back this fall! Youth ages 5-12 will explore the outdoors …while learning about nature, preservation, outdoor skills and local history through hiking, nature discovery, basic first aid lessons, guided tours, team building games and more! 🗓️ Saturdays, September 19 - October 24 🌱 Ages 5-12 📝 Register now at seasons.santaclarita.gov Sign up today and get ready for an adventure! 🏕️ #YouthOutdoorAdventures #OutdoorRecreation #GetOutside #ExploreSCV\n13 hours ago \n1.6K views\nLike: 6 people\nLove: 1 person\n7\n￼\nCome share your ideas and help shape the future of Newhall Park! 🌳✨ Join us to explore design options and Newhall Park! 🌳✨ Join us to explore design options an…share your input on proposed improvements, including: 💦 New splash pad 🛝 Inclusive playground 🏃 Fitness equipment 📐 Potential layouts for these new spaces 📅 Thursday, September 10 ⏰ 6:00–8:00 p.m. 📍 Newhall Park Community Room (24923 Newhall Avenue) Your feedback will help guide the design of these new spaces! 📞 For more information, call Connor Hahm at (661) 255-4322 ----------------- ¡Ven a compartir tus ideas y ayúdanos a darle forma al futuro de Newhall Park! 🌳✨ Acompáñanos para conocer las opciones de diseño y compartir tu opinión sobre las mejoras propuestas: 💦 Nueva zona de juegos con agua 🛝 Área de juegos inclusiva 🏃 Aparatos para hacer ejercicio 📐 Distribución de estos nuevos espacios 📅 Jueves 10 de septiembre ⏰ 6:00–8:00 p.m. 📍 Salón Comunitario de Newhall Park (24923 Newhall Avenue) ¡Tus comentarios nos ayudarán a definir el diseño del proyecto! 📞 Para obtener más información, llama a Connor Hahm at (661) 255-4322 Para más contenido en español, sigue nuestras páginas en Facebook e Instagram @CiudadDeSantaClarita ❤\n13 hours ago \n2.2K views\nLike: 15 people\nLove: 1 person\n16\n￼\nThis Week in Santa Clarita... 🌿 Looking for a way to give back to your community? Join us on Saturday, September back to your community? Join us on Saturday, Septembe…19, at the Newhall Community Center for the 31st Annual River Rally Clean-Up from 8:00 to 11:00 a.m. Over the past 30 years, volunteers have removed more than 510,000 pounds of trash from the Santa Clara River! This year, you can be part of the effort and help keep one of Southern California’s last natural, free-flowing river systems clean. And once the clean-up wraps up, don’t forget to check out the Environmental Expo! Sign up today at GreenSantaClarita.com. #santaclarita #staygreen #community #cleanup #riverrally\n4 days ago \n9.3K views\nLike: 25 people\nLove: 3 people\n29\n￼\n🎨 Calling all artists! What does Hispanic and Latin American culture mean to you?✨ Share your creative …perspective through art and be part of our second annual Hispanic Heritage Month Art Exhibit at the Newhall Community Center! Whether your work reflects heritage, identity, family, traditions or personal experiences, we want to see what inspires you. ❤️ ⏰ Submissions close September 8! 🎨 Apply today at SantaClaritaArts.com #SantaClarita #SCVArts #HispanicHeritageMonth #CallForArtists\n5 days ago \n2.2K views\nLike: 16 people\nLove: 3 people\n19\n￼\nWe made it a good day on the Beach Bus this past weekend with our third and final Beach Ball Giveaway, but weekend with our third and final Beach Ball Giveaway, bu…summer isn’t over just yet! 🏖️🚌😎 The Beach Bus is hitting the road one final time this Labor Day weekend. ☀️ Catch some waves and let us do the driving! 🌊🚌 Learn more at SantaClaritaTransit.com/Beach-Bus/. - ¡Así se disfruta el verano! ☀️🌊 Este fin de semana vivimos un gran día a bordo del Beach Bus con nuestra tercera y última entrega de pelotas de playa. 🏖️🚌😎 Y aunque las entregas llegaron a su fin, todavía queda una última oportunidad para disfrutar del Beach Bus. 🚌 Este fin de semana de Labor Day, súbete al Beach Bus en su último recorrido de la temporada. Tú disfruta de la playa y las olas; nosotros te llevamos. 🌊☀️ Conoce todos los detalles en SantaClaritaTransit.com/Beach-Bus/. #SantaClaritaTransit #BeachBus #SantaClarita\na week ago \n15.8K views\nLike: 22 people\nLove: 2 people\n24\n￼\nThis Week in Santa Clarita… Got Library fines? Turn them into an opportunity to give back! 📚❤️ This September, …bring non-perishable food items or toiletries to any Santa Clarita Public Library branch and receive a $5 credit toward eligible Library fees for each item donated, up to $20.� Your donations will help support local organizations, including The Salvation Army, Santa Clarita Valley Food Pantry and Santa Clarita Grocery. 🥫🧴� Clear your fines. Give back. Help feed your community.� 📅 Food For Fines runs throughout September at all three Library branches.� Learn more at Library.SantaClarita.gov!� This Week in Santa Clarita (TWISC) highlights the City’s latest projects, programs and events through weekly updates from City staff.� #TWISC #FoodForFines #GiveBack #SantaClaritaLibrary #SantaClarita\na week ago \n2.3K views\nLike: 5 people\n5\n￼\n💦 We’re back! The Aquatic Center reopens for fall programming this Saturday, August 29! 🏊‍♀️☀️ Looking to programming this Saturday, August 29! 🏊‍♀️☀️ Looking t…cool off or get in some laps? Join us this weekend: 🏊 Recreational Swim Saturday & Sunday | 1:00–4:00 p.m. 🎟️ Please purchase your recreational swim tickets on the City website before arriving. 🏊‍♂️ Lap Swim Saturday & Sunday | 10:30 a.m.–1:30 p.m. For more information, call 661-250-3740 or email aquatics@santaclarita.gov. - 💦 ¡El Aquatic Center reabre sus puertas este sábado 29 de agosto con sus programas de otoño! 🏊‍♀️☀️ ¿Quieren refrescarse o nadar unas vueltas? Los esperamos este fin de semana: 🏊 Nado recreativo Sábado y domingo | 1:00–4:00 p.m. 🎟️ Compren sus boletos en el sitio web de la Ciudad antes de llegar. 🏊‍♂️ Nado por carriles Sábado y domingo | 10:30 a.m.–1:30 p.m. Para más información, llamen al 661-250-3740 o escriban a aquatics@santaclarita.gov. Ciudad de Santa Clarita #aquaticcenter\na week ago \n9.9K views\nLike: 35 people\n36\n￼\n🥵 HEAT ADVISORY: We miss these days. ❄️🏔️ Today’s heat has us dreaming about cooler temps, crisp mountain heat has us dreaming about cooler temps, crisp mountai…air and those snow-capped Topatopas. Stay cool out there, Santa Clarita! Maybe watch this video a few times and pretend it’s winter. 😂 #SantaClarita #HeatAdvisory #StayCool #SummerInSCV\na week ago \n5.2K views\nLike: 37 people\nLove: 4 people\n45\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\nLoading...\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\n￼\nLog in or sign up for Facebook to connect with friends, family and people you know.\nLog In\nor\nCreate new account\n￼\n￼"
-  },
-  "finished": 1788953441.6767733
+    {
+      "xy": [
+        1030,
+        910
+      ],
+      "chain": [
+        {
+          "Name": "",
+          "ControlTypeName": "GroupControl",
+          "ClassName": "",
+          "AutomationId": "mount_0_0_7B",
+          "HelpText": "",
+          "rect": "(843,-606,1749,2013)[906x2619]",
+          "legacy": {
+            "value": "",
+            "action": "Press",
+            "role": "20"
+          }
+        },
+        {
+          "Name": "City of Santa Clarita Government | Facebook",
+          "ControlTypeName": "DocumentControl",
+          "ClassName": "",
+          "AutomationId": "RootWebArea",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
+            "action": "",
+            "role": "15"
+          },
+          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
+        },
+        {
+          "Name": "Chrome Legacy Window",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "Chrome_RenderWidgetHostHWND",
+          "AutomationId": "1995282",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "10"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "MultiContentsView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        }
+      ]
+    },
+    {
+      "xy": [
+        1100,
+        910
+      ],
+      "chain": [
+        {
+          "Name": "",
+          "ControlTypeName": "GroupControl",
+          "ClassName": "",
+          "AutomationId": "mount_0_0_7B",
+          "HelpText": "",
+          "rect": "(843,-606,1749,2013)[906x2619]",
+          "legacy": {
+            "value": "",
+            "action": "Press",
+            "role": "20"
+          }
+        },
+        {
+          "Name": "City of Santa Clarita Government | Facebook",
+          "ControlTypeName": "DocumentControl",
+          "ClassName": "",
+          "AutomationId": "RootWebArea",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
+            "action": "",
+            "role": "15"
+          },
+          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
+        },
+        {
+          "Name": "Chrome Legacy Window",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "Chrome_RenderWidgetHostHWND",
+          "AutomationId": "1995282",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "10"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "MultiContentsView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        }
+      ]
+    },
+    {
+      "xy": [
+        968,
+        932
+      ],
+      "chain": [
+        {
+          "Name": "",
+          "ControlTypeName": "GroupControl",
+          "ClassName": "",
+          "AutomationId": "mount_0_0_7B",
+          "HelpText": "",
+          "rect": "(843,-606,1749,2013)[906x2619]",
+          "legacy": {
+            "value": "",
+            "action": "Press",
+            "role": "20"
+          }
+        },
+        {
+          "Name": "City of Santa Clarita Government | Facebook",
+          "ControlTypeName": "DocumentControl",
+          "ClassName": "",
+          "AutomationId": "RootWebArea",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
+            "action": "",
+            "role": "15"
+          },
+          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
+        },
+        {
+          "Name": "Chrome Legacy Window",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "Chrome_RenderWidgetHostHWND",
+          "AutomationId": "1995282",
+          "HelpText": "",
+          "rect": "(843,169,1764,1055)[921x886]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "10"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "MultiContentsView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "View",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        },
+        {
+          "Name": "",
+          "ControlTypeName": "PaneControl",
+          "ClassName": "SidebarContentsSplitView",
+          "AutomationId": "",
+          "HelpText": "",
+          "rect": "(839,167,1768,1059)[929x892]",
+          "legacy": {
+            "value": "",
+            "action": "",
+            "role": "16"
+          }
+        }
+      ]
+    }
+  ],
+  "finished": 1788953506.9709492
 }
