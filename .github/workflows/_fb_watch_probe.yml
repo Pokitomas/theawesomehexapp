@@ -12,55 +12,33 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Inspect council video controls
+      - name: Probe exact Facebook video media helpers
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_video_controls.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_media_probe.py'
           @'
-          import json,sys,time
+          import json,sys,time,shutil,subprocess,importlib.util
           from pathlib import Path
-          sys.path.insert(0,r"C:\Users\AwesomeKai")
-          from mach.core import computer as m
-          import uiautomation as auto
-          r={"started":time.time(),"controls":[]}
-          def info(c):
-              d={}
-              for k in ("Name","ControlTypeName","ClassName","AutomationId","HelpText"):
-                  try:d[k]=str(getattr(c,k) or "")
-                  except Exception:d[k]=""
+          url="https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366"
+          r={"started":time.time(),"url":url,"which":{},"modules":{}}
+          for x in ("yt-dlp","yt-dlp.exe","ffmpeg","ffmpeg.exe","whisper","whisper.exe"):
+              r["which"][x]=shutil.which(x)
+          for x in ("yt_dlp","whisper","faster_whisper"):
+              r["modules"][x]=bool(importlib.util.find_spec(x))
+          cmd=None
+          if r["which"].get("yt-dlp.exe") or r["which"].get("yt-dlp"):
+              cmd=[r["which"].get("yt-dlp.exe") or r["which"].get("yt-dlp"),"--skip-download","--dump-single-json",url]
+          elif r["modules"].get("yt_dlp"):
+              cmd=[sys.executable,"-m","yt_dlp","--skip-download","--dump-single-json",url]
+          if cmd:
               try:
-                  b=c.BoundingRectangle;d["rect"]=[int(b.left),int(b.top),int(b.right),int(b.bottom)]
-              except Exception:d["rect"]=None
-              try:
-                  p=c.GetRangeValuePattern()
-                  if p is not None:d["range"]={"value":float(p.Value),"min":float(p.Minimum),"max":float(p.Maximum),"small":float(p.SmallChange),"large":float(p.LargeChange),"readonly":bool(p.IsReadOnly)}
-              except Exception:pass
-              try:
-                  p=c.GetLegacyIAccessiblePattern()
-                  if p is not None:d["legacy"]={"value":str(p.Value or ""),"action":str(p.DefaultAction or ""),"role":str(p.Role),"state":str(p.State)}
-              except Exception:pass
-              try:
-                  p=c.GetTogglePattern()
-                  if p is not None:d["toggle"]=str(p.ToggleState)
-              except Exception:pass
-              return d
-          try:
-              w=m._resolve("Facebook");root=auto.ControlFromHandle(int(w["hwnd"]));r["window"]=w
-              def walk(c,d=0):
-                  if d>22 or len(r["controls"])>=800:return
-                  try:
-                      typ=str(c.ControlTypeName or ""); name=str(c.Name or "")
-                      if typ in ("SliderControl","ButtonControl","HyperlinkControl","TextControl","GroupControl") and (typ=="SliderControl" or any(s in name.lower() for s in ("caption","position","pause","play","fullscreen","volume","0:","3:27"))):
-                          r["controls"].append(info(c))
-                      for ch in c.GetChildren():walk(ch,d+1)
-                  except Exception:pass
-              walk(root)
-              r["document"]=m._document_ingress({"target":"Facebook"})
-          except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
+                  p=subprocess.run(cmd,capture_output=True,text=True,encoding="utf-8",errors="replace",timeout=90)
+                  r["probe_rc"]=p.returncode;r["probe_out"]=p.stdout[-120000:];r["probe_err"]=p.stderr[-20000:]
+              except Exception as e:r["probe_error"]=f"{type(e).__name__}: {e}"
           r["finished"]=time.time()
           Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='inspect council video controls';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='probe exact facebook video media';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
