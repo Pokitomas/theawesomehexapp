@@ -4,46 +4,27 @@ on:
     paths:
       - '.github/workflows/_fb_watch_probe.yml'
 permissions:
-  contents: write
+  contents: read
 jobs:
   probe:
     runs-on: self-hosted
     timeout-minutes: 5
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Publish compact Kai contact sheet chunks
+      - name: Verify exact Kai review checkpoint
         shell: pwsh
         run: |
-          $ErrorActionPreference='Stop'
-          $py='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe'
-          if(-not (Test-Path $py)){$py='C:\Python314\python.exe'}
           $dir='C:\Users\AwesomeKai\mach\state\seen\fb-kai-review'
-          $sheet=Join-Path $dir 'sheet.jpg'
-          if(-not (Test-Path $sheet)){throw 'Kai sheet checkpoint missing'}
-          $prep=Join-Path $dir 'compact_sheet.py'
-          @'
-          import base64,json,sys
-          from pathlib import Path
-          from PIL import Image
-          d=Path(sys.argv[1]); src=d/'sheet.jpg'; dst=d/'sheet-small.jpg'
-          im=Image.open(src).convert('RGB')
-          im.thumbnail((900,700))
-          im.save(dst,'JPEG',quality=45,optimize=True)
-          s=base64.b64encode(dst.read_bytes()).decode('ascii')
-          n=18000
-          parts=[s[i:i+n] for i in range(0,len(s),n)]
-          for i,p in enumerate(parts):(d/f'sheet-part-{i:02d}.txt').write_text(p,encoding='ascii')
-          (d/'sheet-manifest.json').write_text(json.dumps({'parts':len(parts),'chars':len(s),'width':im.width,'height':im.height},indent=2),encoding='utf-8')
-          '@ | Set-Content -LiteralPath $prep -Encoding utf8
-          & $py $prep $dir
-
-          function PutBus([string]$path,[byte[]]$bytes){
-            $uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path"
-            $h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'}
-            $sha=$null; try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{}
-            $b=@{message='compact Kai visual packet';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha}
-            Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null
+          foreach($name in @('packet.json','sheet.jpg','kai.mp4')){
+            $p=Join-Path $dir $name
+            if(-not (Test-Path $p)){throw "missing $name"}
           }
-          PutBus 'fb-kai-sheet-manifest.json' ([IO.File]::ReadAllBytes((Join-Path $dir 'sheet-manifest.json')))
-          Get-ChildItem $dir -Filter 'sheet-part-*.txt' | Sort-Object Name | ForEach-Object { PutBus ('fb-kai-'+$_.Name) ([IO.File]::ReadAllBytes($_.FullName)) }
+      - name: Upload exact Kai council review
+        uses: actions/upload-artifact@v4
+        with:
+          name: kai-council-review
+          path: |
+            C:\Users\AwesomeKai\mach\state\seen\fb-kai-review\packet.json
+            C:\Users\AwesomeKai\mach\state\seen\fb-kai-review\sheet.jpg
+            C:\Users\AwesomeKai\mach\state\seen\fb-kai-review\kai.mp4
+          compression-level: 0
+          retention-days: 1
