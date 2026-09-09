@@ -1,18 +1,248 @@
 {
-  "started": 1788953916.232362,
-  "url": "https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366",
-  "which": {
-    "yt-dlp": null,
-    "yt-dlp.exe": null,
-    "ffmpeg": null,
-    "ffmpeg.exe": null,
-    "whisper": "C:\\Users\\AwesomeKai\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\whisper.EXE",
-    "whisper.exe": "C:\\Users\\AwesomeKai\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\whisper.exe"
+  "started": 1788953997.2733016,
+  "launch": {
+    "target": "https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366?t=600",
+    "launched": true,
+    "shell": 42
   },
-  "modules": {
-    "yt_dlp": false,
-    "whisper": false,
-    "faster_whisper": false
+  "windows": {
+    "windows": [
+      {
+        "hwnd": 67241300,
+        "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+        "box": [
+          831,
+          55,
+          1776,
+          1067
+        ]
+      },
+      {
+        "hwnd": 1969660,
+        "title": "Claude",
+        "box": [
+          124,
+          135,
+          1340,
+          957
+        ]
+      },
+      {
+        "hwnd": 24381394,
+        "title": "Administrator: Windows PowerShell",
+        "box": [
+          52,
+          52,
+          1045,
+          571
+        ]
+      },
+      {
+        "hwnd": 63966128,
+        "title": "Mach Self Continue - Personal - Microsoft​ Edge",
+        "box": [
+          821,
+          45,
+          1766,
+          1057
+        ]
+      },
+      {
+        "hwnd": 23267300,
+        "title": "Host Pull Verification and 13 more pages - Personal - Microsoft​ Edge",
+        "box": [
+          811,
+          35,
+          1756,
+          1047
+        ]
+      },
+      {
+        "hwnd": 118098054,
+        "title": "Mach",
+        "box": [
+          80,
+          40,
+          1376,
+          939
+        ]
+      },
+      {
+        "hwnd": 7932794,
+        "title": "Administrator: Windows PowerShell",
+        "box": [
+          208,
+          208,
+          1201,
+          727
+        ]
+      },
+      {
+        "hwnd": 40439254,
+        "title": "Windows PowerShell",
+        "box": [
+          148,
+          156,
+          1277,
+          791
+        ]
+      },
+      {
+        "hwnd": 41289260,
+        "title": "C:\\Python314\\python.exe",
+        "box": [
+          96,
+          104,
+          1225,
+          739
+        ]
+      },
+      {
+        "hwnd": 55905508,
+        "title": "Windows PowerShell",
+        "box": [
+          69,
+          115,
+          1198,
+          750
+        ]
+      },
+      {
+        "hwnd": 97783762,
+        "title": "Windows PowerShell",
+        "box": [
+          70,
+          78,
+          1199,
+          713
+        ]
+      },
+      {
+        "hwnd": 2297512,
+        "title": "awesomekai@DESKTOP-6FN9B4M: ~",
+        "box": [
+          186,
+          356,
+          1315,
+          991
+        ]
+      },
+      {
+        "hwnd": 65012114,
+        "title": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "box": [
+          96,
+          104,
+          1225,
+          739
+        ]
+      },
+      {
+        "hwnd": 19728960,
+        "title": "Downloads - File Explorer",
+        "box": [
+          1027,
+          0,
+          1920,
+          1032
+        ]
+      },
+      {
+        "hwnd": 4261296,
+        "title": "Desktop - File Explorer",
+        "box": [
+          1027,
+          0,
+          1920,
+          1032
+        ]
+      },
+      {
+        "hwnd": 132074,
+        "title": "Windows Input Experience",
+        "box": [
+          0,
+          0,
+          1920,
+          1080
+        ]
+      },
+      {
+        "hwnd": 65870,
+        "title": "Program Manager",
+        "box": [
+          0,
+          0,
+          1920,
+          1080
+        ]
+      }
+    ],
+    "foreground": 67241300,
+    "desktop": [
+      0,
+      0,
+      1920,
+      1080
+    ]
   },
-  "finished": 1788953916.2972033
+  "focus": {
+    "window": {
+      "hwnd": 67241300,
+      "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+      "box": [
+        831,
+        55,
+        1776,
+        1067
+      ]
+    },
+    "focused": true
+  },
+  "home": {
+    "window": {
+      "hwnd": 67241300,
+      "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+      "box": [
+        831,
+        55,
+        1776,
+        1067
+      ]
+    },
+    "pressed": 36,
+    "physical": true
+  },
+  "document": {
+    "window": {
+      "hwnd": 67241300,
+      "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+      "box": [
+        831,
+        55,
+        1776,
+        1067
+      ]
+    },
+    "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook",
+    "url": "https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366?t=600",
+    "chars": 128,
+    "at": 0,
+    "more": false,
+    "text": "￼\n￼\n￼\nLog In\n￼\nClose\nSee more on Facebook\nEmail or phone number\n￼\nPassword\n￼\nLog In\nForgot password?\n￼\nor\n￼\nCreate new account\n￼"
+  },
+  "capture": {
+    "window": {
+      "hwnd": 67241300,
+      "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+      "box": [
+        831,
+        55,
+        1776,
+        1067
+      ]
+    },
+    "path": "C:\\Users\\AwesomeKai\\mach\\state\\seen\\fb_t600.png"
+  },
+  "finished": 1788954007.8485885
 }
