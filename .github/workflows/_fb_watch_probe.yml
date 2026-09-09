@@ -1,4 +1,4 @@
-name: fb speaker delivery matrix
+name: fb audience reaction matrix
 on:
   push:
     paths:
@@ -8,9 +8,9 @@ permissions:
 jobs:
   probe:
     runs-on: self-hosted
-    timeout-minutes: 8
+    timeout-minutes: 6
     steps:
-      - name: Build delivery matrix from cached whole meeting
+      - name: Build reaction matrix from cached meeting
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
@@ -18,59 +18,50 @@ jobs:
           if(-not (Test-Path $py)){$py='C:\Python314\python.exe'}
           & $py -m pip install --disable-pip-version-check --quiet imageio-ffmpeg pillow
           $root='C:\Users\AwesomeKai\mach\state\seen\fb-whole-review'
-          if(-not (Test-Path (Join-Path $root 'whole.mp4'))){throw 'cached whole.mp4 missing'}
-          if(-not (Test-Path (Join-Path $root 'whole-analysis.json'))){throw 'whole-analysis checkpoint missing'}
-          $out='C:\Users\AwesomeKai\mach\state\seen\fb-delivery-matrix'
+          $out='C:\Users\AwesomeKai\mach\state\seen\fb-reaction-matrix'
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           Get-ChildItem $out -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-          $script=Join-Path $out 'delivery.py'
+          $script=Join-Path $out 'reaction.py'
           @'
-          import json,re,subprocess,sys,math
+          import json,re,subprocess,sys
           from pathlib import Path
           from PIL import Image,ImageDraw
           import imageio_ffmpeg
-          root=Path(sys.argv[1]); out=Path(sys.argv[2]); video=root/'whole.mp4'
+          root=Path(sys.argv[1]);out=Path(sys.argv[2]);video=root/'whole.mp4'
           d=json.loads((root/'whole-analysis.json').read_text(encoding='utf-8'))
           keep={15,16,17,18,21,22,23,24,25,30,31,32,33,34,35,36,37,38,39}
           comments=[m for m in d['public_candidates'] if m['candidate_index'] in keep]
-          ff=imageio_ffmpeg.get_ffmpeg_exe(); out.mkdir(parents=True,exist_ok=True)
-          def run(args):
-              p=subprocess.run([ff,*args],capture_output=True,text=True)
-              return (p.stdout or '')+(p.stderr or '')
-          rows=[]
+          ff=imageio_ffmpeg.get_ffmpeg_exe(); rows=[]
+          def vol(st,dur):
+              p=subprocess.run([ff,'-hide_banner','-ss',str(st),'-t',str(dur),'-i',str(video),'-af','volumedetect','-f','null','NUL'],capture_output=True,text=True)
+              txt=(p.stdout or '')+(p.stderr or '')
+              m=re.search(r'mean_volume:\s*([-0-9.]+) dB',txt);x=re.search(r'max_volume:\s*([-0-9.]+) dB',txt)
+              return (float(m.group(1)) if m else None,float(x.group(1)) if x else None)
           for m in comments:
-              i=m['candidate_index']; st=float(m['start']); dur=float(m['duration']); en=st+dur
-              txt=run(['-hide_banner','-ss',str(st),'-t',str(dur),'-i',str(video),'-af','silencedetect=noise=-35dB:d=0.35,volumedetect','-f','null','NUL'])
-              ss=[float(x) for x in re.findall(r'silence_start:\s*([0-9.]+)',txt)]
-              ee=[float(x) for x in re.findall(r'silence_end:\s*([0-9.]+)',txt)]
-              sdur=sum(max(0,b-a) for a,b in zip(ss,ee))
-              mean=re.search(r'mean_volume:\s*([^\r\n]+)',txt); mx=re.search(r'max_volume:\s*([^\r\n]+)',txt)
-              row={k:m[k] for k in ['candidate_index','start','end','duration','wpm','filler_per_100','unique_ratio','questions','numbers','first_person','second_person','negative_terms','discourse_markers'] if k in m}
-              row.update({'silence_events':len(ss),'silence_seconds':round(sdur,2),'silence_fraction':round(sdur/max(dur,1),3),'mean_volume':mean.group(1).strip() if mean else '', 'max_volume':mx.group(1).strip() if mx else '', 'excerpt':m.get('excerpt','')[:500]})
-              frames=[]
-              for n,f in enumerate((.12,.32,.52,.72,.90)):
-                  tt=st+dur*f; p=out/f'c{i:02d}_{n}.jpg'
-                  subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-ss',str(tt),'-i',str(video),'-frames:v','1','-q:v','2',str(p)],check=False)
-                  if p.exists(): frames.append(p.name)
-              row['frames']=frames; rows.append(row)
-          # chronology sheet: one row per actual public speaker, 5 frames each
-          cw,ch=320,195; W=cw*5; H=ch*len(rows)
-          canvas=Image.new('RGB',(W,H),'white'); dr=ImageDraw.Draw(canvas)
+              i=m['candidate_index']; end=float(m['end']);
+              pre=vol(max(0,end-2.5),2.5); post=vol(end,4.0)
+              row={'candidate_index':i,'end':end,'pre_mean_db':pre[0],'pre_max_db':pre[1],'post_mean_db':post[0],'post_max_db':post[1]}
+              if pre[0] is not None and post[0] is not None: row['post_minus_pre_mean_db']=round(post[0]-pre[0],1)
+              fs=[]
+              for n,dt in enumerate((-1.0,0.4,1.4,2.8)):
+                  t=max(0,end+dt);p=out/f'c{i:02d}_{n}.jpg'
+                  subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-ss',str(t),'-i',str(video),'-frames:v','1','-q:v','2',str(p)],check=False)
+                  if p.exists():fs.append(p.name)
+              row['frames']=fs;rows.append(row)
+          cw,ch=400,240;canvas=Image.new('RGB',(cw*4,ch*len(rows)),'white');dr=ImageDraw.Draw(canvas)
           for r,row in enumerate(rows):
               for c,fn in enumerate(row['frames']):
-                  p=out/fn; im=Image.open(p).convert('RGB'); im.thumbnail((cw-6,ch-22)); x=c*cw+3; y=r*ch+20; canvas.paste(im,(x,y))
-                  dr.text((x,y-18),f"C{row['candidate_index']:02d} {row['start']/60:.1f}m f{c+1}",fill='black')
-          canvas.save(out/'speaker-sheet.jpg','JPEG',quality=88,optimize=True)
-          (out/'delivery.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8')
+                  im=Image.open(out/fn).convert('RGB');im.thumbnail((cw-6,ch-22));x=c*cw+3;y=r*ch+20;canvas.paste(im,(x,y));dr.text((x,y-18),f"C{row['candidate_index']:02d} {'pre' if c==0 else '+'+str([.4,1.4,2.8][c-1])+'s'}",fill='black')
+          canvas.save(out/'reaction-sheet.jpg','JPEG',quality=90,optimize=True)
+          (out/'reaction.json').write_text(json.dumps(rows,indent=2),encoding='utf-8')
           '@ | Set-Content -LiteralPath $script -Encoding utf8
           & $py $script $root $out
-      - name: Upload delivery artifact
+      - name: Upload reaction artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kai-speaker-delivery-matrix
+          name: kai-audience-reaction-matrix
           path: |
-            C:\Users\AwesomeKai\mach\state\seen\fb-delivery-matrix\delivery.json
-            C:\Users\AwesomeKai\mach\state\seen\fb-delivery-matrix\speaker-sheet.jpg
-            C:\Users\AwesomeKai\mach\state\seen\fb-delivery-matrix\c*.jpg
+            C:\Users\AwesomeKai\mach\state\seen\fb-reaction-matrix\reaction.json
+            C:\Users\AwesomeKai\mach\state\seen\fb-reaction-matrix\reaction-sheet.jpg
           compression-level: 6
           retention-days: 1
