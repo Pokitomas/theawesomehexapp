@@ -12,59 +12,58 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Inspect zero-text Facebook player shell
+      - name: Map native Facebook player using MSS
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_player_shell.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_mss_map.py'
           @'
           import json,sys,time
           from pathlib import Path
           sys.path.insert(0,r"C:\Users\AwesomeKai")
           from mach.core import computer as m
-          import uiautomation as auto
-          r={"started":time.time(),"controls":[],"docs":[]}
+          import mss
+          from PIL import Image
+          r={"started":time.time()}
           try:
-              w=m._resolve("Facebook");root=auto.ControlFromHandle(int(w["hwnd"]));docs=[]
-              def finddocs(c,d=0):
-                  if d>18:return
-                  try:
-                      if c.ControlTypeName=="DocumentControl":docs.append(c)
-                      for ch in c.GetChildren():finddocs(ch,d+1)
-                  except Exception:pass
-              finddocs(root)
-              shell=None
-              for dc in docs:
-                  try:
-                      p=dc.GetTextPattern();text=p.DocumentRange.GetText(-1) if p is not None else ""
-                      b=dc.BoundingRectangle;wide=float(b.right)-float(b.left);high=float(b.bottom)-float(b.top)
-                      r["docs"].append({"chars":len(text),"rect":str(b),"wide":wide,"high":high})
-                      if not text and wide>800 and high>700 and shell is None:shell=dc
-                  except Exception as e:r.setdefault("doc_errors",[]).append(type(e).__name__)
-              if shell is None:raise RuntimeError("zero-text player shell not found")
-              def row(c,depth):
-                  out={"depth":depth,"type":str(c.ControlTypeName or ""),"name":str(c.Name or "")[:200],"class":str(c.ClassName or "")[:120],"id":str(c.AutomationId or "")[:120],"rect":str(c.BoundingRectangle)}
-                  try:
-                      p=c.GetLegacyIAccessiblePattern()
-                      if p is not None:out["legacy"]={"action":str(p.DefaultAction or ""),"value":str(p.Value or "")[:160],"role":str(p.Role),"state":str(p.State)}
-                  except Exception:pass
-                  try:
-                      p=c.GetRangeValuePattern()
-                      if p is not None:out["range"]={"value":float(p.Value),"min":float(p.Minimum),"max":float(p.Maximum)}
-                  except Exception:pass
-                  return out
-              def walk(c,d=0):
-                  if d>12 or len(r["controls"])>=500:return
-                  try:
-                      if d>0:r["controls"].append(row(c,d))
-                      for ch in c.GetChildren():walk(ch,d+1)
-                  except Exception:pass
-              walk(shell)
-              r["shell"]={"rect":str(shell.BoundingRectangle),"children":len(shell.GetChildren())}
+              w=m._resolve("Facebook")
+              m._focus_transition({"target":"Facebook"})
+              m._key_transition({"target":"Facebook","vk":27,"physical":True})
+              time.sleep(2)
+              x1,y1,x2,y2=map(int,w["box"])
+              with mss.mss() as s:
+                  raw=s.grab({"left":x1,"top":y1,"width":x2-x1,"height":y2-y1})
+              im=Image.frombytes("RGB",raw.size,raw.rgb)
+              p=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb_mss.png");im.save(p)
+              # content crop below browser chrome, then compact ASCII luminance map
+              crop=im.crop((0,105,im.width,im.height))
+              small=crop.resize((110,70)).convert("L")
+              chars="@%#*+=-:. "
+              rows=[]
+              for yy in range(small.height):
+                  row=""
+                  for xx in range(small.width):
+                      v=small.getpixel((xx,yy));row+=chars[min(len(chars)-1,int(v*len(chars)/256))]
+                  rows.append(row)
+              r["ascii"]="\n".join(rows)
+              r["window"]=w
+              r["document"]=m._document_ingress({"target":"Facebook"})
+              # coarse 11x7 luminance blocks for coordinates
+              lum=im.convert("L")
+              blocks=[]
+              for gy in range(7):
+                  row=[]
+                  ya=105+int((im.height-105)*gy/7); yb=105+int((im.height-105)*(gy+1)/7)
+                  for gx in range(11):
+                      xa=int(im.width*gx/11); xb=int(im.width*(gx+1)/11)
+                      h=lum.crop((xa,ya,xb,yb)).histogram(); n=sum(h) or 1
+                      row.append(round(sum(i*c for i,c in enumerate(h))/n,1))
+                  blocks.append(row)
+              r["luminance_blocks"]=blocks
           except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
           r["finished"]=time.time()
           Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding="utf-8")
           '@ | Set-Content -LiteralPath $py -Encoding utf8
-          & python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook zero-text player shell';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          & C:\Python314\python.exe $py
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook mss map';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
