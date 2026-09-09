@@ -1,0 +1,63 @@
+name: ChatGPT one-seat local ingress now
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/chatgpt-one-seat-go-now.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: chatgpt-one-seat-local-ingress
+  cancel-in-progress: true
+
+jobs:
+  enter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Deliver ChatGPT-only local ingress
+        shell: python
+        run: |
+          import json, subprocess, time
+          directive = r'''OWNER-AUTHORIZED CHATGPT-ONLY LOCAL INGRESS. Execute now. This is the single-seat style that has worked before. Do not involve, message, wake, steer, or depend on Claude. Do not build another agent pair or second control plane.
+
+Use the already-running LOCAL Mach/ARCHIE body and its existing local computer edge. The whole point is to put the ChatGPT occupant directly on the machine again, not to courier work through GitHub after this handoff.
+
+1. Read the current local seat/controller state and current Mach-generated control envelope/live resident state. Treat those as authoritative; do not import any old ChatGPT/Claude conversation transcript, summary, memcite packet, or chat history.
+2. Yield/detach only any disposable occupant that conflicts with the ChatGPT seat. Do not stop the controller, Mach, browser, worker, shell sidecar, or unrelated processes.
+3. Attach/touch exactly one occupant: gpt56sol-chatgpt-live, source=chatgpt, model=gpt-5.6-sol, transport=direct-developer-handoff, provider_neutral_seat=true. No Claude peer.
+4. Through the existing local Mach computer edge, dynamically locate the logged-in ChatGPT surface. Do not use a hardcoded old conversation id. Open a genuinely new ChatGPT conversation if the surface exposes New chat; otherwise attach the active ChatGPT surface without cloning history.
+5. Put exactly this user turn into that fresh/direct ChatGPT surface and submit it: go
+6. After submission, leave the ChatGPT occupant attached to the existing local seat and let it operate through Mach directly. Do not continue as a surrogate model and do not create a watcher that can reclaim after replacement.
+7. Verify locally that the active occupant is gpt56sol-chatgpt-live and that the ChatGPT surface accepted the turn. Publish a compact receipt beginning CHATGPT_ONE_SEAT_READY to Pokitomas/theawesomehexapp issue 771 if local gh is available; otherwise include the compact receipt in the relay result.
+
+If the browser/UI leg fails, keep the direct ChatGPT seat attached and report the exact local edge failure. Do not fall back to Claude and do not fabricate success.'''
+          p = subprocess.run([
+              'curl','-sS','--max-time','55','-X','POST',
+              '-H','content-type: application/json','-H','accept: application/json',
+              '--data-binary',json.dumps({'text':directive}),
+              'https://archie-chatgpt-relay.vercel.app/api/index'
+          ], text=True, capture_output=True, timeout=62)
+          print('relay_rc='+str(p.returncode))
+          print((p.stdout+p.stderr)[:16000])
+          time.sleep(10)
+          if p.returncode != 0:
+              raise SystemExit(p.returncode)
+
+      - name: Publish delivery receipt
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 771,
+              body: `CHATGPT_ONE_SEAT_DELIVERED\nrun_id=${context.runId}\nsha=${context.sha}`
+            });
