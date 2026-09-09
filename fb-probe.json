@@ -1,52 +1,62 @@
 {
-  "started": 1788954733.079435,
-  "documents": [
+  "started": 1788954761.9388208,
+  "controls": [
+    {
+      "depth": 1,
+      "type": "PaneControl",
+      "name": "",
+      "class": "NativeViewHost",
+      "id": "",
+      "rect": "(843,169,1764,1055)[921x886]",
+      "legacy": {
+        "action": "",
+        "value": "",
+        "role": "16",
+        "state": "0"
+      }
+    }
+  ],
+  "docs": [
     {
       "chars": 0,
-      "hits": [],
       "rect": "(843,169,1764,1055)[921x886]",
-      "name": ""
+      "wide": 921.0,
+      "high": 886.0
     },
     {
       "chars": 7478,
-      "hits": [],
       "rect": "(843,169,1764,1055)[921x886]",
-      "name": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook"
+      "wide": 921.0,
+      "high": 886.0
     },
     {
       "chars": 0,
-      "hits": [],
       "rect": "(0,0,0,0)[0x0]",
-      "name": ""
+      "wide": 0.0,
+      "high": 0.0
     },
     {
       "chars": 0,
-      "hits": [],
       "rect": "(0,0,0,0)[0x0]",
-      "name": ""
+      "wide": 0.0,
+      "high": 0.0
     },
     {
       "chars": 0,
-      "hits": [],
       "rect": "(0,0,0,0)[0x0]",
-      "name": ""
+      "wide": 0.0,
+      "high": 0.0
     },
     {
       "chars": 0,
-      "hits": [],
       "rect": "(0,0,0,0)[0x0]",
-      "name": ""
+      "wide": 0.0,
+      "high": 0.0
     }
   ],
-  "window": {
-    "hwnd": 67241300,
-    "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
-    "box": [
-      831,
-      55,
-      1776,
-      1067
-    ]
+  "shell": {
+    "rect": "(843,169,1764,1055)[921x886]",
+    "children": 1
   },
-  "finished": 1788954734.1152027
+  "finished": 1788954763.009539
 }
