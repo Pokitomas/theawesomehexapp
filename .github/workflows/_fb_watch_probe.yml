@@ -12,56 +12,49 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Open Facebook through live Mach computer and capture
+      - name: Open Facebook through Mach primitives and capture
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $mach='C:\Users\AwesomeKai\mach'
           $py=Join-Path $env:RUNNER_TEMP 'fb_probe.py'
           @'
           import json, sys, time
           from pathlib import Path
           sys.path.insert(0, r"C:\Users\AwesomeKai")
-          from mach.core.computer import connect
-          c = connect()
-          r = {"started": time.time()}
-          def call(cap, **kw):
-              try:
-                  return {"ok": True, "value": c.invoke(cap, **kw)}
-              except Exception as e:
-                  return {"ok": False, "error": f"{type(e).__name__}: {e}"}
-          r["before"] = call("windows")
-          r["launch"] = call("launch", target="https://www.facebook.com/cityofsantaclarita/videos/")
-          time.sleep(8)
-          r["after"] = call("windows")
-          picked = None
-          for t in ("Facebook", "Santa Clarita", "Edge", "Chrome"):
-              x = call("capture", target=t, name="fb_probe")
-              r["capture_" + t] = x
+          from mach.core import computer as m
+          r={"started":time.time()}
+          def call(fn, req):
+              try: return {"ok":True,"value":fn(req)}
+              except Exception as e: return {"ok":False,"error":f"{type(e).__name__}: {e}"}
+          r["before"]=call(m._windows,{})
+          r["launch"]=call(m._launch_transition,{"target":"https://www.facebook.com/cityofsantaclarita/videos/"})
+          time.sleep(9)
+          r["after"]=call(m._windows,{})
+          picked=None
+          for t in ("Facebook","Santa Clarita","Edge","Chrome"):
+              x=call(m._capture,{"target":t,"name":"fb_probe"})
+              r["capture_"+t]=x
               if x.get("ok"):
-                  picked = t
-                  break
+                  picked=t; break
           if picked:
-              r["picked"] = picked
-              r["focus"] = call("focus", target=picked)
-              r["document"] = call("document", target=picked)
-              r["capture_final"] = call("capture", target=picked, name="fb_probe")
-          r["finished"] = time.time()
-          Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+              r["picked"]=picked
+              r["focus"]=call(m._focus_transition,{"target":picked})
+              time.sleep(1)
+              r["document"]=call(m._document_ingress,{"target":picked})
+              r["capture_final"]=call(m._capture,{"target":picked,"name":"fb_probe"})
+          r["finished"]=time.time()
+          out=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json")
+          out.parent.mkdir(parents=True,exist_ok=True)
+          out.write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
           try:
               from PIL import Image
               p=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb_probe.png")
               q=Path(r"C:\Users\AwesomeKai\mach\state\seen\fb_probe.jpg")
               if p.exists():
-                  im=Image.open(p).convert("RGB")
-                  im.thumbnail((1400,900))
-                  im.save(q,"JPEG",quality=78,optimize=True)
-          except Exception as e:
-              r["jpg_error"] = f"{type(e).__name__}: {e}"
-              Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+                  im=Image.open(p).convert("RGB"); im.thumbnail((1400,900)); im.save(q,"JPEG",quality=78,optimize=True)
+          except Exception: pass
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & python.exe $py
-
           function PutBus([string]$path,[byte[]]$bytes) {
             $uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path"
             $h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb-probe'}
