@@ -18,13 +18,14 @@ jobs:
           $ErrorActionPreference='Stop'
           $py='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe'
           if(-not (Test-Path $py)){$py='C:\Python314\python.exe'}
-          & $py -m pip install --disable-pip-version-check --quiet yt-dlp
+          & $py -m pip install --disable-pip-version-check --quiet yt-dlp imageio-ffmpeg
+          $ffmpeg=(& $py -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())").Trim()
+          if(-not (Test-Path $ffmpeg)){throw 'bundled ffmpeg missing'}
           $url='https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366'
           $dir='C:\Users\AwesomeKai\mach\state\seen\fb-review'
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Get-ChildItem $dir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
-          # Pull only Facebook's generated captions first.
           & $py -m yt_dlp --skip-download --write-auto-subs --sub-langs en_US --sub-format srt --no-warnings -o "$dir\meeting.%(ext)s" $url
           $srt=Get-ChildItem $dir -Filter '*.srt' | Select-Object -First 1
           if(-not $srt){throw 'auto captions missing'}
@@ -44,45 +45,30 @@ jobs:
               a,b=[x.strip() for x in lines[1].split('-->')[:2]]
               text=re.sub(r'<[^>]+>',' ',' '.join(lines[2:])); text=re.sub(r'\s+',' ',text).strip()
               blocks.append({'start':sec(a),'end':sec(b),'text':text})
-          pats=[
-            ('flock',12),('automatic license',12),('license plate',9),('alpr',10),
-            ('five hundred thousand',10),('500,000',10),('half a million',8),
-            ('hoa',9),('startup',7),('start up',7),('lyons',7),('i-5',6),
-            ('shopping centers',5),('neighborhoods',3),('hidden',3),('camera',2)
-          ]
+          pats=[('flock',12),('automatic license',12),('license plate',9),('alpr',10),('five hundred thousand',10),('500,000',10),('half a million',8),('hoa',9),('startup',7),('start up',7),('lyons',7),('i-5',6),('shopping centers',5),('neighborhoods',3),('hidden',3),('camera',2)]
           hits=[]
           for i,b in enumerate(blocks):
               t=b['text'].lower(); score=sum(w for q,w in pats if q in t)
               if score: hits.append({'i':i,'start':b['start'],'end':b['end'],'score':score,'text':b['text']})
           if not hits:
-              # fallback: surface likely public-comment wording rather than silently picking random time
               for i,b in enumerate(blocks):
                   t=b['text'].lower(); score=sum(w for q,w in [('license',5),('plate',4),('police',2),('privacy',3),('city hall',2)] if q in t)
                   if score: hits.append({'i':i,'start':b['start'],'end':b['end'],'score':score,'text':b['text']})
           if not hits: raise SystemExit('no speech match in captions')
           hits.sort(key=lambda x:x['start'])
-          clusters=[]
-          cur=[hits[0]]
+          clusters=[]; cur=[hits[0]]
           for h in hits[1:]:
               if h['start']-cur[-1]['start'] <= 240: cur.append(h)
               else: clusters.append(cur); cur=[h]
           clusters.append(cur)
-          def cscore(c): return sum(x['score'] for x in c) + 2*len(c)
+          def cscore(c): return sum(x['score'] for x in c)+2*len(c)
           best=max(clusters,key=cscore)
-          anchor=min(x['start'] for x in best)
-          tail=max(x['end'] for x in best)
-          start=max(0,anchor-45)
-          end=min(max(tail+75,start+230),start+330)
+          anchor=min(x['start'] for x in best); tail=max(x['end'] for x in best)
+          start=max(0,anchor-45); end=min(max(tail+75,start+230),start+330)
           chosen=[b for b in blocks if b['end']>=start and b['start']<=end]
           words=sum(len(re.findall(r"\b[\w']+\b",b['text'])) for b in chosen)
           mins=max((end-start)/60,0.01)
-          packet={
-            'status':'matched','srt_file':p.name,'hit_count':len(hits),
-            'top_hits':sorted(hits,key=lambda x:x['score'],reverse=True)[:20],
-            'cluster_score':cscore(best),'start':round(start,3),'end':round(end,3),
-            'duration':round(end-start,3),'caption_words':words,'caption_wpm':round(words/mins,1),
-            'transcript':chosen
-          }
+          packet={'status':'matched','srt_file':p.name,'hit_count':len(hits),'top_hits':sorted(hits,key=lambda x:x['score'],reverse=True)[:20],'cluster_score':cscore(best),'start':round(start,3),'end':round(end,3),'duration':round(end-start,3),'caption_words':words,'caption_wpm':round(words/mins,1),'transcript':chosen}
           out.write_text(json.dumps(packet,ensure_ascii=False,indent=2),encoding='utf-8')
           '@ | Set-Content -LiteralPath $parser -Encoding utf8
           $packetPath=Join-Path $dir 'packet.json'
@@ -90,18 +76,14 @@ jobs:
           $pkt=Get-Content -Raw $packetPath | ConvertFrom-Json
           $start=[double]$pkt.start; $end=[double]$pkt.end
 
-          # Cut only the matched window. Progressive SD is enough for body/eye-contact review.
-          & $py -m yt_dlp --no-warnings -f 'sd/best[height<=640]/best' --download-sections "*$start-$end" --force-keyframes-at-cuts -o "$dir\speech.%(ext)s" $url
+          & $py -m yt_dlp --ffmpeg-location $ffmpeg --no-warnings -f 'sd/best[height<=640]/best' --download-sections "*$start-$end" --force-keyframes-at-cuts -o "$dir\speech.%(ext)s" $url
           $clip=Get-ChildItem $dir -File | Where-Object {$_.Name -match '^speech\.' -and $_.Extension -in '.mp4','.mkv','.webm'} | Select-Object -First 1
           if(-not $clip){throw 'speech clip missing'}
 
-          $ffmpeg=(Get-Command ffmpeg.exe -ErrorAction SilentlyContinue).Source
-          if(-not $ffmpeg){$ffmpeg=(Get-Command ffmpeg -ErrorAction SilentlyContinue).Source}
-          if(-not $ffmpeg){throw 'ffmpeg missing'}
           $sheet=Join-Path $dir 'sheet.jpg'
           & $ffmpeg -hide_banner -loglevel error -y -i $clip.FullName -vf "fps=1/12,scale=360:-2,tile=5x5:padding=4:margin=4" -frames:v 1 $sheet
+          if(-not (Test-Path $sheet)){throw 'sheet missing'}
 
-          # Lightweight delivery metrics from the actual audio track.
           $vol=& $ffmpeg -hide_banner -i $clip.FullName -af volumedetect -f null NUL 2>&1 | Out-String
           $sil=& $ffmpeg -hide_banner -i $clip.FullName -af "silencedetect=noise=-35dB:d=0.35" -f null NUL 2>&1 | Out-String
           $silStarts=[regex]::Matches($sil,'silence_start:\s*([0-9.]+)') | ForEach-Object {[double]$_.Groups[1].Value}
