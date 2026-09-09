@@ -1,4 +1,4 @@
-name: fb watch probe
+name: fb whole-meeting analysis
 on:
   push:
     paths:
@@ -8,23 +8,197 @@ permissions:
 jobs:
   probe:
     runs-on: self-hosted
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
-      - name: Verify exact Kai review checkpoint
+      - name: Build whole-meeting comparison corpus
         shell: pwsh
         run: |
-          $dir='C:\Users\AwesomeKai\mach\state\seen\fb-kai-review'
-          foreach($name in @('packet.json','sheet.jpg','kai.mp4')){
-            $p=Join-Path $dir $name
-            if(-not (Test-Path $p)){throw "missing $name"}
+          $ErrorActionPreference='Stop'
+          $py='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe'
+          if(-not (Test-Path $py)){$py='C:\Python314\python.exe'}
+          & $py -m pip install --disable-pip-version-check --quiet yt-dlp imageio-ffmpeg pillow
+          $ffmpeg=(& $py -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())").Trim()
+          $url='https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366'
+          $root='C:\Users\AwesomeKai\mach\state\seen\fb-whole-review'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          Get-ChildItem $root -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+
+          $srt='C:\Users\AwesomeKai\mach\state\seen\fb-review\meeting.en_US.srt'
+          if(-not (Test-Path $srt)){
+            & $py -m yt_dlp --skip-download --write-auto-subs --sub-langs en_US --sub-format srt --no-warnings -o "$root\meeting.%(ext)s" $url
+            $srt=(Get-ChildItem $root -Filter '*.srt' | Select-Object -First 1).FullName
           }
-      - name: Upload exact Kai council review
+          Copy-Item $srt (Join-Path $root 'meeting.srt') -Force
+
+          # One local 360p copy makes arbitrary whole-meeting visual sampling fast and deterministic.
+          $whole=Join-Path $root 'whole.mp4'
+          if(-not (Test-Path $whole)){
+            & $py -m yt_dlp --ffmpeg-location $ffmpeg --no-warnings -f 'sd/best[height<=360]/best' -o $whole $url
+          }
+          if(-not (Test-Path $whole)){throw 'whole meeting media missing'}
+
+          $script=Join-Path $root 'analyze_whole.py'
+          @'
+          import json,math,re,subprocess,sys
+          from collections import Counter
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          import imageio_ffmpeg
+
+          root=Path(sys.argv[1]); srt=root/'meeting.srt'; video=root/'whole.mp4'
+          raw=srt.read_text(encoding='utf-8',errors='replace')
+          def sec(t):
+              h,m,sms=t.split(':'); s,ms=sms.split(','); return int(h)*3600+int(m)*60+int(s)+int(ms)/1000
+          blocks=[]
+          for ch in re.split(r'\n\s*\n',raw.strip()):
+              ls=[x.strip() for x in ch.splitlines() if x.strip()]
+              if len(ls)<3 or '-->' not in ls[1]: continue
+              a,b=[x.strip() for x in ls[1].split('-->')[:2]]
+              txt=re.sub(r'<[^>]+>',' ',' '.join(ls[2:])); txt=re.sub(r'\s+',' ',txt).strip()
+              blocks.append({'start':sec(a),'end':sec(b),'text':txt})
+          duration=max(x['end'] for x in blocks)
+          def toks(text): return re.findall(r"[A-Za-z0-9']+",text.lower())
+          fillers={'um','uh','like'}
+          def metrics(start,end):
+              bs=[b for b in blocks if b['end']>=start and b['start']<=end]
+              text=' '.join(b['text'] for b in bs); ts=toks(text); n=len(ts)
+              fill=sum(t in fillers for t in ts)+len(re.findall(r'\byou know\b',text.lower()))
+              uniq=len(set(ts)); qs=text.count('?')
+              nums=len(re.findall(r'\b(?:\$?\d[\d,.]*|twenty|thirty|forty|fifty|hundred|thousand|million|percent)\b',text.lower()))
+              first=sum(t in {'i','me','my','mine'} for t in ts)
+              second=sum(t in {'you','your','yours'} for t in ts)
+              neg=len(re.findall(r"\b(?:not|never|no|wrong|bad|false|harm|danger|fear|scared|malicious|incompet|privacy|surveillance)\w*\b",text.lower()))
+              rhetoric=len(re.findall(r'\b(?:actually|honestly|seriously|anyway|however|because|so|but)\b',text.lower()))
+              return {'start':round(start,3),'end':round(end,3),'words':n,'wpm':round(n/max((end-start)/60,.01),1),'fillers':fill,'filler_per_100':round(100*fill/max(n,1),2),'unique_ratio':round(uniq/max(n,1),3),'questions':qs,'numbers':nums,'first_person':first,'second_person':second,'negative_terms':neg,'discourse_markers':rhetoric,'text':text}
+
+          # Exhaustive comparable 3-minute windows across the entire meeting.
+          windows=[]
+          t=0
+          while t<duration:
+              windows.append(metrics(t,min(duration,t+180))); t+=30
+
+          # Candidate public-comment starts. Greetings + long-gap restarts + first-person introductions.
+          starts=[]
+          for i,b in enumerate(blocks):
+              low=b['text'].lower()
+              gap=(b['start']-blocks[i-1]['end']) if i else 99
+              greeting=bool(re.search(r'\b(?:good evening|good afternoon|hello|hi)\b',low)) and bool(re.search(r'\b(?:council|mayor|everyone|city)\b',low))
+              intro=bool(re.search(r'\bmy name is\b',low))
+              firsthall=('first time' in low and ('city hall' in low or 'council' in low))
+              if greeting or intro or firsthall or (gap>=8 and len(toks(low))>=3): starts.append((b['start'],i,'greeting' if greeting else 'intro' if intro else 'firsthall' if firsthall else 'gap'))
+          # Dedupe starts within 50 sec; prefer explicit greeting/introduction.
+          cand=[]
+          for st,i,kind in starts:
+              if cand and st-cand[-1]['start']<50:
+                  if kind!='gap' and cand[-1]['kind']=='gap': cand[-1]={'start':st,'i':i,'kind':kind}
+                  continue
+              cand.append({'start':st,'i':i,'kind':kind})
+          comments=[]
+          for c in cand:
+              st=max(0,c['start']-2)
+              # Find a plausible end: explicit thank-you after 45 sec, capped at 215 sec.
+              hard=min(duration,st+215); end=hard
+              for b in blocks[c['i']+1:]:
+                  if b['start']<st+45: continue
+                  if b['start']>hard: break
+                  if re.search(r'\bthank you\b',b['text'].lower()): end=min(hard,b['end']+2); break
+              m=metrics(st,end); m.update({'kind':c['kind'],'duration':round(end-st,1)})
+              # Public-comment likelihood: 45-215 sec and first/second person or council address.
+              low=m['text'].lower(); score=0
+              if 45<=end-st<=215: score+=2
+              if re.search(r'\b(?:council|mayor|city hall)\b',low): score+=2
+              if re.search(r'\b(?:i|my|we|our)\b',low): score+=1
+              if re.search(r'\bthank you\b',low): score+=1
+              m['public_likelihood']=score
+              if score>=3: comments.append(m)
+
+          # Ensure Kai exact segment is represented and mark it.
+          kai_anchor=5918.313; kai=None
+          for m in comments:
+              if m['start']<=kai_anchor<=m['end']:
+                  m['is_kai']=True; kai=m; break
+          if kai is None:
+              kai=metrics(5903.033,6082.433); kai.update({'kind':'exact','duration':179.4,'public_likelihood':9,'is_kai':True}); comments.append(kai)
+
+          # Distribution percentile helper.
+          def pct(value,arr,higher=True):
+              arr=[x for x in arr if isinstance(x,(int,float))]
+              if not arr:return None
+              if higher:return round(100*sum(x<=value for x in arr)/len(arr),1)
+              return round(100*sum(x>=value for x in arr)/len(arr),1)
+          keys=['wpm','filler_per_100','unique_ratio','questions','numbers','first_person','second_person','negative_terms','discourse_markers']
+          kai['percentiles_vs_windows']={k:pct(kai[k],[x[k] for x in windows],higher=(k!='filler_per_100')) for k in keys}
+          kai['percentiles_vs_public_candidates']={k:pct(kai[k],[x[k] for x in comments],higher=(k!='filler_per_100')) for k in keys}
+
+          # Rank closest public-comment candidates by start and emit compact text for qualitative comparison.
+          for j,m in enumerate(sorted(comments,key=lambda x:x['start'])): m['candidate_index']=j
+
+          # Whole-meeting topical map in 5-minute bins.
+          themes={'flock':['flock','alpr','license plate','camera','surveillance'], 'public_safety':['sheriff','police','crime','safety','safe'], 'housing_land':['housing','development','zoning','property','land'], 'parks_services':['park','library','transit','road','traffic'], 'procedure':['agenda','motion','vote','council','item','meeting']}
+          bins=[]
+          t=0
+          while t<duration:
+              mm=metrics(t,min(duration,t+300)); low=mm['text'].lower(); scores={k:sum(low.count(q) for q in qs) for k,qs in themes.items()}; bins.append({'start':t,'end':min(duration,t+300),'theme_counts':scores,'words':mm['words']}); t+=300
+
+          # Visual sampling: 4 frames per likely public comment; up to 48 candidates ordered through meeting.
+          likely=sorted(comments,key=lambda x:x['start'])[:48]
+          ff=imageio_ffmpeg.get_ffmpeg_exe(); frame_dir=root/'frames'; frame_dir.mkdir(exist_ok=True)
+          samples=[]
+          for ci,m in enumerate(likely):
+              times=[m['start']+min(10,m['duration']*.12),m['start']+m['duration']*.38,m['start']+m['duration']*.68,m['start']+m['duration']*.9]
+              row=[]
+              for si,tt in enumerate(times):
+                  p=frame_dir/f'c{ci:02d}_{si}.jpg'
+                  subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-ss',str(tt),'-i',str(video),'-frames:v','1','-q:v','4',str(p)],check=False)
+                  if p.exists(): row.append({'t':round(tt,1),'file':p.name})
+              samples.append({'candidate_index':ci,'start':m['start'],'frames':row,'is_kai':bool(m.get('is_kai'))})
+
+          # Build sheets, 12 candidates each, preserving chronology and labels.
+          sheets=[]
+          for page in range((len(samples)+11)//12):
+              subset=samples[page*12:(page+1)*12]
+              W,H=1280,720; canvas=Image.new('RGB',(W,H),'white'); d=ImageDraw.Draw(canvas)
+              cellw=W//4; cellh=H//12
+              for r,s in enumerate(subset):
+                  for c,fr in enumerate(s['frames'][:4]):
+                      p=frame_dir/fr['file']
+                      if not p.exists(): continue
+                      im=Image.open(p).convert('RGB'); im.thumbnail((cellw-8,cellh-16))
+                      x=c*cellw+4; y=r*cellh+14
+                      canvas.paste(im,(x,y))
+                      d.text((x,y-13),f"C{s['candidate_index']:02d} {'KAI' if s['is_kai'] else ''} {fr['t']/60:.1f}m",fill='black')
+              out=root/f'comments-sheet-{page:02d}.jpg'; canvas.save(out,'JPEG',quality=82,optimize=True); sheets.append(out.name)
+
+          # Global chronology sheet every 2 minutes.
+          global_times=list(range(0,int(duration),120)); cols=6; rows=math.ceil(len(global_times)/cols); cw,ch=213,120
+          gc=Image.new('RGB',(cols*cw,rows*ch),'white'); gd=ImageDraw.Draw(gc)
+          for n,tt in enumerate(global_times):
+              p=frame_dir/f'g{n:03d}.jpg'
+              subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-ss',str(tt),'-i',str(video),'-frames:v','1','-q:v','5',str(p)],check=False)
+              if p.exists():
+                  im=Image.open(p).convert('RGB'); im.thumbnail((cw-4,ch-16)); x=(n%cols)*cw+2; y=(n//cols)*ch+14; gc.paste(im,(x,y)); gd.text((x,y-13),f'{tt/60:.1f}m',fill='black')
+          gc.save(root/'global-chronology.jpg','JPEG',quality=75,optimize=True)
+
+          # Compact comparison text stripped of huge full-window bodies.
+          compact_comments=[]
+          for m in sorted(comments,key=lambda x:x['start']):
+              z={k:v for k,v in m.items() if k!='text'}; z['excerpt']=m['text'][:900]; compact_comments.append(z)
+          compact_windows=[{k:v for k,v in m.items() if k!='text'} for m in windows]
+          result={'duration':duration,'caption_blocks':len(blocks),'window_count':len(windows),'public_candidate_count':len(comments),'kai':{k:v for k,v in kai.items() if k!='text'},'kai_excerpt':kai['text'][:5000],'public_candidates':compact_comments,'windows':compact_windows,'theme_bins':bins,'visual_samples':samples,'sheets':sheets,'global_sheet':'global-chronology.jpg'}
+          (root/'whole-analysis.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+          # Full commenter transcript corpus separately.
+          (root/'public-comment-corpus.txt').write_text('\n\n'.join(f"C{m['candidate_index']:02d} {m['start']/60:.2f}-{m['end']/60:.2f} min\n{m['text']}" for m in sorted(comments,key=lambda x:x['start'])),encoding='utf-8')
+          '@ | Set-Content -LiteralPath $script -Encoding utf8
+          & $py $script $root
+      - name: Upload whole-meeting analysis artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kai-council-review
+          name: kai-whole-meeting-analysis
           path: |
-            C:\Users\AwesomeKai\mach\state\seen\fb-kai-review\packet.json
-            C:\Users\AwesomeKai\mach\state\seen\fb-kai-review\sheet.jpg
-            C:\Users\AwesomeKai\mach\state\seen\fb-kai-review\kai.mp4
-          compression-level: 0
+            C:\Users\AwesomeKai\mach\state\seen\fb-whole-review\whole-analysis.json
+            C:\Users\AwesomeKai\mach\state\seen\fb-whole-review\public-comment-corpus.txt
+            C:\Users\AwesomeKai\mach\state\seen\fb-whole-review\meeting.srt
+            C:\Users\AwesomeKai\mach\state\seen\fb-whole-review\global-chronology.jpg
+            C:\Users\AwesomeKai\mach\state\seen\fb-whole-review\comments-sheet-*.jpg
+          compression-level: 6
           retention-days: 1
