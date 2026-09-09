@@ -12,24 +12,52 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Inspect Mach key transition
+      - name: Scroll Facebook document to native player
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_key_probe.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_scroll_top.py'
           @'
-          import json,sys,time,inspect
+          import json,sys,time
           from pathlib import Path
           sys.path.insert(0,r"C:\Users\AwesomeKai")
           from mach.core import computer as m
-          r={"started":time.time()}
+          import uiautomation as auto
+          import mss
+          from PIL import Image
+          r={"started":time.time(),"scrolls":[]}
           try:
-              r["signature"]=str(inspect.signature(m._key_transition))
-              r["source"]=inspect.getsource(m._key_transition)
-          except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
-          r["finished"]=time.time()
+              w=m._resolve("Facebook");m._focus_transition({"target":"Facebook"});m._key_transition({"target":"Facebook","vk":27,"physical":True})
+              root=auto.ControlFromHandle(int(w["hwnd"]));docs=[]
+              def walk(c,d=0):
+                  if d>18:return
+                  try:
+                      if c.ControlTypeName=="DocumentControl":docs.append(c)
+                      for ch in c.GetChildren():walk(ch,d+1)
+                  except Exception:pass
+              walk(root)
+              for dc in docs:
+                  try:
+                      tp=dc.GetTextPattern(); txt=tp.DocumentRange.GetText(-1) if tp else ''
+                      sp=dc.GetScrollPattern()
+                      item={"chars":len(txt),"rect":str(dc.BoundingRectangle),"has_scroll":bool(sp)}
+                      if sp:
+                          item["before"]={"h":float(sp.HorizontalScrollPercent),"v":float(sp.VerticalScrollPercent),"vh":float(sp.VerticalViewSize)}
+                          if len(txt)>1000:
+                              sp.SetScrollPercent(-1.0,0.0);time.sleep(3)
+                              item["after"]={"h":float(sp.HorizontalScrollPercent),"v":float(sp.VerticalScrollPercent),"vh":float(sp.VerticalViewSize)}
+                      r["scrolls"].append(item)
+                  except Exception as e:r["scrolls"].append({"error":f"{type(e).__name__}: {e}"})
+              r["document"]=m._document_ingress({"target":"Facebook"})
+              x1,y1,x2,y2=map(int,w["box"])
+              with mss.mss() as s:raw=s.grab({"left":x1,"top":y1,"width":x2-x1,"height":y2-y1})
+              im=Image.frombytes('RGB',raw.size,raw.rgb).crop((0,105,x2-x1,y2-y1)).resize((110,70)).convert('L')
+              chars='@%#*+=-:. '
+              r['ascii']='\n'.join(''.join(chars[min(len(chars)-1,int(im.getpixel((xx,yy))*len(chars)/256))] for xx in range(im.width)) for yy in range(im.height))
+          except Exception as e:r['error']=f'{type(e).__name__}: {e}'
+          r['finished']=time.time()
           Path(r'C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json').write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & C:\Python314\python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='mach key probe';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook uia top';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
