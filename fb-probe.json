@@ -1,636 +1,522 @@
 {
-  "started": 1788953506.4321208,
-  "points": [
+  "started": 1788953565.0478907,
+  "controls": [
     {
-      "xy": [
-        900,
-        910
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "",
+      "AutomationId": "mount_0_0_7B",
+      "HelpText": "",
+      "rect": [
+        843,
+        -606,
+        1749,
+        2013
       ],
-      "chain": [
-        {
-          "Name": "",
-          "ControlTypeName": "GroupControl",
-          "ClassName": "",
-          "AutomationId": "mount_0_0_7B",
-          "HelpText": "",
-          "rect": "(843,-606,1749,2013)[906x2619]",
-          "legacy": {
-            "value": "",
-            "action": "Press",
-            "role": "20"
-          }
-        },
-        {
-          "Name": "City of Santa Clarita Government | Facebook",
-          "ControlTypeName": "DocumentControl",
-          "ClassName": "",
-          "AutomationId": "RootWebArea",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
-            "action": "",
-            "role": "15"
-          },
-          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
-        },
-        {
-          "Name": "Chrome Legacy Window",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "Chrome_RenderWidgetHostHWND",
-          "AutomationId": "1995282",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "10"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "MultiContentsView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        }
-      ]
+      "legacy": {
+        "value": "",
+        "action": "Press",
+        "role": "20"
+      }
     },
     {
-      "xy": [
-        968,
-        910
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1n2onr6 x1ja2u2z",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        -606,
+        1749,
+        2013
       ],
-      "chain": [
-        {
-          "Name": "",
-          "ControlTypeName": "GroupControl",
-          "ClassName": "",
-          "AutomationId": "mount_0_0_7B",
-          "HelpText": "",
-          "rect": "(843,-606,1749,2013)[906x2619]",
-          "legacy": {
-            "value": "",
-            "action": "Press",
-            "role": "20"
-          }
-        },
-        {
-          "Name": "City of Santa Clarita Government | Facebook",
-          "ControlTypeName": "DocumentControl",
-          "ClassName": "",
-          "AutomationId": "RootWebArea",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
-            "action": "",
-            "role": "15"
-          },
-          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
-        },
-        {
-          "Name": "Chrome Legacy Window",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "Chrome_RenderWidgetHostHWND",
-          "AutomationId": "1995282",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "10"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "MultiContentsView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        }
-      ]
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
     },
     {
-      "xy": [
-        1030,
-        910
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1n2onr6 x1ja2u2z",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        -606,
+        1749,
+        2013
       ],
-      "chain": [
-        {
-          "Name": "",
-          "ControlTypeName": "GroupControl",
-          "ClassName": "",
-          "AutomationId": "mount_0_0_7B",
-          "HelpText": "",
-          "rect": "(843,-606,1749,2013)[906x2619]",
-          "legacy": {
-            "value": "",
-            "action": "Press",
-            "role": "20"
-          }
-        },
-        {
-          "Name": "City of Santa Clarita Government | Facebook",
-          "ControlTypeName": "DocumentControl",
-          "ClassName": "",
-          "AutomationId": "RootWebArea",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
-            "action": "",
-            "role": "15"
-          },
-          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
-        },
-        {
-          "Name": "Chrome Legacy Window",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "Chrome_RenderWidgetHostHWND",
-          "AutomationId": "1995282",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "10"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "MultiContentsView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        }
-      ]
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
     },
     {
-      "xy": [
-        1100,
-        910
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x78zum5 xdt5ytf x1n2onr6 x1ja2u2z",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        -606,
+        1749,
+        2013
       ],
-      "chain": [
-        {
-          "Name": "",
-          "ControlTypeName": "GroupControl",
-          "ClassName": "",
-          "AutomationId": "mount_0_0_7B",
-          "HelpText": "",
-          "rect": "(843,-606,1749,2013)[906x2619]",
-          "legacy": {
-            "value": "",
-            "action": "Press",
-            "role": "20"
-          }
-        },
-        {
-          "Name": "City of Santa Clarita Government | Facebook",
-          "ControlTypeName": "DocumentControl",
-          "ClassName": "",
-          "AutomationId": "RootWebArea",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
-            "action": "",
-            "role": "15"
-          },
-          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
-        },
-        {
-          "Name": "Chrome Legacy Window",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "Chrome_RenderWidgetHostHWND",
-          "AutomationId": "1995282",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "10"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "MultiContentsView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        }
-      ]
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
     },
     {
-      "xy": [
-        968,
-        932
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x78zum5 xdt5ytf x1n2onr6 xat3117 xxzkxad",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        -550,
+        1749,
+        2069
       ],
-      "chain": [
-        {
-          "Name": "",
-          "ControlTypeName": "GroupControl",
-          "ClassName": "",
-          "AutomationId": "mount_0_0_7B",
-          "HelpText": "",
-          "rect": "(843,-606,1749,2013)[906x2619]",
-          "legacy": {
-            "value": "",
-            "action": "Press",
-            "role": "20"
-          }
-        },
-        {
-          "Name": "City of Santa Clarita Government | Facebook",
-          "ControlTypeName": "DocumentControl",
-          "ClassName": "",
-          "AutomationId": "RootWebArea",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "https://www.facebook.com/cityofsantaclarita/videos/",
-            "action": "",
-            "role": "15"
-          },
-          "value": "https://www.facebook.com/cityofsantaclarita/videos/"
-        },
-        {
-          "Name": "Chrome Legacy Window",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "Chrome_RenderWidgetHostHWND",
-          "AutomationId": "1995282",
-          "HelpText": "",
-          "rect": "(843,169,1764,1055)[921x886]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "10"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "MultiContentsView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "View",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        },
-        {
-          "Name": "",
-          "ControlTypeName": "PaneControl",
-          "ClassName": "SidebarContentsSplitView",
-          "AutomationId": "",
-          "HelpText": "",
-          "rect": "(839,167,1768,1059)[929x892]",
-          "legacy": {
-            "value": "",
-            "action": "",
-            "role": "16"
-          }
-        }
-      ]
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x78zum5 xdt5ytf x1t2pt76 x1n2onr6 x1ja2u2z x10cihs4",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        -550,
+        1749,
+        2899
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x78zum5 xdt5ytf x1t2pt76 x1n2onr6",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        -550,
+        1749,
+        2899
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "html-div xdj266r x14z9mp xat24cr x1lziwak xexx8yu xyri2b x18d9i69 x1c1uobl x78zum5 x1n2onr6 xh8yej3",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        874,
+        610,
+        1718,
+        2899
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x1n2onr6 x1ja2u2z x1jx94hy xw5cjc7 x1dmpuos x1vsv7so xau1kf4 x9f619 xh8yej3 x6ikm8r x10wlt62 xquyuld",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        874,
+        610,
+        1718,
+        2899
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1r8uery x1iyjqo2 x6ikm8r x10wlt62 x1n2onr6",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        886,
+        652,
+        1296,
+        1000
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1r8uery x1iyjqo2 x6ikm8r x10wlt62 x1n2onr6",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1296,
+        652,
+        1706,
+        1000
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1r8uery x1iyjqo2 x6ikm8r x10wlt62 x1n2onr6",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        886,
+        999,
+        1296,
+        1348
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1r8uery x1iyjqo2 x6ikm8r x10wlt62 x1n2onr6",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1296,
+        999,
+        1706,
+        1348
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        894,
+        1749,
+        1055
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x78zum5 xdt5ytf x2lah0s x193iq5w x2bj2ny x1ey2m1c xayqjjm x9f619 xtijo5x x1o0tod x1xy6bms xpdmqnj x1s14bel x1g0dm76 xixxii4 x8hos8a x1u8a7rm",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        843,
+        894,
+        1749,
+        1055
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1n2onr6 x1ja2u2z x78zum5 xdt5ytf x1iyjqo2 x2lwn1j",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        855,
+        916,
+        1737,
+        1029
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1n2onr6 x1ja2u2z x78zum5 xdt5ytf x2lah0s x193iq5w x1iorvi4 xjkvuk6",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        855,
+        916,
+        1737,
+        969
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "Log in or sign up for Facebook to connect with friends, family and people you know.",
+      "ControlTypeName": "TextControl",
+      "ClassName": "",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        857,
+        911,
+        1735,
+        971
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "41"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1n2onr6 x1ja2u2z x78zum5 xdt5ytf x2lah0s x193iq5w",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        855,
+        969,
+        1737,
+        1029
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1ja2u2z x78zum5 x2lah0s x1n2onr6 xl56j7k xozqiw3 x1q0g3np xpdmqnj x1g0dm76 x18d9i69 x1ws5yxj xw01apr x4cne27 xifccgj x6s0dn4 x1cnzs8 x8hos8a xejc82c",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        849,
+        963,
+        1743,
+        1035
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x1n2onr6 x1ja2u2z x78zum5 xdt5ytf x2lah0s x193iq5w xeuugli x1icxu4v x25sj25 x10b6aqq x1yrsyyn x1afcbsf x3smdqs",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1041,
+        983,
+        1284,
+        1035
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "html-div xdj266r x14z9mp xat24cr x1lziwak xexx8yu xyri2b x18d9i69 x1c1uobl",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1047,
+        989,
+        1278,
+        1029
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "Log In",
+      "ControlTypeName": "HyperlinkControl",
+      "ClassName": "x1i10hfl xjbqb8w x1ejq31n x18oe1m7 x1sy0etr xstzfhl x972fbf x10w94by x1qhh985 x14e42zd x1ypdohk x3ct3a4 xdj266r x14z9mp xat24cr x1lziwak xexx8yu xyri2b x18d9i69 x1c1uobl x16tdsg8 x1hl2dhg xggy1nq x1fmog5m xu25z0z x140muxe xo1y3bh x87ps6o x1lku1pv x1a2a7pz x9f619 x3nfvp2 xdt5ytf xl56j7k x1n2onr6 xh8yej3",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1047,
+        989,
+        1278,
+        1029
+      ],
+      "legacy": {
+        "value": "https://www.facebook.com/login/?next=%2Fcityofsantaclarita%2Fvideos%2F",
+        "action": "Jump",
+        "role": "30"
+      },
+      "value": "https://www.facebook.com/login/?next=%2Fcityofsantaclarita%2Fvideos%2F"
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x9f619 x1n2onr6 x1ja2u2z x78zum5 xdt5ytf x2lah0s x193iq5w xeuugli x1icxu4v x25sj25 x10b6aqq x1yrsyyn",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1283,
+        998,
+        1309,
+        1020
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "or",
+      "ControlTypeName": "TextControl",
+      "ClassName": "",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1289,
+        999,
+        1303,
+        1017
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "41"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "x1n2onr6 x1ja2u2z x78zum5 xdt5ytf x2lah0s x193iq5w xeuugli x1icxu4v x25sj25 x10b6aqq x1yrsyyn x1afcbsf x3smdqs",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1308,
+        983,
+        1551,
+        1035
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "",
+      "ControlTypeName": "GroupControl",
+      "ClassName": "html-div xdj266r x14z9mp xat24cr x1lziwak xexx8yu xyri2b x18d9i69 x1c1uobl",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1314,
+        989,
+        1545,
+        1029
+      ],
+      "legacy": {
+        "value": "",
+        "action": "",
+        "role": "20"
+      }
+    },
+    {
+      "Name": "Create new account",
+      "ControlTypeName": "HyperlinkControl",
+      "ClassName": "x1i10hfl xjbqb8w x1ejq31n x18oe1m7 x1sy0etr xstzfhl x972fbf x10w94by x1qhh985 x14e42zd x1ypdohk x3ct3a4 xdj266r x14z9mp xat24cr x1lziwak xexx8yu xyri2b x18d9i69 x1c1uobl x16tdsg8 x1hl2dhg xggy1nq x1fmog5m xu25z0z x140muxe xo1y3bh x87ps6o x1lku1pv x1a2a7pz x9f619 x3nfvp2 xdt5ytf xl56j7k x1n2onr6 xh8yej3",
+      "AutomationId": "",
+      "HelpText": "",
+      "rect": [
+        1314,
+        989,
+        1545,
+        1029
+      ],
+      "legacy": {
+        "value": "https://www.facebook.com/reg/?next=%2Fcityofsantaclarita%2Fvideos%2F",
+        "action": "Jump",
+        "role": "30"
+      },
+      "value": "https://www.facebook.com/reg/?next=%2Fcityofsantaclarita%2Fvideos%2F"
     }
   ],
-  "finished": 1788953506.9709492
+  "window": {
+    "hwnd": 67241300,
+    "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
+    "box": [
+      831,
+      55,
+      1776,
+      1067
+    ]
+  },
+  "finished": 1788953568.0266151
 }
