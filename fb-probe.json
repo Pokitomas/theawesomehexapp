@@ -1,62 +1,126 @@
 {
-  "started": 1788954761.9388208,
-  "controls": [
-    {
-      "depth": 1,
-      "type": "PaneControl",
-      "name": "",
-      "class": "NativeViewHost",
-      "id": "",
-      "rect": "(843,169,1764,1055)[921x886]",
-      "legacy": {
-        "action": "",
-        "value": "",
-        "role": "16",
-        "state": "0"
-      }
-    }
-  ],
-  "docs": [
-    {
-      "chars": 0,
-      "rect": "(843,169,1764,1055)[921x886]",
-      "wide": 921.0,
-      "high": 886.0
-    },
-    {
-      "chars": 7478,
-      "rect": "(843,169,1764,1055)[921x886]",
-      "wide": 921.0,
-      "high": 886.0
-    },
-    {
-      "chars": 0,
-      "rect": "(0,0,0,0)[0x0]",
-      "wide": 0.0,
-      "high": 0.0
-    },
-    {
-      "chars": 0,
-      "rect": "(0,0,0,0)[0x0]",
-      "wide": 0.0,
-      "high": 0.0
-    },
-    {
-      "chars": 0,
-      "rect": "(0,0,0,0)[0x0]",
-      "wide": 0.0,
-      "high": 0.0
-    },
-    {
-      "chars": 0,
-      "rect": "(0,0,0,0)[0x0]",
-      "wide": 0.0,
-      "high": 0.0
-    }
-  ],
-  "shell": {
-    "rect": "(843,169,1764,1055)[921x886]",
-    "children": 1
+  "started": 1788955553.4594994,
+  "ascii": ".                                                                                                            .\n.                                                                                                :======-  . .\n.    -:....::....::                                                                              +++++=+*  :..\n.    .:::.-::::::::                                                                              +*++++++  -..\n.                                                                                                .:::::::  -..\n.                                                                                                          -..\n.  ..:.:                                                            .                                      -..\n.  :=-====-   .::::    ::.   .:::.   .:::::                         .. ..........                          -..\n.                                                                                                          -..\n:                                                                                                          -..\n.                                                                                                          -..\n:                                                                                                          -..\n:                                                                                                          -.:\n.                                                                                                          -..\n.                                                                                                          -..\n.                                                                                                          -..\n.                                                                                                          -..\n.                                                                                                          -..\n.                                                                                                          -..\n.                                                                                                          -..\n:                                                                                                          . .\n:                                                                                                            .\n-                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n-                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n:                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n.                                                                                                            .\n:                                                                                              :==========-  :\n:   .:. .        .                                                                             =*=-+*++++*=  :\n.   +** ========:==-==:                                                                        =*:.=******+  :\n.   .:.                                                                                        :-::::::::::  :\n.                                                                                                            :\n.  : . . ..  .. .....   . -... -.  .:.. .:. :.  .. .... .. ..::: :..... :.  -....::  ....: .... .:.   .      :\n.  --==+.==.-=:.==+=-.=++.-==:.-==-======== ==::-=-==-==--.==-==.---======: ======== +===-:+======+.-==-=    :\n.      .          .                               .                                                 .        :\n.                                                 ======+:                                                   :\n:                                                                                                            :\n:                         .........................      .........................                           :\n:                        =**************+**********+    -++++=+++=+++++++++++=++++=                          :\n:                        =*********+==-+=+**********  . =+++=-----=----=------=+++=                          :\n.                        -++++++++++++=++++++++++++=    -=========================-                          .\n.                                                                                                            -\n.                                                                                                          ...\n.  ..    :-.  :-.  ...  :--  .-:  .-=. .--.  .:.  :-:  ==:                                               .   .\n-. :*=   -+:  :-:  :=:  +**. -+-  -+*: .==.  :-. .-=: .=-.                                               ..  :",
+  "window": {
+    "hwnd": 67241300,
+    "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+    "box": [
+      831,
+      55,
+      1776,
+      1067
+    ]
   },
-  "finished": 1788954763.009539
+  "document": {
+    "window": {
+      "hwnd": 67241300,
+      "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook and 3 more pages - Personal - Microsoft​ Edge",
+      "box": [
+        831,
+        55,
+        1776,
+        1067
+      ]
+    },
+    "title": "View the meeting agenda here: SantaClarita.gov/Agendas | City of Santa Clarita Government | Facebook",
+    "url": "https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366?t=600",
+    "chars": 7478,
+    "at": 0,
+    "more": false,
+    "text": "￼\n￼\n￼\nLog In\nVideo\nMore\nHome\nLive\nReels\nExplore\nSearch videos\n￼\nRelated Reels\n￼\n￼\nCity of Santa Clarita Government﻿\n￼\n￼\n1.5K\n￼\nCity of Santa Clarita Government﻿\n￼\n￼\n4.5K\n￼\nCity of Santa Clarita Government﻿\n￼\n￼\n13K\n￼\nCity of Santa Clarita Government﻿\n￼\n￼\n8K\n￼\nCity of Santa Clarita Government﻿\n￼\n￼\n4.5K\nNext items\nRelated videos\n￼\n￼\n1:21\n￼\n￼\n⛰️🥾 Adventure is waiting! Youth Outdoor Adventures is back this fall! Youth ages 5-12 …will explore the outdoors while learning about nature, preservation, outdoor skills and local history through hiking, nature discovery, basic first aid lessons, guided tours, team building games and more! 🗓️ Saturdays, September 19 - October 24 🌱 Ages 5-12 📝 Register now at seasons.santaclarita.gov Sign up today and get ready for an adventure! 🏕️ #YouthOutdoorAdventures #OutdoorRecreation #GetOutside #ExploreSCV\nCity of Santa Clarita Government\n1.6K views \n13h ago\n￼\n0:25\n￼\n￼\nCome share your ideas and help shape the future of Newhall Park! 🌳✨ Join us to …explore design options and share your input on proposed improvements, including: 💦 New splash pad 🛝 Inclusive playground 🏃 Fitness equipment 📐 Potential layouts for these new spaces 📅 Thursday, September 10 ⏰ 6:00–8:00 p.m. 📍 Newhall Park Community Room (24923 Newhall Avenue) Your feedback will help guide the design of these new spaces! 📞 For more information, call Connor Hahm at (661) 255-4322 ----------------- ¡Ven a compartir tus ideas y ayúdanos a darle forma al futuro de Newhall Park! 🌳✨ Acompáñanos para conocer las opciones de diseño y compartir tu opinión sobre las mejoras propuestas: 💦 Nueva zona de juegos con agua 🛝 Área de juegos inclusiva 🏃 Aparatos para hacer ejercicio 📐 Distribución de estos nuevos espacios 📅 Jueves 10 de septiembre ⏰ 6:00–8:00 p.m. 📍 Salón Comunitario de Newhall Park (24923 Newhall Avenue) ¡Tus comentarios nos ayudarán a definir el diseño del proyecto! 📞 Para obtener más información, llama a Connor Hahm at (661) 255-4322 Para más contenido en español, sigue nuestras páginas en Facebook e Instagram @CiudadDeSantaClarita ❤\nCity of Santa Clarita Government\n2.2K views \n13h ago\n￼\n1:08\n￼\n￼\nThis Week in Santa Clarita... 🌿 Looking for a way to give back to your community? Join us …on Saturday, September 19, at the Newhall Community Center for the 31st Annual River Rally Clean-Up from 8:00 to 11:00 a.m. Over the past 30 years, volunteers have removed more than 510,000 pounds of trash from the Santa Clara River! This year, you can be part of the effort and help keep one of Southern California’s last natural, free-flowing river systems clean. And once the clean-up wraps up, don’t forget to check out the Environmental Expo! Sign up today at GreenSantaClarita.com. #santaclarita #staygreen #community #cleanup #riverrally\nCity of Santa Clarita Government\n9.3K views \n4d ago\n￼\n0:34\n￼\n￼\n🎨 Calling all artists! What does Hispanic and Latin American culture mean to you?✨ Share Latin American culture mean to you?✨ Shar…your creative perspective through art and be part of our second annual Hispanic Heritage Month Art Exhibit at the Newhall Community Center! Whether your work reflects heritage, identity, family, traditions or personal experiences, we want to see what inspires you. ❤️ ⏰ Submissions close September 8! 🎨 Apply today at SantaClaritaArts.com #SantaClarita #SCVArts #HispanicHeritageMonth #CallForArtists\nCity of Santa Clarita Government\n2.2K views \n5d ago\n￼\n0:19\n￼\n￼\nWe made it a good day on the Beach Bus this past weekend with our third and final Beach …Ball Giveaway, but summer isn’t over just yet! 🏖️🚌😎 The Beach Bus is hitting the road one final time this Labor Day weekend. ☀️ Catch some waves and let us do the driving! 🌊🚌 Learn more at SantaClaritaTransit.com/Beach-Bus/. - ¡Así se disfruta el verano! ☀️🌊 Este fin de semana vivimos un gran día a bordo del Beach Bus con nuestra tercera y última entrega de pelotas de playa. 🏖️🚌😎 Y aunque las entregas llegaron a su fin, todavía queda una última oportunidad para disfrutar del Beach Bus. 🚌 Este fin de semana de Labor Day, súbete al Beach Bus en su último recorrido de la temporada. Tú disfruta de la playa y las olas; nosotros te llevamos. 🌊☀️ Conoce todos los detalles en SantaClaritaTransit.com/Beach-Bus/. #SantaClaritaTransit #BeachBus #SantaClarita\nCity of Santa Clarita Government\n15.8K views \nSeptember 1 at 12:24 PM\n￼\n0:36\n￼\n￼\nThis Week in Santa Clarita… Got Library fines? Turn them into an opportunity to give back! …📚❤️ This September, bring non-perishable food items or toiletries to any Santa Clarita Public Library branch and receive a $5 credit toward eligible Library fees for each item donated, up to $20.� Your donations will help support local organizations, including The Salvation Army, Santa Clarita Valley Food Pantry and Santa Clarita Grocery. 🥫🧴� Clear your fines. Give back. Help feed your community.� 📅 Food For Fines runs throughout September at all three Library branches.� Learn more at Library.SantaClarita.gov!� This Week in Santa Clarita (TWISC) highlights the City’s latest projects, programs and events through weekly updates from City staff.� #TWISC #FoodForFines #GiveBack #SantaClaritaLibrary #SantaClarita\nCity of Santa Clarita Government\n2.3K views \nAugust 28 at 5:23 PM\n￼\n0:16\n￼\n￼\n💦 We’re back! The Aquatic Center reopens for fall programming this Saturday, August 29! 🏊‍♀️fall programming this Saturday, August 29! …☀️ Looking to cool off or get in some laps? Join us this weekend: 🏊 Recreational Swim Saturday & Sunday | 1:00–4:00 p.m. 🎟️ Please purchase your recreational swim tickets on the City website before arriving. 🏊‍♂️ Lap Swim Saturday & Sunday | 10:30 a.m.–1:30 p.m. For more information, call 661-250-3740 or email aquatics@santaclarita.gov. - 💦 ¡El Aquatic Center reabre sus puertas este sábado 29 de agosto con sus programas de otoño! 🏊‍♀️☀️ ¿Quieren refrescarse o nadar unas vueltas? Los esperamos este fin de semana: 🏊 Nado recreativo Sábado y domingo | 1:00–4:00 p.m. 🎟️ Compren sus boletos en el sitio web de la Ciudad antes de llegar. 🏊‍♂️ Nado por carriles Sábado y domingo | 10:30 a.m.–1:30 p.m. Para más información, llamen al 661-250-3740 o escriban a aquatics@santaclarita.gov. Ciudad de Santa Clarita #aquaticcenter\nCity of Santa Clarita Government\n9.9K views \nAugust 28 at 2:57 PM\n￼\n0:21\n￼\n￼\n🥵 HEAT ADVISORY: We miss these days. ❄️🏔️ Today’s heat has us dreaming about cooler 🏔️ Today’s heat has us dreaming about coole…temps, crisp mountain air and those snow-capped Topatopas. Stay cool out there, Santa Clarita! Maybe watch this video a few times and pretend it’s winter. 😂 #SantaClarita #HeatAdvisory #StayCool #SummerInSCV\nCity of Santa Clarita Government\n5.2K views \nAugust 27 at 3:58 PM\n￼\n0:37\n￼\n￼\nCome roll with Fit4Mom at Stroller Strides! 👟🔥   The perfect mix of fitness, fresh air, and …community—because you deserve to feel strong and supported through every stage of motherhood.   📅September 12 – October 31 ⏰9:30 a.m. – 10:30 a.m. 📲Register now at SantaClarita.gov/Seasons ✨ Also check out the Fit4Baby prenatal class on Thursdays at 7:00 p.m. beginning September 10! #seasons #classes #fit4mom\nCity of Santa Clarita Government\n10K views \nAugust 27 at 2:02 PM\n￼\n￼\n￼\nCity of Santa Clarita Government\nVideos\nLIVE: City Council Meeting - September 8, 2026\n￼\nHome\n￼\nLive\n￼\nExplore\n￼\nPrivacy \nConsumer Health Privacy \nTerms \nAdvertising \nAd Choices \nCookies \nMore footer links\nLog in or sign up for Facebook to connect with friends, family and people you know.\nLog In\nor\nCreate new account\n￼\n￼"
+  },
+  "luminance_blocks": [
+    [
+      234.3,
+      238.4,
+      251.0,
+      248.7,
+      251.3,
+      253.5,
+      251.8,
+      246.9,
+      249.5,
+      237.1,
+      216.0
+    ],
+    [
+      238.8,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      229.0
+    ],
+    [
+      236.3,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      240.4
+    ],
+    [
+      236.6,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      240.3
+    ],
+    [
+      238.7,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      242.0,
+      240.0
+    ],
+    [
+      227.6,
+      227.4,
+      236.2,
+      238.6,
+      239.9,
+      239.0,
+      237.8,
+      238.4,
+      238.1,
+      217.9,
+      207.2
+    ],
+    [
+      239.2,
+      243.4,
+      218.4,
+      194.3,
+      196.6,
+      206.5,
+      212.6,
+      212.2,
+      237.4,
+      249.8,
+      243.2
+    ]
+  ],
+  "finished": 1788955556.6725495
 }
