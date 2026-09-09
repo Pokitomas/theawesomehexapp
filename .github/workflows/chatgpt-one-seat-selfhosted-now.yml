@@ -12,29 +12,34 @@ permissions:
 jobs:
   ingress:
     runs-on: self-hosted
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
-      - name: Diagnose only the local seat controller boundary
+      - name: Inspect and repair only the existing local controller unit
         shell: pwsh
         run: |
-          $ErrorActionPreference='Continue'
-          Write-Output 'CHATGPT_LOCAL_CONTROLLER_DIAG_V1'
-          Write-Output ('HOST='+$env:COMPUTERNAME+' RUNNER='+$env:RUNNER_NAME)
-          Write-Output '=== PORTS ==='
-          Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
-            Where-Object { $_.LocalPort -in 8789,8790,8791,8798,8799,8811 } |
-            Select-Object LocalAddress,LocalPort,OwningProcess,State | Format-Table -AutoSize
-          Write-Output '=== WINDOWS CANDIDATES ==='
-          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match 'python|node|pwsh|powershell' -and $_.CommandLine -match 'archie|mach|8798|8799|seat' } |
-            Select-Object ProcessId,ParentProcessId,Name,ExecutablePath | Format-Table -AutoSize
-          Write-Output '=== MACH SOURCE 8798 REFERENCES ==='
-          $root='C:\Users\AwesomeKai\mach'
-          $rg=Get-Command rg.exe -ErrorAction SilentlyContinue
-          if(-not $rg){$rg=Get-Command rg -ErrorAction SilentlyContinue}
-          if($rg -and (Test-Path $root)) {
-            & $rg.Source -n -S --hidden --glob '!**/.git/**' --glob '!**/__pycache__/**' --glob '!**/node_modules/**' '8798|/seat/head|/seat/attach' $root 2>$null | Select-Object -First 240
-          }
-          Write-Output '=== WSL SERVICES / PORTS ==='
-          wsl.exe -e bash -lc "echo USER=\$(id -un); echo HOME=\$HOME; systemctl --user --no-pager --full list-units --type=service --all 2>/dev/null | grep -Ei 'archie|mach|seat|controller|resident|sidecar' | head -120 || true; echo ---UNITFILES---; systemctl --user --no-pager --full list-unit-files --type=service 2>/dev/null | grep -Ei 'archie|mach|seat|controller|resident|sidecar' | head -120 || true; echo ---PORTS---; ss -ltnp 2>/dev/null | grep -E ':(8789|8790|8791|8798|8799|8811)( |$)' || true; echo ---USERUNITS---; grep -RIlE '8798|seat/head|seat/attach' ~/.config/systemd/user 2>/dev/null | head -80 || true"
-          Write-Output 'CHATGPT_LOCAL_CONTROLLER_DIAG_DONE'
+          $ErrorActionPreference='Stop'
+          Write-Output 'CHATGPT_CONTROLLER_REPAIR_V1'
+          $script = @'
+          set -u
+          echo '=== ID ==='
+          id
+          echo HOME=$HOME
+          echo '=== UNIT STATUS ==='
+          systemctl --user status archie-controller.service --no-pager --full || true
+          echo '=== UNIT CAT ==='
+          systemctl --user cat archie-controller.service --no-pager || true
+          echo '=== FILES ==='
+          ls -la ~/.config/systemd/user/archie-controller.service* 2>/dev/null || true
+          echo '=== DROPINS ==='
+          for f in ~/.config/systemd/user/archie-controller.service.d/*; do [ -f "$f" ] || continue; echo ---$f---; sed -n '1,220p' "$f"; done
+          echo '=== BACKUPS ==='
+          for f in ~/.config/systemd/user/archie-controller.service.bak-*; do [ -f "$f" ] || continue; echo ---$f---; sed -n '1,220p' "$f"; done
+          echo '=== SOURCES ==='
+          find ~ -maxdepth 4 -type f \( -iname '*controller*.py' -o -iname '*controller*.service' \) 2>/dev/null | head -120
+          echo '=== PROCESS ==='
+          ps -eo pid,ppid,etimes,args | grep -Ei '[a]rchie.*controller|[c]ontroller.*8798|[s]eat.*8798' | head -80 || true
+          '@
+          $tmp = Join-Path $env:RUNNER_TEMP 'inspect-controller.sh'
+          [IO.File]::WriteAllText($tmp,$script,(New-Object Text.UTF8Encoding($false)))
+          Get-Content -Raw $tmp | wsl.exe -e bash -s
+          Write-Output 'CHATGPT_CONTROLLER_REPAIR_INSPECT_DONE'
