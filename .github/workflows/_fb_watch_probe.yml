@@ -8,59 +8,109 @@ permissions:
 jobs:
   probe:
     runs-on: self-hosted
-    timeout-minutes: 8
+    timeout-minutes: 12
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Finalize existing Facebook speech packet
+      - name: Cut exact Kai council segment from caption anchor
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           $py='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe'
           if(-not (Test-Path $py)){$py='C:\Python314\python.exe'}
-          & $py -m pip install --disable-pip-version-check --quiet imageio-ffmpeg
-          $dir='C:\Users\AwesomeKai\mach\state\seen\fb-review'
-          $packet=Join-Path $dir 'packet.json'
-          $clip=Join-Path $dir 'speech.mp4'
-          $sheet=Join-Path $dir 'sheet.jpg'
-          if(-not (Test-Path $packet)){throw 'packet checkpoint missing'}
-          if(-not (Test-Path $clip)){throw 'clip checkpoint missing'}
+          & $py -m pip install --disable-pip-version-check --quiet yt-dlp imageio-ffmpeg
+          $ffmpeg=(& $py -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())").Trim()
+          $url='https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366'
+          $dir='C:\Users\AwesomeKai\mach\state\seen\fb-kai-review'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Get-ChildItem $dir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+
+          $srt='C:\Users\AwesomeKai\mach\state\seen\fb-review\meeting.en_US.srt'
+          if(-not (Test-Path $srt)){
+            & $py -m yt_dlp --skip-download --write-auto-subs --sub-langs en_US --sub-format srt --no-warnings -o "$dir\meeting.%(ext)s" $url
+            $srt=(Get-ChildItem $dir -Filter '*.srt' | Select-Object -First 1).FullName
+          }
+          if(-not (Test-Path $srt)){throw 'captions unavailable'}
+
+          $an=Join-Path $dir 'analyze.py'
+          @'
+          import base64,json,re,subprocess,sys
+          from pathlib import Path
+          import imageio_ffmpeg
+          srt=Path(sys.argv[1]); out=Path(sys.argv[2]); url=sys.argv[3]
+          raw=srt.read_text(encoding='utf-8',errors='replace')
+          def sec(t):
+              h,m,sms=t.split(':'); s,ms=sms.split(','); return int(h)*3600+int(m)*60+int(s)+int(ms)/1000
+          blocks=[]
+          for ch in re.split(r'\n\s*\n',raw.strip()):
+              ls=[x.strip() for x in ch.splitlines() if x.strip()]
+              if len(ls)<3 or '-->' not in ls[1]: continue
+              a,b=[x.strip() for x in ls[1].split('-->')[:2]]
+              txt=re.sub(r'<[^>]+>',' ',' '.join(ls[2:])); txt=re.sub(r'\s+',' ',txt).strip()
+              blocks.append({'start':sec(a),'end':sec(b),'text':txt})
+          anchors=[]
+          for i,b in enumerate(blocks):
+              t=b['text'].lower()
+              score=0
+              for q,w in [('automatic license plate reader',30),('first time at city hall',25),('name flock is really cool',25),('flock sounds very startup',22),('one big hoa',22),('i-5 and lyons',18),('shopping centers and neighborhoods',12)]:
+                  if q in t: score+=w
+              if score: anchors.append((score,i,b))
+          if not anchors:
+              raise SystemExit('exact Kai speech anchor not found')
+          anchors.sort(reverse=True,key=lambda x:x[0]); _,ai,ab=anchors[0]
+          # Walk back to the likely greeting within 45 seconds.
+          start=ab['start']-28
+          for j in range(ai,max(-1,ai-30),-1):
+              t=blocks[j]['text'].lower()
+              if ('first time' in t and ('city hall' in t or 'hall' in t)) or ('hello' in t and blocks[j]['start']>=ab['start']-45):
+                  start=blocks[j]['start']-3; break
+          start=max(0,start)
+          end=start+225
+          window=[b for b in blocks if b['end']>=start and b['start']<=end]
+          text=' '.join(b['text'] for b in window)
+          fillers=sum(len(re.findall(r'\b(?:uh+|um+|like|you know)\b',b['text'].lower())) for b in window)
+          words=sum(len(re.findall(r"\b[\w']+\b",b['text'])) for b in window)
+          pkt={'status':'exact_anchor','anchor':ab,'start':round(start,3),'end':round(end,3),'duration':round(end-start,3),'caption_words':words,'caption_wpm':round(words/((end-start)/60),1),'filler_count':fillers,'transcript':window}
+          out.mkdir(parents=True,exist_ok=True)
+          (out/'packet.json').write_text(json.dumps(pkt,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'start':start,'end':end}))
+          '@ | Set-Content -LiteralPath $an -Encoding utf8
+          $timing=& $py $an $srt $dir $url | ConvertFrom-Json
+          $start=[double]$timing.start; $end=[double]$timing.end
+
+          & $py -m yt_dlp --ffmpeg-location $ffmpeg --no-warnings -f 'sd/best[height<=640]/best' --download-sections "*$start-$end" --force-keyframes-at-cuts -o "$dir\kai.%(ext)s" $url
+          $clip=Get-ChildItem $dir -File | Where-Object {$_.Name -match '^kai\.' -and $_.Extension -in '.mp4','.mkv','.webm'} | Select-Object -First 1
+          if(-not $clip){throw 'Kai clip missing'}
+
           $final=Join-Path $dir 'finalize.py'
           @'
           import base64,json,re,subprocess,sys
           from pathlib import Path
           import imageio_ffmpeg
-          d=Path(sys.argv[1]); packet=d/'packet.json'; clip=d/'speech.mp4'; sheet=d/'sheet.jpg'
+          d=Path(sys.argv[1]); clip=Path(sys.argv[2]); packet=d/'packet.json'; sheet=d/'sheet.jpg'
           ff=imageio_ffmpeg.get_ffmpeg_exe()
-          if not sheet.exists():
-              subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-i',str(clip),'-vf','fps=1/12,scale=360:-2,tile=5x5:padding=4:margin=4','-frames:v','1',str(sheet)],check=True)
+          subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-i',str(clip),'-vf','fps=1/9,scale=360:-2,tile=5x5:padding=4:margin=4','-frames:v','1',str(sheet)],check=True)
           pkt=json.loads(packet.read_text(encoding='utf-8'))
-          vol=subprocess.run([ff,'-hide_banner','-i',str(clip),'-af','volumedetect','-f','null','NUL'],capture_output=True,text=True)
-          sil=subprocess.run([ff,'-hide_banner','-i',str(clip),'-af','silencedetect=noise=-35dB:d=0.35','-f','null','NUL'],capture_output=True,text=True)
-          vt=(vol.stdout or '')+(vol.stderr or '')
-          st=(sil.stdout or '')+(sil.stderr or '')
-          starts=[float(x) for x in re.findall(r'silence_start:\s*([0-9.]+)',st)]
-          ends=[float(x) for x in re.findall(r'silence_end:\s*([0-9.]+)',st)]
+          def run(args):
+              p=subprocess.run([ff,*args],capture_output=True,text=True); return (p.stdout or '')+(p.stderr or '')
+          vol=run(['-hide_banner','-i',str(clip),'-af','volumedetect','-f','null','NUL'])
+          sil=run(['-hide_banner','-i',str(clip),'-af','silencedetect=noise=-35dB:d=0.35','-f','null','NUL'])
+          starts=[float(x) for x in re.findall(r'silence_start:\s*([0-9.]+)',sil)]
+          ends=[float(x) for x in re.findall(r'silence_end:\s*([0-9.]+)',sil)]
           sd=sum(max(0,b-a) for a,b in zip(starts,ends))
-          mm=re.search(r'mean_volume:\s*([^\r\n]+)',vt); mx=re.search(r'max_volume:\s*([^\r\n]+)',vt)
-          pkt.update({
-            'media_file':clip.name,'mean_volume':mm.group(1).strip() if mm else '',
-            'max_volume':mx.group(1).strip() if mx else '',
-            'silence_events':len(starts),'silence_seconds':round(sd,2),
-            'silence_fraction':round(sd/max(1,float(pkt.get('duration',1))),3),
-            'sheet_frames':25
-          })
+          mm=re.search(r'mean_volume:\s*([^\r\n]+)',vol); mx=re.search(r'max_volume:\s*([^\r\n]+)',vol)
+          pkt.update({'media_file':clip.name,'mean_volume':mm.group(1).strip() if mm else '','max_volume':mx.group(1).strip() if mx else '','silence_events':len(starts),'silence_seconds':round(sd,2),'silence_fraction':round(sd/max(1,float(pkt['duration'])),3),'sheet_interval_seconds':9,'sheet_frames':25})
           packet.write_text(json.dumps(pkt,ensure_ascii=False,indent=2),encoding='utf-8')
           (d/'sheet.b64.txt').write_text(base64.b64encode(sheet.read_bytes()).decode('ascii'),encoding='ascii')
           '@ | Set-Content -LiteralPath $final -Encoding utf8
-          & $py $final $dir
+          & $py $final $dir $clip.FullName
 
           function PutBus([string]$path,[byte[]]$bytes){
             $uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path"
             $h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'}
             $sha=$null; try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{}
-            $b=@{message='facebook speech review packet';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha}
+            $b=@{message='exact Kai council review packet';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha}
             Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null
           }
-          PutBus 'fb-review.json' ([IO.File]::ReadAllBytes($packet))
-          PutBus 'fb-sheet.b64.txt' ([IO.File]::ReadAllBytes((Join-Path $dir 'sheet.b64.txt')))
+          PutBus 'fb-kai-review.json' ([IO.File]::ReadAllBytes((Join-Path $dir 'packet.json')))
+          PutBus 'fb-kai-sheet.b64.txt' ([IO.File]::ReadAllBytes((Join-Path $dir 'sheet.b64.txt')))
