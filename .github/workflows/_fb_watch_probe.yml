@@ -12,36 +12,24 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Return timestamp page to native player
+      - name: Inspect Mach key transition
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_top.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_key_probe.py'
           @'
-          import json,sys,time
+          import json,sys,time,inspect
           from pathlib import Path
           sys.path.insert(0,r"C:\Users\AwesomeKai")
           from mach.core import computer as m
-          import mss
-          from PIL import Image
-          import pyautogui
           r={"started":time.time()}
           try:
-              w=m._resolve("Facebook");m._focus_transition({"target":"Facebook"})
-              m._key_transition({"target":"Facebook","vk":27,"physical":True})
-              pyautogui.hotkey('ctrl','home');time.sleep(4)
-              r["document"]=m._document_ingress({"target":"Facebook"})
-              x1,y1,x2,y2=map(int,w["box"])
-              with mss.mss() as s: raw=s.grab({"left":x1,"top":y1,"width":x2-x1,"height":y2-y1})
-              im=Image.frombytes('RGB',raw.size,raw.rgb).crop((0,105,x2-x1,y2-y1)).resize((110,70)).convert('L')
-              chars='@%#*+=-:. ';rows=[]
-              for yy in range(im.height):
-                  rows.append(''.join(chars[min(len(chars)-1,int(im.getpixel((xx,yy))*len(chars)/256))] for xx in range(im.width)))
-              r['ascii']='\n'.join(rows)
-          except Exception as e:r['error']=f'{type(e).__name__}: {e}'
-          r['finished']=time.time()
+              r["signature"]=str(inspect.signature(m._key_transition))
+              r["source"]=inspect.getsource(m._key_transition)
+          except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
+          r["finished"]=time.time()
           Path(r'C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json').write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding='utf-8')
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & C:\Python314\python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook player top';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='mach key probe';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
