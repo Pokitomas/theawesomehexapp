@@ -12,39 +12,39 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Map current Facebook frame
+      - name: Find hidden player document
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_frame_map.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_player_doc.py'
           @'
           import json,sys,time
           from pathlib import Path
-          from PIL import Image
           sys.path.insert(0,r"C:\Users\AwesomeKai")
           from mach.core import computer as m
-          r={"started":time.time()}
+          import uiautomation as auto
+          r={"started":time.time(),"documents":[]}
           try:
-              m._focus_transition({"target":"Facebook"})
-              m._key_transition({"target":"Facebook","vk":27,"physical":True})
-              m._key_transition({"target":"Facebook","vk":36,"physical":True})
-              time.sleep(2)
-              cap=m._capture({"target":"Facebook","name":"fb_frame_map"})
-              im=Image.open(cap["path"]).convert("L").resize((96,64))
-              chars="@%#*+=-:. "
-              rows=[]
-              for y in range(im.height):
-                  row=""
-                  for x in range(im.width):
-                      v=im.getpixel((x,y));row+=chars[min(len(chars)-1,int(v/256*len(chars)))]
-                  rows.append(row)
-              r["ascii"]="\n".join(rows)
-              r["capture"]=cap
-              r["document"]=m._document_ingress({"target":"Facebook"})
+              w=m._resolve("Facebook");root=auto.ControlFromHandle(int(w["hwnd"]))
+              needles=("Pause","Play","Change Position","Captions","3:27:22","Unmute","Mute")
+              def walk(c,d=0):
+                  if d>18:return
+                  try:
+                      if c.ControlTypeName=="DocumentControl":
+                          p=c.GetTextPattern();hits=[];chars=0
+                          if p is not None:
+                              t=p.DocumentRange.GetText(-1);chars=len(t)
+                              for n in needles:
+                                  if n in t:hits.append(n)
+                          r["documents"].append({"chars":chars,"hits":hits,"rect":str(c.BoundingRectangle),"name":str(c.Name or "")[:160]})
+                      for ch in c.GetChildren():walk(ch,d+1)
+                  except Exception:pass
+              walk(root)
+              r["window"]=w
           except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
           r["finished"]=time.time()
-          Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
+          Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2),encoding="utf-8")
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook frame map';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook player document probe';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
