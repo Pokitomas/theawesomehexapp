@@ -1,61 +1,450 @@
 {
-  "started": 1788952821.784223,
+  "started": 1788952876.2003803,
   "before": {
     "ok": true,
     "value": {
-      "id": "d026a6b47dbd4b64b24758bb8788eba4",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 0"
+      "windows": [
+        {
+          "hwnd": 67241300,
+          "title": "ChatGPT and 1 more page - Personal - Microsoft​ Edge",
+          "box": [
+            831,
+            55,
+            1776,
+            1067
+          ]
+        },
+        {
+          "hwnd": 1969660,
+          "title": "Claude",
+          "box": [
+            124,
+            135,
+            1340,
+            957
+          ]
+        },
+        {
+          "hwnd": 24381394,
+          "title": "Administrator: Windows PowerShell",
+          "box": [
+            52,
+            52,
+            1045,
+            571
+          ]
+        },
+        {
+          "hwnd": 63966128,
+          "title": "Mach Self Continue - Personal - Microsoft​ Edge",
+          "box": [
+            821,
+            45,
+            1766,
+            1057
+          ]
+        },
+        {
+          "hwnd": 23267300,
+          "title": "Host Pull Verification and 13 more pages - Personal - Microsoft​ Edge",
+          "box": [
+            811,
+            35,
+            1756,
+            1047
+          ]
+        },
+        {
+          "hwnd": 210962172,
+          "title": "MachOS",
+          "box": [
+            80,
+            40,
+            1376,
+            939
+          ]
+        },
+        {
+          "hwnd": 7932794,
+          "title": "Administrator: Windows PowerShell",
+          "box": [
+            208,
+            208,
+            1201,
+            727
+          ]
+        },
+        {
+          "hwnd": 40439254,
+          "title": "Windows PowerShell",
+          "box": [
+            148,
+            156,
+            1277,
+            791
+          ]
+        },
+        {
+          "hwnd": 41289260,
+          "title": "C:\\Python314\\python.exe",
+          "box": [
+            96,
+            104,
+            1225,
+            739
+          ]
+        },
+        {
+          "hwnd": 55905508,
+          "title": "Windows PowerShell",
+          "box": [
+            69,
+            115,
+            1198,
+            750
+          ]
+        },
+        {
+          "hwnd": 97783762,
+          "title": "Windows PowerShell",
+          "box": [
+            70,
+            78,
+            1199,
+            713
+          ]
+        },
+        {
+          "hwnd": 2297512,
+          "title": "awesomekai@DESKTOP-6FN9B4M: ~",
+          "box": [
+            186,
+            356,
+            1315,
+            991
+          ]
+        },
+        {
+          "hwnd": 65012114,
+          "title": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "box": [
+            96,
+            104,
+            1225,
+            739
+          ]
+        },
+        {
+          "hwnd": 19728960,
+          "title": "Downloads - File Explorer",
+          "box": [
+            1027,
+            0,
+            1920,
+            1032
+          ]
+        },
+        {
+          "hwnd": 4261296,
+          "title": "Desktop - File Explorer",
+          "box": [
+            1027,
+            0,
+            1920,
+            1032
+          ]
+        },
+        {
+          "hwnd": 132074,
+          "title": "Windows Input Experience",
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ]
+        },
+        {
+          "hwnd": 65870,
+          "title": "Program Manager",
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ]
+        }
+      ],
+      "foreground": 67241300,
+      "desktop": [
+        0,
+        0,
+        1920,
+        1080
+      ]
     }
   },
   "launch": {
     "ok": true,
     "value": {
-      "id": "9db53a282ffb43d98d9cc4a74bb891a0",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 0"
+      "target": "https://www.facebook.com/cityofsantaclarita/videos/",
+      "launched": true,
+      "shell": 42
     }
   },
   "after": {
     "ok": true,
     "value": {
-      "id": "16529bba4aa94a208dfd4d0ad5274690",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 0"
+      "windows": [
+        {
+          "hwnd": 67241300,
+          "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
+          "box": [
+            831,
+            55,
+            1776,
+            1067
+          ]
+        },
+        {
+          "hwnd": 1969660,
+          "title": "Claude",
+          "box": [
+            124,
+            135,
+            1340,
+            957
+          ]
+        },
+        {
+          "hwnd": 24381394,
+          "title": "Administrator: Windows PowerShell",
+          "box": [
+            52,
+            52,
+            1045,
+            571
+          ]
+        },
+        {
+          "hwnd": 63966128,
+          "title": "Mach Self Continue - Personal - Microsoft​ Edge",
+          "box": [
+            821,
+            45,
+            1766,
+            1057
+          ]
+        },
+        {
+          "hwnd": 23267300,
+          "title": "Host Pull Verification and 13 more pages - Personal - Microsoft​ Edge",
+          "box": [
+            811,
+            35,
+            1756,
+            1047
+          ]
+        },
+        {
+          "hwnd": 210962172,
+          "title": "MachOS",
+          "box": [
+            80,
+            40,
+            1376,
+            939
+          ]
+        },
+        {
+          "hwnd": 7932794,
+          "title": "Administrator: Windows PowerShell",
+          "box": [
+            208,
+            208,
+            1201,
+            727
+          ]
+        },
+        {
+          "hwnd": 40439254,
+          "title": "Windows PowerShell",
+          "box": [
+            148,
+            156,
+            1277,
+            791
+          ]
+        },
+        {
+          "hwnd": 41289260,
+          "title": "C:\\Python314\\python.exe",
+          "box": [
+            96,
+            104,
+            1225,
+            739
+          ]
+        },
+        {
+          "hwnd": 55905508,
+          "title": "Windows PowerShell",
+          "box": [
+            69,
+            115,
+            1198,
+            750
+          ]
+        },
+        {
+          "hwnd": 97783762,
+          "title": "Windows PowerShell",
+          "box": [
+            70,
+            78,
+            1199,
+            713
+          ]
+        },
+        {
+          "hwnd": 2297512,
+          "title": "awesomekai@DESKTOP-6FN9B4M: ~",
+          "box": [
+            186,
+            356,
+            1315,
+            991
+          ]
+        },
+        {
+          "hwnd": 65012114,
+          "title": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "box": [
+            96,
+            104,
+            1225,
+            739
+          ]
+        },
+        {
+          "hwnd": 19728960,
+          "title": "Downloads - File Explorer",
+          "box": [
+            1027,
+            0,
+            1920,
+            1032
+          ]
+        },
+        {
+          "hwnd": 4261296,
+          "title": "Desktop - File Explorer",
+          "box": [
+            1027,
+            0,
+            1920,
+            1032
+          ]
+        },
+        {
+          "hwnd": 132074,
+          "title": "Windows Input Experience",
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ]
+        },
+        {
+          "hwnd": 65870,
+          "title": "Program Manager",
+          "box": [
+            0,
+            0,
+            1920,
+            1080
+          ]
+        }
+      ],
+      "foreground": 67241300,
+      "desktop": [
+        0,
+        0,
+        1920,
+        1080
+      ]
     }
   },
   "capture_Facebook": {
     "ok": true,
     "value": {
-      "id": "b97e02c2c91445aeb87b70fdfc085783",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 2"
+      "window": {
+        "hwnd": 67241300,
+        "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
+        "box": [
+          831,
+          55,
+          1776,
+          1067
+        ]
+      },
+      "path": "C:\\Users\\AwesomeKai\\mach\\state\\seen\\fb_probe.png"
     }
   },
   "picked": "Facebook",
   "focus": {
     "ok": true,
     "value": {
-      "id": "95c2bf775cf34d18ae284ca897b45969",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 1"
+      "window": {
+        "hwnd": 67241300,
+        "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
+        "box": [
+          831,
+          55,
+          1776,
+          1067
+        ]
+      },
+      "focused": true
     }
   },
   "document": {
     "ok": true,
     "value": {
-      "id": "94786782b6344209a8136c081b0acbbf",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 1"
+      "window": {
+        "hwnd": 67241300,
+        "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
+        "box": [
+          831,
+          55,
+          1776,
+          1067
+        ]
+      },
+      "title": "City of Santa Clarita Government | Facebook",
+      "url": "https://www.facebook.com/cityofsantaclarita/videos/",
+      "chars": 128,
+      "at": 0,
+      "more": false,
+      "text": "￼\n￼\n￼\nLog In\n￼\nClose\nSee more on Facebook\nEmail or phone number\n￼\nPassword\n￼\nLog In\nForgot password?\n￼\nor\n￼\nCreate new account\n￼"
     }
   },
   "capture_final": {
     "ok": true,
     "value": {
-      "id": "94e0a6e945ab49ab86a6ebeb908803ad",
-      "ok": false,
-      "note": "ValueError: non-hexadecimal number found in fromhex() arg at position 2"
+      "window": {
+        "hwnd": 67241300,
+        "title": "City of Santa Clarita Government | Facebook and 2 more pages - Personal - Microsoft​ Edge",
+        "box": [
+          831,
+          55,
+          1776,
+          1067
+        ]
+      },
+      "path": "C:\\Users\\AwesomeKai\\mach\\state\\seen\\fb_probe.png"
     }
   },
-  "finished": 1788952829.7922335
+  "finished": 1788952887.8698978
 }
