@@ -12,54 +12,57 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Enumerate Facebook links around council card
+      - name: Uncover council title with Mach keys and open it
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $py=Join-Path $env:RUNNER_TEMP 'fb_links.py'
+          $py=Join-Path $env:RUNNER_TEMP 'fb_uncover.py'
           @'
           import json,sys,time
           from pathlib import Path
           sys.path.insert(0,r"C:\Users\AwesomeKai")
           from mach.core import computer as m
           import uiautomation as auto
-          r={"started":time.time(),"controls":[]}
-          def info(c):
-              d={}
-              for k in ("Name","ControlTypeName","ClassName","AutomationId","HelpText"):
-                  try:d[k]=str(getattr(c,k) or "")
-                  except Exception:d[k]=""
-              try:
-                  b=c.BoundingRectangle; d["rect"]=[int(b.left),int(b.top),int(b.right),int(b.bottom)]
-              except Exception:d["rect"]=None
-              try:
-                  p=c.GetLegacyIAccessiblePattern()
-                  if p is not None:d["legacy"]={"value":str(p.Value or ""),"action":str(p.DefaultAction or ""),"role":str(p.Role)}
-              except Exception:pass
-              try:
-                  p=c.GetValuePattern()
-                  if p is not None:d["value"]=str(p.Value or "")
-              except Exception:pass
-              return d
+          wanted="LIVE: City Council Meeting - September 8, 2026"
+          r={"started":time.time(),"positions":[]}
           try:
-              w=m._resolve("Facebook"); root=auto.ControlFromHandle(int(w["hwnd"])); seen=0
+              w=m._resolve("Facebook");m._focus_transition({"target":"Facebook"})
+              root=auto.ControlFromHandle(int(w["hwnd"]));docs=[]
               def walk(c,d=0):
-                  nonlocal_seen=None
-                  if d>22 or len(r["controls"])>=500:return
+                  if d>16:return
                   try:
-                      typ=str(c.ControlTypeName or "")
-                      if typ in ("HyperlinkControl","ButtonControl","TextControl","GroupControl"):
-                          x=info(c); b=x.get("rect")
-                          if b and b[2]>=843 and b[0]<=1764 and b[3]>=760 and b[1]<=1045:
-                              r["controls"].append(x)
+                      if c.ControlTypeName=="DocumentControl":docs.append(c)
                       for ch in c.GetChildren():walk(ch,d+1)
                   except Exception:pass
               walk(root)
-              r["window"]=w
+              rg=None
+              for dc in docs:
+                  try:
+                      p=dc.GetTextPattern()
+                      if p is None:continue
+                      whole=p.DocumentRange;text=whole.GetText(-1);i=text.find(wanted)
+                      if i<0:continue
+                      rg=whole.Clone()
+                      rg.MoveEndpointByUnit(auto.TextPatternRangeEndpoint.Start,auto.TextUnit.Character,i)
+                      rg.MoveEndpointByUnit(auto.TextPatternRangeEndpoint.End,auto.TextUnit.Character,-(len(text)-i-len(wanted)))
+                      break
+                  except Exception:pass
+              if rg is None:raise RuntimeError("meeting text not found")
+              rg.ScrollIntoView(True);time.sleep(1)
+              for _ in range(10):
+                  rects=list(rg.GetBoundingRectangles() or []);r["positions"].append([str(x) for x in rects])
+                  if rects and (float(rects[0].top)+float(rects[0].bottom))/2 < 800:break
+                  m._key_transition({"target":"Facebook","vk":40,"physical":True});time.sleep(.25)
+              rects=list(rg.GetBoundingRectangles() or []);r["final_rects"]=[str(x) for x in rects]
+              if not rects:raise RuntimeError("meeting rectangle unavailable")
+              q=rects[0];wx1,wy1,_,_=w["box"]
+              x=int((float(q.left)+float(q.right))/2-wx1);y=int((float(q.top)+float(q.bottom))/2-wy1)
+              r["click_xy"]=[x,y];r["click"]=m._click_transition({"target":"Facebook","x":x,"y":y})
+              time.sleep(7);r["after"]=m._document_ingress({"target":"Facebook"})
           except Exception as e:r["error"]=f"{type(e).__name__}: {e}"
           r["finished"]=time.time()
           Path(r"C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json").write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str),encoding="utf-8")
           '@ | Set-Content -LiteralPath $py -Encoding utf8
           & python.exe $py
-          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='facebook link metadata';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
+          function PutBus([string]$path,[byte[]]$bytes){$uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path";$h=@{Authorization="Bearer $env:GITHUB_TOKEN";Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='q0907-fb'};$sha=$null;try{$cur=Invoke-RestMethod -Headers $h -Uri ($uri+'?ref=mach-live-bus') -Method Get -TimeoutSec 15;$sha=$cur.sha}catch{};$b=@{message='uncover and open council video';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha};Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null}
           PutBus 'fb-probe.json' ([IO.File]::ReadAllBytes('C:\Users\AwesomeKai\mach\state\seen\fb-probe-result.json'))
