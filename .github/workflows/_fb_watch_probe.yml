@@ -8,102 +8,52 @@ permissions:
 jobs:
   probe:
     runs-on: self-hosted
-    timeout-minutes: 15
+    timeout-minutes: 8
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Locate Kai speech and build review packet
+      - name: Finalize existing Facebook speech packet
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           $py='C:\Users\AwesomeKai\AppData\Local\Programs\Python\Python312\python.exe'
           if(-not (Test-Path $py)){$py='C:\Python314\python.exe'}
-          & $py -m pip install --disable-pip-version-check --quiet yt-dlp imageio-ffmpeg
-          $ffmpeg=(& $py -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())").Trim()
-          if(-not (Test-Path $ffmpeg)){throw 'bundled ffmpeg missing'}
-          $url='https://www.facebook.com/cityofsantaclarita/videos/live-city-council-meeting-september-8-2026/1005635865869366'
+          & $py -m pip install --disable-pip-version-check --quiet imageio-ffmpeg
           $dir='C:\Users\AwesomeKai\mach\state\seen\fb-review'
-          New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          Get-ChildItem $dir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-
-          & $py -m yt_dlp --skip-download --write-auto-subs --sub-langs en_US --sub-format srt --no-warnings -o "$dir\meeting.%(ext)s" $url
-          $srt=Get-ChildItem $dir -Filter '*.srt' | Select-Object -First 1
-          if(-not $srt){throw 'auto captions missing'}
-
-          $parser=Join-Path $dir 'parse.py'
-          @'
-          import json,re,sys
-          from pathlib import Path
-          p=Path(sys.argv[1]); out=Path(sys.argv[2])
-          raw=p.read_text(encoding='utf-8',errors='replace')
-          def sec(t):
-              h,m,sms=t.split(':'); s,ms=sms.split(','); return int(h)*3600+int(m)*60+int(s)+int(ms)/1000
-          blocks=[]
-          for chunk in re.split(r'\n\s*\n',raw.strip()):
-              lines=[x.strip() for x in chunk.splitlines() if x.strip()]
-              if len(lines)<3 or '-->' not in lines[1]: continue
-              a,b=[x.strip() for x in lines[1].split('-->')[:2]]
-              text=re.sub(r'<[^>]+>',' ',' '.join(lines[2:])); text=re.sub(r'\s+',' ',text).strip()
-              blocks.append({'start':sec(a),'end':sec(b),'text':text})
-          pats=[('flock',12),('automatic license',12),('license plate',9),('alpr',10),('five hundred thousand',10),('500,000',10),('half a million',8),('hoa',9),('startup',7),('start up',7),('lyons',7),('i-5',6),('shopping centers',5),('neighborhoods',3),('hidden',3),('camera',2)]
-          hits=[]
-          for i,b in enumerate(blocks):
-              t=b['text'].lower(); score=sum(w for q,w in pats if q in t)
-              if score: hits.append({'i':i,'start':b['start'],'end':b['end'],'score':score,'text':b['text']})
-          if not hits:
-              for i,b in enumerate(blocks):
-                  t=b['text'].lower(); score=sum(w for q,w in [('license',5),('plate',4),('police',2),('privacy',3),('city hall',2)] if q in t)
-                  if score: hits.append({'i':i,'start':b['start'],'end':b['end'],'score':score,'text':b['text']})
-          if not hits: raise SystemExit('no speech match in captions')
-          hits.sort(key=lambda x:x['start'])
-          clusters=[]; cur=[hits[0]]
-          for h in hits[1:]:
-              if h['start']-cur[-1]['start'] <= 240: cur.append(h)
-              else: clusters.append(cur); cur=[h]
-          clusters.append(cur)
-          def cscore(c): return sum(x['score'] for x in c)+2*len(c)
-          best=max(clusters,key=cscore)
-          anchor=min(x['start'] for x in best); tail=max(x['end'] for x in best)
-          start=max(0,anchor-45); end=min(max(tail+75,start+230),start+330)
-          chosen=[b for b in blocks if b['end']>=start and b['start']<=end]
-          words=sum(len(re.findall(r"\b[\w']+\b",b['text'])) for b in chosen)
-          mins=max((end-start)/60,0.01)
-          packet={'status':'matched','srt_file':p.name,'hit_count':len(hits),'top_hits':sorted(hits,key=lambda x:x['score'],reverse=True)[:20],'cluster_score':cscore(best),'start':round(start,3),'end':round(end,3),'duration':round(end-start,3),'caption_words':words,'caption_wpm':round(words/mins,1),'transcript':chosen}
-          out.write_text(json.dumps(packet,ensure_ascii=False,indent=2),encoding='utf-8')
-          '@ | Set-Content -LiteralPath $parser -Encoding utf8
-          $packetPath=Join-Path $dir 'packet.json'
-          & $py $parser $srt.FullName $packetPath
-          $pkt=Get-Content -Raw $packetPath | ConvertFrom-Json
-          $start=[double]$pkt.start; $end=[double]$pkt.end
-
-          & $py -m yt_dlp --ffmpeg-location $ffmpeg --no-warnings -f 'sd/best[height<=640]/best' --download-sections "*$start-$end" --force-keyframes-at-cuts -o "$dir\speech.%(ext)s" $url
-          $clip=Get-ChildItem $dir -File | Where-Object {$_.Name -match '^speech\.' -and $_.Extension -in '.mp4','.mkv','.webm'} | Select-Object -First 1
-          if(-not $clip){throw 'speech clip missing'}
-
+          $packet=Join-Path $dir 'packet.json'
+          $clip=Join-Path $dir 'speech.mp4'
           $sheet=Join-Path $dir 'sheet.jpg'
-          & $ffmpeg -hide_banner -loglevel error -y -i $clip.FullName -vf "fps=1/12,scale=360:-2,tile=5x5:padding=4:margin=4" -frames:v 1 $sheet
-          if(-not (Test-Path $sheet)){throw 'sheet missing'}
-
-          $vol=& $ffmpeg -hide_banner -i $clip.FullName -af volumedetect -f null NUL 2>&1 | Out-String
-          $sil=& $ffmpeg -hide_banner -i $clip.FullName -af "silencedetect=noise=-35dB:d=0.35" -f null NUL 2>&1 | Out-String
-          $silStarts=[regex]::Matches($sil,'silence_start:\s*([0-9.]+)') | ForEach-Object {[double]$_.Groups[1].Value}
-          $silEnds=[regex]::Matches($sil,'silence_end:\s*([0-9.]+)') | ForEach-Object {[double]$_.Groups[1].Value}
-          $silDur=0.0
-          for($i=0;$i -lt [Math]::Min($silStarts.Count,$silEnds.Count);$i++){$silDur += [Math]::Max(0,$silEnds[$i]-$silStarts[$i])}
-          $mean='';$max=''
-          $m=[regex]::Match($vol,'mean_volume:\s*([^\r\n]+)');if($m.Success){$mean=$m.Groups[1].Value.Trim()}
-          $m=[regex]::Match($vol,'max_volume:\s*([^\r\n]+)');if($m.Success){$max=$m.Groups[1].Value.Trim()}
-          $pkt | Add-Member -NotePropertyName media_file -NotePropertyValue $clip.Name -Force
-          $pkt | Add-Member -NotePropertyName mean_volume -NotePropertyValue $mean -Force
-          $pkt | Add-Member -NotePropertyName max_volume -NotePropertyValue $max -Force
-          $pkt | Add-Member -NotePropertyName silence_events -NotePropertyValue $silStarts.Count -Force
-          $pkt | Add-Member -NotePropertyName silence_seconds -NotePropertyValue ([Math]::Round($silDur,2)) -Force
-          $pkt | Add-Member -NotePropertyName silence_fraction -NotePropertyValue ([Math]::Round($silDur/[Math]::Max(1,[double]$pkt.duration),3)) -Force
-          $pkt | Add-Member -NotePropertyName sheet_frames -NotePropertyValue 25 -Force
-          [IO.File]::WriteAllText($packetPath,($pkt|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
-          $b64=[Convert]::ToBase64String([IO.File]::ReadAllBytes($sheet))
-          $b64path=Join-Path $dir 'sheet.b64.txt'
-          [IO.File]::WriteAllText($b64path,$b64,[Text.UTF8Encoding]::new($false))
+          if(-not (Test-Path $packet)){throw 'packet checkpoint missing'}
+          if(-not (Test-Path $clip)){throw 'clip checkpoint missing'}
+          $final=Join-Path $dir 'finalize.py'
+          @'
+          import base64,json,re,subprocess,sys
+          from pathlib import Path
+          import imageio_ffmpeg
+          d=Path(sys.argv[1]); packet=d/'packet.json'; clip=d/'speech.mp4'; sheet=d/'sheet.jpg'
+          ff=imageio_ffmpeg.get_ffmpeg_exe()
+          if not sheet.exists():
+              subprocess.run([ff,'-hide_banner','-loglevel','error','-y','-i',str(clip),'-vf','fps=1/12,scale=360:-2,tile=5x5:padding=4:margin=4','-frames:v','1',str(sheet)],check=True)
+          pkt=json.loads(packet.read_text(encoding='utf-8'))
+          vol=subprocess.run([ff,'-hide_banner','-i',str(clip),'-af','volumedetect','-f','null','NUL'],capture_output=True,text=True)
+          sil=subprocess.run([ff,'-hide_banner','-i',str(clip),'-af','silencedetect=noise=-35dB:d=0.35','-f','null','NUL'],capture_output=True,text=True)
+          vt=(vol.stdout or '')+(vol.stderr or '')
+          st=(sil.stdout or '')+(sil.stderr or '')
+          starts=[float(x) for x in re.findall(r'silence_start:\s*([0-9.]+)',st)]
+          ends=[float(x) for x in re.findall(r'silence_end:\s*([0-9.]+)',st)]
+          sd=sum(max(0,b-a) for a,b in zip(starts,ends))
+          mm=re.search(r'mean_volume:\s*([^\r\n]+)',vt); mx=re.search(r'max_volume:\s*([^\r\n]+)',vt)
+          pkt.update({
+            'media_file':clip.name,'mean_volume':mm.group(1).strip() if mm else '',
+            'max_volume':mx.group(1).strip() if mx else '',
+            'silence_events':len(starts),'silence_seconds':round(sd,2),
+            'silence_fraction':round(sd/max(1,float(pkt.get('duration',1))),3),
+            'sheet_frames':25
+          })
+          packet.write_text(json.dumps(pkt,ensure_ascii=False,indent=2),encoding='utf-8')
+          (d/'sheet.b64.txt').write_text(base64.b64encode(sheet.read_bytes()).decode('ascii'),encoding='ascii')
+          '@ | Set-Content -LiteralPath $final -Encoding utf8
+          & $py $final $dir
 
           function PutBus([string]$path,[byte[]]$bytes){
             $uri="https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path"
@@ -112,5 +62,5 @@ jobs:
             $b=@{message='facebook speech review packet';branch='mach-live-bus';content=[Convert]::ToBase64String($bytes)};if($sha){$b.sha=$sha}
             Invoke-RestMethod -Headers $h -Uri $uri -Method Put -ContentType 'application/json' -Body ($b|ConvertTo-Json -Compress) -TimeoutSec 30|Out-Null
           }
-          PutBus 'fb-review.json' ([IO.File]::ReadAllBytes($packetPath))
-          PutBus 'fb-sheet.b64.txt' ([IO.File]::ReadAllBytes($b64path))
+          PutBus 'fb-review.json' ([IO.File]::ReadAllBytes($packet))
+          PutBus 'fb-sheet.b64.txt' ([IO.File]::ReadAllBytes((Join-Path $dir 'sheet.b64.txt')))
