@@ -1,0 +1,91 @@
+name: ChatGPT bounded local one-seat ingress
+
+on:
+  push:
+    paths:
+      - '.github/workflows/chatgpt-one-seat-selfhosted-now.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ingress:
+    runs-on: self-hosted
+    timeout-minutes: 3
+    steps:
+      - name: Attach ChatGPT seat and submit go
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $base='http://127.0.0.1:8798'
+          $occ='gpt56sol-chatgpt-live'
+          function GetJ([string]$p) {
+            Invoke-RestMethod -UseBasicParsing -Uri ($base+$p) -TimeoutSec 4
+          }
+          function PostJ([string]$p,$o) {
+            Invoke-RestMethod -UseBasicParsing -Method Post -Uri ($base+$p) -ContentType 'application/json' -Body ($o|ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 4
+          }
+          function Seat($x) {
+            if($null -ne $x.seat) { return $x.seat }
+            return $x
+          }
+
+          Write-Output 'CHATGPT_ONE_SEAT_LOCAL_BEGIN'
+          $raw0=GetJ '/seat/head'
+          $before=Seat $raw0
+          Write-Output ('BEFORE='+($raw0|ConvertTo-Json -Depth 10 -Compress))
+          $old=[string]$before.active_occupant
+          if($old -match '(?i)claude|anthropic') {
+            try {
+              $det=PostJ '/seat/detach' @{occupant=$old}
+              Write-Output ('DETACH='+($det|ConvertTo-Json -Depth 8 -Compress))
+            } catch {
+              Write-Output ('DETACH_ERROR='+$_.Exception.Message)
+            }
+          }
+
+          $attach=PostJ '/seat/attach' @{
+            occupant=$occ
+            capabilities=@{
+              source='chatgpt'
+              model='gpt-5.6-sol'
+              transport='selfhosted-local-bounded'
+              direct_developer=$true
+              provider_neutral_seat=$true
+            }
+          }
+          Write-Output ('ATTACH='+($attach|ConvertTo-Json -Depth 8 -Compress))
+          $touch=PostJ '/seat/touch' @{occupant=$occ}
+          Write-Output ('TOUCH='+($touch|ConvertTo-Json -Depth 8 -Compress))
+
+          $raw1=GetJ '/seat/head'
+          $h1=Seat $raw1
+          $input0=[int64]($h1.input_seq)
+          $output0=[int64]($h1.output_seq)
+          $inp=PostJ '/seat/input' @{
+            text='go'
+            source='chatgpt'
+            kind='text'
+            metadata=@{ingress='selfhosted-local-bounded'}
+          }
+          Write-Output ('INPUT='+($inp|ConvertTo-Json -Depth 8 -Compress))
+
+          $accepted=$false
+          $last=$null
+          for($i=0; $i -lt 20; $i++) {
+            Start-Sleep -Milliseconds 500
+            $raw=GetJ '/seat/head'
+            $last=Seat $raw
+            $a=[string]$last.active_occupant
+            $iq=[int64]($last.input_seq)
+            $oq=[int64]($last.output_seq)
+            Write-Output ("POLL[$i] occupant=$a input_seq=$iq output_seq=$oq")
+            if($a -eq $occ -and $iq -gt $input0) { $accepted=$true; break }
+          }
+          if(-not $accepted) { throw 'seat/input was not observed on active ChatGPT occupant' }
+
+          $finalRaw=GetJ '/seat/head'
+          $final=Seat $finalRaw
+          Write-Output ('FINAL='+($finalRaw|ConvertTo-Json -Depth 10 -Compress))
+          Write-Output ("CHATGPT_ONE_SEAT_READY active_occupant=$($final.active_occupant) input_seq=$($final.input_seq) output_seq=$($final.output_seq) baseline_output_seq=$output0")
